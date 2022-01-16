@@ -1,0 +1,25 @@
+<mat-card>
+    <form>
+        <h1>{{this.className}}</h1>
+    </form>
+    <form>
+        <table mat-table [dataSource]="varsArray">
+            <ng-container matColumnDef="leftColumn">
+                <td mat-cell *matCellDef="let var">
+                    <instance-var [instanceRef]="this.instanceData" [varName]="var" [varType]="classTypingData[var]"></instance-var>
+                </td>
+            </ng-container>
+            <ng-container matColumnDef="rightColumn">
+                <td mat-cell *matCellDef="let var">
+                    <instance-var [instanceRef]="this.instanceData" [varName]="var" [varType]="classTypingData[var]"></instance-var>
+                </td>
+              </ng-container>
+        </table>
+    </form>
+    <form *ngif="this.retrievalPending">
+        Loading...
+    </form>
+    <form *ngif="this.retrievalError">
+        Instance of class '{{this.className}}' with id '{{this.id}}' could not be found.
+    </form>
+</mat-card>

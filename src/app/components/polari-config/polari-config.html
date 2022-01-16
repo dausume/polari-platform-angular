@@ -1,0 +1,56 @@
+<mat-card>
+    <mat-card-title>Polari Connection Data</mat-card-title>
+    <form *ngif="this.polariService.connectionPendingSubject | async">
+        <mat-icon>autorenew</mat-icon>
+        Connection Pending
+    </form>
+    <form *ngIf="this.polariService.isConnectedSubject | async">
+        <mat-icon>check</mat-icon>
+        Connected
+    </form>
+    <form *ngIf="this.polariService.connectionFailureSubject | async">
+        <mat-icon>error</mat-icon>
+        Connection Failed!
+    </form>
+    <form>
+        <button mat-icon-button style="width: 80px;" (click)="attemptPolariConnection()">
+            Connect
+        </button>
+        <button mat-icon-button style="width: 80px;" (click)="disconnectFromPolari()">
+            Disconnect
+        </button>
+    </form>
+    <form>
+        <mat-form-field appearance="fill">
+            <input type="input" matInput [formControl]="ipNumFormControl" [(ngModel)]="ipNum" placeholder="000.000.0.00">
+            <mat-label>  Polari-Host's IP on Local Network</mat-label>
+        </mat-form-field>
+    </form>
+    <form *ngif="this.polariService.userEntry_ipv4NumSubject != ''">
+        <span> Current Value - {{this.polariService.userEntry_ipv4NumSubject | async}} </span>
+    </form>
+    <form>
+        <mat-form-field appearance="fill">
+            <input type="input" matInput [formControl]="portNumFormControl" [(ngModel)]="portNum" placeholder="0000">
+            <mat-label>  Polari-Host's Server Port Number</mat-label>
+        </mat-form-field>
+    </form>
+    <form *ngif="this.polariService.userEntry_ipv4NumSubject != ''">
+        <span> Current Value - {{this.polariService.userEntry_portNumSubject | async}} </span>
+    </form>
+    <form>
+        <mat-form-field appearance="fill">
+            Note: On connecting to a computer over wifi : 
+            For connecting to another computer over wifi, such as if you hosted the Polari Angular Frontend on one computer
+            and the Polari-Framework python backend on another.  Then you must ensure both computers are connected to the
+            same wifi, and that both have the wifi setting as private instead of public (this should only be done on a trusted home
+            or business network).  Only under these conditions can you use port number and IPV4 number of the given computers to connect
+            them.  In this case you must find the IPV4 in the internet settings of the computer hosting the Polari-Framework backend and
+            enter that value together with the port the backend is hosted on (default it 3000).
+        </mat-form-field>
+        <mat-form-field appearance="fill">
+            <mat-label>  Polari-Host's Base Server Data - Json Format </mat-label>
+            {{this.polariService.connectionDataSubject | async | json}}
+        </mat-form-field>
+    </form>
+</mat-card>

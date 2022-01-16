@@ -1,0 +1,24 @@
+mat-sidenav-container {
+    height: 100%
+  }
+  
+  mat-sidenav-content {
+    padding: 16px
+  }
+  
+  mat-sidenav {
+    background-color: rgb(58, 35, 0);
+    min-width: 200px;
+    width: auto;
+    max-width: 20%;
+    height:vmax;
+    padding: 16px;
+  }
+
+  router-outlet {
+    padding: 5px;
+  }
+
+  form {
+      background-color: white;
+  }

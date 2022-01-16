@@ -3,9 +3,22 @@
   "compileOnSave": false,
   "compilerOptions": {
     "baseUrl": "./",
+    "paths":{
+      "@models/*":["src/app/models/*"],
+      "@components/*":["src/app/components/*"],
+      "@providers/*":["src/app/providers/*"],
+      "@services/*":["src/app/services/*"],
+      "@app/*":["src/app/app/*"],
+      "@assets/*":["src/assets/*"],
+      "@environments/*":["src/app/environments/*"],
+      "@guards/*":["src/app/guards/*"],
+      "@angular/*":["node_modules/@angular/*"],
+      "@material/*":["src/app/material/*"]
+    },
     "outDir": "./dist/out-tsc",
     "forceConsistentCasingInFileNames": true,
     "strict": true,
+    "noImplicitAny": false,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "sourceMap": true,
