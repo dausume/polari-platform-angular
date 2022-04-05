@@ -18,8 +18,11 @@ import { HeaderComponent } from 'src/app/components/header/header';
 import { PolariConfigComponent } from '@components/polari-config/polari-config';
 import { NavigationComponent } from '@components/nav-component/nav-component';
 import { templateClassTableComponent } from '@components/templateClassTable/templateClassTable';
+import { ClassMainPageComponent }  from '@components/class-main-page/class-main-page';
+import { classInstanceSearchComponent } from '@components/class-instance-search/class-instance-search';
 //Services (Backend Access)
 import { PolariService } from '@services/polari-service';
+import { MatCardModule } from '@angular/material/card';
 
 @NgModule({
   declarations: [
@@ -28,7 +31,9 @@ import { PolariService } from '@services/polari-service';
     HeaderComponent,
     NavigationComponent,
     PolariConfigComponent,
-    templateClassTableComponent
+    templateClassTableComponent,
+    ClassMainPageComponent,
+    classInstanceSearchComponent
   ],
   imports: [
     BrowserModule,
@@ -41,7 +46,11 @@ import { PolariService } from '@services/polari-service';
     ReactiveFormsModule,
     MatTableModule,
     MatSortModule,
-    MatPaginatorModule
+    MatPaginatorModule,
+    MatCardModule
+  ],
+  exports: [
+    
   ],
   providers: [
     PolariService
@@ -54,7 +63,12 @@ import { PolariService } from '@services/polari-service';
 })
 export class AppModule {
   constructor(){
-    console.log("App Module constructor started.")
+    //console.log("App Module constructor started.")
+  }
+
+  ngOnInit()
+  {
+    console.log("In AppModule ngOnInit");
   }
 
   initializeApp() {

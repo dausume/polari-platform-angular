@@ -24,8 +24,8 @@ export class classInstanceSearchComponent {
           let paramsJSON = JSON.parse(paramsString)
           this.className = paramsJSON["className"]
         }
-        console.log("Params passed into polari-config component.")
-        console.log(paramsString)
+        //console.log("Params passed into polari-config component.")
+        //console.log(paramsString)
       },
       err => {
         console.log(err);

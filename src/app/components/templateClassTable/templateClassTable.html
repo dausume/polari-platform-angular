@@ -1,6 +1,7 @@
 <mat-card>
     <form>
-        <h1>{{className}}'s</h1>
+        <h1 *ngIf="className != undefined">{{className}} table</h1>
+        <h1 *ngIf="className == undefined">Required Input className to be used for table not set in host component</h1>
         <mat-table class="mat-elevation-z8" [dataSource]="instanceList" matSort>
             
             <ng-container class="pol-tbl-col" [matColumnDef]="column" *ngFor="let column of shownVars">

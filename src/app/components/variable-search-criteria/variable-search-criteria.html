@@ -1,0 +1,10 @@
+
+<form>
+    <span>{{varName}}</span>
+    <form *ngif="this.varType != ''">
+        <input matInput type="this.varType" value="">
+    </form>
+    <form  *ngif="this.varType == ''">
+        Type Undefined
+    </form>
+</form>

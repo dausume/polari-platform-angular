@@ -5,6 +5,7 @@ import { map } from 'rxjs/operators'
 //
 import { PolariConfigComponent } from '@components/polari-config/polari-config';
 import { PolariService } from '@services/polari-service';
+import {ClassTypingService} from '@services/class-typing-service'
 import { polariNode } from '@models/polariNode';
 
 
@@ -18,6 +19,7 @@ export class AppComponent {
   isConnected = false;
   router: Router
   polariService: PolariService
+  typingService: ClassTypingService
   title = 'polari-platform';
   currentComponentTitle = "Home";
   //For now we just set the user have basic authentication.
@@ -31,15 +33,12 @@ export class AppComponent {
   activeNavComponentsData: navComponent[];
   navComponentsFromPolari: navComponent[];
 
-  constructor(router: Router, polariService: PolariService)
+  constructor(router: Router, polariService: PolariService, typingService: ClassTypingService)
   {
     this.router = router
     this.polariService = polariService
+    this.typingService = typingService;
     this.navComponentsFromPolari = [];
-    //Attempt to get connection value from polariService
-    this.polariService.isConnectedSubject.subscribe(connectionVal => {
-      this.isConnected = connectionVal
-    })
     //Sets information on potential Navigation for the application with navComponent model instances.
     this.allNavComponentsData = [
       {
@@ -57,14 +56,29 @@ export class AppComponent {
         "authGroups":[]
       }
     ]
-    this.polariService.navComponents.subscribe(navList => {
-      this.navComponentsFromPolari = navList
-    })
+    
     this.activeNavComponentsData = []
     this.setActiveNavComponentsData()
   }
 
+  ngOnInit()
+  {
+    console.log("In app.component.ts ngOnInit");
+    //Attempt to get connection value from polariService
+    this.polariService.isConnectedSubject.subscribe(connectionVal => {
+      this.isConnected = connectionVal
+    });
+
+    this.typingService.navComponentsBehaviorSubject.subscribe(navList => {
+      this.navComponentsFromPolari = navList
+    });
+  }
+
   ngOnDestroy(){
+    //Attempt to get connection value from polariService
+    this.polariService.isConnectedSubject.unsubscribe();
+
+    this.polariService.navComponents.unsubscribe();
   }
 
   pageNav(navComp: navComponent)

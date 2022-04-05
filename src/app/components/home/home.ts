@@ -11,4 +11,9 @@ export class HomeComponent {
 
   }
 
+  ngOnInit()
+  {
+    console.log("In home ngOnInit");
+  }
+
 }

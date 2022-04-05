@@ -16,7 +16,7 @@ export class dataSetCollection {
     //Returns all dataSets of the given class from the dataSetCollection.
     public getClassDataSets(className:string)
     {
-        let dataSetList : dataSet[] = this.setCollection[0]["polariAPI"]
+        let dataSetList : dataSet[] = this.setCollection[0][className]
         return dataSetList;
     }
 
@@ -27,9 +27,13 @@ export class dataSetCollection {
         let classDataSets = this.getClassDataSets(className);
         //Gets a list of objects from the first dataSet.
         let instanceList : object[] = []
-        classDataSets.forEach((someDS : dataSet) =>{
-            instanceList = instanceList.concat(someDS["data"]);
-        });
+        if(classDataSets != undefined)
+        {
+            classDataSets.forEach((someDS : dataSet) =>{
+                instanceList = instanceList.concat(someDS["data"]);
+            });
+        }
+        
         return instanceList;
     }
 

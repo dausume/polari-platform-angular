@@ -8,7 +8,7 @@ mat-sidenav-container {
   
   mat-sidenav {
     background-color: rgb(58, 35, 0);
-    min-width: 200px;
+    min-width: 350px;
     width: auto;
     max-width: 20%;
     height:vmax;

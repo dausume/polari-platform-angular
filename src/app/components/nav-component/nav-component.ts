@@ -21,8 +21,8 @@ export class NavigationComponent {
 
   constructor(public newNavComp: navComponent) {
     this.navComp = newNavComp;
-    console.log("New nav-comp created.");
-    console.log(this.navComp);
+    //console.log("New nav-comp created.");
+    //console.log(this.navComp);
   }
 
   pageNav()

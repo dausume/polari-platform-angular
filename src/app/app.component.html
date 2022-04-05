@@ -1,17 +1,7 @@
 <mat-sidenav-container>
     <header [currentComponentTitle]="currentComponentTitle"></header>
     <mat-sidenav [(opened)]="sideNavOpened" #sidenav mode="side" >
-        Sidenav content
-        <mat-nav-list>
-            List of objects
-            <mat-list-item *ngFor="let navComp of activeNavComponentsData">
-               <button mat-icon-button (click)="pageNav(navComp)">
-                  {{ navComp.title }}
-               </button>
-            </mat-list-item>
-          </mat-nav-list>
           <mat-nav-list>
-            Service-based List of objects
             <mat-list-item *ngFor="let navComp of navComponentsFromPolari">
                <button mat-icon-button (click)="pageNav(navComp)">
                   {{ navComp.title }}

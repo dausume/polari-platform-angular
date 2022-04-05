@@ -30,8 +30,8 @@ export class InstanceComponent {
           this.className = paramsJSON["className"]
           this.id = paramsJSON["id"];
         }
-        console.log("Params passed into polari-config component.")
-        console.log(paramsString)
+        //console.log("Params passed into polari-config component.")
+        //console.log(paramsString)
       },
       err => {
         console.log(err);
