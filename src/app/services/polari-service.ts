@@ -16929,7 +16929,7 @@ export class PolariService {
         this.serverCRUDEendpoints.next(coreData.getClassInstanceList("polariCRUDE"));
         this.polyTypedObjectsData.next(coreData.getClassInstanceList("polyTypedObject"));
         console.log("polyTypedObjectsData: ", this.polyTypedObjectsData.value);
-        this.polyTypedVarsData.next(coreData.getClassInstanceList("polyTypedVars"));
+        this.polyTypedVarsData.next(coreData.getClassInstanceList("polyTypedVariable"));
     }
     
     //Sets the baseline connection with the Polari Server and retrieves all necessary APIs and Typing data for creating

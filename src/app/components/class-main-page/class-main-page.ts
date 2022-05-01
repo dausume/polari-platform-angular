@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
 import { PolariService } from '@services/polari-service';
 import { ClassTypingService } from '@services/class-typing-service';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'class-main-page',
@@ -11,7 +12,7 @@ import { ClassTypingService } from '@services/class-typing-service';
 export class ClassMainPageComponent {
 
   className? : string = "name";
-  typeInfo? : any;
+  classTypeData? : any;
 
   constructor(private route : ActivatedRoute, private router : Router, protected polariService: PolariService, protected typingService: ClassTypingService) 
   {
@@ -33,11 +34,12 @@ export class ClassMainPageComponent {
       }
     );
     this.typingService.polyTypingBehaviorSubject
-    .subscribe(typingDict => {
+    .subscribe(polyTyping => {
       console.log("typing dict retrieved");
-      if(this.className != null)
+      console.log(polyTyping);
+      if(this.className != undefined)
       {
-        typingDict[this.className]
+        this.classTypeData = polyTyping[this.className];
       }
       else
       {
@@ -45,6 +47,8 @@ export class ClassMainPageComponent {
       }
     }
   );
+  console.log("ClassTypeData on ClassMainPage for ", this.className);
+  console.log(this.classTypeData);
   }
 
 }

@@ -19,6 +19,8 @@ export class ClassTypingService {
     //Holds the complete form of the polyTyping objects where polyTypedVars have been combined into the polyTypedObjects.
     //Form:  { "className": polyTypedObjOfClass, ... }
     polyTyping : object = {};
+    //Holds the polyTypedVariables for the given class.
+    polyVarTyping : object = {};
     //
     navComponents : navComponent[] = [
         new navComponent("Home","","HomeComponent", {}, []),
@@ -49,13 +51,26 @@ export class ClassTypingService {
                 }
                 else
                 {
-                    console.log("Adding ", typeObj.className, " typing.")
+                    //console.log("Adding ", typeObj.className, " typing.")
                     //After setting it, we should ask for the variables again to make sure relevant variable typing is added.
                     //Make momentary subscription to retrieve variable typing for the new object type recorded, then unsubscribe it.
+                    console.log("Attempting to add polyTypedVars data for ",typeObj.className);
                     this.polariService.polyTypedVarsData.subscribe((varTypingList:variablePolyTyping[])=>{
+                        //console.log("--varTypingList--");
+                        //console.log(varTypingList);
+                        let matchCount = 0;
                         varTypingList.forEach((varTyping:variablePolyTyping)=>{
+                            
+                            if(matchCount <= 2)
+                            {
+                                console.log("Found match for object: ",typeObj.className );
+                                console.log(varTyping); 
+                                matchCount +=1;
+                            }
+                            
                             if(varTyping.objectName == typeObj.className)
                             {
+                                
                                 if(varTyping.variableName != null && typeObj.variableNames != null)
                                 {
                                     if(!(varTyping.variableName in typeObj.variableNames))
@@ -64,11 +79,13 @@ export class ClassTypingService {
                                     }
                                     typeObj.variables?.push(varTyping);
                                 }
+                                
                             }
                         });
                     }).unsubscribe();
                     //The typing object is not recorded yet so we simply set it to exist after having retrieved known variables.
                     this.polyTyping[typeObj.className] = typeObj;
+                    this.polyTypingBehaviorSubject.next(this.polyTyping);
                     //setup the navComponent for the new type
                     
                     let className = "";
@@ -96,8 +113,8 @@ export class ClassTypingService {
                 }
             })
         });
-        console.log("updated nav components to follow");
-        console.log(this.navComponents);
+        //console.log("updated nav components to follow");
+        //console.log(this.navComponents);
         //Subscribe to the data on polariService related to typing in order to get it's data as necessary.
         //Whenever an update occurs for a variableTyping we check the exisiting objects and set any variable values to their newer
         //version (regardless if there was an update to that variable or not)
@@ -120,8 +137,8 @@ export class ClassTypingService {
                 });
             });
         });
-        console.log("polyTyping at end of class-typing constructor")
-        console.log(this.polyTyping);
+        //console.log("polyTyping at end of class-typing constructor")
+        //console.log(this.polyTyping);
     }
 
     //Directly gets the typing of the desired class in a synchronous manner

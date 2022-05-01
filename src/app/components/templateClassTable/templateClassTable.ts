@@ -26,6 +26,9 @@ export class templateClassTableComponent {
   @Input()
   className?: string;
 
+  @Input()
+  classTypeData?: any;
+
   formattedClassName?: string;
 
   //Filter to be applied on the data being requested.
@@ -36,45 +39,41 @@ export class templateClassTableComponent {
   //@Input()
   shownVars?: string[] = [];
 
+  polyVarRefs: objectReference[] = [];
+
   constructor()
   {
     //private polService : PolariService
     this.instanceList = [];
     //this.testBaseDataSet.getClassInstanceList(this.className);
-    //console.log(this.instanceList);
+    
     //console.log(this.shownVars);
   }
 
   ngOnInit()
   {
-    this.formattedClassName = this.className;
-    console.log("In class table ngOnInit");
-  }
-
-  getType(value)
-  {
-      console.log("getting type of value: ", value)
-    let typeString : string = "undefined";
-    if(Array.isArray(value))
+    //Get a list of object references to polyTypedVars that sould be retrieved.
+    let varsList = this.classTypeData.polyTypedVars[0].polariList;
+    for(let someVarIndex in varsList)
     {
-        console.log("is array");
-        if(objectReference.isReferenceJson(value))
+        let typeString : String = varsList[someVarIndex][0];
+        //START From here down is the start of the data extraction process for Class Instance References.
+        let refClassName : String|null = null;
+        let refVar : objectReference|null = null;
+        if(typeString.startsWith("CLASS-"))
         {
-            console.log("is objectReference");
-            return "objectReference";
+          refVar = new objectReference(varsList[someVarIndex]);
+          this.polyVarRefs.push(refVar)
         }
-        return "array";
     }
-    else if(typeof value === 'string')
-    {
-        console.log("is string");
-        return 'string';
-    }
-    else if(value == null)
-    {
-        return 'null';
-    }
-    return typeString;
+    this.formattedClassName = this.className;
+    console.log("-- PolyTypedVar References --");
+    console.log(this.polyVarRefs);
+    console.log("Reached end of class table ngOnInit");
   }
 
+  getType(typeToGet:string)
+  {
+    
+  }
 }
