@@ -42,7 +42,7 @@ export class ClassTypingService {
         .subscribe((typingObjList:classPolyTyping[])=>{
             //console.log("subscribe action to object typing on type-service with value: ", typingObjList);
             typingObjList.forEach((typeObj:classPolyTyping)=>{
-                //console.log("iterating typeObj: ", typeObj)
+                let varTypingDict = {};
                 if(typeObj.className in Object.keys(this.polyTyping))
                 {
                     console.log("Skipping ", typeObj.className, " typing because it is already recorded.")
@@ -56,37 +56,20 @@ export class ClassTypingService {
                     //Make momentary subscription to retrieve variable typing for the new object type recorded, then unsubscribe it.
                     console.log("Attempting to add polyTypedVars data for ",typeObj.className);
                     this.polariService.polyTypedVarsData.subscribe((varTypingList:variablePolyTyping[])=>{
-                        //console.log("--varTypingList--");
-                        //console.log(varTypingList);
-                        let matchCount = 0;
-                        varTypingList.forEach((varTyping:variablePolyTyping)=>{
-                            
-                            if(matchCount <= 2)
+                        let varObjectName = "";
+                        let formattedVar : variablePolyTyping;
+                        varTypingList.forEach((varTyping:any)=>{
+                            varObjectName = variablePolyTyping.getClassName(varTyping);
+                            if(varObjectName == typeObj.className)
                             {
-                                console.log("Found match for object: ",typeObj.className );
-                                console.log(varTyping); 
-                                matchCount +=1;
-                            }
-                            
-                            if(varTyping.objectName == typeObj.className)
-                            {
-                                
-                                if(varTyping.variableName != null && typeObj.variableNames != null)
-                                {
-                                    if(!(varTyping.variableName in typeObj.variableNames))
-                                    {
-                                        typeObj.variableNames?.push(varTyping.variableName);
-                                    }
-                                    typeObj.variables?.push(varTyping);
-                                }
-                                
+                                //console.log("Found match for object: ",typeObj.className );
+                                //console.log(varTyping); 
+                                formattedVar = new variablePolyTyping(varObjectName, varTyping.name, varTyping.pythonTypeDefault)
+                                varTypingDict[varTyping.variableName] = formattedVar;
                             }
                         });
                     }).unsubscribe();
-                    //The typing object is not recorded yet so we simply set it to exist after having retrieved known variables.
-                    this.polyTyping[typeObj.className] = typeObj;
-                    this.polyTypingBehaviorSubject.next(this.polyTyping);
-                    //setup the navComponent for the new type
+                    
                     
                     let className = "";
                     let nameLen = typeObj.className.length
@@ -107,6 +90,15 @@ export class ClassTypingService {
                         }
                         priorLetter = typeObj.className[i];
                     }
+                    //The typing object is not recorded yet so we simply set it to exist after having retrieved known variables.
+                    //this.polyTyping[typeObj.className] = typeObj;
+                    //console.log("finalized typeObj: ");
+                    //console.log(typeObj);
+
+                    this.polyTyping[typeObj.className] = new classPolyTyping(typeObj.className, varTypingDict, className) ;
+                    console.log(this.polyTyping[typeObj.className]);
+                    this.polyTypingBehaviorSubject.next(this.polyTyping);
+                    //setup the navComponent for the new type
                     let navComp : navComponent = new navComponent(className + " Main Page", "class-main-page/"+typeObj.className, "ClassMainPageComponent");
                     //Add the nav component for the class
                     this.navComponents.push(navComp);
@@ -118,24 +110,22 @@ export class ClassTypingService {
         //Subscribe to the data on polariService related to typing in order to get it's data as necessary.
         //Whenever an update occurs for a variableTyping we check the exisiting objects and set any variable values to their newer
         //version (regardless if there was an update to that variable or not)
-        let typeObj : classPolyTyping;
-        this.varTypingSubscription = this.polariService.polyTypedVarsData.subscribe((varTypingList:variablePolyTyping[])=>{
-            varTypingList.forEach((varTyping:variablePolyTyping)=>{
+        let varTypingDict = {};
+        this.varTypingSubscription = this.polariService.polyTypedVarsData.subscribe((varTypingList:any[])=>{
+            varTypingList.forEach((varTyping:any)=>{
                 Object.keys(this.polyTyping).forEach((className:string)=>{
-                    typeObj = this.polyTyping[className];
-                    if(varTyping.objectName == typeObj.className)
+                    varTypingDict = {}
+                    let varObjectName = "";
+                    let formattedVar : variablePolyTyping;
+                    varObjectName = variablePolyTyping.getClassName(varTyping);
+                    if(varObjectName == className)
                     {
-                        if(varTyping.variableName != null && typeObj.variableNames != null)
-                        {
-                            if(!(varTyping.variableName in typeObj.variableNames))
-                            {
-                                typeObj.variableNames?.push(varTyping.variableName);
-                            }
-                            typeObj.variables?.push(varTyping);
-                        }
+                        formattedVar = new variablePolyTyping(varObjectName, varTyping.name, varTyping.pythonTypeDefault)
+                        this.polyTyping[className].completeVariableTypingData[formattedVar.variableName] = formattedVar;
                     }
                 });
             });
+            this.polyTypingBehaviorSubject.next(this.polyTyping);
         });
         //console.log("polyTyping at end of class-typing constructor")
         //console.log(this.polyTyping);
@@ -168,5 +158,7 @@ export class ClassTypingService {
         {
             this.varTypingSubscription.unsubscribe();
         }
-    }   
+    }
+
+    
 }
