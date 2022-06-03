@@ -45,9 +45,6 @@ export class templateClassTableComponent {
   {
     //private polService : PolariService
     this.instanceList = [];
-    //this.testBaseDataSet.getClassInstanceList(this.className);
-    
-    //console.log(this.shownVars);
   }
 
   ngOnInit()

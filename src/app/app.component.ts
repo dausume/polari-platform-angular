@@ -65,7 +65,7 @@ export class AppComponent {
   {
     console.log("In app.component.ts ngOnInit");
     //Attempt to get connection value from polariService
-    this.polariService.isConnectedSubject.subscribe(connectionVal => {
+    this.polariService.connectionSuccessSubject.subscribe(connectionVal => {
       this.isConnected = connectionVal
     });
 
@@ -76,7 +76,7 @@ export class AppComponent {
 
   ngOnDestroy(){
     //Attempt to get connection value from polariService
-    this.polariService.isConnectedSubject.unsubscribe();
+    this.polariService.connectionSuccessSubject.unsubscribe();
 
     this.polariService.navComponents.unsubscribe();
   }

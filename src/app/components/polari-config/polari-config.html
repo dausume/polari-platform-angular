@@ -4,7 +4,7 @@
         <mat-icon>autorenew</mat-icon>
         Connection Pending
     </form>
-    <form *ngIf="this.polariService.isConnectedSubject | async">
+    <form *ngIf="this.polariService.connectionSuccessSubject | async">
         <mat-icon>check</mat-icon>
         Connected
     </form>

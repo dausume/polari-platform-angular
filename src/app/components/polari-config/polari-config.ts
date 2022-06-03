@@ -16,7 +16,7 @@ export class PolariConfigComponent {
   checkboxElemRef?: ElementRef
 
   connectionCheckboxFormGroup = new FormGroup({
-    updates:new FormControl(this.polariService.isConnectedSubject.pipe())
+    updates:new FormControl(this.polariService.connectionSuccessSubject.pipe())
   })
 
   polariConnection = false;
@@ -51,7 +51,7 @@ export class PolariConfigComponent {
       this.ipNum = ""
       this.portNum = ""
       /*
-      this.polariService.isConnectedSubject.subscribe(connectionVal=>{
+      this.polariService.connectionSuccessSubject.subscribe(connectionVal=>{
         console.log("isConnected Value: ");
         console.log(connectionVal);
         this.polariConnection = connectionVal;
@@ -73,7 +73,7 @@ export class PolariConfigComponent {
       "crudeAPIs":[],
       "polariAPIs":[]
     });
-    this.polariService.isConnectedSubject.next(false);
+    this.polariService.connectionSuccessSubject.next(false);
     this.polariService.connectionPendingSubject.next(false);
   }
 
