@@ -97,7 +97,7 @@ export class PolariService {
         {
             let someClass : string
             let allRequiredClassesAccounted = true;
-            for(someClass in classSwitchboard.keys())
+            for(someClass in Object.keys(classSwitchboard))
             {
                 if(someClass in requiredClassData)
                 {
