@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewInit, Type } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewInit, Type, SimpleChanges } from '@angular/core';
 import { FormControl, FormGroup } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { polariNode } from '@models/polariNode';
@@ -50,23 +50,29 @@ export class templateClassTableComponent {
   ngOnInit()
   {
     //Get a list of object references to polyTypedVars that sould be retrieved.
-    let varsList = this.classTypeData.polyTypedVars[0].polariList;
-    for(let someVarIndex in varsList)
-    {
-        let typeString : String = varsList[someVarIndex][0];
-        //START From here down is the start of the data extraction process for Class Instance References.
-        let refClassName : String|null = null;
-        let refVar : objectReference|null = null;
-        if(typeString.startsWith("CLASS-"))
-        {
-          refVar = new objectReference(varsList[someVarIndex]);
-          this.polyVarRefs.push(refVar)
-        }
-    }
+    let varsData = this.classTypeData.completeVariableTypingData;
+    let varsList = Object.keys(varsData);
     this.formattedClassName = this.className;
     console.log("-- PolyTypedVar References --");
     console.log(this.polyVarRefs);
     console.log("Reached end of class table ngOnInit");
+  }
+
+  ngOnChanges(changes: SimpleChanges)
+  {
+    console.log("Logging a change in an input value.");
+    console.log(changes);
+    console.log(this.className);
+    console.log(this.classTypeData);
+    //Get all of the keys (Variable Names) and use them to establish the headers.
+    let keys = Object.keys(this.classTypeData["completeVariableTypingData"]);
+    this.shownVars = [];
+    for (let key of keys) {
+      this.shownVars.push(key);
+    }
+    console.log(this.shownVars);
+    console.log(this.classTypeData["completeVariableTypingData"])
+    this.classTypeData["completeVariableTypingData"]
   }
 
   getType(typeToGet:string)

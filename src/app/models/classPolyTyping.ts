@@ -20,9 +20,17 @@ export class classPolyTyping {
     {
         this.className = className;
         this.displayClassName = displayClassName;
-        this.variableNames = variableNames;
-        this.polyTypedVars = polyTypedVars;
+        //this.polyTypedVars = polyTypedVars;
         this.variableTypes = variableTypes;
+        //Contains a list of all polyTypedVar objects
         this.completeVariableTypingData = completeVariableTypingData;
+        if(variableNames == undefined)
+        {
+            this.variableNames = Object.keys(this.completeVariableTypingData);
+        }
+        else
+        {
+            this.variableNames = variableNames;
+        }
     }
 }

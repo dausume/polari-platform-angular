@@ -1,15 +1,11 @@
-<mat-card>
+<mat-card style="display: flex; flex-wrap: nowrap;">
     <form>
-        <h1 *ngIf="className != undefined">{{className}} table</h1>
+        <h1 *ngIf="className != undefined" style="width: 100%">{{className}} table</h1>
         <h1 *ngIf="className == undefined">Required Input className to be used for table not set in host component</h1>
         <mat-table class="mat-elevation-z8" [dataSource]="instanceList" matSort>
-            
             <ng-container class="pol-tbl-col" [matColumnDef]="column" *ngFor="let column of shownVars">
-                <!-- *matHeaderCellDef-->
                 <th mat-header-cell *matHeaderCellDef mat-sort-header> {{column}} </th>
-                <!-- *matCellDef="let instance" {{instance[column]}}-->
                 <td mat-cell *matCellDef="let instance"> 
-                    <!--  -->
                     <a [ngSwitch]="getType(instance[column])">
                         <a *ngSwitchCase="'string'"> {{instance[column]}} </a>
                         <a *ngSwitchCase="'objectReference'"> objectReference </a>

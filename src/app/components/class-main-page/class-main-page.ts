@@ -20,6 +20,38 @@ export class ClassMainPageComponent {
   }
 
   //Url parameters are not passed until ngOnInit occurs
+  ngOnInit() {
+    this.route.paramMap
+      .subscribe(paramsMap => {
+        Object.keys(paramsMap['params']).forEach( param =>{
+          if(param == "class")
+          {
+            this.className = paramsMap["params"][param];
+          }
+        });
+  
+        this.typingService.polyTypingBehaviorSubject
+          .subscribe(polyTyping => {
+            console.log("typing dict retrieved in class main page");
+            console.log(polyTyping);
+            if(this.className != undefined)
+            {
+              this.classTypeData = polyTyping[this.className];
+              console.log("ClassTypeData on ClassMainPage for ", this.className);
+              console.log("ClassTypeData on ClassMainPage for ", polyTyping["completeVariableTypingData"]);
+            }
+            else
+            {
+              console.log("could not get typing info because class info was null.");
+            }
+          }
+        );
+      }
+    );
+    console.log(this.classTypeData);
+  }
+  
+  /*
   ngOnInit()
   {
     this.route.paramMap
@@ -35,11 +67,12 @@ export class ClassMainPageComponent {
     );
     this.typingService.polyTypingBehaviorSubject
     .subscribe(polyTyping => {
-      console.log("typing dict retrieved");
+      console.log("typing dict retrieved in class main page");
       console.log(polyTyping);
       if(this.className != undefined)
       {
         this.classTypeData = polyTyping[this.className];
+        console.log("ClassTypeData on ClassMainPage for ", this.className);
       }
       else
       {
@@ -47,8 +80,7 @@ export class ClassMainPageComponent {
       }
     }
   );
-  console.log("ClassTypeData on ClassMainPage for ", this.className);
   console.log(this.classTypeData);
   }
-
+  */
 }

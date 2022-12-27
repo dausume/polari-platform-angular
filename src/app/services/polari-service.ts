@@ -82,7 +82,6 @@ export class PolariService {
         this.connectionSuccessSubject.next(false);
         this.connectionFailureSubject.next(false);
         this.getObjectTyping();
-        this.getTypingVars();
         this.getServerAPIendpoints();
         this.getServerCRUDEendpoints();
         this.getServerData();
@@ -140,6 +139,7 @@ export class PolariService {
                     let tempSwitchBoard = this.classDataRetrievedSwitchboard.value;
                     tempSwitchBoard["polyTypedObject"] = true;
                     this.classDataRetrievedSwitchboard.next(tempSwitchBoard);
+                    this.getTypingVars();
                 }
                 catch (error)
                 {
@@ -169,8 +169,10 @@ export class PolariService {
         .get<any>('http://' + this.userEntry_ipv4NumSubject.value + ':' + this.userEntry_portNumSubject.value + '/polyTypedVariable', this.backendRequestOptions)
         .subscribe({
             next: response =>{
+                console.log("vars response: ", response);
                 let interpretedData = new dataSetCollection(response);
                 let instanceSet = interpretedData.getClassInstanceList("polyTypedVariable");
+                console.log("instance set: ", response);
                 try {
                     this.polyTypedVarsData.next(instanceSet);
                     let tempSwitchBoard = this.classDataRetrievedSwitchboard.value;

@@ -9,11 +9,43 @@ export class variablePolyTyping {
         this.objectName = objectName;
         this.variableName = variableName;
         this.variablePythonType = variablePythonType;
-        this.variableFrontendType = variableFrontendType;
+        if(this.variableFrontendType == undefined)
+        {
+            this.deriveFrontendTypeFromPythonType()
+        }
+        else
+        {
+            this.variableFrontendType = variableFrontendType
+        }
+    }
+
+    deriveFrontendTypeFromPythonType()
+    {
+        if(this.variablePythonType != undefined && this.variableFrontendType == undefined)
+        {
+            switch (this.variablePythonType) {
+                case "str":
+                    this.variableFrontendType = "string";
+                    break;
+
+                default:
+                    if(this.variablePythonType.startsWith("CLASS-"))
+                    {
+                        this.variableFrontendType = "reference";
+                    }
+                    break;
+            }
+        }
     }
 
     //Takes in a json formatted polyTyping object from the backend and retrieves the object's name from it's reference to it.
     static getClassName(passedVariableTyping:any)
+    {
+        return passedVariableTyping.polyTypedObj[1][0].tuple[0][0].tuple[1];
+    }
+
+    //Takes in a json formatted polyTyping object from the backend and retrieves the object's name from it's reference to it.
+    static getReferenceName(passedVariableTyping:any)
     {
         //console.log("In getClassName for variablePolyTyping instance");
         let stringRef : string = passedVariableTyping.polyTypedObj[0];

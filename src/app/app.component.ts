@@ -83,7 +83,6 @@ export class AppComponent {
 
   pageNav(navComp: navComponent)
   {
-    //console.log(navComp.path);
     this.currentComponentTitle = navComp.title
     this.router.navigateByUrl(navComp.path);
   }
