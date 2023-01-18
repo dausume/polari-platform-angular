@@ -1,0 +1,51 @@
+<mat-grid-list *ngFor="let variableDef of variableConfigDefs" cols="5" rowHeight="5:1">
+  <mat-grid-tile>
+    <mat-form-field>
+      <input type="input" matInput [formControl]="variableDef.varNameControl" [(ngModel)]="variableDef.varName" placeholder="Variable Name">
+      <mat-label>Variable Name</mat-label>
+    </mat-form-field>
+  </mat-grid-tile>
+  <mat-grid-tile>
+    <mat-form-field>
+      <input type="input" matInput [formControl]="variableDef.varDisplayNameControl" [(ngModel)]="variableDef.varDisplayName" placeholder="Variable Display Name">
+      <mat-label>Variable Display Name</mat-label>
+    </mat-form-field>
+  </mat-grid-tile>
+  <mat-grid-tile>
+      <mat-label>Select type</mat-label>
+      <mat-select mat-select [(ngModel)]="variableDef.varType" >
+        <mat-option *ngFor="let type of typesAllowed" [value]="type" (selectionChange)="setType(variableDef.varIndex, type)">{{type}}</mat-option>
+      </mat-select>
+  </mat-grid-tile>
+  <mat-grid-tile>
+    <mat-label *ngIf="variableDef.varType == 'Reference'">Select the class Referenced</mat-label>
+  </mat-grid-tile>
+  <mat-grid-tile>
+    <button mat-icon-button style="width: 80px;" (click)="removeVariable(variableDef.varIndex)" *ngIf="variableDef.varIndex != 1">
+      Remove
+    </button>
+  </mat-grid-tile>
+</mat-grid-list>
+
+<button mat-icon-button style="width: 80px;" (click)="addVariableDef()">
+  New Variable
+</button>
+
+<!--
+<mat-grid-list>
+  <mat-grid-tile>
+    <mat-form-field>
+      <input type="input" matInput [formControl]="varNameControl" [(ngModel)]="varName" placeholder="Variable Name">
+      <mat-label>Variable Name</mat-label>
+  </mat-form-field>
+  </mat-grid-tile>
+  <mat-grid-tile>
+    <mat-form-field>
+      <mat-label>Select a type</mat-label>
+        <mat-select [(ngModel)]="selectedType">
+        <mat-option *ngFor="let type of typesAllowed" [value]="type">{{type}}</mat-option>
+      </mat-select>
+    </mat-form-field>
+  </mat-grid-tile>
+</mat-grid-list>
+-->

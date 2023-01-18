@@ -1,4 +1,9 @@
-/* You can add global styles to this file, and also import other style files */
+/* Define a custom theme by overriding the default theme's variables */
+:root {
+    --primary-color: #424242;
+    --accent-color: #9f46cf;
+    --warn-color: #bb1f1f;
+}
 
 html, body { height: 100%; }
 body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }

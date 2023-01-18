@@ -1,0 +1,25 @@
+<mat-card>
+    <!-- Upper row -->
+    <mat-grid-list cols="3" rowHeight="3:1">
+        <mat-grid-tile>
+            <mat-form-field>
+                <input type="input" matInput [formControl]="classNameControl" [(ngModel)]="className" placeholder="Class Name">
+                <mat-label>Class Name</mat-label>
+            </mat-form-field>
+        </mat-grid-tile>
+        <mat-grid-tile>
+            <mat-form-field>
+                <input type="input" matInput [formControl]="classDisplayNameControl" [(ngModel)]="classDisplayName" placeholder="Class Display Name">
+                <mat-label>Class Display Name</mat-label>
+            </mat-form-field>
+        </mat-grid-tile>
+        <mat-grid-tile>
+            <button mat-icon-button style="width: 80px;" (click)="saveClass()">
+                Save Class
+            </button>
+        </mat-grid-tile>
+    </mat-grid-list>
+    <!-- Lower section -->
+    <variable-modifier>
+    </variable-modifier>    
+</mat-card>

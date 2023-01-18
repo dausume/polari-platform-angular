@@ -9,6 +9,11 @@ import { MaterialModule } from './material/material.module'
 import { MatTableModule } from '@angular/material/table';
 import { MatPaginatorModule } from '@angular/material/paginator';
 import { MatSortModule } from '@angular/material/sort';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatCardModule } from '@angular/material/card';
+import { MatGridListModule } from '@angular/material/grid-list';
+import { MatSelectModule  } from '@angular/material/select';
 //App Routing and App Base Component
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
@@ -20,9 +25,12 @@ import { NavigationComponent } from '@components/nav-component/nav-component';
 import { templateClassTableComponent } from '@components/templateClassTable/templateClassTable';
 import { ClassMainPageComponent }  from '@components/class-main-page/class-main-page';
 import { classInstanceSearchComponent } from '@components/class-instance-search/class-instance-search';
+import { CreateNewClassComponent } from '@components/create-new-class/create-new-class';
+import { VariableModifierComponent } from '@components/create-new-class/variable-modifier/variable-modifier';
 //Services (Backend Access)
 import { PolariService } from '@services/polari-service';
-import { MatCardModule } from '@angular/material/card';
+import { CRUDEservicesManager } from '@services/crude-services-manager';
+
 
 @NgModule({
   declarations: [
@@ -33,7 +41,9 @@ import { MatCardModule } from '@angular/material/card';
     PolariConfigComponent,
     templateClassTableComponent,
     ClassMainPageComponent,
-    classInstanceSearchComponent
+    classInstanceSearchComponent,
+    CreateNewClassComponent,
+    VariableModifierComponent
   ],
   imports: [
     BrowserModule,
@@ -47,13 +57,18 @@ import { MatCardModule } from '@angular/material/card';
     MatTableModule,
     MatSortModule,
     MatPaginatorModule,
-    MatCardModule
+    MatCardModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatGridListModule,
+    MatSelectModule
   ],
   exports: [
     
   ],
   providers: [
-    PolariService
+    PolariService,
+    CRUDEservicesManager
   ],
   bootstrap: [
     AppComponent,

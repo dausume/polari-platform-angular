@@ -4,7 +4,14 @@
         <h1 *ngIf="className == undefined">Required Input className to be used for table not set in host component</h1>
         <mat-table class="mat-elevation-z8" [dataSource]="instanceList" matSort>
             <ng-container class="pol-tbl-col" [matColumnDef]="column" *ngFor="let column of shownVars">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header> {{column}} </th>
+                <th mat-header-cell *matHeaderCellDef mat-sort-header> {{column}} 
+                    <p *ngIf="this.classTypeData['completeVariableTypingData'][column]['variableFrontendType'] != null">
+                        fe-type
+                    </p>
+                    <p *ngIf="this.classTypeData['completeVariableTypingData'][column]['variablePythonType'] != null">
+                        py-type
+                    </p>
+                </th>
                 <td mat-cell *matCellDef="let instance"> 
                     <a [ngSwitch]="getType(instance[column])">
                         <a *ngSwitchCase="'string'"> {{instance[column]}} </a>

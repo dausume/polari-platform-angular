@@ -44,7 +44,8 @@ export class PolariService {
     navComponents = new BehaviorSubject<navComponent[]>([
         new navComponent("Home","","HomeComponent", {}, []),
         new navComponent("Polari Configuration","polari-config","PolariConfigComponent", {}, []),
-        new navComponent("Template Class Test","template-class-test","templateClassTestComponent", {}, [])
+        new navComponent("Template Class Test","template-class-test","templateClassTestComponent", {}, []),
+        new navComponent("Create Class","create-class","CreateNewClassComponent", {}, [])
     ]);
     //Actual Recieved Data From base of Polari Server
     connectionDataSubject = new BehaviorSubject<any>({});
@@ -243,7 +244,7 @@ export class PolariService {
                 let interpretedData = new dataSetCollection(response);
                 let instanceSet = interpretedData.getClassInstanceList("polariAPI");
                 try {
-                    this.serverData.next(instanceSet);
+                    this.serverAPIendpoints.next(instanceSet);
                     let tempSwitchBoard = this.classDataRetrievedSwitchboard.value;
                     tempSwitchBoard["polariAPI"] = true;
                     this.classDataRetrievedSwitchboard.next(tempSwitchBoard);
@@ -276,7 +277,7 @@ export class PolariService {
                 let interpretedData = new dataSetCollection(response);
                 let instanceSet = interpretedData.getClassInstanceList("polariCRUDE");
                 try {
-                    this.serverData.next(instanceSet);
+                    this.serverCRUDEendpoints.next(instanceSet);
                     let tempSwitchBoard = this.classDataRetrievedSwitchboard.value;
                     tempSwitchBoard["polariCRUDE"] = true;
                     this.classDataRetrievedSwitchboard.next(tempSwitchBoard);

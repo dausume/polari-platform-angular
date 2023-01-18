@@ -7,6 +7,7 @@ import { PolariConfigComponent } from '@components/polari-config/polari-config';
 import { PolariService } from '@services/polari-service';
 import {ClassTypingService} from '@services/class-typing-service'
 import { polariNode } from '@models/polariNode';
+import { CRUDEservicesManager } from '@services/crude-services-manager';
 
 
 @Component({
@@ -18,45 +19,29 @@ export class AppComponent {
   sideNavOpened = false;
   isConnected = false;
   router: Router
+  //Connects to the polari node and retrieves/maintains the fundamental data on how the app functions.
   polariService: PolariService
+  //Pulls all class typing and var typing data and organizes it for use in components.
   typingService: ClassTypingService
+  crudeServicesManager: CRUDEservicesManager
   title = 'polari-platform';
   currentComponentTitle = "Home";
   //For now we just set the user have basic authentication.
   authGroupsChecked = ["BasicAuth", "PolariConnected"]
   //Gives a list of valid component templates to be generated
   validComponentTemplates = ["CRUDE-API-INFO", "API-INFO", "Node-Info", "Login", "Register", "Instance", "Object"]
-  //List of Components which have the potential to be navigated to.
-  allNavComponentsData: navComponent[];
   //List of Components which are confirmed for the given user to be able to navigate to.  Default allows pages accessible without
   //the need to login.  These pages include the Home Page, login, register, validate email, and Polari Configuration Page.
   activeNavComponentsData: navComponent[];
   navComponentsFromPolari: navComponent[];
 
-  constructor(router: Router, polariService: PolariService, typingService: ClassTypingService)
+  constructor(router: Router, polariService: PolariService, typingService: ClassTypingService, crudeServicesManager: CRUDEservicesManager)
   {
     this.router = router
     this.polariService = polariService
     this.typingService = typingService;
     this.navComponentsFromPolari = [];
-    //Sets information on potential Navigation for the application with navComponent model instances.
-    this.allNavComponentsData = [
-      {
-        "title":"Home",
-        "path":"",
-        "component":"HomeComponent",
-        "queryParams":{},
-        "authGroups":[]
-      },
-      {
-        "title":"Polari Configuration",
-        "path":"polari-config",
-        "component":"PolariConfigComponent",
-        "queryParams":{},
-        "authGroups":[]
-      }
-    ]
-    
+    this.crudeServicesManager = crudeServicesManager;    
     this.activeNavComponentsData = []
     this.setActiveNavComponentsData()
   }
@@ -103,25 +88,6 @@ export class AppComponent {
     let accessAuthorized = true
     let authorizedNavComponents : navComponent[]
     authorizedNavComponents = []
-    this.allNavComponentsData.forEach( (someNavComponent) => {
-      //A series of authentication groups and the client-side checks to see if they have previously passed those Authentication
-      //group requirements.  *Authentication is still preformed on the backend, so even though these client-side checks can be hacked,
-      // the page accessed as a result will still not render properly since the data will not be able to be accessed*
-      if(someNavComponent.authGroups != null)
-      {
-        accessAuthorized = someNavComponent.authGroups.every((someAuthGroup)=>{
-          if(!(someAuthGroup in this.authGroupsChecked))
-          {
-            return false
-          }
-          return true
-        });
-      }
-      if(accessAuthorized)
-      {
-        authorizedNavComponents.push(someNavComponent)
-      }
-    });
     //TODO: Narrow down access based on if component has AuthGuard or similar functionality which would prevent access.
     //Loop through all existing Nav components.
     authorizedNavComponents.forEach( (someNavComponent) => {

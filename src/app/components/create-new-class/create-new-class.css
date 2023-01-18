@@ -1,0 +1,19 @@
+.example-events {
+    width: 300px;
+    height: 200px;
+    overflow: auto;
+    border: 1px solid #555;
+}
+  
+
+.mat-form-field {
+    background-color: var(--primary-color);
+}
+
+.mat-input {
+    background-color: var(--text-outline-color);
+}
+
+.mat-input-element {
+    caret-color: var(--text-outline-color);
+}

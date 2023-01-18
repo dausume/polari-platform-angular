@@ -4,7 +4,7 @@ import { PolariService } from "./polari-service"
 
 //Create a service that utilizes any available Class on the Server's polari Node, using it's CRUDE API.
 @Injectable()
-export class ClassAccessService {
+export class CRUDEclassService {
     //Tracks the components or other services utilizing this class Service at a given moment.
     //After construction of the service, if this list becomes empty the service shuts down.
     serviceUtilizers: any;
@@ -22,6 +22,19 @@ export class ClassAccessService {
         this.http = http;
         this.polariService = polariService;
         this.className = className;
+        this.polariService.serverData.subscribe(
+            value => {
+                console.log("Successfully recieved APIs");
+              console.log(value);
+            },
+            error => {
+              console.error(error);
+            },
+            () => {
+              console.log('completed apis');
+            }
+          );
+          
         this.serviceUtilizers = {};
         //All permissions dictionaries for this user for this class
         this.permissionsDictionaries = {};
