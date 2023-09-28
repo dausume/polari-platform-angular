@@ -1,0 +1,16 @@
+<!-- no-code-state-instance.component.html -->
+
+<div>
+  <div>
+    <!-- Display stateInstance properties if needed -->
+    <p><strong>State Name:</strong> {{ stateInstance.stateName }}</p>
+    <p><strong>Class Name:</strong> {{ stateInstance.className }}</p>
+    <!-- Add more stateInstance properties as needed -->
+  </div>
+
+  <!-- Container for the D3.js-rendered box graph -->
+  <div #noCodeStateContainer class="box-graph-container"></div>
+
+  <!-- Include the no-code-state-border component -->
+  <no-code-state-border [stateInstance]="stateInstance"></no-code-state-border>
+</div>

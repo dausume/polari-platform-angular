@@ -6,6 +6,7 @@ import { PolariConfigComponent } from '@components/polari-config/polari-config';
 import { templateClassTableComponent } from '@components/templateClassTable/templateClassTable';
 import { ClassMainPageComponent } from '@components/class-main-page/class-main-page';
 import { CreateNewClassComponent } from '@components/create-new-class/create-new-class';
+import { CustomNoCodeComponent } from '@components/custom-no-code/custom-no-code';
 
 const routes: Routes = [
   { path: '', component: HomeComponent},
@@ -13,7 +14,8 @@ const routes: Routes = [
   { path: 'polari-config/:polariAccessNode', component: PolariConfigComponent},
   { path: 'template-class-test', component: templateClassTableComponent},
   { path: 'class-main-page/:class', component: ClassMainPageComponent},
-  { path: 'create-class', component: CreateNewClassComponent }
+  { path: 'create-class', component: CreateNewClassComponent },
+  { path: 'custom-no-code', component: CustomNoCodeComponent }
 ];
 
 @NgModule({

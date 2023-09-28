@@ -1,0 +1,63 @@
+  .no-code-state-border {
+    position: absolute;
+    opacity: 0.5;
+  }
+  
+  .border-line {
+    background-color: #ffffff;
+  }
+
+  .border-corner {
+    background-color: #000;
+    width: 12px;
+    height: 12px;
+  }
+  
+  .border-top-line {
+    top: -6px;
+    left: -6px;
+    width: calc(100% + 12px);
+    height: 12px;
+  }
+  
+  .border-right-line {
+    top: -6px;
+    right: -6px;
+    width: 12px;
+    height: calc(100% + 12px);
+  }
+  
+  .border-bottom-line {
+    bottom: -6px;
+    left: -6px;
+    width: calc(100% + 12px);
+    height: 12px;
+  }
+  
+  .border-left-line {
+    top: -6px;
+    left: -6px;
+    width: 12px;
+    height: calc(100% + 12px);
+  }
+  
+  .border-top-left-corner {
+    top: -6px;
+    left: -6px;
+  }
+  
+  .border-top-right-corner {
+    top: -6px;
+    right: -6px;
+  }
+  
+  .border-bottom-right-corner {
+    bottom: -6px;
+    right: -6px;
+  }
+  
+  .border-bottom-left-corner {
+    bottom: -6px;
+    left: -6px;
+  }
+  

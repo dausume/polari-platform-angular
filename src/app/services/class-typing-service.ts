@@ -26,7 +26,8 @@ export class ClassTypingService {
         new navComponent("Home","","HomeComponent", {}, []),
         new navComponent("Polari Configuration","polari-config","PolariConfigComponent", {}, []),
         new navComponent("Template Class Test","template-class-test","templateClassTestComponent", {}, []),
-        new navComponent("Create Class","create-class","CreateNewClassComponent", {}, [])
+        new navComponent("Create Class","create-class","CreateNewClassComponent", {}, []),
+        new navComponent("Custom No-Code","custom-no-code","CustomNoCodeComponent", {}, [])
     ]
     //
     navComponentsBehaviorSubject = new BehaviorSubject<navComponent[]>(this.navComponents);

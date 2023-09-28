@@ -1,0 +1,24 @@
+.square {
+    background-color: rgb(52, 16, 64);
+    height: 150px;
+    width: 200px;
+}
+
+.border {
+    pointer-events: stroke;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: 2px dashed transparent;
+    
+}
+
+.border:hover {
+    cursor: move;
+}
+
+.no-code-state-instance {
+    z-index:2;
+}

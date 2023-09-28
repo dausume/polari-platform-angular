@@ -1,13 +1,14 @@
 mat-sidenav-container {
-    height: 100%
+    height: 100%;
+    background-color: var(--primary-color);
   }
   
   mat-sidenav-content {
-    padding: 16px
+    padding: 16px;
   }
   
   mat-sidenav {
-    background-color: var(--accent-color);
+    background-color: var(--nav-color);
     min-width: 350px;
     width: auto;
     max-width: 20%;

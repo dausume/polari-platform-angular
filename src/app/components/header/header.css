@@ -11,3 +11,7 @@
 .header-page-button {
     padding: 15px 0 0 15px;
 }
+
+.mat-toolbar {
+    background-color: var(--nav-color);
+}

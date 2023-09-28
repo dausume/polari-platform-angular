@@ -1,0 +1,43 @@
+.no-code-container {
+    width: 1400px;
+    height: 1000px;
+    text-align: center;
+    overflow: auto;
+    border: 1px solid #555;
+    margin: 30px;
+}
+
+/* Add any custom CSS styling for the ngx-graph canvas here */
+.ngx-graph-canvas {
+    width: 100%;
+    height: 500px;
+    z-index: 1;
+  }
+
+  .no-code-container {
+    display: flex;
+    flex-direction: column;
+    width: 800px;
+    height: 600px;
+    position: relative;
+    z-index:1;
+  }
+  
+  .menu-container {
+    flex: 0 0 auto;
+    height: 50px; /* Adjust the height of the menu container as needed */
+    z-index:2;
+  }
+  
+  .ngx-graph-container {
+    flex: 1;
+    position: absolute;
+    overflow: hidden;
+    z-index:1;
+  }
+  
+  .state-instances-container {
+    position: absolute;
+    z-index: 2;
+  }
+  

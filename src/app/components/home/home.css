@@ -4,4 +4,36 @@
     overflow: auto;
     border: 1px solid #555;
 }
+
+  .container {
+    margin: 10px;
+  }
   
+  .item {
+    border-radius: .2em;
+    color: #ffffff;
+    font-family: sans-serif;
+    font-size: 36px;
+    padding: 4em 1em;
+    text-transform: uppercase;
+  }
+  
+  .row-1 {
+    background-color: #9fd3c3;
+  }
+
+  .value-statement {
+    font-size:18px;
+  }
+
+  .value-statement-sentence {
+    padding-bottom:40px;
+  }
+  
+  .item-4 {
+    background-color: #e7b013;
+  }
+  /*#073443*/
+  .item-color {
+    background-color: var(--accent-color);
+  }

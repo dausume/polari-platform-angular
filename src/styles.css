@@ -1,7 +1,15 @@
 /* Define a custom theme by overriding the default theme's variables */
 :root {
-    --primary-color: #424242;
-    --accent-color: #9f46cf;
+
+    --primary-color: #34344A;
+
+    --nav-color: #424242;
+
+    --accent-color: #80475E;
+    --accent-color-2: #A4A5AE;
+    --accent-color-3: #E6E49F;
+    --accent-color-4: #35CE8D;
+
     --warn-color: #bb1f1f;
 }
 

@@ -1,0 +1,24 @@
+  <div>
+    <div class="no-code-state-border border-line border-top-line">
+      <div
+      *ngFor="let slot of topSlots"
+      class="draggable-slot"
+      (mousedown)="startHorizontalDragging($event, slot)"
+      (mousemove)="horizontalDrag($event, slot)"
+      (mouseup)="stopDragging(slot)"
+    >
+    <slot slotObject="slot"></slot>
+    </div>
+    </div>
+    <div class="no-code-state-border border-line border-right-line">
+    </div>
+    <div class="no-code-state-border border-line border-bottom-line">
+    </div>
+    <div class="no-code-state-border border-line border-left-line">
+    </div>
+
+    <div class="no-code-state-border border-corner border-top-left-corner"></div>
+    <div class="no-code-state-border border-corner border-top-right-corner"></div>
+    <div class="no-code-state-border border-corner border-bottom-right-corner"></div>
+    <div class="no-code-state-border border-corner border-bottom-left-corner"></div>    
+</div>
