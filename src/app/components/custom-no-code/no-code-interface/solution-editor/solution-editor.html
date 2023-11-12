@@ -1,0 +1,33 @@
+<mat-card>
+<form [formGroup]="solutionForm" (ngSubmit)="onSubmit()">
+  <div>
+    <label>Solution Editor</label>
+    <button type="submit">Update Solution</button>
+  </div>
+  <div>
+    <label for="solutionName">Solution Name:</label>
+    <input type="text" id="solutionName" formControlName="solutionName" />
+  </div>
+  <div *ngIf="solutionForm.get('solutionName')?.hasError('required')">
+    Solution Name is required.
+  </div>
+  <div>
+    <label for="xBounds">Width:</label>
+    <input type="number" id="xBounds" formControlName="xBounds" [disabled]="true" [value]="calculateWidth()"/>
+    <label for="leftMostLocationX">Left Bound:</label>
+    <input type="number" id="leftMostLocationX" formControlName="leftMostLocationX" step="100" />
+    <label for="rightMostLocationX">Right Bound:</label>
+    <input type="number" id="rightMostLocationX" formControlName="rightMostLocationX" step="100" />
+  </div>
+  <div>
+    <label for="yBounds">Height:</label>
+    <input type="number" id="yBounds" formControlName="yBounds" [disabled]="true" [value]="calculateHeight()"/>
+    <label for="topMostLocationY">Top Bound:</label>
+    <input type="number" id="topMostLocationY" formControlName="topMostLocationY" step="100" />
+    <label for="bottomMostLocationY">Bottom Bound:</label>
+    <input type="number" id="bottomMostLocationY" formControlName="bottomMostLocationY" step="100" />
+  </div>
+
+  
+</form>
+</mat-card>

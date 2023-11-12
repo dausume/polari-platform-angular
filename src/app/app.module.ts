@@ -34,6 +34,9 @@ import { CreateNewClassComponent } from '@components/create-new-class/create-new
 import { VariableModifierComponent } from '@components/create-new-class/variable-modifier/variable-modifier';
 import { CustomNoCodeComponent } from '@components/custom-no-code/custom-no-code';
 import { NoCodeStateInstanceComponent } from '@components/custom-no-code/no-code-state-instance/no-code-state-instance';
+import { NoCodeStateInstanceComponentD3 } from '@components/custom-no-code/no-code-interface/no-code-state-instance-d3/no-code-state-instance-d3';
+import { NoCodeInterfaceComponent } from '@components/custom-no-code/no-code-interface/no-code-interface';
+import { SolutionEditorComponent } from '@components/custom-no-code/no-code-interface/solution-editor/solution-editor';
 import { SlotComponent } from '@components/custom-no-code/slot/slot';
 import { NoCodeMenuComponent } from '@components/custom-no-code/no-code-menu/no-code-menu';
 import { NoCodeStateBorderComponent } from '@components/custom-no-code/no-code-state-instance/no-code-state-border/no-code-state-border';
@@ -58,7 +61,10 @@ import { DomSanitizer } from "@angular/platform-browser";
     CreateNewClassComponent,
     VariableModifierComponent,
     CustomNoCodeComponent,
+    NoCodeInterfaceComponent,
     NoCodeStateInstanceComponent,
+    NoCodeStateInstanceComponentD3,
+    SolutionEditorComponent,
     SlotComponent,
     NoCodeMenuComponent,
     NoCodeStateBorderComponent

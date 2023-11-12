@@ -38,22 +38,22 @@ export class CustomNoCodeComponent {
   @HostListener('click', ['$event'])
   onClick(event: MouseEvent) {
     // Handle the click event here
-    console.log('Clicked on custom-no-code page');
+    //console.log('Clicked on custom-no-code page');
     // Get the clicked element
     const clickedElement = event.target as HTMLElement;
 
     // Log the clicked element and its ancestors
-    console.log('Clicked Element:', clickedElement);
-    console.log("Classes of Element: ", clickedElement.classList);
+    //console.log('Clicked Element:', clickedElement);
+    //console.log("Classes of Element: ", clickedElement.classList);
     const ancestors: HTMLElement[] = [];
 
     let currentElement = clickedElement.parentElement;
     while (currentElement) {
       ancestors.push(currentElement);
-      console.log(currentElement.classList);
+      //console.log(currentElement.classList);
       currentElement = currentElement.parentElement;
     }
-    console.log('Ancestors:', ancestors);
+    //console.log('Ancestors:', ancestors);
   }
 
   private hasAncestorWithClass(element: HTMLElement, className: string): boolean {

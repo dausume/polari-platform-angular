@@ -6,16 +6,17 @@ import * as d3 from 'd3';
 
 //Defines a no code state
 @Component({
-  selector: 'no-code-state-instance',
-  templateUrl: 'no-code-state-instance.html',
-  styleUrls: ['./no-code-state-instance.css']
+  selector: 'no-code-state-instance-d3',
+  templateUrl: 'no-code-state-instance-d3.html',
+  styleUrls: ['./no-code-state-instance-d3.css']
 })
-export class NoCodeStateInstanceComponent {
+export class NoCodeStateInstanceComponentD3 {
   //Control Field for ensuring the user is setting the State Component to match to a Class that exists and is accessible.
   classEntryControl = new FormControl();
-  @ViewChild('noCodeStateContainer') private noCodeStateContainer: ElementRef;
-  //State Instance
-  @Input() stateInstance : noCodeState;
+  //Required that the #noCodeStateContainer element is rendered before this is used.
+  @ViewChild('noCodeStateContainer') private noCodeStateContainer!: ElementRef;
+  //State Instance - Required Input
+  @Input() stateInstance! : noCodeState;
   //A list of all Class
   options: string[] = ['Class 1', 'Class 2', 'Class 3'];
   //A list of Classes after searching through all classes based on criteria.
@@ -26,6 +27,8 @@ export class NoCodeStateInstanceComponent {
   searchTerm: string = "";
 
   constructor() {
+    // Initialize noCodeStateContainer here
+    //this.noCodeStateContainer = new ElementRef(/* initialize with the appropriate value */);
     this.classEntryControl.valueChanges.subscribe(searchTerm => {
       this.filteredOptions = this.options.filter(option =>
         option.toLowerCase().includes(searchTerm.toLowerCase())

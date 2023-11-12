@@ -2,8 +2,9 @@
     <mat-card (contextmenu)="showContextMenu($event)" class="menu-container">
       <no-code-menu class="no-code-menu" (newStateInstance)="onNewStateInstance()"></no-code-menu>
     </mat-card>
-    <div id="d3-container"></div>
+    <no-code-interface></no-code-interface>
     <!--
+      <div id="d3-container"></div>
     <div class="common-boundary" [style.width.px]="xBoundary" [style.height.px]="yBoundary" cdkDragBoundary="boundary">
       <div 
           class="state-instances-container"
