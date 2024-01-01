@@ -1,10 +1,53 @@
-# PolariPlatform
+### PolariPlatform
 
-This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 12.2.1.
+## Polari Node Setup Information
+Depending on what device you use or what kind of setup approach may be easier than the other for you, so choose according to what you think would be easier for you.  
 
-## Development server
+If you want to be more certain there will not be issues, I would suggest trying to use docker to run Polari, since it is meant to run on any device by implementing the app using containers
 
-Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The app will automatically reload if you change any of the source files.
+# Run Polari-Angular on Localhost on your computer
+Open a terminal pointing to the polari-platform-angular folder as the cwd.
+
+If this is your first time type 'npm install .' to install all dependencies for the Polari Angular App.
+
+-- If you work for a secure organization --
+
+Depending on circumstances and security policies of where you work, the dependencies may conflict with your policies and you may need to have them cleared for the particular dependency versions.  Alternatively, you may want to search to see if different dependency versions are approved and either upgrade if possible or downgrade if necessary.
+
+If you find yourself doing such an upgrade please consider contributing it to the project, doing so can pay it forward and enable all organizations and individuals using the project to consume less time.
+
+-- Anyone trying to use the project --
+
+If you find any dependencies are failing to install regardless, look on the npm website for the set of valid dependency install commands and try installing with a specific command and version.  In the case where the install is invalid or became too outdated to use, consider trying to fix the project to use the newer version or even making a new repo if the project was not maintained and you are trying to pick it up and continue it.
+
+--------------------------------------------
+
+If the dependencies are all good, I would suggest running the tests first with 'npm test .' to run all tests.  
+
+If the tests run properly the project should be in good condition, so try running it.
+
+'ng start'
+
+then go to port 4200 on your localhost to access the site.
+
+Please note you will also need to run a Polari-Python Backend and connect to that backend on the configuration page to see the full functionality of the application.
+
+# Running Polari-Angular in a Container on your computer
+
+The official image for Polari Angular Frontend is
+
+dausume/polari:angular
+
+The corresponding backend is
+
+dausume/polari:python
+
+A work in progress is making configuration files that allow these to automatically be networked.  When completed that
+image should be called
+
+dausume/polari:standard
+
+A related project meant to help with centralization of different Polari projects for a particular organization is the Polari-hub project.
 
 ## POLARI Backend Nodes Information
 
@@ -18,6 +61,15 @@ of connected treeObjects on the tree.
   definition which the user wishes to define as a treeObject.
 
     The Manager Object is defined in a similar manner using the @managerObject and managerObject base class.
+
+
+### Default Angular Documentation
+
+This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 12.2.1.
+
+## Development server
+
+Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The app will automatically reload if you change any of the source files.
 
 ## Code scaffolding
 
