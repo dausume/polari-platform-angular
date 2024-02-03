@@ -1,4 +1,19 @@
-### PolariPlatform
+#### PolariPlatform
+Version : 0.0.1
+### Deploy the App
+## polari-platform-angular project official image
+dausume/polari:angular
+# Deploy an updated image to Docker Hub
+First update the tag which defines what Docker Hub user, which of their repositories, and what specific image(tag) it goes to, with a version at the end MajorVersion.MinorVersion.IncrementalChange
+
+Example
+
+docker tag username/polari-angular:X.X.X
+docker tag dausume/polari-angular:0.0.1
+
+https://docs.docker.com/engine/reference/commandline/image_build/
+
+docker build -t dausume/polari-angular:0.0.1 .
 
 ## Polari Node Setup Information
 Depending on what device you use or what kind of setup approach may be easier than the other for you, so choose according to what you think would be easier for you.  

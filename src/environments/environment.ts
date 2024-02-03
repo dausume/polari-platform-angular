@@ -3,7 +3,9 @@
 // The list of file replacements can be found in `angular.json`.
 
 export const environment = {
-  production: false
+  production: false,
+  backendUrl: process.env.BACKEND_URL || 'localhost',
+  backendPort: process.env.BACKEND_PORT || '3000'
 };
 
 /*

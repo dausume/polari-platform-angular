@@ -4,6 +4,8 @@ import { ActivatedRoute } from '@angular/router';
 import { polariNode } from '@models/polariNode';
 import { PolariService } from '@services/polari-service';
 import { BehaviorSubject, interval, Observable, Observer, Subscription } from 'rxjs';
+import { environment } from 'src/environments/environment';
+
 
 @Component({
   selector: 'polari-config',
@@ -22,9 +24,9 @@ export class PolariConfigComponent {
   polariConnection = false;
   polariConnectionPending = false;
   polariConnectionFailure = false;
-  ipNum: string;
+  ipNum: string = environment.backendUrl || '';
   ipNumFormControl = new FormControl('');
-  portNum: string;
+  portNum: string  = environment.backendPort || '';
   portNumFormControl = new FormControl('');
   labelPosition: 'before' | 'after' = 'after';
   connectionCheckboxdisabled = true;
