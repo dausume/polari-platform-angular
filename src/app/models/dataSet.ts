@@ -46,7 +46,8 @@ export class dataSet {
             })
         }
         //If true, we must create null values on our current dataSet
-        if(addedVarsOther != [])
+        // Generates error
+        if(addedVarsOther.length !== 0)
         {
             this.data.array.forEach(inst => {
                 addedVarsOther.forEach( (varName:string) =>{
@@ -55,7 +56,7 @@ export class dataSet {
             });
         }
         //Now, go through the other dataSet and pull it's instances over.  For vars with missingVarsOther, set to null.
-        if(missingVarsOther != [])
+        if(missingVarsOther.length !== 0)
         {
             otherSet.data.array.forEach(inst => {
                 missingVarsOther.forEach( (varName:string) =>{

@@ -3,8 +3,8 @@ import { NgxGraphModule } from '@swimlane/ngx-graph';
 import { BrowserModule } from '@angular/platform-browser';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
-import { FlexModule } from '@angular/flex-layout'
-import { FlexLayoutModule } from "@angular/flex-layout";
+//import { FlexModule } from '@angular/flex-layout'
+//import { FlexLayoutModule } from "@angular/flex-layout";
 import { HttpClientModule } from '@angular/common/http';
 import { DragDropModule } from '@angular/cdk/drag-drop';
 //Materials
@@ -75,8 +75,8 @@ import { DomSanitizer } from "@angular/platform-browser";
     BrowserAnimationsModule,
     MaterialModule,
     FormsModule,
-    FlexModule,
-    FlexLayoutModule,
+    //FlexModule,
+    //FlexLayoutModule,
     HttpClientModule,
     ReactiveFormsModule,
     MatTableModule,
