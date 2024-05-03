@@ -1,3 +1,7 @@
 .mat-input-element {
     background: white;
 }
+
+.mdc-mat-icon-button {
+    width: 120px
+}

@@ -6,6 +6,10 @@ mat-sidenav-container {
   mat-sidenav-content {
     padding: 16px;
   }
+
+  button.mdc-icon-button.mat-mdc-icon-button.mat-unthemed.mat-mdc-button-base {
+    min-width: 280px;
+  }
   
   mat-sidenav {
     background-color: var(--nav-color);

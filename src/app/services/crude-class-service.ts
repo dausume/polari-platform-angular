@@ -14,27 +14,14 @@ export class CRUDEclassService {
     hasAnyPermissions: any;
     hasFullAccess: any;
     hasFullPermissions: any;
+    className: string | null = null;
 
-    constructor(private http: HttpClient, private polariService: PolariService, public className: string, public firstUtilizer: string)
+    constructor(private http: HttpClient, private polariService: PolariService)
     {
         let startServiceMsg = "Starting Class Access Services";
         console.log(startServiceMsg);
         this.http = http;
         this.polariService = polariService;
-        this.className = className;
-        this.polariService.serverData.subscribe(
-            value => {
-                console.log("Successfully recieved APIs");
-              console.log(value);
-            },
-            error => {
-              console.error(error);
-            },
-            () => {
-              console.log('completed apis');
-            }
-          );
-          
         this.serviceUtilizers = {};
         //All permissions dictionaries for this user for this class
         this.permissionsDictionaries = {};
@@ -55,52 +42,11 @@ export class CRUDEclassService {
         this.hasFullPermissions = {};
     }
 
-    //Used when a new component is created that uses this service, to track the new component and it's needs from the service.
-    //When the new component is created it passes it's component type and requested data.
-    //If no similar
-    trackNewComponentUsingService(componentType:string, requestedData:any)
+    // hacky way to get around not being able to just pass the class name into the service.
+    initialize(className : string)
     {
-        if(componentType in this.serviceUtilizers.keys())
-        {
-            let indexes = this.serviceUtilizers[componentType].keys();
-            let highestIndex = 0;
-            let lowestMissingIndex : number = 0;
-            let missingIndexes : number[] = [];
-            indexes.forEach(index => {
-                if(index > highestIndex)
-                {
-                    highestIndex = index;
-                }
-            });
-            //Create list of missing indexes, then grab lowest missing index.
-            if(highestIndex - 1 != indexes.length)
-            {
-                for (let i = 0; i <= highestIndex; i++)
-                {
-                    missingIndexes.push(i);
-                }
-                indexes.forEach(index => {
-                    missingIndexes.splice(missingIndexes.indexOf(index));
-                });
-                lowestMissingIndex = highestIndex;
-                missingIndexes.forEach(index => {
-                    if(index < lowestMissingIndex)
-                    {
-                        lowestMissingIndex = index;
-                    }
-                });
-            }
-            this.serviceUtilizers[componentType][lowestMissingIndex];
-        }
-        else
-        {
-            this.serviceUtilizers[componentType] = {0:requestedData};
-        }
+        this.className = className;
     }
 
-    //If the user is logged in, then get the Permission and Access Dictionaries of the user relevant to this class.
-    validatePermissions()
-    {
-
-    }
+    
 }

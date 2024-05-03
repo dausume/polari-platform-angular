@@ -19,33 +19,16 @@ import { objectReference } from '@models/objectReference';
 })
 export class templateClassTableComponent {
 
-  objectReference = objectReference
-  instanceList? : any = []
-
-  //Name of the class the data is being retrieved for.
-  @Input()
-  className?: string;
-
-  @Input()
-  classTypeData?: any;
+  @Input() className?: string;
+  @Input() classTypeData?: any;
+  @Input() filter?: object = {};
+  @Input() shownVars?: string[] = [];
 
   formattedClassName?: string;
+  instanceList: any[] = [];
+  polyVarRefs: any[] = [];
 
-  //Filter to be applied on the data being requested.
-  //@Input()
-  filter?: object = {};
-
-  //List of variable names to be shown.
-  //@Input()
-  shownVars?: string[] = [];
-
-  polyVarRefs: objectReference[] = [];
-
-  constructor()
-  {
-    //private polService : PolariService
-    this.instanceList = [];
-  }
+  constructor(private polari: PolariService) {}
 
   ngOnInit()
   {

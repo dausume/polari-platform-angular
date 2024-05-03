@@ -6,6 +6,7 @@ import { retry, catchError } from 'rxjs/operators';
 import { navComponent } from "@models/navComponent";
 import { classPolyTyping } from "@models/classPolyTyping";
 import { dataSetCollection } from "@models/dataSetCollection";
+import { CRUDEclassService } from "./crude-class-service";
 
 
 @Injectable({
@@ -65,9 +66,13 @@ export class PolariService {
     //A list of non-CRUDE API Services that are currently active, such that they are re-usable.
     apiClassServices = new BehaviorSubject<any>({});
     //A switchboard indicating whether a particular class, has had it's api pinged at least once
+    // This switchboard is required to ensure that all required classes have their data pulled before activating
+    // Functionality dependent on their data.
     classDataRetrievedSwitchboard = new BehaviorSubject<any>({});
     //
     valueHolder : any;
+    // List of all class-specific services dynamically generated.
+    private classServices: { [className: string]: any } = {};
 
     constructor(private http: HttpClient)
     {
@@ -127,6 +132,8 @@ export class PolariService {
             }        
     }
 
+    // Gets all objects defined on the Polari Server, then calls the Variable Typing API after completion
+    // since converting them into a usable format requires both and variables are dependent on the objects.
     getObjectTyping()
     {
         this.http
@@ -164,6 +171,8 @@ export class PolariService {
         })
     }
 
+    // Gets all Variable types and connects them to their object types, these are required in order to automate
+    // the building of the frontend interfaces.
     getTypingVars()
     {
         this.http
@@ -202,6 +211,7 @@ export class PolariService {
         })
     }
 
+    // Gets the general data on the server so we know if we need to connect to multiple backends for the app use-case.
     getServerData()
     {
         this.http
@@ -235,6 +245,7 @@ export class PolariService {
         })
     }
 
+    // Gets all existing api endpoints on the polari api endpoint. (Custom APIs - Not class-based)
     getServerAPIendpoints()
     {
         this.http
@@ -268,6 +279,7 @@ export class PolariService {
         })
     }
 
+    // Gets all existing CRUDE (Create, Read, Update, Delete, Event endpoints)
     getServerCRUDEendpoints()
     {
         this.http
@@ -301,30 +313,22 @@ export class PolariService {
         })
     }
 
-    /*
-    //CREATE
-    createOnPolariEndpoint(urlEndpoint){
-
+    // Creates a singular service for a specific CRUDE Class.
+    createServiceForClass(className: string) {
+        // Check if the service already exists
+        if (!this.classServices[className]) {
+          // If not, create a new service for the class using CrudeClassService
+          this.classServices[className] = new CRUDEclassService(this.http, this);
+          this.classServices[className].initialize(className);
+        }
+        return this.classServices[className];
     }
 
-    //READ
-    readFromPolariEndpoint(urlEndpoint){
-
+    // Removes a CRUDE Class so that we can free up space and processing power.
+    removeServiceForClass(className: string) {
+        if (this.classServices[className]) {
+          // Clean up resources or perform any necessary shutdown operations
+          delete this.classServices[className];
+        }
     }
-
-    //UPDATE
-    updateOnPolariEndpoint(urlEndpoint){
-
-    }
-
-    //DELETE
-    deleteOnPolariEndpoint(urlEndpoint){
-
-    }
-
-    //EVENT
-    triggerEventOnPolariEndpoint(urlEndpoint){
-
-    }
-    */
 }

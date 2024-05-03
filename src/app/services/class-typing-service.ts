@@ -39,7 +39,8 @@ export class ClassTypingService {
         this.http = http;
         this.polariService = polariService;
         this.polyTyping = {};
-        //Subscribe to the data on polariService related to typing in order to get it's data as necessary.
+        
+        //Subscribe to the data on polariService related to object typing.
         this.objTypingSubscription = this.polariService.polyTypedObjectsData
         .subscribe((typingObjList:classPolyTyping[])=>{
             typingObjList.forEach((typeObj:classPolyTyping)=>{
@@ -128,7 +129,8 @@ export class ClassTypingService {
                 }
             })
         });
-        //Subscribe to the data on polariService related to typing in order to get it's data as necessary.
+
+        //Subscribe to the data on polariService related to variables typing on objects.
         //Whenever an update occurs for a variableTyping we check the exisiting objects and set any variable values to their newer
         //version (regardless if there was an update to that variable or not)
         

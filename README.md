@@ -1,8 +1,29 @@
 #### PolariPlatform
 Version : 0.0.1
+
+### Running the frontend App in isolation
+The easiest way to run the app in most any situation is going to be using Docker Compose.
+To run this app by itself (independently build just the frontend), you will first need to install docker.
+
+Before trying to run the app make sure the Docker Engine (Docker Daemon) is running.
+
+On windows this may be done most easily using Docker Desktop, starting the Docker Desktop app can start the Engine.
+
+After installing Docker and making sure the enginer is running, go into the termianl and navigate to the working directory of the polari frontend app and run the following two commands.
+
+# Builds the app - takes a few mins
+Docker compose build
+
+# Runs the app - may take a minute before it starts up
+Docker compose up
+
+This will run it using the default settings
+
 ### Deploy the App
+
 ## polari-platform-angular project official image
-dausume/polari:angular
+dausume/polari-frontend:angular
+
 # Deploy an updated image to Docker Hub
 First update the tag which defines what Docker Hub user, which of their repositories, and what specific image(tag) it goes to, with a version at the end MajorVersion.MinorVersion.IncrementalChange
 

@@ -1,5 +1,6 @@
 <mat-sidenav-container>
     <header [currentComponentTitle]="currentComponentTitle"></header>
+
     <mat-sidenav [(opened)]="sideNavOpened" #sidenav mode="side" >
           <mat-nav-list>
             <mat-list-item *ngFor="let navComp of navComponentsFromPolari">
@@ -10,5 +11,6 @@
           </mat-nav-list>
     </mat-sidenav>
     <p><button mat-button (click)="toggleSideNav()" ><mat-icon>menu</mat-icon></button></p>
+   
     <router-outlet></router-outlet>
 </mat-sidenav-container>

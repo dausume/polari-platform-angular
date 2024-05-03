@@ -1,5 +1,5 @@
 import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
-import { FormControl, FormGroup } from '@angular/forms';
+import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { polariNode } from '@models/polariNode';
 import { PolariService } from '@services/polari-service';
@@ -21,13 +21,14 @@ export class PolariConfigComponent {
     updates:new FormControl(this.polariService.connectionSuccessSubject.pipe())
   })
 
+  ipNumFormControl = new FormControl('', [Validators.required, Validators.pattern(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/)]);
+  portNumFormControl = new FormControl('', [Validators.required, Validators.pattern(/^\d{4}$/)]);
+
   polariConnection = false;
   polariConnectionPending = false;
   polariConnectionFailure = false;
   ipNum: string = environment.backendUrl || '';
-  ipNumFormControl = new FormControl('');
   portNum: string  = environment.backendPort || '';
-  portNumFormControl = new FormControl('');
   labelPosition: 'before' | 'after' = 'after';
   connectionCheckboxdisabled = true;
   connectionData: any;

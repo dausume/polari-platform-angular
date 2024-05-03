@@ -1,6 +1,6 @@
 <mat-card>
     <mat-card-title>Polari Connection Data</mat-card-title>
-    <form *ngif="this.polariService.connectionPendingSubject | async">
+    <form *ngIf="this.polariService.connectionPendingSubject | async">
         <mat-icon>autorenew</mat-icon>
         Connection Pending
     </form>
@@ -13,33 +13,35 @@
         Connection Failed!
     </form>
     <form>
-        <button mat-icon-button style="width: 80px;" (click)="attemptPolariConnection()">
+        <button mat-icon-button style="width: 120px;" (click)="attemptPolariConnection()">
             Connect
         </button>
-        <button mat-icon-button style="width: 80px;" (click)="disconnectFromPolari()">
+        <button mat-icon-button style="width: 140px;" (click)="disconnectFromPolari()">
             Disconnect
         </button>
     </form>
+    <div>
     <form>
-        <mat-form-field appearance="fill">
-            <input type="input" matInput [formControl]="ipNumFormControl" [(ngModel)]="ipNum" placeholder="000.000.0.00">
+        <mat-form-field appearance="fill" [formControl]="ipNumFormControl" style="width: 500px">
+            <input type="input" matInput [formControl]="ipNumFormControl" [(ngModel)]="ipNum" placeholder="000.000.0.00" style="width: 480px">
             <mat-label>  Polari-Host's IP on Local Network</mat-label>
         </mat-form-field>
     </form>
-    <form *ngif="this.polariService.userEntry_ipv4NumSubject != ''">
+    <form *ngIf="(this.polariService.userEntry_ipv4NumSubject | async) !== ''">
         <span> Current Value - {{this.polariService.userEntry_ipv4NumSubject | async}} </span>
     </form>
     <form>
-        <mat-form-field appearance="fill">
-            <input type="input" matInput [formControl]="portNumFormControl" [(ngModel)]="portNum" placeholder="0000">
+        <mat-form-field appearance="fill" [formControl]="portNumFormControl" style="width: 500px">
+            <input type="input" matInput [formControl]="portNumFormControl" [(ngModel)]="portNum" placeholder="0000" style="width: 480px">
             <mat-label>  Polari-Host's Server Port Number</mat-label>
         </mat-form-field>
     </form>
-    <form *ngif="this.polariService.userEntry_ipv4NumSubject != ''">
+    <form *ngIf="(this.polariService.userEntry_ipv4NumSubject | async) != ''">
         <span> Current Value - {{this.polariService.userEntry_portNumSubject | async}} </span>
     </form>
+</div>
     <form>
-        <mat-form-field appearance="fill">
+        <div appearance="fill">
             Note: On connecting to a computer over wifi : 
             For connecting to another computer over wifi, such as if you hosted the Polari Angular Frontend on one computer
             and the Polari-Framework python backend on another.  Then you must ensure both computers are connected to the
@@ -47,10 +49,10 @@
             or business network).  Only under these conditions can you use port number and IPV4 number of the given computers to connect
             them.  In this case you must find the IPV4 in the internet settings of the computer hosting the Polari-Framework backend and
             enter that value together with the port the backend is hosted on (default it 3000).
-        </mat-form-field>
-        <mat-form-field appearance="fill">
+        </div>
+        <div appearance="fill">
             <mat-label>  Polari-Host's Base Server Data - Json Format </mat-label>
             {{this.polariService.connectionDataSubject | async | json}}
-        </mat-form-field>
+        </div>
     </form>
 </mat-card>
