@@ -4,4 +4,50 @@
     overflow: auto;
     border: 1px solid #555;
 }
+
+.mat-grid-tile-content {
+    min-width: 50px;
+}
+
+::ng-deep mat-grid-list {
+  min-height: 100px;
+  display: grid; /* Ensure it's using CSS grid */
+  gap: 10px; /* Adjust the gap value as needed */
+  align-items: center; /* Center items vertically */
+}
+
+::ng-deep mat-grid-tile {
+  min-width: 25px;
+  min-height: 25px;
+  padding: 10px; /* Add padding to tiles if needed */
+}
+
+::ng-deep mat-grid-list div {
+  padding-bottom: 5px
+}
+
+#new_variable_btn {
+    width: 80px;
+    height: 25px;
+    background-color: #6a0dad; /* Example background color */
+    color: white; /* Example text color */
+    border: none; /* Remove default border */
+    border-radius: 4px; /* Example rounded corners */
+    display: flex; /* Flexbox to align content */
+    align-items: center; /* Center content vertically */
+    justify-content: center; /* Center content horizontally */
+    cursor: pointer; /* Pointer cursor on hover */
+    transition: background-color 0.3s; /* Smooth transition on hover */
+  }
   
+  #new_variable_btn:hover {
+    background-color: #4b0082; /* Darker shade on hover */
+  }
+
+  .remove-var-btn {
+    background-color: #6a0dad;
+  }
+
+  .remove-var-btn:hover {
+    background-color: #4b0082; /* Darker shade on hover */
+  }

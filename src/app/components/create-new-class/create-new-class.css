@@ -17,3 +17,20 @@
 .mat-input-element {
     caret-color: var(--text-outline-color);
 }
+
+::ng-deep mat-grid-list {
+    min-height: 100px;
+    display: grid; /* Ensure it's using CSS grid */
+    gap: 10px; /* Adjust the gap value as needed */
+    align-items: center; /* Center items vertically */
+}
+
+::ng-deep mat-grid-tile {
+    min-width: 25px;
+    min-height: 40px;
+    padding: 10px; /* Add padding to tiles if needed */
+}
+
+::ng-deep mat-grid-list div {
+    padding-bottom: 50px
+}

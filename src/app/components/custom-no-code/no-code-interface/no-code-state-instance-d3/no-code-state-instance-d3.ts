@@ -44,11 +44,43 @@ export class NoCodeStateInstanceComponentD3 {
   private renderBoxGraph() {
     // Use D3.js to render the box graph based on this.stateInstance
     const container = this.noCodeStateContainer.nativeElement;
-    const width = this.stateInstance.stateComponentSizeX;
-    const height = this.stateInstance.stateComponentSizeY;
+    let width = this.stateInstance.stateComponentSizeX;
+    let height = this.stateInstance.stateComponentSizeY;
+
+    if(!width)
+    {
+      width = 100;
+    }
+    if(!height)
+    {
+      height = 100;
+    }
 
     // Clear previous contents if any
     d3.select(container).selectAll('*').remove();
+
+    // Create an SVG element
+    const svg = d3.select(container)
+      .append('svg')
+      .attr('width', width)
+      .attr('height', height)
+      .style('border', '1px solid black');
+
+    // Add a rectangle to represent the state
+    svg.append('rect')
+      .attr('width', width)
+      .attr('height', height)
+      
+      .attr('fill', 'lightblue');
+
+    // Add text to the rectangle
+    svg.append('text')
+      .attr('x', width / 2)
+      .attr('y', height / 2)
+      .attr('text-anchor', 'middle')
+      .attr('dominant-baseline', 'middle')
+      .attr('font-size', '12px')
+      .text(this.stateInstance.stateName || 'State');
   }
 
   search() {

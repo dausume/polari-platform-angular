@@ -46,6 +46,9 @@ import { CRUDEservicesManager } from '@services/crude-services-manager';
 //
 import { MatIconRegistry } from "@angular/material/icon";
 import { DomSanitizer } from "@angular/platform-browser";
+// Overlay for custom dropdowns
+import { OverlayContainer } from '@angular/cdk/overlay';
+import { CustomOverlayContainer } from './services/overlay-container-service';
 
 
 @NgModule({
@@ -97,7 +100,9 @@ import { DomSanitizer } from "@angular/platform-browser";
   ],
   providers: [
     PolariService,
-    CRUDEservicesManager
+    CRUDEservicesManager,
+    OverlayContainer,
+    CustomOverlayContainer
   ],
   bootstrap: [
     AppComponent,
