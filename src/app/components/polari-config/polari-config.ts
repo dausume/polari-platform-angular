@@ -67,6 +67,26 @@ export class PolariConfigComponent {
       */
   }
 
+  ngOnInit(): void {
+    // Initialize form controls with values from the service
+    this.ipNum = this.polariService.userEntry_ipv4NumSubject.value;
+    this.portNum = this.polariService.userEntry_portNumSubject.value;
+
+    this.ipNumFormControl.setValue(this.ipNum);
+    this.portNumFormControl.setValue(this.portNum);
+
+    // Subscribe to BehaviorSubjects to keep form controls updated
+    this.polariService.userEntry_ipv4NumSubject.subscribe(value => {
+      this.ipNum = value;
+      this.ipNumFormControl.setValue(this.ipNum);
+    });
+
+    this.polariService.userEntry_portNumSubject.subscribe(value => {
+      this.portNum = value;
+      this.portNumFormControl.setValue(this.portNum);
+    });
+  }
+
   disconnectFromPolari(){
     //Empties out and resets all values.
     this.polariService.connectionDataSubject.next({});

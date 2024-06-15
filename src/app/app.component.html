@@ -3,10 +3,8 @@
 
     <mat-sidenav [(opened)]="sideNavOpened" #sidenav mode="side" >
           <mat-nav-list>
-            <mat-list-item *ngFor="let navComp of navComponentsFromPolari">
-               <button mat-icon-button (click)="pageNav(navComp)">
-                  {{ navComp.title }}
-               </button>
+            <mat-list-item *ngFor="let navComp of navComponentsFromPolari" (click)="pageNav(navComp)">
+               {{ navComp.title }}
             </mat-list-item>
           </mat-nav-list>
     </mat-sidenav>
