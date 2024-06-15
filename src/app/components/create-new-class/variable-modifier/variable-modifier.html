@@ -17,35 +17,15 @@
         <mat-option *ngFor="let type of typesAllowed" [value]="type" (selectionChange)="setType(variableDef.varIndex, type)">{{type}}</mat-option>
       </mat-select>
   </mat-grid-tile>
-  <mat-grid-tile>
+  <mat-grid-tile *ngIf="variableDef.varType == 'Reference'">
     <mat-label *ngIf="variableDef.varType == 'Reference'">Select the class Referenced</mat-label>
   </mat-grid-tile>
   <mat-grid-tile>
-    <button mat-icon-button style="width: 80px;" (click)="removeVariable(variableDef.varIndex)" *ngIf="variableDef.varIndex != 1">
+    <button class="remove-var-btn" mat-button style="width: 80px;" (click)="removeVariable(variableDef.varIndex)" *ngIf="variableDef.varIndex != 1">
       Remove
     </button>
   </mat-grid-tile>
 </mat-grid-list>
-
-<button mat-icon-button style="width: 80px;" (click)="addVariableDef()">
+<button id="new_variable_btn" mat-button style="width: 80px; height: 30px;" (click)="addVariableDef()">
   New Variable
 </button>
-
-<!--
-<mat-grid-list>
-  <mat-grid-tile>
-    <mat-form-field>
-      <input type="input" matInput [formControl]="varNameControl" [(ngModel)]="varName" placeholder="Variable Name">
-      <mat-label>Variable Name</mat-label>
-  </mat-form-field>
-  </mat-grid-tile>
-  <mat-grid-tile>
-    <mat-form-field>
-      <mat-label>Select a type</mat-label>
-        <mat-select [(ngModel)]="selectedType">
-        <mat-option *ngFor="let type of typesAllowed" [value]="type">{{type}}</mat-option>
-      </mat-select>
-    </mat-form-field>
-  </mat-grid-tile>
-</mat-grid-list>
--->

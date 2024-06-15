@@ -1,33 +1,24 @@
-<mat-card style="display: flex; flex-wrap: nowrap;">
-    <form>
-        <h1 *ngIf="className != undefined" style="width: 100%">{{className}} table</h1>
-        <h1 *ngIf="className == undefined">Required Input className to be used for table not set in host component</h1>
-        <mat-table class="mat-elevation-z8" [dataSource]="instanceList" matSort>
-            <ng-container class="pol-tbl-col" [matColumnDef]="column" *ngFor="let column of shownVars">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header> {{column}} 
-                    <p *ngIf="this.classTypeData['completeVariableTypingData'][column]['variableFrontendType'] != null">
-                        fe-type
-                    </p>
-                    <p *ngIf="this.classTypeData['completeVariableTypingData'][column]['variablePythonType'] != null">
-                        py-type
-                    </p>
-                </th>
-                <td mat-cell *matCellDef="let instance"> 
-                    <a [ngSwitch]="getType(instance[column])">
-                        <a *ngSwitchCase="'string'"> {{instance[column]}} </a>
-                        <a *ngSwitchCase="'objectReference'"> objectReference </a>
-                        <a *ngSwitchDefault> {{instance[column]}} </a>
-                    </a>
-                </td>
-            </ng-container>
-            
-            <tr mat-header-row *matHeaderRowDef="shownVars"></tr>
-            <tr mat-row *matRowDef="let row; columns: shownVars;"></tr>
-
-          </mat-table>
-          <mat-paginator [pageSizeOptions]="[5, 10, 20]"
-                 showFirstLastButtons 
-                 aria-label="Select page of ${className}">
-          </mat-paginator>
-    </form>
-</mat-card>
+<mat-grid-list id="template-class-table" cols="4" rowHeight="100px">
+    <mat-grid-tile [colspan]="4" [rowspan]="1" *ngIf="className !== undefined">{{className}} table</mat-grid-tile>
+    <mat-grid-tile [colspan]="4" [rowspan]="1" *ngIf="className === undefined">Error: No Classname detected in url</mat-grid-tile>
+    <!--<mat-grid-tile [colspan]="4" [rowspan]="1">classTypeData : {{classTypeData | json}}</mat-grid-tile>-->
+    <mat-grid-tile [colspan]="4" [rowspan]="1">Class Table Row Configuration</mat-grid-tile>
+    <mat-grid-tile 
+         *ngFor="let polVar of shownVars; index as i; first as isFirst"
+         [colspan]="1"
+         [rowspan]="2"
+    >
+        <default-cell
+        [object]="classTypeData[polVar]?.objectName" 
+        [name]="classTypeData[polVar]?.variableName" 
+        [type]="classTypeData[polVar]?.variablePythonType"
+        ></default-cell>
+        <config-cell-actions 
+        [varInfo]="classTypeData[polVar]"
+        (moveUp)="moveUp($event)"
+        (moveDown)="moveDown($event)"
+        (remove)="remove($event)"
+        >
+        </config-cell-actions>
+    </mat-grid-tile>
+</mat-grid-list>

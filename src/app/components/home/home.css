@@ -7,8 +7,41 @@
 
   .container {
     margin: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
   }
+
+  /* Responsive styles */
+@media (max-width: 600px) {
+  .item {
+    flex: 1 1 100%; /* Make items full width on small screens */
+    margin: 10px 0;
+  }
+  .value-statement-sentence {
+    padding: 15px 0; /* Increase padding for smaller screens */
+  }
+}
+
+/* Specific section styling to control width and margins */
+.value-statement-container,
+.another-component,
+.sample-applications,
+.future-development {
+  flex: 0 1 48%; /* Each item takes up 48% of the container width */
+  margin-bottom: 20px; /* Space between rows */
+}
   
+/* Responsive styles for smaller screens */
+@media (max-width: 768px) {
+  .value-statement-container,
+  .another-component,
+  .sample-applications,
+  .future-development {
+    flex: 0 1 100%; /* Take full width on smaller screens */
+  }
+}
+
   .item {
     border-radius: .2em;
     color: #ffffff;

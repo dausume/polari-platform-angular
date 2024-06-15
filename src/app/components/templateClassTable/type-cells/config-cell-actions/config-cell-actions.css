@@ -1,0 +1,10 @@
+.cell-actions {
+    display: flex;
+    justify-content: center;
+    margin-top: 8px;
+  }
+  
+  .cell-actions button {
+    margin: 0 4px;
+  }
+  

@@ -121,7 +121,7 @@ export class ClassTypingService {
                         this.polyVarTyping[typeObj.className] = {}
                     }
                     this.polyTyping[typeObj.className] = new classPolyTyping(typeObj.className, this.polyVarTyping[typeObj.className], className) ;
-                    this.polyTypingBehaviorSubject.next(this.polyTyping);
+                    this.polyTypingBehaviorSubject.next(this.polyVarTyping);
                     //setup the navComponent for the new type
                     let navComp : navComponent = new navComponent(className + " Main Page", "class-main-page/"+typeObj.className, "ClassMainPageComponent");
                     //Add the nav component for the class
@@ -174,7 +174,7 @@ export class ClassTypingService {
                     }
                 });
             });
-            this.polyTypingBehaviorSubject.next(this.polyTyping);
+            this.polyTypingBehaviorSubject.next(this.polyVarTyping);
             console.log("polyVarTyping at end of: ", this.polyVarTyping);
         });
     }

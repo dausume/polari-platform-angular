@@ -30,8 +30,8 @@ export class PolariService {
 
     polariAccessNodeSubject = new BehaviorSubject<polariNode>(
         {
-            "ip":"",
-            "port":"",
+            "ip":environment.backendUrl,
+            "port":environment.backendPort,
             "crudeAPIs":[],
             "polariAPIs":[]
         }
@@ -40,8 +40,8 @@ export class PolariService {
     connectionSuccessSubject = new BehaviorSubject<boolean>(false);
     connectionFailureSubject = new BehaviorSubject<boolean>(false);
     //User Input values for changing the connection to a new IP/Port combination.
-    userEntry_ipv4NumSubject = new BehaviorSubject<string>("");
-    userEntry_portNumSubject = new BehaviorSubject<string>("");
+    userEntry_ipv4NumSubject = new BehaviorSubject<string>(environment.backendUrl);
+    userEntry_portNumSubject = new BehaviorSubject<string>(environment.backendPort);
     //
     navComponents = new BehaviorSubject<navComponent[]>([
         new navComponent("Home","","HomeComponent", {}, []),

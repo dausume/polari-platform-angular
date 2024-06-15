@@ -21,6 +21,14 @@
     height: 600px;
     position: relative;
     z-index:1;
+    row-gap: 50px;
+    overflow: auto; /* Add this line to handle overflow */
+    padding: 16px; /* Add padding if needed */
+  }
+  
+  .no-code-container .item {
+    /* Optional: Add any specific styles for the items */
+    padding: 10px;
   }
   
   .menu-container {
@@ -40,4 +48,3 @@
     position: absolute;
     z-index: 2;
   }
-  

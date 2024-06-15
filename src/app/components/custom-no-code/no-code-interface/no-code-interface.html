@@ -1,10 +1,12 @@
 <div id="overall-graph-container">
   <solution-editor [solution]="solution"></solution-editor>
   <!-- Render individual box graphs here using *ngFor -->
+  <!--
   <ng-container *ngIf="solution">
-  <no-code-state-instance *ngFor="let state of solution.stateInstances" [state]="state"></no-code-state-instance>
-</ng-container>
-<div *ngIf="!solution">
- No Code Solution not passed in to no-code interface
-</div>
+    <no-code-state-instance *ngFor="let state of solution.stateInstances" [state]="state"></no-code-state-instance>
+  </ng-container>
+  -->
+  <div *ngIf="!solution">
+    No Code Solution not passed in to no-code interface
+  </div>
 </div>

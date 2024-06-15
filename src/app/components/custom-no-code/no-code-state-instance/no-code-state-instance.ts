@@ -37,7 +37,7 @@ export class NoCodeStateInstanceComponent {
     if(this.stateInstance === undefined)
     {
       //The default is 200 width, 150 height, padding is always 16px.
-      this.stateInstance = new noCodeState(0,0,"circle",0,"Test State", "Object Name", 200, 150, 0,0,[])
+      this.stateInstance = new noCodeState(0,0,"circle", undefined,0,"Test State", "Object Name", 200, 150, 0,0,[])
     }
   }
 
