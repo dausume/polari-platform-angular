@@ -1,8 +1,8 @@
 import { Injectable, EventEmitter, ErrorHandler } from "@angular/core";
 import { HttpClient, HttpHeaders } from '@angular/common/http'
 import { polariNode } from "@models/polariNode";
-import { BehaviorSubject, Subject, throwError } from "rxjs";
-import { retry, catchError } from 'rxjs/operators';
+import { BehaviorSubject, timer, Subject, throwError, of } from "rxjs";
+import { catchError, delayWhen, retryWhen, switchMap, tap, retry } from 'rxjs/operators';
 import { navComponent } from "@models/navComponent";
 import { classPolyTyping } from "@models/classPolyTyping";
 import { dataSetCollection } from "@models/dataSetCollection";
@@ -79,6 +79,7 @@ export class PolariService {
     {
         console.log("Starting PolariService")
         this.http = http
+        this.establishPolariConnection();
     }
     
     //Sets the baseline connection with the Polari Server and retrieves all necessary APIs and Typing data for creating
@@ -139,6 +140,23 @@ export class PolariService {
     {
         this.http
         .get<any>('http://' + this.userEntry_ipv4NumSubject.value + ':' + this.userEntry_portNumSubject.value + '/polyTypedObject', this.backendRequestOptions)
+        .pipe(
+            retryWhen(errors => errors.pipe(
+                tap(err => {
+                    console.log("--Threw Error--");
+                    console.log(err);
+                    //let tempSwitchBoard = this.classDataRetrievedSwitchboard.value;
+                    //tempSwitchBoard["polyTypedObject"] = false;
+                    //this.classDataRetrievedSwitchboard.next(tempSwitchBoard);
+                }),
+                delayWhen(() => timer(3000)),  // Delay for 3 seconds before retrying
+                tap(() => console.log("Retrying getObjectTyping..."))
+            )),
+            catchError(error => {
+                console.error("Retries exhausted:", error);
+                return of(null);  // or return throwError(error) if you want to propagate the error
+            })
+        )
         .subscribe({
             next: response =>{
                 let interpretedData = new dataSetCollection(response);
@@ -178,6 +196,20 @@ export class PolariService {
     {
         this.http
         .get<any>('http://' + this.userEntry_ipv4NumSubject.value + ':' + this.userEntry_portNumSubject.value + '/polyTypedVariable', this.backendRequestOptions)
+        .pipe(
+            retryWhen(errors => errors.pipe(
+                tap(err => {
+                    console.log("--Threw Error--");
+                    console.log(err);
+                }),
+                delayWhen(() => timer(3000)),  // Delay for 3 seconds before retrying
+                tap(() => console.log("Retrying getTypingVars..."))
+            )),
+            catchError(error => {
+                console.error("Retries exhausted:", error);
+                return of(null);  // or return throwError(error) if you want to propagate the error
+            })
+        )
         .subscribe({
             next: response =>{
                 console.log("vars response: ", response);
@@ -217,6 +249,20 @@ export class PolariService {
     {
         this.http
         .get<any>('http://' + this.userEntry_ipv4NumSubject.value + ':' + this.userEntry_portNumSubject.value + '/polariServer', this.backendRequestOptions)
+        .pipe(
+            retryWhen(errors => errors.pipe(
+                tap(err => {
+                    console.log("--Threw Error--");
+                    console.log(err);
+                }),
+                delayWhen(() => timer(3000)),  // Delay for 3 seconds before retrying
+                tap(() => console.log("Retrying getServerData..."))
+            )),
+            catchError(error => {
+                console.error("Retries exhausted:", error);
+                return of(null);  // or return throwError(error) if you want to propagate the error
+            })
+        )
         .subscribe({
             next: response =>{
                 let interpretedData = new dataSetCollection(response);
@@ -251,6 +297,20 @@ export class PolariService {
     {
         this.http
         .get<any>('http://' + this.userEntry_ipv4NumSubject.value + ':' + this.userEntry_portNumSubject.value + '/polariAPI', this.backendRequestOptions)
+        .pipe(
+            retryWhen(errors => errors.pipe(
+                tap(err => {
+                    console.log("--Threw Error--");
+                    console.log(err);
+                }),
+                delayWhen(() => timer(3000)),  // Delay for 3 seconds before retrying
+                tap(() => console.log("Retrying getServerData..."))
+            )),
+            catchError(error => {
+                console.error("Retries exhausted:", error);
+                return of(null);  // or return throwError(error) if you want to propagate the error
+            })
+        )
         .subscribe({
             next: response =>{
                 let interpretedData = new dataSetCollection(response);
@@ -285,6 +345,20 @@ export class PolariService {
     {
         this.http
         .get<any>('http://' + this.userEntry_ipv4NumSubject.value + ':' + this.userEntry_portNumSubject.value + '/polariCRUDE', this.backendRequestOptions)
+        .pipe(
+            retryWhen(errors => errors.pipe(
+                tap(err => {
+                    console.log("--Threw Error--");
+                    console.log(err);
+                }),
+                delayWhen(() => timer(3000)),  // Delay for 3 seconds before retrying
+                tap(() => console.log("Retrying polariCRUDE..."))
+            )),
+            catchError(error => {
+                console.error("Retries exhausted:", error);
+                return of(null);  // or return throwError(error) if you want to propagate the error
+            })
+        )
         .subscribe({
             next: response =>{
                 let interpretedData = new dataSetCollection(response);
