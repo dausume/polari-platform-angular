@@ -72,14 +72,27 @@ export class PolariService {
     classDataRetrievedSwitchboard = new BehaviorSubject<any>({});
     //
     valueHolder : any;
+    env: any;
     // List of all class-specific services dynamically generated.
     private classServices: { [className: string]: any } = {};
 
     constructor(private http: HttpClient)
     {
         console.log("Starting PolariService")
-        this.http = http
-        this.establishPolariConnection();
+        this.http = http;
+        if(environment.backendUrl && environment.backendPort)
+        {
+            this.polariAccessNodeSubject.next({
+                "ip":environment.backendUrl,
+                "port":environment.backendPort,
+                "crudeAPIs":[],
+                "polariAPIs":[]
+            });
+            this.userEntry_ipv4NumSubject.next(environment.backendUrl);
+            this.userEntry_portNumSubject.next(environment.backendPort);
+        }
+      //Triggers the attempt to connect to the Polari Node with the set polariService values.
+      this.establishPolariConnection()
     }
     
     //Sets the baseline connection with the Polari Server and retrieves all necessary APIs and Typing data for creating
