@@ -1,4 +1,4 @@
-import { Component, EventEmitter, HostListener, ElementRef, ChangeDetectorRef, ViewChild, ComponentFactoryResolver, ViewContainerRef  } from '@angular/core';
+import { Component, Renderer2, EventEmitter, HostListener, ElementRef, ChangeDetectorRef, ViewChild, ComponentFactoryResolver, ViewContainerRef  } from '@angular/core';
 import { FormControl } from '@angular/forms';
 import { noCodeState } from '@models/noCodeState';
 import { noCodeSolution } from '@models/noCodeSolution';
@@ -16,11 +16,21 @@ export class CustomNoCodeComponent {
 
   @ViewChild('graphContainer', { read: ViewContainerRef, static: false }) graphContainerRef!: ViewContainerRef;
 
+  boxes: any[] = [
+    { x: 100, y: 100, width: 100, height: 100, id: 1 },
+    { x: 300, y: 200, width: 100, height: 100, id: 2 }
+  ];
+
+  //@ts-ignore
+  @ViewChild('d3Graph', { static: true }) d3Graph: ElementRef;
+
   polariAccessNodeSubject = new BehaviorSubject<noCodeState>({id:0}) ;
 
   contextMenu: boolean = false;
-  stateInstances = [new noCodeState(0,0,"circle",0,"Test State","Test Class",100,100,5,5,[])]
+  stateInstances = [new noCodeState(0,0,"circle",undefined,0,"Test State 2","Test Class",100,100,5,5,[]), new noCodeState(1,1,"circle", undefined, 0,"Test State 2","Test Class",100,100,300,5,[])]
   noCodeSolution = new noCodeSolution(800, 800, "testSolution",this.stateInstances, 0, 0, 0);
+  // Used for binding the overlay which displays State Object UIs and their container elements to the d3 Objects.
+  overlayStateSegments: { [key: number]: HTMLElement | null } = {};
   // Access xBounds and yBounds from noCodeSolution
   xBoundary: number = this.noCodeSolution.xBounds;
   yBoundary: number = this.noCodeSolution.yBounds;
@@ -30,8 +40,9 @@ export class CustomNoCodeComponent {
   makeConnectionsMode: boolean = false;
   //used when connecting two nodes in connections mode.
   sourceNode: any = null;
+  svg: any;
 
-  constructor(private elementRef: ElementRef, private changeDetectorRef: ChangeDetectorRef, private componentFactoryResolver: ComponentFactoryResolver) {
+  constructor(private elementRef: ElementRef, private changeDetectorRef: ChangeDetectorRef, private renderer: Renderer2, private componentFactoryResolver: ComponentFactoryResolver) {
     
   }
 
@@ -69,8 +80,205 @@ export class CustomNoCodeComponent {
 
   ngOnInit()
   {
-    console.log("In custom no code ngOnInit");
+    //this.createGraph();
+    // Creates the 'svg' which is an svg that has other svg's allocated to it to act as the d3 graph.
+    // Initialization of the d3-graph tag.
+    this.createSvg();
+    this.createCircles();
   }
+
+  private createSvg(): void {
+    this.svg = d3.select('#d3-graph')
+      .append('svg')
+      .attr('viewBox', `0 0 ${this.noCodeSolution.xBounds} ${this.noCodeSolution.yBounds}`)
+      .attr('stroke-width', 2);
+  }
+
+/*
+  createGraph(): void {
+
+    const svg = d3.select("#d3-graph")
+      .append("svg")
+      .attr("width", this.noCodeSolution.xBounds)
+      .attr("height", this.noCodeSolution.yBounds);
+      
+    svg.append("use")
+        .attr("href", "#pointer")
+        .attr("x", 50)
+        .attr("y", 50)
+        .attr("fill", "#039BE5")
+        .attr("stroke", "#039BE5")
+        .attr("stroke-width", "1px");
+
+    var dragHandler = d3.drag()
+      .on("start", function(d, i, n){
+        console.log("logging start conditions for drag");
+        console.log("d3ElementNodes : ", n);
+        console.log("draggedElementIndex : ", i);
+        console.log("d3ElementNodes[draggedElementIndex] : ", n[i]);
+      })
+      .on("drag", (event) => {
+          d3.select(event.sourceEvent.target)
+              .attr("x", event.x)
+              .attr("y", event.y);
+      })
+      .on("end", function(d, i, n) {
+        console.log("logging end conditions for drag");
+        console.log("d3ElementNodes : ", n);
+        console.log("draggedElementIndex : ", i);
+        console.log("d3ElementNodes[draggedElementIndex] : ", n[i]);
+    });
+    
+    dragHandler(svg.selectAll("use"));
+
+    let boxElement = null;
+    let x = null;
+    let y = null;
+    let overlay = null;
+
+    this.stateInstances.forEach((stateInstance: noCodeState) => {
+      boxElement = svg.append("rect")
+      .attr("x", stateInstance.stateLocationX)
+      .attr("y", stateInstance.stateLocationY)
+      .attr("width", stateInstance.stateComponentSizeX)
+      .attr("height", stateInstance.stateComponentSizeY)
+      .attr("fill", "lightblue")
+      // Creates an onEvent functions that occurs for every pixel dragged after click and drag begins occurring.
+      .call(d3.drag()
+        .on("start", (event) => {
+          console.log("Handling drag Start, start location : (", event.x, ", ", event.y, ")", " and stateInstance location : ", stateInstance.stateLocationX, ", ", stateInstance.stateComponentSizeY, ")");
+          this.handleSingleStateObjectDragStart(stateInstance.id);
+        })
+        .on("drag", (event) => { // Takes the new x and y values sent by event after drag event occurs and assigns them.
+          //console.log("Dragging event start, target : ", event.sourceEvent.target, " at location : (", event.x, ", ", event.y, ")");
+          //let x = event.x;
+          //let y = event.y;
+          //Causes actual change of location of object when performing drag.
+          //[x, y] = d3.pointer(event);
+          // target variable is equivalent of normal d3 'this'.
+          //const target = d3.event.sourceEvent.target;
+          d3.select(d3.event.sourceEvent.target)
+            .attr("x", event.x)
+            .attr("y", event.y);
+            
+          //console.log("event.sourceEvent.target attributes changed, (", event.sourceEvent.target.x, ", ", event.sourceEvent.target.y, ")");
+          // This is a single 'layer' of the overlay, where each 'state' object has a layer that binds a component to a box.
+          /*
+          let overlayStateSegment = document.getElementById(`overlay-${stateInstance.id}`);
+          console.log("overlayStateSegment : ", overlayStateSegment);
+          if (overlayStateSegment) {
+            console.log("overlay style before change: (", overlayStateSegment.style.left, " , ", overlayStateSegment.style.right, ")");
+            overlayStateSegment.style.left = `${x}px`;
+            overlayStateSegment.style.top = `${y}px`;
+          }
+            
+        })
+        .on("end", (event) => { // Triggers whenever you stop dragging something.
+          this.handleSingleStateObjectDragEnd(stateInstance, event);
+        })
+      );
+    });
+  }
+*/
+
+
+
+private createCircles(): void {
+  const width = 600;
+const height = 600;
+const radius = 32;
+  const circles = d3.range(20).map(() => ({
+    // (height - radius * 2) + 32
+    x: Math.random() * (600 - 32 * 2) + 32,
+    y: Math.random() * (600 - 32 * 2) + 32,
+  }));
+
+  this.svg.selectAll('circle')
+    .data(circles)
+    .enter()
+    .append('circle')
+    .attr('cx', d => d.x)
+    .attr('cy', d => d.y)
+    .attr('r', 32)
+    .attr('fill', (d, i) => d3.schemeCategory10[i % 10])
+    .call(this.drag());
+}
+
+private drag(): any {
+  const dragstarted = (event, d) => {
+    d3.select(event.sourceEvent.target).raise().attr('stroke', 'black');
+  };
+
+  const dragged = (event, d) => {
+    d3.select(event.sourceEvent.target).attr('cx', d.x = event.x).attr('cy', d.y = event.y);
+  };
+
+  const dragended = (event, d) => {
+    d3.select(event.sourceEvent.target).attr('stroke', null);
+  };
+
+  return d3.drag()
+    .on('start', dragstarted)
+    .on('drag', dragged)
+    .on('end', dragended);
+}
+
+  // Handles hiding the overlay/UI when the drag starts, since the UI portion is not optimized to get dragged.
+  // TODO? Find a way to transform the UI into an image quickly to imprint on the d3 object so it looks like
+  // the UI is still there the whole time instead of being replaced by another object.
+  handleSingleStateObjectDragStart(id: number){
+    console.log("drag start");
+    this.overlayStateSegments[id] = document.getElementById(`overlay-${id}`);
+    if (this.overlayStateSegments[id]) { //For some reason typescript cannot detect that we are detecting if it is null or not, so have to use ts-ignore here.
+      //@ts-ignore
+      this.overlayStateSegments[id].style.display = 'none';
+    }
+    else{
+      console.log("Failed to manipulate overlay in handleSingleStateObjectDragStart");
+      //console.log("Somehow dragging a state object which does not have a corresponding element with element id 'overlay-${id}', the state Object id is : ", id);
+    }
+    console.log("completed drag start handler");
+  }
+
+  // Handles showing the overlay/UI when the drag ends, since the UI portion is not optimized to get dragged.
+  // Also handles updating the StateObject with the new location it is at.
+  handleSingleStateObjectDragEnd(stateInstance: noCodeState, event){
+    const overlayStateSegment = document.getElementById(`overlay-${stateInstance.id}`);
+    if (overlayStateSegment) {
+      overlayStateSegment.style.display = 'none';
+    }
+    else{
+      console.log("Failed to manipulate overlay in handleSingleStateObjectDragEnd");
+      //console.log("Somehow dragged a state object which does not have a corresponding element with element id 'overlay-${id}', the state Object id is : ", id);
+    }
+    console.log("completed drag end handler");
+  }
+
+  // Used to perform height, width, and location transforms on state objects UI overlays, based on d3 transforms of their
+  // corresponding d3 object which the UI is overlayed on.
+  updateSingleStateOverlayTransforms(id: number, x: number, y: number, width: number, height: number)
+  {
+    const overlayStateSegment = document.getElementById(`overlay-${id}`);
+    if (overlayStateSegment) {
+      this.renderer.setStyle(overlayStateSegment, 'left', `${x}px`);
+      this.renderer.setStyle(overlayStateSegment, 'top', `${y}px`);
+      this.renderer.setStyle(overlayStateSegment, 'width', `${width}px`);
+      this.renderer.setStyle(overlayStateSegment, 'height', `${height}px`);
+    }
+  }
+
+  // Ensures State Objects remain in the same location when re-sizing of the d3-graph/no-code-solution container is re-sized.
+  setOverlaysFromMemory(): void {
+    this.stateInstances.forEach((state) => {
+      const stateOverlay = d3.select(`rect[x="${state.stateLocationX}"][y="${state.stateLocationY}"]`);
+      const x = parseFloat(stateOverlay.attr('x'));
+      const y = parseFloat(stateOverlay.attr('y'));
+      const width = parseFloat(stateOverlay.attr('width'));
+      const height = parseFloat(stateOverlay.attr('height'));
+      this.updateSingleStateOverlayTransforms(state.id, x, y, width, height);
+    });
+  }
+
 
   drawGraph() {
     // Prepare data for ngx-graph
@@ -209,6 +417,7 @@ export class CustomNoCodeComponent {
     console.log("After view init end");
   }
 
+  // Updates the state object instance
   onStateInstanceDrop(event: any) {
     // Get the position and dimensions of the dropped no-code-state-instance element
     const stateInstanceMovement = event.distance;
@@ -218,7 +427,6 @@ export class CustomNoCodeComponent {
     let stateInstanceRef = this.noCodeSolution.stateInstances[stateIndex];
     let currentX = stateInstanceRef.stateLocationX;
     let currentY = stateInstanceRef.stateLocationY;
-    
     
     // Calculate the new position of the state instance in respect to the mat-card element
     let newX = currentX + stateInstanceMovement.x;

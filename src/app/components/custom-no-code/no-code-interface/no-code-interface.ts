@@ -36,7 +36,7 @@ export class NoCodeInterfaceComponent {
   ngOnInit() {
     if (this.solutionId === undefined) {
       // Create mode: Initialize with a new noCodeSolution
-      let firstState = new noCodeState(0,0,"",0,"Test State",undefined,100,100,0,0,[])
+      let firstState = new noCodeState(0,0,"",undefined,0,"Test State",undefined,100,100,0,0,[])
       this.solution = new noCodeSolution(500,500,"",[firstState],0,0,0,0,0,1);
     } else {
       // Edit mode: Fetch the existing noCodeSolution using this.noCodeSolutionId

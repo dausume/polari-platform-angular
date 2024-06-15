@@ -1,6 +1,7 @@
 /* Define a custom theme by overriding the default theme's variables */
 :root {
 
+    --primary-hover-color: #4d4d6c;
     --primary-color: #34344A;
 
     --nav-color: #424242;

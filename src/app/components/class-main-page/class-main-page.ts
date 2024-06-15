@@ -26,7 +26,7 @@ export class ClassMainPageComponent {
         Object.keys(paramsMap['params']).forEach( param =>{
           if(param == "class")
           {
-            this.className = paramsMap["params"][param];
+            this.className = paramsMap["params"][param]; // Get the class name from the url so we can access the service.
           }
         });
   
@@ -34,15 +34,16 @@ export class ClassMainPageComponent {
           .subscribe(polyTyping => {
             console.log("typing dict retrieved in class main page");
             console.log(polyTyping);
-            if(this.className != undefined)
+            if(this.className != undefined) //Check if class name was defined
             {
+              // Retrieve the class typing data
               this.classTypeData = polyTyping[this.className];
               console.log("ClassTypeData on ClassMainPage for ", this.className);
               console.log("ClassTypeData on ClassMainPage for ", polyTyping["completeVariableTypingData"]);
             }
             else
             {
-              console.log("could not get typing info because class info was null.");
+              console.log("could not get typing info because class info was undefined.");
             }
           }
         );

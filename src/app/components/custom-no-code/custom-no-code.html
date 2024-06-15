@@ -1,36 +1,9 @@
 <mat-card class="no-code-container">
-    <mat-card (contextmenu)="showContextMenu($event)" class="menu-container">
-      <no-code-menu class="no-code-menu" (newStateInstance)="onNewStateInstance()"></no-code-menu>
+    <mat-card (contextmenu)="showContextMenu($event)" class="menu-container" style="margin-top:50px">
+      <no-code-menu class="no-code-menu item" (newStateInstance)="onNewStateInstance()"></no-code-menu>
     </mat-card>
-    <no-code-interface></no-code-interface>
     <!--
-      <div id="d3-container"></div>
-    <div class="common-boundary" [style.width.px]="xBoundary" [style.height.px]="yBoundary" cdkDragBoundary="boundary">
-      <div 
-          class="state-instances-container"
-          style="pointer-events: none;"
-          [style.width.px]="xBoundary" 
-          [style.height.px]="yBoundary" 
-          cdkDragBoundary="boundary"
-          *ngFor="let stateInstance of noCodeSolution.stateInstances" 
-          cdkDrag 
-          (cdkDragStarted)="onDragStarted($event, stateInstance)" 
-          (cdkDragEnded)="onDragEnded($event, stateInstance)"
-          >
-          
-            <no-code-state-instance 
-            [stateInstance]="stateInstance"
-            style="pointer-events: auto;"
-            ></no-code-state-instance>
-            
-          </div>
-        </div>
-    <ngx-graph #graphContainer
-        class="ngx-graph-container"
-        [view]="[xBoundary, yBoundary]"
-        
-        >
-        </ngx-graph>
-        -->
-      </mat-card>
-  
+    <no-code-interface class="item"></no-code-interface>
+    -->
+    <div id="d3-graph"></div>
+</mat-card>

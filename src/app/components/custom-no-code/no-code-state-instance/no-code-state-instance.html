@@ -1,4 +1,3 @@
-
 <mat-card class="square no-code-state-instance">
   <div>
     <mat-form-field>
@@ -15,25 +14,3 @@
   </div>
   <no-code-state-border [stateInstance]="stateInstance"></no-code-state-border>
 </mat-card>
-
-<!-- How to incorporate stuff -->
-<!--
-<ng-template #nodeTemplate let-node>
-  <mat-card class="square no-code-state-instance">
-    <div>
-      <mat-form-field>
-        <mat-label>State/Class</mat-label>
-        <input matInput [formControl]="classEntryControl" [matAutocomplete]="auto" (keyup)="search()">
-        <mat-autocomplete #auto="matAutocomplete" (optionSelected)="onClassSelected($event)">
-          <mat-option *ngFor="let option of filteredOptions" [value]="option">
-            {{ option }}
-          </mat-option>
-        </mat-autocomplete>
-      </mat-form-field>
-      <div>{{stateInstance.stateLocationX}}</div>
-      <div>{{stateInstance.stateLocationY}}</div>
-    </div>
-    <no-code-state-border [stateInstance]="stateInstance"></no-code-state-border>
-  </mat-card>
-</ng-template>
--->

@@ -5,6 +5,6 @@ export const environment = {
     test: false,
     dev: false,
     default: true,
-    backendUrl: 'http://localhost',
-    backendPort: '8080'
+    backendUrl: 'localhost',
+    backendPort: '3000'
 }; 

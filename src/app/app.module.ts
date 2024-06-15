@@ -40,6 +40,8 @@ import { SolutionEditorComponent } from '@components/custom-no-code/no-code-inte
 import { SlotComponent } from '@components/custom-no-code/slot/slot';
 import { NoCodeMenuComponent } from '@components/custom-no-code/no-code-menu/no-code-menu';
 import { NoCodeStateBorderComponent } from '@components/custom-no-code/no-code-state-instance/no-code-state-border/no-code-state-border';
+import { DefaultCellComponent } from './components/templateClassTable/type-cells/default-cell/default-cell';
+import { ConfigCellActions } from '@components/templateClassTable/type-cells/config-cell-actions/config-cell-actions';
 //Services (Backend Access)
 import { PolariService } from '@services/polari-service';
 import { CRUDEservicesManager } from '@services/crude-services-manager';
@@ -70,7 +72,9 @@ import { CustomOverlayContainer } from './services/overlay-container-service';
     SolutionEditorComponent,
     SlotComponent,
     NoCodeMenuComponent,
-    NoCodeStateBorderComponent
+    NoCodeStateBorderComponent,
+    DefaultCellComponent,
+    ConfigCellActions
   ],
   imports: [
     BrowserModule,

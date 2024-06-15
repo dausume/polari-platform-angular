@@ -1,8 +1,8 @@
 .example-events {
-    width: 300px;
-    height: 200px;
-    overflow: auto;
-    border: 1px solid #555;
+  width: 300px;
+  height: 200px;
+  overflow: auto;
+  border: 1px solid #555;
 }
 
 .mat-grid-tile-content {
@@ -27,27 +27,49 @@
 }
 
 #new_variable_btn {
-    width: 80px;
-    height: 25px;
-    background-color: #6a0dad; /* Example background color */
-    color: white; /* Example text color */
-    border: none; /* Remove default border */
-    border-radius: 4px; /* Example rounded corners */
-    display: flex; /* Flexbox to align content */
-    align-items: center; /* Center content vertically */
-    justify-content: center; /* Center content horizontally */
-    cursor: pointer; /* Pointer cursor on hover */
-    transition: background-color 0.3s; /* Smooth transition on hover */
-  }
+  width: 80px;
+  height: 25px;
+  background-color: primary; /* Example background color */
+  color: white; /* Example text color */
+  border: none; /* Remove default border */
+  border-radius: 4px; /* Example rounded corners */
+  display: flex; /* Flexbox to align content */
+  align-items: center; /* Center content vertically */
+  justify-content: center; /* Center content horizontally */
+  cursor: pointer; /* Pointer cursor on hover */
+  transition: background-color 0.3s; /* Smooth transition on hover */
+}
   
   #new_variable_btn:hover {
-    background-color: #4b0082; /* Darker shade on hover */
+    background-color: #210139; /* Darker shade on hover */
   }
 
   .remove-var-btn {
-    background-color: #6a0dad;
+    width: 80px;
+    background-color: primary;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.3s;
   }
 
   .remove-var-btn:hover {
-    background-color: #4b0082; /* Darker shade on hover */
+    background-color: #210139; /* Darker shade on hover */
   }
+
+  /* Responsive Design */
+@media (max-width: 768px) {
+  .variable-config-container mat-grid-list {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .variable-config-container mat-grid-list {
+    grid-template-columns: 1fr;
+  }
+}
