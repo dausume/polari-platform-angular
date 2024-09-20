@@ -4,8 +4,10 @@ import { noCodeState } from '@models/noCodeState';
 import { noCodeSolution } from '@models/noCodeSolution';
 import { CdkDragDrop, moveItemInArray, CdkDragStart, CdkDragEnd } from '@angular/cdk/drag-drop';
 import { BehaviorSubject, Observable, Subscription } from "rxjs";
+import { OverlayComponentService } from '../../services/overlay-component-service';
 import * as d3 from 'd3';
 import { GraphComponent } from '@swimlane/ngx-graph'; // Import the ngx-graph component
+import { NoCodeStateInstanceComponent } from './no-code-state-instance/no-code-state-instance';
 
 @Component({
   selector: 'custom-no-code',
@@ -42,7 +44,16 @@ export class CustomNoCodeComponent {
   sourceNode: any = null;
   svg: any;
 
-  constructor(private elementRef: ElementRef, private changeDetectorRef: ChangeDetectorRef, private renderer: Renderer2, private componentFactoryResolver: ComponentFactoryResolver) {
+  
+
+  constructor(
+    private elementRef: ElementRef, 
+    private changeDetectorRef: ChangeDetectorRef, 
+    private renderer: Renderer2, 
+    private overlayComponentService: OverlayComponentService,
+    private hostViewContainerRef: ViewContainerRef
+    ) 
+    {
     
   }
 
@@ -84,7 +95,8 @@ export class CustomNoCodeComponent {
     // Creates the 'svg' which is an svg that has other svg's allocated to it to act as the d3 graph.
     // Initialization of the d3-graph tag.
     this.createSvg();
-    this.createCircles();
+    this.createRectangles()
+    //this.createCircles();
   }
 
   private createSvg(): void {
@@ -92,6 +104,42 @@ export class CustomNoCodeComponent {
       .append('svg')
       .attr('viewBox', `0 0 ${this.noCodeSolution.xBounds} ${this.noCodeSolution.yBounds}`)
       .attr('stroke-width', 2);
+  }
+
+  private createRectangles()
+  {
+    const rectangles = d3.range(1).map(() => ({
+      x: 20,
+      y: 20,
+      width: 400,
+      height: 400,
+      borderPixels: 15
+    }));
+
+    const rectSelection = this.svg.selectAll('rect')
+    .data(rectangles)
+    .enter()
+    .append('rect')
+    .attr('x', d => d.x)
+    .attr('y', d => d.y)
+    .attr('width', d => d.width)
+    .attr('height', d => d.height)
+    .attr('fill', (d, i) => d3.schemeCategory10[i % 10])
+    .call(this.dragRectangle());
+    //.each(d => this.overlayComponentService.addDynamicComponent(NoCodeStateInstanceComponent, d, d.borderPixels, this.hostViewContainerRef));
+    
+    //rectSelection
+    
+    
+  }
+
+  runSetup(selection)
+  {
+    selection.each((d, i, nodes) => {
+      this.overlayComponentService.addDynamicComponent(NoCodeStateInstanceComponent, d, d.borderPixels, this.hostViewContainerRef);
+    })
+
+    this.dragRectangle()
   }
 
 /*
@@ -201,16 +249,35 @@ const radius = 32;
     .attr('cy', d => d.y)
     .attr('r', 32)
     .attr('fill', (d, i) => d3.schemeCategory10[i % 10])
-    .call(this.drag());
+    .call(this.dragCircle());
 }
 
-private drag(): any {
+private dragCircle(): any {
   const dragstarted = (event, d) => {
     d3.select(event.sourceEvent.target).raise().attr('stroke', 'black');
   };
 
   const dragged = (event, d) => {
     d3.select(event.sourceEvent.target).attr('cx', d.x = event.x).attr('cy', d.y = event.y);
+  };
+
+  const dragended = (event, d) => {
+    d3.select(event.sourceEvent.target).attr('stroke', null);
+  };
+
+  return d3.drag()
+    .on('start', dragstarted)
+    .on('drag', dragged)
+    .on('end', dragended);
+}
+
+private dragRectangle(): any {
+  const dragstarted = (event, d) => {
+    d3.select(event.sourceEvent.target).raise().attr('stroke', 'black');
+  };
+
+  const dragged = (event, d) => {
+    d3.select(event.sourceEvent.target).attr('x', d.x = event.x).attr('y', d.y = event.y);
   };
 
   const dragended = (event, d) => {
@@ -338,15 +405,15 @@ private drag(): any {
   draw(data: any, options: any) {
     // Clear the container in case it already has content
     console.log("before clear")
-    this.graphContainerRef.clear();
+    //this.graphContainerRef.clear();
     console.log("before factory")
     // Create the ngx-graph component and attach it to the container
-    const graphComponentFactory = this.componentFactoryResolver.resolveComponentFactory(GraphComponent);
+    //const graphComponentFactory = this.componentFactoryResolver.resolveComponentFactory(GraphComponent);
     console.log("before ref")
-    const graphComponentRef = this.graphContainerRef.createComponent(graphComponentFactory);
+    //const graphComponentRef = this.graphContainerRef.createComponent(graphComponentFactory);
     // Set the data input properties of the ngx-graph component
-    graphComponentRef.instance.nodes = data.nodes;
-    graphComponentRef.instance.links = data.edges;
+    //graphComponentRef.instance.nodes = data.nodes;
+    //graphComponentRef.instance.links = data.edges;
     /*
     // You can access the nativeElement of graphContainerRef to get the DOM container for the graph
     const graphContainer = this.graphContainerRef.nativeElement;
@@ -390,16 +457,18 @@ private drag(): any {
 
   ngAfterViewInit() {
     console.log("before drawgraph ngAfterViewInit")
-    this.drawGraph();
+    //this.drawGraph();
     //Old code below
     console.log("After view init")
     // Log a message when a new state instance is created
     this.polariAccessNodeSubject.subscribe(stateInstance => {
       console.log("Creating new state instance:", stateInstance);
     });
+    /*
     let siContainerElement = this.elementRef.nativeElement.querySelector('.state-instances-container');
     let siRect = siContainerElement.getBoundingClientRect();
     console.log("siRect",siRect);
+    */
     this.noCodeSolution.stateInstances[0].stateLocationX = 0;
     this.noCodeSolution.stateInstances[0].stateLocationY = 0;
     console.log(this.noCodeSolution.stateInstances[0]);
