@@ -69,10 +69,10 @@
           "builder": "@angular-devkit/build-angular:dev-server",
           "configurations": {
             "production": {
-              "browserTarget": "polari-platform:build:production"
+              "buildTarget": "polari-platform:build:production"
             },
             "development": {
-              "browserTarget": "polari-platform:build:development"
+              "buildTarget": "polari-platform:build:development"
             }
           },
           "defaultConfiguration": "development"
@@ -80,7 +80,7 @@
         "extract-i18n": {
           "builder": "@angular-devkit/build-angular:extract-i18n",
           "options": {
-            "browserTarget": "polari-platform:build"
+            "buildTarget": "polari-platform:build"
           }
         },
         "test": {

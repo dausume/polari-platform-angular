@@ -1,5 +1,4 @@
 import { CUSTOM_ELEMENTS_SCHEMA, /*ErrorHandler,*/  NgModule } from '@angular/core';
-import { NgxGraphModule } from '@swimlane/ngx-graph';
 import { BrowserModule } from '@angular/platform-browser';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
@@ -96,8 +95,7 @@ import { OverlayComponentService } from './services/overlay-component-service';
     MatSelectModule,
     DragDropModule,
     MatAutocompleteModule,
-    MatMenuModule,
-    NgxGraphModule
+    MatMenuModule
   ],
   exports: [
     

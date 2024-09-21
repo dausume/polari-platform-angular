@@ -6,7 +6,6 @@ import { CdkDragDrop, moveItemInArray, CdkDragStart, CdkDragEnd } from '@angular
 import { BehaviorSubject, Observable, Subscription } from "rxjs";
 import { OverlayComponentService } from '../../services/overlay-component-service';
 import * as d3 from 'd3';
-import { GraphComponent } from '@swimlane/ngx-graph'; // Import the ngx-graph component
 import { NoCodeStateInstanceComponent } from './no-code-state-instance/no-code-state-instance';
 
 @Component({
