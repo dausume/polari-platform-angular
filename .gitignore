@@ -3,6 +3,8 @@
 #Config
 polari-config.json
 
+.angular
+
 # compiled output
 /dist
 /tmp
