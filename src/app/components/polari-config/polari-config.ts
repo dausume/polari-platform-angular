@@ -17,9 +17,9 @@ export class PolariConfigComponent {
   @ViewChild("connectionCheckbox",{ static: true})
   checkboxElemRef?: ElementRef
 
-  connectionCheckboxFormGroup = new FormGroup({
-    updates:new FormControl(this.polariService.connectionSuccessSubject.pipe())
-  })
+  connectionCheckboxFormGroup : FormGroup = new FormGroup({
+    connectionCheckbox: new FormControl('', [Validators.required])
+  });
 
   ipNumFormControl = new FormControl('', [Validators.required, Validators.pattern(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/)]);
   portNumFormControl = new FormControl('', [Validators.required, Validators.pattern(/^\d{4}$/)]);
