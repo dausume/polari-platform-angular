@@ -1,6 +1,9 @@
+// Author: Dustin Etts
 import { dataSet } from "./dataSet";
 
 //Defines a dataSetCollection, which is the raw format of all data output by any given polari custom or crude api endpoints.
+// The dataSetCollection is a collection of arbitrary dataSets which have just been retrieved from the backend.
+// The dataSetCollection is meant to be a tool to help organize and interpret the data that has been retrieved from the backend.
 export class dataSetCollection {
     //The Names of all objects which had at least one instance passed in the dataSetCollection.
     objectNames?: string[];

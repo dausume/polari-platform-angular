@@ -1,3 +1,4 @@
+// Author: Dustin Etts
 import { noCodeState } from "./noCodeState";
 
 export class noCodeSolution {

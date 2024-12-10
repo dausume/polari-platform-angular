@@ -4,10 +4,10 @@ import { polariNode } from "@models/polariNode";
 import { BehaviorSubject, timer, Subject, throwError, of } from "rxjs";
 import { catchError, delayWhen, retryWhen, switchMap, tap, retry } from 'rxjs/operators';
 import { navComponent } from "@models/navComponent";
-import { classPolyTyping } from "@models/classPolyTyping";
-import { dataSetCollection } from "@models/dataSetCollection";
+import { classPolyTyping } from "@models/polyTyping/classPolyTyping";
+import { dataSetCollection } from "@models/objectData/dataSetCollection";
 import { CRUDEclassService } from "./crude-class-service";
-import { environment } from "src/environments/environment";
+import { environment } from "src/environments/environment-dev";
 
 
 @Injectable({

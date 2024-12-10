@@ -1,5 +1,5 @@
 import { Component, HostListener, Input, Output, EventEmitter } from '@angular/core';
-import { Slot } from '@models/slot';
+import { Slot } from '@models/noCode/slot';
 
 @Component({
   selector: 'no-code-state-border',

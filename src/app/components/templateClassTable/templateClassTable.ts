@@ -9,11 +9,11 @@ import { MatTableModule } from '@angular/material/table';
 import { DefaultCellComponent } from './type-cells/default-cell/default-cell'
 //Models
 //import { templateClass } from '@models/templateClass';
-import { dataSetCollection } from '@models/dataSetCollection';
-import { dataSet } from '@models/dataSet';
-import { classPolyTyping } from '@models/classPolyTyping';
-import { objectReference } from '@models/objectReference';
-import { variablePolyTyping } from '@models/variablePolyTyping';
+import { dataSetCollection } from '@models/objectData/dataSetCollection';
+import { dataSet } from '@models/objectData/dataSet';
+import { classPolyTyping } from '@models/polyTyping/classPolyTyping';
+import { objectIdentifiersSpec } from '@models/objectIdentifiersSpec';
+import { variablePolyTyping } from '@models/polyTyping/variablePolyTyping';
 
 @Component({
   selector: 'template-class-table',

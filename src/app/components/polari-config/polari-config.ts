@@ -4,7 +4,7 @@ import { ActivatedRoute } from '@angular/router';
 import { polariNode } from '@models/polariNode';
 import { PolariService } from '@services/polari-service';
 import { BehaviorSubject, interval, Observable, Observer, Subscription } from 'rxjs';
-import { environment } from 'src/environments/environment';
+import { environment } from 'src/environments/environment-dev';
 
 
 @Component({

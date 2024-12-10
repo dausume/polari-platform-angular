@@ -1,3 +1,4 @@
+// Author: Dustin Etts
 export class navComponent {
     title : string;
     path: string;

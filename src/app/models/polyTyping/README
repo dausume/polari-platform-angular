@@ -1,0 +1,14 @@
+### Class Poly-Typing Data Model
+
+Poly typing is meant to be an adaptive typing model meant specifically for handling the data format coming from a Polari backend,
+which is necessarily complex because it is meant to deal with auto-generating types and data structure for arbitrarily
+complex research systems.
+
+In simple terms polyTyping uses the class as the basis for typing, and then infers types based on data that gets put into the
+instances of the class over time.
+
+The polyTyping instance for the class records the different types and data-density that flows through the instances of the class
+as well as recording relevant information for the typing and data density of variables.  
+
+This way appropriate User Interfaces can be suggested, and appropriate and efficient database systems can be auto-generated
+and configured.

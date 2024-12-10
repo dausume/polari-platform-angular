@@ -1,0 +1,11 @@
+### Class Editor Data Structure
+
+The purpose of the class editor data structure is to enable those without in depth coding experience
+to be able to create a class or data-structure as needed for development purposes that they can use
+together with the no-code interfaces to perform development.
+
+It can allow a user to define the variables for a class, the user may also choose to specify what the polytyping of the 
+class looks like manually, or leave it undefined and allow the system to define it when test data is run through the system.
+
+However, the Class Editor should always define whether certain variables are required, and it should also what the class
+identifiers are that make it unique - if the class is something we are actually storing in the database and serving in APIs.

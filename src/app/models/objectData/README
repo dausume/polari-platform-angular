@@ -1,0 +1,87 @@
+# Author: Dustin Etts
+### Object Data Data Structure
+
+The Object Data series is meant to be a set of objects used for efficiently managing the access of data
+from a Polari backend.  It provides a data structure that allows us to intuitively aggregate and retrieve only the data that we
+need from the backend and then distribute it in an efficient and stateful manner.  Retrieving only the minimum amount of variables
+needed at any given time.
+
+In most cases the app will just use the default api which pulls all available data initially, then reads and adapts to instead
+pulling from the necessary more efficient sources based on the information in our services.
+
+## APIs and the Data Set Collection
+
+Most Polari APIs will serve data in the format of a dataSetCollection.
+
+The dataSetCollection format is simply a standard format Polari Apps use because we need to make generalized but dynamic object oriented APIs.  A dataSetCollection is effectively just json where each key in the json is a class name, and the class name
+key directly corresponds to a dataSet object that was requested from the API.
+
+The dataSetCollection is an intermediary object used to seperate out these dataSets that had been aggregated for cacheing
+purposes, so that they can be merged into the overall state of the application.
+
+## The Data Set - App level
+
+The baseline of this Data Structure is the dataSet object.
+
+The dataSet object is specific to a single object and maintains the state of the object for the application, and only one instance of it exists in an application instance.
+
+It is used to manage how access is requested by the application from the backend, and what variables are asked for
+from the api, in order to ensure permission-based rules are followed, as well as to ensure we minimize the amount of data
+being stored on the frontend to only being what is actually needed.
+
+The varsLimited array lists variables on the class that have been black-listed as data we should not be retrieving from
+any APIs.  This may be due to simply not having the permission to view that variable, or due to that variable simply not
+being needed on the current web-page, component, or app.
+
+## Dynamically determining efficient data retrieval strategies.
+
+# The Component & Object level Specification
+
+The lowest level object in this heirarchy is the componentObjectDataSpec.  
+
+The componentObjectDataSpec is simply a minimalistic request for what is needed to be displayed on the particular component being run, for a particular object.  
+
+The componentObjectDataSpec can be dynamically determined by seeing what variables are read in what format from what classes on the component.  Or it can be hard-coded and used directly in a pre-made component.
+
+# Component Permissions Comparison
+
+Note that by cross-comparing the componentObjectDataSpec with a particular user's crude permissions, we can determine
+whether or not a user should be allowed to use that component.
+
+We may by default disable a user's visibility to that component if they lack the permissions to use it.
+
+# The Object & Web-Page level Specification
+
+The webPageObjectDataSpec is the second level, it is used to aggregate the webPageObjectDataSpec within a particular
+web-page that has been configured so that we can determine the sum of all variables needed for a single object in a web-page.
+
+This level exists so that we can detect overlap of data requirements within a single web-page, so that we can determine
+when multiple components on the same page might be simultaneously reading or modifying the same data.
+
+# The Web-Page level
+
+The WebPageDataSpec simply aggregates the webPageObjectDataSpecs to get a complete picture for the data needed for a particular
+web-page.
+
+This can be used to generate a web-page-optimized api that delivers all data relevant to the web-page at once from
+a backend-cached state.
+
+# Web-Page Permissions Comparison
+
+Note that once we aggregate the spec of the web-page, if we account for which components are optional and critical, we can
+determine if a user should have full-access to the web-page, partial-access, or no-access.
+
+Full-access : If they have all full permissions for all components they have full web page access.
+
+Partial-access : They have all full permissions for the critical components for the web-page.
+
+No-access : They lack permissions to use at least one of the critical components for the web-page,
+so if they attempted to use the web-page it would not function in a sensible manner.  If configured,
+this may trigger a request-permissions page to load which would allow the submission of requests to
+relevant administrators for access to the necessary objects.
+
+# The App & Object level
+
+The AppObjectDataSpec aggregates all object variable data used throughout the application over time.  
+
+This can be used to determine, when instances of this app are spun-up, how many backend instances with the relevant data sources must exist in order to be able to serve a particular number of users

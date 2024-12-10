@@ -1,3 +1,8 @@
+// Author: Dustin Etts
+// variableDef.ts
+
+// This file defines the variableConfigDef class, which is used to store information about a variable in a class.
+// This information is used to configure the variable in the class editor.
 import { FormControl } from "@angular/forms";
 
 export class variableConfigDef {

@@ -1,0 +1,14 @@
+### Environment management for the Polari-Platform-Angular app.
+
+This application adheres to a specific scheme for it's environment files.
+Specifically the environment file name for the frontend should be always be in the format:
+
+                environment-{environment_name}.ts
+
+Whenever the application runs, it is meant to run in a docker compose environment but you may also put together
+a custom .sh file or a cli tool to run it.
+
+When docker-compose compiles the app, it will look in our environment folder, check what pre-made-environment it is supposed to
+be using, and then either create or 'overwrite' the environment.ts file inside of the container environment.
+
+The app will always try to look for the environment.ts file

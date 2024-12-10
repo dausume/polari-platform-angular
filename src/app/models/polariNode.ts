@@ -1,3 +1,4 @@
+// Author: Dustin Etts
 export class polariNode {
     ip : string;
     port: string;

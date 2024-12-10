@@ -8,10 +8,9 @@ export const environment = {
                                 // if explicitly defining you want to use this environment
     production: false, // This environment is defined in a way so that it can handle real-world data
                        // and operate at whatever scale is appropriate for your scenario.
-    test: false, // This environment is defined in a way where it is not production-capable but is primed with data
-                 // so it can be tested.
+    test: false, // This environment will be used for testing the app, and will be defined in a way that
+    // ensures appropriate test data exists and that test reports are generated.
     dev: true, // This environment is defined in a way you would want it to be while doing development of the app.
-    default: false, // Used because this is the default environment you get when you do not define anything.
-    backendUrl: 'http://localhost',
-    backendPort: '8080'
+    backendUrl: 'http://localhost', // Defines the URL of the primary backend server (a python polari-framework server)
+    backendPort: '3000' // Defines the port (if any) of the primary backend server (a python polari-framework server)
 }; 

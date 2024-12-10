@@ -1,8 +1,10 @@
-import { classPolyTyping } from "./classPolyTyping";
+import { classPolyTyping } from "./polyTyping/classPolyTyping";
 
-//A class that exists only as a template, meant to be extended on when typing data is retrieved from the API using
-//the functionality defined here to interpret the data on how that class should be typed & behave.
-export class objectReference {
+// ...I need to revise how this works and is worded, this is confusing after coming back to it.
+// basically it seems to be a utility class for helping to handle the data that comes from the API.
+
+// A class that specifies the identifiers used for establishing uniqueness of an object instance for a given class.
+export class objectIdentifiersSpec {
     //The Name of the class being defined
     className: string;
     //The raw form of the reference given by Polari APIs in json format, holds data about the class, and it's Id variables.
@@ -18,7 +20,7 @@ export class objectReference {
     {
         if(referenceInstance.length != 2)
         {
-            console.log("invalid reference json passed into objectReference constructor, should be an array with the first element "
+            console.log("invalid reference json passed into objectIdentifiersSpec constructor, should be an array with the first element "
             +"indicating class referenced and the second being json with Id data for the specific object referenced.");
         }
         this.referenceInstance = referenceInstance;
@@ -31,7 +33,7 @@ export class objectReference {
           if(Array.isArray(identifiersList[someIdIndex][0].tuple[1]))
           {
             //This is should be a sub-reference
-            this.identifiers[identifiersList[someIdIndex][0].tuple[0]] = new objectReference(identifiersList[someIdIndex][0].tuple[1]);
+            this.identifiers[identifiersList[someIdIndex][0].tuple[0]] = new objectIdentifiersSpec(identifiersList[someIdIndex][0].tuple[1]);
           }
           else
           {

@@ -1,6 +1,6 @@
 import { Component, Input } from '@angular/core';
 import { FormControl } from '@angular/forms';
-import { Slot } from '@models/slot';
+import { Slot } from '@models/noCode/slot';
 
 @Component({
   selector: 'slot',

@@ -1,10 +1,10 @@
 import { Component, OnInit, OnChanges, ViewChild, ElementRef, Input, ViewEncapsulation, Output, EventEmitter, SimpleChanges } from '@angular/core';
-import { noCodeSolution } from '@models/noCodeSolution';
+import { noCodeSolution } from '@models/noCode/noCodeSolution';
 import { FormControl } from '@angular/forms';
 import { BehaviorSubject, Observable, Subscription } from 'rxjs';
-import { Slot } from '@models/slot';
+import { Slot } from '@models/noCode/slot';
 import * as d3 from 'd3';
-import { noCodeState } from '@models/noCodeState';
+import { noCodeState } from '@models/noCode/noCodeState';
 
 @Component({
   selector: 'no-code-interface',

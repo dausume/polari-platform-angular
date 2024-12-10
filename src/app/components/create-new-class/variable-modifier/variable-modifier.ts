@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { FormControl } from '@angular/forms';
-import { variableConfigDef } from '@models/variableDef';
+import { variableConfigDef } from '@models/classEditor/variableDef';
 import { ChangeDetectorRef } from '@angular/core';
 
 @Component({

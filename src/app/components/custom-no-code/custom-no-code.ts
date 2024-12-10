@@ -1,7 +1,7 @@
 import { Component, Renderer2, EventEmitter, HostListener, ElementRef, ChangeDetectorRef, ViewChild, ComponentFactoryResolver, ViewContainerRef  } from '@angular/core';
 import { FormControl } from '@angular/forms';
-import { noCodeState } from '@models/noCodeState';
-import { noCodeSolution } from '@models/noCodeSolution';
+import { noCodeState } from '@models/noCode/noCodeState';
+import { noCodeSolution } from '@models/noCode/noCodeSolution';
 import { CdkDragDrop, moveItemInArray, CdkDragStart, CdkDragEnd } from '@angular/cdk/drag-drop';
 import { BehaviorSubject, Observable, Subscription } from "rxjs";
 import { OverlayComponentService } from '../../services/overlay-component-service';

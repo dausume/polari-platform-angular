@@ -1,4 +1,4 @@
-import { objectReference } from "./objectReference";
+import { objectIdentifiersSpec } from "../objectIdentifiersSpec";
 import { variablePolyTyping } from "./variablePolyTyping";
 
 export class classPolyTyping {
@@ -8,15 +8,15 @@ export class classPolyTyping {
     displayClassName?: string;
     //A list of just the names of the variables.
     variableNames?: string[];
-    //A list of the objectReferences for the polyTypedVariable instances belonging to this class.
-    polyTypedVars?: objectReference[];
+    //A list of the objectIdentifiersSpec for the polyTypedVariable instances belonging to this class.
+    polyTypedVars?: objectIdentifiersSpec[];
     //A list of variablePolyTyping instances belonging to this class.
     completeVariableTypingData: object = {};
     //A dictionary for quickly accessing the type that should be used to display the variable's data as on the frontend.
     //format: {"varName":"typeToBeDisplayedAs"}
     variableTypes?: {};
 
-    constructor(className: string,  completeVariableTypingData:object={}, displayClassName?:string, variableNames?: string[], polyTypedVars?: objectReference[], variableTypes?:object)
+    constructor(className: string,  completeVariableTypingData:object={}, displayClassName?:string, variableNames?: string[], polyTypedVars?: objectIdentifiersSpec[], variableTypes?:object)
     {
         this.className = className;
         this.displayClassName = displayClassName;

@@ -1,9 +1,9 @@
 import { Injectable, EventEmitter } from "@angular/core";
 import { HttpClient, HttpHeaders } from '@angular/common/http'
 import { PolariService } from "./polari-service"
-import { dataSetCollection } from "@models/dataSetCollection";
-import { classPolyTyping } from "@models/classPolyTyping";
-import { variablePolyTyping } from "@models/variablePolyTyping";
+import { dataSetCollection } from "@models/objectData/dataSetCollection";
+import { classPolyTyping } from "@models/polyTyping/classPolyTyping";
+import { variablePolyTyping } from "@models/polyTyping/variablePolyTyping";
 import { navComponent } from "@models/navComponent";
 import { BehaviorSubject, Observable, Subscription } from "rxjs";
 

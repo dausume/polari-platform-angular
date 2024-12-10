@@ -1,8 +1,11 @@
+// Author: Dustin Etts
+// A data set that holds instances of a spacific class, specifies what all the variables are that exist on that class,
+// and specifies which variables are black-listed from being retrieved from the backend for this data set.
 export class dataSet {
-    objectName: string;
-    variableNames?: string[];
-    varsLimited?: string[];
-    data: any;
+    objectName: string; //The name of the class that this dataSet holds instances of.
+    variableNames?: string[]; //The names of all the data-containing variables that exist on the class that this dataSet holds instances of.
+    varsLimited?: string[]; // The names of the variables that are black-listed from being retrieved from the backend for this data set.
+    data: any; //The instances of the class that this dataSet holds.
 
     constructor(objectName: string, data: any, varsLimited?: string[], variableNames?: string[])
     {

@@ -1,3 +1,4 @@
+// Author: Dustin Etts
 import { Connector } from "./connector";
 import { MatIconModule } from '@angular/material/icon';
 
