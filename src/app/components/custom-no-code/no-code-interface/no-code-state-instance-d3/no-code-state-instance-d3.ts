@@ -1,7 +1,7 @@
 import { Component, Input, Output, EventEmitter, ElementRef, ViewChild } from '@angular/core';
 import { FormControl } from '@angular/forms';
 import { MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
-import { noCodeState } from '@models/noCode/noCodeState';
+import { noCodeState } from '@models/noCode/NoCodeState';
 import * as d3 from 'd3';
 
 //Defines a no code state

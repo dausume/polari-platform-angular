@@ -1,10 +1,10 @@
 import { Component, Renderer2, EventEmitter, HostListener, ElementRef, ChangeDetectorRef, ViewChild, ComponentFactoryResolver, ViewContainerRef  } from '@angular/core';
 import { FormControl } from '@angular/forms';
-import { noCodeState } from '@models/noCode/noCodeState';
-import { noCodeSolution } from '@models/noCode/noCodeSolution';
+import { NoCodeState } from '@models/noCode/NoCodeState';
+import { NoCodeSolution } from '@models/noCode/NoCodeSolution';
 import { CdkDragDrop, moveItemInArray, CdkDragStart, CdkDragEnd } from '@angular/cdk/drag-drop';
 import { BehaviorSubject, Observable, Subscription } from "rxjs";
-import { OverlayComponentService } from '../../services/overlay-component-service';
+import { OverlayComponentService } from '../../services/no-code-services/overlay-component-service';
 import * as d3 from 'd3';
 import { NoCodeStateInstanceComponent } from './no-code-state-instance/no-code-state-instance';
 
@@ -25,11 +25,11 @@ export class CustomNoCodeComponent {
   //@ts-ignore
   @ViewChild('d3Graph', { static: true }) d3Graph: ElementRef;
 
-  polariAccessNodeSubject = new BehaviorSubject<noCodeState>({id:0}) ;
+  polariAccessNodeSubject = new BehaviorSubject<NoCodeState>(new NoCodeState());
 
   contextMenu: boolean = false;
-  stateInstances = [new noCodeState(0,0,"circle",undefined,0,"Test State 2","Test Class",100,100,5,5,[]), new noCodeState(1,1,"circle", undefined, 0,"Test State 2","Test Class",100,100,300,5,[])]
-  noCodeSolution = new noCodeSolution(800, 800, "testSolution",this.stateInstances, 0, 0, 0);
+  stateInstances = [new NoCodeState(), new NoCodeState()];
+  noCodeSolution = new NoCodeSolution(800, 800, "testSolution",this.stateInstances, 0, 0, 0);
   // Used for binding the overlay which displays State Object UIs and their container elements to the d3 Objects.
   overlayStateSegments: { [key: number]: HTMLElement | null } = {};
   // Access xBounds and yBounds from noCodeSolution
@@ -308,7 +308,7 @@ private dragRectangle(): any {
 
   // Handles showing the overlay/UI when the drag ends, since the UI portion is not optimized to get dragged.
   // Also handles updating the StateObject with the new location it is at.
-  handleSingleStateObjectDragEnd(stateInstance: noCodeState, event){
+  handleSingleStateObjectDragEnd(stateInstance: NoCodeState, event){
     const overlayStateSegment = document.getElementById(`overlay-${stateInstance.id}`);
     if (overlayStateSegment) {
       overlayStateSegment.style.display = 'none';
@@ -341,7 +341,7 @@ private dragRectangle(): any {
       const y = parseFloat(stateOverlay.attr('y'));
       const width = parseFloat(stateOverlay.attr('width'));
       const height = parseFloat(stateOverlay.attr('height'));
-      this.updateSingleStateOverlayTransforms(state.id, x, y, width, height);
+      //this.updateSingleStateOverlayTransforms(state.id, x, y, width, height);
     });
   }
 
@@ -352,7 +352,7 @@ private dragRectangle(): any {
     let nodes = this.stateInstances.map(state => {
       console.log("Iterating state: ", state);
       return {
-        id: state.id.toString(), // Assuming you have a unique identifier for each state instance
+        //id: state.id.toString(), // Assuming you have a unique identifier for each state instance
         label: state.stateName, // Assuming you have a 'name' property in noCodeState to display as node label
         data: state, // Optionally, you can store the entire noCodeState instance in the 'data' property
         backgroundColor: '#DC143C'
@@ -361,8 +361,9 @@ private dragRectangle(): any {
       }); 
       console.log("after nodes");
       let edges: { source: string; target: string; label: string; data: { linkText: string } }[] = [];
+      /*
       this.stateInstances.forEach(state=>{
-        state.outputSlots?.forEach(slot=>{
+        state.slots?.forEach(slot=>{
           slot.connectors?.forEach(connector=>{
             edges.push({
               source: state.id.toString(),
@@ -373,11 +374,9 @@ private dragRectangle(): any {
               }
             });
           });
-          /*
-          
-          */
         });
       });
+      */
       console.log("after stateInstances");
       // Set ngx-graph options
       const graphOptions = {
@@ -519,7 +518,7 @@ private dragRectangle(): any {
 
   onNewStateInstance() {
     let newIndex: number = this.noCodeSolution.stateInstances.length;
-    this.noCodeSolution.stateInstances.push(new noCodeState(newIndex,this.noCodeSolution.id));
+    this.noCodeSolution.stateInstances.push(new NoCodeState());
     this.drawGraph(); // Update the graph visualization
   }
 

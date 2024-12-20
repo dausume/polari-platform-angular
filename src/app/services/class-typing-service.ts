@@ -1,3 +1,4 @@
+// class-typing-service.ts
 import { Injectable, EventEmitter } from "@angular/core";
 import { HttpClient, HttpHeaders } from '@angular/common/http'
 import { PolariService } from "./polari-service"

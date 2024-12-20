@@ -1,3 +1,4 @@
+// app.module.ts
 import { CUSTOM_ELEMENTS_SCHEMA, /*ErrorHandler,*/  NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
@@ -22,15 +23,18 @@ import { MatMenuModule } from '@angular/material/menu';
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 //Components
+// App Base Components
 import { HomeComponent } from 'src/app/components/home/home';
 import { HeaderComponent } from 'src/app/components/header/header';
 import { PolariConfigComponent } from '@components/polari-config/polari-config';
 import { NavigationComponent } from '@components/nav-component/nav-component';
+// Class-Oriented Dynamic Components
 import { templateClassTableComponent } from '@components/templateClassTable/templateClassTable';
 import { ClassMainPageComponent }  from '@components/class-main-page/class-main-page';
 import { classInstanceSearchComponent } from '@components/class-instance-search/class-instance-search';
 import { CreateNewClassComponent } from '@components/create-new-class/create-new-class';
 import { VariableModifierComponent } from '@components/create-new-class/variable-modifier/variable-modifier';
+// No-Code Components
 import { CustomNoCodeComponent } from '@components/custom-no-code/custom-no-code';
 import { NoCodeStateInstanceComponent } from '@components/custom-no-code/no-code-state-instance/no-code-state-instance';
 import { NoCodeStateInstanceComponentD3 } from '@components/custom-no-code/no-code-interface/no-code-state-instance-d3/no-code-state-instance-d3';
@@ -39,6 +43,7 @@ import { SolutionEditorComponent } from '@components/custom-no-code/no-code-inte
 import { SlotComponent } from '@components/custom-no-code/slot/slot';
 import { NoCodeMenuComponent } from '@components/custom-no-code/no-code-menu/no-code-menu';
 import { NoCodeStateBorderComponent } from '@components/custom-no-code/no-code-state-instance/no-code-state-border/no-code-state-border';
+// Class Configuration Components
 import { DefaultCellComponent } from './components/templateClassTable/type-cells/default-cell/default-cell';
 import { ConfigCellActions } from '@components/templateClassTable/type-cells/config-cell-actions/config-cell-actions';
 //Services (Backend Access)
@@ -47,9 +52,10 @@ import { CRUDEservicesManager } from '@services/crude-services-manager';
 //
 import { MatIconRegistry } from "@angular/material/icon";
 import { DomSanitizer } from "@angular/platform-browser";
-// Overlay for custom dropdowns
+// Overlay for custom dropdowns and rendering of dynamic components in no-code ui.
 import { OverlayContainer } from '@angular/cdk/overlay';
-import { OverlayComponentService } from './services/overlay-component-service';
+import { OverlayComponentService } from './services/no-code-services/overlay-component-service';
+
 
 
 @NgModule({

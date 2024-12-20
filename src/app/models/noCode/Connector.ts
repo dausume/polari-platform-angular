@@ -1,3 +1,4 @@
+// polari-platform-angular/src/app/models/noCode/Connector.ts
 export class Connector {
     id: number;
     //Indicates the Id of the output slot component this connector latches to and pulls data from.

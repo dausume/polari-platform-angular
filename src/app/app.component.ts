@@ -1,3 +1,4 @@
+// app.component.ts
 import { Router } from '@angular/router';
 import { navComponent } from '@models/navComponent';
 import { Component, OnDestroy, OnInit } from '@angular/core';

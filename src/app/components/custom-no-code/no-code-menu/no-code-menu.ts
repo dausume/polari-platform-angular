@@ -1,7 +1,7 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { FormControl } from '@angular/forms';
 import { Observable, Subscription } from 'rxjs';
-import { Slot } from '@models/noCode/slot';
+import { Slot } from '@models/noCode/Slot';
 
 @Component({
   selector: 'no-code-menu',

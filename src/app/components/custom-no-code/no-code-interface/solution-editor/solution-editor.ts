@@ -1,6 +1,6 @@
 import { Component, HostListener, Input, Output, EventEmitter } from '@angular/core';
 import { FormGroup, FormBuilder, Validators } from '@angular/forms';
-import { noCodeSolution } from '@models/noCode/noCodeSolution';
+import { noCodeSolution } from '@models/noCode/NoCodeSolution';
 
 @Component({
   selector: 'solution-editor',

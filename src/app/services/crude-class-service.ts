@@ -1,20 +1,20 @@
+// crude-class-service.ts
 import { Injectable, EventEmitter } from "@angular/core";
 import { HttpClient, HttpHeaders } from '@angular/common/http'
+import { Observable, throwError } from "rxjs";
 import { PolariService } from "./polari-service"
 
-//Create a service that utilizes any available Class on the Server's polari Node, using it's CRUDE API.
+// Create a service that utilizes any available Class on the Server's polari Node, using it's CRUDE API.
+// CRUDE APIs being Create, Read, Update, Delete, and Events on a particular python class on the Polari Node.
+// One instance of this service is created for each class that is accessed by the user.
 @Injectable()
 export class CRUDEclassService {
-    //Tracks the components or other services utilizing this class Service at a given moment.
+    //Tracks the components utilizing this class Service instance at a given moment.
     //After construction of the service, if this list becomes empty the service shuts down.
-    serviceUtilizers: any;
-    permissionsDictionaries: any;
-    accessDictionaries: any;
-    hasAnyAccess: any;
-    hasAnyPermissions: any;
-    hasFullAccess: any;
-    hasFullPermissions: any;
-    className: string | null = null;
+    serviceUtilizers: any; //Dictionary with format: {"componentName0":true, "componentName1":false}
+    // The name of the class that this service is accessing.
+    // This should be dynamically assigned when creating a new instance of this service.
+    className: string = '';
 
     constructor(private http: HttpClient, private polariService: PolariService)
     {
@@ -23,24 +23,33 @@ export class CRUDEclassService {
         this.http = http;
         this.polariService = polariService;
         this.serviceUtilizers = {};
-        //All permissions dictionaries for this user for this class
-        this.permissionsDictionaries = {};
-        //All access dictionaries for this user for this class.
-        this.accessDictionaries = {};
-        //If either is false, cannot access this API at all.  If a component is dependent on this API, this is the indicator that
-        //the purpose of this API cannot be fulfilled due to insufficient Access & Permissions.
-        //Dictionaries with format: {"className0":true, "className1":false}
-        this.hasAnyAccess = {};
-        this.hasAnyPermissions = {};
-        //If true, the user has been previously analyzed to have full access to this API from their permission/access Queries.
-        //On the polari side this means that a check is made to see if the user has de-facto full access on the API's registrar,
-        //which allows for the validation process to potentially occur much faster for that user.
-        //Note: De-facto full access is revoked from all APIs using a given class whenever that user has a Permissions or Access
-        //dictionary that changes.
-        //Dictionaries with format: {"className0":true, "className1":false}
-        this.hasFullAccess = {};
-        this.hasFullPermissions = {};
     }
+
+    create(data: any): Observable<any> {
+        return this.http.post(`/api/${this.className}`, data);
+      }
+      
+      read(id: string): Observable<any> {
+        return this.http.get(`/api/${this.className}/${id}`);
+      }
+      
+      update(id: string, data: any): Observable<any> {
+        return this.http.put(`/api/${this.className}/${id}`, data);
+      }
+      
+      delete(id: string): Observable<any> {
+        return this.http.delete(`/api/${this.className}/${id}`);
+      }
+      
+      subscribeToEvents(): Observable<any> {
+        return new Observable((observer) => {
+          const eventSource = new EventSource(`/api/${this.className}/events`);
+          eventSource.onmessage = (event) => observer.next(event.data);
+          eventSource.onerror = (error) => observer.error(error);
+          return () => eventSource.close();
+        });
+      }
+      
 
     // hacky way to get around not being able to just pass the class name into the service.
     initialize(className : string)
@@ -48,5 +57,20 @@ export class CRUDEclassService {
         this.className = className;
     }
 
-    
+    checkUtilizers(): void {
+        if (Object.keys(this.serviceUtilizers).length === 0) {
+          console.log(`Shutting down service for ${this.className}`);
+          // Perform any cleanup here
+        }
+      }
+      
+      addUtilizer(componentName: string): void {
+        this.serviceUtilizers[componentName] = true;
+      }
+      
+      removeUtilizer(componentName: string): void {
+        delete this.serviceUtilizers[componentName];
+        this.checkUtilizers();
+      }
+      
 }

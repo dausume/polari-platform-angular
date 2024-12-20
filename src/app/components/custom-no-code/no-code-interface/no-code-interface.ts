@@ -1,10 +1,10 @@
 import { Component, OnInit, OnChanges, ViewChild, ElementRef, Input, ViewEncapsulation, Output, EventEmitter, SimpleChanges } from '@angular/core';
-import { noCodeSolution } from '@models/noCode/noCodeSolution';
+import { NoCodeSolution } from '@models/noCode/NoCodeSolution';
 import { FormControl } from '@angular/forms';
 import { BehaviorSubject, Observable, Subscription } from 'rxjs';
-import { Slot } from '@models/noCode/slot';
+import { Slot } from '@models/noCode/Slot';
 import * as d3 from 'd3';
-import { noCodeState } from '@models/noCode/noCodeState';
+import { NoCodeState } from '@models/noCode/NoCodeState';
 
 @Component({
   selector: 'no-code-interface',
@@ -13,13 +13,13 @@ import { noCodeState } from '@models/noCode/noCodeState';
 })
 export class NoCodeInterfaceComponent {
 
-  private _solution: noCodeSolution | undefined;
+  private _solution: NoCodeSolution | undefined;
 
-  protected solutionSubject = new BehaviorSubject<noCodeSolution|undefined>(undefined);
+  protected solutionSubject = new BehaviorSubject<NoCodeSolution|undefined>(undefined);
 
   @Input() solutionId : number|undefined;
   @Input() //solution: noCodeSolution|undefined;
-  set solution(value: noCodeSolution | undefined) {
+  set solution(value: NoCodeSolution | undefined) {
     // Log the changes before updating the solution
     console.log("Solution is being updated:", value);
 
@@ -27,7 +27,7 @@ export class NoCodeInterfaceComponent {
     this._solution = value;
   }
 
-  get solution(): noCodeSolution | undefined {
+  get solution(): NoCodeSolution | undefined {
     return this._solution;
   }
 
@@ -36,8 +36,8 @@ export class NoCodeInterfaceComponent {
   ngOnInit() {
     if (this.solutionId === undefined) {
       // Create mode: Initialize with a new noCodeSolution
-      let firstState = new noCodeState(0,0,"",undefined,0,"Test State",undefined,100,100,0,0,[])
-      this.solution = new noCodeSolution(500,500,"",[firstState],0,0,0,0,0,1);
+      let firstState = new NoCodeState("Test State 2", "circle", "Test Class");
+      this.solution = new NoCodeSolution(500,500,"",[firstState],0,0,0,0,0,1);
     } else {
       // Edit mode: Fetch the existing noCodeSolution using this.noCodeSolutionId
       console.log("Edit mode has not yet been implemented.")
@@ -55,7 +55,7 @@ export class NoCodeInterfaceComponent {
     }
   }
 
-  onSaveChanges(updatedSolution: noCodeSolution) {
+  onSaveChanges(updatedSolution: NoCodeSolution) {
     // Log the updated solution to the console
     console.log('Updated Solution:', updatedSolution);
 

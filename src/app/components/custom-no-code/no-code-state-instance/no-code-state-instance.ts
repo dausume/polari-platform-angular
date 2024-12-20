@@ -1,7 +1,7 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { FormControl } from '@angular/forms';
 import { MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
-import { noCodeState } from '@models/noCode/noCodeState';
+import { noCodeState } from '@models/noCode/NoCodeState';
 
 //Defines a component that overlays on top of a d3-object so that it can be used as a dynamic part of a no-code
 //user interface that allows for connectors and dynamic configuration, instantiation, and utilization of functionality
