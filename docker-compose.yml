@@ -1,5 +1,5 @@
 # Compose file for building the Polari Frontend Project independently
-version: '3.7'
+
 services:
   polari-frontend:
     build:
@@ -7,3 +7,7 @@ services:
     restart: always
     ports: 
       - "4200:4200" #Builds the default setting ports and maps the port to the localhost port 4200.
+
+networks:
+  polari-node-network:
+    external: true

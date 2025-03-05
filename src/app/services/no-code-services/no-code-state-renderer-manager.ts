@@ -1,12 +1,15 @@
+// Author: Dustin Etts
 // ./src/services/no-code-services/no-code-state-renderer-manager.ts
 import { Injectable, ApplicationRef, Injector, ViewContainerRef, Type } from '@angular/core';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, Subscription } from 'rxjs';
 // Import all default D3ModelLayer objects that are used to render the No-Code State objects.
 import { D3ModelLayer } from '@models/noCode/d3-extensions/D3ModelLayer';
 import { CircleStateLayer } from '@models/noCode/d3-extensions/CircleStateLayer';
 // Import the NoCodeState object which is used to define the state of the No-Code Solution.
 import { NoCodeState } from '@models/noCode/NoCodeState';
 import { NoCodeSolution } from '@models/noCode/NoCodeSolution';
+//
+import * as d3 from 'd3';
 
 // A Service used to manage multiple D3ModelLayer objects in respect to a single d3 Graph, which are used to render the 
 // No-Code State objects
@@ -30,14 +33,17 @@ export class NoCodeStateRendererManager {
   constructor(
     private appRef: ApplicationRef,
     private injector: Injector
-  ) {}
+  ) 
+  {
+    //this.defineDefaultLayers();
+  }
 
   // Observable is used to store all service-level state information for the No-Code State Renderer Manager
   // so that it can be used across the entire application.
   //
   // Define a dictionary that maps shape type names to the corresponding D3ModelLayer object name that is used to render it.
-  // We use this pattern to ensure that later we can add more shape types and D3ModelLayer objects to the application.
-  private stateShapeTypeToD3ModelLayerMap: Map<string, Type<D3ModelLayer>> = new Map();
+  // We use this pattern to ensure that we can generate an appropriate D3ModelLayer object for each child No-Code-Solution.
+  stateShapeTypeToD3ModelLayerTypeMap: Map<string, Type<D3ModelLayer>> = new Map();
 
   // Defines all of the d3 graphs we are rendering State objects on.
   // This is so we can manage the rendering of the No-Code State objects across multiple d3 graphs.
@@ -49,13 +55,60 @@ export class NoCodeStateRendererManager {
   // This should be a map of types of d3 graph managing services to instances of those services.
   // Note : No-Code State Editors are also considered NoCodeSolution objects!
   // Map<'noCodeSolutionName', NoCodeSolutionInstance>
-  NoCodeSolutionsMap: Map<string, NoCodeSolution> = new Map<string, NoCodeSolution>();
+  private NoCodeSolutionsMap: Map<string, NoCodeSolution> = new Map<string, NoCodeSolution>();
+  // When a NoCodeSolution is set on the NoCodeSolutionsMap, we should access that noCodeSolution and set our 
+  // currently set d3svgBaseLayer to the d3svgBaseLayer of the NoCodeSolution
 
-  activeNoCodeSolution: BehaviorSubject<NoCodeSolution> = new BehaviorSubject<NoCodeSolution>(new NoCodeSolution());
+  // The No Code Solution we are doing active processing for rendering currently, we assume rendring only one layer at a time for now.
+  private renderingNoCodeSolution: BehaviorSubject<NoCodeSolution|undefined> = new BehaviorSubject<NoCodeSolution|undefined>(undefined);
+
+  // The active D3 SVG Layer that is being used to render the No-Code State objects.
+  private d3svgBaseLayerBehaviorSubject: BehaviorSubject<d3.Selection<SVGSVGElement, unknown, null, undefined>|undefined> = new BehaviorSubject<d3.Selection<SVGSVGElement, unknown, null, undefined> | undefined>(undefined);
+
+  setD3SvgBaseLayer(d3SvgLayer: any) {
+    console.log("Step 2 - Set the d3 svg base layer in the renderer manager : ", d3SvgLayer);
+    console.log("Setting D3 SVG Layer : ", d3SvgLayer);
+    this.d3svgBaseLayerBehaviorSubject.next(d3SvgLayer);
+    this.defineDefaultLayerTypes();
+    console.log("Setting D3 SVG Layer : ", d3SvgLayer);
+  }
+
+  getD3SvgBaseLayer(): d3.Selection<SVGSVGElement, unknown, null, undefined> | undefined {
+    return this.d3svgBaseLayerBehaviorSubject.value;
+  }
+
+   /**
+   * Allows external components to subscribe to changes in the d3SvgBaseLayer.
+   * @param callback - The function to execute when the value of d3SvgBaseLayer changes.
+   * @returns A Subscription object to allow unsubscribing when necessary.
+   */
+   subscribeToD3SvgBaseLayer(callback: (baseLayer: d3.Selection<SVGSVGElement, unknown, null, undefined> | undefined) => void): Subscription {
+    console.log("Current D3 SVG Base Layer : ", this.d3svgBaseLayerBehaviorSubject);
+    return this.d3svgBaseLayerBehaviorSubject.subscribe(callback);
+  }
 
   // Define the default D3ModelLayer objects that are used to render the No-Code State objects,
-  // by calling defineStateShapeTypeWithLayer for each shape type that is supported.
+  // these are used to allow the No-Code-Solutionsto fetch different D3ModelLayer definitions to
+  // match to different shape types so a No-Code-Solution can render its own Layers.
+  defineDefaultLayerTypes()
+  {
+    console.log("Step 3 - Define Default Layer Types");
+    // Define the default D3ModelLayer object for rendering circles.
+    this.stateShapeTypeToD3ModelLayerTypeMap.set(
+      "circle", 
+      CircleStateLayer
+    )
+  }
 
+  /**
+   * Adds a No-Code-Solution to the State Renderer Manager.
+   * @param newNoCodeSolution - The NoCodeSolution object to be rendered by the renderer.
+   */
+  addNoCodeSolution(newNoCodeSolution: NoCodeSolution)
+  {
+    this.NoCodeSolutionsMap.set(newNoCodeSolution.solutionName, newNoCodeSolution);
+    console.log("Step 5 : No-Code Solution Added on Renderer Manager : ", newNoCodeSolution);
+  }
 
   /**
    * Used to map a D3ModelLayer object to a specific shape type, so that we can render the No-Code State object
@@ -65,63 +118,54 @@ export class NoCodeStateRendererManager {
    * @param shapeType - The shape type (e.g., 'circle', 'rectangle').
    * @param d3ModelLayerClass - The class reference for the D3ModelLayer handling this shape type.
    */
-  defineStateShapeTypeWithLayer(shapeType: string, d3ModelLayer: Type<D3ModelLayer>) 
+  defineStateShapeTypeWithLayer(shapeType: string, d3ModelLayerType: Type<D3ModelLayer>) 
   {
     // Add the shape type and D3ModelLayer object to the stateShapeTypeToD3ModelLayerMap
-    this.stateShapeTypeToD3ModelLayerMap.set(shapeType, d3ModelLayer);
+    this.stateShapeTypeToD3ModelLayerTypeMap.set(shapeType, d3ModelLayerType);
   }
 
-  // Set the current D3ModelLayer object to be used actively in running a rendering process of the No-Code State objects.
-  // This is used to ensure we are carefully managing the rendering of the No-Code State objects, whether we are choosing
-  // to render one layer at a time, or multiple layers in parallel.
-  setCurrentlyRenderingD3ModelLayer(d3ModelLayer: any) {
-    console.log("Inside Set Current D3 Model Layer");
-    console.log("D3 Model Layer : ", d3ModelLayer);
-  }
-
-  // Load a new No-Code State object into the No-Code State Editor.  Detecting what kind of D3ModelLayer object
-  // it should be assigned to, then creating or getting the D3ModelLayer object, and allocating the No-Code State
-  // object to the D3ModelLayer object.
-  loadNewNoCodeState(newState: NoCodeState, noCodeSolution: NoCodeSolution) {
-    console.log("Inside Load New No-Code State");
-    console.log("No-Code State : ", newState);
-    // Confirm the No-Code State shape type is valid and supported with a corresponding D3ModelLayer object
-    // that can handle the logic for rendering the No-Code State object.
-    // If the shape type is not supported, then we should throw an error.
-    // Validate the shape type
-    const d3ModelLayerClass = this.stateShapeTypeToD3ModelLayerMap.get(newState.shapeType || '');
-    if (!d3ModelLayerClass) {
-      throw new Error(`Shape type '${newState.shapeType}' is not supported.`);
-    }
-    // Check if the D3ModelLayer exists within the No-Code Solution object.
-
-    // If the D3ModelLayer does not exist, create a new instance of the D3ModelLayer object.
-    const d3ModelLayerInstance = new d3ModelLayerClass(); // Create a default instance of the determined D3ModelLayer object type.
-    // Add the New Layer to the No-Code Solution object.
-
-    // Load the No-Code State object into the D3ModelLayer object.
-  }
+  
 
   /**
-   * Adds a new Layer to the Active No-Code Solution object.
-   * @param shapeType - The name of the shape type (e.g., 'circle', 'rectangle').
-   * @param newLayer - The instance of the D3ModelLayer object.
-   */
-  addLayerToActiveNoCodeSolution(shapeType:string, newLayer: D3ModelLayer): void {
-    // first retrieve the active No-Code Solution object
-    const activeNoCodeSolution = this.activeNoCodeSolution.getValue();
-    // Add the new layer to the Active No-Code Solution object.
-    activeNoCodeSolution.renderLayers.set(shapeType, newLayer);
-    // Notify subscribers.
-    this.activeNoCodeSolution.next(activeNoCodeSolution); 
-  }
-
-  /**
-   * Removes a D3 graph manager from the map.
+   * Removes a No-Code-Solution from the State Renderer Manager.
    * @param solutionName - The name of the No-Code Solution.
    */
   removeNoCodeSolution(solutionName: string): void {
+    this.getNoCodeSolution(solutionName)?.d3SvgBaseLayer.remove();
     // Remove the D3 graph manager from the map.
     this.NoCodeSolutionsMap.delete(solutionName);
   }
+
+  /**
+   * Gets a No-Code-Solution from the State Renderer Manager.
+   * @param solutionName - The name of the No-Code Solution.
+   */
+  getNoCodeSolution(solutionName: string): NoCodeSolution | undefined {
+    return this.NoCodeSolutionsMap.get(solutionName);
+  }
+
+  /**
+   * Set the active No-Code-Solution to be rendered by the State Renderer Manager.
+   */
+  setRenderingNoCodeSolution(noCodeSolution: NoCodeSolution) {
+    this.renderingNoCodeSolution.next(noCodeSolution);
+  }
+
+  /**
+   * Get the active No-Code-Solution to be rendered by the State Renderer Manager.
+   */
+  getRenderingNoCodeSolution(): NoCodeSolution | undefined {
+    return this.renderingNoCodeSolution.value;
+  }
+
+  /**
+   * Iterate and render all No-Code-Solutions in the State Renderer Manager.
+   */
+  renderAllNoCodeSolutions() {
+    this.NoCodeSolutionsMap.forEach((noCodeSolution, noCodeSolutionName) => {
+      console.log("Rendering No-Code Solution : ", noCodeSolution);
+      noCodeSolution.renderSolution();
+    });
+  }
+
 }

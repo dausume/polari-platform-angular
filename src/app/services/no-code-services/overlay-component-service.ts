@@ -2,10 +2,13 @@
 import { Injectable, ApplicationRef, Injector, ViewContainerRef, Type } from '@angular/core';
 
 // A service used to add dynamic components to the DOM.
+//
 // The primary use of this is to overlay components specifically on top
-// of 'No-code State' objects, which are rendered on the frontend via d3.
+// of 'No-Code State' objects, which are rendered on the frontend via d3.
+//
 // NoCodeState objects use an svg element as their root element, and the
 // overlay components are added to the body of the document.
+//
 // Specifically each No-Code State's base svg type should have a corresponding
 // equation for how to calculate the overlay component's position and size
 // in relation to the No-Code State's position and size.

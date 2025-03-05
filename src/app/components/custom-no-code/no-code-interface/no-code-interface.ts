@@ -5,6 +5,7 @@ import { BehaviorSubject, Observable, Subscription } from 'rxjs';
 import { Slot } from '@models/noCode/Slot';
 import * as d3 from 'd3';
 import { NoCodeState } from '@models/noCode/NoCodeState';
+import { NoCodeStateRendererManager } from '@services/no-code-services/no-code-state-renderer-manager';
 
 @Component({
   selector: 'no-code-interface',
@@ -31,13 +32,13 @@ export class NoCodeInterfaceComponent {
     return this._solution;
   }
 
-  constructor() { }
+  constructor(private noCodeStateRendererManager: NoCodeStateRendererManager,) { }
 
   ngOnInit() {
     if (this.solutionId === undefined) {
       // Create mode: Initialize with a new noCodeSolution
       let firstState = new NoCodeState("Test State 2", "circle", "Test Class");
-      this.solution = new NoCodeSolution(500,500,"",[firstState],0,0,0,0,0,1);
+      this.solution = new NoCodeSolution(this.noCodeStateRendererManager, 500,500,"Sample Solution",[firstState],0);
     } else {
       // Edit mode: Fetch the existing noCodeSolution using this.noCodeSolutionId
       console.log("Edit mode has not yet been implemented.")

@@ -1,0 +1,30 @@
+### No-Code Components
+The Polari Framework enables the abstraction of python classes wrapped by Polari to be used as
+'states' that can be used to form a chain of logic via a no-code interface.
+
+Within the No-Code Components we create a set of components which enable users to interact with
+interfaces for using polari wrapped python objects to create 'state objects' that interconnect
+with one another to form an overall 'No Code Solution'.
+
+## No-Code Interface
+Used to render a singular no-code solution.
+
+## No-Code Menu
+The No-Code menu is for managing adding new state templates to the no-code solution, 
+establishing and tracking the basic configuration for the overall No-Code Solution.
+Enabling Parallelization, distribution of how the solution should be run over different
+machines, etc.
+
+## No-Code State Instance
+Used as the component template for rendering a component over a d3 state object being rendered 
+in the d3 graph, where the component is specifically a generic state with an input Polari Wrapped
+python object, which is used to define the State Instance's default configuration.  This can be further
+refined down to just what is needed in the State Manager, making a specific kind of state tempalte.
+
+## State Manager
+Used for managing and manipulating a single 'State Object', so that we can have a more intuitive and focused
+interface for manipulating singular state objects from an existing no-code-solution, or for manipulating/creating
+template state objects that we expect to be common across many solutions.
+
+## Slot
+Used to render the UI that may conditionally be rendered for configuring a singular input/output slot.

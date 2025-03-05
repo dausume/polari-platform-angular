@@ -45,7 +45,15 @@ export class NoCodeStateBorderComponent {
   {
     if(this.allSlots.length == 0)
     {
-      let initialSlot = new Slot(0,0, "initSlot",0);
+      let initialSlot = new Slot( // Slot connecting the initial state to the first state as an output slot.
+        0, // Index of the slot in it's given no-code-state
+        "initial-state", // No-Code-State name, is undefined until it is saved to the backend
+        'initial-state-layer', // Name of the layer this slot is assigned to
+        0,
+        [], // Empty array since we have not implemented connectors.
+        false,
+        false
+    )
       this.allSlots.push(initialSlot);
       this.topSlots.push(initialSlot);
     }
@@ -81,15 +89,15 @@ export class NoCodeStateBorderComponent {
 
   allocateSlots() {
     this.allSlots.forEach((slot:Slot)=> {
-      if(slot.slotPosition != undefined)
+      if(slot.slotAngularPosition != undefined)
       {
-        if (slot.slotPosition >= 0 && slot.slotPosition < 90) {
+        if (slot.slotAngularPosition >= 0 && slot.slotAngularPosition < 90) {
           this.topSlots.push(slot);
-        } else if (slot.slotPosition >= 90 && slot.slotPosition < 180) {
+        } else if (slot.slotAngularPosition >= 90 && slot.slotAngularPosition < 180) {
           this.rightSlots.push(slot);
-        } else if (slot.slotPosition >= 180 && slot.slotPosition < 270) {
+        } else if (slot.slotAngularPosition >= 180 && slot.slotAngularPosition < 270) {
           this.bottomSlots.push(slot);
-        } else if (slot.slotPosition >= 270 && slot.slotPosition < 360) {
+        } else if (slot.slotAngularPosition >= 270 && slot.slotAngularPosition < 360) {
           this.leftSlots.push(slot);
         }
       }

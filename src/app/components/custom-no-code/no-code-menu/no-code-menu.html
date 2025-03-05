@@ -10,11 +10,11 @@
         </mat-form-field>
         <mat-form-field *ngIf="isConnectorMode">
           <mat-label>Input</mat-label>
-        <input matInput type="string" placeholder="Select an Input" [value]="inputState?.stateId" readonly>
+        <input matInput type="string" placeholder="Select an Input" [value]="inputState?.stateName" readonly>
       </mat-form-field>
       <mat-form-field *ngIf="isConnectorMode">
         <mat-label>Output</mat-label>
-      <input matInput type="string" placeholder="Select an Output" [value]="outputState?.stateId" readonly>
+      <input matInput type="string" placeholder="Select an Output" [value]="outputState?.stateName" readonly>
     </mat-form-field>
       <div style="padding-bottom: 30px; padding-right:20px" *ngIf="!isConnectorMode">
         <button mat-button (click)="createNewStateInstance()" style="align-self: flex-end;" class="menu-btn">New State</button>

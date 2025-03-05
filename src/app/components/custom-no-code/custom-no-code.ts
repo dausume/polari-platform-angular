@@ -1,3 +1,5 @@
+// Author: Dustin Etts
+// polari-platform-angular/src/app/components/custom-no-code/custom-no-code.ts
 import { Component, Renderer2, EventEmitter, HostListener, ElementRef, ChangeDetectorRef, ViewChild, ComponentFactoryResolver, ViewContainerRef  } from '@angular/core';
 import { FormControl } from '@angular/forms';
 import { NoCodeState } from '@models/noCode/NoCodeState';
@@ -7,13 +9,16 @@ import { BehaviorSubject, Observable, Subscription } from "rxjs";
 import { OverlayComponentService } from '../../services/no-code-services/overlay-component-service';
 import * as d3 from 'd3';
 import { NoCodeStateInstanceComponent } from './no-code-state-instance/no-code-state-instance';
+import { NoCodeStateRendererManager } from '@services/no-code-services/no-code-state-renderer-manager';
 
+// An Editor which creates a new No-Code Solution by default.
 @Component({
   selector: 'custom-no-code',
   templateUrl: 'custom-no-code.html',
   styleUrls: ['./custom-no-code.css']
 })
-export class CustomNoCodeComponent {
+export class CustomNoCodeComponent 
+{
 
   @ViewChild('graphContainer', { read: ViewContainerRef, static: false }) graphContainerRef!: ViewContainerRef;
 
@@ -25,35 +30,67 @@ export class CustomNoCodeComponent {
   //@ts-ignore
   @ViewChild('d3Graph', { static: true }) d3Graph: ElementRef;
 
+
   polariAccessNodeSubject = new BehaviorSubject<NoCodeState>(new NoCodeState());
 
   contextMenu: boolean = false;
-  stateInstances = [new NoCodeState(), new NoCodeState()];
-  noCodeSolution = new NoCodeSolution(800, 800, "testSolution",this.stateInstances, 0, 0, 0);
+  // We initialize with a single default No-Code-State instance as an example of what a Solution can look like.
+  stateInstances = [
+  ];
+
+  // We initialize with a default No-Code-Solution, including the default State Instances.
+  // We pass in the No-Code-State-Renderer-Manager to the No-Code-Solution so that it can be used to render the No-Code-States.
+  //Property 'noCodeStateRendererManager' is used before its initialization.
+  noCodeSolution : NoCodeSolution;
+
   // Used for binding the overlay which displays State Object UIs and their container elements to the d3 Objects.
   overlayStateSegments: { [key: number]: HTMLElement | null } = {};
-  // Access xBounds and yBounds from noCodeSolution
-  xBoundary: number = this.noCodeSolution.xBounds;
-  yBoundary: number = this.noCodeSolution.yBounds;
-  graphNodes: any[] = [];
-  graphEdges: any[] = [];
+
   //toggles connections mode.
   makeConnectionsMode: boolean = false;
+
   //used when connecting two nodes in connections mode.
   sourceNode: any = null;
-  svg: any;
-
-  
+  // Used to make the base svg used for rendering the No-Code-Solution
+  d3GraphRenderingSVG: any;
 
   constructor(
-    private elementRef: ElementRef, 
-    private changeDetectorRef: ChangeDetectorRef, 
-    private renderer: Renderer2, 
-    private overlayComponentService: OverlayComponentService,
-    private hostViewContainerRef: ViewContainerRef
-    ) 
-    {
-    
+      private elementRef: ElementRef, 
+      private changeDetectorRef: ChangeDetectorRef, 
+      private renderer: Renderer2, 
+      private overlayComponentService: OverlayComponentService,
+      private noCodeStateRendererManager: NoCodeStateRendererManager,
+      private hostViewContainerRef: ViewContainerRef
+  ) 
+  {
+    this.noCodeSolution = new NoCodeSolution(noCodeStateRendererManager, 800, 800, "testSolution",this.stateInstances);
+  }
+
+  // To do our initial rendering we should use the NoCodeStateRendererManager and ensure all
+  // NoCodeState objects in our current NoCodeSolution 
+  ngOnInit()
+  {
+    console.log("Step 1 - in rendering No-Code-Solution, custom-no-code component ngOnInit");
+    // Creates the 'svg' which is an svg that has other svg's allocated to it to act as the d3 graph.
+    // Initialization of the d3-graph tag.
+    this.createSvg();
+
+    // These were sample functions for rendering draggable circles and rectangles so we could test base functionality.
+    //this.createRectangles()
+    //this.createCircles();
+
+    this.noCodeStateRendererManager.setD3SvgBaseLayer(this.d3GraphRenderingSVG);
+    // 
+    let testSvgString = "<svg viewBox='0 0 800 800' stroke-width='2'><circle class='circle-state' cx='400' cy='400' r='200' fill='none' stroke='black'></circle></svg>";
+    // We allocate our NoCodeSolution to the NoCodeStateRendererManager
+    console.log("Step 4 - Initialize setting No Code Solution to be rendered by Renderer Manager in custom-no-code component ngOnInit");
+    this.noCodeStateRendererManager.addNoCodeSolution(this.noCodeSolution);
+    console.log("Added No Code Solution to Renderer Manager");
+    // Now we run initialize function which should kick off the initial rendering of the NoCodeSolution
+    console.log("Step 7 - Initialize Renderer Manager in custom-no-code component ngOnInit to render the default No-Code-Solution");
+    this.noCodeSolution.loadAllNoCodeStates();
+    console.log("Step 12 - Should have initialized Renderer Manager and rendered the default No-Code-Solution");
+    console.log("Initialized Renderer Manager");
   }
 
   @HostListener('click', ['$event'])
@@ -88,18 +125,8 @@ export class CustomNoCodeComponent {
     return false;
   }  
 
-  ngOnInit()
-  {
-    //this.createGraph();
-    // Creates the 'svg' which is an svg that has other svg's allocated to it to act as the d3 graph.
-    // Initialization of the d3-graph tag.
-    this.createSvg();
-    this.createRectangles()
-    //this.createCircles();
-  }
-
   private createSvg(): void {
-    this.svg = d3.select('#d3-graph')
+    this.d3GraphRenderingSVG = d3.select('#d3-graph')
       .append('svg')
       .attr('viewBox', `0 0 ${this.noCodeSolution.xBounds} ${this.noCodeSolution.yBounds}`)
       .attr('stroke-width', 2);
@@ -115,7 +142,7 @@ export class CustomNoCodeComponent {
       borderPixels: 15
     }));
 
-    const rectSelection = this.svg.selectAll('rect')
+    const rectSelection = this.d3GraphRenderingSVG.selectAll('rect')
     .data(rectangles)
     .enter()
     .append('rect')
@@ -144,12 +171,12 @@ export class CustomNoCodeComponent {
 /*
   createGraph(): void {
 
-    const svg = d3.select("#d3-graph")
+    const d3GraphRenderingSVG = d3.select("#d3-graph")
       .append("svg")
       .attr("width", this.noCodeSolution.xBounds)
       .attr("height", this.noCodeSolution.yBounds);
       
-    svg.append("use")
+    d3GraphRenderingSVG.append("use")
         .attr("href", "#pointer")
         .attr("x", 50)
         .attr("y", 50)
@@ -176,7 +203,7 @@ export class CustomNoCodeComponent {
         console.log("d3ElementNodes[draggedElementIndex] : ", n[i]);
     });
     
-    dragHandler(svg.selectAll("use"));
+    dragHandler(d3GraphRenderingSVG.selectAll("use"));
 
     let boxElement = null;
     let x = null;
@@ -184,7 +211,7 @@ export class CustomNoCodeComponent {
     let overlay = null;
 
     this.stateInstances.forEach((stateInstance: noCodeState) => {
-      boxElement = svg.append("rect")
+      boxElement = d3GraphRenderingSVG.append("rect")
       .attr("x", stateInstance.stateLocationX)
       .attr("y", stateInstance.stateLocationY)
       .attr("width", stateInstance.stateComponentSizeX)
@@ -240,7 +267,7 @@ const radius = 32;
     y: Math.random() * (600 - 32 * 2) + 32,
   }));
 
-  this.svg.selectAll('circle')
+  this.d3GraphRenderingSVG.selectAll('circle')
     .data(circles)
     .enter()
     .append('circle')
@@ -334,6 +361,7 @@ private dragRectangle(): any {
   }
 
   // Ensures State Objects remain in the same location when re-sizing of the d3-graph/no-code-solution container is re-sized.
+  /*
   setOverlaysFromMemory(): void {
     this.stateInstances.forEach((state) => {
       const stateOverlay = d3.select(`rect[x="${state.stateLocationX}"][y="${state.stateLocationY}"]`);
@@ -344,8 +372,9 @@ private dragRectangle(): any {
       //this.updateSingleStateOverlayTransforms(state.id, x, y, width, height);
     });
   }
+    */
 
-
+/*
   drawGraph() {
     // Prepare data for ngx-graph
     // Load all states and map them to nodes.
@@ -361,7 +390,7 @@ private dragRectangle(): any {
       }); 
       console.log("after nodes");
       let edges: { source: string; target: string; label: string; data: { linkText: string } }[] = [];
-      /*
+      
       this.stateInstances.forEach(state=>{
         state.slots?.forEach(slot=>{
           slot.connectors?.forEach(connector=>{
@@ -376,7 +405,7 @@ private dragRectangle(): any {
           });
         });
       });
-      */
+      
       console.log("after stateInstances");
       // Set ngx-graph options
       const graphOptions = {
@@ -390,10 +419,6 @@ private dragRectangle(): any {
       //let edges = [];
       // Create the ngx-graph model
       let graphData = { nodes, edges };
-
-      // Assign the generated nodes and edges to the class properties
-      this.graphNodes = nodes;
-      this.graphEdges = edges;
       console.log("before draw");
       // Draw the graph using ngx-graph
       this.draw(graphData, graphOptions);
@@ -412,7 +437,6 @@ private dragRectangle(): any {
     // Set the data input properties of the ngx-graph component
     //graphComponentRef.instance.nodes = data.nodes;
     //graphComponentRef.instance.links = data.edges;
-    /*
     // You can access the nativeElement of graphContainerRef to get the DOM container for the graph
     const graphContainer = this.graphContainerRef.nativeElement;
 
@@ -424,8 +448,9 @@ private dragRectangle(): any {
     // Create the ngx-graph component and attach it to the container
     const graphComponent = new GraphComponent();
     graphComponent.init(graphContainer, data, options);
-    */
+    
   }
+    */
 
   toggleMakeConnectionsMode() {
     this.makeConnectionsMode = !this.makeConnectionsMode;
@@ -446,8 +471,8 @@ private dragRectangle(): any {
             linkText: 'link text',
           },
         };
-        this.graphEdges.push(newEdge); // Update your data model
-        this.drawGraph(); // Update the graph visualization
+        //this.graphEdges.push(newEdge); // Update your data model
+        //this.drawGraph(); // Update the graph visualization
         this.sourceNode = null; // Reset source node
       }
     }
@@ -519,7 +544,7 @@ private dragRectangle(): any {
   onNewStateInstance() {
     let newIndex: number = this.noCodeSolution.stateInstances.length;
     this.noCodeSolution.stateInstances.push(new NoCodeState());
-    this.drawGraph(); // Update the graph visualization
+    //this.drawGraph(); // Update the graph visualization
   }
 
   onNewConnectorInstance() {

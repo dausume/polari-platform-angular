@@ -1,7 +1,7 @@
 import { Component, Input, Output, EventEmitter, ElementRef, ViewChild } from '@angular/core';
 import { FormControl } from '@angular/forms';
 import { MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
-import { noCodeState } from '@models/noCode/NoCodeState';
+import { NoCodeState } from '@models/noCode/NoCodeState';
 import * as d3 from 'd3';
 
 //Defines a no code state
@@ -16,7 +16,7 @@ export class NoCodeStateInstanceComponentD3 {
   //Required that the #noCodeStateContainer element is rendered before this is used.
   @ViewChild('noCodeStateContainer') private noCodeStateContainer!: ElementRef;
   //State Instance - Required Input
-  @Input() stateInstance! : noCodeState;
+  @Input() stateInstance! : NoCodeState;
   //A list of all Class
   options: string[] = ['Class 1', 'Class 2', 'Class 3'];
   //A list of Classes after searching through all classes based on criteria.
@@ -44,8 +44,8 @@ export class NoCodeStateInstanceComponentD3 {
   private renderBoxGraph() {
     // Use D3.js to render the box graph based on this.stateInstance
     const container = this.noCodeStateContainer.nativeElement;
-    let width = this.stateInstance.stateComponentSizeX;
-    let height = this.stateInstance.stateComponentSizeY;
+    let width = this.stateInstance.stateSvgSizeX;
+    let height = this.stateInstance.stateSvgSizeY;
 
     if(!width)
     {

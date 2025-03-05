@@ -3,18 +3,24 @@ import { Injectable, EventEmitter, ErrorHandler } from "@angular/core";
 import { HttpClient, HttpHeaders } from '@angular/common/http'
 import { polariNode } from "@models/polariNode";
 import { BehaviorSubject, timer, Subject, throwError, of } from "rxjs";
-import { catchError, delayWhen, retryWhen, switchMap, tap, retry } from 'rxjs/operators';
+import { catchError, delayWhen, retryWhen, switchMap, tap, retry, takeUntil } from 'rxjs/operators';
 import { navComponent } from "@models/navComponent";
 import { classPolyTyping } from "@models/polyTyping/classPolyTyping";
 import { dataSetCollection } from "@models/objectData/dataSetCollection";
 import { CRUDEclassService } from "./crude-class-service";
 import { environment } from "src/environments/environment-dev";
 
+const connectionRetryInterval = 3000; // milliseconds between connection retry attempts
+const maxConnectionRetryLimit = 10000; // 60,000 milliseconds or 1 minute should be the maximum time we attempt retries.
+
+// Used to generate timers that can be used per instance of a connection attempt.
+const stopRetriesTimer = timer(maxConnectionRetryLimit);
 
 @Injectable({
     providedIn: 'root'
 })
 export class PolariService {
+
     //Subjects allow for the Parent Component and any number of child components to subscribe to the variables
     //as Observers to read and modify them.
     backendHeadersDict = {
@@ -163,8 +169,9 @@ export class PolariService {
                     //tempSwitchBoard["polyTypedObject"] = false;
                     //this.classDataRetrievedSwitchboard.next(tempSwitchBoard);
                 }),
-                delayWhen(() => timer(3000)),  // Delay for 3 seconds before retrying
-                tap(() => console.log("Retrying getObjectTyping..."))
+                delayWhen(() => timer(connectionRetryInterval)),  // Delay for 3 seconds before retrying
+                tap(() => console.log("Retrying getObjectTyping...")),
+                takeUntil(stopRetriesTimer) // Stop retrying after 1 minute
             )),
             catchError(error => {
                 console.error("Retries exhausted:", error);
@@ -213,11 +220,12 @@ export class PolariService {
         .pipe(
             retryWhen(errors => errors.pipe(
                 tap(err => {
-                    console.log("--Threw Error--");
+                    console.log("-- Error getting Typing Variables --");
                     console.log(err);
                 }),
-                delayWhen(() => timer(3000)),  // Delay for 3 seconds before retrying
-                tap(() => console.log("Retrying getTypingVars..."))
+                delayWhen(() => timer(connectionRetryInterval)),  // Delay for 3 seconds before retrying
+                tap(() => console.log("Retrying getTypingVars...")),
+                takeUntil(stopRetriesTimer) // Stop retrying after 1 minute
             )),
             catchError(error => {
                 console.error("Retries exhausted:", error);
@@ -266,11 +274,12 @@ export class PolariService {
         .pipe(
             retryWhen(errors => errors.pipe(
                 tap(err => {
-                    console.log("--Threw Error--");
+                    console.log("-- Error getting server data--");
                     console.log(err);
                 }),
-                delayWhen(() => timer(3000)),  // Delay for 3 seconds before retrying
-                tap(() => console.log("Retrying getServerData..."))
+                delayWhen(() => timer(connectionRetryInterval)),  // Delay for 3 seconds before retrying
+                tap(() => console.log("Retrying getServerData...")),
+                takeUntil(stopRetriesTimer) // Stop retrying after 1 minute
             )),
             catchError(error => {
                 console.error("Retries exhausted:", error);
@@ -309,6 +318,7 @@ export class PolariService {
     // Gets all existing api endpoints on the polari api endpoint. (Custom APIs - Not class-based)
     getServerAPIendpoints()
     {
+        let stopRetriesTimer = timer(maxConnectionRetryLimit); // define a localized retries timer for this connection attempt.
         this.http
         .get<any>('http://' + this.userEntry_ipv4NumSubject.value + ':' + this.userEntry_portNumSubject.value + '/polariAPI', this.backendRequestOptions)
         .pipe(
@@ -316,9 +326,11 @@ export class PolariService {
                 tap(err => {
                     console.log("--Threw Error--");
                     console.log(err);
+                    console.log("Time retrying: ", stopRetriesTimer);
                 }),
-                delayWhen(() => timer(3000)),  // Delay for 3 seconds before retrying
-                tap(() => console.log("Retrying getServerData..."))
+                delayWhen(() => timer(connectionRetryInterval)),  // Delay for 3 seconds before retrying
+                tap(() => console.log("Retrying getServerData...")),
+                takeUntil(stopRetriesTimer) // Stop retrying after 1 minute
             )),
             catchError(error => {
                 console.error("Retries exhausted:", error);
@@ -357,6 +369,7 @@ export class PolariService {
     // Gets all existing CRUDE (Create, Read, Update, Delete, Event endpoints)
     getServerCRUDEendpoints()
     {
+        let stopRetriesTimer = timer(maxConnectionRetryLimit); // define a localized retries timer for this connection attempt.
         this.http
         .get<any>('http://' + this.userEntry_ipv4NumSubject.value + ':' + this.userEntry_portNumSubject.value + '/polariCRUDE', this.backendRequestOptions)
         .pipe(
@@ -364,9 +377,11 @@ export class PolariService {
                 tap(err => {
                     console.log("--Threw Error--");
                     console.log(err);
+                    console.log("Time retrying: ", stopRetriesTimer);
                 }),
-                delayWhen(() => timer(3000)),  // Delay for 3 seconds before retrying
-                tap(() => console.log("Retrying polariCRUDE..."))
+                delayWhen(() => timer(connectionRetryInterval)),  // Delay for 3 seconds before retrying
+                tap(() => console.log("Retrying polariCRUDE...")),
+                takeUntil(stopRetriesTimer) // Stop retrying after 1 minute
             )),
             catchError(error => {
                 console.error("Retries exhausted:", error);

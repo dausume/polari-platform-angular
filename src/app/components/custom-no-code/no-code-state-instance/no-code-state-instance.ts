@@ -1,7 +1,7 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { FormControl } from '@angular/forms';
 import { MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
-import { noCodeState } from '@models/noCode/NoCodeState';
+import { NoCodeState } from '@models/noCode/NoCodeState';
 
 //Defines a component that overlays on top of a d3-object so that it can be used as a dynamic part of a no-code
 //user interface that allows for connectors and dynamic configuration, instantiation, and utilization of functionality
@@ -24,7 +24,7 @@ export class NoCodeStateInstanceComponent {
   options: string[] = ['Class 1', 'Class 2', 'Class 3'];
   //A list of Classes after searching through all classes based on criteria.
   filteredOptions: string[] = this.options;
-  //
+  //  
   nodeType = "plus";
   //A search string entered by a user.
   searchTerm: string = "";
@@ -41,8 +41,7 @@ export class NoCodeStateInstanceComponent {
   {    
     if(this.stateInstance === undefined)
     {
-      //The default is 200 width, 150 height, padding is always 16px.
-      this.stateInstance = new noCodeState(0,0,"circle", undefined,0,"Test State", "Object Name", 200, 150, 0,0,[])
+      
     }
   }
 

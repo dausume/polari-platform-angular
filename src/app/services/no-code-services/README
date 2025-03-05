@@ -1,0 +1,29 @@
+### No Code Services
+
+## No-Code State Svg Service
+
+## Overlay Component Service
+
+## No-Code State Renderer Architecture
+
+This document provides an abstract overview of the design and implementation of services and objects used in the No-Code State Renderer Manager for enabling rendering of D3 Model Layers and overlaying components on top of them.
+Overview
+
+The No-Code State Renderer Manager is a core service that manages the rendering of No-Code State Objects within a D3 Graph. It centralizes state and rendering logic, supporting modular, scalable, and reactive management of multiple D3 layers and overlays. This system is integral to both the No-Code Solution Editor and the No-Code State Editor.
+Key Components
+
+    D3ModelLayer Objects:
+        Represent individual rendering layers for different types of shapes (e.g., circles, rectangles).
+        Each D3ModelLayer encapsulates logic for rendering a specific shape type, ensuring clean separation of concerns.
+
+    NoCodeState Objects:
+        Define the state and attributes of individual elements in the No-Code Solution.
+        Each NoCodeState is associated with a specific D3ModelLayer for rendering.
+
+    NoCodeSolution Objects:
+        Represent the broader context containing multiple NoCodeState objects and their corresponding D3ModelLayer instances.
+        Support managing multiple solutions or states within a single application.
+
+    Overlay Components:
+        Components rendered on top of D3 layers to provide interactive functionality for NoCodeState objects.
+        Managed via OverlayComponentService.

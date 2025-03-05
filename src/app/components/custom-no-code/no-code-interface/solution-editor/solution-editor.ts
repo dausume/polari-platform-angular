@@ -1,6 +1,6 @@
 import { Component, HostListener, Input, Output, EventEmitter } from '@angular/core';
 import { FormGroup, FormBuilder, Validators } from '@angular/forms';
-import { noCodeSolution } from '@models/noCode/NoCodeSolution';
+import { NoCodeSolution } from '@models/noCode/NoCodeSolution';
 
 @Component({
   selector: 'solution-editor',
@@ -8,8 +8,8 @@ import { noCodeSolution } from '@models/noCode/NoCodeSolution';
   styleUrls: ['./solution-editor.css']
 })
 export class SolutionEditorComponent {
-  @Input() solution: noCodeSolution | undefined;
-  @Output() saveChanges = new EventEmitter<noCodeSolution>();
+  @Input() solution: NoCodeSolution | undefined;
+  @Output() saveChanges = new EventEmitter<NoCodeSolution>();
 
   solutionForm: FormGroup;
 
@@ -27,21 +27,10 @@ export class SolutionEditorComponent {
   }
 
   ngOnChanges() {
-    if (this.solution) {
-      this.solutionForm.patchValue({
-        leftMostLocationX:this.solution.leftMostLocationX,
-        rightMostLocationX:this.solution.rightMostLocationX,
-        topMostLocationY:this.solution.topMostLocationY,
-        bottomMostLocationY:this.solution.bottomMostLocationY,
-        xBounds: (this.solution?.rightMostLocationX || 0) - (this.solution?.leftMostLocationX || 0),
-        yBounds: (this.solution?.bottomMostLocationY || 0) - (this.solution?.topMostLocationY || 0),
-        stateInstances:this.solution.stateInstances
-      });
-    }
+    
   }
 
   onSubmit() {
-    
     
   }
 
