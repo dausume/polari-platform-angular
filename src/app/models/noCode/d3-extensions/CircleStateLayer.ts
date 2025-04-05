@@ -15,6 +15,8 @@ import { NoCodeSolution } from '../NoCodeSolution';
 // This is used to represent the state components in the No-Code Interface.
 export class CircleStateLayer extends D3ModelLayer {
 
+  connectorMode: boolean;
+
   constructor(
     private rendererManager: NoCodeStateRendererManager, // Inject rendererManager (injecting in both parent and child seems to cause error?)
     shapeType: string,
@@ -53,6 +55,24 @@ export class CircleStateLayer extends D3ModelLayer {
     });
     this.stateDataPoints = this.getCircleStateDataPointsFromSolution(noCodeSolution);
     this.slotDataPoints =  this.getCircleSlotDataPointsFromSolution(noCodeSolution);
+    this.connectorMode = false;
+    
+  }
+
+  // Detect if the connector layer for the solution already exists in the svg.
+  // The connector layer should be created only once for each solution.
+  // The connector layer should contain all the connectors for the solution.
+  retrieveConnectorLayer():  d3.Selection<SVGGElement, unknown, null, undefined>{
+    let solutionLayer = this.getSolutionLayer();
+    return solutionLayer
+      .selectAll(`g.connector-layer`);
+  }
+
+  // Detect if the connector layer for the solution already exists in the svg base layer.
+  // This is used to determine if we should append the slot layer to the svg.
+  getSolutionLayer():  d3.Selection<SVGGElement, unknown, null, undefined>{
+    return this.d3SvgBaseLayer
+      .selectAll(`g.solution-layer-${this.noCodeSolution?.solutionName}`);
   }
 
   // Retrieves the circle state objects from the no-code solution and converts them into data-points.
@@ -79,6 +99,7 @@ export class CircleStateLayer extends D3ModelLayer {
             state.stateLocationX ?? 0, // cx
             state.stateLocationY ?? 0, // cy 
             state.stateSvgRadius ?? 10, // radius: Default to 10 if undefined
+            state.slotRadius ?? 4, // slotRadius: Default to 4 if undefined
             state.stateName ?? "unknown", // stateName : Default to "unknown" if undefined
         )
       ));
@@ -124,6 +145,7 @@ export class CircleStateLayer extends D3ModelLayer {
     console.log("CircleStateLayer render called");
     this.initializeLayerGroup();
     this.initializeStateGroups();
+    this.initializeSlotLayer();
   }
 
   // Create, Read, Update, Delete (CRUD) operations for the data points
@@ -240,7 +262,7 @@ export class CircleStateLayer extends D3ModelLayer {
   }
 
   // Gets the baseline group for this layer.
-  getLayerGroup(): any {
+  getLayerGroup(): d3.Selection<SVGGElement, unknown, null, undefined> {
     return this.d3SvgBaseLayer
       .selectAll(`g.${this.layerName}`)
   }
@@ -345,7 +367,7 @@ export class CircleStateLayer extends D3ModelLayer {
       }
   }
 
-  getStateGroups(): any {
+  getStateGroups(): d3.Selection<SVGGElement, unknown, null, undefined> {
     return this.getLayerGroup()
       .selectAll('g.state-group');
   }
@@ -429,113 +451,24 @@ export class CircleStateLayer extends D3ModelLayer {
 
   // -- Overlay Component Functions --
 
-  // Render the inner rectangles inside circles
-  // temporarily we do this by rendering rectangles, but in the future we will render components
-  // we should dynamically calculate the position and size of the inner component based on the circle's position and size
-  // This is primarily used for the initial rendering of the inner components, on load of the overall no-code interface.
-  /*
-  initializeOverlayComponents(): void {
-    // It is not gaurenteed that all 'rect' elements will be a rectangular component container
-    // so we should add some kind of identifier for circle inner rectangles to the data to ensure that we can differentiate 
-    // between them.
-    if(this.d3SvgBaseLayer)
-    {
-      let stateLayer = this.getStateGroups(); // Get the state layer
-      console.log("State Layer in initializeOverlayComponents:", stateLayer);
-      // Since we position the innerComponent rect insise the circle, we should tie the innerComponentBox
-      // to always translate with the circle, so that the innerComponent is always inside the circle in the
-      // correct position and size relative to the circle it is inside.
-      stateLayer.each((datapoint: CircleStateDataPoint, index: number, elements: any) => {
-        let currentElement = d3.select(elements[index]); // Explicitly select the current element
-        console.log("Current Element in initializeOverlayComponents with datapoint ", datapoint ,":", currentElement);
-        currentElement.append('rect')
-            .classed('circle-state-inner-component', true)
-            .attr('x', datapoint.innerComponentBoxX)
-            .attr('y', datapoint.innerComponentBoxY)
-            .attr('width', datapoint.innerComponentBoxWidth)
-            .attr('height', datapoint.innerComponentBoxHeight)
-            .attr('fill', 'white')
-            .attr('stroke', 'black');
-      });
-    }
-  }
-  */
-
   // --- Slot Placement Functions ---
-
-  /**
-   * Calls the function to generate the bezier paths for the circles, and then adds the bezier paths to the SVG.
-   * @param svg - The SVG selection where the circle will be drawn.
-   * @param cx - The x-coordinate of the circle's center.
-   * @param cy - The y-coordinate of the circle's center.
-   * @param r - The radius of the circle.
-   * @returns The SVGPathElement representing the Bezier circle.
-   */
-  initializeCircularBezierSlotPaths(): void {
-    // Go through all circle states from this layer and generate bezier paths to contour each circle.
-    // This is done to ensure that the slots are placed on the circle's border, and not inside the circle.
-    this.stateDataPoints.forEach((datapoint: CircleStateDataPoint) => {
-      // Render the bezier path for the circle
-      const bezierPath = this.generateCircularBezierPath(datapoint.radius);// Retrieve the Bezier path for the circle's boundary.
-      /*
-      // Append the path element to the SVG
-      svg.append('path')
-        .attr('d', bezierPath) // Set the path's data attribute to the Bezier path
-        .attr('fill', 'none')  // Make the path transparent (no fill)
-        .attr('stroke', 'black') // Set the stroke color for the path
-        .attr('stroke-width', 2) // Set the stroke width for better visibility
-        .node() as SVGPathElement; // Return the DOM node for the path
-      */
-    });
-    // Define the Bezier curve path for a circle
-      
-  }
 
     /**
    * 
    * @param r 
    * @returns 
    * 
-   * return `
-      M ${cx - r}, ${cy}
-      Q ${cx - r}, ${cy - r} ${cx}, ${cy - r} // First quadratic Bezier curve: top-left quadrant
-      Q ${cx + r}, ${cy - r} ${cx + r}, ${cy} // Second quadratic Bezier curve: top-right quadrant
-      Q ${cx + r}, ${cy + r} ${cx}, ${cy + r} // Third quadratic Bezier curve: bottom-right quadrant
-      Q ${cx - r}, ${cy + r} ${cx - r}, ${cy} // Fourth quadratic Bezier curve: bottom-left quadrant
-      Z                                     // Close the path to form a complete circle
-    `;
-   
-    // Generates a Bezier path for the circular no-code state, given its center and radius.
-    private generateCircularBezierPath(cx: number, cy: number, r: number): string {
-      // made adjustments since we shifted to having the bezier path be a part of the state-group
-      return `
-        M ${-r}, 0 // Bottom of the circle
-        Q ${- r}, ${-r} 0, ${-r} // First quadratic Bezier curve: top-left quadrant
-        Q ${r}, ${- r} ${r}, ${cy} // Second quadratic Bezier curve: top-right quadrant
-        Q ${r}, ${r} 0, ${r} // Third quadratic Bezier curve: bottom-right quadrant
-        Q ${- r}, ${r} ${- r}, 0 // Fourth quadratic Bezier curve: bottom-left quadrant
-        Z                                     // Close the path to form a complete circle
-      `;
-      return `
-      M 0, ${r}  // Start at the leftmost point of the circle
-      Q 0, 0 ${r}, 0  // First quadrant: top-left curve
-      Q ${2 * r}, 0 ${2 * r}, ${r}  // Second quadrant: top-right curve
-      Q ${2 * r}, ${2 * r} ${r}, ${2 * r}  // Third quadrant: bottom-right curve
-      Q 0, ${2 * r} 0, ${r}  // Fourth quadrant: bottom-left curve
-      Z  // Close the path to complete the circle
-    `;
-    }
+    * Generates a Bezier path for the circular no-code state, given its center and radius.
     */
-  // Generates a Bezier path for the circular no-code state, given its center and radius.
   generateCircularBezierPath(r: number): string {
     // made adjustments since we shifted to having the bezier path be a part of the state-group
     return `
-      M 0, ${r}
-      Q 0, 0 ${r}, 0
-      Q ${2 * r}, 0 ${2 * r}, ${r}
-      Q ${2 * r}, ${2 * r} ${r}, ${2 * r}
-      Q 0, ${2 * r} 0, ${r}
-      Z
+    M -${r}, 0
+    Q -${r}, -${r} 0, -${r}
+    Q ${r}, -${r} ${r}, 0
+    Q ${r}, ${r} 0, ${r}
+    Q -${r}, ${r} -${r}, 0
+    Z
     `;
   }
 
@@ -550,47 +483,62 @@ export class CircleStateLayer extends D3ModelLayer {
    * @param r - The radius of the circle.
    * @param slots - The number of slots to render.
    */
-  renderGeneralSlots(
-    svg: d3.Selection<SVGSVGElement, unknown, null, undefined>, // This should be a layer that exists on top of the circle layer.
-    path: SVGPathElement,
-    slots: Slot[]
-  ) 
+  initializeSlotLayer() 
   {
-    // We make an assumption that 4/5ths of the length of the bezier curve should be open and available
-    // for use in manipulating the State itself, while the remaining 1/5th should be used for slot placement.
-    // This is a temporary assumption, and in the future we should allow for the user to specify the slot placement
-    // themselves.  We should also allow for the user to specify the number of slots they want to place on the bezier curve.
-    // the size of the slots should be determined by the length of the bezier curve and the number of slots.
-    const bezierLength = path.getTotalLength();
-    // 1/5th of the bezier curve length is used for slot placement
-    const slotLength = bezierLength / 5; 
-    // The radius of the slot is by default 1/5th of the state's bezier curve length, but should not be less than 10 pixels.
-    // It will still occupy more than 1/5th of the bezier curve length if the number of slots is too high, but
-    // will still throw an error if the slots are too numerous to fit on the bezier curve.
-    const slotRadius = Math.min(slotLength / slots.length, 10); 
-    // If the slots take up more space than the entire curve, 
-    // we should not render them, and we should handle this by requesting the user to reduce the number of slots
-    // or to increase the size of the bezier curve by making the circle/state larger.
-    const tooManySlots = (slotRadius * slots.length > slotLength);
-    if (tooManySlots) {
-      console.error('Too many slots to fit on the Bezier curve.');
-    }
-    else{
-      // Calculate the angles for slot placement (evenly distributed around 360 degrees)
-      const defaultAngleIncrements = Array.from({ length: slots.length }, (_, i) => (360 / slots.length) * i);
+    console.log("initializeSlotLayer called");
+    // Get this entire layer group
+    let layer = this.getLayerGroup();
+    let stateGroups = this.getStateGroups();
+    // Get the slot data points
+    let slots = this.slotDataPoints;
+    console.log("Retrieved data points for slot placement:", slots);
+    // Go through each state group and append the slots to the group
+    // We should draw the slots onto the state-group, so that they are always positioned relative to the state
+    stateGroups.each((datapoint: CircleStateDataPoint, index: number, elements: any) => {
+      let currentStateGroup = d3.select(elements[index]); // Select current state-group
+      console.log("Current Element in initializeSlotLayer with datapoint ", datapoint ,":", currentStateGroup);
+      const path = currentStateGroup.select('path.slot-path').node() as SVGPathElement; // Get the slot path for the circle
+      console.log("Path in initializeSlotLayer:", path);
+      // We make an assumption that 4/5ths of the length of the bezier curve should be open and available
+      // for use in manipulating the State itself, while the remaining 1/5th should be used for slot placement.
+      // This is a temporary assumption, and in the future we should allow for the user to specify the slot placement
+      // themselves.  We should also allow for the user to specify the number of slots they want to place on the bezier curve.
+      // the size of the slots should be determined by the length of the bezier curve and the number of slots.
+      const bezierLength = path.getTotalLength();
+      console.log("bezierLength:", bezierLength);
+      // 1/5th of the bezier curve length is used for slot placement
+      const slotLength = bezierLength / 5; 
+      // The radius of the slot is by default 1/5th of the state's bezier curve length, but should not be less than 10 pixels.
+      // It will still occupy more than 1/5th of the bezier curve length if the number of slots is too high, but
+      // will still throw an error if the slots are too numerous to fit on the bezier curve.
+      const slotRadius = Math.min(slotLength / slots.length, 10); 
+      // If the slots take up more space than the entire curve, 
+      // we should not render them, and we should handle this by requesting the user to reduce the number of slots
+      // or to increase the size of the bezier curve by making the circle/state larger.
+      const tooManySlots = (slotRadius * slots.length > slotLength);
+      if (tooManySlots) {
+        console.error('Too many slots to fit on the Bezier curve.');
+      }
+      else{
+        // Calculate the angles for slot placement (evenly distributed around 360 degrees)
+        const defaultAngleIncrements = Array.from({ length: slots.length }, (_, i) => (360 / slots.length) * i);
 
-      // Iterate over each angle and calculate its position on the path
-      defaultAngleIncrements.forEach(angle => {
-        const { x, y } = this.getSlotPositionOnBezier(path, angle); // Get the point on the path for the given angle
+        // Iterate over each angle and calculate its position on the path
+        defaultAngleIncrements.forEach(angle => {
+          const { x, y } = this.getSlotPositionOnBezier(path, angle); // Get the point on the path for the given angle
 
-        // Append a small circle at the calculated position to represent a slot
-        svg.append('circle')
-          .attr('cx', x)      // Set the x-coordinate of the slot
-          .attr('cy', y)      // Set the y-coordinate of the slot
-          .attr('r', slotRadius)       // Set the radius of the slot marker
-          .attr('fill', 'blue'); // Set the fill color of the slot marker
-      });
-    }
+          // Append a small circle at the calculated position to represent a slot
+          currentStateGroup.append('circle')
+            .classed('slot-marker', true) // Add the slot marker class
+            .attr('cx', x)      // Set the x-coordinate of the slot
+            .attr('cy', y)      // Set the y-coordinate of the slot
+            .attr('r', slotRadius)       // Set the radius of the slot marker
+            .attr('fill', 'blue'); // Set the fill color of the slot marker
+        });
+      }
+    });
+
+    
     
   }
 
@@ -660,11 +608,38 @@ export class CircleStateLayer extends D3ModelLayer {
 
   // --- Event Handlers ---
 
+  // Gets the closest point on a path to a given mouse position
+  // used so we can ensure the drag event for slots causes the slot to be repositioned but strictly
+  // along the bezier path of the circle (the border of the state group, in this case a circle).
+  private getClosestPointOnPath(path: SVGPathElement, mouseX: number, mouseY: number): { x: number; y: number } {
+    const pathLength = path.getTotalLength();
+    let closestPointOnPathToMouse = { x: 0, y: 0 };
+    let minDistance = Infinity;
+  
+    // Search in intervals along the path to find closest point
+    for (let i = 0; i <= pathLength; i += 2) {
+      const point = path.getPointAtLength(i);
+      const dx = point.x - mouseX;
+      const dy = point.y - mouseY;
+      const distance = dx * dx + dy * dy;
+      // Searches all points on the path to find the closest point to the mouse position
+      if (distance < minDistance) {
+        minDistance = distance;
+        closestPointOnPathToMouse = { x: point.x, y: point.y };
+      }
+    }
+  
+    return closestPointOnPathToMouse;
+  }
+  
+
   // -- Drag behavior for the state circles --
 
   // Drag behavior with modularized event handlers
   private createDragStateBehavior(): d3.DragBehavior<SVGCircleElement, CircleStateDataPoint, CircleStateDataPoint> {
     return d3.drag<SVGCircleElement, CircleStateDataPoint>()
+      .container(() => this.d3SvgBaseLayer.node() as SVGSVGElement) // Set the event to listen across the whole d3 screen so it does not lose the event
+      .subject((event, d) => d) // Set the subject to the current data point
       .on('start', (event, d) => this.onDragStateStart(event, d))
       .on('drag', (event, d) => this.onDragState(event, d))
       .on('end', (event, d) => this.onDragStateEnd(event, d));
@@ -701,9 +676,33 @@ export class CircleStateLayer extends D3ModelLayer {
     }
     */
     // Ensure drag only starts if the clicked element is a circle
-    if (targetElement?.tagName === 'circle') {
+    if (targetElement?.tagName === 'circle' && targetElement?.classList.contains('draggable-shape')) {
+      event.sourceEvent.stopPropagation(); // Prevent the drag event from being triggered on the state group
       console.log(`Dragging started for ${datapoint.stateName}`);
-      console.log("Initial Offset:", { x: datapoint._dragOffsetX, y: datapoint._dragOffsetY });
+      //console.log("Initial Offset:", { x: datapoint._dragOffsetX, y: datapoint._dragOffsetY });
+      group.raise().attr('stroke', 'black'); // Highlight active group
+    }
+    else if (targetElement?.tagName === 'circle' && targetElement?.classList.contains('slot-marker')) {
+      console.log(`Dragging started for slot on ${datapoint.stateName}`);
+      event.sourceEvent.stopPropagation(); // Prevent the drag event from being triggered on the state group
+      if(this.connectorMode) // In connector mode a drag event should create a connector between two slot markers
+      {
+        // Create a new connector between the center of the slot marker and the current mouse position
+        // we create an arrow svg element to act as our connector.
+        const connector = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        // Set the connector's attributes
+        connector.setAttribute('d', `M ${datapoint.cx} ${datapoint.cy} L ${event.x} ${event.y}`);
+        connector.setAttribute('class', 'tentative-connector');
+        connector.setAttribute('fill', 'none');
+        connector.setAttribute('stroke', 'black');
+        connector.setAttribute('stroke-width', '2');
+        connector.setAttribute('marker-end', 'url(#arrowhead)');
+        // Append the connector to the connector layer
+        this.connectorLayer?.node()?.appendChild(connector);
+      }
+      else{
+        // Triggered slot-moving event.
+      }
       group.raise().attr('stroke', 'black'); // Highlight active group
     }
     console.log("Drag Start event complete");
@@ -728,33 +727,62 @@ export class CircleStateLayer extends D3ModelLayer {
     //if (event.sourceEvent.target.tagName === 'circle') 
     if (targetElement?.tagName === 'circle') 
     {
-      //console.log(`Dragging ${datapoint.stateName}`);
-      //console.log("Event:", event);
-      //console.log("DataPoint:", datapoint);
-      //console.log("group:", group);
-      //console.log("Group Element:", groupElement);
-      // Compute new translation by accumulating dx and dy
-      //const currentCircleransform = group.attr("transform") || "translate(0,0)";
-        //const matchCircle = currentCircleransform.match(/translate\(([-\d.]+),\s*([-\d.]+)\)/);
-        //let currentCircleX = matchCircle ? parseFloat(matchCircle[1]) : 0;
-        //let currentCircleY = matchCircle ? parseFloat(matchCircle[2]) : 0;
-        //console.log("Current Circle Transform:", { currentCircleX, currentCircleY });
+      if (targetElement.classList.contains('slot-marker')) // Case for dragging of slot markers or making connectors.
+      {
+          event.sourceEvent.stopPropagation(); // Prevent the drag event from being triggered on the state group
+          if(this.connectorMode) // In connector mode a drag event should create a connector between two slot markers
+          {
+            // Get the center location of the slot marker that was clicked on.
+            const slotMarker = d3.select(event.sourceEvent.target);
+            const slotMarkerX = parseFloat(slotMarker.attr('cx') || "0");
+            const slotMarkerY = parseFloat(slotMarker.attr('cy') || "0");
+            
+            // Transform the 'tentative' connector between the origin slot marker and the current mouse position
+            // that should have been created when the slot marker was clicked on.
 
-      // We should update the group's transform attribute to move the entire group
+            // Get the closest slot marker to the current mouse position
+            //const closestSlotMarker = this.getClosestSlotMarker(event.x, event.y);
+          }
+          else // In default mode a drag event moves the slot marker along the bezier path of the circle
+          {
+            // When dragging a slot marker, we should update the slot marker's position
+            // the slot marker should be constrained to the bezier path of the circle
+            // and should have it's position defined parametrically by the angle of the slot
+            // and the location of the bezier path progression at the fraction of the angle.
+            console.log("Dragging slot marker event triggered");
+            // Get the closest location on the bezier path to the current mouse position
+            const path = group.select('path.slot-path').node() as SVGPathElement;
+            const pathLength = path.getTotalLength();
+            const mousePosition = d3.pointer(event.sourceEvent, group.node());
+            //const closestPoint = this.getClosestPointOnBezierPath(path, event.x, event.y);
+          }
+          
+      }
+      else if(targetElement.classList.contains('draggable-shape')) // Case for dragging of the entire state group
+      {
+        event.sourceEvent.stopPropagation(); // Prevent the drag event from being triggered on the state group
+         // We should update the group's transform attribute to move the entire group
         const currentGroupTransform = group.attr("transform") || "translate(0,0)";
         const matchGroup = currentGroupTransform.match(/translate\(([-\d.]+),\s*([-\d.]+)\)/);
         let currentGroupX = matchGroup ? parseFloat(matchGroup[1]) : 0;
         let currentGroupY = matchGroup ? parseFloat(matchGroup[2]) : 0;
-        console.log("Current Group Transform:", { currentGroupX, currentGroupY });
-        console.log("Event dx, dy:", event.dx, event.dy);
+        //console.log("Current Group Transform:", { currentGroupX, currentGroupY });
+        //console.log("Event dx, dy:", event.dx, event.dy);
         // Apply incremental movement
         const translateX = currentGroupX + event.dx;
         const translateY = currentGroupY + event.dy;
 
         // Update the group transformation
         group.attr('transform', `translate(${translateX}, ${translateY})`);
+      }
+      else
+      {
+        // For unhandled dragged circle events
+        console.log("Unhandled dragged circle event triggered");
+      }
+     
     }
-    console.log("Drag event complete");
+    // console.log("Drag event step complete");
   }
 
   // Event handlers for drag behavior for when the circle stops being dragged.

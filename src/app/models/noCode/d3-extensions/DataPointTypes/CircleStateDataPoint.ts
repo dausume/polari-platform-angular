@@ -5,6 +5,7 @@ export default class CircleStateDataPoint {
     cx: number; // x coordinate of the center of the circle
     cy: number; // y coordinate of the center of the circle
     radius: number; // radius of the circle
+    slotRadius?: number; // radius of the slot circles for this state, by default it is 4 px.
     stateName?: string; // name of the state this data point.
     // Used for determining the color of the circle
     styleName?: string; // name of the style class to be applied to the circle
@@ -31,11 +32,13 @@ export default class CircleStateDataPoint {
         cx: number, 
         cy: number, 
         radius: number, 
+        slotRadius: number = 4,
         stateName?: string
     ) {
         this.cx = cx;
         this.cy = cy;
         this.radius = radius;
+        this.slotRadius = slotRadius;
         this.stateName = stateName;
 
         // **Auto-Derived Values Based on Sample SVG**

@@ -27,6 +27,8 @@ export class NoCodeSolution {
 
     baseLayerSubscription: Subscription | undefined;
     d3SvgBaseLayer!: d3.Selection<SVGSVGElement, unknown, null, undefined>;
+    solutionLayer!: d3.Selection<SVGSVGElement, unknown, null, undefined>;
+    solutionConnectorLayer!: d3.Selection<SVGSVGElement, unknown, null, undefined>;
 
     initialStateInstance?: NoCodeState; // Always index 0
     endStateInstance?: NoCodeState; // Always the final index in the NoCodeSolution.
@@ -50,6 +52,26 @@ export class NoCodeSolution {
         this.stateInstances = stateInstances.length ? stateInstances : this.generateInitialStates();
         // Load the State Insttances into appropriate No-Code State Layers
         this.loadAllNoCodeStates();
+        this.createSolutionLayer();
+
+    }
+
+    private getSolutionLayer(): d3.Selection<SVGGElement, unknown, null, undefined> {
+        if(!this.d3SvgBaseLayer)
+        {
+            return this.d3SvgBaseLayer.select(`g.solution-layer-${this.solutionName}`);
+        }
+    }
+
+    // Create the `g.solution-layer-${this.noCodeSolution?.solutionName}` svg layer
+    // and add it to the base layer.
+    private createSolutionLayer(): void {
+        // Create the solution layer
+        if(this.d3SvgBaseLayer)
+        {
+            this.d3SvgBaseLayer.append('g')
+                .attr('class', `g.solution-layer-${this.solutionName}`)
+        }
     }
 
     // Used to generate the initial states for the No-Code Solution, this is used to give a baseline

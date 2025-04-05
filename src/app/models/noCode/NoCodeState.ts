@@ -39,6 +39,8 @@ export class NoCodeState {
     stateLocationY?: number;
     //A list of connector Nodes which are created/allocated onto this state, which act as output nodes.
     slots?: Slot[];
+    // Standardizes the radius of the slot circles for this state, by default it is 4 px.
+    slotRadius?: number;
     // Used so that we can cache the d3 model layer object for this state.
     layerName?: string;
     //
@@ -60,6 +62,7 @@ export class NoCodeState {
         id?:string, 
         stateSvgName?: string, // The name of the svg, if it is the same as the shapeType or empty it uses default svg.
         slots: Slot[]=[],
+        slotRadius: number = 4,
         backgroundColor="blue"
     )
     {
@@ -78,6 +81,7 @@ export class NoCodeState {
         this.layerName = layerName;
         this.backgroundColor = backgroundColor;
         this.stateSvgName = stateSvgName;
+        this.slotRadius = slotRadius;
         this.validate();
     }
 

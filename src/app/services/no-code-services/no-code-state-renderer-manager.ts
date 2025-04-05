@@ -68,6 +68,7 @@ export class NoCodeStateRendererManager {
   setD3SvgBaseLayer(d3SvgLayer: any) {
     console.log("Step 2 - Set the d3 svg base layer in the renderer manager : ", d3SvgLayer);
     console.log("Setting D3 SVG Layer : ", d3SvgLayer);
+    // If the d3SvgLayer does not have the event detection layer, we need to add it.
     this.d3svgBaseLayerBehaviorSubject.next(d3SvgLayer);
     this.defineDefaultLayerTypes();
     console.log("Setting D3 SVG Layer : ", d3SvgLayer);
