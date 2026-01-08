@@ -28,8 +28,10 @@ export default class CircleStateDataPoint {
     // to connect to another slot, for interconnecting no-code states.
     isInput: boolean; // is this slot an input slot?
     isOutput: boolean; // is this slot an output slot?
+    //
+    index: number; // index of the slot in the parent state object. This is used to determine the order of the slots when rendering them.
 
-    constructor(cx: number, cy: number, radius: number, angularPosition: number, isInput: boolean, isOutput: boolean, stateName?: string, solutionName?:string )
+    constructor(cx: number, cy: number, radius: number, index: number, angularPosition: number, isInput: boolean, isOutput: boolean, stateName?: string, solutionName?:string) 
     {
         this.cx = cx;
         this.cy = cy;
@@ -39,5 +41,6 @@ export default class CircleStateDataPoint {
         this.isOutput = isOutput;
         this.stateName = stateName;
         this.solutionName = solutionName;
+        this.index = index; // default to 0 if not provided
     }
 }

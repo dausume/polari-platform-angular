@@ -55,6 +55,7 @@ import { DomSanitizer } from "@angular/platform-browser";
 // Overlay for custom dropdowns and rendering of dynamic components in no-code ui.
 import { OverlayContainer } from '@angular/cdk/overlay';
 import { OverlayComponentService } from './services/no-code-services/overlay-component-service';
+import { InteractionStateService } from '@services/no-code-services/interaction-state-service';
 
 
 
@@ -110,7 +111,8 @@ import { OverlayComponentService } from './services/no-code-services/overlay-com
     PolariService,
     CRUDEservicesManager,
     OverlayContainer,
-    OverlayComponentService
+    OverlayComponentService,
+    InteractionStateService
   ],
   bootstrap: [
     AppComponent,

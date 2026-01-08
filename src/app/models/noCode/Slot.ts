@@ -7,7 +7,7 @@ import { MatIconModule } from '@angular/material/icon';
 
 export class Slot {
     // Index of the slot in respect to the layer it is defined in.
-    index?: number;
+    index: number;
     //Indicates the Id of the state component this slot belongs to.
     stateName?: string;
     //In degrees out of 360, gives the location of the slot in respect to the state component it belongs to.
@@ -24,7 +24,7 @@ export class Slot {
     isOutput: boolean = false;
 
     //Defines a configuration object used for configuring variable information for a new class, or modifying/duplicating an existing class.
-    constructor(index?:number, stateName?:string, slotAngularPosition?: number, connectors?: Connector[], isInput: boolean = false, allowOneToMany: boolean = false,allowManyToOne: boolean = false)
+    constructor(index:number, stateName:string, slotAngularPosition?: number, connectors?: Connector[], isInput: boolean = false, allowOneToMany: boolean = false,allowManyToOne: boolean = false)
     {
         this.index = index;
         this.stateName = stateName;

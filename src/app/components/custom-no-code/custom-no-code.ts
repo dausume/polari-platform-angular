@@ -10,6 +10,7 @@ import { OverlayComponentService } from '../../services/no-code-services/overlay
 import * as d3 from 'd3';
 import { NoCodeStateInstanceComponent } from './no-code-state-instance/no-code-state-instance';
 import { NoCodeStateRendererManager } from '@services/no-code-services/no-code-state-renderer-manager';
+import { InteractionStateService } from '@services/no-code-services/interaction-state-service';
 
 // An Editor which creates a new No-Code Solution by default.
 @Component({
@@ -60,10 +61,11 @@ export class CustomNoCodeComponent
       private renderer: Renderer2, 
       private overlayComponentService: OverlayComponentService,
       private noCodeStateRendererManager: NoCodeStateRendererManager,
-      private hostViewContainerRef: ViewContainerRef
+      private hostViewContainerRef: ViewContainerRef,
+      private interactionStateManager: InteractionStateService
   ) 
   {
-    this.noCodeSolution = new NoCodeSolution(noCodeStateRendererManager, 800, 800, "testSolution",this.stateInstances);
+    this.noCodeSolution = new NoCodeSolution(noCodeStateRendererManager, interactionStateManager, 800, 800, "testSolution",this.stateInstances);
   }
 
   // To do our initial rendering we should use the NoCodeStateRendererManager and ensure all

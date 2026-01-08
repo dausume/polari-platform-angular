@@ -7,6 +7,7 @@ import { Slot } from "./Slot";
 import { NoCodeStateRendererManager } from '@services/no-code-services/no-code-state-renderer-manager';
 import * as d3 from 'd3';
 import { Subscription } from "rxjs";
+import { InteractionStateService } from "@services/no-code-services/interaction-state-service";
 
 // If we can it would be ideal to be able to get view dimensions relevant to the component and always use them
 // to calculate the position of the overlay component. This would allow us to avoid having to pass in the
@@ -36,6 +37,7 @@ export class NoCodeSolution {
     //Defines a configuration object used for configuring variable information for a new class, or modifying/duplicating an existing class.
     constructor(
         private rendererManager: NoCodeStateRendererManager, // Inject rendererManager
+        private interactionService: InteractionStateService, // Inject interaction service
         xBounds = 300, yBounds = 800, 
         solutionName: string, stateInstances: NoCodeState[]=[], 
         id?: number)
@@ -150,11 +152,12 @@ export class NoCodeSolution {
             [
                 new Slot( // Slot connecting to the initial state as an input slot
                     0, // Index of the slot in it's given no-code-state
-                    undefined, // No-Code-State Id, is undefined until it is saved to the backend
-                    0,
+                    "final-state", // No-Code-State Id, is undefined until it is saved to the backend
+                    0, // An angular value between 0 and 360 degrees where it is located on the circle path.
                     [], // Empty array since we have not implemented connectors.
-                    false,
-                    false
+                    false, // Is an input
+                    false, // Allow one to many connections
+                    false // Allow many to one connections
                 ),
             ] // Slots being used for input and output to this No-Code-State.
           ),
@@ -203,6 +206,7 @@ export class NoCodeSolution {
             let noCodeStatesForLayer = this.getNoCodeStatesByShapeType(shapeType);
             const d3ModelLayerInstance = new d3ModelLayerDefinition(
                 this.rendererManager, // Required to pass the renderer manager to any implementation of the D3ModelLayer despite it not existing on the abstract D3ModelLayer definition.
+                this.interactionService, // Required to pass the interaction service to any implementation of the D3ModelLayer despite it not existing on the abstract D3ModelLayer definition.
                 shapeType, // Required to verify the correct D3ModelLayer is being used for the No-Code State object.
                 this, // Required to pass the No-Code Solution object to the D3ModelLayer object.
                 svgName || '', // Optional SVG string to make a variant D3ModelLayer for the shapeType that uses a different svg to render.
