@@ -1,27 +1,41 @@
-#Dockerfile for polari-platform-angular
+# syntax=docker/dockerfile:1
+
+# Optimized Dockerfile for polari-platform-angular
+# Uses layer caching to speed up rebuilds when only source code changes
 
 FROM node:18.13
 
-RUN mkdir /project
 WORKDIR /project
 
+# Install Angular CLI globally (cached layer - rarely changes)
 RUN npm install -g @angular/cli@13.3.0
 
-COPY package.json ./
-RUN npm install
+# Copy package files FIRST for better caching
+# This layer only rebuilds when package.json or package-lock.json changes
+COPY package*.json ./
 
+# Use npm ci for faster, more reliable installs
+# Cache mount speeds up npm downloads across rebuilds
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci
+
+# Copy source code LAST (this invalidates cache most often)
+# Separating this from dependencies ensures npm packages are cached
 COPY . .
 
+# Pre-build the application during image creation
+# This makes container startup faster and catches build errors early
 RUN ng build --configuration=development
 
-# Run ng build, loading the env vars needed while in the browser for your given environment. --configuration=production
-
-# WARNING : THIS EXPOSES the DOCKERFILE strictly to other containers on the same network, this DOES NOT expose the
-# the application on the localhost of the HOST machine, only the mapping on a docker-compose or using the -p
-# command when running the dockefile to build the container will perform that mapping.
-# ALSO : Make certain your app is using a command to expose it externally, mapping externally on the virtual network
-# is what allows the docker-compose or -p mapping to expose the port on the host, otherwise it will be unavailable
-# when you try to access it.... took me a long time to figure that one out.
+# WARNING: This exposes the port strictly to other containers on the same network
+# This DOES NOT expose the application on the localhost of the HOST machine
+# Only the mapping in docker-compose or using the -p flag will expose to host
+#
+# ALSO: Make certain your app uses --host 0.0.0.0 to expose it externally
+# Mapping externally on the virtual network allows docker-compose or -p mapping
+# to expose the port on the host, otherwise it will be unavailable
 EXPOSE 4200
 
+# Use ng serve for development with hot-reload support
+# For production, consider using nginx to serve the built files
 CMD ["ng", "serve", "--host", "0.0.0.0", "--port", "4200"]
