@@ -1,6 +1,5 @@
 // string-cell.component.ts
 import { Component, Input } from '@angular/core';
-import { MatGridTile } from '@angular/material/grid-list';
 
 @Component({
   selector: 'string-cell',
@@ -8,7 +7,17 @@ import { MatGridTile } from '@angular/material/grid-list';
   styleUrls: ['./string-cell.css']
 })
 export class StringCellComponent {
-  @Input() object: string = '';
-  @Input() name: string = '';
-  @Input() type: string = '';
+  @Input() value: any = '';
+  @Input() columnName: string = '';
+  @Input() editable: boolean = false;
+
+  /**
+   * Get display value for string cell
+   */
+  getDisplayValue(): string {
+    if (this.value === null || this.value === undefined) {
+      return '-';
+    }
+    return String(this.value);
+  }
 }

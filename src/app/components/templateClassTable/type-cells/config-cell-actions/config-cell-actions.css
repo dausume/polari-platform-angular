@@ -3,8 +3,16 @@
     justify-content: center;
     margin-top: 8px;
   }
-  
+
   .cell-actions button {
     margin: 0 4px;
+  }
+
+  .cell-actions button mat-icon {
+    color: #212529 !important;
+  }
+
+  .cell-actions button:hover mat-icon {
+    color: #007bff !important;
   }
   

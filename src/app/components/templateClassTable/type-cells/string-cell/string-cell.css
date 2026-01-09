@@ -1,0 +1,14 @@
+.string-cell {
+    display: flex;
+    align-items: center;
+    padding: 4px 8px;
+    min-height: 24px;
+}
+
+.cell-value {
+    color: #333;
+    font-size: 14px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

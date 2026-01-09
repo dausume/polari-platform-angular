@@ -1,31 +1,66 @@
-<mat-grid-list *ngFor="let variableDef of variableConfigDefs" cols="5" rowHeight="5:1">
-  <mat-grid-tile>
-    <mat-form-field>
-      <input type="input" matInput [formControl]="variableDef.varNameControl" [(ngModel)]="variableDef.varName" placeholder="Variable Name">
-      <mat-label>Variable Name</mat-label>
-    </mat-form-field>
-  </mat-grid-tile>
-  <mat-grid-tile>
-    <mat-form-field>
-      <input type="input" matInput [formControl]="variableDef.varDisplayNameControl" [(ngModel)]="variableDef.varDisplayName" placeholder="Variable Display Name">
-      <mat-label>Variable Display Name</mat-label>
-    </mat-form-field>
-  </mat-grid-tile>
-  <mat-grid-tile>
-      <mat-label>Select type</mat-label>
-      <mat-select mat-select [(ngModel)]="variableDef.varType" >
-        <mat-option *ngFor="let type of typesAllowed" [value]="type" (selectionChange)="setType(variableDef.varIndex, type)">{{type}}</mat-option>
-      </mat-select>
-  </mat-grid-tile>
-  <mat-grid-tile *ngIf="variableDef.varType == 'Reference'">
-    <mat-label *ngIf="variableDef.varType == 'Reference'">Select the class Referenced</mat-label>
-  </mat-grid-tile>
-  <mat-grid-tile>
-    <button class="remove-var-btn" mat-button style="width: 80px;" (click)="removeVariable(variableDef.varIndex)" *ngIf="variableDef.varIndex != 1">
-      Remove
-    </button>
-  </mat-grid-tile>
-</mat-grid-list>
-<button id="new_variable_btn" mat-button style="width: 80px; height: 30px;" (click)="addVariableDef()">
-  New Variable
-</button>
+<div class="variable-modifier-container">
+  <!-- Variable Definition Rows -->
+  <div *ngFor="let variableDef of variableConfigDefs" class="variable-row">
+    <mat-grid-list cols="5" rowHeight="85px">
+      <!-- Variable Name -->
+      <mat-grid-tile>
+        <mat-form-field appearance="outline">
+          <mat-label>Variable Name</mat-label>
+          <input type="text" matInput [formControl]="variableDef.varNameControl" [(ngModel)]="variableDef.varName" placeholder="e.g., userName">
+        </mat-form-field>
+      </mat-grid-tile>
+
+      <!-- Variable Display Name -->
+      <mat-grid-tile>
+        <mat-form-field appearance="outline">
+          <mat-label>Display Name</mat-label>
+          <input type="text" matInput [formControl]="variableDef.varDisplayNameControl" [(ngModel)]="variableDef.varDisplayName" placeholder="e.g., User Name">
+        </mat-form-field>
+      </mat-grid-tile>
+
+      <!-- Variable Type -->
+      <mat-grid-tile>
+        <mat-form-field appearance="outline">
+          <mat-label>Type</mat-label>
+          <mat-select [(ngModel)]="variableDef.varType">
+            <mat-option *ngFor="let type of typesAllowed" [value]="type" (click)="setType(variableDef.varIndex, type)">
+              {{type}}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+      </mat-grid-tile>
+
+      <!-- Reference Class (conditional) -->
+      <mat-grid-tile *ngIf="variableDef.varType == 'Reference'">
+        <mat-form-field appearance="outline">
+          <mat-label>Referenced Class</mat-label>
+          <mat-select [(ngModel)]="variableDef.varRefClass">
+            <mat-option value="class1">Class 1</mat-option>
+            <mat-option value="class2">Class 2</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </mat-grid-tile>
+
+      <!-- Spacer for non-reference types -->
+      <mat-grid-tile *ngIf="variableDef.varType != 'Reference'">
+      </mat-grid-tile>
+
+      <!-- Remove Button -->
+      <mat-grid-tile>
+        <button mat-raised-button class="remove-var-btn" (click)="removeVariable(variableDef.varIndex)" *ngIf="variableDef.varIndex != 1">
+          Remove
+        </button>
+      </mat-grid-tile>
+    </mat-grid-list>
+  </div>
+
+  <!-- Empty State -->
+  <div class="no-variables" *ngIf="!variableConfigDefs || variableConfigDefs.length === 0">
+    <p>No variables defined yet. Click "Add Variable" to get started.</p>
+  </div>
+
+  <!-- Add Variable Button -->
+  <button id="new_variable_btn" mat-raised-button (click)="addVariableDef()">
+    Add Variable
+  </button>
+</div>

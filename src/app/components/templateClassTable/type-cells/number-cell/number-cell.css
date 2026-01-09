@@ -1,0 +1,14 @@
+.number-cell {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 4px 8px;
+    min-height: 24px;
+}
+
+.cell-value {
+    color: #2c3e50;
+    font-size: 14px;
+    font-family: 'Courier New', monospace;
+    font-weight: 500;
+}

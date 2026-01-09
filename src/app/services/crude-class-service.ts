@@ -28,15 +28,19 @@ export class CRUDEclassService {
     create(data: any): Observable<any> {
         return this.http.post(`/api/${this.className}`, data);
       }
-      
+
       read(id: string): Observable<any> {
         return this.http.get(`/api/${this.className}/${id}`);
       }
-      
+
+      readAll(): Observable<any> {
+        return this.http.get(`/api/${this.className}`);
+      }
+
       update(id: string, data: any): Observable<any> {
         return this.http.put(`/api/${this.className}/${id}`, data);
       }
-      
+
       delete(id: string): Observable<any> {
         return this.http.delete(`/api/${this.className}/${id}`);
       }

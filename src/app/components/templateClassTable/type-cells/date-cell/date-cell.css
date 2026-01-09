@@ -1,0 +1,18 @@
+.date-cell {
+    display: flex;
+    align-items: center;
+    padding: 4px 8px;
+    min-height: 24px;
+}
+
+.cell-value {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #5c6bc0;
+    font-size: 14px;
+}
+
+.date-icon {
+    font-size: 16px;
+}

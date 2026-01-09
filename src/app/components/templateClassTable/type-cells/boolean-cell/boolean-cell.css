@@ -1,0 +1,38 @@
+.boolean-cell {
+    display: flex;
+    align-items: center;
+    padding: 4px 8px;
+    min-height: 24px;
+}
+
+.cell-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.indicator-icon {
+    font-size: 16px;
+}
+
+.true-value {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+}
+
+.true-value .indicator-icon {
+    color: #4caf50;
+}
+
+.false-value {
+    background-color: #ffebee;
+    color: #c62828;
+}
+
+.false-value .indicator-icon {
+    color: #f44336;
+}

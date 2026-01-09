@@ -14,6 +14,30 @@ export class DefaultCellComponent {
 
   constructor()
   {
-    
+
+  }
+
+  /**
+   * Get icon for data type
+   */
+  getTypeIcon(type: string): string {
+    const typeMap: { [key: string]: string } = {
+      'str': 'T',
+      'string': 'T',
+      'int': '#',
+      'integer': '#',
+      'float': '∞',
+      'bool': '✓',
+      'boolean': '✓',
+      'list': '[]',
+      'dict': '{}',
+      'object': '{}',
+      'date': '📅',
+      'datetime': '🕐',
+      'polariList': '📋',
+      'polariDict': '📚'
+    };
+
+    return typeMap[type?.toLowerCase()] || '◆';
   }
 }

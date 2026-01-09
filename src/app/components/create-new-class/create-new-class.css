@@ -1,36 +1,116 @@
-.example-events {
-    width: 300px;
-    height: 200px;
-    overflow: auto;
-    border: 1px solid #555;
-}
-  
-
-.mat-form-field {
-    background-color: var(--primary-color);
+/* Container Styling */
+.create-class-container {
+    max-width: 1200px;
+    margin: 20px auto;
+    padding: 24px;
 }
 
-.mat-input {
-    background-color: var(--text-outline-color);
+mat-card {
+    background-color: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    min-height: 500px;
+    padding: 32px !important;
 }
 
-.mat-input-element {
-    caret-color: var(--text-outline-color);
+/* Header Section */
+.class-header {
+    padding: 16px 0 24px 0;
+    border-bottom: 2px solid #e9ecef;
+    margin-bottom: 24px;
 }
 
-::ng-deep mat-grid-list {
-    min-height: 100px;
-    display: grid; /* Ensure it's using CSS grid */
-    gap: 10px; /* Adjust the gap value as needed */
-    align-items: center; /* Center items vertically */
+.class-header h2 {
+    margin: 0 0 8px 0;
+    color: #212529;
+    font-size: 1.5em;
+    font-weight: 600;
 }
 
-::ng-deep mat-grid-tile {
-    min-width: 25px;
-    min-height: 40px;
-    padding: 10px; /* Add padding to tiles if needed */
+.class-header p {
+    margin: 0;
+    color: #6c757d;
+    font-size: 0.9em;
 }
 
-::ng-deep mat-grid-list div {
-    padding-bottom: 50px
+/* Form Field Styling */
+mat-form-field {
+    width: 100%;
+    background-color: transparent;
+    margin-top: 8px;
+}
+
+mat-form-field input {
+    color: #212529;
+}
+
+mat-form-field mat-label {
+    color: #495057;
+    font-weight: 500;
+}
+
+/* Grid Layout */
+mat-grid-list {
+    min-height: 90px;
+}
+
+mat-grid-tile {
+    color: #212529;
+    align-items: flex-start !important;
+}
+
+.form-grid mat-grid-tile {
+    padding: 12px 16px;
+}
+
+/* Save Button */
+.save-button {
+    background-color: #28a745;
+    color: #ffffff !important;
+    font-weight: 600;
+    padding: 8px 24px;
+    border-radius: 4px;
+    min-width: 120px;
+    transition: all 0.2s ease;
+}
+
+.save-button:hover {
+    background-color: #218838;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(40, 167, 69, 0.3);
+}
+
+.save-button:disabled {
+    background-color: #6c757d;
+    color: rgba(255, 255, 255, 0.5) !important;
+    cursor: not-allowed;
+}
+
+/* Variables Section */
+.variables-section {
+    padding-top: 16px;
+}
+
+.variables-section-title {
+    font-size: 1.2em;
+    font-weight: 600;
+    color: #212529;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .create-class-container {
+        padding: 16px;
+    }
+
+    mat-card {
+        min-height: auto;
+    }
+
+    .class-header h2 {
+        font-size: 1.3em;
+    }
 }

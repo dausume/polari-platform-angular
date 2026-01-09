@@ -1,25 +1,36 @@
-<mat-card style="min-height:500px">
-    <!-- Upper row -->
-    <mat-grid-list cols="3" rowHeight="3:1">
-        <mat-grid-tile>
-            <mat-form-field>
-                <input type="input" matInput [formControl]="classNameControl" [(ngModel)]="className" placeholder="Class Name">
-                <mat-label>Class Name</mat-label>
-            </mat-form-field>
-        </mat-grid-tile>
-        <mat-grid-tile>
-            <mat-form-field>
-                <input type="input" matInput [formControl]="classDisplayNameControl" [(ngModel)]="classDisplayName" placeholder="Class Display Name">
-                <mat-label>Class Display Name</mat-label>
-            </mat-form-field>
-        </mat-grid-tile>
-        <mat-grid-tile>
-            <button mat-button style="width: 80px;" (click)="saveClass()">
-                Save Class
-            </button>
-        </mat-grid-tile>
-    </mat-grid-list>
-    <!-- Lower section -->
-    <variable-modifier>
-    </variable-modifier>    
-</mat-card>
+<div class="create-class-container">
+    <mat-card>
+        <!-- Header -->
+        <div class="class-header">
+            <h2>Create New Class</h2>
+            <p>Define a new class with custom variables and properties</p>
+        </div>
+
+        <!-- Class Definition Form -->
+        <mat-grid-list cols="3" rowHeight="90px" class="form-grid">
+            <mat-grid-tile>
+                <mat-form-field appearance="outline">
+                    <mat-label>Class Name</mat-label>
+                    <input type="text" matInput [formControl]="classNameControl" [(ngModel)]="className" placeholder="e.g., MyClass">
+                </mat-form-field>
+            </mat-grid-tile>
+            <mat-grid-tile>
+                <mat-form-field appearance="outline">
+                    <mat-label>Class Display Name</mat-label>
+                    <input type="text" matInput [formControl]="classDisplayNameControl" [(ngModel)]="classDisplayName" placeholder="e.g., My Class">
+                </mat-form-field>
+            </mat-grid-tile>
+            <mat-grid-tile>
+                <button mat-raised-button class="save-button" (click)="saveClass()">
+                    Save Class
+                </button>
+            </mat-grid-tile>
+        </mat-grid-list>
+
+        <!-- Variables Section -->
+        <div class="variables-section">
+            <h3 class="variables-section-title">Class Variables</h3>
+            <variable-modifier></variable-modifier>
+        </div>
+    </mat-card>
+</div>

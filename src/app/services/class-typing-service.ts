@@ -96,24 +96,31 @@ export class ClassTypingService {
                     }).unsubscribe();
                     
                     
+                    // Convert camelCase class name to readable display name
+                    // e.g., "dataStream" -> "Data Stream", "managedFile" -> "Managed File"
                     let className = "";
-                    let nameLen = typeObj.className.length
-                    let priorLetter = ""
+                    let nameLen = typeObj.className.length;
+
                     for (let i = 0; i < nameLen; i++)
                     {
-                        if( (typeObj.className[i]) == (typeObj.className[i]).toUpperCase() && priorLetter == priorLetter.toLowerCase() )
+                        const currentChar = typeObj.className[i];
+                        const isUpperCase = currentChar === currentChar.toUpperCase() && currentChar !== currentChar.toLowerCase();
+
+                        // Add space before uppercase letters (except at the start)
+                        if (i > 0 && isUpperCase)
                         {
-                            if(i != 0)
-                            {
-                                className = className + " ";
-                            }
-                            className = className + typeObj.className[i].toUpperCase();
+                            className += " ";
+                        }
+
+                        // Capitalize the first character, keep others as-is
+                        if (i === 0)
+                        {
+                            className += currentChar.toUpperCase();
                         }
                         else
                         {
-                            className = className + typeObj.className[i];
+                            className += currentChar;
                         }
-                        priorLetter = typeObj.className[i];
                     }
                     //The typing object is not recorded yet so we simply set it to exist after having retrieved known variables.
                     //this.polyTyping[typeObj.className] = typeObj;

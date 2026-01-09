@@ -19,6 +19,13 @@ import { MatGridListModule } from '@angular/material/grid-list';
 import { MatSelectModule  } from '@angular/material/select';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatMenuModule } from '@angular/material/menu';
+//NgRx
+import { StoreModule } from '@ngrx/store';
+import { EffectsModule } from '@ngrx/effects';
+import { StoreDevtoolsModule } from '@ngrx/store-devtools';
+import { rootReducers } from './state/app.state';
+import { PolariEffects } from './state/effects/polari.effects';
+import { environment } from '../environments/environment-dev';
 //App Routing and App Base Component
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
@@ -46,6 +53,14 @@ import { NoCodeStateBorderComponent } from '@components/custom-no-code/no-code-s
 // Class Configuration Components
 import { DefaultCellComponent } from './components/templateClassTable/type-cells/default-cell/default-cell';
 import { ConfigCellActions } from '@components/templateClassTable/type-cells/config-cell-actions/config-cell-actions';
+import { ClassDataTableComponent } from '@components/templateClassTable/class-data-table/class-data-table';
+// Type-specific Cell Components
+import { StringCellComponent } from '@components/templateClassTable/type-cells/string-cell/string-cell';
+import { NumberCellComponent } from '@components/templateClassTable/type-cells/number-cell/number-cell';
+import { BooleanCellComponent } from '@components/templateClassTable/type-cells/boolean-cell/boolean-cell';
+import { DateCellComponent } from '@components/templateClassTable/type-cells/date-cell/date-cell';
+import { ListCellComponent } from '@components/templateClassTable/type-cells/list-cell/list-cell';
+import { DictCellComponent } from '@components/templateClassTable/type-cells/dict-cell/dict-cell';
 //Services (Backend Access)
 import { PolariService } from '@services/polari-service';
 import { CRUDEservicesManager } from '@services/crude-services-manager';
@@ -80,7 +95,14 @@ import { InteractionStateService } from '@services/no-code-services/interaction-
     NoCodeMenuComponent,
     NoCodeStateBorderComponent,
     DefaultCellComponent,
-    ConfigCellActions
+    ConfigCellActions,
+    ClassDataTableComponent,
+    StringCellComponent,
+    NumberCellComponent,
+    BooleanCellComponent,
+    DateCellComponent,
+    ListCellComponent,
+    DictCellComponent
   ],
   imports: [
     BrowserModule,
@@ -102,7 +124,14 @@ import { InteractionStateService } from '@services/no-code-services/interaction-
     MatSelectModule,
     DragDropModule,
     MatAutocompleteModule,
-    MatMenuModule
+    MatMenuModule,
+    // NgRx
+    StoreModule.forRoot(rootReducers),
+    EffectsModule.forRoot([PolariEffects]),
+    StoreDevtoolsModule.instrument({
+      maxAge: 25,
+      logOnly: environment.production
+    })
   ],
   exports: [
     

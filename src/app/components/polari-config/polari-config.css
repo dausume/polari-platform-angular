@@ -1,7 +1,208 @@
-.mat-input-element {
-    background: white;
+/* Container Styling */
+.polari-config-container {
+    max-width: 900px;
+    margin: 20px auto;
+    padding: 24px;
 }
 
-.mdc-mat-icon-button {
-    width: 120px
+mat-card {
+    background-color: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    padding: 32px !important;
+}
+
+mat-card-title {
+    color: #212529 !important;
+    font-size: 1.5em !important;
+    font-weight: 600 !important;
+    margin-bottom: 24px !important;
+}
+
+/* Connection Status Section */
+.connection-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+    font-weight: 500;
+}
+
+.connection-status.pending {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+
+.connection-status.success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.connection-status.failure {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.connection-status mat-icon {
+    font-size: 24px;
+    width: 24px;
+    height: 24px;
+}
+
+/* Button Group */
+.button-group {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.connect-button {
+    background-color: #28a745;
+    color: #ffffff !important;
+    font-weight: 600;
+    padding: 8px 24px;
+    min-width: 120px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.connect-button:hover {
+    background-color: #218838;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(40, 167, 69, 0.3);
+}
+
+.disconnect-button {
+    background-color: #dc3545;
+    color: #ffffff !important;
+    font-weight: 600;
+    padding: 8px 24px;
+    min-width: 140px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.disconnect-button:hover {
+    background-color: #c82333;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(220, 53, 69, 0.3);
+}
+
+/* Form Section */
+.config-section {
+    margin-bottom: 24px;
+}
+
+.config-section-title {
+    font-size: 1.1em;
+    font-weight: 600;
+    color: #212529;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #e9ecef;
+}
+
+/* Form Fields */
+mat-form-field {
+    width: 100%;
+    max-width: 500px;
+    background-color: transparent;
+    margin-bottom: 16px;
+}
+
+mat-form-field input {
+    color: #212529 !important;
+}
+
+mat-form-field mat-label {
+    color: #495057 !important;
+    font-weight: 500;
+}
+
+/* Current Value Display */
+.current-value {
+    color: #6c757d;
+    font-size: 0.9em;
+    margin-bottom: 16px;
+    padding: 8px 12px;
+    background-color: #f8f9fa;
+    border-left: 3px solid #007bff;
+    border-radius: 4px;
+}
+
+.current-value strong {
+    color: #495057;
+}
+
+/* Note Section */
+.note-section {
+    background-color: #e7f3ff;
+    border: 1px solid #b8daff;
+    border-left: 4px solid #007bff;
+    border-radius: 6px;
+    padding: 16px;
+    margin: 24px 0;
+}
+
+.note-section h4 {
+    color: #004085;
+    font-size: 1em;
+    font-weight: 600;
+    margin: 0 0 12px 0;
+}
+
+.note-section p {
+    color: #004085;
+    font-size: 0.9em;
+    line-height: 1.6;
+    margin: 0;
+}
+
+/* JSON Display */
+.json-display {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 16px;
+    margin-top: 20px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85em;
+    color: #212529;
+    overflow-x: auto;
+}
+
+.json-display-title {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 8px;
+    font-family: system-ui, -apple-system, sans-serif;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .polari-config-container {
+        padding: 16px;
+    }
+
+    mat-card {
+        padding: 20px !important;
+    }
+
+    .button-group {
+        flex-direction: column;
+    }
+
+    .connect-button,
+    .disconnect-button {
+        width: 100%;
+    }
+
+    mat-form-field {
+        max-width: 100%;
+    }
 }

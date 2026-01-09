@@ -1,24 +1,145 @@
-<mat-grid-list id="template-class-table" cols="4" rowHeight="100px">
-    <mat-grid-tile [colspan]="4" [rowspan]="1" *ngIf="className !== undefined">{{className}} table</mat-grid-tile>
-    <mat-grid-tile [colspan]="4" [rowspan]="1" *ngIf="className === undefined">Error: No Classname detected in url</mat-grid-tile>
-    <!--<mat-grid-tile [colspan]="4" [rowspan]="1">classTypeData : {{classTypeData | json}}</mat-grid-tile>-->
-    <mat-grid-tile [colspan]="4" [rowspan]="1">Class Table Row Configuration</mat-grid-tile>
-    <mat-grid-tile 
-         *ngFor="let polVar of shownVars; index as i; first as isFirst"
-         [colspan]="1"
-         [rowspan]="2"
-    >
-        <default-cell
-        [object]="classTypeData[polVar]?.objectName" 
-        [name]="classTypeData[polVar]?.variableName" 
-        [type]="classTypeData[polVar]?.variablePythonType"
-        ></default-cell>
-        <config-cell-actions 
-        [varInfo]="classTypeData[polVar]"
-        (moveUp)="moveUp($event)"
-        (moveDown)="moveDown($event)"
-        (remove)="remove($event)"
-        >
-        </config-cell-actions>
-    </mat-grid-tile>
-</mat-grid-list>
+<div class="table-container">
+    <!-- Table Header with Controls -->
+    <div class="section-header"
+         [class.collapsed]="!isSectionExpanded('main')"
+         (click)="toggleSection('main')">
+        <div>
+            <span *ngIf="className !== undefined">
+                {{className}} Table Configuration
+                <span class="sort-indicator" *ngIf="tableConfig.sortOrder === 'alphabetical'">
+                    {{ tableConfig.sortDirection === 'asc' ? '↑ A-Z' : '↓ Z-A' }}
+                </span>
+                <span class="sort-indicator" *ngIf="tableConfig.sortOrder === 'custom'">
+                    ⚙ Custom
+                </span>
+            </span>
+            <span *ngIf="className === undefined" style="color: #dc3545;">
+                Error: No Classname detected in url
+            </span>
+        </div>
+        <div class="table-header-controls" (click)="$event.stopPropagation()">
+            <button (click)="setSortOrder('alphabetical')"
+                    [class.active]="tableConfig.sortOrder === 'alphabetical'">
+                Sort A-Z
+            </button>
+            <button (click)="toggleSortDirection()"
+                    *ngIf="tableConfig.sortOrder === 'alphabetical'">
+                {{ tableConfig.sortDirection === 'asc' ? '↑' : '↓' }}
+            </button>
+            <button (click)="setSortOrder('custom')"
+                    [class.active]="tableConfig.sortOrder === 'custom'">
+                Custom Order
+            </button>
+        </div>
+        <span class="expand-icon">▼</span>
+    </div>
+
+    <!-- Collapsible Content -->
+    <div class="section-content" [class.collapsed]="!isSectionExpanded('main')">
+        <!-- Column Visibility Configuration -->
+        <div class="column-visibility-config" *ngIf="getAllConfigurableColumns().length > 0">
+            <span class="config-label">Default Column Visibility:</span>
+            <div class="column-chips">
+                <mat-chip-list>
+                    <mat-chip
+                        *ngFor="let col of getAllConfigurableColumns()"
+                        [selected]="isColumnVisibleByDefault(col)"
+                        (click)="toggleDefaultVisibility(col)"
+                        [class.type-chip]="true"
+                        [attr.data-type]="getColumnTypeFromConfig(col)">
+                        <span class="chip-icon">{{getTypeIcon(getColumnTypeFromConfig(col))}}</span>
+                        {{getColumnDisplayName(col)}}
+                    </mat-chip>
+                </mat-chip-list>
+            </div>
+        </div>
+
+        <mat-grid-list id="template-class-table" cols="4" rowHeight="100px">
+            <!-- Header Row -->
+            <mat-grid-tile [colspan]="4" [rowspan]="1" style="background-color: #e9ecef; font-weight: 600; color: #212529;">
+                Class Table Row Configuration
+            </mat-grid-tile>
+
+            <!-- Variable Tiles -->
+            <mat-grid-tile
+                *ngFor="let polVar of shownVars; index as i; first as isFirst"
+                [colspan]="1"
+                [rowspan]="2"
+                class="variable-cell"
+            >
+                <div style="width: 100%; height: 100%; display: flex; flex-direction: column;">
+                    <default-cell
+                        [object]="classTypeData[polVar]?.objectName"
+                        [name]="classTypeData[polVar]?.variableName"
+                        [type]="classTypeData[polVar]?.variablePythonType"
+                        style="flex: 1;"
+                    ></default-cell>
+                    <config-cell-actions
+                        [varInfo]="classTypeData[polVar]"
+                        (moveUp)="moveUp($event)"
+                        (moveDown)="moveDown($event)"
+                        (remove)="remove($event)"
+                        class="action-buttons"
+                    >
+                    </config-cell-actions>
+                </div>
+            </mat-grid-tile>
+
+            <!-- Empty State -->
+            <mat-grid-tile [colspan]="4" [rowspan]="2" *ngIf="shownVars.length === 0">
+                <div class="empty-state">
+                    No variables configured for this class
+                </div>
+            </mat-grid-tile>
+        </mat-grid-list>
+
+        <!-- Removed Variables Section -->
+        <div class="removed-variables-section" *ngIf="getRemovedColumns().length > 0">
+            <div class="removed-header">
+                <span class="removed-label">Removed from Table Configuration:</span>
+                <span class="removed-hint">(Click + to add back)</span>
+            </div>
+            <mat-grid-list cols="4" rowHeight="100px">
+                <mat-grid-tile
+                    *ngFor="let removedVar of getRemovedColumns()"
+                    [colspan]="1"
+                    [rowspan]="2"
+                    class="removed-variable-cell"
+                >
+                    <div style="width: 100%; height: 100%; display: flex; flex-direction: column;">
+                        <default-cell
+                            [object]="classTypeData[removedVar]?.objectName"
+                            [name]="classTypeData[removedVar]?.variableName"
+                            [type]="classTypeData[removedVar]?.variablePythonType"
+                            style="flex: 1; opacity: 0.6;"
+                        ></default-cell>
+                        <div class="add-back-button" (click)="addBack(removedVar)">
+                            <button mat-icon-button color="primary">
+                                <mat-icon>add</mat-icon>
+                            </button>
+                        </div>
+                    </div>
+                </mat-grid-tile>
+            </mat-grid-list>
+        </div>
+    </div>
+
+    <!-- Data Table Section -->
+    <div class="section-header"
+         [class.collapsed]="!isSectionExpanded('data')"
+         (click)="toggleSection('data')">
+        <div>
+            <span>Instance Data Table</span>
+        </div>
+        <span class="expand-icon">▼</span>
+    </div>
+
+    <div class="section-content" [class.collapsed]="!isSectionExpanded('data')">
+        <class-data-table
+            [className]="className"
+            [classTypeData]="classTypeData"
+            [instanceData]="instanceList"
+            [tableConfig]="tableConfig">
+        </class-data-table>
+    </div>
+</div>

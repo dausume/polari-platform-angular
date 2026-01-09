@@ -3,6 +3,7 @@ import { FormControl, FormGroup } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { polariNode } from '@models/polariNode';
 import { PolariService } from '@services/polari-service';
+import { CRUDEservicesManager } from '@services/crude-services-manager';
 import { MatGridList, MatGridTile } from '@angular/material/grid-list';
 import { BehaviorSubject, interval, Observable, Observer, Subscription } from 'rxjs';
 import { MatTableModule } from '@angular/material/table';
@@ -14,6 +15,7 @@ import { dataSet } from '@models/objectData/dataSet';
 import { classPolyTyping } from '@models/polyTyping/classPolyTyping';
 import { objectIdentifiersSpec } from '@models/objectIdentifiersSpec';
 import { variablePolyTyping } from '@models/polyTyping/variablePolyTyping';
+import { TableConfig } from '@models/tableConfiguration';
 
 @Component({
   selector: 'template-class-table',
@@ -30,8 +32,18 @@ export class templateClassTableComponent {
   formattedClassName?: string;
   instanceList: any[] = [];
   polyVarRefs: any[] = [];
+  tableConfig: TableConfig;
+  crudeService: any;
 
-  constructor(private polari: PolariService) {}
+  constructor(private polari: PolariService, private crudeManager: CRUDEservicesManager) {
+    // Initialize with default configuration
+    this.tableConfig = new TableConfig({
+      sortOrder: 'alphabetical',
+      sortDirection: 'asc',
+      defaultExpanded: false,
+      expandedSections: ['data']
+    });
+  }
 
   ngOnInit()
   {
@@ -39,10 +51,17 @@ export class templateClassTableComponent {
     //let varsData = this.classTypeData.completeVariableTypingData;
     //let varsList = Object.keys(varsData);
     this.formattedClassName = this.className;
+
+    // Load saved configuration if available
+    if (this.className) {
+      this.tableConfig = TableConfig.load(this.className);
+    }
+
     console.log("-- PolyTypedVar References --");
     console.log(this.polyVarRefs);
     console.log("Reached end of class table ngOnInit");
     this.getTypingData();
+    this.loadInstanceData();
   }
 
   
@@ -71,13 +90,28 @@ export class templateClassTableComponent {
     let keys = Object.keys(this.classTypeData);
     console.log("classTypeData keys : ", keys)
     this.shownVars = [];
+
+    // Clean up removed columns - remove any that no longer exist in classTypeData
+    if (this.tableConfig.removedColumns) {
+      this.tableConfig.removedColumns = this.tableConfig.removedColumns.filter(col => keys.includes(col));
+    }
+
+    const removedColumns = this.tableConfig.removedColumns || [];
+
     if(keys !== undefined)
     {
       for (let key of keys) {
-        this.shownVars.push(key);
+        // Only add if not in removed columns
+        if (!removedColumns.includes(key)) {
+          this.shownVars.push(key);
+        }
       }
       console.log("keys were defined.")
     }
+
+    // Apply sorting based on configuration
+    this.sortShownVars();
+
     console.log("shownVars")
     console.log(this.shownVars);
     console.log("this.classTypeData : ", this.classTypeData)
@@ -85,10 +119,71 @@ export class templateClassTableComponent {
     console.log("this.polyVarRefs : ", this.polyVarRefs["completeVariableTypingData"])
   }
 
+  /**
+   * Sort shownVars array based on table configuration
+   */
+  sortShownVars()
+  {
+    if (this.tableConfig.sortOrder === 'alphabetical') {
+      this.shownVars.sort((a, b) => {
+        const comparison = a.localeCompare(b);
+        return this.tableConfig.sortDirection === 'asc' ? comparison : -comparison;
+      });
+    }
+    // Additional sort options can be added here (by type, custom order, etc.)
+  }
+
+  /**
+   * Change sort order and update configuration
+   */
+  setSortOrder(sortOrder: 'alphabetical' | 'custom' | 'type' | 'none')
+  {
+    this.tableConfig.sortOrder = sortOrder;
+    this.sortShownVars();
+    this.saveConfiguration();
+  }
+
+  /**
+   * Toggle sort direction
+   */
+  toggleSortDirection()
+  {
+    this.tableConfig.sortDirection = this.tableConfig.sortDirection === 'asc' ? 'desc' : 'asc';
+    this.sortShownVars();
+    this.saveConfiguration();
+  }
+
+  /**
+   * Toggle section expansion state
+   */
+  toggleSection(sectionName: string)
+  {
+    this.tableConfig.toggleSection(sectionName);
+    this.saveConfiguration();
+  }
+
+  /**
+   * Check if a section is expanded
+   */
+  isSectionExpanded(sectionName: string): boolean
+  {
+    return this.tableConfig.isSectionExpanded(sectionName);
+  }
+
+  /**
+   * Save current configuration to localStorage
+   */
+  saveConfiguration()
+  {
+    if (this.className) {
+      this.tableConfig.save(this.className);
+    }
+  }
+
   moveUp(variable: variablePolyTyping) {
     // Locate the index of the variable in shownVars array
     const index = this.shownVars.findIndex(varName => varName === variable.variableName);
-  
+
     // Check if variable exists in shownVars
     if (index !== -1) {
       // Check if the variable is not already at the top
@@ -97,8 +192,11 @@ export class templateClassTableComponent {
         const temp = this.shownVars[index];
         this.shownVars[index] = this.shownVars[index - 1];
         this.shownVars[index - 1] = temp;
-  
-        // Optionally, you can update any relevant data or trigger events here
+
+        // Manual reordering switches to custom sort mode
+        this.tableConfig.sortOrder = 'custom';
+        this.saveConfiguration();
+
         console.log(`Moved ${variable.variableName} up.`);
       } else {
         console.log(`${variable.variableName} is already at the top.`);
@@ -108,11 +206,11 @@ export class templateClassTableComponent {
     }
   }
 
-  // In the ShownVars array, finds the matching object in the array and moves it up by 1.
+  // In the ShownVars array, finds the matching object in the array and moves it down by 1.
   moveDown(variable: variablePolyTyping) {
     // Locate the index of the variable in shownVars array
     const index = this.shownVars.findIndex(varName => varName === variable.variableName);
-  
+
     // Check if variable exists in shownVars
     if (index !== -1) {
       // Check if the variable is not already at the bottom
@@ -121,8 +219,11 @@ export class templateClassTableComponent {
         const temp = this.shownVars[index];
         this.shownVars[index] = this.shownVars[index + 1];
         this.shownVars[index + 1] = temp;
-  
-        // Optionally, you can update any relevant data or trigger events here
+
+        // Manual reordering switches to custom sort mode
+        this.tableConfig.sortOrder = 'custom';
+        this.saveConfiguration();
+
         console.log(`Moved ${variable.variableName} down.`);
       } else {
         console.log(`${variable.variableName} is already at the bottom.`);
@@ -133,21 +234,150 @@ export class templateClassTableComponent {
   }
   
 
-  // Finds the matching object in the array and removes it.
+  // Moves the variable to the removed columns list
   remove(variable: variablePolyTyping) {
+    // Ensure variable name exists
+    if (!variable.variableName) {
+      console.error('Variable name is undefined');
+      return;
+    }
+
     // Find the index of the variable in shownVars array
     const index = this.shownVars.findIndex(varName => varName === variable.variableName);
-  
+
     // Check if variable exists in shownVars
     if (index !== -1) {
       // Remove the variable from shownVars
       this.shownVars.splice(index, 1);
-  
-      // Optionally, you can update any relevant data or trigger events here
-      console.log(`Removed ${variable.variableName} from shownVars.`);
+
+      // Add to removedColumns
+      if (!this.tableConfig.removedColumns) {
+        this.tableConfig.removedColumns = [];
+      }
+      if (!this.tableConfig.removedColumns.includes(variable.variableName!)) {
+        this.tableConfig.removedColumns.push(variable.variableName!);
+      }
+
+      this.saveConfiguration();
+      console.log(`Removed ${variable.variableName} from table configuration.`);
     } else {
       console.error(`${variable.variableName} not found in shownVars.`);
     }
   }
-  
+
+  // Adds a removed variable back to the configuration
+  addBack(variableName: string) {
+    // Remove from removedColumns
+    const removedIndex = this.tableConfig.removedColumns.indexOf(variableName);
+    if (removedIndex !== -1) {
+      this.tableConfig.removedColumns.splice(removedIndex, 1);
+
+      // Add back to shownVars
+      if (!this.shownVars.includes(variableName)) {
+        this.shownVars.push(variableName);
+        this.sortShownVars();
+      }
+
+      this.saveConfiguration();
+      console.log(`Added ${variableName} back to table configuration.`);
+    }
+  }
+
+  // Get all configurable columns (shownVars only)
+  getAllConfigurableColumns(): string[] {
+    return this.shownVars;
+  }
+
+  // Get removed columns
+  getRemovedColumns(): string[] {
+    return this.tableConfig.removedColumns || [];
+  }
+
+  // Get column type from configuration
+  getColumnTypeFromConfig(columnName: string): string {
+    return this.classTypeData[columnName]?.variablePythonType || 'unknown';
+  }
+
+  // Get column display name
+  getColumnDisplayName(columnName: string): string {
+    return columnName
+      .replace(/([A-Z])/g, ' $1')
+      .replace(/^./, str => str.toUpperCase())
+      .trim();
+  }
+
+  // Get type icon
+  getTypeIcon(type: string): string {
+    const typeMap: { [key: string]: string } = {
+      'str': 'T',
+      'string': 'T',
+      'int': '#',
+      'integer': '#',
+      'float': '∞',
+      'bool': '✓',
+      'boolean': '✓',
+      'list': '[]',
+      'dict': '{}',
+      'object': '{}',
+      'date': '📅',
+      'datetime': '🕐',
+      'polariList': '📋',
+      'polariDict': '📚'
+    };
+    return typeMap[type?.toLowerCase()] || '◆';
+  }
+
+  // Check if column is visible by default
+  isColumnVisibleByDefault(columnName: string): boolean {
+    if (!this.tableConfig.visibleColumns || this.tableConfig.visibleColumns.length === 0) {
+      return true; // Default to all visible
+    }
+    return this.tableConfig.visibleColumns.includes(columnName);
+  }
+
+  // Toggle default visibility
+  toggleDefaultVisibility(columnName: string) {
+    if (!this.tableConfig.visibleColumns || this.tableConfig.visibleColumns.length === 0) {
+      // Initialize with all columns if not set
+      this.tableConfig.visibleColumns = [...this.shownVars];
+    }
+
+    const index = this.tableConfig.visibleColumns.indexOf(columnName);
+    if (index >= 0) {
+      this.tableConfig.visibleColumns.splice(index, 1);
+    } else {
+      this.tableConfig.visibleColumns.push(columnName);
+    }
+
+    this.saveConfiguration();
+
+    // Force change detection by creating a new TableConfig instance
+    this.tableConfig = new TableConfig(this.tableConfig);
+  }
+
+  /**
+   * Load instance data from backend
+   */
+  loadInstanceData() {
+    if (!this.className) {
+      console.warn('Cannot load instance data: className is undefined');
+      return;
+    }
+
+    // Get the CRUDE service for this class
+    this.crudeService = this.crudeManager.getCRUDEclassService(this.className);
+
+    // Fetch all instances
+    this.crudeService.readAll().subscribe(
+      (data: any) => {
+        console.log('Instance data loaded:', data);
+        this.instanceList = Array.isArray(data) ? data : (data.instances || []);
+      },
+      (error: any) => {
+        console.error('Error loading instance data:', error);
+        this.instanceList = [];
+      }
+    );
+  }
+
 }

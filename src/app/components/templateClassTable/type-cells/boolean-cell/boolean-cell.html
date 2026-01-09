@@ -1,0 +1,6 @@
+<div class="boolean-cell">
+    <span class="cell-indicator" [class.true-value]="getBooleanValue() === true" [class.false-value]="getBooleanValue() === false">
+        <span class="indicator-icon">{{getBooleanValue() === true ? '✓' : (getBooleanValue() === false ? '✗' : '-')}}</span>
+        <span class="indicator-text">{{getDisplayText()}}</span>
+    </span>
+</div>

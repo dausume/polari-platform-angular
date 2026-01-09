@@ -1,0 +1,94 @@
+<div class="data-table-container">
+    <!-- Header Section -->
+    <div class="table-header-section">
+        <div class="table-title">
+            <h3>{{className}} Data Table</h3>
+            <span class="record-count">{{dataSource.data.length}} records</span>
+        </div>
+
+        <!-- Filter Input -->
+        <mat-form-field class="filter-field" appearance="outline">
+            <mat-label>Filter</mat-label>
+            <input matInput (keyup)="applyFilter($event)" placeholder="Search..." #input>
+            <mat-icon matSuffix>search</mat-icon>
+        </mat-form-field>
+    </div>
+
+    <!-- Column Selector -->
+    <div class="column-selector" *ngIf="getAllColumns().length > 0">
+        <span class="selector-label">Columns:</span>
+        <div class="column-chips">
+            <mat-chip-list>
+                <mat-chip
+                    *ngFor="let col of getAllColumns()"
+                    [selected]="isColumnVisible(col)"
+                    (click)="toggleColumn(col)"
+                    [class.type-chip]="true"
+                    [attr.data-type]="getColumnType(col)">
+                    <span class="chip-icon">{{getTypeIcon(getColumnType(col))}}</span>
+                    {{getColumnDisplayName(col)}}
+                </mat-chip>
+            </mat-chip-list>
+        </div>
+    </div>
+
+    <!-- Data Table -->
+    <div class="table-wrapper">
+        <table mat-table [dataSource]="dataSource" matSort class="data-table">
+            <!-- Dynamic Columns -->
+            <ng-container *ngFor="let column of displayedColumns" [matColumnDef]="column">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header [attr.data-type]="getColumnType(column)">
+                    <div class="header-content">
+                        <span class="header-icon">{{getTypeIcon(getColumnType(column))}}</span>
+                        <span class="header-text">{{getColumnDisplayName(column)}}</span>
+                        <span class="header-type">({{getColumnType(column)}})</span>
+                    </div>
+                </th>
+                <td mat-cell *matCellDef="let row" [attr.data-type]="getColumnType(column)">
+                    <ng-container [ngSwitch]="getColumnType(column).toLowerCase()">
+                        <string-cell *ngSwitchCase="'str'" [value]="row[column]" [columnName]="column"></string-cell>
+                        <string-cell *ngSwitchCase="'string'" [value]="row[column]" [columnName]="column"></string-cell>
+                        <number-cell *ngSwitchCase="'int'" [value]="row[column]" [columnName]="column" [type]="'int'"></number-cell>
+                        <number-cell *ngSwitchCase="'integer'" [value]="row[column]" [columnName]="column" [type]="'int'"></number-cell>
+                        <number-cell *ngSwitchCase="'float'" [value]="row[column]" [columnName]="column" [type]="'float'"></number-cell>
+                        <boolean-cell *ngSwitchCase="'bool'" [value]="row[column]" [columnName]="column"></boolean-cell>
+                        <boolean-cell *ngSwitchCase="'boolean'" [value]="row[column]" [columnName]="column"></boolean-cell>
+                        <date-cell *ngSwitchCase="'date'" [value]="row[column]" [columnName]="column" [type]="'date'"></date-cell>
+                        <date-cell *ngSwitchCase="'datetime'" [value]="row[column]" [columnName]="column" [type]="'datetime'"></date-cell>
+                        <list-cell *ngSwitchCase="'list'" [value]="row[column]" [columnName]="column"></list-cell>
+                        <list-cell *ngSwitchCase="'polarilist'" [value]="row[column]" [columnName]="column"></list-cell>
+                        <dict-cell *ngSwitchCase="'dict'" [value]="row[column]" [columnName]="column"></dict-cell>
+                        <dict-cell *ngSwitchCase="'object'" [value]="row[column]" [columnName]="column"></dict-cell>
+                        <dict-cell *ngSwitchCase="'polaridict'" [value]="row[column]" [columnName]="column"></dict-cell>
+                        <span *ngSwitchDefault>{{formatCellValue(row[column], getColumnType(column))}}</span>
+                    </ng-container>
+                </td>
+            </ng-container>
+
+            <!-- Header and Row Declarations -->
+            <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: displayedColumns;"
+                class="table-row"
+                [class.selected]="false">
+            </tr>
+
+            <!-- No Data Row -->
+            <tr class="mat-row" *matNoDataRow>
+                <td class="mat-cell no-data-cell" [attr.colspan]="displayedColumns.length">
+                    <div class="no-data-message">
+                        <mat-icon>inbox</mat-icon>
+                        <p>No data available</p>
+                        <p class="hint">Try adjusting your filter or add some data</p>
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Paginator -->
+    <mat-paginator
+        [pageSizeOptions]="[5, 10, 25, 50, 100]"
+        [pageSize]="10"
+        showFirstLastButtons>
+    </mat-paginator>
+</div>

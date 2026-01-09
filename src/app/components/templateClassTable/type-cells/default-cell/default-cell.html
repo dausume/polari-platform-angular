@@ -1,5 +1,9 @@
 <ng-container>
-    <div>
-        {{name}} : {{type}}
+    <div class="cell-container">
+        <div class="cell-name">{{name}}</div>
+        <div class="cell-type-badge" [attr.data-type]="type">
+            <span class="type-icon">{{getTypeIcon(type)}}</span>
+            <span class="type-text">{{type}}</span>
+        </div>
     </div>
 </ng-container>

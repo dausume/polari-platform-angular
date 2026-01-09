@@ -1,75 +1,147 @@
-.example-events {
-  width: 300px;
-  height: 200px;
-  overflow: auto;
-  border: 1px solid #555;
+/* Variable Row Container */
+.variable-row {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 20px 16px 12px 16px;
+    margin-bottom: 16px;
+    transition: all 0.2s ease;
+}
+
+.variable-row:hover {
+    background-color: #e9ecef;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* Grid Layout for Variables */
+mat-grid-list {
+    min-height: 90px;
+    margin-bottom: 8px;
+}
+
+mat-grid-tile {
+    color: #212529 !important;
+    padding: 12px 16px;
+    align-items: flex-start !important;
 }
 
 .mat-grid-tile-content {
     min-width: 50px;
+    color: #212529 !important;
 }
 
-::ng-deep mat-grid-list {
-  min-height: 100px;
-  display: grid; /* Ensure it's using CSS grid */
-  gap: 10px; /* Adjust the gap value as needed */
-  align-items: center; /* Center items vertically */
+/* Form Fields */
+mat-form-field {
+    width: 100%;
+    background-color: transparent;
+    margin-top: 8px;
 }
 
-::ng-deep mat-grid-tile {
-  min-width: 25px;
-  min-height: 25px;
-  padding: 10px; /* Add padding to tiles if needed */
+mat-form-field input {
+    color: #212529 !important;
 }
 
-::ng-deep mat-grid-list div {
-  padding-bottom: 5px
+mat-form-field mat-label {
+    color: #495057 !important;
+    font-weight: 500;
 }
 
+/* Select Dropdown */
+mat-select {
+    color: #212529 !important;
+    background-color: transparent;
+}
+
+mat-label {
+    color: #495057 !important;
+    font-weight: 500;
+}
+
+/* New Variable Button */
 #new_variable_btn {
-  width: 80px;
-  height: 25px;
-  background-color: primary; /* Example background color */
-  color: white; /* Example text color */
-  border: none; /* Remove default border */
-  border-radius: 4px; /* Example rounded corners */
-  display: flex; /* Flexbox to align content */
-  align-items: center; /* Center content vertically */
-  justify-content: center; /* Center content horizontally */
-  cursor: pointer; /* Pointer cursor on hover */
-  transition: background-color 0.3s; /* Smooth transition on hover */
-}
-  
-  #new_variable_btn:hover {
-    background-color: #210139; /* Darker shade on hover */
-  }
-
-  .remove-var-btn {
-    width: 80px;
-    background-color: primary;
-    color: white;
+    background-color: #007bff;
+    color: #ffffff !important;
+    font-weight: 600;
+    padding: 8px 20px;
+    min-width: 140px;
     border: none;
     border-radius: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     cursor: pointer;
-    transition: background-color 0.3s;
-  }
+    transition: all 0.2s ease;
+    margin-top: 12px;
+}
 
-  .remove-var-btn:hover {
-    background-color: #210139; /* Darker shade on hover */
-  }
+#new_variable_btn:hover {
+    background-color: #0056b3;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0, 123, 255, 0.3);
+}
 
-  /* Responsive Design */
+/* Remove Variable Button */
+.remove-var-btn {
+    background-color: #dc3545;
+    color: #ffffff !important;
+    font-weight: 600;
+    padding: 6px 16px;
+    min-width: 100px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.remove-var-btn:hover {
+    background-color: #c82333;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(220, 53, 69, 0.3);
+}
+
+.remove-var-btn:disabled {
+    background-color: #6c757d;
+    color: rgba(255, 255, 255, 0.5) !important;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Empty State */
+.no-variables {
+    text-align: center;
+    padding: 32px;
+    color: #6c757d;
+    font-style: italic;
+}
+
+/* Type Badge (if needed) */
+.type-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8em;
+    font-weight: 500;
+    background-color: #e7f3ff;
+    color: #0056b3;
+    border: 1px solid #b8daff;
+}
+
+/* Responsive Design */
 @media (max-width: 768px) {
-  .variable-config-container mat-grid-list {
-    grid-template-columns: repeat(2, 1fr);
-  }
+    mat-grid-list {
+        min-height: auto;
+    }
+
+    mat-grid-tile {
+        padding: 4px;
+    }
+
+    #new_variable_btn,
+    .remove-var-btn {
+        width: 100%;
+        min-width: unset;
+    }
 }
 
 @media (max-width: 480px) {
-  .variable-config-container mat-grid-list {
-    grid-template-columns: 1fr;
-  }
+    .variable-row {
+        padding: 8px;
+    }
 }
