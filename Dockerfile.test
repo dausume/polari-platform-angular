@@ -1,0 +1,45 @@
+# syntax=docker/dockerfile:1
+
+# Dockerfile for testing polari-platform-angular
+# Supports both isolation testing and full-stack testing
+
+FROM node:18.13
+
+WORKDIR /app
+
+# Install Chrome for Karma testing
+# Note: We need Chrome to run Karma tests with ChromeHeadless
+RUN apt-get update && apt-get install -y \
+    wget \
+    gnupg \
+    && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
+    && sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list' \
+    && apt-get update \
+    && apt-get install -y google-chrome-stable fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst fonts-freefont-ttf libxss1 \
+      --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Angular CLI globally
+RUN npm install -g @angular/cli@13.3.0
+
+# Copy package files for dependency installation
+COPY package*.json ./
+
+# Install dependencies with cache mount
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci
+
+# Copy application source code
+COPY . .
+
+# Environment variables for test configuration
+# TEST_MODE can be "isolation" (default) or "fullstack"
+ENV TEST_MODE=isolation
+ENV BACKEND_URL=http://localhost:8000
+
+# Expose port for debugging (optional)
+EXPOSE 9876
+
+# Run tests
+# Single run mode for CI with code coverage
+CMD ["npm", "test", "--", "--watch=false", "--code-coverage", "--browsers=ChromeHeadless"]

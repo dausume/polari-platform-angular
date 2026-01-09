@@ -1,0 +1,35 @@
+# Docker Compose file for testing polari-platform-angular
+# This file runs frontend tests in isolation (default) or full-stack mode
+
+services:
+  polari-frontend-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: polari-frontend-tests
+    environment:
+      # TEST_MODE: isolation (default) or fullstack
+      # In isolation mode, tests run without connecting to backend
+      # In fullstack mode, tests can make real API calls to backend
+      - TEST_MODE=${TEST_MODE:-isolation}
+      - BACKEND_URL=${BACKEND_URL:-http://polari-framework:8000}
+    volumes:
+      # Mount source code for development
+      - ./src:/app/src:ro
+      - ./karma.conf.js:/app/karma.conf.js:ro
+      - ./angular.json:/app/angular.json:ro
+      - ./tsconfig.json:/app/tsconfig.json:ro
+      - ./tsconfig.spec.json:/app/tsconfig.spec.json:ro
+      # Mount coverage output directory
+      - ./coverage:/app/coverage
+    # Only attach to network in fullstack mode
+    networks:
+      - polari-test-network
+    # Ensure tests complete and container exits
+    restart: "no"
+
+networks:
+  polari-test-network:
+    # In isolation mode, this network exists but isn't used
+    # In fullstack mode, this connects to the backend
+    driver: bridge
