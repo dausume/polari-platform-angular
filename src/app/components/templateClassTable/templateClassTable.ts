@@ -4,6 +4,7 @@ import { ActivatedRoute } from '@angular/router';
 import { polariNode } from '@models/polariNode';
 import { PolariService } from '@services/polari-service';
 import { CRUDEservicesManager } from '@services/crude-services-manager';
+import { CRUDEclassService } from '@services/crude-class-service';
 import { MatGridList, MatGridTile } from '@angular/material/grid-list';
 import { BehaviorSubject, interval, Observable, Observer, Subscription } from 'rxjs';
 import { MatTableModule } from '@angular/material/table';
@@ -22,7 +23,7 @@ import { TableConfig } from '@models/tableConfiguration';
   templateUrl: 'templateClassTable.html',
   styleUrls: ['./templateClassTable.css']
 })
-export class templateClassTableComponent {
+export class templateClassTableComponent implements OnInit, OnDestroy {
 
   @Input() className?: string;
   @Input() classTypeData: any = {};
@@ -33,7 +34,8 @@ export class templateClassTableComponent {
   instanceList: any[] = [];
   polyVarRefs: any[] = [];
   tableConfig: TableConfig;
-  crudeService: any;
+  crudeService?: CRUDEclassService;
+  private componentId: string = 'templateClassTableComponent';
 
   constructor(private polari: PolariService, private crudeManager: CRUDEservicesManager) {
     // Initialize with default configuration
@@ -360,24 +362,85 @@ export class templateClassTableComponent {
    */
   loadInstanceData() {
     if (!this.className) {
-      console.warn('Cannot load instance data: className is undefined');
+      console.warn('[TemplateClassTable] Cannot load instance data: className is undefined');
       return;
     }
+
+    console.log(`[TemplateClassTable] Loading instance data for: ${this.className}`);
 
     // Get the CRUDE service for this class
     this.crudeService = this.crudeManager.getCRUDEclassService(this.className);
 
+    // Register this component as a utilizer
+    this.crudeService.addUtilizer(this.componentId);
+    this.crudeManager.incrementUtilizerCounter(this.className);
+
+    console.log(`[TemplateClassTable] Service utilizers for ${this.className}:`, this.crudeService.serviceUtilizers);
+
     // Fetch all instances
     this.crudeService.readAll().subscribe(
       (data: any) => {
-        console.log('Instance data loaded:', data);
-        this.instanceList = Array.isArray(data) ? data : (data.instances || []);
+        console.log(`[TemplateClassTable] Raw instance data for ${this.className}:`, data);
+
+        // Backend returns: { className: { instanceId: instanceData, ... } }
+        // We need to convert this to an array
+        if (data && typeof data === 'object') {
+          // Check if data has the className key
+          if (data[this.className!]) {
+            const instancesObj = data[this.className!];
+            console.log(`[TemplateClassTable] Instances object:`, instancesObj);
+
+            // Convert object of instances to array
+            if (typeof instancesObj === 'object' && !Array.isArray(instancesObj)) {
+              this.instanceList = Object.keys(instancesObj).map(instanceId => {
+                return {
+                  _instanceId: instanceId,
+                  ...instancesObj[instanceId]
+                };
+              });
+              console.log(`[TemplateClassTable] Converted ${this.instanceList.length} instances to array`);
+            } else if (Array.isArray(instancesObj)) {
+              this.instanceList = instancesObj;
+            } else {
+              console.warn(`[TemplateClassTable] Unexpected instances format:`, instancesObj);
+              this.instanceList = [];
+            }
+          } else {
+            console.warn(`[TemplateClassTable] Response missing className key '${this.className}'`);
+            console.log('[TemplateClassTable] Available keys:', Object.keys(data));
+            this.instanceList = [];
+          }
+        } else if (Array.isArray(data)) {
+          // Fallback: if backend returns array directly
+          this.instanceList = data;
+        } else {
+          console.warn('[TemplateClassTable] Unexpected data format:', typeof data);
+          this.instanceList = [];
+        }
+
+        console.log(`[TemplateClassTable] Final instanceList (${this.instanceList.length} items):`, this.instanceList);
       },
       (error: any) => {
-        console.error('Error loading instance data:', error);
+        console.error(`[TemplateClassTable] Error loading instance data for ${this.className}:`, error);
+        console.error('[TemplateClassTable] Error details:', {
+          message: error.message,
+          status: error.status,
+          statusText: error.statusText,
+          url: error.url
+        });
         this.instanceList = [];
       }
     );
+  }
+
+  ngOnDestroy() {
+    // Clean up service utilizer tracking
+    if (this.crudeService && this.className) {
+      console.log(`[TemplateClassTable] Cleaning up service for ${this.className}`);
+      this.crudeService.removeUtilizer(this.componentId);
+      this.crudeManager.decrementUtilizerCounter(this.className);
+      this.crudeManager.cleanupUnusedService(this.className);
+    }
   }
 
 }

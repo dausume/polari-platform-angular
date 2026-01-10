@@ -25,6 +25,7 @@ import { EffectsModule } from '@ngrx/effects';
 import { StoreDevtoolsModule } from '@ngrx/store-devtools';
 import { rootReducers } from './state/app.state';
 import { PolariEffects } from './state/effects/polari.effects';
+// import { DynamicObjectsEffects } from './state/effects/dynamic-objects.effects'; // Disabled - see file for details
 import { environment } from '../environments/environment-dev';
 //App Routing and App Base Component
 import { AppRoutingModule } from './app-routing.module';
@@ -127,7 +128,7 @@ import { InteractionStateService } from '@services/no-code-services/interaction-
     MatMenuModule,
     // NgRx
     StoreModule.forRoot(rootReducers),
-    EffectsModule.forRoot([PolariEffects]),
+    EffectsModule.forRoot([PolariEffects /*, DynamicObjectsEffects*/]),
     StoreDevtoolsModule.instrument({
       maxAge: 25,
       logOnly: environment.production
@@ -144,8 +145,7 @@ import { InteractionStateService } from '@services/no-code-services/interaction-
     InteractionStateService
   ],
   bootstrap: [
-    AppComponent,
-    MaterialModule
+    AppComponent
   ],
   schemas: [CUSTOM_ELEMENTS_SCHEMA]
 })

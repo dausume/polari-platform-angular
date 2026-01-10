@@ -2,6 +2,14 @@
 // https://karma-runner.github.io/1.0/config/configuration-file.html
 
 module.exports = function (config) {
+  // Get TEST_MODE from environment, default to 'isolation'
+  const testMode = process.env.TEST_MODE || 'isolation';
+  const backendUrl = process.env.BACKEND_URL || 'http://localhost:8000';
+
+  console.log('Karma Configuration:');
+  console.log('  TEST_MODE:', testMode);
+  console.log('  BACKEND_URL:', backendUrl);
+
   config.set({
     basePath: '',
     frameworks: ['jasmine', '@angular-devkit/build-angular'],
@@ -13,6 +21,11 @@ module.exports = function (config) {
       require('@angular-devkit/build-angular/plugins/karma')
     ],
     client: {
+      // Pass environment variables to browser/tests
+      env: {
+        TEST_MODE: testMode,
+        BACKEND_URL: backendUrl
+      },
       jasmine: {
         // you can add configuration options for Jasmine here
         // the possible options are listed at https://jasmine.github.io/api/edge/Configuration.html

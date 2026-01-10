@@ -26,28 +26,34 @@ export class CRUDEclassService {
     }
 
     create(data: any): Observable<any> {
-        return this.http.post(`/api/${this.className}`, data);
+        const url = `http://${this.polariService.userEntry_ipv4NumSubject.value}:${this.polariService.userEntry_portNumSubject.value}/${this.className}`;
+        return this.http.post(url, data, this.polariService.backendRequestOptions);
       }
 
       read(id: string): Observable<any> {
-        return this.http.get(`/api/${this.className}/${id}`);
+        const url = `http://${this.polariService.userEntry_ipv4NumSubject.value}:${this.polariService.userEntry_portNumSubject.value}/${this.className}/${id}`;
+        return this.http.get(url, this.polariService.backendRequestOptions);
       }
 
       readAll(): Observable<any> {
-        return this.http.get(`/api/${this.className}`);
+        const url = `http://${this.polariService.userEntry_ipv4NumSubject.value}:${this.polariService.userEntry_portNumSubject.value}/${this.className}`;
+        return this.http.get(url, this.polariService.backendRequestOptions);
       }
 
       update(id: string, data: any): Observable<any> {
-        return this.http.put(`/api/${this.className}/${id}`, data);
+        const url = `http://${this.polariService.userEntry_ipv4NumSubject.value}:${this.polariService.userEntry_portNumSubject.value}/${this.className}/${id}`;
+        return this.http.put(url, data, this.polariService.backendRequestOptions);
       }
 
       delete(id: string): Observable<any> {
-        return this.http.delete(`/api/${this.className}/${id}`);
+        const url = `http://${this.polariService.userEntry_ipv4NumSubject.value}:${this.polariService.userEntry_portNumSubject.value}/${this.className}/${id}`;
+        return this.http.delete(url, this.polariService.backendRequestOptions);
       }
-      
+
       subscribeToEvents(): Observable<any> {
         return new Observable((observer) => {
-          const eventSource = new EventSource(`/api/${this.className}/events`);
+          const url = `http://${this.polariService.userEntry_ipv4NumSubject.value}:${this.polariService.userEntry_portNumSubject.value}/${this.className}/events`;
+          const eventSource = new EventSource(url);
           eventSource.onmessage = (event) => observer.next(event.data);
           eventSource.onerror = (error) => observer.error(error);
           return () => eventSource.close();

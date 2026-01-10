@@ -11,6 +11,6 @@ export const environment = {
     test: false, // This environment will be used for testing the app, and will be defined in a way that
     // ensures appropriate test data exists and that test reports are generated.
     dev: true, // This environment is defined in a way you would want it to be while doing development of the app.
-    backendUrl: 'http://localhost', // Defines the URL of the primary backend server (a python polari-framework server)
+    backendUrl: 'localhost', // Defines the URL of the primary backend server (a python polari-framework server)
     backendPort: '3000' // Defines the port (if any) of the primary backend server (a python polari-framework server)
 }; 

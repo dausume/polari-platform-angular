@@ -40,6 +40,23 @@ ENV BACKEND_URL=http://localhost:8000
 # Expose port for debugging (optional)
 EXPOSE 9876
 
-# Run tests
-# Single run mode for CI with code coverage
-CMD ["npm", "test", "--", "--watch=false", "--code-coverage", "--browsers=ChromeHeadless"]
+# Create a script that runs appropriate test based on TEST_MODE
+RUN echo '#!/bin/bash\n\
+echo "======================================================================"\n\
+echo "POLARI FRONTEND TESTS"\n\
+echo "======================================================================"\n\
+echo "Test Mode: $TEST_MODE"\n\
+echo "Backend URL: $BACKEND_URL"\n\
+echo "======================================================================"\n\
+echo ""\n\
+if [ "$TEST_MODE" = "fullstack" ]; then\n\
+  echo "Running FULLSTACK integration tests (with real backend)..."\n\
+  npm run test:fullstack\n\
+else\n\
+  echo "Running ISOLATION unit tests (with mocked services)..."\n\
+  npm run test:isolation\n\
+fi\n\
+' > /app/run-tests.sh && chmod +x /app/run-tests.sh
+
+# Run tests using the script
+CMD ["/app/run-tests.sh"]

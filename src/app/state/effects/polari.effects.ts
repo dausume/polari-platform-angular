@@ -18,7 +18,7 @@ export class PolariEffects {
     private actions$: Actions,
     private polariService: PolariService
   ) {
-    // Connect to Polari server
+    // Effect to handle connection to Polari server
     this.connect$ = createEffect(() =>
       this.actions$.pipe(
         ofType(PolariActions.connect),
@@ -33,7 +33,7 @@ export class PolariEffects {
       )
     );
 
-    // Load connection data
+    // Effect to load connection data from Polari service
     this.loadConnectionData$ = createEffect(() =>
       this.actions$.pipe(
         ofType(PolariActions.loadConnectionData),
