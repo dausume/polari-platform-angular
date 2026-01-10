@@ -1,0 +1,80 @@
+<div class="manager-info-container">
+  <mat-card>
+    <mat-card-header>
+      <mat-card-title>Manager Object Information</mat-card-title>
+      <button mat-icon-button (click)="refresh()" [disabled]="loading">
+        <mat-icon>refresh</mat-icon>
+      </button>
+    </mat-card-header>
+
+    <mat-card-content>
+      <!-- Loading State -->
+      <div *ngIf="loading" class="loading-container">
+        <mat-spinner diameter="50"></mat-spinner>
+        <p>Loading manager data...</p>
+      </div>
+
+      <!-- Error State -->
+      <div *ngIf="!loading && error" class="error-container">
+        <mat-icon color="warn">error</mat-icon>
+        <p>{{ error }}</p>
+      </div>
+
+      <!-- Manager Data Display -->
+      <div *ngIf="!loading && !error && managerData" class="manager-data">
+        <!-- Basic Properties -->
+        <div class="info-section">
+          <h3>Basic Properties</h3>
+          <div class="property-grid">
+            <div class="property-item">
+              <span class="property-label">ID:</span>
+              <span class="property-value">{{ managerData.id }}</span>
+            </div>
+            <div class="property-item">
+              <span class="property-label">Has Server:</span>
+              <mat-icon [color]="managerData.hasServer ? 'primary' : 'warn'">
+                {{ managerData.hasServer ? 'check_circle' : 'cancel' }}
+              </mat-icon>
+            </div>
+            <div class="property-item">
+              <span class="property-label">Has Database:</span>
+              <mat-icon [color]="managerData.hasDB ? 'primary' : 'warn'">
+                {{ managerData.hasDB ? 'check_circle' : 'cancel' }}
+              </mat-icon>
+            </div>
+            <div class="property-item">
+              <span class="property-label">Complete:</span>
+              <mat-icon [color]="managerData.complete ? 'primary' : 'warn'">
+                {{ managerData.complete ? 'check_circle' : 'cancel' }}
+              </mat-icon>
+            </div>
+          </div>
+        </div>
+
+        <!-- Available Object Types -->
+        <div class="info-section" *ngIf="managerData.availableObjectTypes">
+          <h3>Available Object Types ({{ managerData.availableObjectTypes.length }})</h3>
+          <mat-chip-set>
+            <mat-chip *ngFor="let type of managerData.availableObjectTypes">
+              {{ type }}
+            </mat-chip>
+          </mat-chip-set>
+        </div>
+
+        <!-- Instance Counts -->
+        <div class="info-section" *ngIf="managerData.instanceCounts">
+          <h3>Instance Counts</h3>
+          <div class="instance-counts">
+            <div *ngFor="let key of getObjectKeys(managerData.instanceCounts)" class="count-item">
+              <span class="count-label">{{ key }}:</span>
+              <span class="count-value">{{ managerData.instanceCounts[key] }}</span>
+            </div>
+            <div *ngIf="getObjectKeys(managerData.instanceCounts).length === 0" class="no-instances">
+              No instances registered
+            </div>
+          </div>
+        </div>
+      </div>
+    </mat-card-content>
+  </mat-card>
+</div>

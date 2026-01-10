@@ -1,0 +1,150 @@
+.manager-info-container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+mat-card {
+  margin-bottom: 20px;
+}
+
+mat-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+mat-card-title {
+  font-size: 24px;
+  font-weight: 500;
+}
+
+/* Loading State */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+
+.loading-container p {
+  margin-top: 16px;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+/* Error State */
+.error-container {
+  display: flex;
+  align-items: center;
+  padding: 20px;
+  color: #d32f2f;
+}
+
+.error-container mat-icon {
+  margin-right: 12px;
+}
+
+/* Manager Data Display */
+.manager-data {
+  padding: 16px 0;
+}
+
+.info-section {
+  margin-bottom: 32px;
+}
+
+.info-section h3 {
+  font-size: 18px;
+  font-weight: 500;
+  margin-bottom: 16px;
+  color: rgba(0, 0, 0, 0.87);
+}
+
+/* Basic Properties Grid */
+.property-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.property-item {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+}
+
+.property-label {
+  font-weight: 500;
+  margin-right: 12px;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.property-value {
+  color: rgba(0, 0, 0, 0.87);
+}
+
+.property-item mat-icon {
+  margin-left: auto;
+}
+
+/* Object Types Chips */
+mat-chip-set {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+mat-chip {
+  font-size: 14px;
+}
+
+/* Instance Counts */
+.instance-counts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.count-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background-color: #e3f2fd;
+  border-radius: 4px;
+  border-left: 4px solid #2196f3;
+}
+
+.count-label {
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.87);
+}
+
+.count-value {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1976d2;
+}
+
+.no-instances {
+  padding: 20px;
+  text-align: center;
+  color: rgba(0, 0, 0, 0.6);
+  font-style: italic;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .property-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .instance-counts {
+    grid-template-columns: 1fr;
+  }
+}

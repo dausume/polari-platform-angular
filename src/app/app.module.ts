@@ -19,13 +19,15 @@ import { MatGridListModule } from '@angular/material/grid-list';
 import { MatSelectModule  } from '@angular/material/select';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatMenuModule } from '@angular/material/menu';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatChipsModule } from '@angular/material/chips';
 //NgRx
 import { StoreModule } from '@ngrx/store';
 import { EffectsModule } from '@ngrx/effects';
 import { StoreDevtoolsModule } from '@ngrx/store-devtools';
 import { rootReducers } from './state/app.state';
 import { PolariEffects } from './state/effects/polari.effects';
-// import { DynamicObjectsEffects } from './state/effects/dynamic-objects.effects'; // Disabled - see file for details
+import { DynamicObjectsEffects } from './state/effects/dynamic-objects.effects';
 import { environment } from '../environments/environment-dev';
 //App Routing and App Base Component
 import { AppRoutingModule } from './app-routing.module';
@@ -62,6 +64,10 @@ import { BooleanCellComponent } from '@components/templateClassTable/type-cells/
 import { DateCellComponent } from '@components/templateClassTable/type-cells/date-cell/date-cell';
 import { ListCellComponent } from '@components/templateClassTable/type-cells/list-cell/list-cell';
 import { DictCellComponent } from '@components/templateClassTable/type-cells/dict-cell/dict-cell';
+// Manager Info Component
+import { ManagerInfoComponent } from '@components/manager-info/manager-info';
+// Typing Info Component
+import { TypingInfoComponent } from '@components/typing-info/typing-info';
 //Services (Backend Access)
 import { PolariService } from '@services/polari-service';
 import { CRUDEservicesManager } from '@services/crude-services-manager';
@@ -103,7 +109,9 @@ import { InteractionStateService } from '@services/no-code-services/interaction-
     BooleanCellComponent,
     DateCellComponent,
     ListCellComponent,
-    DictCellComponent
+    DictCellComponent,
+    ManagerInfoComponent,
+    TypingInfoComponent
   ],
   imports: [
     BrowserModule,
@@ -126,9 +134,11 @@ import { InteractionStateService } from '@services/no-code-services/interaction-
     DragDropModule,
     MatAutocompleteModule,
     MatMenuModule,
+    MatProgressSpinnerModule,
+    MatChipsModule,
     // NgRx
     StoreModule.forRoot(rootReducers),
-    EffectsModule.forRoot([PolariEffects /*, DynamicObjectsEffects*/]),
+    EffectsModule.forRoot([PolariEffects, DynamicObjectsEffects]),
     StoreDevtoolsModule.instrument({
       maxAge: 25,
       logOnly: environment.production

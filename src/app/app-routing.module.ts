@@ -8,6 +8,8 @@ import { templateClassTableComponent } from '@components/templateClassTable/temp
 import { ClassMainPageComponent } from '@components/class-main-page/class-main-page';
 import { CreateNewClassComponent } from '@components/create-new-class/create-new-class';
 import { CustomNoCodeComponent } from '@components/custom-no-code/custom-no-code';
+import { ManagerInfoComponent } from '@components/manager-info/manager-info';
+import { TypingInfoComponent } from '@components/typing-info/typing-info';
 
 const routes: Routes = [
   { path: '', component: HomeComponent},
@@ -16,7 +18,9 @@ const routes: Routes = [
   { path: 'template-class-test', component: templateClassTableComponent},
   { path: 'class-main-page/:class', component: ClassMainPageComponent},
   { path: 'create-class', component: CreateNewClassComponent },
-  { path: 'custom-no-code', component: CustomNoCodeComponent }
+  { path: 'custom-no-code', component: CustomNoCodeComponent },
+  { path: 'manager-info', component: ManagerInfoComponent },
+  { path: 'typing-info', component: TypingInfoComponent }
 ];
 
 @NgModule({

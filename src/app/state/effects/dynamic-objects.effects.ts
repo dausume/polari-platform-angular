@@ -1,160 +1,171 @@
 /**
  * NgRx Effects for Dynamic Object Management
  * Handles side effects (API calls) for CRUDE operations
- *
- * CURRENTLY DISABLED: Persistent "actions$ is undefined" error
- * Error: TypeError: can't access property "pipe", this.actions$ is undefined
- * Root cause: Actions dependency injection failing with NgRx 17.2.0 + RxJS 7.8.2
- * Class property initialization executes before constructor DI completes
- * Using observable/service-based approach instead (CRUDEservicesManager)
  */
 
 import { Injectable } from '@angular/core';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
-import { of, EMPTY, Observable } from 'rxjs';
-import { map, mergeMap, catchError } from 'rxjs/operators';
+import { of } from 'rxjs';
+import { map, mergeMap, catchError, tap } from 'rxjs/operators';
 import { CRUDEservicesManager } from '@services/crude-services-manager';
 import { DynamicObjectsActions } from '../actions/dynamic-objects.actions';
 
 @Injectable()
 export class DynamicObjectsEffects {
-  private warnedMissingActions = false;
-  private loggedRecovery = false;
+
+  loadClassInstances$;
+  loadInstance$;
+  createInstance$;
+  updateInstance$;
+  deleteInstance$;
 
   constructor(
-    private readonly actions$: Actions,
-    private readonly crudeManager: CRUDEservicesManager
-  ) {}
+    private actions$: Actions,
+    private crudeManager: CRUDEservicesManager
+  ) {
+    // Load all instances of a class
+    this.loadClassInstances$ = createEffect(() =>
+      this.actions$.pipe(
+        ofType(DynamicObjectsActions.loadClassInstances),
+        tap(({ className }) => console.log(`[Effects] Loading instances for ${className}`)),
+        mergeMap(({ className }) => {
+          const service = this.crudeManager.getCRUDEclassService(className);
 
-  /**
-   * Returns Actions if present; otherwise EMPTY.
-   * - Warns once when Actions is missing.
-   * - If it was missing before and is now present, logs a recovery message once.
-   */
-  private actionsOrEmpty(effectName: string): Observable<any> {
-    const hasActions = !!this.actions$;
+          return service.readAll().pipe(
+            map((response: any) => {
+              console.log(`[Effects] Received data for ${className}:`, response);
 
-    if (!hasActions) {
-      if (!this.warnedMissingActions) {
-        this.warnedMissingActions = true;
-        this.loggedRecovery = false; // allow a recovery log if it ever comes back
-        console.warn(
-          `[DynamicObjectsEffects] Actions stream is undefined. ` +
-          `Effect "${effectName}" will be disabled (EMPTY).`
-        );
-      }
-      return EMPTY;
-    }
+              // Parse the backend response format: { className: { instanceId: instanceData, ... } }
+              let instances: any[] = [];
 
-    // Actions is present
-    if (this.warnedMissingActions && !this.loggedRecovery) {
-      this.loggedRecovery = true;
-      console.info(
-        `[DynamicObjectsEffects] Actions stream is now available again. ` +
-        `Effects recovered (first seen by "${effectName}").`
-      );
-    }
+              if (response && typeof response === 'object') {
+                if (response[className]) {
+                  const instancesObj = response[className];
+                  // Convert object to array
+                  if (typeof instancesObj === 'object' && !Array.isArray(instancesObj)) {
+                    instances = Object.keys(instancesObj).map(instanceId => ({
+                      _instanceId: instanceId,
+                      ...instancesObj[instanceId]
+                    }));
+                  } else if (Array.isArray(instancesObj)) {
+                    instances = instancesObj;
+                  }
+                }
+              } else if (Array.isArray(response)) {
+                instances = response;
+              }
 
-    return this.actions$;
+              console.log(`[Effects] Parsed ${instances.length} instances for ${className}`);
+              return DynamicObjectsActions.loadClassInstancesSuccess({ className, instances });
+            }),
+            catchError((error) => {
+              console.error(`[Effects] Error loading ${className}:`, error);
+              return of(DynamicObjectsActions.loadClassInstancesFailure({ className, error }));
+            })
+          );
+        })
+      )
+    );
+
+    // Load a single instance
+    this.loadInstance$ = createEffect(() =>
+      this.actions$.pipe(
+        ofType(DynamicObjectsActions.loadInstance),
+        tap(({ className, instanceId }) =>
+          console.log(`[Effects] Loading instance ${instanceId} of ${className}`)
+        ),
+        mergeMap(({ className, instanceId }) => {
+          const service = this.crudeManager.getCRUDEclassService(className);
+
+          return service.read(instanceId).pipe(
+            map((response: any) => {
+              console.log(`[Effects] Received instance data:`, response);
+              // Backend returns single instance
+              const instance = response[className]?.[instanceId] || response;
+              return DynamicObjectsActions.loadInstanceSuccess({ className, instanceId, instance });
+            }),
+            catchError((error) => {
+              console.error(`[Effects] Error loading instance:`, error);
+              return of(DynamicObjectsActions.loadInstanceFailure({ className, instanceId, error }));
+            })
+          );
+        })
+      )
+    );
+
+    // Create a new instance
+    this.createInstance$ = createEffect(() =>
+      this.actions$.pipe(
+        ofType(DynamicObjectsActions.createInstance),
+        tap(({ className, instanceData }) =>
+          console.log(`[Effects] Creating instance of ${className}:`, instanceData)
+        ),
+        mergeMap(({ className, instanceData }) => {
+          const service = this.crudeManager.getCRUDEclassService(className);
+
+          return service.create(instanceData).pipe(
+            map((response: any) => {
+              console.log(`[Effects] Created instance:`, response);
+              // Extract the created instance from response
+              const instance = response[className] || response;
+              return DynamicObjectsActions.createInstanceSuccess({ className, instance });
+            }),
+            catchError((error) => {
+              console.error(`[Effects] Error creating instance:`, error);
+              return of(DynamicObjectsActions.createInstanceFailure({ className, error }));
+            })
+          );
+        })
+      )
+    );
+
+    // Update an existing instance
+    this.updateInstance$ = createEffect(() =>
+      this.actions$.pipe(
+        ofType(DynamicObjectsActions.updateInstance),
+        tap(({ className, instanceId, updates }) =>
+          console.log(`[Effects] Updating instance ${instanceId} of ${className}:`, updates)
+        ),
+        mergeMap(({ className, instanceId, updates }) => {
+          const service = this.crudeManager.getCRUDEclassService(className);
+
+          return service.update(instanceId, updates).pipe(
+            map((response: any) => {
+              console.log(`[Effects] Updated instance:`, response);
+              const instance = response[className]?.[instanceId] || response;
+              return DynamicObjectsActions.updateInstanceSuccess({ className, instanceId, instance });
+            }),
+            catchError((error) => {
+              console.error(`[Effects] Error updating instance:`, error);
+              return of(DynamicObjectsActions.updateInstanceFailure({ className, instanceId, error }));
+            })
+          );
+        })
+      )
+    );
+
+    // Delete an instance
+    this.deleteInstance$ = createEffect(() =>
+      this.actions$.pipe(
+        ofType(DynamicObjectsActions.deleteInstance),
+        tap(({ className, instanceId }) =>
+          console.log(`[Effects] Deleting instance ${instanceId} of ${className}`)
+        ),
+        mergeMap(({ className, instanceId }) => {
+          const service = this.crudeManager.getCRUDEclassService(className);
+
+          return service.delete(instanceId).pipe(
+            map(() => {
+              console.log(`[Effects] Deleted instance ${instanceId}`);
+              return DynamicObjectsActions.deleteInstanceSuccess({ className, instanceId });
+            }),
+            catchError((error) => {
+              console.error(`[Effects] Error deleting instance:`, error);
+              return of(DynamicObjectsActions.deleteInstanceFailure({ className, instanceId, error }));
+            })
+          );
+        })
+      )
+    );
   }
-
-  readonly loadClassInstances$ = createEffect(() =>
-    this.actionsOrEmpty('loadClassInstances$').pipe(
-      ofType(DynamicObjectsActions.loadClassInstances),
-      mergeMap(({ className }) => {
-        const service = this.crudeManager.getCRUDEclassService(className);
-        return service.readAll().pipe(
-          map((response: any) => {
-            let instances: any[] = [];
-            const instancesObj = response?.[className];
-
-            if (instancesObj && typeof instancesObj === 'object' && !Array.isArray(instancesObj)) {
-              instances = Object.keys(instancesObj).map((instanceId) => ({
-                _instanceId: instanceId,
-                ...instancesObj[instanceId],
-              }));
-            } else if (Array.isArray(instancesObj)) {
-              instances = instancesObj;
-            } else if (Array.isArray(response)) {
-              instances = response;
-            }
-
-            return DynamicObjectsActions.loadClassInstancesSuccess({ className, instances });
-          }),
-          catchError((error) =>
-            of(DynamicObjectsActions.loadClassInstancesFailure({ className, error }))
-          )
-        );
-      })
-    )
-  );
-
-  readonly loadInstance$ = createEffect(() =>
-    this.actionsOrEmpty('loadInstance$').pipe(
-      ofType(DynamicObjectsActions.loadInstance),
-      mergeMap(({ className, instanceId }) => {
-        const service = this.crudeManager.getCRUDEclassService(className);
-        return service.read(instanceId).pipe(
-          map((response: any) => {
-            const instance = response?.[className]?.[instanceId] ?? response;
-            return DynamicObjectsActions.loadInstanceSuccess({ className, instanceId, instance });
-          }),
-          catchError((error) =>
-            of(DynamicObjectsActions.loadInstanceFailure({ className, instanceId, error }))
-          )
-        );
-      })
-    )
-  );
-
-  readonly createInstance$ = createEffect(() =>
-    this.actionsOrEmpty('createInstance$').pipe(
-      ofType(DynamicObjectsActions.createInstance),
-      mergeMap(({ className, instanceData }) => {
-        const service = this.crudeManager.getCRUDEclassService(className);
-        return service.create(instanceData).pipe(
-          map((response: any) => {
-            const instance = response?.[className] ?? response;
-            return DynamicObjectsActions.createInstanceSuccess({ className, instance });
-          }),
-          catchError((error) =>
-            of(DynamicObjectsActions.createInstanceFailure({ className, error }))
-          )
-        );
-      })
-    )
-  );
-
-  readonly updateInstance$ = createEffect(() =>
-    this.actionsOrEmpty('updateInstance$').pipe(
-      ofType(DynamicObjectsActions.updateInstance),
-      mergeMap(({ className, instanceId, updates }) => {
-        const service = this.crudeManager.getCRUDEclassService(className);
-        return service.update(instanceId, updates).pipe(
-          map((response: any) => {
-            const instance = response?.[className]?.[instanceId] ?? response;
-            return DynamicObjectsActions.updateInstanceSuccess({ className, instanceId, instance });
-          }),
-          catchError((error) =>
-            of(DynamicObjectsActions.updateInstanceFailure({ className, instanceId, error }))
-          )
-        );
-      })
-    )
-  );
-
-  readonly deleteInstance$ = createEffect(() =>
-    this.actionsOrEmpty('deleteInstance$').pipe(
-      ofType(DynamicObjectsActions.deleteInstance),
-      mergeMap(({ className, instanceId }) => {
-        const service = this.crudeManager.getCRUDEclassService(className);
-        return service.delete(instanceId).pipe(
-          map(() => DynamicObjectsActions.deleteInstanceSuccess({ className, instanceId })),
-          catchError((error) =>
-            of(DynamicObjectsActions.deleteInstanceFailure({ className, instanceId, error }))
-          )
-        );
-      })
-    )
-  );
 }
