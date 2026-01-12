@@ -34,7 +34,18 @@ export class ClassDataTableComponent implements OnInit, OnChanges {
   }
 
   ngOnChanges(changes: SimpleChanges) {
-    if (changes.classTypeData || changes.instanceData || changes.tableConfig) {
+    // Handle className changes - completely reinitialize
+    if (changes.className && !changes.className.firstChange) {
+      console.log('[ClassDataTable] ClassName changed from', changes.className.previousValue, 'to', changes.className.currentValue);
+
+      // Clear old state
+      this.columnTypes = {};
+      this.displayedColumns = [];
+      this.dataSource.data = [];
+    }
+
+    // Reinitialize table when any input changes
+    if (changes.classTypeData || changes.instanceData || changes.tableConfig || changes.className) {
       this.initializeTable();
     }
   }

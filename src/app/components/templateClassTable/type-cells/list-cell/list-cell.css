@@ -9,8 +9,18 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    color: #7b1fa2;
+    color: #7b1fa2 !important;
     font-size: 14px;
+}
+
+.cell-value.clickable {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.cell-value.clickable:hover {
+    color: #4a148c !important;
+    text-decoration: underline;
 }
 
 .list-icon {

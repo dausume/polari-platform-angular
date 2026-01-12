@@ -13,8 +13,8 @@ export class NumberCellComponent {
   @Input() editable: boolean = false;
 
   /**
-   * Get display value for number cell
-   */
+  * Get display value for number cell
+  */
   getDisplayValue(): string {
     if (this.value === null || this.value === undefined) {
       return '-';

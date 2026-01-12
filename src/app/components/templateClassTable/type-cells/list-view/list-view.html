@@ -1,0 +1,40 @@
+<div class="list-view-container">
+  <div class="dialog-header">
+    <h2 mat-dialog-title>
+      <span class="header-icon">[]</span>
+      {{data.columnName}} - List View
+    </h2>
+    <button mat-icon-button (click)="close()" class="close-button">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <div mat-dialog-content class="dialog-content">
+    <div class="list-info">
+      <span class="info-label">Total Items:</span>
+      <span class="info-value">{{data.value.length || 0}}</span>
+    </div>
+
+    <div class="list-items">
+      <div *ngFor="let item of data.value; let i = index" class="list-item">
+        <div class="item-header">
+          <span class="item-index">[{{i}}]</span>
+          <span class="item-type">{{getItemType(item)}}</span>
+        </div>
+        <div class="item-value" [class.complex]="isComplexObject(item)">
+          <pre *ngIf="isComplexObject(item)">{{formatItem(item)}}</pre>
+          <span *ngIf="!isComplexObject(item)">{{formatItem(item)}}</span>
+        </div>
+      </div>
+
+      <div *ngIf="!data.value || data.value.length === 0" class="empty-state">
+        <mat-icon>inbox</mat-icon>
+        <p>Empty list</p>
+      </div>
+    </div>
+  </div>
+
+  <div mat-dialog-actions class="dialog-actions">
+    <button mat-raised-button color="primary" (click)="close()">Close</button>
+  </div>
+</div>

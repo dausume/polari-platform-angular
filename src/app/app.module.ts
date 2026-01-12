@@ -21,6 +21,7 @@ import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatDialogModule } from '@angular/material/dialog';
 //NgRx
 import { StoreModule } from '@ngrx/store';
 import { EffectsModule } from '@ngrx/effects';
@@ -64,6 +65,10 @@ import { BooleanCellComponent } from '@components/templateClassTable/type-cells/
 import { DateCellComponent } from '@components/templateClassTable/type-cells/date-cell/date-cell';
 import { ListCellComponent } from '@components/templateClassTable/type-cells/list-cell/list-cell';
 import { DictCellComponent } from '@components/templateClassTable/type-cells/dict-cell/dict-cell';
+import { ObjectCellComponent } from '@components/templateClassTable/type-cells/object-cell/object-cell';
+// Cell View Components (for popups)
+import { ListViewComponent } from '@components/templateClassTable/type-cells/list-view/list-view';
+import { DictViewComponent } from '@components/templateClassTable/type-cells/dict-view/dict-view';
 // Manager Info Component
 import { ManagerInfoComponent } from '@components/manager-info/manager-info';
 // Typing Info Component
@@ -110,6 +115,9 @@ import { InteractionStateService } from '@services/no-code-services/interaction-
     DateCellComponent,
     ListCellComponent,
     DictCellComponent,
+    ObjectCellComponent,
+    ListViewComponent,
+    DictViewComponent,
     ManagerInfoComponent,
     TypingInfoComponent
   ],
@@ -136,6 +144,7 @@ import { InteractionStateService } from '@services/no-code-services/interaction-
     MatMenuModule,
     MatProgressSpinnerModule,
     MatChipsModule,
+    MatDialogModule,
     // NgRx
     StoreModule.forRoot(rootReducers),
     EffectsModule.forRoot([PolariEffects, DynamicObjectsEffects]),

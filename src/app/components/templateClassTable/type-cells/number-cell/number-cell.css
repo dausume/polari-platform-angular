@@ -7,7 +7,7 @@
 }
 
 .cell-value {
-    color: #2c3e50;
+    color: #2c3e50 !important;
     font-size: 14px;
     font-family: 'Courier New', monospace;
     font-weight: 500;

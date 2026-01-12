@@ -71,16 +71,38 @@ export class templateClassTableComponent implements OnInit, OnDestroy {
   {
     console.log("Logging a change in an input value.");
     console.log(changes);
-    if(changes.classTypeData)
+
+    // Handle className changes - clear old data and reload for new class
+    if(changes.className && !changes.className.firstChange)
     {
-      console.log("Previous classTypeData : ", this.classTypeData);
-      console.log("New changes.classTypeData : ", changes.classTypeData);
+      console.log("ClassName changed from", changes.className.previousValue, "to", changes.className.currentValue);
+
+      // Clear old instance data
+      this.instanceList = [];
+
+      // Clean up old service utilization
+      if (this.crudeService && changes.className.previousValue) {
+        this.crudeService.removeUtilizer(this.componentId);
+        this.crudeManager.decrementUtilizerCounter(changes.className.previousValue);
+        this.crudeManager.cleanupUnusedService(changes.className.previousValue);
+      }
+
+      // Load new configuration for the new class
+      if (this.className) {
+        this.formattedClassName = this.className;
+        this.tableConfig = TableConfig.load(this.className);
+      }
+
+      // Reload typing data and instance data for new class
       this.getTypingData();
+      this.loadInstanceData();
     }
-    if(changes.className)
+
+    if(changes.classTypeData && !changes.classTypeData.firstChange)
     {
-      console.log("Previous classTypeData : ", this.classTypeData);
-      console.log("New changes.classTypeData : ", changes.classTypeData);
+      console.log("Previous classTypeData : ", changes.classTypeData.previousValue);
+      console.log("New classTypeData : ", changes.classTypeData.currentValue);
+      this.getTypingData();
     }
   }
 
@@ -382,39 +404,28 @@ export class templateClassTableComponent implements OnInit, OnDestroy {
       (data: any) => {
         console.log(`[TemplateClassTable] Raw instance data for ${this.className}:`, data);
 
-        // Backend returns: { className: { instanceId: instanceData, ... } }
-        // We need to convert this to an array
-        if (data && typeof data === 'object') {
-          // Check if data has the className key
-          if (data[this.className!]) {
-            const instancesObj = data[this.className!];
-            console.log(`[TemplateClassTable] Instances object:`, instancesObj);
+        // Handle backend response format
+        try {
+          // Backend returns: [{ className: [...] }] or [{ className: {} }] when empty
+          if (Array.isArray(data) && data.length > 0 && data[0][this.className!]) {
+            const classData = data[0][this.className!];
 
-            // Convert object of instances to array
-            if (typeof instancesObj === 'object' && !Array.isArray(instancesObj)) {
-              this.instanceList = Object.keys(instancesObj).map(instanceId => {
-                return {
-                  _instanceId: instanceId,
-                  ...instancesObj[instanceId]
-                };
-              });
-              console.log(`[TemplateClassTable] Converted ${this.instanceList.length} instances to array`);
-            } else if (Array.isArray(instancesObj)) {
-              this.instanceList = instancesObj;
-            } else {
-              console.warn(`[TemplateClassTable] Unexpected instances format:`, instancesObj);
+            // Check if it's an empty object (no data case)
+            if (typeof classData === 'object' && !Array.isArray(classData) && Object.keys(classData).length === 0) {
+              console.log(`[TemplateClassTable] Empty object returned for ${this.className}`);
               this.instanceList = [];
+            } else {
+              // Use dataSetCollection for normal case
+              const interpretedData = new dataSetCollection(data);
+              this.instanceList = interpretedData.getClassInstanceList(this.className!);
+              console.log(`[TemplateClassTable] Parsed ${this.instanceList.length} instances using dataSetCollection`);
             }
           } else {
-            console.warn(`[TemplateClassTable] Response missing className key '${this.className}'`);
-            console.log('[TemplateClassTable] Available keys:', Object.keys(data));
+            console.warn(`[TemplateClassTable] Unexpected data structure for ${this.className}`);
             this.instanceList = [];
           }
-        } else if (Array.isArray(data)) {
-          // Fallback: if backend returns array directly
-          this.instanceList = data;
-        } else {
-          console.warn('[TemplateClassTable] Unexpected data format:', typeof data);
+        } catch (error) {
+          console.error(`[TemplateClassTable] Error parsing data:`, error);
           this.instanceList = [];
         }
 

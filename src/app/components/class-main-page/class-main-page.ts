@@ -17,6 +17,7 @@ export class ClassMainPageComponent implements OnDestroy {
   classTypeData? : any;
   crudeService?: CRUDEclassService;
   private componentId: string = 'ClassMainPageComponent';
+  private previousClassName?: string;
 
   constructor(
     private route : ActivatedRoute,
@@ -36,7 +37,26 @@ export class ClassMainPageComponent implements OnDestroy {
         Object.keys(paramsMap['params']).forEach( param =>{
           if(param == "class")
           {
-            this.className = paramsMap["params"][param]; // Get the class name from the url so we can access the service.
+            const newClassName = paramsMap["params"][param];
+
+            // If className is changing, clean up old service first
+            if (this.previousClassName && this.previousClassName !== newClassName) {
+              console.log(`[ClassMainPage] ClassName changing from ${this.previousClassName} to ${newClassName}`);
+
+              // Clear old data
+              this.classTypeData = undefined;
+
+              // Clean up old service
+              if (this.crudeService) {
+                this.crudeService.removeUtilizer(this.componentId);
+                this.crudeManager.decrementUtilizerCounter(this.previousClassName);
+                this.crudeManager.cleanupUnusedService(this.previousClassName);
+              }
+            }
+
+            // Set new className
+            this.className = newClassName;
+            this.previousClassName = newClassName;
 
             // Initialize CRUDE service for this class
             if (this.className) {

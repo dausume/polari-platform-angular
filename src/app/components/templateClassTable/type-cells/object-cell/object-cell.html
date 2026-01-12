@@ -1,0 +1,10 @@
+<div class="object-cell">
+    <span class="cell-value"
+          [class.clickable]="canNavigate()"
+          (click)="canNavigate() && navigateToObject()">
+        <span class="object-icon">🔗</span>
+        <span class="object-class">{{getClassName()}}</span>
+        <span class="object-separator">:</span>
+        <span class="object-id">{{getObjectId()}}</span>
+    </span>
+</div>

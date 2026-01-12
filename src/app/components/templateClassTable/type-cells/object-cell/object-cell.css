@@ -1,0 +1,45 @@
+.object-cell {
+    display: flex;
+    align-items: center;
+    padding: 4px 8px;
+    min-height: 24px;
+}
+
+.cell-value {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #1565c0 !important;
+    font-size: 14px;
+}
+
+.cell-value.clickable {
+    cursor: pointer;
+    text-decoration: underline;
+    transition: all 0.2s ease;
+}
+
+.cell-value.clickable:hover {
+    color: #0d47a1 !important;
+    text-decoration: none;
+}
+
+.object-icon {
+    font-size: 14px;
+}
+
+.object-class {
+    font-weight: 600;
+    color: #1565c0 !important;
+}
+
+.object-separator {
+    color: #757575 !important;
+    font-weight: 300;
+}
+
+.object-id {
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    color: #424242 !important;
+}

@@ -58,8 +58,8 @@
                         <list-cell *ngSwitchCase="'list'" [value]="row[column]" [columnName]="column"></list-cell>
                         <list-cell *ngSwitchCase="'polarilist'" [value]="row[column]" [columnName]="column"></list-cell>
                         <dict-cell *ngSwitchCase="'dict'" [value]="row[column]" [columnName]="column"></dict-cell>
-                        <dict-cell *ngSwitchCase="'object'" [value]="row[column]" [columnName]="column"></dict-cell>
                         <dict-cell *ngSwitchCase="'polaridict'" [value]="row[column]" [columnName]="column"></dict-cell>
+                        <object-cell *ngSwitchCase="'object'" [value]="row[column]" [columnName]="column"></object-cell>
                         <span *ngSwitchDefault>{{formatCellValue(row[column], getColumnType(column))}}</span>
                     </ng-container>
                 </td>

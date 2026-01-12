@@ -1,9 +1,50 @@
 <ng-container>
     <div class="cell-container">
-        <div class="cell-name">{{name}}</div>
-        <div class="cell-type-badge" [attr.data-type]="type">
-            <span class="type-icon">{{getTypeIcon(type)}}</span>
-            <span class="type-text">{{type}}</span>
-        </div>
+      <div class="cell-name">{{ name }}</div>
+  
+      <div class="cell-type-badge" [attr.data-type]="type">
+        <span class="type-icon">{{ getTypeIcon(type) }}</span>
+        <span class="type-text">{{ type }}</span>
+      </div>
+  
+      <!-- Toggle chips -->
+      <div class="cell-toggles" role="group" aria-label="Cell view mode">
+        <!-- BASE -->
+        <span
+          class="chip"
+          role="button"
+          tabindex="0"
+          [attr.aria-pressed]="isSelected('base')"
+          [attr.aria-disabled]="isChipDisabled('base')"
+          [class.selected]="isSelected('base')"
+          [class.faded]="!isSelected('base') || isChipDisabled('base')"
+          [class.disabled]="isChipDisabled('base')"
+          (click)="setMode('base')"
+          (keydown.enter)="setMode('base')"
+          (keydown.space)="$event.preventDefault(); setMode('base')"
+        >
+          <span class="chip-icon">◆</span>
+          <span class="chip-text">Base Permission Dictionaries</span>
+        </span>
+  
+        <!-- TREE -->
+        <span
+          class="chip"
+          role="button"
+          tabindex="0"
+          [attr.aria-pressed]="isSelected('tree')"
+          [attr.aria-disabled]="isChipDisabled('tree')"
+          [class.selected]="isSelected('tree')"
+          [class.faded]="!isSelected('tree') || isChipDisabled('tree')"
+          [class.disabled]="isChipDisabled('tree')"
+          (click)="setMode('tree')"
+          (keydown.enter)="setMode('tree')"
+          (keydown.space)="$event.preventDefault(); setMode('tree')"
+        >
+          <span class="chip-icon">◆</span>
+          <span class="chip-text">In Tree</span>
+        </span>
+      </div>
     </div>
-</ng-container>
+  </ng-container>
+  

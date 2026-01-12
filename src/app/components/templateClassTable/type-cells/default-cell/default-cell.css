@@ -6,16 +6,16 @@
     width: 100%;
     height: 100%;
     justify-content: center;
-}
-
-.cell-name {
+  }
+  
+  .cell-name {
     font-weight: 600;
-    color: #212529;
+    color: #212529 !important;
     font-size: 0.95em;
     word-break: break-word;
-}
-
-.cell-type-badge {
+  }
+  
+  .cell-type-badge {
     display: inline-flex;
     align-items: center;
     gap: 4px;
@@ -24,61 +24,117 @@
     font-size: 0.8em;
     font-weight: 500;
     background-color: #e7f3ff;
-    color: #0056b3;
+    color: #0056b3 !important;
     border: 1px solid #b8daff;
     width: fit-content;
-}
-
-/* Type-specific badge colors */
-.cell-type-badge[data-type*="str"],
-.cell-type-badge[data-type*="string"] {
+  }
+  
+  /* Type-specific badge colors */
+  .cell-type-badge[data-type*="str"],
+  .cell-type-badge[data-type*="string"] {
     background-color: #d4edda;
-    color: #155724;
+    color: #155724 !important;
     border-color: #c3e6cb;
-}
-
-.cell-type-badge[data-type*="int"],
-.cell-type-badge[data-type*="integer"],
-.cell-type-badge[data-type*="float"] {
+  }
+  
+  .cell-type-badge[data-type*="int"],
+  .cell-type-badge[data-type*="integer"],
+  .cell-type-badge[data-type*="float"] {
     background-color: #fff3cd;
-    color: #856404;
+    color: #3d2e00 !important;
     border-color: #ffeaa7;
-}
-
-.cell-type-badge[data-type*="bool"],
-.cell-type-badge[data-type*="boolean"] {
+  }
+  
+  .cell-type-badge[data-type*="bool"],
+  .cell-type-badge[data-type*="boolean"] {
     background-color: #d1ecf1;
-    color: #0c5460;
+    color: #0c5460 !important;
     border-color: #bee5eb;
-}
-
-.cell-type-badge[data-type*="list"],
-.cell-type-badge[data-type*="polariList"] {
+  }
+  
+  .cell-type-badge[data-type*="list"],
+  .cell-type-badge[data-type*="polariList"] {
     background-color: #e2e3e5;
-    color: #383d41;
+    color: #383d41 !important;
     border-color: #d6d8db;
-}
-
-.cell-type-badge[data-type*="dict"],
-.cell-type-badge[data-type*="object"],
-.cell-type-badge[data-type*="polariDict"] {
+  }
+  
+  .cell-type-badge[data-type*="dict"],
+  .cell-type-badge[data-type*="object"],
+  .cell-type-badge[data-type*="polariDict"] {
     background-color: #f8d7da;
-    color: #721c24;
+    color: #721c24 !important;
     border-color: #f5c6cb;
-}
-
-.cell-type-badge[data-type*="date"],
-.cell-type-badge[data-type*="datetime"] {
+  }
+  
+  .cell-type-badge[data-type*="date"],
+  .cell-type-badge[data-type*="datetime"] {
     background-color: #e7e7ff;
-    color: #4a4a8a;
+    color: #4a4a8a !important;
     border-color: #d0d0ff;
-}
-
-.type-icon {
+  }
+  
+  .type-icon {
     font-weight: bold;
     font-size: 1.1em;
-}
-
-.type-text {
+  }
+  
+  .type-text {
     text-transform: capitalize;
-}
+  }
+  
+  /* === Toggle chips (custom, not Angular Material) === */
+  
+  .cell-toggles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  
+    padding: 6px 10px;
+    border-radius: 999px;
+  
+    border: 1px solid rgba(0, 0, 0, 0.18);
+    background: rgba(0, 0, 0, 0.04);
+  
+    font-size: 0.85em;
+    user-select: none;
+    cursor: pointer;
+  
+    transition: opacity 120ms ease, transform 120ms ease, background 120ms ease,
+      border-color 120ms ease;
+  }
+  
+  .chip:hover:not(.disabled) {
+    transform: translateY(-1px);
+  }
+  
+  .chip:focus-visible {
+    outline: 2px solid rgba(0, 0, 0, 0.35);
+    outline-offset: 2px;
+  }
+  
+  .chip-icon {
+    font-weight: 700;
+  }
+  
+  .chip.selected {
+    background: rgba(0, 0, 0, 0.09);
+    border-color: rgba(0, 0, 0, 0.30);
+  }
+  
+  .chip.faded {
+    opacity: 0.45;
+  }
+  
+  .chip.disabled {
+    cursor: not-allowed;
+    transform: none;
+  }
+  

@@ -1,5 +1,7 @@
 // dict-cell.component.ts
 import { Component, Input } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
+import { DictViewComponent } from '../dict-view/dict-view';
 
 @Component({
   selector: 'dict-cell',
@@ -11,29 +13,74 @@ export class DictCellComponent {
   @Input() columnName: string = '';
   @Input() editable: boolean = false;
 
+  constructor(private dialog: MatDialog) {}
+
+  /**
+   * Unwrap polariDict/dict from backend format
+   * Backend returns: [{ "polariDict": {...} }] or [{ "dict": {...} }]
+   */
+  private unwrapValue(): { [key: string]: any } {
+    if (!this.value) return {};
+
+    // Check for polariDict wrapper: [{ "polariDict": {...} }]
+    if (Array.isArray(this.value) && this.value.length > 0) {
+      const firstItem = this.value[0];
+      if (firstItem && typeof firstItem === 'object') {
+        if (firstItem.polariDict && typeof firstItem.polariDict === 'object') {
+          return firstItem.polariDict;
+        }
+        if (firstItem.dict && typeof firstItem.dict === 'object') {
+          return firstItem.dict;
+        }
+      }
+    }
+
+    // Already an object
+    if (typeof this.value === 'object' && !Array.isArray(this.value)) {
+      return this.value;
+    }
+
+    return {};
+  }
+
   /**
    * Get display value for dict/object
    */
   getDisplayValue(): string {
-    if (this.value === null || this.value === undefined) {
+    const unwrapped = this.unwrapValue();
+    const keys = Object.keys(unwrapped);
+
+    if (keys.length === 0) {
       return '-';
     }
 
-    if (typeof this.value === 'object' && !Array.isArray(this.value)) {
-      const keys = Object.keys(this.value);
-      return `{${keys.length} keys}`;
-    }
-
-    return String(this.value);
+    return `{${keys.length} keys}`;
   }
 
   /**
    * Get key count
    */
   getKeyCount(): number {
-    if (typeof this.value === 'object' && !Array.isArray(this.value)) {
-      return Object.keys(this.value).length;
+    return Object.keys(this.unwrapValue()).length;
+  }
+
+  /**
+   * Open popup to view dictionary details
+   */
+  openDictView(): void {
+    const unwrapped = this.unwrapValue();
+
+    if (Object.keys(unwrapped).length === 0) {
+      return;
     }
-    return 0;
+
+    this.dialog.open(DictViewComponent, {
+      width: '600px',
+      maxHeight: '80vh',
+      data: {
+        value: unwrapped,
+        columnName: this.columnName
+      }
+    });
   }
 }

@@ -21,18 +21,18 @@
 
 .true-value {
     background-color: #e8f5e9;
-    color: #2e7d32;
+    color: #2e7d32 !important;
 }
 
 .true-value .indicator-icon {
-    color: #4caf50;
+    color: #4caf50 !important;
 }
 
 .false-value {
     background-color: #ffebee;
-    color: #c62828;
+    color: #c62828 !important;
 }
 
 .false-value .indicator-icon {
-    color: #f44336;
+    color: #f44336 !important;
 }
