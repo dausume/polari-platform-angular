@@ -58,11 +58,11 @@ export class NoCodeSolution {
 
     }
 
-    private getSolutionLayer(): d3.Selection<SVGGElement, unknown, null, undefined> {
-        if(!this.d3SvgBaseLayer)
-        {
+    private getSolutionLayer(): d3.Selection<SVGGElement, unknown, null, undefined> | undefined {
+        if(this.d3SvgBaseLayer) {
             return this.d3SvgBaseLayer.select(`g.solution-layer-${this.solutionName}`);
         }
+        return undefined;
     }
 
     // Create the `g.solution-layer-${this.noCodeSolution?.solutionName}` svg layer
@@ -72,7 +72,7 @@ export class NoCodeSolution {
         if(this.d3SvgBaseLayer)
         {
             this.d3SvgBaseLayer.append('g')
-                .attr('class', `g.solution-layer-${this.solutionName}`)
+                .attr('class', `solution-layer-${this.solutionName}`)
         }
     }
 

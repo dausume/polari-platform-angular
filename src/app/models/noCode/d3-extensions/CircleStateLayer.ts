@@ -491,15 +491,13 @@ export class CircleStateLayer extends D3ModelLayer {
    * @param r - The radius of the circle.
    * @param slots - The number of slots to render.
    */
-  initializeSlotLayer() 
+  initializeSlotLayer()
   {
     console.log("initializeSlotLayer called");
     // Get this entire layer group
     let layer = this.getLayerGroup();
     let stateGroups = this.getStateGroups();
-    // Get the slot data points
-    let slots = [];
-    console.log("Retrieved data points for slot placement:", slots);
+    console.log("Initializing slot layer for state groups:", stateGroups.size());
     // Go through each state group and append the slots to the group
     // We should draw the slots onto the state-group, so that they are always positioned relative to the state
     stateGroups.each((datapoint: CircleStateDataPoint, index: number, elements: any) => {
@@ -524,18 +522,18 @@ export class CircleStateLayer extends D3ModelLayer {
       // The radius of the slot is by default 1/5th of the state's bezier curve length, but should not be less than 10 pixels.
       // It will still occupy more than 1/5th of the bezier curve length if the number of slots is too high, but
       // will still throw an error if the slots are too numerous to fit on the bezier curve.
-      const slotRadius = Math.min(slotLength / currentStateSlots.length, 10); 
-      // If the slots take up more space than the entire curve, 
+      const slotRadius = Math.min(slotLength / currentStateSlots.length, 10);
+      // If the slots take up more space than the entire curve,
       // we should not render them, and we should handle this by requesting the user to reduce the number of slots
       // or to increase the size of the bezier curve by making the circle/state larger.
-      const tooManySlots = (slotRadius * slots.length > slotLength);
-      if (currentStateSlots > tooManySlots) {
+      const tooManySlots = (slotRadius * currentStateSlots.length > slotLength);
+      if (tooManySlots) {
         console.log("Too many slots to fit on the bezier curve. Please reduce the number of slots or increase the size of the bezier curve.");
       }
       else{
-        console.log("Rendering slots on bezier curve");
+        console.log("Rendering slots on bezier curve for state:", datapoint.stateName);
         // Calculate the angles for slot placement (evenly distributed around 360 degrees)
-        const defaultAngleIncrements = Array.from({ length: slots.length }, (_, i) => (360 / currentStateSlots.length) * i);
+        const defaultAngleIncrements = Array.from({ length: currentStateSlots.length }, (_, i) => (360 / currentStateSlots.length) * i);
         console.log("defaultAngleIncrements:", defaultAngleIncrements);
         // Iterate over each angle and calculate its position on the path
         let slotIndex = 0;
