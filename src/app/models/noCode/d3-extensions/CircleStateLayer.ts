@@ -22,6 +22,12 @@ export class CircleStateLayer extends D3ModelLayer {
   currentDragTargetDataPoint: CircleStateDataPoint | CircleSlotDataPoint | null = null;
   currentGroupCenter: {x,y} | null = null;
   currentGroupCoordinateTransformMatrix: DOMMatrix | null = null;
+  // Store the source slot position in SVG coordinates when starting connector drag
+  connectorSourcePosition: {x: number, y: number} | null = null;
+  // Store original slot position for auto-connector activation
+  originalSlotPosition: {x: number, y: number} | null = null;
+  // Store the state radius for threshold calculation
+  currentDragStateRadius: number = 0;
 
   constructor(
     private rendererManager: NoCodeStateRendererManager, // Inject rendererManager (injecting in both parent and child seems to cause error?)
@@ -152,8 +158,51 @@ export class CircleStateLayer extends D3ModelLayer {
     console.log("Step 11 : Rendering CircleStateLayer");
     console.log("CircleStateLayer render called");
     this.initializeLayerGroup();
+    this.initializeArrowheadMarker();
+    this.initializeConnectorLayer();
     this.initializeStateGroups();
     this.initializeSlotLayer();
+  }
+
+  // Initialize the arrowhead marker definition for connectors
+  private initializeArrowheadMarker(): void {
+    // Check if defs element exists, create if not
+    let defs = this.d3SvgBaseLayer.select('defs');
+    if (defs.empty()) {
+      defs = this.d3SvgBaseLayer.append('defs');
+    }
+
+    // Check if arrowhead marker already exists
+    if (defs.select('#arrowhead').empty()) {
+      defs.append('marker')
+        .attr('id', 'arrowhead')
+        .attr('viewBox', '0 -5 10 10')
+        .attr('refX', 8)
+        .attr('refY', 0)
+        .attr('markerWidth', 6)
+        .attr('markerHeight', 6)
+        .attr('orient', 'auto')
+        .append('path')
+        .attr('d', 'M0,-5L10,0L0,5')
+        .attr('fill', '#333');
+
+      console.log("Arrowhead marker created");
+    }
+  }
+
+  // Initialize the connector layer for drawing connections between slots
+  private initializeConnectorLayer(): void {
+    let layerGroup = this.getLayerGroup();
+
+    // Check if connector layer already exists
+    let existingConnectorLayer = layerGroup.select('g.connector-layer');
+    if (existingConnectorLayer.empty()) {
+      this.connectorLayer = layerGroup.append('g')
+        .classed('connector-layer', true);
+      console.log("Connector layer created");
+    } else {
+      this.connectorLayer = existingConnectorLayer as d3.Selection<SVGGElement, unknown, null, undefined>;
+    }
   }
 
   // Create, Read, Update, Delete (CRUD) operations for the data points
@@ -731,6 +780,29 @@ export class CircleStateLayer extends D3ModelLayer {
     return closestPoint;
   }
 
+  /**
+   * Helper to start connector drag mode - creates the tentative connector line
+   */
+  private startConnectorDrag(sourceX: number, sourceY: number, mouseX: number, mouseY: number): void {
+    // Store the source position for use during drag
+    this.connectorSourcePosition = { x: sourceX, y: sourceY };
+
+    // Create a new connector from the slot to the current mouse position
+    const connector = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    connector.setAttribute('d', `M ${sourceX} ${sourceY} L ${mouseX} ${mouseY}`);
+    connector.setAttribute('class', 'tentative-connector');
+    connector.setAttribute('fill', 'none');
+    connector.setAttribute('stroke', '#333');
+    connector.setAttribute('stroke-width', '2');
+    connector.setAttribute('stroke-dasharray', '5,5');
+    connector.setAttribute('marker-end', 'url(#arrowhead)');
+
+    // Append the connector to the connector layer
+    this.connectorLayer?.node()?.appendChild(connector);
+    this.interactionStateService.setInteractionState('connector-drag');
+    console.log("Connector drag started from:", this.connectorSourcePosition);
+  }
+
   // -- Drag behavior for the state circles --
 
   // Drag behavior with modularized event handlers
@@ -784,27 +856,35 @@ export class CircleStateLayer extends D3ModelLayer {
     }
     else if (targetElement?.tagName === 'circle' && targetElement?.classList.contains('slot-marker')) {
       console.log(`Dragging started for slot on ${datapoint.stateName}`);
-      
+
       event.sourceEvent.stopPropagation(); // Prevent the drag event from being triggered on the state group
-      if(this.connectorMode) // In connector mode a drag event should create a connector between two slot markers
+
+      // Get the slot marker's local position
+      const slotMarker = d3.select(targetElement);
+      const slotLocalX = parseFloat(slotMarker.attr('cx') || "0");
+      const slotLocalY = parseFloat(slotMarker.attr('cy') || "0");
+
+      // Get group transform to convert to SVG coordinates
+      const currentGroupTransform = group.attr("transform") || "translate(0,0)";
+      const matchGroup = currentGroupTransform.match(/translate\(([-\d.]+),\s*([-\d.]+)\)/);
+      const groupTranslateX = matchGroup ? parseFloat(matchGroup[1]) : 0;
+      const groupTranslateY = matchGroup ? parseFloat(matchGroup[2]) : 0;
+
+      // Calculate slot position in SVG coordinates
+      const slotSvgX = slotLocalX + groupTranslateX;
+      const slotSvgY = slotLocalY + groupTranslateY;
+
+      // Store original position and radius for auto-connector threshold
+      this.originalSlotPosition = { x: slotSvgX, y: slotSvgY };
+      this.currentDragStateRadius = datapoint.radius || 100;
+
+      if(this.connectorMode) // In explicit connector mode, start connector immediately
       {
-        // Create a new connector between the center of the slot marker and the current mouse position
-        // we create an arrow svg element to act as our connector.
-        const connector = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        // Set the connector's attributes
-        connector.setAttribute('d', `M ${datapoint.cx} ${datapoint.cy} L ${event.x} ${event.y}`);
-        connector.setAttribute('class', 'tentative-connector');
-        connector.setAttribute('fill', 'none');
-        connector.setAttribute('stroke', 'black');
-        connector.setAttribute('stroke-width', '2');
-        connector.setAttribute('marker-end', 'url(#arrowhead)');
-        // Append the connector to the connector layer
-        this.connectorLayer?.node()?.appendChild(connector);
-        this.interactionStateService.setInteractionState('connector-drag');
+        this.startConnectorDrag(slotSvgX, slotSvgY, event.x, event.y);
       }
       else
       {
-        // Triggered slot-moving event.
+        // Start as slot-drag, may auto-switch to connector-drag if moved far enough
         this.interactionStateService.setInteractionState('slot-drag');
       }
       group.raise().attr('stroke', 'black'); // Highlight active group
@@ -834,7 +914,6 @@ export class CircleStateLayer extends D3ModelLayer {
       {
           event.sourceEvent.stopPropagation(); // Prevent the drag event from being triggered on the state group
 
-          // Get the center location of the slot marker that was clicked on.
           const slotMarker = d3.select(targetElement);
           const path = group.select('path.slot-path').node() as SVGPathElement;
 
@@ -850,9 +929,31 @@ export class CircleStateLayer extends D3ModelLayer {
 
           // Find closest point on the bezier path to the mouse (in local coords)
           const closestPoint = this.getClosestPointOnPathLocal(path, localMouseX, localMouseY);
-          console.log("Closest point on path:", closestPoint);
 
-          // Set the slot marker's position to the closest point on the path
+          // Calculate tangential distance: how far is the mouse from the path (outward)
+          const tangentialDx = localMouseX - closestPoint.x;
+          const tangentialDy = localMouseY - closestPoint.y;
+          const tangentialDistance = Math.sqrt(tangentialDx * tangentialDx + tangentialDy * tangentialDy);
+          const threshold = this.currentDragStateRadius / 2; // 1/4 of diameter = radius/2
+
+          // Check if we should auto-switch to connector mode based on tangential distance
+          if (tangentialDistance > threshold) {
+            // Use the current slot position on the path as the connector source
+            const slotSvgX = closestPoint.x + groupTranslateX;
+            const slotSvgY = closestPoint.y + groupTranslateY;
+
+            console.log(`Auto-switching to connector mode (tangential distance: ${tangentialDistance.toFixed(1)}, threshold: ${threshold.toFixed(1)})`);
+
+            // Update slot to its current position before switching
+            slotMarker.attr('cx', closestPoint.x);
+            slotMarker.attr('cy', closestPoint.y);
+
+            // Start connector from current slot position
+            this.startConnectorDrag(slotSvgX, slotSvgY, event.x, event.y);
+            return; // Exit slot-drag, now in connector-drag mode
+          }
+
+          // Still in slot-drag mode - update slot position along the path
           slotMarker.attr('cx', closestPoint.x);
           slotMarker.attr('cy', closestPoint.y);
       }
@@ -875,24 +976,15 @@ export class CircleStateLayer extends D3ModelLayer {
       }
       else if(interactionState === 'connector-drag') // Case for dragging of the connector
       {
-        // Get the current mouse position
-        const mousePosition = d3.pointer(event.sourceEvent, this.d3SvgBaseLayer.node());
+        event.sourceEvent.stopPropagation();
+
         // Update the connector's path to follow the mouse position
         const connector = this.connectorLayer?.select('path.tentative-connector');
-        const path = group.select('path.slot-path').node() as SVGPathElement;
-        const pathLength = path.getTotalLength();
-        //const closestPoint = this.getClosestPointOnBezierPath(path, event.x, event.y);
-        if (connector) {
-          connector.attr('d', `M ${datapoint.cx} ${datapoint.cy} L ${mousePosition[0]} ${mousePosition[1]}`);
+        if (connector && !connector.empty() && this.connectorSourcePosition) {
+          const sourceX = this.connectorSourcePosition.x;
+          const sourceY = this.connectorSourcePosition.y;
+          connector.attr('d', `M ${sourceX} ${sourceY} L ${event.x} ${event.y}`);
         }
-        // When dragging a slot marker, we should update the slot marker's position
-            // the slot marker should be constrained to the bezier path of the circle
-            // and should have it's position defined parametrically by the angle of the slot
-            // and the location of the bezier path progression at the fraction of the angle.
-            console.log("Dragging slot marker event triggered");
-            // Get the closest location on the bezier path to the current mouse position
-            
-            
       }
       else
       {
@@ -905,21 +997,73 @@ export class CircleStateLayer extends D3ModelLayer {
   // Event handlers for drag behavior for when the circle stops being dragged.
   private onDragStateEnd(event: d3.D3DragEvent<SVGCircleElement, CircleStateDataPoint, CircleStateDataPoint>, datapoint: CircleStateDataPoint): void {
     console.log("Drag End event triggered");
-    // We should make the overlay component corresponding to this circle visible again after updating the
-    // overlay component's position based on the new position of the circle.
-    let target : EventTarget | null = event.sourceEvent.target;
-    //if(!target){return;}
-    const targetElement: HTMLElement | null = target as HTMLElement;
-    // Find the closest state-group <g> element
-    const groupElement: SVGGElement | null = targetElement.closest('g.state-group');
-    //if(!groupElement){return;}
-    // Convert the groupElement to a D3 selection
-    const group: d3.Selection<SVGGElement, unknown, null, undefined> = d3.select(groupElement);
-    //let group = d3.select(event.sourceEvent.target.closest('g.state-group'));
 
-    if (targetElement?.tagName === 'circle') {
+    const interactionState = this.interactionStateService.getCurrentState();
+
+    // Handle connector drag end
+    if (interactionState === 'connector-drag') {
+      // Check if we ended on a slot marker (to create a connection)
+      const targetElement = event.sourceEvent.target as HTMLElement;
+      if (targetElement?.tagName === 'circle' && targetElement?.classList.contains('slot-marker')) {
+        console.log("Connector drag ended on a slot - creating connection");
+
+        // Get the target slot's position in SVG coordinates
+        const targetSlotMarker = d3.select(targetElement);
+        const targetSlotLocalX = parseFloat(targetSlotMarker.attr('cx') || "0");
+        const targetSlotLocalY = parseFloat(targetSlotMarker.attr('cy') || "0");
+
+        // Get the target slot's parent group transform
+        const targetGroupElement = targetElement.closest('g.state-group');
+        if (targetGroupElement) {
+          const targetGroup = d3.select(targetGroupElement);
+          const targetTransform = targetGroup.attr("transform") || "translate(0,0)";
+          const targetMatch = targetTransform.match(/translate\(([-\d.]+),\s*([-\d.]+)\)/);
+          const targetTranslateX = targetMatch ? parseFloat(targetMatch[1]) : 0;
+          const targetTranslateY = targetMatch ? parseFloat(targetMatch[2]) : 0;
+
+          // Calculate target slot position in SVG coordinates
+          const targetSvgX = targetSlotLocalX + targetTranslateX;
+          const targetSvgY = targetSlotLocalY + targetTranslateY;
+
+          // Update the connector to snap to actual slot positions
+          const tentativeConnector = this.connectorLayer?.select('path.tentative-connector');
+          if (tentativeConnector && !tentativeConnector.empty() && this.connectorSourcePosition) {
+            tentativeConnector
+              .attr('d', `M ${this.connectorSourcePosition.x} ${this.connectorSourcePosition.y} L ${targetSvgX} ${targetSvgY}`)
+              .classed('tentative-connector', false)
+              .classed('permanent-connector', true)
+              .attr('stroke-dasharray', null); // Remove dashed line for permanent
+
+            console.log("Permanent connector created from", this.connectorSourcePosition, "to", {x: targetSvgX, y: targetSvgY});
+          }
+        }
+      } else {
+        // Drag ended without connecting - remove tentative connector
+        this.connectorLayer?.select('path.tentative-connector').remove();
+        console.log("Connector drag cancelled - no target slot");
+      }
+
+      // Clean up connector drag state
+      this.connectorSourcePosition = null;
+    }
+
+    // Reset visual state
+    const groupElement: SVGGElement | null = (event.sourceEvent.target as HTMLElement)?.closest('g.state-group');
+    if (groupElement) {
+      const group = d3.select(groupElement);
       group.attr('stroke', null);
     }
+
+    // Clear interaction state
+    this.interactionStateService.clearInteractionState();
+
+    // Clear stored drag references
+    this.currentDragElement = null;
+    this.currentGroupElement = null;
+    this.currentDragTargetDataPoint = null;
+    this.originalSlotPosition = null;
+    this.currentDragStateRadius = 0;
+
     console.log("Drag End event complete");
   }
 
