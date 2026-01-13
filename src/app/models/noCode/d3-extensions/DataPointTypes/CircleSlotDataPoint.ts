@@ -11,7 +11,7 @@
         </g>
 */
 
-export default class CircleStateDataPoint {
+export default class CircleSlotDataPoint {
   
     // These are from the parent state object
     // Used for reference so we can calculate where our slots should be located on the border of the circle.
