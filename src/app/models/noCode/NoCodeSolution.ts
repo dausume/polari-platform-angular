@@ -34,12 +34,14 @@ export class NoCodeSolution {
     initialStateInstance?: NoCodeState; // Always index 0
     endStateInstance?: NoCodeState; // Always the final index in the NoCodeSolution.
 
+    private hasInitialized: boolean = false;
+
     //Defines a configuration object used for configuring variable information for a new class, or modifying/duplicating an existing class.
     constructor(
         private rendererManager: NoCodeStateRendererManager, // Inject rendererManager
         private interactionService: InteractionStateService, // Inject interaction service
-        xBounds = 300, yBounds = 800, 
-        solutionName: string, stateInstances: NoCodeState[]=[], 
+        xBounds = 300, yBounds = 800,
+        solutionName: string, stateInstances: NoCodeState[]=[],
         id?: number)
     {
         this.xBounds = xBounds;
@@ -47,15 +49,11 @@ export class NoCodeSolution {
         this.solutionName = solutionName;
         this.stateInstances = stateInstances;
         this.id = id;
-        // Subscribe to the BehaviorSubject for the d3SvgBaseLayer in the renderer manager
-        // this should be done before state instances are loaded so they can be tied to the base layer.
-        this.subscribeToBaseLayer();
         // If no states are provided, generate initial states
         this.stateInstances = stateInstances.length ? stateInstances : this.generateInitialStates();
-        // Load the State Insttances into appropriate No-Code State Layers
-        this.loadAllNoCodeStates();
-        this.createSolutionLayer();
-
+        // Subscribe to the BehaviorSubject for the d3SvgBaseLayer in the renderer manager
+        // Rendering will be triggered when the base layer becomes available
+        this.subscribeToBaseLayer();
     }
 
     private getSolutionLayer(): d3.Selection<SVGGElement, unknown, null, undefined> | undefined {
@@ -170,6 +168,14 @@ export class NoCodeSolution {
                 console.log("Subscription triggered to update D3 Svg Base Layer on NoCodeSolution");
                 this.setD3SvgBaseLayer(baseLayer);
                 console.log("D3 Svg Base Layer updated on NoCodeSolution:", this.d3SvgBaseLayer);
+
+                // Initialize rendering only once when base layer becomes available
+                if (!this.hasInitialized) {
+                    this.hasInitialized = true;
+                    console.log("First time base layer available - initializing solution rendering");
+                    this.createSolutionLayer();
+                    this.loadAllNoCodeStates();
+                }
             }
         });
     }

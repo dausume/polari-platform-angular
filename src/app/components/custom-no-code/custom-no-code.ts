@@ -88,11 +88,8 @@ export class CustomNoCodeComponent
     console.log("Step 4 - Initialize setting No Code Solution to be rendered by Renderer Manager in custom-no-code component ngOnInit");
     this.noCodeStateRendererManager.addNoCodeSolution(this.noCodeSolution);
     console.log("Added No Code Solution to Renderer Manager");
-    // Now we run initialize function which should kick off the initial rendering of the NoCodeSolution
-    console.log("Step 7 - Initialize Renderer Manager in custom-no-code component ngOnInit to render the default No-Code-Solution");
-    this.noCodeSolution.loadAllNoCodeStates();
-    console.log("Step 12 - Should have initialized Renderer Manager and rendered the default No-Code-Solution");
-    console.log("Initialized Renderer Manager");
+    // Rendering will be triggered automatically via the subscription when setD3SvgBaseLayer is called
+    console.log("Step 5 - No-Code-Solution will render via subscription when base layer is set");
   }
 
   @HostListener('click', ['$event'])

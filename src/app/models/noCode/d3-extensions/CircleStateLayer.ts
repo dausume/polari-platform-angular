@@ -689,13 +689,47 @@ export class CircleStateLayer extends D3ModelLayer {
     console.log("Angle to Mouse:", angleToMouse * (180 / Math.PI), "degrees");
     console.log("Angle to Path Point:", angleToPathPoint * (180 / Math.PI), "degrees");
 
+    // Return local coordinates (relative to the group), NOT screen coordinates
+    // The slot marker cx/cy attributes are relative to the state-group
     return {
-      x: closestPointOnPathToMouse.x + stateCenter.x,
-      y: closestPointOnPathToMouse.y + stateCenter.y
+      x: closestPointOnPathToMouse.x,
+      y: closestPointOnPathToMouse.y
     };
-  
+
   }
   
+
+  /**
+   * Simplified function to find the closest point on a path to a mouse position.
+   * Both input and output are in the same coordinate system (group-local).
+   * @param path - The SVGPathElement representing the Bezier curve.
+   * @param localMouseX - Mouse X in group-local coordinates.
+   * @param localMouseY - Mouse Y in group-local coordinates.
+   * @returns The closest point on the path in group-local coordinates.
+   */
+  private getClosestPointOnPathLocal(path: SVGPathElement, localMouseX: number, localMouseY: number): { x: number; y: number } {
+    const pathLength = path.getTotalLength();
+    const numSamples = 360; // Sample every degree
+    const increment = pathLength / numSamples;
+
+    let closestPoint = { x: 0, y: 0 };
+    let minDistanceSquared = Infinity;
+
+    // Search along the path to find the closest point
+    for (let i = 0; i <= pathLength; i += increment) {
+      const pointOnPath = path.getPointAtLength(i);
+      const dx = pointOnPath.x - localMouseX;
+      const dy = pointOnPath.y - localMouseY;
+      const distanceSquared = dx * dx + dy * dy;
+
+      if (distanceSquared < minDistanceSquared) {
+        minDistanceSquared = distanceSquared;
+        closestPoint = { x: pointOnPath.x, y: pointOnPath.y };
+      }
+    }
+
+    return closestPoint;
+  }
 
   // -- Drag behavior for the state circles --
 
@@ -802,37 +836,25 @@ export class CircleStateLayer extends D3ModelLayer {
 
           // Get the center location of the slot marker that was clicked on.
           const slotMarker = d3.select(targetElement);
-          // Get the current position of the slot marker.
-          const slotMarkerX = parseFloat(slotMarker.attr('cx') || "0");
-          const slotMarkerY = parseFloat(slotMarker.attr('cy') || "0");
           const path = group.select('path.slot-path').node() as SVGPathElement;
-          const pathLength = path.getTotalLength();
-          
-          // Transform the 'tentative' connector between the origin slot marker and the current mouse position
-          // that should have been created when the slot marker was clicked on.
-          if (groupElement) {
-            const svg = this.d3SvgBaseLayer.node(); // your root svg element
-            const bbox = groupElement.getBBox(); // local bbox
-            const matrix = groupElement.getScreenCTM(); // global transform matrix
 
-            if (svg && matrix) {
-              const center = svg.createSVGPoint();
-              center.x = bbox.x + bbox.width / 2;
-              center.y = bbox.y + bbox.height / 2;
+          // Get the group's current transform to convert SVG coords to group-local coords
+          const currentGroupTransform = group.attr("transform") || "translate(0,0)";
+          const matchGroup = currentGroupTransform.match(/translate\(([-\d.]+),\s*([-\d.]+)\)/);
+          const groupTranslateX = matchGroup ? parseFloat(matchGroup[1]) : 0;
+          const groupTranslateY = matchGroup ? parseFloat(matchGroup[2]) : 0;
 
-              const screenCenter = center.matrixTransform(matrix);
-              this.currentGroupCenter = { x: screenCenter.x, y: screenCenter.y };
+          // event.x/y are in SVG coordinates, convert to group-local coordinates
+          const localMouseX = event.x - groupTranslateX;
+          const localMouseY = event.y - groupTranslateY;
 
-              console.log("Computed group center:", this.currentGroupCenter);
-            }
-          }
-          const groupCenter = this.currentGroupCenter ?? { x: 0, y: 0 };
-          // Get the closest slot marker to the current mouse position
-          const closestSlotMarker = this.getClosestPointOnPath(groupCenter, path, event.x, event.y);
-          console.log("Closest Slot Marker:", closestSlotMarker);
+          // Find closest point on the bezier path to the mouse (in local coords)
+          const closestPoint = this.getClosestPointOnPathLocal(path, localMouseX, localMouseY);
+          console.log("Closest point on path:", closestPoint);
+
           // Set the slot marker's position to the closest point on the path
-          slotMarker.attr('cx', closestSlotMarker.x);
-          slotMarker.attr('cy', closestSlotMarker.y);
+          slotMarker.attr('cx', closestPoint.x);
+          slotMarker.attr('cy', closestPoint.y);
       }
       else if(interactionState === 'state-drag') // Case for dragging of the entire state group
       {
