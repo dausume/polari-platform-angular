@@ -1,11 +1,11 @@
 // Author: Dustin Etts
 // polari-platform-angular/src/app/components/custom-no-code/custom-no-code.ts
-import { Component, Renderer2, EventEmitter, HostListener, ElementRef, ChangeDetectorRef, ViewChild, ComponentFactoryResolver, ViewContainerRef  } from '@angular/core';
-import { FormControl } from '@angular/forms';
+import { Component, Renderer2, HostListener, ElementRef, ChangeDetectorRef, ViewChild, ViewContainerRef, AfterViewInit, OnDestroy } from '@angular/core';
 import { NoCodeState } from '@models/noCode/NoCodeState';
 import { NoCodeSolution } from '@models/noCode/NoCodeSolution';
-import { CdkDragDrop, moveItemInArray, CdkDragStart, CdkDragEnd } from '@angular/cdk/drag-drop';
-import { BehaviorSubject, Observable, Subscription } from "rxjs";
+import { CdkDragStart, CdkDragEnd } from '@angular/cdk/drag-drop';
+import { BehaviorSubject, Subject } from "rxjs";
+import { debounceTime, takeUntil } from 'rxjs/operators';
 import { OverlayComponentService } from '../../services/no-code-services/overlay-component-service';
 import * as d3 from 'd3';
 import { NoCodeStateInstanceComponent } from './no-code-state-instance/no-code-state-instance';
@@ -18,9 +18,8 @@ import { InteractionStateService } from '@services/no-code-services/interaction-
   templateUrl: 'custom-no-code.html',
   styleUrls: ['./custom-no-code.css']
 })
-export class CustomNoCodeComponent 
+export class CustomNoCodeComponent implements AfterViewInit, OnDestroy
 {
-
   @ViewChild('graphContainer', { read: ViewContainerRef, static: false }) graphContainerRef!: ViewContainerRef;
 
   boxes: any[] = [
@@ -31,65 +30,118 @@ export class CustomNoCodeComponent
   //@ts-ignore
   @ViewChild('d3Graph', { static: true }) d3Graph: ElementRef;
 
-
   polariAccessNodeSubject = new BehaviorSubject<NoCodeState>(new NoCodeState());
 
   contextMenu: boolean = false;
-  // We initialize with a single default No-Code-State instance as an example of what a Solution can look like.
-  stateInstances = [
-  ];
+  stateInstances = [];
 
-  // We initialize with a default No-Code-Solution, including the default State Instances.
-  // We pass in the No-Code-State-Renderer-Manager to the No-Code-Solution so that it can be used to render the No-Code-States.
-  //Property 'noCodeStateRendererManager' is used before its initialization.
-  noCodeSolution : NoCodeSolution;
+  noCodeSolution!: NoCodeSolution;
 
   // Used for binding the overlay which displays State Object UIs and their container elements to the d3 Objects.
   overlayStateSegments: { [key: number]: HTMLElement | null } = {};
 
-  //toggles connections mode.
   makeConnectionsMode: boolean = false;
-
-  //used when connecting two nodes in connections mode.
   sourceNode: any = null;
-  // Used to make the base svg used for rendering the No-Code-Solution
   d3GraphRenderingSVG: any;
 
+  // For cleanup
+  private destroy$ = new Subject<void>();
+  private resizeSubject = new Subject<void>();
+
+  // Default viewBox dimensions (logical coordinate space)
+  private viewBoxWidth = 1200;
+  private viewBoxHeight = 800;
+
+  // Zoom/pan related
+  private zoomBehavior: d3.ZoomBehavior<SVGSVGElement, unknown> | null = null;
+  private zoomContainer: d3.Selection<SVGGElement, unknown, null, undefined> | null = null;
+  private currentZoom = 1;
+  zoomPercent = 100; // For template binding
+  private readonly minZoom = 0.1;
+  private readonly maxZoom = 4;
+
   constructor(
-      private elementRef: ElementRef, 
-      private changeDetectorRef: ChangeDetectorRef, 
-      private renderer: Renderer2, 
+      private elementRef: ElementRef,
+      private changeDetectorRef: ChangeDetectorRef,
+      private renderer: Renderer2,
       private overlayComponentService: OverlayComponentService,
       private noCodeStateRendererManager: NoCodeStateRendererManager,
       private hostViewContainerRef: ViewContainerRef,
       private interactionStateManager: InteractionStateService
-  ) 
+  )
   {
-    this.noCodeSolution = new NoCodeSolution(noCodeStateRendererManager, interactionStateManager, 800, 800, "testSolution",this.stateInstances);
+    // Debounce resize events to avoid excessive updates
+    this.resizeSubject.pipe(
+      debounceTime(100),
+      takeUntil(this.destroy$)
+    ).subscribe(() => this.onResize());
   }
 
   // To do our initial rendering we should use the NoCodeStateRendererManager and ensure all
-  // NoCodeState objects in our current NoCodeSolution 
-  ngOnInit()
-  {
-    console.log("Step 1 - in rendering No-Code-Solution, custom-no-code component ngOnInit");
-    // Creates the 'svg' which is an svg that has other svg's allocated to it to act as the d3 graph.
-    // Initialization of the d3-graph tag.
+  // NoCodeState objects in our current NoCodeSolution
+  ngOnInit(): void {
+    // Create solution with initial viewBox dimensions
+    this.noCodeSolution = new NoCodeSolution(
+      this.noCodeStateRendererManager,
+      this.interactionStateManager,
+      this.viewBoxWidth,
+      this.viewBoxHeight,
+      "testSolution",
+      this.stateInstances
+    );
+
+    // Creates the SVG element with zoom/pan support
     this.createSvg();
 
-    // These were sample functions for rendering draggable circles and rectangles so we could test base functionality.
-    //this.createRectangles()
-    //this.createCircles();
-
-    this.noCodeStateRendererManager.setD3SvgBaseLayer(this.d3GraphRenderingSVG);
-    // 
-    let testSvgString = "<svg viewBox='0 0 800 800' stroke-width='2'><circle class='circle-state' cx='400' cy='400' r='200' fill='none' stroke='black'></circle></svg>";
-    // We allocate our NoCodeSolution to the NoCodeStateRendererManager
-    console.log("Step 4 - Initialize setting No Code Solution to be rendered by Renderer Manager in custom-no-code component ngOnInit");
+    // Pass the zoom container as the base layer so all content gets zoom/pan transforms
+    // The zoom container is a <g> inside the SVG that receives the zoom transform
+    this.noCodeStateRendererManager.setD3SvgBaseLayer(this.zoomContainer as any);
     this.noCodeStateRendererManager.addNoCodeSolution(this.noCodeSolution);
-    console.log("Added No Code Solution to Renderer Manager");
-    // Rendering will be triggered automatically via the subscription when setD3SvgBaseLayer is called
-    console.log("Step 5 - No-Code-Solution will render via subscription when base layer is set");
+  }
+
+  ngAfterViewInit(): void {
+    // Initial size calculation after view is ready
+    setTimeout(() => this.updateSvgSize(), 0);
+
+    // Log state instance positions
+    if (this.noCodeSolution.stateInstances.length > 0) {
+      this.noCodeSolution.stateInstances[0].stateLocationX = 0;
+      this.noCodeSolution.stateInstances[0].stateLocationY = 0;
+    }
+
+    this.polariAccessNodeSubject.subscribe(stateInstance => {
+      // Handle new state instance
+    });
+
+    this.changeDetectorRef.markForCheck();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  @HostListener('window:resize')
+  onWindowResize(): void {
+    this.resizeSubject.next();
+  }
+
+  private onResize(): void {
+    this.updateSvgSize();
+  }
+
+  private updateSvgSize(): void {
+    const container = this.elementRef.nativeElement.querySelector('#d3-graph');
+    if (container && this.d3GraphRenderingSVG) {
+      const rect = container.getBoundingClientRect();
+      // Maintain aspect ratio while fitting container
+      const containerAspect = rect.width / rect.height;
+      const viewBoxAspect = this.viewBoxWidth / this.viewBoxHeight;
+
+      // Optionally adjust viewBox to match container aspect ratio
+      // This keeps the logical coordinate space consistent
+      // while the SVG scales to fill the container
+    }
   }
 
   @HostListener('click', ['$event'])
@@ -127,8 +179,61 @@ export class CustomNoCodeComponent
   private createSvg(): void {
     this.d3GraphRenderingSVG = d3.select('#d3-graph')
       .append('svg')
-      .attr('viewBox', `0 0 ${this.noCodeSolution.xBounds} ${this.noCodeSolution.yBounds}`)
-      .attr('stroke-width', 2);
+      .attr('viewBox', `0 0 ${this.viewBoxWidth} ${this.viewBoxHeight}`)
+      .attr('preserveAspectRatio', 'xMidYMid meet')
+      .attr('stroke-width', 2)
+      .style('width', '100%')
+      .style('height', '100%');
+
+    // Create a zoom container group - all content will be added to this
+    this.zoomContainer = this.d3GraphRenderingSVG.append('g')
+      .classed('zoom-container', true);
+
+    // Set up zoom behavior
+    this.zoomBehavior = d3.zoom<SVGSVGElement, unknown>()
+      .scaleExtent([this.minZoom, this.maxZoom])
+      .on('zoom', (event: d3.D3ZoomEvent<SVGSVGElement, unknown>) => {
+        this.onZoom(event);
+      });
+
+    // Apply zoom behavior to SVG
+    this.d3GraphRenderingSVG.call(this.zoomBehavior);
+
+    // Prevent double-click from zooming (can interfere with editing)
+    this.d3GraphRenderingSVG.on('dblclick.zoom', null);
+  }
+
+  private onZoom(event: d3.D3ZoomEvent<SVGSVGElement, unknown>): void {
+    if (this.zoomContainer) {
+      this.zoomContainer.attr('transform', event.transform.toString());
+      this.currentZoom = event.transform.k;
+      this.zoomPercent = Math.round(this.currentZoom * 100);
+      this.changeDetectorRef.detectChanges();
+    }
+  }
+
+  zoomIn(): void {
+    if (this.zoomBehavior && this.d3GraphRenderingSVG) {
+      this.d3GraphRenderingSVG.transition()
+        .duration(300)
+        .call(this.zoomBehavior.scaleBy, 1.3);
+    }
+  }
+
+  zoomOut(): void {
+    if (this.zoomBehavior && this.d3GraphRenderingSVG) {
+      this.d3GraphRenderingSVG.transition()
+        .duration(300)
+        .call(this.zoomBehavior.scaleBy, 0.7);
+    }
+  }
+
+  resetZoom(): void {
+    if (this.zoomBehavior && this.d3GraphRenderingSVG) {
+      this.d3GraphRenderingSVG.transition()
+        .duration(300)
+        .call(this.zoomBehavior.transform, d3.zoomIdentity);
+    }
   }
 
   private createRectangles()
@@ -477,36 +582,6 @@ private dragRectangle(): any {
     }
   }
 
-  ngAfterViewInit() {
-    console.log("before drawgraph ngAfterViewInit")
-    //this.drawGraph();
-    //Old code below
-    console.log("After view init")
-    // Log a message when a new state instance is created
-    this.polariAccessNodeSubject.subscribe(stateInstance => {
-      console.log("Creating new state instance:", stateInstance);
-    });
-    /*
-    let siContainerElement = this.elementRef.nativeElement.querySelector('.state-instances-container');
-    let siRect = siContainerElement.getBoundingClientRect();
-    console.log("siRect",siRect);
-    */
-    this.noCodeSolution.stateInstances[0].stateLocationX = 0;
-    this.noCodeSolution.stateInstances[0].stateLocationY = 0;
-    console.log(this.noCodeSolution.stateInstances[0]);
-    /*
-    //Use this to load an existing solution
-    // Get the child component that corresponds to the event
-    const childComponent = event.source.data.componentRef;
-
-    // Set the styles of the child component's HTMLElement
-    const stateInstanceElement = childComponent.location.nativeElement;
-    this.renderer.setStyle(stateInstanceElement, 'left', `${newPosition.x}px`);
-    this.renderer.setStyle(stateInstanceElement, 'top', `${newPosition.y}px`);
-    */
-    this.changeDetectorRef.markForCheck();
-    console.log("After view init end");
-  }
 
   // Updates the state object instance
   onStateInstanceDrop(event: any) {

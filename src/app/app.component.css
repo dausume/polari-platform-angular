@@ -1,11 +1,13 @@
 /* app.component.css */
 mat-sidenav-container {
-    height: 100%;
+    height: 100vh;
     background-color: var(--primary-color);
   }
-  
+
   mat-sidenav-content {
-    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
   }
 
   button.mdc-icon-button.mat-mdc-icon-button.mat-unthemed.mat-mdc-button-base {
@@ -22,7 +24,17 @@ mat-sidenav-container {
   }
 
   router-outlet {
-    padding: 5px;
+    display: none; /* router-outlet itself doesn't render content */
+  }
+
+  /* Style the component inserted after router-outlet */
+  router-outlet + * {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: calc(100vh - 100px); /* Account for header height */
+    padding: 16px;
+    box-sizing: border-box;
   }
 
   form {

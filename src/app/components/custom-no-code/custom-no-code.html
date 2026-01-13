@@ -1,9 +1,21 @@
 <mat-card class="no-code-container">
-    <mat-card (contextmenu)="showContextMenu($event)" class="menu-container" style="margin-top:50px">
+    <mat-card (contextmenu)="showContextMenu($event)" class="menu-container">
       <no-code-menu class="no-code-menu item" (newStateInstance)="onNewStateInstance()"></no-code-menu>
     </mat-card>
-    <!--
-    <no-code-interface class="item"></no-code-interface>
-    -->
-    <div id="d3-graph"></div>
+
+    <div class="canvas-wrapper">
+      <div class="canvas-toolbar">
+        <span class="toolbar-title">{{ noCodeSolution.solutionName || 'No-Code Solution' }}</span>
+        <div class="zoom-controls">
+          <button (click)="zoomOut()" title="Zoom Out">-</button>
+          <span class="zoom-level">{{ zoomPercent }}%</span>
+          <button (click)="zoomIn()" title="Zoom In">+</button>
+          <button (click)="resetZoom()" title="Reset View">Reset</button>
+        </div>
+      </div>
+      <div id="d3-graph"></div>
+      <div class="canvas-info">
+        Pan: Click & Drag | Zoom: Scroll or Buttons
+      </div>
+    </div>
 </mat-card>
