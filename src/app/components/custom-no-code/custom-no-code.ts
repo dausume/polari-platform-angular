@@ -1,6 +1,6 @@
 // Author: Dustin Etts
 // polari-platform-angular/src/app/components/custom-no-code/custom-no-code.ts
-import { Component, Renderer2, HostListener, ElementRef, ChangeDetectorRef, ViewChild, ViewContainerRef, AfterViewInit, OnDestroy } from '@angular/core';
+import { Component, Renderer2, HostListener, ElementRef, ChangeDetectorRef, ViewChild, ViewContainerRef, AfterViewInit, OnDestroy, OnInit } from '@angular/core';
 import { NoCodeState } from '@models/noCode/NoCodeState';
 import { NoCodeSolution } from '@models/noCode/NoCodeSolution';
 import { CdkDragStart, CdkDragEnd } from '@angular/cdk/drag-drop';
@@ -11,6 +11,7 @@ import * as d3 from 'd3';
 import { NoCodeStateInstanceComponent } from './no-code-state-instance/no-code-state-instance';
 import { NoCodeStateRendererManager } from '@services/no-code-services/no-code-state-renderer-manager';
 import { InteractionStateService } from '@services/no-code-services/interaction-state-service';
+import { NoCodeSolutionStateService } from '@services/no-code-services/no-code-solution-state.service';
 
 // An Editor which creates a new No-Code Solution by default.
 @Component({
@@ -18,7 +19,7 @@ import { InteractionStateService } from '@services/no-code-services/interaction-
   templateUrl: 'custom-no-code.html',
   styleUrls: ['./custom-no-code.css']
 })
-export class CustomNoCodeComponent implements AfterViewInit, OnDestroy
+export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
 {
   @ViewChild('graphContainer', { read: ViewContainerRef, static: false }) graphContainerRef!: ViewContainerRef;
 
@@ -33,9 +34,13 @@ export class CustomNoCodeComponent implements AfterViewInit, OnDestroy
   polariAccessNodeSubject = new BehaviorSubject<NoCodeState>(new NoCodeState());
 
   contextMenu: boolean = false;
-  stateInstances = [];
+  stateInstances: NoCodeState[] = [];
 
-  noCodeSolution!: NoCodeSolution;
+  noCodeSolution: NoCodeSolution | undefined;
+
+  // Solution selector state
+  availableSolutions: { id: number; name: string }[] = [];
+  selectedSolutionName: string | null = null;
 
   // Used for binding the overlay which displays State Object UIs and their container elements to the d3 Objects.
   overlayStateSegments: { [key: number]: HTMLElement | null } = {};
@@ -67,7 +72,8 @@ export class CustomNoCodeComponent implements AfterViewInit, OnDestroy
       private overlayComponentService: OverlayComponentService,
       private noCodeStateRendererManager: NoCodeStateRendererManager,
       private hostViewContainerRef: ViewContainerRef,
-      private interactionStateManager: InteractionStateService
+      private interactionStateManager: InteractionStateService,
+      private solutionStateService: NoCodeSolutionStateService
   )
   {
     // Debounce resize events to avoid excessive updates
@@ -80,31 +86,112 @@ export class CustomNoCodeComponent implements AfterViewInit, OnDestroy
   // To do our initial rendering we should use the NoCodeStateRendererManager and ensure all
   // NoCodeState objects in our current NoCodeSolution
   ngOnInit(): void {
-    // Create solution with initial viewBox dimensions
-    this.noCodeSolution = new NoCodeSolution(
-      this.noCodeStateRendererManager,
-      this.interactionStateManager,
-      this.viewBoxWidth,
-      this.viewBoxHeight,
-      "testSolution",
-      this.stateInstances
-    );
-
-    // Creates the SVG element with zoom/pan support
+    // IMPORTANT: Create SVG FIRST before subscribing to solutions
+    // because BehaviorSubject will emit immediately and loadSelectedSolution needs the zoomContainer
     this.createSvg();
 
     // Pass the zoom container as the base layer so all content gets zoom/pan transforms
-    // The zoom container is a <g> inside the SVG that receives the zoom transform
     this.noCodeStateRendererManager.setD3SvgBaseLayer(this.zoomContainer as any);
+
+    // Subscribe to available solutions for the selector
+    this.solutionStateService.availableSolutions$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(solutions => {
+        this.availableSolutions = solutions;
+        this.changeDetectorRef.markForCheck();
+      });
+
+    // Subscribe to selected solution changes
+    // This will fire immediately with the current selected solution
+    this.solutionStateService.selectedSolutionName$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(solutionName => {
+        console.log('[DEBUG] selectedSolutionName$ subscription fired with:', solutionName);
+        console.log('[DEBUG] Current selectedSolutionName:', this.selectedSolutionName);
+        if (solutionName && solutionName !== this.selectedSolutionName) {
+          this.selectedSolutionName = solutionName;
+          // Trigger change detection immediately so dropdown updates
+          this.changeDetectorRef.detectChanges();
+          this.loadSelectedSolution();
+        }
+      });
+  }
+
+  /**
+   * Load and render the currently selected solution from the state service
+   */
+  private loadSelectedSolution(): void {
+    // Get state instances from the state service
+    this.stateInstances = this.solutionStateService.getSelectedSolutionStateInstances();
+    const solutionData = this.solutionStateService.getSelectedSolutionData();
+
+    console.log('[DEBUG] loadSelectedSolution called');
+    console.log('[DEBUG] solutionData:', solutionData);
+    console.log('[DEBUG] stateInstances count:', this.stateInstances.length);
+    console.log('[DEBUG] stateInstances:', this.stateInstances.map(s => s.stateName));
+
+    if (!solutionData) {
+      console.warn('No solution data available');
+      return;
+    }
+
+    // Clear the existing SVG content (except the zoom container itself)
+    if (this.zoomContainer) {
+      console.log('[DEBUG] Clearing zoom container');
+      this.zoomContainer.selectAll('*').remove();
+    }
+
+    // Clear the renderer manager's solution cache
+    console.log('[DEBUG] Clearing solutions from renderer manager');
+    this.noCodeStateRendererManager.clearSolutions();
+
+    console.log('[DEBUG] Creating new NoCodeSolution with', this.stateInstances.length, 'states');
+    // Create new NoCodeSolution with state instances from the service
+    this.noCodeSolution = new NoCodeSolution(
+      this.noCodeStateRendererManager,
+      this.interactionStateManager,
+      solutionData.xBounds || this.viewBoxWidth,
+      solutionData.yBounds || this.viewBoxHeight,
+      solutionData.solutionName,
+      this.stateInstances
+    );
+
+    console.log('[DEBUG] NoCodeSolution created, stateInstances:', this.noCodeSolution.stateInstances.length);
+
+    // Register the solution with the renderer manager
     this.noCodeStateRendererManager.addNoCodeSolution(this.noCodeSolution);
+
+    // Reset zoom to default view
+    this.resetZoom();
+    this.changeDetectorRef.markForCheck();
+  }
+
+  /**
+   * Handle solution selection change from the dropdown
+   */
+  onSolutionChange(solutionName: string): void {
+    console.log('[DEBUG] onSolutionChange called with:', solutionName);
+    if (solutionName !== this.selectedSolutionName) {
+      this.solutionStateService.selectSolution(solutionName);
+    }
+  }
+
+  /**
+   * Reset to default mock solutions (clears localStorage cache)
+   */
+  resetToDefaults(): void {
+    console.log('[DEBUG] resetToDefaults called');
+    // Clear the current selection so it will reload even if same name
+    this.selectedSolutionName = null;
+    this.solutionStateService.resetToDefaults();
   }
 
   ngAfterViewInit(): void {
     // Initial size calculation after view is ready
     setTimeout(() => this.updateSvgSize(), 0);
 
-    // Log state instance positions
-    if (this.noCodeSolution.stateInstances.length > 0) {
+    // Log state instance positions (only if noCodeSolution is initialized)
+    if (this.noCodeSolution && this.noCodeSolution.stateInstances.length > 0) {
       this.noCodeSolution.stateInstances[0].stateLocationX = 0;
       this.noCodeSolution.stateInstances[0].stateLocationY = 0;
     }
@@ -585,6 +672,8 @@ private dragRectangle(): any {
 
   // Updates the state object instance
   onStateInstanceDrop(event: any) {
+    if (!this.noCodeSolution) return;
+
     // Get the position and dimensions of the dropped no-code-state-instance element
     const stateInstanceMovement = event.distance;
 
@@ -593,7 +682,7 @@ private dragRectangle(): any {
     let stateInstanceRef = this.noCodeSolution.stateInstances[stateIndex];
     let currentX = stateInstanceRef.stateLocationX;
     let currentY = stateInstanceRef.stateLocationY;
-    
+
     // Calculate the new position of the state instance in respect to the mat-card element
     let newX = currentX + stateInstanceMovement.x;
     let newY = currentY + stateInstanceMovement.y;
@@ -616,6 +705,8 @@ private dragRectangle(): any {
   }
 
   onNewStateInstance() {
+    if (!this.noCodeSolution) return;
+
     let newIndex: number = this.noCodeSolution.stateInstances.length;
     this.noCodeSolution.stateInstances.push(new NoCodeState());
     //this.drawGraph(); // Update the graph visualization

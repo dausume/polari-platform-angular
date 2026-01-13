@@ -30,6 +30,8 @@ export class CircleStateLayer extends D3ModelLayer {
   originalSlotPosition: {x: number, y: number} | null = null;
   // Store the state radius for threshold calculation
   currentDragStateRadius: number = 0;
+  // Store original state position for collision resolution rollback
+  originalStatePosition: {x: number, y: number} | null = null;
 
   constructor(
     private rendererManager: NoCodeStateRendererManager,
@@ -71,11 +73,16 @@ export class CircleStateLayer extends D3ModelLayer {
       .selectAll(`g.connector-layer`);
   }
 
+  // Sanitize solution name for use in CSS class selectors
+  private getSanitizedSolutionName(): string {
+    return this.noCodeSolution?.solutionName?.replace(/[^a-zA-Z0-9-_]/g, '-') || 'unknown';
+  }
+
   // Detect if the connector layer for the solution already exists in the svg base layer.
   // This is used to determine if we should append the slot layer to the svg.
   getSolutionLayer():  d3.Selection<SVGGElement, unknown, null, undefined>{
     return this.d3SvgBaseLayer
-      .selectAll(`g.solution-layer-${this.noCodeSolution?.solutionName}`);
+      .selectAll(`g.solution-layer-${this.getSanitizedSolutionName()}`);
   }
 
   // Retrieves the circle state objects from the no-code solution and converts them into data-points.
@@ -307,8 +314,8 @@ export class CircleStateLayer extends D3ModelLayer {
       .append('g')
       .classed('state-group', true)
       .attr('state-name', (datapoint) => datapoint.stateName || "unknown")
-      .attr('x', (datapoint) => datapoint.cx - datapoint.radius)
-      .attr('y', (datapoint) => datapoint.cy - datapoint.radius)
+      // Use transform to position g elements (x/y attributes don't work for g elements)
+      .attr('transform', (datapoint) => `translate(${datapoint.cx}, ${datapoint.cy})`)
       .each((datapoint, index, elements) => {
         let group = d3.select(elements[index]);
 
@@ -542,7 +549,257 @@ export class CircleStateLayer extends D3ModelLayer {
     }
     return datapoints;
   }
-  
+
+  // --- Bounding Box Collision Detection ---
+
+  /**
+   * Gets the bounding boxes of all state groups currently rendered
+   * @returns Array of bounding box objects with position and dimensions
+   */
+  private getAllStateBoundingBoxes(): { stateName: string; x: number; y: number; width: number; height: number; centerX: number; centerY: number }[] {
+    const boundingBoxes: { stateName: string; x: number; y: number; width: number; height: number; centerX: number; centerY: number }[] = [];
+
+    this.getStateGroups().each(function(this: Element, d: any) {
+      const group = d3.select(this as SVGGElement);
+      const stateName = group.attr('state-name') || 'unknown';
+      const boundingRect = group.select('rect.bounding-box');
+
+      if (boundingRect.empty()) return;
+
+      // Get the transform of the group
+      const transform = group.attr('transform') || 'translate(0,0)';
+      const match = transform.match(/translate\(([-\d.]+),\s*([-\d.]+)\)/);
+      const translateX = match ? parseFloat(match[1]) : 0;
+      const translateY = match ? parseFloat(match[2]) : 0;
+
+      // Get bounding box dimensions (local to group)
+      const localX = parseFloat(boundingRect.attr('x') || '0');
+      const localY = parseFloat(boundingRect.attr('y') || '0');
+      const width = parseFloat(boundingRect.attr('width') || '0');
+      const height = parseFloat(boundingRect.attr('height') || '0');
+
+      // Calculate world position
+      const worldX = localX + translateX;
+      const worldY = localY + translateY;
+
+      boundingBoxes.push({
+        stateName,
+        x: worldX,
+        y: worldY,
+        width,
+        height,
+        centerX: worldX + width / 2,
+        centerY: worldY + height / 2
+      });
+    });
+
+    return boundingBoxes;
+  }
+
+  /**
+   * Checks if two bounding boxes intersect
+   */
+  private boundingBoxesIntersect(
+    box1: { x: number; y: number; width: number; height: number },
+    box2: { x: number; y: number; width: number; height: number }
+  ): boolean {
+    return !(
+      box1.x + box1.width <= box2.x ||   // box1 is left of box2
+      box2.x + box2.width <= box1.x ||   // box2 is left of box1
+      box1.y + box1.height <= box2.y ||  // box1 is above box2
+      box2.y + box2.height <= box1.y     // box2 is above box1
+    );
+  }
+
+  /**
+   * Checks if a given bounding box intersects with any other state's bounding box
+   * @param box The bounding box to check
+   * @param excludeStateName The state name to exclude from collision checks (the dragged state)
+   * @returns true if there's an intersection with any other state
+   */
+  private hasCollisionWithOtherStates(
+    box: { x: number; y: number; width: number; height: number },
+    excludeStateName: string
+  ): boolean {
+    const allBoxes = this.getAllStateBoundingBoxes();
+
+    for (const otherBox of allBoxes) {
+      if (otherBox.stateName === excludeStateName) continue;
+
+      if (this.boundingBoxesIntersect(box, otherBox)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Gets the nearest tangent direction based on collision with another box
+   * Returns the direction to push the dragged box away from collision
+   */
+  private getNearestTangentDirection(
+    draggedBox: { x: number; y: number; width: number; height: number; centerX: number; centerY: number },
+    excludeStateName: string
+  ): { dx: number; dy: number } | null {
+    const allBoxes = this.getAllStateBoundingBoxes();
+    let nearestCollision: { box: typeof allBoxes[0]; distance: number } | null = null;
+
+    // Find the nearest colliding box
+    for (const otherBox of allBoxes) {
+      if (otherBox.stateName === excludeStateName) continue;
+
+      if (this.boundingBoxesIntersect(draggedBox, otherBox)) {
+        const dx = draggedBox.centerX - otherBox.centerX;
+        const dy = draggedBox.centerY - otherBox.centerY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (!nearestCollision || distance < nearestCollision.distance) {
+          nearestCollision = { box: otherBox, distance };
+        }
+      }
+    }
+
+    if (!nearestCollision) return null;
+
+    // Calculate the direction from colliding box center to dragged box center
+    const dx = draggedBox.centerX - nearestCollision.box.centerX;
+    const dy = draggedBox.centerY - nearestCollision.box.centerY;
+    const magnitude = Math.sqrt(dx * dx + dy * dy);
+
+    if (magnitude === 0) {
+      // Boxes are perfectly overlapping, push right by default
+      return { dx: 1, dy: 0 };
+    }
+
+    // Normalize the direction
+    return {
+      dx: dx / magnitude,
+      dy: dy / magnitude
+    };
+  }
+
+  /**
+   * Resolves collision by finding a valid position for the dragged state.
+   * Algorithm:
+   * 1. Check nearest tangent direction with 0.5x bounding box offset
+   * 2. If collision, try diagonal and two cardinal directions nearest to tangent
+   * 3. Retry with 1x bounding box offset
+   * 4. Retry with 2x bounding box offset
+   * 5. If all fail, return to original position
+   *
+   * @param currentPosition The current position after drag
+   * @param boxWidth Width of the bounding box
+   * @param boxHeight Height of the bounding box
+   * @param stateName Name of the state being dragged
+   * @param originalPosition The position before drag started
+   * @returns The resolved position { x, y } as translate coordinates
+   */
+  private resolveCollision(
+    currentPosition: { x: number; y: number },
+    boxWidth: number,
+    boxHeight: number,
+    stateName: string,
+    originalPosition: { x: number; y: number }
+  ): { x: number; y: number } {
+    // Calculate the bounding box at current position
+    const halfWidth = boxWidth / 2;
+    const halfHeight = boxHeight / 2;
+
+    const currentBox = {
+      x: currentPosition.x - halfWidth,
+      y: currentPosition.y - halfHeight,
+      width: boxWidth,
+      height: boxHeight,
+      centerX: currentPosition.x,
+      centerY: currentPosition.y
+    };
+
+    // Check if there's a collision at current position
+    if (!this.hasCollisionWithOtherStates(currentBox, stateName)) {
+      return currentPosition; // No collision, keep current position
+    }
+
+    // Get the tangent direction away from collision
+    const tangent = this.getNearestTangentDirection(currentBox, stateName);
+    if (!tangent) {
+      return originalPosition; // Shouldn't happen, but fallback
+    }
+
+    // Define multipliers to try: 0.5x, 1x, 2x bounding box size
+    const multipliers = [0.5, 1, 2];
+    const boxSize = Math.max(boxWidth, boxHeight);
+
+    // Define direction variations to try for each multiplier
+    // Primary tangent, then diagonal variations, then cardinals nearest to tangent
+    const getDirectionsToTry = (dx: number, dy: number): { dx: number; dy: number }[] => {
+      const directions: { dx: number; dy: number }[] = [];
+
+      // Primary tangent direction (normalized)
+      directions.push({ dx, dy });
+
+      // Determine dominant axis and create variations
+      const absDx = Math.abs(dx);
+      const absDy = Math.abs(dy);
+
+      // Diagonal variations (45 degrees from tangent)
+      const angle = Math.atan2(dy, dx);
+      const diag1Angle = angle + Math.PI / 4;
+      const diag2Angle = angle - Math.PI / 4;
+
+      directions.push({
+        dx: Math.cos(diag1Angle),
+        dy: Math.sin(diag1Angle)
+      });
+      directions.push({
+        dx: Math.cos(diag2Angle),
+        dy: Math.sin(diag2Angle)
+      });
+
+      // Cardinal directions nearest to tangent
+      if (absDx >= absDy) {
+        // Horizontal dominant - try horizontal then vertical
+        directions.push({ dx: dx > 0 ? 1 : -1, dy: 0 });
+        directions.push({ dx: 0, dy: dy > 0 ? 1 : -1 });
+      } else {
+        // Vertical dominant - try vertical then horizontal
+        directions.push({ dx: 0, dy: dy > 0 ? 1 : -1 });
+        directions.push({ dx: dx > 0 ? 1 : -1, dy: 0 });
+      }
+
+      return directions;
+    };
+
+    const directionsToTry = getDirectionsToTry(tangent.dx, tangent.dy);
+
+    // Try each multiplier
+    for (const multiplier of multipliers) {
+      const offset = boxSize * multiplier;
+
+      // Try each direction
+      for (const direction of directionsToTry) {
+        const testPosition = {
+          x: currentPosition.x + direction.dx * offset,
+          y: currentPosition.y + direction.dy * offset
+        };
+
+        const testBox = {
+          x: testPosition.x - halfWidth,
+          y: testPosition.y - halfHeight,
+          width: boxWidth,
+          height: boxHeight
+        };
+
+        if (!this.hasCollisionWithOtherStates(testBox, stateName)) {
+          return testPosition; // Found a valid position
+        }
+      }
+    }
+
+    // All attempts failed, return to original position
+    return originalPosition;
+  }
+
   // --- Retrieval Functions for getting related objects : Slots, Connectors, Overlay Componenets ---
 
   /**
@@ -805,6 +1062,13 @@ export class CircleStateLayer extends D3ModelLayer {
       this.interactionStateService.setInteractionState('state-drag');
       group.raise().attr('stroke', 'black');
 
+      // Store the original position for collision resolution rollback
+      const currentGroupTransform = group.attr("transform") || "translate(0,0)";
+      const matchGroup = currentGroupTransform.match(/translate\(([-\d.]+),\s*([-\d.]+)\)/);
+      const groupX = matchGroup ? parseFloat(matchGroup[1]) : 0;
+      const groupY = matchGroup ? parseFloat(matchGroup[2]) : 0;
+      this.originalStatePosition = { x: groupX, y: groupY };
+
       const stateName = group.attr('state-name') || datapoint.stateName || 'unknown';
       this.hideConnectorsForState(stateName);
     }
@@ -950,9 +1214,33 @@ export class CircleStateLayer extends D3ModelLayer {
 
     if (interactionState === 'state-drag') {
       const draggedGroupElement = this.currentGroupElement;
-      if (draggedGroupElement) {
+      if (draggedGroupElement && this.originalStatePosition) {
         const group = d3.select(draggedGroupElement);
         const stateName = group.attr('state-name') || 'unknown';
+
+        // Get current position after drag
+        const currentTransform = group.attr("transform") || "translate(0,0)";
+        const matchCurrent = currentTransform.match(/translate\(([-\d.]+),\s*([-\d.]+)\)/);
+        const currentX = matchCurrent ? parseFloat(matchCurrent[1]) : 0;
+        const currentY = matchCurrent ? parseFloat(matchCurrent[2]) : 0;
+
+        // Get bounding box dimensions
+        const boundingRect = group.select('rect.bounding-box');
+        const boxWidth = parseFloat(boundingRect.attr('width') || '0');
+        const boxHeight = parseFloat(boundingRect.attr('height') || '0');
+
+        // Resolve any collisions
+        const resolvedPosition = this.resolveCollision(
+          { x: currentX, y: currentY },
+          boxWidth,
+          boxHeight,
+          stateName,
+          this.originalStatePosition
+        );
+
+        // Apply the resolved position
+        group.attr('transform', `translate(${resolvedPosition.x}, ${resolvedPosition.y})`);
+
         this.showAndUpdateConnectorsForState(stateName, draggedGroupElement);
       }
     }
@@ -968,6 +1256,7 @@ export class CircleStateLayer extends D3ModelLayer {
     this.currentGroupElement = null;
     this.currentDragTargetDataPoint = null;
     this.originalSlotPosition = null;
+    this.originalStatePosition = null;
     this.currentDragStateRadius = 0;
   }
 

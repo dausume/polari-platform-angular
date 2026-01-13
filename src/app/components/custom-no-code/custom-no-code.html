@@ -5,7 +5,23 @@
 
     <div class="canvas-wrapper">
       <div class="canvas-toolbar">
-        <span class="toolbar-title">{{ noCodeSolution.solutionName || 'No-Code Solution' }}</span>
+        <div class="toolbar-left">
+          <span class="toolbar-title">{{ noCodeSolution?.solutionName || 'No-Code Solution' }}</span>
+        </div>
+        <div class="solution-selector">
+          <label for="solution-select">Solution:</label>
+          <select
+            id="solution-select"
+            (change)="onSolutionChange($any($event.target).value)">
+            <option
+              *ngFor="let solution of availableSolutions"
+              [value]="solution.name"
+              [selected]="solution.name === selectedSolutionName">
+              {{ solution.name }}
+            </option>
+          </select>
+          <button class="reset-btn" (click)="resetToDefaults()" title="Reset to default solutions">Reset Data</button>
+        </div>
         <div class="zoom-controls">
           <button (click)="zoomOut()" title="Zoom Out">-</button>
           <span class="zoom-level">{{ zoomPercent }}%</span>

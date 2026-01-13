@@ -170,4 +170,17 @@ export class NoCodeStateRendererManager {
     });
   }
 
+  /**
+   * Clear all No-Code-Solutions from the State Renderer Manager.
+   * Used when switching between solutions to ensure clean state.
+   */
+  clearSolutions(): void {
+    // Destroy each solution to clean up subscriptions
+    this.NoCodeSolutionsMap.forEach((solution) => {
+      solution.destroy();
+    });
+    this.NoCodeSolutionsMap.clear();
+    this.renderingNoCodeSolution.next(undefined);
+  }
+
 }

@@ -88,11 +88,14 @@ export abstract class D3ModelLayer
     console.log("Update D3 Svg Base Layer on D3ModelLayer : ", this.d3SvgBaseLayer);
   }
 
-  // Layer names are set only automatically using a combination of the shape type, the no-code-solution name, 
+  // Layer names are set only automatically using a combination of the shape type, the no-code-solution name,
   // and the name of the svg element used if any.
+  // Solution names are sanitized to remove spaces and special characters that would break CSS selectors.
   setLayerName()
   {
-    this.layerName = this.noCodeSolution?.solutionName + '-' + this.shapeType + '-' + this.iconSvgName;
+    const sanitizedSolutionName = this.noCodeSolution?.solutionName?.replace(/[^a-zA-Z0-9-_]/g, '-') || 'unknown';
+    const sanitizedIconName = this.iconSvgName?.replace(/[^a-zA-Z0-9-_]/g, '-') || 'default';
+    this.layerName = sanitizedSolutionName + '-' + this.shapeType + '-' + sanitizedIconName;
   }
 
 }

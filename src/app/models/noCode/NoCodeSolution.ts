@@ -44,6 +44,10 @@ export class NoCodeSolution {
         solutionName: string, stateInstances: NoCodeState[]=[],
         id?: number)
     {
+        console.log('[NoCodeSolution] Constructor called for:', solutionName);
+        console.log('[NoCodeSolution] Received stateInstances count:', stateInstances.length);
+        console.log('[NoCodeSolution] State names:', stateInstances.map(s => s.stateName));
+
         this.xBounds = xBounds;
         this.yBounds = yBounds;
         this.solutionName = solutionName;
@@ -51,26 +55,32 @@ export class NoCodeSolution {
         this.id = id;
         // If no states are provided, generate initial states
         this.stateInstances = stateInstances.length ? stateInstances : this.generateInitialStates();
+        console.log('[NoCodeSolution] Final stateInstances count:', this.stateInstances.length);
         // Subscribe to the BehaviorSubject for the d3SvgBaseLayer in the renderer manager
         // Rendering will be triggered when the base layer becomes available
         this.subscribeToBaseLayer();
     }
 
+    // Sanitize solution name for use in CSS class selectors
+    private getSanitizedSolutionName(): string {
+        return this.solutionName?.replace(/[^a-zA-Z0-9-_]/g, '-') || 'unknown';
+    }
+
     private getSolutionLayer(): d3.Selection<SVGGElement, unknown, null, undefined> | undefined {
         if(this.d3SvgBaseLayer) {
-            return this.d3SvgBaseLayer.select(`g.solution-layer-${this.solutionName}`);
+            return this.d3SvgBaseLayer.select(`g.solution-layer-${this.getSanitizedSolutionName()}`);
         }
         return undefined;
     }
 
-    // Create the `g.solution-layer-${this.noCodeSolution?.solutionName}` svg layer
+    // Create the `g.solution-layer-${sanitizedSolutionName}` svg layer
     // and add it to the base layer.
     private createSolutionLayer(): void {
         // Create the solution layer
         if(this.d3SvgBaseLayer)
         {
             this.d3SvgBaseLayer.append('g')
-                .attr('class', `solution-layer-${this.solutionName}`)
+                .attr('class', `solution-layer-${this.getSanitizedSolutionName()}`)
         }
     }
 
