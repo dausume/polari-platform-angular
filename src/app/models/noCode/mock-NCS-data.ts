@@ -44,6 +44,7 @@ export interface ConnectorRawData {
   id: number;
   sourceSlot: number;
   sinkSlot: number;
+  targetStateName?: string; // The state name that contains the sink slot
 }
 
 /**

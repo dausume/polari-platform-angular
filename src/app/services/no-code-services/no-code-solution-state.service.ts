@@ -199,7 +199,16 @@ export class NoCodeSolutionStateService {
    * Convert raw slot data to Slot instance
    */
   private convertRawSlotToSlot(raw: SlotRawData): Slot {
-    const connectors = raw.connectors?.map(c => new Connector(c.id, c.sourceSlot, c.sinkSlot)) || [];
+    console.log('[StateService] convertRawSlotToSlot - raw:', raw);
+    console.log('[StateService] convertRawSlotToSlot - raw.connectors:', raw.connectors);
+
+    const connectors = raw.connectors?.map(c => {
+      console.log('[StateService] Converting connector:', c);
+      return new Connector(c.id, c.sourceSlot, c.sinkSlot, c.targetStateName);
+    }) || [];
+
+    console.log('[StateService] convertRawSlotToSlot - converted connectors:', connectors);
+
     return new Slot(
       raw.index,
       raw.stateName,
@@ -243,6 +252,15 @@ export class NoCodeSolutionStateService {
     const selectedData = this.selectedSolutionDataSubject.value;
     console.log('[StateService] getSelectedSolutionStateInstances - selectedData:', selectedData?.solutionName);
     console.log('[StateService] Raw stateInstances count:', selectedData?.stateInstances?.length);
+
+    // Debug: Log raw slot connectors
+    selectedData?.stateInstances?.forEach(state => {
+      console.log('[StateService] Raw state:', state.stateName, 'slots:', state.slots?.length);
+      state.slots?.forEach(slot => {
+        console.log('[StateService] Raw slot:', slot.index, 'connectors:', slot.connectors);
+      });
+    });
+
     if (!selectedData) {
       console.log('[StateService] No selected data, returning empty array');
       return [];
@@ -250,6 +268,15 @@ export class NoCodeSolutionStateService {
     const converted = selectedData.stateInstances.map(raw => this.convertRawStateToNoCodeState(raw));
     console.log('[StateService] Converted stateInstances count:', converted.length);
     console.log('[StateService] Converted state names:', converted.map(s => s.stateName));
+
+    // Debug: Log converted slot connectors
+    converted.forEach(state => {
+      console.log('[StateService] Converted state:', state.stateName, 'slots:', state.slots?.length);
+      state.slots?.forEach(slot => {
+        console.log('[StateService] Converted slot:', slot.index, 'connectors:', slot.connectors);
+      });
+    });
+
     return converted;
   }
 
@@ -320,6 +347,169 @@ export class NoCodeSolutionStateService {
     }
 
     this.saveToLocalStorage();
+  }
+
+  /**
+   * Update a single state's position (called after drag ends)
+   */
+  updateStatePosition(solutionName: string, stateName: string, x: number, y: number): void {
+    const solution = this.solutionsCache.get(solutionName);
+    if (!solution) return;
+
+    const state = solution.stateInstances.find(s => s.stateName === stateName);
+    if (state) {
+      state.stateLocationX = x;
+      state.stateLocationY = y;
+      this.solutionsCache.set(solutionName, solution);
+      this.saveToLocalStorage();
+    }
+  }
+
+  /**
+   * Update a slot's angular position (called after slot drag ends)
+   */
+  updateSlotAngularPosition(solutionName: string, stateName: string, slotIndex: number, angularPosition: number): void {
+    const solution = this.solutionsCache.get(solutionName);
+    if (!solution) return;
+
+    const state = solution.stateInstances.find(s => s.stateName === stateName);
+    if (state && state.slots) {
+      const slot = state.slots.find(s => s.index === slotIndex);
+      if (slot) {
+        slot.slotAngularPosition = angularPosition;
+        this.solutionsCache.set(solutionName, solution);
+        this.saveToLocalStorage();
+      }
+    }
+  }
+
+  /**
+   * Update multiple slot angular positions at once (batch update)
+   */
+  updateSlotAngularPositions(solutionName: string, updates: { stateName: string; slotIndex: number; angularPosition: number }[]): void {
+    const solution = this.solutionsCache.get(solutionName);
+    if (!solution) return;
+
+    updates.forEach(update => {
+      const state = solution.stateInstances.find(s => s.stateName === update.stateName);
+      if (state && state.slots) {
+        const slot = state.slots.find(s => s.index === update.slotIndex);
+        if (slot) {
+          slot.slotAngularPosition = update.angularPosition;
+        }
+      }
+    });
+
+    this.solutionsCache.set(solutionName, solution);
+    this.saveToLocalStorage();
+  }
+
+  /**
+   * Add a connector between two slots
+   * Returns the connector ID if successful, null otherwise
+   */
+  addConnector(
+    solutionName: string,
+    sourceStateName: string,
+    sourceSlotIndex: number,
+    targetStateName: string,
+    targetSlotIndex: number
+  ): number | null {
+    console.log('[StateService] addConnector called:', {
+      solutionName,
+      sourceStateName,
+      sourceSlotIndex,
+      targetStateName,
+      targetSlotIndex
+    });
+
+    const solution = this.solutionsCache.get(solutionName);
+    if (!solution) {
+      console.log('[StateService] addConnector - solution not found');
+      return null;
+    }
+
+    const sourceState = solution.stateInstances.find(s => s.stateName === sourceStateName);
+    console.log('[StateService] addConnector - sourceState:', sourceState?.stateName);
+
+    if (sourceState && sourceState.slots) {
+      const sourceSlot = sourceState.slots.find(s => s.index === sourceSlotIndex);
+      console.log('[StateService] addConnector - sourceSlot:', sourceSlot);
+
+      if (sourceSlot) {
+        // Generate a unique connector ID
+        const connectorId = Date.now();
+        sourceSlot.connectors.push({
+          id: connectorId,
+          sourceSlot: sourceSlotIndex,
+          sinkSlot: targetSlotIndex,
+          targetStateName: targetStateName
+        });
+        console.log('[StateService] addConnector - connector added:', sourceSlot.connectors);
+        this.solutionsCache.set(solutionName, solution);
+        this.saveToLocalStorage();
+        console.log('[StateService] addConnector - saved to localStorage');
+        return connectorId;
+      }
+    }
+    console.log('[StateService] addConnector - failed to add connector');
+    return null;
+  }
+
+  /**
+   * Remove a connector from a slot
+   */
+  removeConnector(solutionName: string, stateName: string, slotIndex: number, connectorId: number): void {
+    const solution = this.solutionsCache.get(solutionName);
+    if (!solution) return;
+
+    const state = solution.stateInstances.find(s => s.stateName === stateName);
+    if (state && state.slots) {
+      const slot = state.slots.find(s => s.index === slotIndex);
+      if (slot) {
+        slot.connectors = slot.connectors.filter(c => c.id !== connectorId);
+        this.solutionsCache.set(solutionName, solution);
+        this.saveToLocalStorage();
+      }
+    }
+  }
+
+  /**
+   * Get all connectors for a solution (for recreating layout)
+   */
+  getSolutionConnectors(solutionName: string): {
+    sourceStateName: string;
+    sourceSlotIndex: number;
+    targetStateName: string;
+    targetSlotIndex: number;
+    connectorId: number;
+  }[] {
+    const solution = this.solutionsCache.get(solutionName);
+    if (!solution) return [];
+
+    const connectors: {
+      sourceStateName: string;
+      sourceSlotIndex: number;
+      targetStateName: string;
+      targetSlotIndex: number;
+      connectorId: number;
+    }[] = [];
+
+    solution.stateInstances.forEach(state => {
+      state.slots?.forEach(slot => {
+        slot.connectors.forEach(connector => {
+          connectors.push({
+            sourceStateName: state.stateName,
+            sourceSlotIndex: slot.index,
+            targetStateName: connector.targetStateName || '',
+            targetSlotIndex: connector.sinkSlot,
+            connectorId: connector.id
+          });
+        });
+      });
+    });
+
+    return connectors;
   }
 
   /**

@@ -256,15 +256,18 @@ export class NoCodeSolution {
         console.log("Loading all No-Code States: ", this.stateInstances);
         this.stateInstances.forEach((state: NoCodeState) => {
             console.log("Loading No-Code State : ", state);
-            this.loadNewNoCodeState(state, this);
+            this.loadNewNoCodeState(state, this, false); // Don't render after each state
         });
+        // Render once after ALL states are loaded
+        console.log("All states loaded, rendering solution once...");
+        this.renderSolution();
     }
 
     // We need to figure out a way to access a app-level service from the model defintion here (rendererManager)
-    loadNewNoCodeState(newState: NoCodeState, noCodeSolution: NoCodeSolution) {
+    loadNewNoCodeState(newState: NoCodeState, noCodeSolution: NoCodeSolution, renderAfterLoad: boolean = true) {
         console.log("Inside Load New No-Code State");
         console.log("No-Code State : ", newState);
-        
+
             // Check if the D3ModelLayer exists within the No-Code Solution object.
             let existingRenderLayer = noCodeSolution.renderLayers.get(newState.shapeType || '');
             console.log("Existing Render Layer : ", existingRenderLayer);
@@ -285,8 +288,10 @@ export class NoCodeSolution {
                 existingRenderLayer.addNoCodeState(newState);
             }
 
-            // Render after having finished loading the new no-code-state object.
-            this.renderSolution();
+            // Only render if explicitly requested (for adding single states dynamically)
+            if (renderAfterLoad) {
+                this.renderSolution();
+            }
     }
 
 

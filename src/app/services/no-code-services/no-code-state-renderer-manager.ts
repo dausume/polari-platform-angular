@@ -8,6 +8,7 @@ import { CircleStateLayer } from '@models/noCode/d3-extensions/CircleStateLayer'
 // Import the NoCodeState object which is used to define the state of the No-Code Solution.
 import { NoCodeState } from '@models/noCode/NoCodeState';
 import { NoCodeSolution } from '@models/noCode/NoCodeSolution';
+import { NoCodeSolutionStateService } from './no-code-solution-state.service';
 //
 import * as d3 from 'd3';
 
@@ -32,10 +33,18 @@ import * as d3 from 'd3';
 export class NoCodeStateRendererManager {
   constructor(
     private appRef: ApplicationRef,
-    private injector: Injector
-  ) 
+    private injector: Injector,
+    private solutionStateService: NoCodeSolutionStateService
+  )
   {
     //this.defineDefaultLayers();
+  }
+
+  /**
+   * Get the solution state service for persisting changes
+   */
+  getSolutionStateService(): NoCodeSolutionStateService {
+    return this.solutionStateService;
   }
 
   // Observable is used to store all service-level state information for the No-Code State Renderer Manager

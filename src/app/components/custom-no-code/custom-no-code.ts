@@ -121,31 +121,37 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
    * Load and render the currently selected solution from the state service
    */
   private loadSelectedSolution(): void {
+    console.log('[loadSelectedSolution] ========== STARTING ==========');
+
     // Get state instances from the state service
     this.stateInstances = this.solutionStateService.getSelectedSolutionStateInstances();
     const solutionData = this.solutionStateService.getSelectedSolutionData();
 
-    console.log('[DEBUG] loadSelectedSolution called');
-    console.log('[DEBUG] solutionData:', solutionData);
-    console.log('[DEBUG] stateInstances count:', this.stateInstances.length);
-    console.log('[DEBUG] stateInstances:', this.stateInstances.map(s => s.stateName));
+    console.log('[loadSelectedSolution] solutionData:', solutionData?.solutionName);
+    console.log('[loadSelectedSolution] stateInstances count:', this.stateInstances.length);
+    console.log('[loadSelectedSolution] stateInstances:', this.stateInstances.map(s => s.stateName));
 
     if (!solutionData) {
-      console.warn('No solution data available');
+      console.warn('[loadSelectedSolution] No solution data available - aborting');
       return;
     }
 
     // Clear the existing SVG content (except the zoom container itself)
+    console.log('[loadSelectedSolution] Clearing zoom container...');
+    console.log('[loadSelectedSolution] zoomContainer before clear:', this.zoomContainer?.node());
+    console.log('[loadSelectedSolution] zoomContainer children before clear:', this.zoomContainer?.selectAll('*').size());
+
     if (this.zoomContainer) {
-      console.log('[DEBUG] Clearing zoom container');
       this.zoomContainer.selectAll('*').remove();
     }
 
+    console.log('[loadSelectedSolution] zoomContainer children after clear:', this.zoomContainer?.selectAll('*').size());
+
     // Clear the renderer manager's solution cache
-    console.log('[DEBUG] Clearing solutions from renderer manager');
+    console.log('[loadSelectedSolution] Clearing solutions from renderer manager...');
     this.noCodeStateRendererManager.clearSolutions();
 
-    console.log('[DEBUG] Creating new NoCodeSolution with', this.stateInstances.length, 'states');
+    console.log('[loadSelectedSolution] Creating new NoCodeSolution:', solutionData.solutionName);
     // Create new NoCodeSolution with state instances from the service
     this.noCodeSolution = new NoCodeSolution(
       this.noCodeStateRendererManager,
@@ -156,14 +162,22 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
       this.stateInstances
     );
 
-    console.log('[DEBUG] NoCodeSolution created, stateInstances:', this.noCodeSolution.stateInstances.length);
+    console.log('[loadSelectedSolution] NoCodeSolution created');
+    console.log('[loadSelectedSolution] noCodeSolution.stateInstances:', this.noCodeSolution.stateInstances.length);
 
     // Register the solution with the renderer manager
+    console.log('[loadSelectedSolution] Registering solution with renderer manager...');
     this.noCodeStateRendererManager.addNoCodeSolution(this.noCodeSolution);
+
+    // Verify SVG content was created
+    console.log('[loadSelectedSolution] zoomContainer children after creation:', this.zoomContainer?.selectAll('*').size());
+    console.log('[loadSelectedSolution] state-group elements in DOM:', this.zoomContainer?.selectAll('g.state-group').size());
 
     // Reset zoom to default view
     this.resetZoom();
     this.changeDetectorRef.markForCheck();
+
+    console.log('[loadSelectedSolution] ========== COMPLETE ==========');
   }
 
   /**
@@ -276,9 +290,53 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
     this.zoomContainer = this.d3GraphRenderingSVG.append('g')
       .classed('zoom-container', true);
 
-    // Set up zoom behavior
+    // Set up zoom behavior with filter to exclude state group interactions
     this.zoomBehavior = d3.zoom<SVGSVGElement, unknown>()
       .scaleExtent([this.minZoom, this.maxZoom])
+      .filter((event: any) => {
+        console.log('[ZoomFilter] Event received:', event.type, 'target:', event.target);
+
+        // If there's already an active interaction (state-drag, slot-drag, connector-drag), block zoom
+        const currentState = this.interactionStateManager.getCurrentState();
+        if (currentState && currentState !== 'none') {
+          console.log('[ZoomFilter] Blocking zoom - active interaction:', currentState);
+          return false;
+        }
+
+        // Get the target element
+        const target = event.target as Element;
+        if (!target) {
+          console.log('[ZoomFilter] No target, allowing zoom');
+          return true; // Allow if no target (shouldn't happen)
+        }
+
+        // Don't allow zoom/pan if clicking on state group elements
+        // This prevents the zoom behavior from interfering with state/slot dragging
+        const stateGroup = target.closest('g.state-group');
+        if (stateGroup) {
+          console.log('[ZoomFilter] Blocking zoom - clicked on state group:', stateGroup.getAttribute('state-name'));
+          return false;
+        }
+
+        // Also check for specific draggable elements (in case closest doesn't find them)
+        const targetClassList = target.classList;
+        if (targetClassList?.contains('draggable-shape') ||
+            targetClassList?.contains('slot-marker') ||
+            targetClassList?.contains('slot-path') ||
+            targetClassList?.contains('bounding-box') ||
+            targetClassList?.contains('overlay-component') ||
+            targetClassList?.contains('permanent-connector') ||
+            targetClassList?.contains('tentative-connector')) {
+          console.log('[ZoomFilter] Blocking zoom - clicked on draggable element:', target.className);
+          return false;
+        }
+
+        // Allow default zoom behavior for other elements (background, etc.)
+        // Also respect the default filter (no zoom on ctrl+wheel for scrolling, no middle button)
+        const allowZoom = !event.ctrlKey && event.button === 0;
+        console.log('[ZoomFilter] Allowing zoom:', allowZoom);
+        return allowZoom;
+      })
       .on('zoom', (event: d3.D3ZoomEvent<SVGSVGElement, unknown>) => {
         this.onZoom(event);
       });

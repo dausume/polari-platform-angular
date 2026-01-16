@@ -201,6 +201,44 @@
   /* This group will receive the zoom transform */
 }
 
+/* Ensure state groups and their children receive pointer events */
+#d3-graph svg .state-group {
+  pointer-events: all;
+  cursor: move;
+}
+
+#d3-graph svg .state-group .draggable-shape {
+  pointer-events: all;
+  cursor: move;
+}
+
+#d3-graph svg .state-group .slot-marker {
+  pointer-events: all;
+  cursor: pointer;
+}
+
+#d3-graph svg .state-group .slot-path {
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+#d3-graph svg .state-group .bounding-box {
+  pointer-events: all;
+}
+
+#d3-graph svg .state-group .overlay-component {
+  pointer-events: all;
+}
+
+/* Connector layer should not block events on elements below */
+#d3-graph svg .connector-layer {
+  pointer-events: none;
+}
+
+#d3-graph svg .connector-layer path {
+  pointer-events: none;
+}
+
 /* Canvas info overlay */
 .canvas-info {
   position: absolute;
