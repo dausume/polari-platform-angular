@@ -22,6 +22,7 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatDialogModule } from '@angular/material/dialog';
+import { MatListModule } from '@angular/material/list';
 //NgRx
 import { StoreModule } from '@ngrx/store';
 import { EffectsModule } from '@ngrx/effects';
@@ -73,9 +74,12 @@ import { DictViewComponent } from '@components/templateClassTable/type-cells/dic
 import { ManagerInfoComponent } from '@components/manager-info/manager-info';
 // Typing Info Component
 import { TypingInfoComponent } from '@components/typing-info/typing-info';
+// Certificate Trust Component
+import { CertificateTrustPromptComponent } from '@components/certificate-trust-prompt/certificate-trust-prompt';
 //Services (Backend Access)
 import { PolariService } from '@services/polari-service';
 import { CRUDEservicesManager } from '@services/crude-services-manager';
+import { CertificateTrustService } from '@services/certificate-trust.service';
 //
 import { MatIconRegistry } from "@angular/material/icon";
 import { DomSanitizer } from "@angular/platform-browser";
@@ -119,7 +123,8 @@ import { InteractionStateService } from '@services/no-code-services/interaction-
     ListViewComponent,
     DictViewComponent,
     ManagerInfoComponent,
-    TypingInfoComponent
+    TypingInfoComponent,
+    CertificateTrustPromptComponent
   ],
   imports: [
     BrowserModule,
@@ -145,6 +150,7 @@ import { InteractionStateService } from '@services/no-code-services/interaction-
     MatProgressSpinnerModule,
     MatChipsModule,
     MatDialogModule,
+    MatListModule,
     // NgRx
     StoreModule.forRoot(rootReducers),
     EffectsModule.forRoot([PolariEffects, DynamicObjectsEffects]),
@@ -159,6 +165,7 @@ import { InteractionStateService } from '@services/no-code-services/interaction-
   providers: [
     PolariService,
     CRUDEservicesManager,
+    CertificateTrustService,
     OverlayContainer,
     OverlayComponentService,
     InteractionStateService

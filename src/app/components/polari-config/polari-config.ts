@@ -3,6 +3,7 @@ import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { polariNode } from '@models/polariNode';
 import { PolariService } from '@services/polari-service';
+import { RuntimeConfigService } from '@services/runtime-config.service';
 import { BehaviorSubject, interval, Observable, Observer, Subscription } from 'rxjs';
 import { environment } from 'src/environments/environment-dev';
 
@@ -12,7 +13,7 @@ import { environment } from 'src/environments/environment-dev';
   templateUrl: 'polari-config.html',
   styleUrls: ['./polari-config.css']
 })
-export class PolariConfigComponent {
+export class PolariConfigComponent implements OnInit, OnDestroy {
   //Get elements in DOM of Component by Id (made optional using ? because cannot be initialized normally)
   @ViewChild("connectionCheckbox",{ static: true})
   checkboxElemRef?: ElementRef
@@ -21,17 +22,30 @@ export class PolariConfigComponent {
     connectionCheckbox: new FormControl('', [Validators.required])
   });
 
-  ipNumFormControl = new FormControl('', [Validators.required, Validators.pattern(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/)]);
-  portNumFormControl = new FormControl('', [Validators.required, Validators.pattern(/^\d{4}$/)]);
+  // Updated pattern to allow hostnames, IPs, and localhost
+  ipNumFormControl = new FormControl('', [
+    Validators.required,
+    Validators.pattern(/^(localhost|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|[a-zA-Z0-9][-a-zA-Z0-9]*(\.[a-zA-Z0-9][-a-zA-Z0-9]*)*)$/)
+  ]);
+  portNumFormControl = new FormControl('', [Validators.required, Validators.pattern(/^\d{2,5}$/)]);
 
   polariConnection = false;
   polariConnectionPending = false;
   polariConnectionFailure = false;
-  ipNum: string = environment.backendUrl || '';
-  portNum: string  = environment.backendPort || '';
+  ipNum: string = '';
+  portNum: string = '';
   labelPosition: 'before' | 'after' = 'after';
   connectionCheckboxdisabled = true;
   connectionData: any;
+
+  // Security: Check if backend changes are allowed
+  backendChangeAllowed: boolean = true;
+  runtimeConfigEnabled: boolean = true;
+
+  // Protocol selection
+  useHttps: boolean = false;
+  httpsAvailable: boolean = true;
+
   //Component inputs from Parent Component (Always App Component in this case)
   polariAccessNode: polariNode
 
@@ -42,49 +56,78 @@ export class PolariConfigComponent {
   //Sets how long there is between every refresh of values from the polariService (3 seconds = 3000)
   refreshPolariConnectionVals = interval(5000)
 
-  constructor(private ActivatedRoute : ActivatedRoute, public polariService: PolariService) {
+  // Subscriptions for cleanup
+  private subscriptions: Subscription[] = [];
+
+  constructor(
+    private ActivatedRoute: ActivatedRoute,
+    public polariService: PolariService,
+    private runtimeConfig: RuntimeConfigService
+  ) {
+    // Initialize with current values from service (not empty!)
+    this.ipNum = this.polariService.userEntry_ipv4NumSubject.value || environment.backendUrl || 'localhost';
+    this.portNum = this.polariService.userEntry_portNumSubject.value || environment.backendPort || '3000';
+
     this.polariAccessNode = {
-      "ip":"",
-      "port":"",
+      "ip": this.ipNum,
+      "port": this.portNum,
       "crudeAPIs":[],
       "polariAPIs":[]
     }
     this.connectionData = [];
-      //
-      this.ipNum = ""
-      this.portNum = ""
-      /*
-      this.polariService.connectionSuccessSubject.subscribe(connectionVal=>{
-        console.log("isConnected Value: ");
-        console.log(connectionVal);
-        this.polariConnection = connectionVal;
-      },
-      err =>{
-        console.log("encountered error in refresh for isConnected.")
-        console.log(err)
-      })
-      .unsubscribe()
-      */
+
+    // Check security settings
+    this.backendChangeAllowed = this.runtimeConfig.isBackendChangeAllowed();
+    this.runtimeConfigEnabled = this.runtimeConfig.isRuntimeConfigEnabled();
+    this.httpsAvailable = this.runtimeConfig.isHttpsEnabled();
+    this.useHttps = this.runtimeConfig.useHttps$.value;
   }
 
   ngOnInit(): void {
-    // Initialize form controls with values from the service
+    // Initialize form controls with current values from the service
     this.ipNum = this.polariService.userEntry_ipv4NumSubject.value;
     this.portNum = this.polariService.userEntry_portNumSubject.value;
+    this.useHttps = this.runtimeConfig.useHttps$.value;
 
     this.ipNumFormControl.setValue(this.ipNum);
     this.portNumFormControl.setValue(this.portNum);
 
-    // Subscribe to BehaviorSubjects to keep form controls updated
-    this.polariService.userEntry_ipv4NumSubject.subscribe(value => {
-      this.ipNum = value;
-      this.ipNumFormControl.setValue(this.ipNum);
-    });
+    // If backend changes are not allowed, disable the form controls
+    if (!this.backendChangeAllowed) {
+      this.ipNumFormControl.disable();
+      this.portNumFormControl.disable();
+      console.log('[PolariConfig] Backend changes are disabled by security settings');
+    }
 
-    this.polariService.userEntry_portNumSubject.subscribe(value => {
-      this.portNum = value;
-      this.portNumFormControl.setValue(this.portNum);
-    });
+    // Subscribe to BehaviorSubjects to keep form controls updated
+    this.subscriptions.push(
+      this.polariService.userEntry_ipv4NumSubject.subscribe(value => {
+        if (value) {
+          this.ipNum = value;
+          this.ipNumFormControl.setValue(this.ipNum);
+        }
+      })
+    );
+
+    this.subscriptions.push(
+      this.polariService.userEntry_portNumSubject.subscribe(value => {
+        if (value) {
+          this.portNum = value;
+          this.portNumFormControl.setValue(this.portNum);
+        }
+      })
+    );
+
+    this.subscriptions.push(
+      this.runtimeConfig.useHttps$.subscribe(value => {
+        this.useHttps = value;
+      })
+    );
+  }
+
+  ngOnDestroy(): void {
+    // Clean up subscriptions
+    this.subscriptions.forEach(sub => sub.unsubscribe());
   }
 
   disconnectFromPolari(){
@@ -110,10 +153,45 @@ export class PolariConfigComponent {
 
   attemptPolariConnection()
   {
-    this.polariService.userEntry_ipv4NumSubject.next(this.ipNum);
-    this.polariService.userEntry_portNumSubject.next(this.portNum);
+    // Security check: Verify backend changes are allowed before connecting to new endpoint
+    if (!this.backendChangeAllowed) {
+      console.warn('[PolariConfig] Backend changes are disabled - using configured backend');
+      // Still allow connection attempt, but use the configured values
+      this.polariService.establishPolariConnection();
+      return;
+    }
+
+    // Update the backend connection through RuntimeConfigService
+    const success = this.runtimeConfig.updateBackendConnection(
+      this.ipNum,
+      this.portNum,
+      this.useHttps ? 'https' : 'http'
+    );
+
+    if (success) {
+      this.polariService.userEntry_ipv4NumSubject.next(this.ipNum);
+      this.polariService.userEntry_portNumSubject.next(this.portNum);
+    }
+
     //Triggers the attempt to connect to the Polari Node with the set polariService values.
-    this.polariService.establishPolariConnection()
-    //console.log("connecting to " + this.ipNum + "/" + this.portNum + " to detect if Polari Server Node exists at the endpoint.");
+    this.polariService.establishPolariConnection();
+  }
+
+  /**
+   * Toggle between HTTP and HTTPS protocols.
+   */
+  toggleHttps(): void {
+    if (!this.httpsAvailable) {
+      return;
+    }
+    this.useHttps = !this.useHttps;
+    this.runtimeConfig.switchToHttps(this.useHttps);
+  }
+
+  /**
+   * Check if the connection form should be read-only.
+   */
+  isReadOnly(): boolean {
+    return !this.backendChangeAllowed || !this.runtimeConfigEnabled;
   }
 }

@@ -1,0 +1,48 @@
+{
+  "_comment": "TIER 2: Startup-time configuration - Override build-time defaults here",
+  "_documentation": "This file is loaded when the Angular app starts. Changes take effect on page refresh.",
+
+  "backend": {
+    "http": {
+      "protocol": "http",
+      "url": "localhost",
+      "port": "3000"
+    },
+    "https": {
+      "protocol": "https",
+      "url": "localhost",
+      "port": "2096"
+    },
+    "preferHttps": false
+  },
+
+  "frontend": {
+    "http": {
+      "protocol": "http",
+      "url": "localhost",
+      "port": "4201"
+    },
+    "https": {
+      "protocol": "https",
+      "url": "localhost",
+      "port": "2087"
+    }
+  },
+
+  "connection": {
+    "retryInterval": 3000,
+    "maxRetryTime": 60000,
+    "timeout": 30000
+  },
+
+  "features": {
+    "enableHttps": true,
+    "enableRuntimeConfig": true,
+    "allowBackendChange": true
+  },
+
+  "_security_notes": {
+    "allowBackendChange": "Set to false in production to prevent users from redirecting the app to a rogue backend. This is a security feature to prevent MITM attacks.",
+    "enableRuntimeConfig": "Set to false to completely disable all runtime configuration changes."
+  }
+}

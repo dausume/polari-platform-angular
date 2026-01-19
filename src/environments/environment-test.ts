@@ -1,16 +1,70 @@
-// This is the default environment file, replace this with whatever you want, add any environment variables
-// that your heart desires for your specific implementation here.
-// To use an environment variable anywhere in the app just import this environment variable,
-// then do 
+// ==============================================================================
+// TEST ENVIRONMENT CONFIGURATION
+// ==============================================================================
+// This file is used for automated testing (unit tests, integration tests).
+// Configured to work with mock backends or isolated test servers.
+//
+// ENVIRONMENT VARIABLE TIERS:
+// ---------------------------
+// Tier 1 (Build-time):    This file - Used for test builds
+// Tier 2 (Startup-time):  runtime-config.json - Loaded at app startup
+// Tier 3 (Runtime):       PolariService BehaviorSubjects - Change via UI while running
+// ==============================================================================
+
 export const environment = {
-    environmentDisplayName: 'Developer Mode', // The environment name you would want displayed in the App itself.
-    environmentTypeName: 'dev', // The name expected to be typed into the console for docker-compose
-                                // if explicitly defining you want to use this environment
-    production: false, // This environment is defined in a way so that it can handle real-world data
-                       // and operate at whatever scale is appropriate for your scenario.
-    test: false, // This environment will be used for testing the app, and will be defined in a way that
-    // ensures appropriate test data exists and that test reports are generated.
-    dev: true, // This environment is defined in a way you would want it to be while doing development of the app.
-    backendUrl: 'localhost', // Defines the URL of the primary backend server (a python polari-framework server)
-    backendPort: '3000' // Defines the port (if any) of the primary backend server (a python polari-framework server)
+    // Environment identification
+    environmentDisplayName: 'Test Mode',
+    environmentTypeName: 'test',
+    production: false,
+    test: true,
+    dev: false,
+    default: false,
+
+    // Backend configuration - test environment defaults
+    backend: {
+        http: {
+            protocol: 'http',
+            url: 'localhost',
+            port: '3001'  // Different port for test backend
+        },
+        https: {
+            protocol: 'https',
+            url: 'localhost',
+            port: '2097'  // Different HTTPS port for test
+        },
+        preferHttps: false
+    },
+
+    // Frontend configuration
+    frontend: {
+        http: {
+            protocol: 'http',
+            url: 'localhost',
+            port: '4201'  // Different port for test frontend
+        },
+        https: {
+            protocol: 'https',
+            url: 'localhost',
+            port: '2088'
+        }
+    },
+
+    // Connection settings - faster timeouts for tests
+    connection: {
+        retryInterval: 500,       // Faster retries for tests
+        maxRetryTime: 5000,       // Shorter max retry time
+        timeout: 5000             // Shorter timeout
+    },
+
+    // Feature flags and security settings
+    features: {
+        enableHttps: false,        // Disable HTTPS in tests by default
+        enableRuntimeConfig: true,
+        allowBackendChange: true   // Allow backend changes in test mode
+    },
+
+    // Legacy compatibility
+    protocol: 'http',
+    backendUrl: 'localhost',
+    backendPort: '3001'
 }; 

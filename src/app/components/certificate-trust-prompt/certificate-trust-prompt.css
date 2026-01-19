@@ -1,0 +1,99 @@
+.certificate-trust-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.certificate-trust-card {
+  max-width: 600px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.certificate-trust-card mat-card-header {
+  margin-bottom: 16px;
+}
+
+.warning-icon {
+  background-color: #ff9800;
+  color: white;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+
+.explanation {
+  color: rgba(0, 0, 0, 0.7);
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+h3 {
+  font-size: 16px;
+  font-weight: 500;
+  margin: 16px 0 8px;
+  color: rgba(0, 0, 0, 0.87);
+}
+
+mat-list {
+  margin-bottom: 16px;
+}
+
+mat-list-item {
+  height: auto;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+mat-list-item:last-child {
+  border-bottom: none;
+}
+
+.error-icon {
+  color: #f44336;
+}
+
+.endpoint-url {
+  font-family: monospace;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.6);
+  margin-top: 4px;
+}
+
+mat-list-item button {
+  margin-left: auto;
+}
+
+.instructions {
+  padding-left: 20px;
+  margin: 8px 0 16px;
+}
+
+.instructions li {
+  margin-bottom: 8px;
+  color: rgba(0, 0, 0, 0.7);
+  line-height: 1.4;
+}
+
+mat-card-actions {
+  padding: 16px;
+  gap: 8px;
+}
+
+mat-card-actions button mat-icon {
+  margin-right: 8px;
+}

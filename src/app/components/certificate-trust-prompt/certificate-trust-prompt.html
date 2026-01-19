@@ -1,0 +1,43 @@
+<div *ngIf="showPrompt" class="certificate-trust-overlay">
+  <mat-card class="certificate-trust-card">
+    <mat-card-header>
+      <mat-icon mat-card-avatar class="warning-icon">warning</mat-icon>
+      <mat-card-title>Certificate Trust Required</mat-card-title>
+      <mat-card-subtitle>
+        Your browser doesn't trust some security certificates needed for this application
+      </mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content>
+      <p class="explanation">
+        This application uses self-signed certificates for secure communication in development.
+        Your browser needs to trust these certificates before the app can connect to its services.
+      </p>
+
+      <h3>Untrusted Services</h3>
+      <mat-list>
+        <mat-list-item *ngFor="let endpoint of untrustedEndpoints">
+          <mat-icon matListItemIcon class="error-icon">lock_open</mat-icon>
+          <div matListItemTitle>{{ endpoint.name }}</div>
+          <div matListItemLine class="endpoint-url">{{ endpoint.url }}</div>
+          <button mat-stroked-button color="primary" (click)="openEndpoint(endpoint.url)">
+            Open & Trust
+          </button>
+        </mat-list-item>
+      </mat-list>
+
+      <h3>How to Trust Certificates</h3>
+      <ol class="instructions">
+        <li *ngFor="let instruction of instructions">{{ instruction }}</li>
+      </ol>
+    </mat-card-content>
+
+    <mat-card-actions align="end">
+      <button mat-button (click)="dismiss()">Dismiss</button>
+      <button mat-raised-button color="primary" (click)="refresh()">
+        <mat-icon>refresh</mat-icon>
+        I've Trusted All - Refresh
+      </button>
+    </mat-card-actions>
+  </mat-card>
+</div>

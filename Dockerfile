@@ -34,8 +34,15 @@ RUN ng build --configuration=development
 # ALSO: Make certain your app uses --host 0.0.0.0 to expose it externally
 # Mapping externally on the virtual network allows docker-compose or -p mapping
 # to expose the port on the host, otherwise it will be unavailable
-EXPOSE 4200
 
-# Use ng serve for development with hot-reload support
-# For production, consider using nginx to serve the built files
-CMD ["ng", "serve", "--host", "0.0.0.0", "--port", "4200"]
+# Expose HTTP and HTTPS ports
+# HTTP: 4200, HTTPS: 2087 (Cloudflare-compatible)
+EXPOSE 4200
+EXPOSE 2087
+
+# Make entrypoint executable
+RUN chmod +x /project/entrypoint.sh
+
+# Use entrypoint script for dual HTTP/HTTPS support
+# Falls back to HTTP-only if SSL certificates are not available
+CMD ["/project/entrypoint.sh"]

@@ -1,20 +1,24 @@
 // polari-service.ts
+// ==============================================================================
+// POLARI SERVICE - Main API Connection Service
+// ==============================================================================
+// Uses tiered configuration:
+// - Tier 1 (Build-time): environment files
+// - Tier 2 (Startup-time): RuntimeConfigService (runtime-config.json)
+// - Tier 3 (Runtime): BehaviorSubjects that can be changed via UI
+// ==============================================================================
+
 import { Injectable, EventEmitter, ErrorHandler } from "@angular/core";
 import { HttpClient, HttpHeaders } from '@angular/common/http'
 import { polariNode } from "@models/polariNode";
-import { BehaviorSubject, timer, Subject, throwError, of } from "rxjs";
+import { BehaviorSubject, timer, Subject, throwError, of, Subscription } from "rxjs";
 import { catchError, delayWhen, retryWhen, switchMap, tap, retry, takeUntil } from 'rxjs/operators';
 import { navComponent } from "@models/navComponent";
 import { classPolyTyping } from "@models/polyTyping/classPolyTyping";
 import { dataSetCollection } from "@models/objectData/dataSetCollection";
 import { CRUDEclassService } from "./crude-class-service";
+import { RuntimeConfigService } from "./runtime-config.service";
 import { environment } from "src/environments/environment-dev";
-
-const connectionRetryInterval = 3000; // milliseconds between connection retry attempts
-const maxConnectionRetryLimit = 10000; // 60,000 milliseconds or 1 minute should be the maximum time we attempt retries.
-
-// Used to generate timers that can be used per instance of a connection attempt.
-const stopRetriesTimer = timer(maxConnectionRetryLimit);
 
 @Injectable({
     providedIn: 'root'
@@ -30,9 +34,9 @@ export class PolariService {
         //Implement functionality to narrow this down to only the backend url.
         'Access-Control-Allow-Origin' : '*'
     }
-      
-    backendRequestOptions = {                                                                                                                                                                                 
-        headers: new HttpHeaders(this.backendHeadersDict), 
+
+    backendRequestOptions = {
+        headers: new HttpHeaders(this.backendHeadersDict),
     };
 
     polariAccessNodeSubject = new BehaviorSubject<polariNode>(
@@ -46,9 +50,18 @@ export class PolariService {
     connectionPendingSubject = new BehaviorSubject<boolean>(false);
     connectionSuccessSubject = new BehaviorSubject<boolean>(false);
     connectionFailureSubject = new BehaviorSubject<boolean>(false);
-    //User Input values for changing the connection to a new IP/Port combination.
+
+    // Tier 3: Runtime-configurable connection settings
+    // These can be changed via UI while the app is running
+    userEntry_protocolSubject = new BehaviorSubject<string>('http');
     userEntry_ipv4NumSubject = new BehaviorSubject<string>(environment.backendUrl);
     userEntry_portNumSubject = new BehaviorSubject<string>(environment.backendPort);
+    userEntry_useHttpsSubject = new BehaviorSubject<boolean>(false);
+
+    // Connection retry settings (Tier 3 - runtime configurable)
+    connectionRetryInterval$ = new BehaviorSubject<number>(3000);
+    maxConnectionRetryLimit$ = new BehaviorSubject<number>(60000);
+
     //
     navComponents = new BehaviorSubject<navComponent[]>([
         new navComponent("Home","","HomeComponent", {}, []),
@@ -82,30 +95,152 @@ export class PolariService {
     env: any;
     // List of all class-specific services dynamically generated.
     private classServices: { [className: string]: any } = {};
+    // Subscription for config changes
+    private configSubscriptions: Subscription[] = [];
 
-    constructor(private http: HttpClient)
-    {
-        console.log("Starting PolariService")
+    constructor(
+        private http: HttpClient,
+        private runtimeConfig: RuntimeConfigService
+    ) {
+        console.log("Starting PolariService with tiered configuration");
         this.http = http;
-        if(environment.backendUrl && environment.backendPort)
-        {
-            this.polariAccessNodeSubject.next({
-                "ip":environment.backendUrl,
-                "port":environment.backendPort,
-                "crudeAPIs":[],
-                "polariAPIs":[]
-            });
-            this.userEntry_ipv4NumSubject.next(environment.backendUrl);
-            this.userEntry_portNumSubject.next(environment.backendPort);
-        }
-      //Triggers the attempt to connect to the Polari Node with the set polariService values.
-      this.establishPolariConnection()
+
+        // Subscribe to Tier 2/3 configuration from RuntimeConfigService
+        this.subscribeToConfigChanges();
+
+        // Initialize with current config values
+        this.initializeFromConfig();
+
+        // Triggers the attempt to connect to the Polari Node with the set polariService values.
+        this.establishPolariConnection();
+    }
+
+    /**
+     * Subscribe to runtime configuration changes (Tier 3).
+     */
+    private subscribeToConfigChanges(): void {
+        // Subscribe to protocol changes
+        this.configSubscriptions.push(
+            this.runtimeConfig.backendProtocol$.subscribe(protocol => {
+                this.userEntry_protocolSubject.next(protocol);
+            })
+        );
+
+        // Subscribe to URL changes
+        this.configSubscriptions.push(
+            this.runtimeConfig.backendUrl$.subscribe(url => {
+                this.userEntry_ipv4NumSubject.next(url);
+            })
+        );
+
+        // Subscribe to port changes
+        this.configSubscriptions.push(
+            this.runtimeConfig.backendPort$.subscribe(port => {
+                this.userEntry_portNumSubject.next(port);
+            })
+        );
+
+        // Subscribe to HTTPS toggle
+        this.configSubscriptions.push(
+            this.runtimeConfig.useHttps$.subscribe(useHttps => {
+                this.userEntry_useHttpsSubject.next(useHttps);
+            })
+        );
+
+        // Subscribe to retry interval changes
+        this.configSubscriptions.push(
+            this.runtimeConfig.retryInterval$.subscribe(interval => {
+                this.connectionRetryInterval$.next(interval);
+            })
+        );
+
+        // Subscribe to max retry time changes
+        this.configSubscriptions.push(
+            this.runtimeConfig.maxRetryTime$.subscribe(maxTime => {
+                this.maxConnectionRetryLimit$.next(maxTime);
+            })
+        );
+    }
+
+    /**
+     * Initialize service from current configuration.
+     */
+    private initializeFromConfig(): void {
+        const url = this.runtimeConfig.backendUrl$.value;
+        const port = this.runtimeConfig.backendPort$.value;
+
+        this.polariAccessNodeSubject.next({
+            "ip": url,
+            "port": port,
+            "crudeAPIs": [],
+            "polariAPIs": []
+        });
+
+        console.log(`[PolariService] Initialized with backend: ${this.getBackendBaseUrl()}`);
+    }
+
+    /**
+     * Get the current backend base URL using tiered configuration.
+     */
+    getBackendBaseUrl(): string {
+        return this.runtimeConfig.getBackendBaseUrl();
+    }
+
+    /**
+     * Get HTTP-specific backend URL.
+     */
+    getHttpBackendUrl(): string {
+        return this.runtimeConfig.getHttpBackendUrl();
+    }
+
+    /**
+     * Get HTTPS-specific backend URL.
+     */
+    getHttpsBackendUrl(): string {
+        return this.runtimeConfig.getHttpsBackendUrl();
+    }
+
+    /**
+     * Switch between HTTP and HTTPS connections at runtime (Tier 3).
+     */
+    switchToHttps(useHttps: boolean): void {
+        this.runtimeConfig.switchToHttps(useHttps);
+    }
+
+    /**
+     * Update backend connection at runtime (Tier 3).
+     */
+    updateBackendConnection(url: string, port: string, protocol?: string): void {
+        this.runtimeConfig.updateBackendConnection(url, port, protocol);
+
+        // Update polari access node
+        this.polariAccessNodeSubject.next({
+            "ip": url,
+            "port": port,
+            "crudeAPIs": this.polariAccessNodeSubject.value.crudeAPIs,
+            "polariAPIs": this.polariAccessNodeSubject.value.polariAPIs
+        });
+    }
+
+    /**
+     * Check if HTTPS option is available.
+     */
+    isHttpsAvailable(): boolean {
+        return this.runtimeConfig.isHttpsEnabled();
+    }
+
+    /**
+     * Check if runtime configuration is enabled.
+     */
+    isRuntimeConfigEnabled(): boolean {
+        return this.runtimeConfig.isRuntimeConfigEnabled();
     }
     
     //Sets the baseline connection with the Polari Server and retrieves all necessary APIs and Typing data for creating
     //or enabling any components that require data from the server.
     establishPolariConnection(){
-        console.log("Starting Polari Connection in Polari Service with url: " + 'http://' + this.userEntry_ipv4NumSubject.value + ':' + this.userEntry_portNumSubject.value)
+        const baseUrl = this.getBackendBaseUrl();
+        console.log("Starting Polari Connection in Polari Service with url: " + baseUrl);
         this.connectionPendingSubject.next(true);
         this.connectionSuccessSubject.next(false);
         this.connectionFailureSubject.next(false);
@@ -158,8 +293,12 @@ export class PolariService {
     // since converting them into a usable format requires both and variables are dependent on the objects.
     getObjectTyping()
     {
+        const retryInterval = this.connectionRetryInterval$.value;
+        const maxRetryLimit = this.maxConnectionRetryLimit$.value;
+        const stopRetriesTimer = timer(maxRetryLimit);
+
         this.http
-        .get<any>('http://' + this.userEntry_ipv4NumSubject.value + ':' + this.userEntry_portNumSubject.value + '/polyTypedObject', this.backendRequestOptions)
+        .get<any>(this.getBackendBaseUrl() + '/polyTypedObject', this.backendRequestOptions)
         .pipe(
             retryWhen(errors => errors.pipe(
                 tap(err => {
@@ -169,7 +308,7 @@ export class PolariService {
                     //tempSwitchBoard["polyTypedObject"] = false;
                     //this.classDataRetrievedSwitchboard.next(tempSwitchBoard);
                 }),
-                delayWhen(() => timer(connectionRetryInterval)),  // Delay for 3 seconds before retrying
+                delayWhen(() => timer(retryInterval)),  // Delay before retrying
                 tap(() => console.log("Retrying getObjectTyping...")),
                 takeUntil(stopRetriesTimer) // Stop retrying after 1 minute
             )),
@@ -215,17 +354,21 @@ export class PolariService {
     // the building of the frontend interfaces.
     getTypingVars()
     {
+        const retryInterval = this.connectionRetryInterval$.value;
+        const maxRetryLimit = this.maxConnectionRetryLimit$.value;
+        const stopRetriesTimer = timer(maxRetryLimit);
+
         this.http
-        .get<any>('http://' + this.userEntry_ipv4NumSubject.value + ':' + this.userEntry_portNumSubject.value + '/polyTypedVariable', this.backendRequestOptions)
+        .get<any>(this.getBackendBaseUrl() + '/polyTypedVariable', this.backendRequestOptions)
         .pipe(
             retryWhen(errors => errors.pipe(
                 tap(err => {
                     console.log("-- Error getting Typing Variables --");
                     console.log(err);
                 }),
-                delayWhen(() => timer(connectionRetryInterval)),  // Delay for 3 seconds before retrying
+                delayWhen(() => timer(retryInterval)),  // Delay before retrying
                 tap(() => console.log("Retrying getTypingVars...")),
-                takeUntil(stopRetriesTimer) // Stop retrying after 1 minute
+                takeUntil(stopRetriesTimer) // Stop retrying
             )),
             catchError(error => {
                 console.error("Retries exhausted:", error);
@@ -269,17 +412,21 @@ export class PolariService {
     // Gets the general data on the server so we know if we need to connect to multiple backends for the app use-case.
     getServerData()
     {
+        const retryInterval = this.connectionRetryInterval$.value;
+        const maxRetryLimit = this.maxConnectionRetryLimit$.value;
+        const stopRetriesTimer = timer(maxRetryLimit);
+
         this.http
-        .get<any>('http://' + this.userEntry_ipv4NumSubject.value + ':' + this.userEntry_portNumSubject.value + '/polariServer', this.backendRequestOptions)
+        .get<any>(this.getBackendBaseUrl() + '/polariServer', this.backendRequestOptions)
         .pipe(
             retryWhen(errors => errors.pipe(
                 tap(err => {
                     console.log("-- Error getting server data--");
                     console.log(err);
                 }),
-                delayWhen(() => timer(connectionRetryInterval)),  // Delay for 3 seconds before retrying
+                delayWhen(() => timer(retryInterval)),  // Delay before retrying
                 tap(() => console.log("Retrying getServerData...")),
-                takeUntil(stopRetriesTimer) // Stop retrying after 1 minute
+                takeUntil(stopRetriesTimer) // Stop retrying
             )),
             catchError(error => {
                 console.error("Retries exhausted:", error);
@@ -318,19 +465,21 @@ export class PolariService {
     // Gets all existing api endpoints on the polari api endpoint. (Custom APIs - Not class-based)
     getServerAPIendpoints()
     {
-        let stopRetriesTimer = timer(maxConnectionRetryLimit); // define a localized retries timer for this connection attempt.
+        const retryInterval = this.connectionRetryInterval$.value;
+        const maxRetryLimit = this.maxConnectionRetryLimit$.value;
+        const stopRetriesTimer = timer(maxRetryLimit);
+
         this.http
-        .get<any>('http://' + this.userEntry_ipv4NumSubject.value + ':' + this.userEntry_portNumSubject.value + '/polariAPI', this.backendRequestOptions)
+        .get<any>(this.getBackendBaseUrl() + '/polariAPI', this.backendRequestOptions)
         .pipe(
             retryWhen(errors => errors.pipe(
                 tap(err => {
                     console.log("--Threw Error--");
                     console.log(err);
-                    console.log("Time retrying: ", stopRetriesTimer);
                 }),
-                delayWhen(() => timer(connectionRetryInterval)),  // Delay for 3 seconds before retrying
-                tap(() => console.log("Retrying getServerData...")),
-                takeUntil(stopRetriesTimer) // Stop retrying after 1 minute
+                delayWhen(() => timer(retryInterval)),  // Delay before retrying
+                tap(() => console.log("Retrying getServerAPIendpoints...")),
+                takeUntil(stopRetriesTimer) // Stop retrying
             )),
             catchError(error => {
                 console.error("Retries exhausted:", error);
@@ -369,19 +518,21 @@ export class PolariService {
     // Gets all existing CRUDE (Create, Read, Update, Delete, Event endpoints)
     getServerCRUDEendpoints()
     {
-        let stopRetriesTimer = timer(maxConnectionRetryLimit); // define a localized retries timer for this connection attempt.
+        const retryInterval = this.connectionRetryInterval$.value;
+        const maxRetryLimit = this.maxConnectionRetryLimit$.value;
+        const stopRetriesTimer = timer(maxRetryLimit);
+
         this.http
-        .get<any>('http://' + this.userEntry_ipv4NumSubject.value + ':' + this.userEntry_portNumSubject.value + '/polariCRUDE', this.backendRequestOptions)
+        .get<any>(this.getBackendBaseUrl() + '/polariCRUDE', this.backendRequestOptions)
         .pipe(
             retryWhen(errors => errors.pipe(
                 tap(err => {
                     console.log("--Threw Error--");
                     console.log(err);
-                    console.log("Time retrying: ", stopRetriesTimer);
                 }),
-                delayWhen(() => timer(connectionRetryInterval)),  // Delay for 3 seconds before retrying
-                tap(() => console.log("Retrying polariCRUDE...")),
-                takeUntil(stopRetriesTimer) // Stop retrying after 1 minute
+                delayWhen(() => timer(retryInterval)),  // Delay before retrying
+                tap(() => console.log("Retrying getServerCRUDEendpoints...")),
+                takeUntil(stopRetriesTimer) // Stop retrying
             )),
             catchError(error => {
                 console.error("Retries exhausted:", error);
