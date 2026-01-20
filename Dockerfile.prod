@@ -1,0 +1,42 @@
+# ==============================================================================
+# PRF Frontend - Production Dockerfile
+# ==============================================================================
+# Multi-stage build: Node.js builds Angular, nginx serves static files
+# Note: Uses Angular 13 which outputs directly to dist/<project> (no /browser)
+# ==============================================================================
+
+# Stage 1: Build the Angular application
+FROM node:18.13-alpine AS builder
+
+WORKDIR /project
+
+# Install Angular CLI globally (matching existing version)
+RUN npm install -g @angular/cli@13.3.0
+
+# Copy package files first for better layer caching
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci
+
+# Copy source code
+COPY . .
+
+# Build for production
+RUN ng build --configuration=production
+
+# Stage 2: Serve with nginx (tiny footprint)
+FROM nginx:alpine
+
+# Copy custom nginx config for SPA routing
+COPY nginx.conf /etc/nginx/nginx.conf
+
+# Copy built assets from builder stage
+# Angular 13 outputs directly to dist/<project> (no /browser subdirectory)
+COPY --from=builder /project/dist/polari-platform /usr/share/nginx/html
+
+# Expose port 4200 to match existing proxy config
+EXPOSE 4200
+
+# Run nginx in foreground
+CMD ["nginx", "-g", "daemon off;"]
