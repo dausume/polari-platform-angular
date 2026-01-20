@@ -180,7 +180,9 @@ export class RuntimeConfigService {
      */
     private applyStartupConfig(config: RuntimeConfig): void {
         // Determine which protocol to use
-        const useHttps = config.backend?.preferHttps ?? false;
+        // IMPORTANT: If page is served over HTTPS, we MUST use HTTPS for backend
+        // requests, otherwise the browser will block them as mixed content
+        const useHttps = this.isServedOverHttps || (config.backend?.preferHttps ?? false);
         this.useHttps$.next(useHttps);
 
         const endpoint = useHttps ? config.backend?.https : config.backend?.http;
@@ -202,7 +204,9 @@ export class RuntimeConfigService {
      * Apply Tier 1 (build-time) defaults when no Tier 2 config exists.
      */
     private applyBuildTimeDefaults(): void {
-        const useHttps = environment.backend?.preferHttps ?? false;
+        // IMPORTANT: If page is served over HTTPS, we MUST use HTTPS for backend
+        // requests, otherwise the browser will block them as mixed content
+        const useHttps = this.isServedOverHttps || (environment.backend?.preferHttps ?? false);
         this.useHttps$.next(useHttps);
 
         const endpoint = useHttps ? environment.backend?.https : environment.backend?.http;
@@ -233,10 +237,18 @@ export class RuntimeConfigService {
     /**
      * Switch between HTTP and HTTPS backend connections.
      * Respects security settings - always allowed as it only switches protocol.
+     * NOTE: Cannot switch to HTTP when page is served over HTTPS (mixed content blocked).
      */
     switchToHttps(useHttps: boolean): void {
         if (!this.isRuntimeConfigEnabled()) {
             console.warn('[RuntimeConfig] Runtime configuration is disabled');
+            return;
+        }
+
+        // Prevent switching to HTTP when page is served over HTTPS
+        // Browsers block HTTP requests from HTTPS pages (mixed content)
+        if (!useHttps && this.isServedOverHttps) {
+            console.warn('[RuntimeConfig] Cannot switch to HTTP: page is served over HTTPS (mixed content would be blocked)');
             return;
         }
 
@@ -269,6 +281,12 @@ export class RuntimeConfigService {
 
         if (!this.isRuntimeConfigEnabled()) {
             console.warn('[RuntimeConfig] Runtime configuration is disabled');
+            return false;
+        }
+
+        // Prevent switching to HTTP when page is served over HTTPS
+        if (protocol === 'http' && this.isServedOverHttps) {
+            console.warn('[RuntimeConfig] Cannot use HTTP: page is served over HTTPS (mixed content would be blocked)');
             return false;
         }
 
@@ -365,6 +383,14 @@ export class RuntimeConfigService {
     isHttpsEnabled(): boolean {
         return this.startupConfig?.features?.enableHttps ??
                environment.features?.enableHttps ?? true;
+    }
+
+    /**
+     * Check if HTTP backend is available (not blocked by mixed content).
+     * Returns false when page is served over HTTPS, as browsers block HTTP requests.
+     */
+    isHttpAvailable(): boolean {
+        return !this.isServedOverHttps;
     }
 
     /**

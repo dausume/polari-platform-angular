@@ -27,12 +27,11 @@ export class PolariService {
 
     //Subjects allow for the Parent Component and any number of child components to subscribe to the variables
     //as Observers to read and modify them.
+    // NOTE: Do NOT include Access-Control-* headers here - those are RESPONSE headers
+    // that only the server should send. Including them causes CORS preflight failures.
     backendHeadersDict = {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        //Implement functionality to narrow this down to only the backend url.
-        'Access-Control-Allow-Origin' : '*'
+        'Accept': 'application/json'
     }
 
     backendRequestOptions = {
@@ -66,7 +65,6 @@ export class PolariService {
     navComponents = new BehaviorSubject<navComponent[]>([
         new navComponent("Home","","HomeComponent", {}, []),
         new navComponent("Polari Configuration","polari-config","PolariConfigComponent", {}, []),
-        new navComponent("Template Class Test","template-class-test","templateClassTestComponent", {}, []),
         new navComponent("Create Class","create-class","CreateNewClassComponent", {}, [])
     ]);
     //Actual Recieved Data From base of Polari Server

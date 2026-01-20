@@ -22,16 +22,38 @@ export class ClassTypingService {
     polyTyping : object = {};
     //Holds the polyTypedVariables for the given class.
     polyVarTyping : object = {};
-    //
-    navComponents : navComponent[] = [
+
+    // Static navigation items (always shown)
+    staticNavComponents : navComponent[] = [
         new navComponent("Home","","HomeComponent", {}, []),
         new navComponent("Polari Configuration","polari-config","PolariConfigComponent", {}, []),
-        new navComponent("Template Class Test","template-class-test","templateClassTestComponent", {}, []),
         new navComponent("Create Class","create-class","CreateNewClassComponent", {}, []),
         new navComponent("Custom No-Code","custom-no-code","CustomNoCodeComponent", {}, [])
     ]
-    //
-    navComponentsBehaviorSubject = new BehaviorSubject<navComponent[]>(this.navComponents);
+
+    // Dynamic navigation items for object class pages WITH instances (shown in main dropdown)
+    dynamicClassNavComponents : navComponent[] = [];
+
+    // Dynamic navigation items for object class pages WITHOUT instances (shown in "Unused Objects" dropdown)
+    unusedClassNavComponents : navComponent[] = [];
+
+    // Classes with instances (from backend)
+    classesWithInstances: string[] = [];
+    // Classes without instances (from backend)
+    classesWithoutInstances: string[] = [];
+
+    // Combined nav components (for backwards compatibility)
+    navComponents : navComponent[] = [...this.staticNavComponents];
+
+    // BehaviorSubject for static nav items
+    navComponentsBehaviorSubject = new BehaviorSubject<navComponent[]>(this.staticNavComponents);
+
+    // BehaviorSubject for dynamic class pages WITH instances (for dropdown)
+    dynamicClassNavSubject = new BehaviorSubject<navComponent[]>(this.dynamicClassNavComponents);
+
+    // BehaviorSubject for unused class pages WITHOUT instances (for nested dropdown)
+    unusedClassNavSubject = new BehaviorSubject<navComponent[]>(this.unusedClassNavComponents);
+
     //Behaviorsubject that can be used by components to subscribe to and effectively use any typign data easily.
     polyTypingBehaviorSubject = new BehaviorSubject<any>(this.polyTyping);
 
@@ -40,7 +62,10 @@ export class ClassTypingService {
         this.http = http;
         this.polariService = polariService;
         this.polyTyping = {};
-        
+
+        // Fetch class instance counts to determine used vs unused classes
+        this.fetchClassInstanceCounts();
+
         //Subscribe to the data on polariService related to object typing.
         this.objTypingSubscription = this.polariService.polyTypedObjectsData
         .subscribe((typingObjList:classPolyTyping[])=>{
@@ -130,9 +155,30 @@ export class ClassTypingService {
                     }
                     this.polyTyping[typeObj.className] = new classPolyTyping(typeObj.className, this.polyVarTyping[typeObj.className], className) ;
                     this.polyTypingBehaviorSubject.next(this.polyVarTyping);
-                    //setup the navComponent for the new type
-                    let navComp : navComponent = new navComponent(className + " Main Page", "class-main-page/"+typeObj.className, "ClassMainPageComponent");
-                    //Add the nav component for the class
+
+                    // Setup the navComponent for the new type
+                    let navComp : navComponent = new navComponent(className, "class-main-page/"+typeObj.className, "ClassMainPageComponent");
+
+                    // Check if this class nav already exists in either list
+                    const existingInUsed = this.dynamicClassNavComponents.findIndex(nc => nc.path === navComp.path);
+                    const existingInUnused = this.unusedClassNavComponents.findIndex(nc => nc.path === navComp.path);
+
+                    if (existingInUsed === -1 && existingInUnused === -1) {
+                        // Categorize based on whether this class has instances
+                        if (this.classHasInstances(typeObj.className)) {
+                            this.dynamicClassNavComponents.push(navComp);
+                            this.dynamicClassNavComponents.sort((a, b) => a.title.localeCompare(b.title));
+                            this.dynamicClassNavSubject.next([...this.dynamicClassNavComponents]);
+                            console.log('[ClassTypingService] Added to USED nav for:', className);
+                        } else {
+                            this.unusedClassNavComponents.push(navComp);
+                            this.unusedClassNavComponents.sort((a, b) => a.title.localeCompare(b.title));
+                            this.unusedClassNavSubject.next([...this.unusedClassNavComponents]);
+                            console.log('[ClassTypingService] Added to UNUSED nav for:', className);
+                        }
+                    }
+
+                    // Also add to combined navComponents for backwards compatibility
                     this.navComponents.push(navComp);
                 }
             })
@@ -202,6 +248,91 @@ export class ClassTypingService {
         }
     }
 
+    /**
+     * Fetch class instance counts from the backend to determine which classes have instances.
+     * This is used to separate "Object Pages" (with instances) from "Unused Objects" (without instances).
+     */
+    fetchClassInstanceCounts() {
+        // Wait for polariService to establish connection before fetching
+        this.polariService.connectionSuccessSubject.subscribe(isConnected => {
+            if (isConnected) {
+                const url = this.polariService.getBackendBaseUrl() + '/classInstanceCounts';
+                console.log('[ClassTypingService] Fetching class instance counts from:', url);
+
+                this.http.get<any>(url, this.polariService.backendRequestOptions)
+                    .subscribe({
+                        next: (response: any) => {
+                            console.log('[ClassTypingService] Class instance counts response:', response);
+
+                            // Parse response - format: [{"classInstanceCounts": {...}}]
+                            let data: any = null;
+                            if (Array.isArray(response) && response.length > 0 && response[0].classInstanceCounts) {
+                                data = response[0].classInstanceCounts;
+                            } else if (response.classInstanceCounts) {
+                                data = response.classInstanceCounts;
+                            }
+
+                            if (data) {
+                                this.classesWithInstances = data.classesWithInstances || [];
+                                this.classesWithoutInstances = data.classesWithoutInstances || [];
+
+                                console.log('[ClassTypingService] Classes WITH instances:', this.classesWithInstances);
+                                console.log('[ClassTypingService] Classes WITHOUT instances:', this.classesWithoutInstances);
+
+                                // Re-categorize existing nav components based on new data
+                                this.recategorizeNavComponents();
+                            }
+                        },
+                        error: (err: any) => {
+                            console.error('[ClassTypingService] Error fetching class instance counts:', err);
+                        }
+                    });
+            }
+        });
+    }
+
+    /**
+     * Re-categorize nav components into "used" and "unused" based on instance counts.
+     */
+    recategorizeNavComponents() {
+        // Get all dynamic nav components
+        const allNavs = [...this.dynamicClassNavComponents, ...this.unusedClassNavComponents];
+
+        // Reset arrays
+        this.dynamicClassNavComponents = [];
+        this.unusedClassNavComponents = [];
+
+        allNavs.forEach(nav => {
+            // Extract class name from path (format: "class-main-page/className")
+            const pathParts = nav.path.split('/');
+            const className = pathParts.length > 1 ? pathParts[1] : '';
+
+            if (this.classesWithInstances.includes(className)) {
+                this.dynamicClassNavComponents.push(nav);
+            } else {
+                this.unusedClassNavComponents.push(nav);
+            }
+        });
+
+        // Sort both lists
+        this.dynamicClassNavComponents.sort((a, b) => a.title.localeCompare(b.title));
+        this.unusedClassNavComponents.sort((a, b) => a.title.localeCompare(b.title));
+
+        // Emit updates
+        this.dynamicClassNavSubject.next([...this.dynamicClassNavComponents]);
+        this.unusedClassNavSubject.next([...this.unusedClassNavComponents]);
+
+        console.log('[ClassTypingService] Recategorized - Used:', this.dynamicClassNavComponents.length,
+                    'Unused:', this.unusedClassNavComponents.length);
+    }
+
+    /**
+     * Check if a class has instances (is "used").
+     */
+    classHasInstances(className: string): boolean {
+        return this.classesWithInstances.includes(className);
+    }
+
     //Since this is a service we are only worried about constructor and ngOnDestroy.
     ngOnDestroy()
     {
@@ -216,5 +347,5 @@ export class ClassTypingService {
         }
     }
 
-    
+
 }

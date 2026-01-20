@@ -14,7 +14,7 @@ import { Subscription } from 'rxjs';
 export class ClassMainPageComponent implements OnDestroy {
 
   className? : string = "name";
-  classTypeData? : any;
+  classTypeData : any = {};  // Initialize to empty object to prevent undefined errors
   crudeService?: CRUDEclassService;
   private componentId: string = 'ClassMainPageComponent';
   private previousClassName?: string;
@@ -77,18 +77,25 @@ export class ClassMainPageComponent implements OnDestroy {
 
         this.typingService.polyTypingBehaviorSubject
           .subscribe(polyTyping => {
-            console.log("typing dict retrieved in class main page");
-            console.log(polyTyping);
+            console.log("[ClassMainPage] Typing dict update received");
+            console.log("[ClassMainPage] polyTyping keys:", Object.keys(polyTyping || {}));
+
             if(this.className != undefined) //Check if class name was defined
             {
-              // Retrieve the class typing data
-              this.classTypeData = polyTyping[this.className];
-              console.log("ClassTypeData on ClassMainPage for ", this.className);
-              console.log("ClassTypeData on ClassMainPage for ", polyTyping["completeVariableTypingData"]);
+              // Retrieve the class typing data - default to empty object if not found
+              const typingData = polyTyping[this.className];
+              if (typingData && Object.keys(typingData).length > 0) {
+                this.classTypeData = typingData;
+                console.log(`[ClassMainPage] Found typing data for ${this.className}:`, Object.keys(typingData));
+              } else {
+                // Keep as empty object, not undefined - will update when data arrives
+                this.classTypeData = this.classTypeData || {};
+                console.log(`[ClassMainPage] No typing data yet for ${this.className}, using empty object`);
+              }
             }
             else
             {
-              console.log("could not get typing info because class info was undefined.");
+              console.log("[ClassMainPage] Could not get typing info - className undefined");
             }
           }
         );

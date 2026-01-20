@@ -26,33 +26,39 @@ export class CRUDEclassService {
     }
 
     create(data: any): Observable<any> {
-        const url = `http://${this.polariService.userEntry_ipv4NumSubject.value}:${this.polariService.userEntry_portNumSubject.value}/${this.className}`;
+        const url = `${this.polariService.getBackendBaseUrl()}/${this.className}`;
+        console.log(`[CRUDEclassService] CREATE ${this.className} url: ${url}`);
         return this.http.post(url, data, this.polariService.backendRequestOptions);
       }
 
       read(id: string): Observable<any> {
-        const url = `http://${this.polariService.userEntry_ipv4NumSubject.value}:${this.polariService.userEntry_portNumSubject.value}/${this.className}/${id}`;
+        const url = `${this.polariService.getBackendBaseUrl()}/${this.className}/${id}`;
+        console.log(`[CRUDEclassService] READ ${this.className}/${id} url: ${url}`);
         return this.http.get(url, this.polariService.backendRequestOptions);
       }
 
       readAll(): Observable<any> {
-        const url = `http://${this.polariService.userEntry_ipv4NumSubject.value}:${this.polariService.userEntry_portNumSubject.value}/${this.className}`;
+        const url = `${this.polariService.getBackendBaseUrl()}/${this.className}`;
+        console.log(`[CRUDEclassService] READ_ALL ${this.className} url: ${url}`);
         return this.http.get(url, this.polariService.backendRequestOptions);
       }
 
       update(id: string, data: any): Observable<any> {
-        const url = `http://${this.polariService.userEntry_ipv4NumSubject.value}:${this.polariService.userEntry_portNumSubject.value}/${this.className}/${id}`;
+        const url = `${this.polariService.getBackendBaseUrl()}/${this.className}/${id}`;
+        console.log(`[CRUDEclassService] UPDATE ${this.className}/${id} url: ${url}`);
         return this.http.put(url, data, this.polariService.backendRequestOptions);
       }
 
       delete(id: string): Observable<any> {
-        const url = `http://${this.polariService.userEntry_ipv4NumSubject.value}:${this.polariService.userEntry_portNumSubject.value}/${this.className}/${id}`;
+        const url = `${this.polariService.getBackendBaseUrl()}/${this.className}/${id}`;
+        console.log(`[CRUDEclassService] DELETE ${this.className}/${id} url: ${url}`);
         return this.http.delete(url, this.polariService.backendRequestOptions);
       }
 
       subscribeToEvents(): Observable<any> {
         return new Observable((observer) => {
-          const url = `http://${this.polariService.userEntry_ipv4NumSubject.value}:${this.polariService.userEntry_portNumSubject.value}/${this.className}/events`;
+          const url = `${this.polariService.getBackendBaseUrl()}/${this.className}/events`;
+          console.log(`[CRUDEclassService] SUBSCRIBE_EVENTS ${this.className} url: ${url}`);
           const eventSource = new EventSource(url);
           eventSource.onmessage = (event) => observer.next(event.data);
           eventSource.onerror = (error) => observer.error(error);

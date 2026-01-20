@@ -2,7 +2,7 @@
 :root {
 
     --primary-hover-color: #4d4d6c;
-    --primary-color: #34344A;
+    --primary-color: #dde0f2;
 
     --nav-color: #424242;
 
@@ -12,6 +12,15 @@
     --accent-color-4: #35CE8D;
 
     --warn-color: #bb1f1f;
+
+    --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+/* Standardized card styling */
+mat-card {
+    background-color: #ffffff;
+    border-radius: 8px;
+    box-shadow: var(--card-shadow);
 }
 
 html, body { height: 100%; }

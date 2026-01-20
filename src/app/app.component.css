@@ -40,3 +40,67 @@ mat-sidenav-container {
   form {
       background-color: white;
   }
+
+  /* Object Pages Dropdown Styles */
+  .dropdown-header {
+    cursor: pointer;
+    background-color: rgba(0, 0, 0, 0.05);
+    border-radius: 4px;
+    margin-top: 8px;
+  }
+
+  .dropdown-header:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+  }
+
+  .dropdown-header mat-icon {
+    margin-right: 8px;
+  }
+
+  .dropdown-items {
+    max-height: 300px;
+    overflow-y: auto;
+    background-color: rgba(0, 0, 0, 0.02);
+    border-left: 3px solid var(--accent-color, #3f51b5);
+    margin-left: 8px;
+  }
+
+  .dropdown-item {
+    padding-left: 24px !important;
+    font-size: 0.9em;
+  }
+
+  .dropdown-item:hover {
+    background-color: rgba(0, 0, 0, 0.08);
+  }
+
+  .dropdown-item-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Unused Objects Dropdown Styles */
+  .unused-header {
+    background-color: rgba(128, 128, 128, 0.1);
+    color: #666;
+    font-style: italic;
+  }
+
+  .unused-header:hover {
+    background-color: rgba(128, 128, 128, 0.15);
+  }
+
+  .unused-items {
+    border-left-color: #999;
+    background-color: rgba(128, 128, 128, 0.05);
+  }
+
+  .unused-item {
+    color: #777;
+    opacity: 0.85;
+  }
+
+  .unused-item:hover {
+    background-color: rgba(128, 128, 128, 0.1);
+  }

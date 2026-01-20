@@ -34,6 +34,9 @@ export class ClassDataTableComponent implements OnInit, OnChanges {
   }
 
   ngOnChanges(changes: SimpleChanges) {
+    console.log('[ClassDataTable] ngOnChanges triggered');
+    console.log('[ClassDataTable] Changes:', Object.keys(changes));
+
     // Handle className changes - completely reinitialize
     if (changes.className && !changes.className.firstChange) {
       console.log('[ClassDataTable] ClassName changed from', changes.className.previousValue, 'to', changes.className.currentValue);
@@ -44,6 +47,16 @@ export class ClassDataTableComponent implements OnInit, OnChanges {
       this.dataSource.data = [];
     }
 
+    // Log instanceData changes specifically
+    if (changes.instanceData) {
+      console.log('[ClassDataTable] instanceData changed:');
+      console.log('[ClassDataTable]   - previousValue:', changes.instanceData.previousValue);
+      console.log('[ClassDataTable]   - currentValue:', changes.instanceData.currentValue);
+      console.log('[ClassDataTable]   - currentValue type:', typeof changes.instanceData.currentValue);
+      console.log('[ClassDataTable]   - currentValue isArray:', Array.isArray(changes.instanceData.currentValue));
+      console.log('[ClassDataTable]   - currentValue length:', changes.instanceData.currentValue?.length);
+    }
+
     // Reinitialize table when any input changes
     if (changes.classTypeData || changes.instanceData || changes.tableConfig || changes.className) {
       this.initializeTable();
@@ -51,6 +64,13 @@ export class ClassDataTableComponent implements OnInit, OnChanges {
   }
 
   initializeTable() {
+    console.log('[ClassDataTable] initializeTable() called');
+    console.log('[ClassDataTable] className:', this.className);
+    console.log('[ClassDataTable] classTypeData:', this.classTypeData);
+    console.log('[ClassDataTable] instanceData:', this.instanceData);
+    console.log('[ClassDataTable] instanceData type:', typeof this.instanceData);
+    console.log('[ClassDataTable] instanceData isArray:', Array.isArray(this.instanceData));
+
     // Load or create table configuration
     if (!this.tableConfig && this.className) {
       this.tableConfig = TableConfig.load(this.className);
@@ -59,17 +79,22 @@ export class ClassDataTableComponent implements OnInit, OnChanges {
     // Extract columns from classTypeData
     if (this.classTypeData) {
       const keys = Object.keys(this.classTypeData);
+      console.log('[ClassDataTable] classTypeData keys:', keys);
 
       // Store column types for rendering
       keys.forEach(key => {
         if (this.classTypeData[key]?.variablePythonType) {
           this.columnTypes[key] = this.classTypeData[key].variablePythonType;
+          console.log(`[ClassDataTable] Column "${key}" type: ${this.columnTypes[key]}`);
+        } else {
+          console.warn(`[ClassDataTable] Column "${key}" has no variablePythonType:`, this.classTypeData[key]);
         }
       });
 
       // Filter out removed columns
       const removedColumns = this.tableConfig?.removedColumns || [];
       const availableKeys = keys.filter(key => !removedColumns.includes(key));
+      console.log('[ClassDataTable] Available columns after filtering:', availableKeys);
 
       // Set displayed columns based on config or default to all available
       if (this.tableConfig?.visibleColumns && this.tableConfig.visibleColumns.length > 0) {
@@ -82,6 +107,8 @@ export class ClassDataTableComponent implements OnInit, OnChanges {
         this.displayedColumns = [...availableKeys];
       }
 
+      console.log('[ClassDataTable] Final displayedColumns:', this.displayedColumns);
+
       // Apply sorting if configured
       if (this.tableConfig?.sortOrder === 'alphabetical') {
         this.displayedColumns.sort((a, b) => {
@@ -89,12 +116,25 @@ export class ClassDataTableComponent implements OnInit, OnChanges {
           return this.tableConfig!.sortDirection === 'asc' ? comparison : -comparison;
         });
       }
+    } else {
+      console.warn('[ClassDataTable] No classTypeData provided - cannot determine columns');
     }
 
     // Set data source
     if (this.instanceData && this.instanceData.length > 0) {
+      console.log('[ClassDataTable] Setting dataSource with', this.instanceData.length, 'rows');
+      // Debug: log first row to see data structure
+      if (this.instanceData[0]) {
+        console.log('[ClassDataTable] First row sample:', this.instanceData[0]);
+        console.log('[ClassDataTable] First row keys:', Object.keys(this.instanceData[0]));
+      }
       this.dataSource.data = this.instanceData;
+    } else {
+      console.log('[ClassDataTable] No instance data to display');
+      this.dataSource.data = [];
     }
+
+    console.log('[ClassDataTable] Final dataSource.data length:', this.dataSource.data.length);
 
     // Apply sort and paginator after view init
     setTimeout(() => {

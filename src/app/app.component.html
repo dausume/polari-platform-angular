@@ -7,9 +7,42 @@
 
     <mat-sidenav [(opened)]="sideNavOpened" #sidenav mode="side" >
           <mat-nav-list>
-            <mat-list-item *ngFor="let navComp of navComponentsFromPolari" (click)="pageNav(navComp)">
+            <!-- Static Navigation Items -->
+            <mat-list-item *ngFor="let navComp of staticNavComponents" (click)="pageNav(navComp)">
                {{ navComp.title }}
             </mat-list-item>
+
+            <!-- Object Pages Dropdown (only show if we have dynamic pages with instances) -->
+            <mat-list-item *ngIf="dynamicClassNavComponents.length > 0" (click)="toggleObjectPages()" class="dropdown-header">
+                <mat-icon>{{ objectPagesExpanded ? 'expand_less' : 'expand_more' }}</mat-icon>
+                <span>Object Pages ({{ dynamicClassNavComponents.length }})</span>
+            </mat-list-item>
+
+            <!-- Dynamic Class Pages WITH instances (collapsible) -->
+            <div *ngIf="objectPagesExpanded" class="dropdown-items">
+                <mat-list-item
+                    *ngFor="let classNav of dynamicClassNavComponents"
+                    (click)="navigateToClassPage(classNav)"
+                    class="dropdown-item">
+                    <span class="dropdown-item-text">{{ classNav.title }}</span>
+                </mat-list-item>
+            </div>
+
+            <!-- Unused Objects Dropdown (nested under Object Pages, only show if we have unused classes) -->
+            <mat-list-item *ngIf="unusedClassNavComponents.length > 0" (click)="toggleUnusedPages()" class="dropdown-header unused-header">
+                <mat-icon>{{ unusedPagesExpanded ? 'expand_less' : 'expand_more' }}</mat-icon>
+                <span>Unused Objects ({{ unusedClassNavComponents.length }})</span>
+            </mat-list-item>
+
+            <!-- Unused Class Pages WITHOUT instances (collapsible) -->
+            <div *ngIf="unusedPagesExpanded" class="dropdown-items unused-items">
+                <mat-list-item
+                    *ngFor="let classNav of unusedClassNavComponents"
+                    (click)="navigateToClassPage(classNav)"
+                    class="dropdown-item unused-item">
+                    <span class="dropdown-item-text">{{ classNav.title }}</span>
+                </mat-list-item>
+            </div>
           </mat-nav-list>
     </mat-sidenav>
     <p><button mat-button (click)="toggleSideNav()" ><mat-icon>menu</mat-icon></button></p>

@@ -1,26 +1,121 @@
-<div class="container" style="flex: auto; flex-direction: row; column-gap: 20px;">
-    <div class="value-statement-container item-color" style="max-width:600px">
-            <div class="item value-statement" fxFlex>
-                <div class="value-statement-sentence">Unlock the power of no-code with our platform.</div>
-                <div class="value-statement-sentence">Rapidly experiment with custom solutions, leverage the community's open-source solutions and platforms, and turn a profit on the cutting edge as an independent developer.</div>
-                <div class="value-statement-sentence">Protect your rights and returns with our unique solution tracking and AI-powered logic-structure tracking.</div>
-                <div class="value-statement-sentence">Experience the ease and efficiency of creating innovative solutions with us. </div>
-                <div class="value-statement-sentence">Check out Polari's <a href="http://mypolari.com">website</a> for more information. </div>
+<div class="home-container">
+    <mat-card>
+        <mat-card-title>Polari Research Framework</mat-card-title>
+        <p class="intro-text">
+            A generalizable research framework that modularizes open-source Python libraries like PyTorch, FEniCS,
+            and other scientific frameworks. Create custom classes through an intuitive interface, design tables and
+            views for your objects, and leverage state-objects for no-code programming with dynamically defined states.
+        </p>
+
+        <!-- Quick Actions Section -->
+        <div class="section">
+            <h3 class="section-title">Quick Actions</h3>
+            <div class="actions-grid">
+                <div class="action-item">
+                    <mat-icon>add_circle</mat-icon>
+                    <div class="action-content">
+                        <h4>Create a Node</h4>
+                        <p>Set up and configure your own Polari node to start building solutions.</p>
+                        <button mat-raised-button class="primary-button">Create Node</button>
+                    </div>
+                </div>
+
+                <div class="action-item">
+                    <mat-icon>cloud</mat-icon>
+                    <div class="action-content">
+                        <h4>Access a Node</h4>
+                        <p>Connect remotely to your existing Polari node and manage your projects.</p>
+                        <a mat-raised-button class="accent-button" href="/polari-config">Access Node</a>
+                    </div>
+                </div>
+
+                <div class="action-item">
+                    <mat-icon>settings</mat-icon>
+                    <div class="action-content">
+                        <h4>Manager Info</h4>
+                        <p>View and manage your node configuration, connections, and settings.</p>
+                        <a mat-raised-button class="secondary-button" href="/manager-info">View Manager</a>
+                    </div>
+                </div>
+
+                <div class="action-item">
+                    <mat-icon>code</mat-icon>
+                    <div class="action-content">
+                        <h4>Type Analysis</h4>
+                        <p>Analyze and explore type structures within your Polari solutions.</p>
+                        <a mat-raised-button class="secondary-button" href="/typing-info">Analyze Types</a>
+                    </div>
+                </div>
             </div>
-    </div>
-  
-    <div class="polari-node-container item item-color" style="max-width:400px">
-      <div style="padding-bottom:40px; text-align:center;">Create a Node</div>
-      <div style="padding-bottom:40px; text-align:center;"><a href="/polari-config">Access a Node</a></div>
-      <div style="padding-bottom:40px; text-align:center;"><a href="/manager-info">Manager Info</a></div>
-      <div style="padding-bottom:40px; text-align:center;"><a href="/typing-info">Type Analysis</a></div>
-      <div>
-        <div style="padding-bottom:15px; text-decoration: underline; font-size:20px; text-align:center;">Getting Started with Polari</div>
-        <div style="font-size:16px; padding-bottom:15px;">Download Polari: Click the "Download" button on the top right corner of the page to download the latest version of Polari.</div>
-        <div style="font-size:16px; padding-bottom:15px;">Create your own node: Click on the "Create a Node" button on the top right corner of the page to set up and configure your own Polari node.</div>
-        <div style="font-size:16px; padding-bottom:15px;">Access your node remotely: Click on the "Access your Node" button on the top right corner of the page to remotely connect to your Polari node.</div>
-        <div style="font-size:16px; padding-bottom:15px;">Explore the documentation: Visit our "Documentation" page for detailed instructions and information on how to use Polari.</div>
-        <div style="font-size:16px; padding-bottom:15px;">Join our community: Visit our "Community" page to connect with other Polari users and stay updated on the latest developments.</div>
-      </div>
-    </div>
+        </div>
+
+        <!-- Getting Started Section -->
+        <div class="section">
+            <h3 class="section-title">Getting Started with Polari</h3>
+            <div class="steps-list">
+                <div class="step-item">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <strong>Set Up Your Node</strong>
+                        <p>Create and configure a Polari node to connect to the backend engine.</p>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <strong>Define Your Classes</strong>
+                        <p>Use the interface to create custom classes and define their attributes and relationships.</p>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <strong>Design Tables & Views</strong>
+                        <p>Build tables and views to organize and visualize your objects and data.</p>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-number">4</div>
+                    <div class="step-content">
+                        <strong>Create State-Objects</strong>
+                        <p>Define state-objects that can be used as states in solutions for no-code programming.</p>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-number">5</div>
+                    <div class="step-content">
+                        <strong>Integrate Open Source</strong>
+                        <p>Leverage modularized Python libraries like PyTorch and FEniCS in your solutions.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Why Polari Section -->
+        <div class="section">
+            <h3 class="section-title">Why Polari?</h3>
+            <div class="features-grid">
+                <div class="feature-item">
+                    <mat-icon>extension</mat-icon>
+                    <strong>Modular Open Source</strong>
+                    <p>Rapidly modularize Python frameworks like PyTorch, FEniCS, and other scientific libraries.</p>
+                </div>
+                <div class="feature-item">
+                    <mat-icon>data_object</mat-icon>
+                    <strong>Dynamic Class Creation</strong>
+                    <p>Create new classes through an interface and design custom tables and views for your objects.</p>
+                </div>
+                <div class="feature-item">
+                    <mat-icon>account_tree</mat-icon>
+                    <strong>State-Based Programming</strong>
+                    <p>Use Polari state-objects as states in solutions for no-code programming with dynamic definitions.</p>
+                </div>
+                <div class="feature-item">
+                    <mat-icon>science</mat-icon>
+                    <strong>Research-Ready</strong>
+                    <p>A generalizable framework built for scientific research and rapid experimentation.</p>
+                </div>
+            </div>
+        </div>
+    </mat-card>
 </div>

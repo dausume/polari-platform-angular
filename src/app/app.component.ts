@@ -36,13 +36,20 @@ export class AppComponent {
   activeNavComponentsData: navComponent[];
   navComponentsFromPolari: navComponent[];
 
+  // Separate static nav items from dynamic class pages
+  staticNavComponents: navComponent[] = [];
+  dynamicClassNavComponents: navComponent[] = [];  // Classes WITH instances
+  unusedClassNavComponents: navComponent[] = [];   // Classes WITHOUT instances
+  objectPagesExpanded: boolean = false;
+  unusedPagesExpanded: boolean = false;
+
   constructor(router: Router, polariService: PolariService, typingService: ClassTypingService, crudeServicesManager: CRUDEservicesManager)
   {
     this.router = router
     this.polariService = polariService
     this.typingService = typingService;
     this.navComponentsFromPolari = [];
-    this.crudeServicesManager = crudeServicesManager;    
+    this.crudeServicesManager = crudeServicesManager;
     this.activeNavComponentsData = []
     this.setActiveNavComponentsData()
   }
@@ -55,9 +62,40 @@ export class AppComponent {
       this.isConnected = connectionVal
     });
 
+    // Subscribe to static nav components
     this.typingService.navComponentsBehaviorSubject.subscribe(navList => {
-      this.navComponentsFromPolari = navList
+      this.staticNavComponents = navList;
+      // For backwards compatibility, still update navComponentsFromPolari
+      this.navComponentsFromPolari = navList;
     });
+
+    // Subscribe to dynamic class pages WITH instances (for main dropdown)
+    this.typingService.dynamicClassNavSubject.subscribe(classList => {
+      this.dynamicClassNavComponents = classList;
+      console.log('[AppComponent] Dynamic class pages (with instances) updated:', classList.length);
+    });
+
+    // Subscribe to unused class pages WITHOUT instances (for nested dropdown)
+    this.typingService.unusedClassNavSubject.subscribe(classList => {
+      this.unusedClassNavComponents = classList;
+      console.log('[AppComponent] Unused class pages (no instances) updated:', classList.length);
+    });
+  }
+
+  // Toggle the object pages dropdown
+  toggleObjectPages() {
+    this.objectPagesExpanded = !this.objectPagesExpanded;
+  }
+
+  // Toggle the unused pages dropdown
+  toggleUnusedPages() {
+    this.unusedPagesExpanded = !this.unusedPagesExpanded;
+  }
+
+  // Navigate to a dynamic class page
+  navigateToClassPage(navComp: navComponent) {
+    this.currentComponentTitle = navComp.title;
+    this.router.navigateByUrl(navComp.path);
   }
 
   ngOnDestroy(){
