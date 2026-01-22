@@ -15,7 +15,7 @@ import { BehaviorSubject, timer, Subject, throwError, of, Subscription } from "r
 import { catchError, delayWhen, retryWhen, switchMap, tap, retry, takeUntil } from 'rxjs/operators';
 import { navComponent } from "@models/navComponent";
 import { classPolyTyping } from "@models/polyTyping/classPolyTyping";
-import { dataSetCollection } from "@models/objectData/dataSetCollection";
+import { DataSetCollection } from "@models/objectData/dataSetCollection";
 import { CRUDEclassService } from "./crude-class-service";
 import { RuntimeConfigService } from "./runtime-config.service";
 import { environment } from "src/environments/environment-dev";
@@ -317,7 +317,7 @@ export class PolariService {
         )
         .subscribe({
             next: response =>{
-                let interpretedData = new dataSetCollection(response);
+                let interpretedData = new DataSetCollection(response);
                 let instanceSet = interpretedData.getClassInstanceList("polyTypedObject");
                 try {
                     this.polyTypedObjectsData.next(instanceSet);
@@ -376,7 +376,7 @@ export class PolariService {
         .subscribe({
             next: response =>{
                 console.log("vars response: ", response);
-                let interpretedData = new dataSetCollection(response);
+                let interpretedData = new DataSetCollection(response);
                 let instanceSet = interpretedData.getClassInstanceList("polyTypedVariable");
                 console.log("instance set: ", response);
                 try {
@@ -433,7 +433,7 @@ export class PolariService {
         )
         .subscribe({
             next: response =>{
-                let interpretedData = new dataSetCollection(response);
+                let interpretedData = new DataSetCollection(response);
                 let instanceSet = interpretedData.getClassInstanceList("polariServer");
                 try {
                     this.serverData.next(instanceSet);
@@ -486,7 +486,7 @@ export class PolariService {
         )
         .subscribe({
             next: response =>{
-                let interpretedData = new dataSetCollection(response);
+                let interpretedData = new DataSetCollection(response);
                 let instanceSet = interpretedData.getClassInstanceList("polariAPI");
                 try {
                     this.serverAPIendpoints.next(instanceSet);
@@ -539,7 +539,7 @@ export class PolariService {
         )
         .subscribe({
             next: response =>{
-                let interpretedData = new dataSetCollection(response);
+                let interpretedData = new DataSetCollection(response);
                 let instanceSet = interpretedData.getClassInstanceList("polariCRUDE");
                 try {
                     this.serverCRUDEendpoints.next(instanceSet);

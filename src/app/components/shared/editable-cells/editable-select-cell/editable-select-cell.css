@@ -1,0 +1,100 @@
+.editable-select-cell {
+  width: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.cell-value {
+  padding: 4px 8px;
+  min-width: 80px;
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.read-value {
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.read-value:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.read-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.read-chip {
+  font-size: 12px;
+  min-height: 24px;
+}
+
+.edit-field {
+  width: 100%;
+}
+
+.edit-field ::ng-deep .mat-mdc-form-field-subscript-wrapper {
+  height: auto;
+}
+
+.edit-field ::ng-deep .mat-mdc-form-field-infix {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.search-option {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: white;
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+}
+
+.search-option ::ng-deep .mat-pseudo-checkbox {
+  display: none;
+}
+
+.search-input {
+  flex: 1;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 14px;
+  outline: none;
+}
+
+.search-input:focus {
+  border-color: #3f51b5;
+}
+
+.search-option button {
+  margin-left: 4px;
+  width: 28px;
+  height: 28px;
+}
+
+.search-option button .mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
+.edit-field ::ng-deep button[matSuffix] {
+  width: 28px;
+  height: 28px;
+  margin-right: -8px;
+}
+
+.edit-field ::ng-deep button[matSuffix] .mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}

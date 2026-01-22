@@ -1,0 +1,242 @@
+.dashboard-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 16px;
+    background: #f5f5f5;
+    min-height: 100%;
+}
+
+.dashboard-container.compact-mode {
+    gap: 8px;
+    padding: 8px;
+}
+
+/* Dashboard Header */
+.dashboard-header {
+    padding: 16px 0;
+    border-bottom: 1px solid #e0e0e0;
+    margin-bottom: 8px;
+}
+
+.dashboard-name {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 500;
+    color: #333;
+}
+
+.dashboard-description {
+    margin: 8px 0 0 0;
+    font-size: 14px;
+    color: #666;
+}
+
+/* Dashboard Rows */
+.dashboard-row {
+    display: grid;
+    gap: 16px;
+    width: 100%;
+}
+
+.compact-mode .dashboard-row {
+    gap: 8px;
+}
+
+.dashboard-row.auto-height {
+    /* Allow content to determine height */
+}
+
+/* Dashboard Items */
+.dashboard-item {
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.dashboard-item.collapsed .item-content {
+    display: none;
+}
+
+/* Item Header */
+.item-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: #fafafa;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.item-title {
+    font-weight: 500;
+    font-size: 14px;
+    color: #333;
+}
+
+/* Item Content */
+.item-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.item-content.has-header {
+    /* Adjust if needed */
+}
+
+/* Text Content */
+.text-content {
+    padding: 16px;
+    font-size: 16px;
+    color: #333;
+}
+
+.text-content.dashboard-title {
+    font-size: 28px;
+    font-weight: 600;
+    color: #1976d2;
+    padding: 20px 16px;
+    background: transparent;
+}
+
+/* Component items should fill their container */
+.dashboard-item-component .item-content {
+    padding: 0;
+}
+
+.dashboard-item-component .item-content > * {
+    width: 100%;
+}
+
+/* Metric items */
+.dashboard-item-metric {
+    background: transparent;
+    box-shadow: none;
+}
+
+.dashboard-item-metric .item-content {
+    height: 100%;
+}
+
+/* Text items */
+.dashboard-item-text {
+    background: transparent;
+    box-shadow: none;
+}
+
+/* Placeholders */
+.table-placeholder,
+.graph-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    background: #f9f9f9;
+    color: #999;
+    font-style: italic;
+}
+
+.component-error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: #ffebee;
+    color: #c62828;
+    font-size: 14px;
+}
+
+.unknown-type {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: #fff3e0;
+    color: #e65100;
+    font-size: 14px;
+}
+
+/* Nested Container */
+.nested-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px;
+}
+
+.nested-item {
+    flex-shrink: 0;
+}
+
+/* Empty States */
+.empty-dashboard,
+.no-dashboard {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    color: #999;
+}
+
+.empty-dashboard mat-icon,
+.no-dashboard mat-icon {
+    font-size: 48px;
+    width: 48px;
+    height: 48px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+.empty-dashboard p,
+.no-dashboard p {
+    margin: 0;
+    font-size: 16px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .dashboard-container {
+        padding: 8px;
+        gap: 8px;
+    }
+
+    .dashboard-row {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .dashboard-item {
+        width: 100% !important;
+    }
+
+    .text-content.dashboard-title {
+        font-size: 22px;
+        padding: 16px 12px;
+    }
+}
+
+/* Header row specific styles */
+.dashboard-header-row {
+    background: transparent;
+}
+
+.dashboard-header-row .dashboard-item {
+    background: transparent;
+    box-shadow: none;
+}
+
+/* Content row specific styles */
+.dashboard-content-row .dashboard-item {
+    min-height: 200px;
+}
+
+/* Metric row specific styles */
+.dashboard-metric-row {
+    min-height: auto !important;
+}

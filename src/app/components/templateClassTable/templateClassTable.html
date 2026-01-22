@@ -38,19 +38,17 @@
     <div class="section-content" [class.collapsed]="!isSectionExpanded('main')">
         <!-- Column Visibility Configuration -->
         <div class="column-visibility-config" *ngIf="getAllConfigurableColumns().length > 0">
-            <span class="config-label">Default Column Visibility:</span>
+            <span class="config-label">Default Column Visibility ({{getAllConfigurableColumns().length}}):</span>
             <div class="column-chips">
-                <mat-chip-list>
-                    <mat-chip
-                        *ngFor="let col of getAllConfigurableColumns()"
-                        [selected]="isColumnVisibleByDefault(col)"
-                        (click)="toggleDefaultVisibility(col)"
-                        [class.type-chip]="true"
-                        [attr.data-type]="getColumnTypeFromConfig(col)">
-                        <span class="chip-icon">{{getTypeIcon(getColumnTypeFromConfig(col))}}</span>
-                        {{getColumnDisplayName(col)}}
-                    </mat-chip>
-                </mat-chip-list>
+                <span
+                    *ngFor="let col of getAllConfigurableColumns()"
+                    class="chip-wrapper"
+                    (click)="toggleDefaultVisibility(col)"
+                    [class.visibility-visible]="isColumnVisibleByDefault(col)"
+                    [class.visibility-hidden]="!isColumnVisibleByDefault(col)">
+                    <span class="chip-icon">{{getTypeIcon(getColumnTypeFromConfig(col))}}</span>
+                    {{getColumnDisplayName(col)}}
+                </span>
             </div>
         </div>
 

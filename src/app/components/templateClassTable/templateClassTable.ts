@@ -1,21 +1,61 @@
-import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewInit, Type, SimpleChanges } from '@angular/core';
-import { FormControl, FormGroup } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
-import { polariNode } from '@models/polariNode';
+/**
+ * templateClassTableComponent
+ *
+ * Primary component for displaying and configuring dynamic class data tables.
+ * This component provides two main sections:
+ *
+ * 1. TABLE CONFIGURATION SECTION (collapsible)
+ *    - Column ordering: moveUp(), moveDown() - reorder columns
+ *    - Column visibility: remove(), addBack() - hide/show columns
+ *    - Sort controls: setSortOrder(), toggleSortDirection()
+ *    - Default visibility chips: toggleDefaultVisibility()
+ *
+ * 2. DATA TABLE SECTION (collapsible)
+ *    - Renders instance data via ClassDataTableComponent
+ *    - Passes tableConfig for column/display settings
+ *
+ * CONFIGURATION MODEL:
+ * -------------------
+ * Uses TableConfig from @models/tableConfiguration (legacy compatibility layer)
+ * which maps to the new TableConfiguration model from @models/tables.
+ *
+ * Configuration is persisted to localStorage keyed by className.
+ * On load, existing config is restored; on change, it auto-saves.
+ *
+ * Key configuration properties used in this component:
+ * - sortOrder: 'alphabetical' | 'custom' | 'type' | 'none'
+ *   Controls how columns are ordered. Changed by setSortOrder()
+ *
+ * - sortDirection: 'asc' | 'desc'
+ *   Direction of alphabetical sort. Changed by toggleSortDirection()
+ *
+ * - removedColumns: string[]
+ *   Columns hidden from view. Changed by remove() and addBack()
+ *
+ * - expandedSections: string[]
+ *   Which UI sections are expanded ('main' for config, 'data' for table)
+ *   Changed by toggleSection()
+ *
+ * - visibleColumns: string[]
+ *   Columns visible by default (for ClassDataTableComponent)
+ *   Changed by toggleDefaultVisibility()
+ *
+ * See @models/tables/ for the new comprehensive configuration models:
+ * - TableConfiguration: Main config with composed sub-configs
+ * - ColumnConfiguration: Per-column settings (width, format, etc.)
+ * - PaginationConfig: Page size and options
+ * - FilterConfig: Search/filter settings
+ * - SectionState: UI section expansion states
+ */
+import { Component, Input, OnInit, OnDestroy, SimpleChanges } from '@angular/core';
 import { PolariService } from '@services/polari-service';
 import { CRUDEservicesManager } from '@services/crude-services-manager';
 import { CRUDEclassService } from '@services/crude-class-service';
-import { MatGridList, MatGridTile } from '@angular/material/grid-list';
-import { BehaviorSubject, interval, Observable, Observer, Subscription } from 'rxjs';
-import { MatTableModule } from '@angular/material/table';
-import { DefaultCellComponent } from './type-cells/default-cell/default-cell'
-//Models
-//import { templateClass } from '@models/templateClass';
-import { dataSetCollection } from '@models/objectData/dataSetCollection';
-import { dataSet } from '@models/objectData/dataSet';
-import { classPolyTyping } from '@models/polyTyping/classPolyTyping';
-import { objectIdentifiersSpec } from '@models/objectIdentifiersSpec';
+// Data models
+import { DataSetCollection } from '@models/objectData/dataSetCollection';
 import { variablePolyTyping } from '@models/polyTyping/variablePolyTyping';
+// Table configuration - uses legacy TableConfig for backward compatibility
+// New code should migrate to TableConfiguration from '@models/tables'
 import { TableConfig } from '@models/tableConfiguration';
 
 @Component({
@@ -25,20 +65,60 @@ import { TableConfig } from '@models/tableConfiguration';
 })
 export class templateClassTableComponent implements OnInit, OnDestroy {
 
+  // ==================== INPUT PROPERTIES ====================
+
+  /** The class name to display data for (e.g., 'polariAPI', 'dataStream') */
   @Input() className?: string;
+
+  /** Type data from ClassTypingService containing variable definitions */
   @Input() classTypeData: any = {};
+
+  /** Optional filter criteria for data retrieval */
   @Input() filter?: object = {};
+
+  /** List of variable names currently shown in the configuration grid */
   @Input() shownVars: string[] = [];
 
+  // ==================== COMPONENT STATE ====================
+
+  /** Formatted display name for the class */
   formattedClassName?: string;
+
+  /** Array of class instances loaded from backend */
   instanceList: any[] = [];
+
+  /** Reference to polyTyping variable data */
   polyVarRefs: any[] = [];
+
+  /**
+   * TABLE CONFIGURATION
+   * -------------------
+   * This is the primary configuration object controlling:
+   * - Column order and visibility (shownVars, removedColumns)
+   * - Sorting behavior (sortOrder, sortDirection)
+   * - UI section states (expandedSections)
+   *
+   * Configuration is automatically saved to localStorage on changes.
+   * Key: `table_config_${className}`
+   */
   tableConfig: TableConfig;
+
+  /** CRUDE service for data operations */
   crudeService?: CRUDEclassService;
+
+  /** Unique identifier for service utilization tracking */
   private componentId: string = 'templateClassTableComponent';
 
+  // ==================== CONSTRUCTOR ====================
+
   constructor(private polari: PolariService, private crudeManager: CRUDEservicesManager) {
-    // Initialize with default configuration
+    /**
+     * Initialize tableConfig with sensible defaults:
+     * - sortOrder: 'alphabetical' - columns sorted A-Z by name
+     * - sortDirection: 'asc' - ascending order
+     * - defaultExpanded: false - config section starts collapsed
+     * - expandedSections: ['data'] - data table section starts expanded
+     */
     this.tableConfig = new TableConfig({
       sortOrder: 'alphabetical',
       sortDirection: 'asc',
@@ -493,7 +573,7 @@ export class templateClassTableComponent implements OnInit, OnDestroy {
               } else {
                 // Use dataSetCollection for complex case
                 console.log(`[TemplateClassTable] Using dataSetCollection to parse`);
-                const interpretedData = new dataSetCollection(data);
+                const interpretedData = new DataSetCollection(data);
                 this.instanceList = interpretedData.getClassInstanceList(this.className!);
                 console.log(`[TemplateClassTable] dataSetCollection returned:`, this.instanceList);
               }

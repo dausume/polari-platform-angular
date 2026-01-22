@@ -1,7 +1,7 @@
 // Author: Dustin Etts
 // A data set that holds instances of a spacific class, specifies what all the variables are that exist on that class,
 // and specifies which variables are black-listed from being retrieved from the backend for this data set.
-export class dataSet {
+export class DataSet {
     objectName: string; //The name of the class that this dataSet holds instances of.
     variableNames?: string[]; //The names of all the data-containing variables that exist on the class that this dataSet holds instances of.
     varsLimited?: string[]; // The names of the variables that are black-listed from being retrieved from the backend for this data set.
@@ -22,7 +22,7 @@ export class dataSet {
     }
 
     //Takes another dataSet and pulls it's data into this dataSet.
-    public mergeDataSet(otherSet:dataSet)
+    public mergeDataSet(otherSet: DataSet)
     {
         //Determine which variables will be new to the current dataSet and which will not have values (must have null values assigned)
         let addedVarsOther : string[] = [];
@@ -52,7 +52,7 @@ export class dataSet {
         // Generates error
         if(addedVarsOther.length !== 0)
         {
-            this.data.array.forEach(inst => {
+            this.data.forEach((inst: any) => {
                 addedVarsOther.forEach( (varName:string) =>{
                     inst[varName] = null;
                 });
@@ -61,7 +61,7 @@ export class dataSet {
         //Now, go through the other dataSet and pull it's instances over.  For vars with missingVarsOther, set to null.
         if(missingVarsOther.length !== 0)
         {
-            otherSet.data.array.forEach(inst => {
+            otherSet.data.forEach((inst: any) => {
                 missingVarsOther.forEach( (varName:string) =>{
                     inst[varName] = null;
                 });

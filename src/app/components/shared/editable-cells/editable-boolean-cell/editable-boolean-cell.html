@@ -1,0 +1,39 @@
+<div class="editable-boolean-cell">
+  <!-- Read Mode -->
+  <ng-container *ngIf="!(isEditing$ | async)">
+    <span class="cell-value read-value"
+          [class.true-value]="booleanValue"
+          [class.false-value]="!booleanValue"
+          (dblclick)="enterEditMode()">
+      <mat-icon class="status-icon">{{ booleanValue ? 'check_circle' : 'cancel' }}</mat-icon>
+      {{ getDisplayValue() }}
+    </span>
+  </ng-container>
+
+  <!-- Edit Mode -->
+  <ng-container *ngIf="isEditing$ | async">
+    <div class="edit-container">
+      <!-- Toggle style -->
+      <ng-container *ngIf="useToggle">
+        <mat-slide-toggle
+          [checked]="booleanValue"
+          [disabled]="disabled"
+          (change)="toggle()"
+          color="primary">
+          {{ booleanValue ? trueLabel : falseLabel }}
+        </mat-slide-toggle>
+      </ng-container>
+
+      <!-- Checkbox style -->
+      <ng-container *ngIf="!useToggle">
+        <mat-checkbox
+          [checked]="booleanValue"
+          [disabled]="disabled"
+          (change)="toggle()"
+          color="primary">
+          {{ displayName }}
+        </mat-checkbox>
+      </ng-container>
+    </div>
+  </ng-container>
+</div>

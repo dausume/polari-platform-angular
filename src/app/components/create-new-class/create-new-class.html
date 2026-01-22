@@ -12,6 +12,9 @@
                 <mat-form-field appearance="outline">
                     <mat-label>Class Name</mat-label>
                     <input type="text" matInput [formControl]="classNameControl" [(ngModel)]="className" placeholder="e.g., MyClass">
+                    <mat-error *ngIf="classNameControl.hasError('required')">
+                        Class name is required
+                    </mat-error>
                 </mat-form-field>
             </mat-grid-tile>
             <mat-grid-tile>
@@ -21,11 +24,20 @@
                 </mat-form-field>
             </mat-grid-tile>
             <mat-grid-tile>
-                <button mat-raised-button class="save-button" (click)="saveClass()">
-                    Save Class
+                <button mat-raised-button class="save-button" (click)="saveClass()" [disabled]="classNameControl.invalid || saveStatus === 'saving'">
+                    {{ saveStatus === 'saving' ? 'Saving...' : 'Save Class' }}
                 </button>
             </mat-grid-tile>
         </mat-grid-list>
+
+        <!-- Status Message -->
+        <div *ngIf="saveMessage" class="status-message" [ngClass]="{
+            'status-success': saveStatus === 'success',
+            'status-error': saveStatus === 'error',
+            'status-saving': saveStatus === 'saving'
+        }">
+            {{ saveMessage }}
+        </div>
 
         <!-- Variables Section -->
         <div class="variables-section">

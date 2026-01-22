@@ -1,0 +1,95 @@
+<div class="editable-select-cell">
+  <!-- Read Mode -->
+  <ng-container *ngIf="!(isEditing$ | async)">
+    <span class="cell-value read-value" (dblclick)="enterEditMode()">
+      <!-- Single select display -->
+      <ng-container *ngIf="!multiple">
+        {{ getDisplayValue() }}
+      </ng-container>
+
+      <!-- Multiple select chips display -->
+      <ng-container *ngIf="multiple">
+        <mat-chip-listbox *ngIf="selectedOptions.length > 0" class="read-chips">
+          <mat-chip *ngFor="let opt of selectedOptions" class="read-chip">
+            {{ opt.label }}
+          </mat-chip>
+        </mat-chip-listbox>
+        <span *ngIf="selectedOptions.length === 0">-</span>
+      </ng-container>
+    </span>
+  </ng-container>
+
+  <!-- Edit Mode -->
+  <ng-container *ngIf="isEditing$ | async">
+    <mat-form-field appearance="outline" class="edit-field">
+      <mat-label *ngIf="displayName">{{ displayName }}</mat-label>
+
+      <!-- Single Select -->
+      <mat-select *ngIf="!multiple"
+                  [formControl]="control"
+                  [placeholder]="placeholder || 'Select option'"
+                  (selectionChange)="onSelectionChange($event)">
+
+        <!-- Search input (if searchable) -->
+        <mat-option *ngIf="searchable" disabled class="search-option">
+          <input matInput
+                 class="search-input"
+                 [(ngModel)]="searchQuery"
+                 (input)="filterOptions()"
+                 (keydown.space)="$event.stopPropagation()"
+                 placeholder="Search...">
+          <button *ngIf="searchQuery" mat-icon-button (click)="clearSearch(); $event.stopPropagation()">
+            <mat-icon>close</mat-icon>
+          </button>
+        </mat-option>
+
+        <mat-option *ngFor="let opt of filteredOptions"
+                    [value]="opt.value"
+                    [disabled]="opt.disabled">
+          {{ opt.label }}
+        </mat-option>
+      </mat-select>
+
+      <!-- Multiple Select -->
+      <mat-select *ngIf="multiple"
+                  [formControl]="control"
+                  [placeholder]="placeholder || 'Select options'"
+                  multiple
+                  (selectionChange)="onSelectionChange($event)">
+
+        <!-- Search input (if searchable) -->
+        <mat-option *ngIf="searchable" disabled class="search-option">
+          <input matInput
+                 class="search-input"
+                 [(ngModel)]="searchQuery"
+                 (input)="filterOptions()"
+                 (keydown.space)="$event.stopPropagation()"
+                 placeholder="Search...">
+          <button *ngIf="searchQuery" mat-icon-button (click)="clearSearch(); $event.stopPropagation()">
+            <mat-icon>close</mat-icon>
+          </button>
+        </mat-option>
+
+        <mat-option *ngFor="let opt of filteredOptions"
+                    [value]="opt.value"
+                    [disabled]="opt.disabled">
+          {{ opt.label }}
+        </mat-option>
+      </mat-select>
+
+      <!-- Clear button -->
+      <button *ngIf="clearable && (control.value !== null && control.value !== undefined)"
+              mat-icon-button
+              matSuffix
+              type="button"
+              (click)="clearSelection(); $event.stopPropagation()"
+              aria-label="Clear selection">
+        <mat-icon>close</mat-icon>
+      </button>
+
+      <mat-error *ngIf="hasError()">
+        {{ getErrorMessage() }}
+      </mat-error>
+    </mat-form-field>
+  </ng-container>
+</div>

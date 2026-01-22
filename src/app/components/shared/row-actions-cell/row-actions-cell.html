@@ -1,0 +1,81 @@
+<div class="row-actions-cell" [class.compact]="compact">
+  <!-- Delete Confirmation Overlay -->
+  <div *ngIf="showDeleteConfirm" class="delete-confirm-overlay">
+    <span class="confirm-text">Delete?</span>
+    <button mat-icon-button
+            color="warn"
+            (click)="confirmDelete()"
+            matTooltip="Confirm delete"
+            class="confirm-btn">
+      <mat-icon>check</mat-icon>
+    </button>
+    <button mat-icon-button
+            (click)="cancelDelete()"
+            matTooltip="Cancel"
+            class="cancel-btn">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <!-- Normal Actions (when not confirming delete) -->
+  <ng-container *ngIf="!showDeleteConfirm">
+    <!-- Non-editing state: Edit/Delete buttons -->
+    <ng-container *ngIf="!isEditing">
+      <!-- Edit button -->
+      <button *ngIf="config.enableEdit"
+              mat-icon-button
+              [disabled]="!canEdit"
+              (click)="onEdit()"
+              [matTooltip]="config.editMode === 'popup' ? 'Edit in dialog' : 'Edit'"
+              class="action-btn edit-btn">
+        <mat-icon>{{ config.editMode === 'popup' ? 'open_in_new' : 'edit' }}</mat-icon>
+      </button>
+
+      <!-- Delete button -->
+      <button *ngIf="config.enableDelete"
+              mat-icon-button
+              color="warn"
+              [disabled]="!canDelete"
+              (click)="onDelete()"
+              matTooltip="Delete"
+              class="action-btn delete-btn">
+        <mat-icon>delete</mat-icon>
+      </button>
+
+      <!-- Custom actions -->
+      <ng-container *ngFor="let action of visibleCustomActions">
+        <button mat-icon-button
+                [color]="action.color || 'primary'"
+                [disabled]="action.disabled"
+                (click)="onCustomAction(action)"
+                [matTooltip]="action.label"
+                class="action-btn custom-btn">
+          <mat-icon>{{ action.icon }}</mat-icon>
+        </button>
+      </ng-container>
+    </ng-container>
+
+    <!-- Editing state: Save/Cancel buttons -->
+    <ng-container *ngIf="isEditing">
+      <!-- Save button -->
+      <button mat-icon-button
+              color="primary"
+              [disabled]="!canSave"
+              (click)="onSave()"
+              [matTooltip]="!isValid ? 'Fix validation errors first' : (isDirty ? 'Save changes' : 'No changes to save')"
+              class="action-btn save-btn">
+        <mat-icon *ngIf="!isSaving">check</mat-icon>
+        <mat-spinner *ngIf="isSaving" diameter="20"></mat-spinner>
+      </button>
+
+      <!-- Cancel button -->
+      <button mat-icon-button
+              [disabled]="!canCancel"
+              (click)="onCancel()"
+              matTooltip="Cancel editing"
+              class="action-btn cancel-btn">
+        <mat-icon>close</mat-icon>
+      </button>
+    </ng-container>
+  </ng-container>
+</div>

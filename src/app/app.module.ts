@@ -1,10 +1,8 @@
 // app.module.ts
-import { CUSTOM_ELEMENTS_SCHEMA, /*ErrorHandler,*/  NgModule } from '@angular/core';
+import { CUSTOM_ELEMENTS_SCHEMA, NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
-//import { FlexModule } from '@angular/flex-layout'
-//import { FlexLayoutModule } from "@angular/flex-layout";
 import { HttpClientModule } from '@angular/common/http';
 import { DragDropModule } from '@angular/cdk/drag-drop';
 //Materials
@@ -16,13 +14,14 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatCardModule } from '@angular/material/card';
 import { MatGridListModule } from '@angular/material/grid-list';
-import { MatSelectModule  } from '@angular/material/select';
+import { MatSelectModule } from '@angular/material/select';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatDialogModule } from '@angular/material/dialog';
 import { MatListModule } from '@angular/material/list';
+import { MatIconModule } from '@angular/material/icon';
 //NgRx
 import { StoreModule } from '@ngrx/store';
 import { EffectsModule } from '@ngrx/effects';
@@ -42,10 +41,13 @@ import { PolariConfigComponent } from '@components/polari-config/polari-config';
 import { NavigationComponent } from '@components/nav-component/nav-component';
 // Class-Oriented Dynamic Components
 import { templateClassTableComponent } from '@components/templateClassTable/templateClassTable';
-import { ClassMainPageComponent }  from '@components/class-main-page/class-main-page';
+import { ClassMainPageComponent } from '@components/class-main-page/class-main-page';
 import { classInstanceSearchComponent } from '@components/class-instance-search/class-instance-search';
 import { CreateNewClassComponent } from '@components/create-new-class/create-new-class';
 import { VariableModifierComponent } from '@components/create-new-class/variable-modifier/variable-modifier';
+// Dashboard/Display Components
+import { DisplayRendererComponent } from '@components/dashboard/dashboard-renderer/dashboard-renderer';
+import { DisplayMetricCardComponent } from '@components/dashboard/dashboard-metric-card/dashboard-metric-card';
 // No-Code Components
 import { CustomNoCodeComponent } from '@components/custom-no-code/custom-no-code';
 import { NoCodeStateInstanceComponent } from '@components/custom-no-code/no-code-state-instance/no-code-state-instance';
@@ -80,6 +82,11 @@ import { CertificateTrustPromptComponent } from '@components/certificate-trust-p
 import { PolariService } from '@services/polari-service';
 import { CRUDEservicesManager } from '@services/crude-services-manager';
 import { CertificateTrustService } from '@services/certificate-trust.service';
+// Display Services
+import { DefaultDisplayFactory } from '@services/dashboard/default-dashboard-factory.service';
+import { DisplayConfigService } from '@services/dashboard/dashboard-config.service';
+// Component Registry for dynamic display components
+import { registerDisplayComponent } from '@models/dashboards/ComponentRegistry';
 //
 import { MatIconRegistry } from "@angular/material/icon";
 import { DomSanitizer } from "@angular/platform-browser";
@@ -87,7 +94,8 @@ import { DomSanitizer } from "@angular/platform-browser";
 import { OverlayContainer } from '@angular/cdk/overlay';
 import { OverlayComponentService } from './services/no-code-services/overlay-component-service';
 import { InteractionStateService } from '@services/no-code-services/interaction-state-service';
-
+// Shared CRUD Module for dynamic class editing components
+import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/shared-crud.module';
 
 
 @NgModule({
@@ -102,6 +110,10 @@ import { InteractionStateService } from '@services/no-code-services/interaction-
     classInstanceSearchComponent,
     CreateNewClassComponent,
     VariableModifierComponent,
+    // Display Components
+    DisplayRendererComponent,
+    DisplayMetricCardComponent,
+    // No-Code Components
     CustomNoCodeComponent,
     NoCodeInterfaceComponent,
     NoCodeStateInstanceComponent,
@@ -132,8 +144,6 @@ import { InteractionStateService } from '@services/no-code-services/interaction-
     BrowserAnimationsModule,
     MaterialModule,
     FormsModule,
-    //FlexModule,
-    //FlexLayoutModule,
     HttpClientModule,
     ReactiveFormsModule,
     MatTableModule,
@@ -151,6 +161,9 @@ import { InteractionStateService } from '@services/no-code-services/interaction-
     MatChipsModule,
     MatDialogModule,
     MatListModule,
+    MatIconModule,
+    // Shared CRUD Module
+    SharedCrudModule,
     // NgRx
     StoreModule.forRoot(rootReducers),
     EffectsModule.forRoot([PolariEffects, DynamicObjectsEffects]),
@@ -160,12 +173,14 @@ import { InteractionStateService } from '@services/no-code-services/interaction-
     })
   ],
   exports: [
-    
+
   ],
   providers: [
     PolariService,
     CRUDEservicesManager,
     CertificateTrustService,
+    DefaultDisplayFactory,
+    DisplayConfigService,
     OverlayContainer,
     OverlayComponentService,
     InteractionStateService
@@ -176,16 +191,46 @@ import { InteractionStateService } from '@services/no-code-services/interaction-
   schemas: [CUSTOM_ELEMENTS_SCHEMA]
 })
 export class AppModule {
-  constructor(private matIconRegistry: MatIconRegistry,
-    private domSanitizer: DomSanitizer){
-      this.matIconRegistry.addSvgIcon(
-        "io-circle",
-        this.domSanitizer.bypassSecurityTrustResourceUrl("../assets/io-circle.svg")
-      );
+  constructor(
+    private matIconRegistry: MatIconRegistry,
+    private domSanitizer: DomSanitizer
+  ) {
+    this.matIconRegistry.addSvgIcon(
+      "io-circle",
+      this.domSanitizer.bypassSecurityTrustResourceUrl("../assets/io-circle.svg")
+    );
+
+    // Register display-compatible components
+    this.registerDisplayComponents();
   }
 
-  ngOnInit()
-  {
+  /**
+   * Registers components that can be used in displays.
+   * This enables dynamic component loading in the display renderer.
+   */
+  private registerDisplayComponents(): void {
+    // Register templateClassTable for use in displays
+    registerDisplayComponent('templateClassTable', templateClassTableComponent, {
+      displayName: 'Class Data Table',
+      description: 'Displays class instances in a configurable table with filtering and sorting'
+    });
+
+    // Register ClassDataTableComponent for direct table rendering
+    registerDisplayComponent('classDataTable', ClassDataTableComponent, {
+      displayName: 'Data Table',
+      description: 'Material data table with type-aware cell rendering'
+    });
+
+    // Register DynamicDataTableComponent for CRUD operations on dynamic classes
+    registerDisplayComponent('dynamicDataTable', DynamicDataTableComponent, {
+      displayName: 'Dynamic Data Table',
+      description: 'Full CRUD table with inline editing, dialog editing, and row actions'
+    });
+
+    console.log('[AppModule] Display components registered');
+  }
+
+  ngOnInit() {
     console.log("In AppModule ngOnInit");
   }
 

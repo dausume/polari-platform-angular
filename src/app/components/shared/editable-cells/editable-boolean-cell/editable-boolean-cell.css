@@ -1,0 +1,60 @@
+.editable-boolean-cell {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cell-value {
+  padding: 4px 12px;
+  border-radius: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.read-value {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.true-value {
+  background-color: rgba(76, 175, 80, 0.12);
+  color: #2e7d32;
+}
+
+.true-value:hover {
+  background-color: rgba(76, 175, 80, 0.2);
+}
+
+.false-value {
+  background-color: rgba(244, 67, 54, 0.12);
+  color: #c62828;
+}
+
+.false-value:hover {
+  background-color: rgba(244, 67, 54, 0.2);
+}
+
+.status-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+}
+
+.edit-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+}
+
+.edit-container ::ng-deep .mat-mdc-slide-toggle {
+  margin: 0;
+}
+
+.edit-container ::ng-deep .mat-mdc-checkbox {
+  margin: 0;
+}

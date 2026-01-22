@@ -1,0 +1,109 @@
+<div class="dashboard-container" *ngIf="dashboard" [class.compact-mode]="compactMode">
+    <!-- Dashboard Header -->
+    <div class="dashboard-header" *ngIf="dashboard.name">
+        <h1 class="dashboard-name">{{ dashboard.name }}</h1>
+        <p class="dashboard-description" *ngIf="dashboard.description">{{ dashboard.description }}</p>
+    </div>
+
+    <!-- Dashboard Rows -->
+    <div *ngFor="let row of dashboard.rows; trackBy: trackRow"
+         [class]="getRowClasses(row)"
+         [ngStyle]="getRowStyle(row)"
+         [style.grid-template-columns]="getGridTemplate(row)">
+
+        <!-- Dashboard Items -->
+        <ng-container *ngFor="let item of row.dashboardItems; trackBy: trackItem">
+            <div *ngIf="isItemVisible(item)"
+                 [class]="getItemClasses(item)"
+                 [style.grid-column]="getItemGridColumn(item)">
+
+                <!-- Item Title (if set) -->
+                <div class="item-header" *ngIf="item.title && item.type !== 'text'">
+                    <span class="item-title">{{ item.title }}</span>
+                </div>
+
+                <!-- Item Content based on type -->
+                <div class="item-content" [class.has-header]="item.title && item.type !== 'text'">
+                    <ng-container [ngSwitch]="item.type">
+
+                        <!-- Component Type: Dynamic Angular component -->
+                        <ng-container *ngSwitchCase="'component'">
+                            <ng-container *ngIf="getComponent(item) as component">
+                                <ng-container *ngComponentOutlet="component; inputs: getComponentInputs(item)">
+                                </ng-container>
+                            </ng-container>
+                            <div *ngIf="!getComponent(item)" class="component-error">
+                                Component not found in registry
+                            </div>
+                        </ng-container>
+
+                        <!-- Metric Type: Metric card display -->
+                        <ng-container *ngSwitchCase="'metric'">
+                            <dashboard-metric-card [data]="getMetricData(item)">
+                            </dashboard-metric-card>
+                        </ng-container>
+
+                        <!-- Text Type: Simple text/title display -->
+                        <ng-container *ngSwitchCase="'text'">
+                            <div [class]="'text-content ' + (item.cssClass || '')">
+                                {{ getTextContent(item) }}
+                            </div>
+                        </ng-container>
+
+                        <!-- Table Type: Placeholder for direct table rendering -->
+                        <ng-container *ngSwitchCase="'table'">
+                            <div class="table-placeholder">
+                                Table content (use 'component' type with templateClassTable)
+                            </div>
+                        </ng-container>
+
+                        <!-- Graph Type: Placeholder for graph rendering -->
+                        <ng-container *ngSwitchCase="'graph'">
+                            <div class="graph-placeholder">
+                                Graph content (integration pending)
+                            </div>
+                        </ng-container>
+
+                        <!-- Container Type: Nested items -->
+                        <ng-container *ngSwitchCase="'container'">
+                            <div class="nested-container">
+                                <ng-container *ngFor="let nestedItem of item.items; trackBy: trackItem">
+                                    <!-- Recursively render nested items (simplified) -->
+                                    <div class="nested-item" [style.width]="(nestedItem.rowSegmentsUsed / 12 * 100) + '%'">
+                                        <ng-container [ngSwitch]="nestedItem.type">
+                                            <dashboard-metric-card *ngSwitchCase="'metric'" [data]="getMetricData(nestedItem)">
+                                            </dashboard-metric-card>
+                                            <div *ngSwitchCase="'text'" class="text-content">
+                                                {{ getTextContent(nestedItem) }}
+                                            </div>
+                                        </ng-container>
+                                    </div>
+                                </ng-container>
+                            </div>
+                        </ng-container>
+
+                        <!-- Default: Unknown type -->
+                        <ng-container *ngSwitchDefault>
+                            <div class="unknown-type">
+                                Unknown item type: {{ item.type }}
+                            </div>
+                        </ng-container>
+
+                    </ng-container>
+                </div>
+            </div>
+        </ng-container>
+    </div>
+
+    <!-- Empty State -->
+    <div class="empty-dashboard" *ngIf="dashboard.rows.length === 0">
+        <mat-icon>dashboard</mat-icon>
+        <p>This dashboard is empty</p>
+    </div>
+</div>
+
+<!-- No Dashboard State -->
+<div class="no-dashboard" *ngIf="!dashboard">
+    <mat-icon>warning</mat-icon>
+    <p>No dashboard data available</p>
+</div>

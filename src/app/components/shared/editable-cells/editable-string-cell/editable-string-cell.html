@@ -1,0 +1,44 @@
+<div class="editable-string-cell">
+  <!-- Read Mode -->
+  <ng-container *ngIf="!(isEditing$ | async)">
+    <span class="cell-value read-value" (dblclick)="enterEditMode()">
+      {{ getDisplayValue() }}
+    </span>
+  </ng-container>
+
+  <!-- Edit Mode -->
+  <ng-container *ngIf="isEditing$ | async">
+    <mat-form-field appearance="outline" class="edit-field">
+      <mat-label *ngIf="displayName">{{ displayName }}</mat-label>
+
+      <!-- Single line input -->
+      <input *ngIf="!multiline"
+             matInput
+             [formControl]="control"
+             [placeholder]="placeholder || displayName"
+             (keydown)="onKeydown($event)"
+             (blur)="onBlur()"
+             [maxlength]="maxLength || null"
+             autocomplete="off">
+
+      <!-- Multi-line textarea -->
+      <textarea *ngIf="multiline"
+                matInput
+                [formControl]="control"
+                [placeholder]="placeholder || displayName"
+                [rows]="rows"
+                (keydown.escape)="exitEditMode(false)"
+                (blur)="onBlur()"
+                [maxlength]="maxLength || null">
+      </textarea>
+
+      <mat-hint *ngIf="maxLength > 0" align="end">
+        {{ control.value?.length || 0 }} / {{ maxLength }}
+      </mat-hint>
+
+      <mat-error *ngIf="hasError()">
+        {{ getErrorMessage() }}
+      </mat-error>
+    </mat-form-field>
+  </ng-container>
+</div>

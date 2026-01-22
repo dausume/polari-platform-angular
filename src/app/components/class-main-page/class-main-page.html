@@ -1,2 +1,20 @@
-<template-class-table style="width:80%; height:400px; display: flex; flex-wrap: nowrap; flex-direction: column;" [className]="className" [classTypeData]="classTypeData">
-</template-class-table>
+<!-- Dashboard view for class pages -->
+<dashboard-renderer
+    *ngIf="dashboard"
+    [dashboard]="dashboard"
+    [context]="dashboardContext">
+</dashboard-renderer>
+
+<!-- Fallback: Direct table display when no dashboard yet -->
+<div class="fallback-container" *ngIf="!dashboard && className">
+    <template-class-table
+        [className]="className"
+        [classTypeData]="classTypeData">
+    </template-class-table>
+</div>
+
+<!-- Loading state -->
+<div class="loading-container" *ngIf="!dashboard && !className">
+    <mat-spinner diameter="40"></mat-spinner>
+    <p>Loading class data...</p>
+</div>

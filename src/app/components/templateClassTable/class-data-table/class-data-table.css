@@ -35,8 +35,28 @@
     color: #6c757d;
 }
 
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
 .filter-field {
     min-width: 300px;
+}
+
+.create-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+}
+
+.create-btn mat-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
 }
 
 /* Column Selector */
@@ -56,28 +76,75 @@
 
 .column-chips {
     margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
 }
 
-mat-chip {
+/* Simple chip wrapper - replaces mat-chip for reliable click handling */
+.chip-wrapper {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 14px;
+    border-radius: 20px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    font-size: 0.9em;
+    transition: all 0.25s ease;
+    user-select: none;
 }
 
-mat-chip:not(.mat-chip-selected) {
-    opacity: 0.6;
-    filter: grayscale(30%);
+.chip-wrapper:active {
+    transform: scale(0.95);
 }
 
-mat-chip:not(.mat-chip-selected):hover {
-    opacity: 0.8;
-    filter: grayscale(0%);
+/* ============================================
+   VISIBILITY TOGGLE STYLES
+   Strong visual feedback for column visibility
+   ============================================ */
+
+/* VISIBLE STATE - Strong blue indication */
+.chip-wrapper.visibility-visible,
+.visibility-visible {
+    background-color: #1976d2;
+    color: #ffffff;
+    border: 3px solid #0d47a1;
+    font-weight: 600;
+    box-shadow: 0 4px 8px rgba(25, 118, 210, 0.5);
 }
 
-mat-chip.mat-chip-selected {
-    background-color: #007bff !important;
-    color: #ffffff !important;
-    opacity: 1;
-    filter: grayscale(0%);
+.chip-wrapper.visibility-visible:hover,
+.visibility-visible:hover {
+    background-color: #1565c0;
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 6px 12px rgba(25, 118, 210, 0.6);
+}
+
+.chip-wrapper.visibility-visible .chip-icon,
+.visibility-visible .chip-icon {
+    color: #ffffff;
+}
+
+/* HIDDEN STATE - Grayed out with dashed border */
+.chip-wrapper.visibility-hidden,
+.visibility-hidden {
+    background-color: #eeeeee;
+    color: #757575;
+    border: 3px dashed #9e9e9e;
+    opacity: 0.7;
+    font-weight: 400;
+    box-shadow: none;
+}
+
+.chip-wrapper.visibility-hidden:hover,
+.visibility-hidden:hover {
+    background-color: #e0e0e0;
+    border-color: #757575;
+    opacity: 0.9;
+}
+
+.chip-wrapper.visibility-hidden .chip-icon,
+.visibility-hidden .chip-icon {
+    color: #9e9e9e;
 }
 
 .chip-icon {
@@ -312,4 +379,38 @@ mat-paginator {
 
 .table-wrapper::-webkit-scrollbar-thumb:hover {
     background: #6c757d;
+}
+
+/* Actions Column */
+.actions-header {
+    text-align: center;
+    width: 120px;
+    min-width: 120px;
+}
+
+.actions-cell {
+    text-align: center;
+    width: 120px;
+    min-width: 120px;
+}
+
+.row-actions {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 4px;
+}
+
+.row-actions button {
+    transition: transform 0.15s ease;
+}
+
+.row-actions button:hover {
+    transform: scale(1.1);
+}
+
+.row-actions button mat-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
 }

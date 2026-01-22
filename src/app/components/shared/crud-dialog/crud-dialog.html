@@ -1,0 +1,144 @@
+<div class="crud-dialog">
+  <!-- Dialog Header -->
+  <div mat-dialog-title class="dialog-header">
+    <div class="header-content">
+      <mat-icon class="header-icon">{{ data.mode === 'create' ? 'add_circle' : 'edit' }}</mat-icon>
+      <span class="header-title">{{ dialogTitle }}</span>
+    </div>
+    <button mat-icon-button (click)="onCancel()" class="close-btn" aria-label="Close">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <!-- Dialog Content -->
+  <mat-dialog-content class="dialog-content">
+    <!-- Error Message -->
+    <div *ngIf="submitError" class="error-banner">
+      <mat-icon>error</mat-icon>
+      <span>{{ submitError }}</span>
+      <button mat-icon-button (click)="submitError = null">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+
+    <!-- Form -->
+    <form [formGroup]="form" class="form-grid">
+      <ng-container *ngFor="let varDef of visibleFields; let i = index">
+        <div class="form-field" [class.full-width]="getCellType(varDef) === 'string' && i === visibleFields.length - 1">
+          <label class="field-label">
+            {{ varDef.varDisplayName }}
+            <span *ngIf="varDef.required" class="required-indicator">*</span>
+          </label>
+
+          <!-- String Field -->
+          <ng-container *ngIf="getCellType(varDef) === 'string'">
+            <editable-string-cell
+              mode="edit"
+              [value]="form.get(varDef.varName)?.value"
+              [fieldName]="varDef.varName"
+              [displayName]="varDef.varDisplayName"
+              [required]="varDef.required || false"
+              [disabled]="isReadOnly(varDef.varName)"
+              (valueChange)="onFieldChange(varDef.varName, $event)">
+            </editable-string-cell>
+          </ng-container>
+
+          <!-- Number Field -->
+          <ng-container *ngIf="getCellType(varDef) === 'number'">
+            <editable-number-cell
+              mode="edit"
+              [value]="form.get(varDef.varName)?.value"
+              [fieldName]="varDef.varName"
+              [displayName]="varDef.varDisplayName"
+              [required]="varDef.required || false"
+              [disabled]="isReadOnly(varDef.varName)"
+              [isInteger]="varDef.varType === 'int' || varDef.varType === 'integer'"
+              (valueChange)="onFieldChange(varDef.varName, $event)">
+            </editable-number-cell>
+          </ng-container>
+
+          <!-- Boolean Field -->
+          <ng-container *ngIf="getCellType(varDef) === 'boolean'">
+            <editable-boolean-cell
+              mode="edit"
+              [value]="form.get(varDef.varName)?.value"
+              [fieldName]="varDef.varName"
+              [displayName]="varDef.varDisplayName"
+              [disabled]="isReadOnly(varDef.varName)"
+              (valueChange)="onFieldChange(varDef.varName, $event)">
+            </editable-boolean-cell>
+          </ng-container>
+
+          <!-- Date Field -->
+          <ng-container *ngIf="getCellType(varDef) === 'date'">
+            <editable-date-cell
+              mode="edit"
+              [value]="form.get(varDef.varName)?.value"
+              [fieldName]="varDef.varName"
+              [displayName]="varDef.varDisplayName"
+              [required]="varDef.required || false"
+              [disabled]="isReadOnly(varDef.varName)"
+              [includeTime]="varDef.varType === 'datetime'"
+              (valueChange)="onFieldChange(varDef.varName, $event)">
+            </editable-date-cell>
+          </ng-container>
+
+          <!-- Select Field -->
+          <ng-container *ngIf="getCellType(varDef) === 'select'">
+            <editable-select-cell
+              mode="edit"
+              [value]="form.get(varDef.varName)?.value"
+              [fieldName]="varDef.varName"
+              [displayName]="varDef.varDisplayName"
+              [required]="varDef.required || false"
+              [disabled]="isReadOnly(varDef.varName)"
+              [options]="getOptions(varDef)"
+              [refClassName]="varDef.refClass || ''"
+              (valueChange)="onFieldChange(varDef.varName, $event)">
+            </editable-select-cell>
+          </ng-container>
+
+          <!-- Field Error -->
+          <mat-error *ngIf="form.get(varDef.varName)?.invalid && form.get(varDef.varName)?.touched">
+            {{ varDef.varDisplayName }} is required
+          </mat-error>
+        </div>
+      </ng-container>
+    </form>
+  </mat-dialog-content>
+
+  <!-- Dialog Actions -->
+  <mat-dialog-actions class="dialog-actions">
+    <!-- Delete button (edit mode only) -->
+    <button *ngIf="data.mode === 'edit'"
+            mat-button
+            color="warn"
+            (click)="onDelete()"
+            [disabled]="isSubmitting"
+            class="delete-btn">
+      <mat-icon>delete</mat-icon>
+      Delete
+    </button>
+
+    <span class="spacer"></span>
+
+    <!-- Cancel button -->
+    <button mat-button
+            (click)="onCancel()"
+            [disabled]="isSubmitting">
+      Cancel
+    </button>
+
+    <!-- Submit button -->
+    <button mat-raised-button
+            color="primary"
+            (click)="onSubmit()"
+            [disabled]="isSubmitting || form.invalid">
+      <mat-spinner *ngIf="isSubmitting" diameter="20" class="btn-spinner"></mat-spinner>
+      <ng-container *ngIf="!isSubmitting">
+        <mat-icon>{{ data.mode === 'create' ? 'add' : 'save' }}</mat-icon>
+        {{ data.mode === 'create' ? 'Create' : 'Save' }}
+      </ng-container>
+    </button>
+  </mat-dialog-actions>
+</div>

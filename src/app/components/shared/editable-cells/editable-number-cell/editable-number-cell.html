@@ -1,0 +1,41 @@
+<div class="editable-number-cell">
+  <!-- Read Mode -->
+  <ng-container *ngIf="!(isEditing$ | async)">
+    <span class="cell-value read-value" (dblclick)="enterEditMode()">
+      {{ getDisplayValue() }}
+    </span>
+  </ng-container>
+
+  <!-- Edit Mode -->
+  <ng-container *ngIf="isEditing$ | async">
+    <mat-form-field appearance="outline" class="edit-field">
+      <mat-label *ngIf="displayName">{{ displayName }}</mat-label>
+
+      <span *ngIf="prefix" matTextPrefix>{{ prefix }}&nbsp;</span>
+
+      <input matInput
+             type="number"
+             [formControl]="control"
+             [placeholder]="placeholder || displayName"
+             [min]="min"
+             [max]="max"
+             [step]="step"
+             (input)="onInput($event)"
+             (keydown)="onKeydown($event)"
+             (blur)="onBlur()"
+             autocomplete="off">
+
+      <span *ngIf="suffix" matTextSuffix>&nbsp;{{ suffix }}</span>
+
+      <mat-hint *ngIf="min !== null || max !== null" align="end">
+        <ng-container *ngIf="min !== null && max !== null">{{ min }} - {{ max }}</ng-container>
+        <ng-container *ngIf="min !== null && max === null">Min: {{ min }}</ng-container>
+        <ng-container *ngIf="min === null && max !== null">Max: {{ max }}</ng-container>
+      </mat-hint>
+
+      <mat-error *ngIf="hasError()">
+        {{ getErrorMessage() }}
+      </mat-error>
+    </mat-form-field>
+  </ng-container>
+</div>

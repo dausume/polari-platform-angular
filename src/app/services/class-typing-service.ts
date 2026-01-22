@@ -2,8 +2,8 @@
 import { Injectable, EventEmitter } from "@angular/core";
 import { HttpClient, HttpHeaders } from '@angular/common/http'
 import { PolariService } from "./polari-service"
-import { dataSetCollection } from "@models/objectData/dataSetCollection";
-import { classPolyTyping } from "@models/polyTyping/classPolyTyping";
+import { DataSetCollection } from "@models/objectData/dataSetCollection";
+import { classPolyTyping, ClassConfig } from "@models/polyTyping/classPolyTyping";
 import { variablePolyTyping } from "@models/polyTyping/variablePolyTyping";
 import { navComponent } from "@models/navComponent";
 import { BehaviorSubject, Observable, Subscription } from "rxjs";
@@ -54,6 +54,12 @@ export class ClassTypingService {
     // BehaviorSubject for unused class pages WITHOUT instances (for nested dropdown)
     unusedClassNavSubject = new BehaviorSubject<navComponent[]>(this.unusedClassNavComponents);
 
+    // Editable class navigation - classes that allow create/edit/delete operations
+    editableUsedClassNavComponents: navComponent[] = [];
+    editableUnusedClassNavComponents: navComponent[] = [];
+    editableUsedClassNavSubject = new BehaviorSubject<navComponent[]>(this.editableUsedClassNavComponents);
+    editableUnusedClassNavSubject = new BehaviorSubject<navComponent[]>(this.editableUnusedClassNavComponents);
+
     //Behaviorsubject that can be used by components to subscribe to and effectively use any typign data easily.
     polyTypingBehaviorSubject = new BehaviorSubject<any>(this.polyTyping);
 
@@ -79,48 +85,32 @@ export class ClassTypingService {
                 }
                 else
                 {
-                    //After setting it, we should ask for the variables again to make sure relevant variable typing is added.
-                    //Make momentary subscription to retrieve variable typing for the new object type recorded, then unsubscribe it.
-                    this.polariService.polyTypedVarsData.subscribe((varTypingList:variablePolyTyping[])=>{
-                        console.log("getting polyVarTyping for newly added or modified polyObj");
-                        //console.log("current polyTyping: ", this.polyTyping);
-                        //console.log("new varTyping: ", varTypingList);
-                        let varObjectName = "";
-                        let formattedVar : variablePolyTyping;
-                        let objectHolder : any = {};
-                        let oldObjectHolder : any = {};
-                        varTypingList.forEach((varTyping:any)=>{
-                            varObjectName = variablePolyTyping.getClassName(varTyping);
-                            if(varObjectName == typeObj.className)
-                            {
-                                formattedVar = new variablePolyTyping(varObjectName, varTyping.name, varTyping.pythonTypeDefault)
-                                console.log("Object keys: ", Object.keys(this.polyVarTyping))
-                                //console.log(varObjectName in Object.keys(this.polyVarTyping))
-                                console.log(this.polyVarTyping.hasOwnProperty(varObjectName))
-                                if(!(this.polyVarTyping.hasOwnProperty(varObjectName)))
-                                {
-                                    console.log("Initializing Object typing vars for : ", varObjectName)
-                                    this.polyVarTyping[varObjectName] = {}
+                    // Initialize the class's variable typing from current polyTypedVarsData
+                    // This is now synchronous - we use the current value of the BehaviorSubject
+                    const currentVarTypingList = this.polariService.polyTypedVarsData.getValue();
+                    console.log("[ClassTypingService] Processing new class:", typeObj.className);
+                    console.log("[ClassTypingService] Current polyTypedVarsData has", currentVarTypingList?.length || 0, "variables");
+
+                    // Initialize the class's variable typing dict
+                    if(!(this.polyVarTyping.hasOwnProperty(typeObj.className))) {
+                        this.polyVarTyping[typeObj.className] = {};
+                    }
+
+                    // Process variables for this class from current data
+                    if (currentVarTypingList && currentVarTypingList.length > 0) {
+                        currentVarTypingList.forEach((varTyping: any) => {
+                            const varObjectName = variablePolyTyping.getClassName(varTyping);
+                            if (varObjectName === typeObj.className) {
+                                const formattedVar = new variablePolyTyping(varObjectName, varTyping.name, varTyping.pythonTypeDefault);
+                                if (formattedVar.variableName != null) {
+                                    this.polyVarTyping[typeObj.className][formattedVar.variableName] = formattedVar;
                                 }
-                                objectHolder = {}
-                                console.log("varName: ", formattedVar.variableName, ", object name: ", varObjectName);
-                                if(formattedVar.variableName != null)
-                                {
-                                    objectHolder[formattedVar.variableName] = formattedVar
-                                }
-                                oldObjectHolder = this.polyVarTyping[varObjectName]
-                                console.log("Current Object Holder: ", oldObjectHolder)
-                                console.log("portion to add: ", objectHolder)
-                                this.polyVarTyping[varObjectName] = Object.assign(oldObjectHolder, objectHolder)
-                                //this.polyVarTyping[className][varTyping.variableName] = formattedVar;
-                                //console.log("fail 3 -1")
-                                console.log("updated polyVarTyping: ",this.polyVarTyping);
                             }
                         });
-                        console.log("polyVarTyping Before Unsubscribe - ", this.polyVarTyping);
-                    }).unsubscribe();
-                    
-                    
+                        console.log("[ClassTypingService] Populated", Object.keys(this.polyVarTyping[typeObj.className]).length,
+                                    "variables for", typeObj.className);
+                    }
+
                     // Convert camelCase class name to readable display name
                     // e.g., "dataStream" -> "Data Stream", "managedFile" -> "Managed File"
                     let className = "";
@@ -148,16 +138,41 @@ export class ClassTypingService {
                         }
                     }
                     //The typing object is not recorded yet so we simply set it to exist after having retrieved known variables.
-                    //this.polyTyping[typeObj.className] = typeObj;
-                    if(!(className in Object.keys(this.polyVarTyping)))
-                    {
-                        this.polyVarTyping[typeObj.className] = {}
-                    }
-                    this.polyTyping[typeObj.className] = new classPolyTyping(typeObj.className, this.polyVarTyping[typeObj.className], className) ;
+                    // polyVarTyping[typeObj.className] is already initialized and populated above
+                    // Extract config from backend response (if available) for UI behavior control
+                    const classConfig = typeObj.config ? {
+                        allowClassEdit: typeObj.config.allowClassEdit ?? false,
+                        isStateSpaceObject: typeObj.config.isStateSpaceObject ?? false,
+                        excludeFromCRUDE: typeObj.config.excludeFromCRUDE ?? true,
+                        isDynamicClass: typeObj.config.isDynamicClass ?? false
+                    } : undefined;
+
+                    this.polyTyping[typeObj.className] = new classPolyTyping(
+                        typeObj.className,
+                        this.polyVarTyping[typeObj.className],
+                        className,
+                        undefined, // variableNames - derived from completeVariableTypingData
+                        undefined, // polyTypedVars
+                        undefined, // variableTypes
+                        classConfig // config from backend for UI behavior control
+                    );
                     this.polyTypingBehaviorSubject.next(this.polyVarTyping);
 
                     // Setup the navComponent for the new type
-                    let navComp : navComponent = new navComponent(className, "class-main-page/"+typeObj.className, "ClassMainPageComponent");
+                    // Check if this class is editable (can create/edit/delete instances)
+                    const classTypingObj = this.polyTyping[typeObj.className] as classPolyTyping;
+                    const isEditable = classTypingObj?.canEditInstances() ?? true;
+
+                    let navComp : navComponent = new navComponent(
+                        className,
+                        "class-main-page/"+typeObj.className,
+                        "ClassMainPageComponent",
+                        {}, // crude
+                        [], // queryParams
+                        undefined, // componentModifiers
+                        isEditable, // isEditable flag
+                        typeObj.className // className
+                    );
 
                     // Check if this class nav already exists in either list
                     const existingInUsed = this.dynamicClassNavComponents.findIndex(nc => nc.path === navComp.path);
@@ -165,16 +180,32 @@ export class ClassTypingService {
 
                     if (existingInUsed === -1 && existingInUnused === -1) {
                         // Categorize based on whether this class has instances
-                        if (this.classHasInstances(typeObj.className)) {
+                        const hasInstances = this.classHasInstances(typeObj.className);
+
+                        if (hasInstances) {
                             this.dynamicClassNavComponents.push(navComp);
                             this.dynamicClassNavComponents.sort((a, b) => a.title.localeCompare(b.title));
                             this.dynamicClassNavSubject.next([...this.dynamicClassNavComponents]);
-                            console.log('[ClassTypingService] Added to USED nav for:', className);
+
+                            // Also add to editable list if editable
+                            if (isEditable) {
+                                this.editableUsedClassNavComponents.push(navComp);
+                                this.editableUsedClassNavComponents.sort((a, b) => a.title.localeCompare(b.title));
+                                this.editableUsedClassNavSubject.next([...this.editableUsedClassNavComponents]);
+                            }
+                            console.log('[ClassTypingService] Added to USED nav for:', className, 'editable:', isEditable);
                         } else {
                             this.unusedClassNavComponents.push(navComp);
                             this.unusedClassNavComponents.sort((a, b) => a.title.localeCompare(b.title));
                             this.unusedClassNavSubject.next([...this.unusedClassNavComponents]);
-                            console.log('[ClassTypingService] Added to UNUSED nav for:', className);
+
+                            // Also add to editable unused list if editable
+                            if (isEditable) {
+                                this.editableUnusedClassNavComponents.push(navComp);
+                                this.editableUnusedClassNavComponents.sort((a, b) => a.title.localeCompare(b.title));
+                                this.editableUnusedClassNavSubject.next([...this.editableUnusedClassNavComponents]);
+                            }
+                            console.log('[ClassTypingService] Added to UNUSED nav for:', className, 'editable:', isEditable);
                         }
                     }
 
@@ -249,6 +280,59 @@ export class ClassTypingService {
     }
 
     /**
+     * Gets the classPolyTyping object for a class, which includes the config flags.
+     * Use this to check permissions like canEditInstances(), canCreateInstances(), etc.
+     * @param className The class name to look up
+     * @returns The classPolyTyping object or null if not found
+     */
+    getClassPolyTyping(className: string): classPolyTyping | null {
+        if (this.polyTyping.hasOwnProperty(className)) {
+            return this.polyTyping[className] as classPolyTyping;
+        }
+        return null;
+    }
+
+    /**
+     * Checks if instances of a class can be created through the UI.
+     * @param className The class name to check
+     * @returns true if create is allowed, false otherwise
+     */
+    canCreateInstances(className: string): boolean {
+        const classTyping = this.getClassPolyTyping(className);
+        return classTyping?.canCreateInstances() ?? false;
+    }
+
+    /**
+     * Checks if instances of a class can be edited through the UI.
+     * @param className The class name to check
+     * @returns true if edit is allowed, false otherwise
+     */
+    canEditInstances(className: string): boolean {
+        const classTyping = this.getClassPolyTyping(className);
+        return classTyping?.canEditInstances() ?? false;
+    }
+
+    /**
+     * Checks if instances of a class can be deleted through the UI.
+     * @param className The class name to check
+     * @returns true if delete is allowed, false otherwise
+     */
+    canDeleteInstances(className: string): boolean {
+        const classTyping = this.getClassPolyTyping(className);
+        return classTyping?.canDeleteInstances() ?? false;
+    }
+
+    /**
+     * Checks if the class definition itself can be edited (add/remove variables).
+     * @param className The class name to check
+     * @returns true if class edit is allowed, false otherwise
+     */
+    canEditClassDefinition(className: string): boolean {
+        const classTyping = this.getClassPolyTyping(className);
+        return classTyping?.canEditClassDefinition() ?? false;
+    }
+
+    /**
      * Fetch class instance counts from the backend to determine which classes have instances.
      * This is used to separate "Object Pages" (with instances) from "Unused Objects" (without instances).
      */
@@ -293,37 +377,57 @@ export class ClassTypingService {
 
     /**
      * Re-categorize nav components into "used" and "unused" based on instance counts.
+     * Also categorizes by editability.
      */
     recategorizeNavComponents() {
         // Get all dynamic nav components
         const allNavs = [...this.dynamicClassNavComponents, ...this.unusedClassNavComponents];
 
-        // Reset arrays
+        // Reset all arrays
         this.dynamicClassNavComponents = [];
         this.unusedClassNavComponents = [];
+        this.editableUsedClassNavComponents = [];
+        this.editableUnusedClassNavComponents = [];
 
         allNavs.forEach(nav => {
-            // Extract class name from path (format: "class-main-page/className")
-            const pathParts = nav.path.split('/');
-            const className = pathParts.length > 1 ? pathParts[1] : '';
+            // Extract class name from path (format: "class-main-page/className") or use stored className
+            const className = nav.className || (nav.path.split('/').length > 1 ? nav.path.split('/')[1] : '');
 
-            if (this.classesWithInstances.includes(className)) {
+            // Update isEditable flag based on current polyTyping data
+            const classTyping = this.getClassPolyTyping(className);
+            nav.isEditable = classTyping?.canEditInstances() ?? true;
+
+            const hasInstances = this.classesWithInstances.includes(className);
+
+            if (hasInstances) {
                 this.dynamicClassNavComponents.push(nav);
+                if (nav.isEditable) {
+                    this.editableUsedClassNavComponents.push(nav);
+                }
             } else {
                 this.unusedClassNavComponents.push(nav);
+                if (nav.isEditable) {
+                    this.editableUnusedClassNavComponents.push(nav);
+                }
             }
         });
 
-        // Sort both lists
+        // Sort all lists
         this.dynamicClassNavComponents.sort((a, b) => a.title.localeCompare(b.title));
         this.unusedClassNavComponents.sort((a, b) => a.title.localeCompare(b.title));
+        this.editableUsedClassNavComponents.sort((a, b) => a.title.localeCompare(b.title));
+        this.editableUnusedClassNavComponents.sort((a, b) => a.title.localeCompare(b.title));
 
         // Emit updates
         this.dynamicClassNavSubject.next([...this.dynamicClassNavComponents]);
         this.unusedClassNavSubject.next([...this.unusedClassNavComponents]);
+        this.editableUsedClassNavSubject.next([...this.editableUsedClassNavComponents]);
+        this.editableUnusedClassNavSubject.next([...this.editableUnusedClassNavComponents]);
 
         console.log('[ClassTypingService] Recategorized - Used:', this.dynamicClassNavComponents.length,
-                    'Unused:', this.unusedClassNavComponents.length);
+                    'Unused:', this.unusedClassNavComponents.length,
+                    'Editable Used:', this.editableUsedClassNavComponents.length,
+                    'Editable Unused:', this.editableUnusedClassNavComponents.length);
     }
 
     /**

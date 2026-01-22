@@ -1,0 +1,53 @@
+<div class="editable-date-cell">
+  <!-- Read Mode -->
+  <ng-container *ngIf="!(isEditing$ | async)">
+    <span class="cell-value read-value" (dblclick)="enterEditMode()">
+      <mat-icon class="date-icon">event</mat-icon>
+      {{ getDisplayValue() }}
+    </span>
+  </ng-container>
+
+  <!-- Edit Mode -->
+  <ng-container *ngIf="isEditing$ | async">
+    <div class="edit-container">
+      <!-- Date picker -->
+      <mat-form-field appearance="outline" class="date-field">
+        <mat-label *ngIf="displayName">{{ displayName }}</mat-label>
+        <input matInput
+               [matDatepicker]="picker"
+               [value]="dateValue"
+               [min]="minDate"
+               [max]="maxDate"
+               (dateChange)="onDateChange($event)"
+               [placeholder]="placeholder || 'Select date'"
+               (keydown)="onKeydown($event)">
+        <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
+        <mat-datepicker #picker></mat-datepicker>
+
+        <button *ngIf="dateValue"
+                mat-icon-button
+                matIconSuffix
+                type="button"
+                (click)="clearDate()"
+                aria-label="Clear date">
+          <mat-icon>close</mat-icon>
+        </button>
+
+        <mat-error *ngIf="hasError()">
+          {{ getErrorMessage() }}
+        </mat-error>
+      </mat-form-field>
+
+      <!-- Time input (if includeTime) -->
+      <mat-form-field *ngIf="includeTime" appearance="outline" class="time-field">
+        <mat-label>Time</mat-label>
+        <input matInput
+               type="time"
+               [value]="timeString"
+               (change)="onTimeChange($event)"
+               [disabled]="!dateValue">
+        <mat-icon matIconPrefix>schedule</mat-icon>
+      </mat-form-field>
+    </div>
+  </ng-container>
+</div>

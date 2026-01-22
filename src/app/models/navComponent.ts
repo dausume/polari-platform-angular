@@ -7,10 +7,23 @@ export class navComponent {
     componentModifiers?: object;
     authGroups?: string[];
     queryParams?: any;
+    /** Whether this class's instances can be edited/created/deleted via the UI */
+    isEditable?: boolean;
+    /** The class name (for class-based nav items) */
+    className?: string;
 
     static classComponentTemplates = ["ClassMainPageComponent"]
 
-    constructor(title: string, path: string, component: string, crude?:object, queryParams?: any, componentModifiers?:object)
+    constructor(
+        title: string,
+        path: string,
+        component: string,
+        crude?:object,
+        queryParams?: any,
+        componentModifiers?:object,
+        isEditable?: boolean,
+        className?: string
+    )
     {
         this.component = component;
         this.title = title;
@@ -33,5 +46,7 @@ export class navComponent {
             this.queryParams = queryParams;
         }
         this.componentModifiers = componentModifiers;
+        this.isEditable = isEditable ?? true;  // Default to editable for backwards compat
+        this.className = className;
     }
 }

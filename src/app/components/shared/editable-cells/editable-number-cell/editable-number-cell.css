@@ -1,0 +1,47 @@
+.editable-number-cell {
+  width: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.cell-value {
+  padding: 4px 8px;
+  min-width: 50px;
+  min-height: 24px;
+  display: inline-block;
+  text-align: right;
+}
+
+.read-value {
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.read-value:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.edit-field {
+  width: 100%;
+}
+
+.edit-field ::ng-deep .mat-mdc-form-field-subscript-wrapper {
+  height: auto;
+}
+
+.edit-field ::ng-deep .mat-mdc-form-field-infix {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.edit-field ::ng-deep input[type="number"] {
+  text-align: right;
+  -moz-appearance: textfield;
+}
+
+.edit-field ::ng-deep input[type="number"]::-webkit-outer-spin-button,
+.edit-field ::ng-deep input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}

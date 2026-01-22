@@ -1,11 +1,17 @@
 // class-data-table.component.ts
-import { Component, Input, OnInit, ViewChild, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, ViewChild, OnChanges, SimpleChanges } from '@angular/core';
 import { MatTableDataSource } from '@angular/material/table';
 import { MatSort } from '@angular/material/sort';
 import { MatPaginator } from '@angular/material/paginator';
+import { MatDialog } from '@angular/material/dialog';
+import { HttpClient } from '@angular/common/http';
 import { TableConfig } from '@models/tableConfiguration';
 import { classPolyTyping } from '@models/polyTyping/classPolyTyping';
 import { variablePolyTyping } from '@models/polyTyping/variablePolyTyping';
+import { RuntimeConfigService } from '@services/runtime-config.service';
+import { ClassTypingService } from '@services/class-typing-service';
+import { CrudDialogComponent } from '@components/shared/crud-dialog/crud-dialog';
+import { CrudDialogData, CrudDialogResult, VariableDefinition } from '@components/shared/models/crud-config.models';
 
 @Component({
   selector: 'class-data-table',
@@ -18,14 +24,31 @@ export class ClassDataTableComponent implements OnInit, OnChanges {
   @Input() instanceData: any[] = [];
   @Input() tableConfig?: TableConfig;
 
+  @Output() instanceCreated = new EventEmitter<any>();
+  @Output() instanceUpdated = new EventEmitter<any>();
+  @Output() instanceDeleted = new EventEmitter<string>();
+
   @ViewChild(MatSort) sort!: MatSort;
   @ViewChild(MatPaginator) paginator!: MatPaginator;
 
   dataSource: MatTableDataSource<any>;
   displayedColumns: string[] = [];
+  dataColumns: string[] = [];  // Columns excluding _actions
   columnTypes: { [key: string]: string } = {};
+  availableColumns: string[] = [];  // Cached list of all available columns (for template)
 
-  constructor() {
+  // Permission flags based on class configuration
+  // These control whether CRUD actions are shown in the UI
+  canCreate: boolean = false;
+  canEdit: boolean = false;
+  canDelete: boolean = false;
+
+  constructor(
+    private dialog: MatDialog,
+    private http: HttpClient,
+    private runtimeConfig: RuntimeConfigService,
+    private classTypingService: ClassTypingService
+  ) {
     this.dataSource = new MatTableDataSource<any>([]);
   }
 
@@ -34,27 +57,13 @@ export class ClassDataTableComponent implements OnInit, OnChanges {
   }
 
   ngOnChanges(changes: SimpleChanges) {
-    console.log('[ClassDataTable] ngOnChanges triggered');
-    console.log('[ClassDataTable] Changes:', Object.keys(changes));
-
     // Handle className changes - completely reinitialize
     if (changes.className && !changes.className.firstChange) {
-      console.log('[ClassDataTable] ClassName changed from', changes.className.previousValue, 'to', changes.className.currentValue);
-
       // Clear old state
       this.columnTypes = {};
       this.displayedColumns = [];
+      this.availableColumns = [];
       this.dataSource.data = [];
-    }
-
-    // Log instanceData changes specifically
-    if (changes.instanceData) {
-      console.log('[ClassDataTable] instanceData changed:');
-      console.log('[ClassDataTable]   - previousValue:', changes.instanceData.previousValue);
-      console.log('[ClassDataTable]   - currentValue:', changes.instanceData.currentValue);
-      console.log('[ClassDataTable]   - currentValue type:', typeof changes.instanceData.currentValue);
-      console.log('[ClassDataTable]   - currentValue isArray:', Array.isArray(changes.instanceData.currentValue));
-      console.log('[ClassDataTable]   - currentValue length:', changes.instanceData.currentValue?.length);
     }
 
     // Reinitialize table when any input changes
@@ -64,50 +73,76 @@ export class ClassDataTableComponent implements OnInit, OnChanges {
   }
 
   initializeTable() {
-    console.log('[ClassDataTable] initializeTable() called');
-    console.log('[ClassDataTable] className:', this.className);
-    console.log('[ClassDataTable] classTypeData:', this.classTypeData);
-    console.log('[ClassDataTable] instanceData:', this.instanceData);
-    console.log('[ClassDataTable] instanceData type:', typeof this.instanceData);
-    console.log('[ClassDataTable] instanceData isArray:', Array.isArray(this.instanceData));
-
     // Load or create table configuration
     if (!this.tableConfig && this.className) {
       this.tableConfig = TableConfig.load(this.className);
     }
 
-    // Extract columns from classTypeData
-    if (this.classTypeData) {
-      const keys = Object.keys(this.classTypeData);
-      console.log('[ClassDataTable] classTypeData keys:', keys);
+    // Check permissions from ClassTypingService based on class configuration
+    // This determines whether Create/Edit/Delete buttons are shown
+    if (this.className) {
+      this.canCreate = this.classTypingService.canCreateInstances(this.className);
+      this.canEdit = this.classTypingService.canEditInstances(this.className);
+      this.canDelete = this.classTypingService.canDeleteInstances(this.className);
+
+      console.log(`[ClassDataTable] Permissions for ${this.className}: create=${this.canCreate}, edit=${this.canEdit}, delete=${this.canDelete}`);
+    }
+
+    let keys: string[] = [];
+
+    if (this.classTypeData && Object.keys(this.classTypeData).length > 0) {
+      keys = Object.keys(this.classTypeData);
 
       // Store column types for rendering
       keys.forEach(key => {
         if (this.classTypeData[key]?.variablePythonType) {
           this.columnTypes[key] = this.classTypeData[key].variablePythonType;
-          console.log(`[ClassDataTable] Column "${key}" type: ${this.columnTypes[key]}`);
-        } else {
-          console.warn(`[ClassDataTable] Column "${key}" has no variablePythonType:`, this.classTypeData[key]);
         }
       });
+    }
+    // FALLBACK: If classTypeData is empty but we have instanceData, derive columns from first instance
+    else if (this.instanceData && this.instanceData.length > 0) {
+      const firstInstance = this.instanceData[0];
+      keys = Object.keys(firstInstance);
 
-      // Filter out removed columns
-      const removedColumns = this.tableConfig?.removedColumns || [];
-      const availableKeys = keys.filter(key => !removedColumns.includes(key));
-      console.log('[ClassDataTable] Available columns after filtering:', availableKeys);
+      // Infer types from values
+      keys.forEach(key => {
+        const value = firstInstance[key];
+        let inferredType = 'str';
+        if (typeof value === 'number') {
+          inferredType = Number.isInteger(value) ? 'int' : 'float';
+        } else if (typeof value === 'boolean') {
+          inferredType = 'bool';
+        } else if (Array.isArray(value)) {
+          inferredType = 'list';
+        } else if (value && typeof value === 'object') {
+          inferredType = 'dict';
+        }
+        this.columnTypes[key] = inferredType;
+      });
+    }
 
-      // Set displayed columns based on config or default to all available
+    // Filter out removed columns
+    const removedColumns = this.tableConfig?.removedColumns || [];
+    const availableKeys = keys.filter(key => !removedColumns.includes(key));
+
+    // Set displayed columns based on config or default to all available
+    if (availableKeys.length > 0) {
       if (this.tableConfig?.visibleColumns && this.tableConfig.visibleColumns.length > 0) {
         // Use only visible columns that exist and aren't removed
-        this.displayedColumns = this.tableConfig.visibleColumns.filter(col =>
+        const configuredColumns = this.tableConfig.visibleColumns.filter(col =>
           availableKeys.includes(col)
         );
+        // If filtering results in no columns, fall back to all available
+        if (configuredColumns.length > 0) {
+          this.displayedColumns = configuredColumns;
+        } else {
+          this.displayedColumns = [...availableKeys];
+        }
       } else {
         // Default to all available columns
         this.displayedColumns = [...availableKeys];
       }
-
-      console.log('[ClassDataTable] Final displayedColumns:', this.displayedColumns);
 
       // Apply sorting if configured
       if (this.tableConfig?.sortOrder === 'alphabetical') {
@@ -116,25 +151,32 @@ export class ClassDataTableComponent implements OnInit, OnChanges {
           return this.tableConfig!.sortDirection === 'asc' ? comparison : -comparison;
         });
       }
-    } else {
-      console.warn('[ClassDataTable] No classTypeData provided - cannot determine columns');
     }
+
+    // Add actions column at the end only if there are any actions available
+    const hasAnyActions = this.canEdit || this.canDelete;
+    if (hasAnyActions && !this.displayedColumns.includes('_actions')) {
+      this.displayedColumns.push('_actions');
+    } else if (!hasAnyActions && this.displayedColumns.includes('_actions')) {
+      // Remove actions column if no actions are available
+      const actionsIndex = this.displayedColumns.indexOf('_actions');
+      if (actionsIndex >= 0) {
+        this.displayedColumns.splice(actionsIndex, 1);
+      }
+    }
+
+    // Set dataColumns (excluding _actions) for template binding
+    this.dataColumns = this.displayedColumns.filter(col => col !== '_actions');
+
+    // Update cached availableColumns for template (avoids method call on every change detection)
+    this.availableColumns = this.getAllColumns();
 
     // Set data source
     if (this.instanceData && this.instanceData.length > 0) {
-      console.log('[ClassDataTable] Setting dataSource with', this.instanceData.length, 'rows');
-      // Debug: log first row to see data structure
-      if (this.instanceData[0]) {
-        console.log('[ClassDataTable] First row sample:', this.instanceData[0]);
-        console.log('[ClassDataTable] First row keys:', Object.keys(this.instanceData[0]));
-      }
       this.dataSource.data = this.instanceData;
     } else {
-      console.log('[ClassDataTable] No instance data to display');
       this.dataSource.data = [];
     }
-
-    console.log('[ClassDataTable] Final dataSource.data length:', this.dataSource.data.length);
 
     // Apply sort and paginator after view init
     setTimeout(() => {
@@ -230,6 +272,8 @@ export class ClassDataTableComponent implements OnInit, OnChanges {
 
     // Create a new array reference to trigger change detection
     this.displayedColumns = [...this.displayedColumns];
+    // Update dataColumns to match
+    this.dataColumns = this.displayedColumns.filter(col => col !== '_actions');
 
     // Save configuration
     if (this.tableConfig) {
@@ -279,6 +323,194 @@ export class ClassDataTableComponent implements OnInit, OnChanges {
         return typeof value === 'object' ? `{${Object.keys(value).length} keys}` : String(value);
       default:
         return String(value);
+    }
+  }
+
+  /**
+   * Get data columns (excluding _actions)
+   */
+  getDataColumns(): string[] {
+    return this.displayedColumns.filter(col => col !== '_actions');
+  }
+
+  /**
+   * Build schema from classTypeData or columnTypes for the dialog
+   * Uses classTypeData if it has proper structure, otherwise falls back to columnTypes
+   */
+  private getSchema(): VariableDefinition[] {
+    const schema: VariableDefinition[] = [];
+
+    // Check if classTypeData has proper structure (has variablePythonType on first key)
+    const classTypeKeys = Object.keys(this.classTypeData || {});
+    const hasProperStructure = classTypeKeys.length > 0 &&
+      classTypeKeys.some(key => this.classTypeData[key]?.variablePythonType);
+
+    if (hasProperStructure) {
+      // Use classTypeData with variablePythonType
+      classTypeKeys.forEach(key => {
+        const varData = this.classTypeData[key];
+        if (varData?.variablePythonType) {
+          schema.push({
+            varName: key,
+            varDisplayName: varData?.displayName || this.getColumnDisplayName(key),
+            varType: varData.variablePythonType,
+            isIdentifier: key === 'id',
+            required: key === 'id'
+          });
+        }
+      });
+    } else {
+      // Fallback: Use columnTypes (derived from instanceData)
+      const columnKeys = Object.keys(this.columnTypes);
+      columnKeys.forEach(key => {
+        schema.push({
+          varName: key,
+          varDisplayName: this.getColumnDisplayName(key),
+          varType: this.columnTypes[key] || 'str',
+          isIdentifier: key === 'id',
+          required: key === 'id'
+        });
+      });
+    }
+
+    return schema;
+  }
+
+  /**
+   * Open create dialog
+   */
+  openCreateDialog(): void {
+    const dialogData: CrudDialogData = {
+      mode: 'create',
+      className: this.className || 'Unknown',
+      classDisplayName: this.className || 'Unknown',
+      schema: this.getSchema(),
+      hiddenFields: ['id'] // Hide id field for create (auto-generated)
+    };
+
+    const dialogRef = this.dialog.open(CrudDialogComponent, {
+      data: dialogData,
+      width: '600px',
+      disableClose: true
+    });
+
+    dialogRef.afterClosed().subscribe((result: CrudDialogResult) => {
+      console.log('[ClassDataTable] Dialog closed with result:', result);
+      if (result?.action === 'save' && result.data) {
+        console.log('[ClassDataTable] Adding new instance to table:', result.data);
+        console.log('[ClassDataTable] Instance keys:', Object.keys(result.data));
+        console.log('[ClassDataTable] Current dataSource.data length:', this.dataSource.data.length);
+        // Add to data source
+        this.dataSource.data = [...this.dataSource.data, result.data];
+        console.log('[ClassDataTable] New dataSource.data length:', this.dataSource.data.length);
+        console.log('[ClassDataTable] New dataSource.data:', this.dataSource.data);
+        this.instanceCreated.emit(result.data);
+      }
+    });
+  }
+
+  /**
+   * Open edit dialog
+   */
+  openEditDialog(row: any): void {
+    const dialogData: CrudDialogData = {
+      mode: 'edit',
+      className: this.className || 'Unknown',
+      classDisplayName: this.className || 'Unknown',
+      schema: this.getSchema(),
+      instance: row,
+      readOnlyFields: ['id'] // ID is read-only in edit mode
+    };
+
+    const dialogRef = this.dialog.open(CrudDialogComponent, {
+      data: dialogData,
+      width: '600px',
+      disableClose: true
+    });
+
+    dialogRef.afterClosed().subscribe((result: CrudDialogResult) => {
+      const rowId = this.getInstanceId(row);
+
+      if (result?.action === 'save' && result.data) {
+        // Update in data source
+        const index = this.dataSource.data.findIndex(r =>
+          this.getInstanceId(r) === rowId
+        );
+        if (index >= 0) {
+          this.dataSource.data[index] = result.data;
+          this.dataSource.data = [...this.dataSource.data];
+        }
+        this.instanceUpdated.emit(result.data);
+      } else if (result?.action === 'delete') {
+        // Remove from data source
+        const index = this.dataSource.data.findIndex(r =>
+          this.getInstanceId(r) === rowId
+        );
+        if (index >= 0) {
+          this.dataSource.data.splice(index, 1);
+          this.dataSource.data = [...this.dataSource.data];
+        }
+        this.instanceDeleted.emit(rowId);
+      }
+    });
+  }
+
+  /**
+   * Extract instance ID from row data.
+   * Checks multiple common ID field names used by different backends.
+   */
+  private getInstanceId(row: any): string | undefined {
+    // Check common ID field names in order of preference
+    const idFields = ['id', '_instanceId', '_id', 'Id', 'ID', 'instanceId'];
+    for (const field of idFields) {
+      if (row[field] !== undefined && row[field] !== null) {
+        return String(row[field]);
+      }
+    }
+    // Log warning with row keys to help debug
+    console.warn('[ClassDataTable] Could not find ID field in row. Available fields:', Object.keys(row));
+    console.warn('[ClassDataTable] Row data:', row);
+    return undefined;
+  }
+
+  /**
+   * Confirm and delete an instance
+   * Polari backend expects multipart form data with targetInstance field
+   * containing a query dict to identify the instance (e.g., {"id": "someId"})
+   */
+  confirmDelete(row: any): void {
+    const instanceId = this.getInstanceId(row);
+
+    if (!instanceId) {
+      alert('Cannot delete: Unable to determine instance ID. Check console for details.');
+      return;
+    }
+
+    const confirmDelete = confirm(`Are you sure you want to delete this ${this.className} instance?`);
+
+    if (confirmDelete) {
+      const backendUrl = this.runtimeConfig.getBackendBaseUrl();
+      const multipartData = new FormData();
+      multipartData.append('targetInstance', JSON.stringify({ id: instanceId }));
+
+      this.http.request('DELETE', `${backendUrl}/${this.className}`, { body: multipartData })
+        .subscribe({
+          next: () => {
+            // Remove from data source
+            const index = this.dataSource.data.findIndex(r =>
+              this.getInstanceId(r) === instanceId
+            );
+            if (index >= 0) {
+              this.dataSource.data.splice(index, 1);
+              this.dataSource.data = [...this.dataSource.data];
+            }
+            this.instanceDeleted.emit(instanceId);
+          },
+          error: (error) => {
+            console.error('[ClassDataTable] Delete failed:', error);
+            alert('Failed to delete instance: ' + (error.error?.error || error.message));
+          }
+        });
     }
   }
 }
