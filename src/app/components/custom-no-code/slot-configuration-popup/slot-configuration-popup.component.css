@@ -1,0 +1,237 @@
+/* Slot Configuration Popup Styles */
+
+.slot-config-popup {
+  position: fixed;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  padding: 16px;
+  min-width: 280px;
+  max-width: 340px;
+  z-index: 2000;
+  font-family: 'Roboto', sans-serif;
+}
+
+/* Header */
+.popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.popup-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.slot-index {
+  font-size: 11px;
+  color: #999;
+  padding: 2px 8px;
+  background: #f5f5f5;
+  border-radius: 10px;
+}
+
+/* Config Sections */
+.config-section {
+  margin-bottom: 16px;
+}
+
+.section-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #666;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Text Inputs */
+.text-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 13px;
+  box-sizing: border-box;
+}
+
+.text-input:focus {
+  outline: none;
+  border-color: #1976d2;
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1);
+}
+
+.description-input {
+  resize: vertical;
+  min-height: 48px;
+}
+
+/* Color Grid */
+.color-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+
+.color-swatch {
+  width: 32px;
+  height: 32px;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.color-swatch:hover {
+  transform: scale(1.1);
+}
+
+.color-swatch.selected {
+  border-color: #333;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.color-swatch .check-icon {
+  font-size: 16px;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Mapping Modes */
+.mapping-modes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mapping-option {
+  padding: 10px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.mapping-option:hover {
+  border-color: #1976d2;
+  background: #f8f9ff;
+}
+
+.mapping-option.selected {
+  border-color: #1976d2;
+  background: #e3f2fd;
+}
+
+.option-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.option-radio {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  color: #999;
+}
+
+.mapping-option.selected .option-radio {
+  color: #1976d2;
+}
+
+.option-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #333;
+}
+
+.option-description {
+  margin: 4px 0 0 26px;
+  font-size: 11px;
+  color: #666;
+}
+
+/* Parameter Info */
+.param-info {
+  background: #f5f5f5;
+  padding: 10px 12px;
+  border-radius: 4px;
+}
+
+.param-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.param-row:last-child {
+  margin-bottom: 0;
+}
+
+.param-label {
+  font-size: 11px;
+  color: #666;
+  font-weight: 500;
+}
+
+.param-value {
+  font-size: 12px;
+  color: #333;
+}
+
+.type-badge {
+  font-family: 'Roboto Mono', monospace;
+  background: #e3f2fd;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #1976d2;
+}
+
+/* Actions */
+.popup-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.action-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cancel-btn {
+  background: #f5f5f5;
+  color: #666;
+}
+
+.cancel-btn:hover {
+  background: #e0e0e0;
+}
+
+.save-btn {
+  background: #1976d2;
+  color: white;
+}
+
+.save-btn:hover {
+  background: #1565c0;
+}

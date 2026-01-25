@@ -29,6 +29,7 @@ export class NoCodeMenuComponent {
   @Output() newConnectorInstance = new EventEmitter();
   @Output() stateMode = new EventEmitter();
   @Output() connectorMode = new EventEmitter();
+  @Output() openDefinitionCreator = new EventEmitter();
 
   constructor() {
 
@@ -66,6 +67,10 @@ export class NoCodeMenuComponent {
   makeConnection()
   {
 
+  }
+
+  onOpenDefinitionCreator(): void {
+    this.openDefinitionCreator.emit();
   }
 
 }

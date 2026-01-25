@@ -5,6 +5,7 @@ import { BehaviorSubject, Subscription } from 'rxjs';
 // Import all default D3ModelLayer objects that are used to render the No-Code State objects.
 import { D3ModelLayer } from '@models/noCode/d3-extensions/D3ModelLayer';
 import { CircleStateLayer } from '@models/noCode/d3-extensions/CircleStateLayer';
+import { RectangleStateLayer } from '@models/noCode/d3-extensions/RectangleStateLayer';
 // Import the NoCodeState object which is used to define the state of the No-Code Solution.
 import { NoCodeState } from '@models/noCode/NoCodeState';
 import { NoCodeSolution } from '@models/noCode/NoCodeSolution';
@@ -106,9 +107,14 @@ export class NoCodeStateRendererManager {
     console.log("Step 3 - Define Default Layer Types");
     // Define the default D3ModelLayer object for rendering circles.
     this.stateShapeTypeToD3ModelLayerTypeMap.set(
-      "circle", 
+      "circle",
       CircleStateLayer
-    )
+    );
+    // Define the D3ModelLayer object for rendering rectangles.
+    this.stateShapeTypeToD3ModelLayerTypeMap.set(
+      "rectangle",
+      RectangleStateLayer
+    );
   }
 
   /**

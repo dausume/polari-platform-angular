@@ -39,6 +39,29 @@
             {{ saveMessage }}
         </div>
 
+        <!-- State-Space Configuration -->
+        <div class="state-space-section">
+            <h3 class="section-title">State-Space Configuration</h3>
+            <div class="state-space-options">
+                <mat-checkbox [(ngModel)]="isStateSpaceObject" color="primary">
+                    Enable as State-Space Object
+                </mat-checkbox>
+                <span class="state-space-hint">
+                    When enabled, instances of this class can be used as states in the no-code visual editor
+                </span>
+
+                <div *ngIf="isStateSpaceObject" class="fields-per-row-option">
+                    <mat-form-field appearance="outline">
+                        <mat-label>Fields per Row in State Display</mat-label>
+                        <mat-select [(ngModel)]="stateSpaceFieldsPerRow">
+                            <mat-option [value]="1">1 field per row</mat-option>
+                            <mat-option [value]="2">2 fields per row</mat-option>
+                        </mat-select>
+                    </mat-form-field>
+                </div>
+            </div>
+        </div>
+
         <!-- Variables Section -->
         <div class="variables-section">
             <h3 class="variables-section-title">Class Variables</h3>

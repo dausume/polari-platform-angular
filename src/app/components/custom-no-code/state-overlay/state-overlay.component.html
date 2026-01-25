@@ -1,0 +1,99 @@
+<div class="state-overlay"
+     [class.micro]="isMicro"
+     [class.tiny]="isTiny"
+     [class.compact]="isCompact"
+     [class.small]="isSmall"
+     [class.editing]="isEditing">
+
+  <!-- Micro mode: just a dot/minimal indicator - no content at all -->
+  <div class="micro-indicator" *ngIf="isMicro" (contextmenu)="onContextMenu($event)">
+    <div class="micro-dot"></div>
+  </div>
+
+  <!-- Tiny mode: icon only -->
+  <div class="compact-indicator" *ngIf="isTiny && !isMicro" (contextmenu)="onContextMenu($event)">
+    <mat-icon class="compact-icon" [style.font-size.px]="getIconSize()">{{ getStateIcon() }}</mat-icon>
+  </div>
+
+  <!-- Compact/Small/Full mode: show header and content based on available space -->
+  <ng-container *ngIf="!isTiny">
+    <!-- Header with state type/class name -->
+    <div class="overlay-header">
+      <!-- State Title (class name, block type, or solution name) -->
+      <div class="state-title"
+           [style.font-size.px]="getTitleFontSize()"
+           (click)="toggleEditMode()"
+           (contextmenu)="onContextMenu($event)">
+        <span class="title-text">{{ getStateTitle() }}</span>
+      </div>
+
+      <!-- Subtitle (function/variable name if applicable) - hide in compact mode -->
+      <div class="state-subtitle"
+           *ngIf="getStateSubtitle() && !isCompact"
+           [style.font-size.px]="getSubtitleFontSize()"
+           (contextmenu)="onContextMenu($event)">
+        <span class="subtitle-text">{{ getStateSubtitle() }}</span>
+      </div>
+    </div>
+
+    <!-- Class search input (shown when editing - only for editable states) -->
+    <div class="class-search-container" *ngIf="isEditing && isEditable && !isCompact">
+      <mat-form-field class="class-search" appearance="outline">
+        <mat-icon matPrefix>search</mat-icon>
+        <input
+          matInput
+          [formControl]="classSearchControl"
+          [matAutocomplete]="classAuto"
+          placeholder="Search classes..."
+          (click)="$event.stopPropagation()">
+        <mat-autocomplete
+          #classAuto="matAutocomplete"
+          (optionSelected)="onClassSelected($event)"
+          class="class-autocomplete">
+          <mat-optgroup *ngFor="let category of getCategories()" [label]="category">
+            <mat-option
+              *ngFor="let opt of getClassesForCategory(category); trackBy: trackByClassName"
+              [value]="opt.className">
+              <div class="class-option">
+                <mat-icon class="option-icon" [style.color]="opt.color">{{ opt.icon || 'code' }}</mat-icon>
+                <span class="option-name">{{ opt.displayName }}</span>
+              </div>
+            </mat-option>
+          </mat-optgroup>
+        </mat-autocomplete>
+      </mat-form-field>
+    </div>
+
+    <!-- Fields display (only if not small/compact and has fields) -->
+    <div class="overlay-fields" *ngIf="!isSmall && hasFields()" (wheel)="onFieldsWheel($event)">
+      <div
+        *ngFor="let row of getFieldRows()"
+        class="field-row"
+        [class.double]="fieldLayout === 'double' && row.length > 1">
+
+        <div *ngFor="let field of row" class="field-item" [style.font-size.px]="getFieldFontSize()">
+          <label class="field-label">{{ field.displayName || field.name }}</label>
+          <input
+            class="field-input"
+            [type]="field.type === 'number' ? 'number' : 'text'"
+            [value]="field.value"
+            [readonly]="!field.isEditable"
+            [class.readonly]="!field.isEditable"
+            [style.font-size.px]="getFieldFontSize()"
+            (change)="onFieldChange(field.name, $event)"
+            (click)="$event.stopPropagation()">
+        </div>
+      </div>
+    </div>
+
+    <!-- Input/Output slot indicators - hide in compact mode -->
+    <div class="slot-summary" *ngIf="!isCompact && (inputSlotCount > 0 || outputSlotCount > 0)" [style.font-size.px]="getSlotFontSize()">
+      <span class="input-slots" *ngIf="inputSlotCount > 0" (contextmenu)="onContextMenu($event)">
+        <span class="slot-count">{{ inputSlotCount }}</span> in
+      </span>
+      <span class="output-slots" *ngIf="outputSlotCount > 0" (contextmenu)="onContextMenu($event)">
+        <span class="slot-count">{{ outputSlotCount }}</span> out
+      </span>
+    </div>
+  </ng-container>
+</div>

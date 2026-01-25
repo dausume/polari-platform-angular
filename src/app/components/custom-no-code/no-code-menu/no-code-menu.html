@@ -18,6 +18,7 @@
     </mat-form-field>
       <div style="padding-bottom: 30px; padding-right:20px" *ngIf="!isConnectorMode">
         <button mat-button (click)="createNewStateInstance()" style="align-self: flex-end;" class="menu-btn">New State</button>
+        <button mat-button (click)="onOpenDefinitionCreator()" style="align-self: flex-end;" class="menu-btn">Create Definition</button>
       </div>
       <div style="padding-bottom: 30px; padding-right:20px">
         <button mat-button *ngIf="isConnectorMode && (inputState != null || outputState != null)" (click)="resetConnector()" style="align-self: flex-end;" class="menu-btn">Reset</button>

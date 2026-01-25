@@ -19,6 +19,10 @@ export class CreateNewClassComponent {
   classDisplayName = ""
   classDisplayNameControl = new FormControl();
 
+  // State-space configuration
+  isStateSpaceObject = true;  // Default to true for new classes
+  stateSpaceFieldsPerRow = 1;
+
   // Status messages
   saveStatus: 'idle' | 'saving' | 'success' | 'error' = 'idle';
   saveMessage = '';
@@ -71,7 +75,12 @@ export class CreateNewClassComponent {
     const payload = {
       className: this.className.trim(),
       classDisplayName: this.classDisplayName.trim() || this.className.trim(),
-      variables: variables
+      variables: variables,
+      // State-space configuration
+      isStateSpaceObject: this.isStateSpaceObject,
+      stateSpaceFieldsPerRow: this.stateSpaceFieldsPerRow,
+      // Default display fields to all variables
+      stateSpaceDisplayFields: this.isStateSpaceObject ? variables.map(v => v.varName) : []
     };
 
     console.log('Creating class with payload:', payload);

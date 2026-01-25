@@ -1,9 +1,13 @@
 <mat-card class="no-code-container">
     <mat-card (contextmenu)="showContextMenu($event)" class="menu-container">
-      <no-code-menu class="no-code-menu item" (newStateInstance)="onNewStateInstance()"></no-code-menu>
+      <no-code-menu class="no-code-menu item"
+                    (newStateInstance)="onNewStateInstance()"
+                    (openDefinitionCreator)="onOpenDefinitionCreator()">
+      </no-code-menu>
     </mat-card>
 
-    <div class="canvas-wrapper">
+    <div class="main-content-area">
+      <div class="canvas-wrapper">
       <div class="canvas-toolbar">
         <div class="toolbar-left">
           <span class="toolbar-title">{{ noCodeSolution?.solutionName || 'No-Code Solution' }}</span>
@@ -34,4 +38,101 @@
         Pan: Click & Drag | Zoom: Scroll or Buttons
       </div>
     </div>
+
+      <!-- State Tool Sidebar (Right Side) -->
+      <app-state-tool-sidebar
+        [isExpanded]="sidebarExpanded"
+        [boundClass]="boundClass"
+        [availableHelperClasses]="availableHelperClasses"
+        [enabledHelperClasses]="enabledHelperClasses"
+        [availableSubSolutions]="availableSubSolutions"
+        [generatedPythonCode]="generatedPythonCode"
+        [solutionName]="noCodeSolution?.solutionName || ''"
+        (createStateFromDefinition)="onCreateStateFromDefinition($event)"
+        (createStateFromClassMember)="onCreateStateFromClassMember($event)"
+        (toggleHelperClass)="onToggleHelperClass($event)"
+        (createStateFromSubSolution)="onCreateSubSolutionState($event)"
+        (openDefinitionCreator)="onOpenDefinitionCreator()"
+        (toggleExpanded)="onSidebarToggle($event)">
+      </app-state-tool-sidebar>
+    </div>
+
+    <!-- State Definition Creator Panel (slides in from right) -->
+    <div class="definition-creator-panel" [class.open]="showDefinitionCreator">
+      <div class="panel-header">
+        <h3>State Definition Creator</h3>
+        <button mat-icon-button (click)="closeDefinitionCreator()">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+      <div class="panel-content">
+        <app-state-definition-creator
+          *ngIf="showDefinitionCreator"
+          [existingDefinition]="editingDefinition"
+          [availableSolutionsInput]="availableSolutions"
+          (definitionSaved)="onDefinitionSaved($event)"
+          (cancelled)="closeDefinitionCreator()">
+        </app-state-definition-creator>
+      </div>
+    </div>
+
+    <!-- Backdrop for panel -->
+    <div class="panel-backdrop" *ngIf="showDefinitionCreator" (click)="closeDefinitionCreator()"></div>
+
+    <!-- State Context Menu -->
+    <app-state-context-menu
+      *ngIf="stateContextMenuVisible"
+      [stateName]="contextMenuStateName"
+      [currentShapeType]="contextMenuShapeType"
+      [currentSize]="contextMenuCurrentSize"
+      [position]="contextMenuPosition"
+      (menuAction)="onContextMenuAction($event)"
+      (menuClosed)="closeContextMenu()">
+    </app-state-context-menu>
+
+    <!-- Slot Manager Popup -->
+    <state-slot-manager-popup
+      *ngIf="slotManagerVisible"
+      [stateName]="slotManagerStateName"
+      [inputSlots]="slotManagerInputSlots"
+      [outputSlots]="slotManagerOutputSlots"
+      [solutionDefaults]="solutionSlotDefaults"
+      [position]="slotManagerPosition"
+      (slotsChanged)="onSlotManagerChanged($event)"
+      (slotConfigRequested)="onSlotConfigRequested($event)"
+      (closed)="closeSlotManager()">
+    </state-slot-manager-popup>
+
+    <!-- Slot Configuration Popup -->
+    <slot-configuration-popup
+      *ngIf="slotConfigPopupVisible && currentSlotConfig"
+      [configuration]="currentSlotConfig"
+      [position]="slotConfigPosition"
+      (configurationChanged)="onSlotConfigChanged($event)"
+      (closed)="closeSlotConfigPopup()">
+    </slot-configuration-popup>
+
+    <!-- Backdrop for slot manager -->
+    <div class="popup-backdrop" *ngIf="slotManagerVisible" (click)="closeSlotManager()"></div>
+
+    <!-- Full View Popup -->
+    <state-full-view-popup
+      *ngIf="fullViewPopupVisible && fullViewPopupState"
+      [position]="fullViewPopupPosition"
+      [stateName]="getFullViewStateName()"
+      [stateType]="getFullViewStateType()"
+      [boundClassName]="fullViewPopupState.boundObjectClass || ''"
+      [functionName]="getFullViewFunctionName()"
+      [variableName]="getFullViewVariableName()"
+      [solutionName]="getFullViewSolutionName()"
+      [inputSlotCount]="getFullViewInputSlotCount()"
+      [outputSlotCount]="getFullViewOutputSlotCount()"
+      [isEditable]="true"
+      (classSelected)="onFullViewClassSelected($event)"
+      (fieldChanged)="onFullViewFieldChanged($event)"
+      (closed)="closeFullViewPopup()">
+    </state-full-view-popup>
+
+    <!-- Backdrop for full view popup -->
+    <div class="popup-backdrop" *ngIf="fullViewPopupVisible" (click)="closeFullViewPopup()"></div>
 </mat-card>

@@ -26,6 +26,8 @@ export class CircleStateLayer extends D3ModelLayer {
   connectorSourcePosition: {x: number, y: number} | null = null;
   // Store source slot identification for connector tracking
   connectorSourceSlotInfo: {stateName: string, slotIndex: number} | null = null;
+  // Store whether the source slot is an input (for connector direction/visual logic)
+  connectorSourceIsInput: boolean | null = null;
   // Store original slot position for auto-connector activation
   originalSlotPosition: {x: number, y: number} | null = null;
   // Store original slot angular position for collision resolution rollback
@@ -36,6 +38,18 @@ export class CircleStateLayer extends D3ModelLayer {
   originalStatePosition: {x: number, y: number} | null = null;
   // Store current drag slot info for persistence
   currentDragSlotInfo: {stateName: string, slotIndex: number} | null = null;
+
+  // Callback for when a state's overlay area is clicked for editing
+  private onStateOverlayClick: ((stateName: string, stateGroup: SVGGElement) => void) | null = null;
+
+  // Callback for when state drag starts (to hide overlay)
+  private onStateDragStart: ((stateName: string) => void) | null = null;
+
+  // Callback for when state drag ends (to show/update overlay)
+  private onStateDragEnd: ((stateName: string, stateGroup: SVGGElement) => void) | null = null;
+
+  // Callback for right-click context menu on a state
+  private onStateContextMenu: ((event: MouseEvent, stateName: string, stateGroup: SVGGElement) => void) | null = null;
 
   constructor(
     private rendererManager: NoCodeStateRendererManager,
@@ -66,6 +80,49 @@ export class CircleStateLayer extends D3ModelLayer {
     this.stateDataPoints = this.getCircleStateDataPointsFromSolution(noCodeSolution);
     this.slotDataPoints = this.getCircleSlotDataPointsFromSolution(noCodeSolution);
     this.connectorMode = false;
+  }
+
+  // --- Overlay Callback Setters ---
+
+  /**
+   * Set callback for when a state's overlay area is clicked.
+   * The callback receives the state name and the state group element.
+   */
+  setOnStateOverlayClick(callback: (stateName: string, stateGroup: SVGGElement) => void): void {
+    this.onStateOverlayClick = callback;
+  }
+
+  /**
+   * Set callback for when a state drag starts.
+   * Use this to hide the overlay during drag.
+   */
+  setOnStateDragStart(callback: (stateName: string) => void): void {
+    this.onStateDragStart = callback;
+  }
+
+  /**
+   * Set callback for when a state drag ends.
+   * Use this to show/reposition the overlay after drag.
+   */
+  setOnStateDragEnd(callback: (stateName: string, stateGroup: SVGGElement) => void): void {
+    this.onStateDragEnd = callback;
+  }
+
+  /**
+   * Set callback for right-click context menu on a state.
+   * The callback receives the mouse event, state name, and the state group element.
+   */
+  setOnStateContextMenu(callback: (event: MouseEvent, stateName: string, stateGroup: SVGGElement) => void): void {
+    this.onStateContextMenu = callback;
+  }
+
+  /**
+   * Get a state group element by state name.
+   */
+  getStateGroupByName(stateName: string): SVGGElement | null {
+    const selection = this.getLayerGroup()
+      .select(`g.state-group[state-name="${stateName}"]`);
+    return selection.empty() ? null : selection.node() as SVGGElement;
   }
 
   // Detect if the connector layer for the solution already exists in the svg.
@@ -248,6 +305,7 @@ export class CircleStateLayer extends D3ModelLayer {
       defs = this.d3SvgBaseLayer.append('defs');
     }
 
+    // Standard arrowhead pointing forward (for output-to-input connections)
     if (defs.select('#arrowhead').empty()) {
       defs.append('marker')
         .attr('id', 'arrowhead')
@@ -260,6 +318,40 @@ export class CircleStateLayer extends D3ModelLayer {
         .append('path')
         .attr('d', 'M0,-5L10,0L0,5')
         .attr('fill', '#333');
+    }
+
+    // Arrowhead pointing backward (for marker-start when dragging from input)
+    if (defs.select('#arrowhead-start').empty()) {
+      defs.append('marker')
+        .attr('id', 'arrowhead-start')
+        .attr('viewBox', '0 -5 10 10')
+        .attr('refX', 2)
+        .attr('refY', 0)
+        .attr('markerWidth', 6)
+        .attr('markerHeight', 6)
+        .attr('orient', 'auto')
+        .append('path')
+        .attr('d', 'M10,-5L0,0L10,5')
+        .attr('fill', '#333');
+    }
+
+    // Open circle marker (for drag endpoint when dragging from input)
+    if (defs.select('#open-circle').empty()) {
+      defs.append('marker')
+        .attr('id', 'open-circle')
+        .attr('viewBox', '-6 -6 12 12')
+        .attr('refX', 0)
+        .attr('refY', 0)
+        .attr('markerWidth', 8)
+        .attr('markerHeight', 8)
+        .attr('orient', 'auto')
+        .append('circle')
+        .attr('cx', 0)
+        .attr('cy', 0)
+        .attr('r', 4)
+        .attr('fill', 'none')
+        .attr('stroke', '#333')
+        .attr('stroke-width', 2);
     }
   }
 
@@ -475,7 +567,8 @@ export class CircleStateLayer extends D3ModelLayer {
             .attr('fill', "blue")
             .attr('stroke', "black");
 
-        // Append the inner component rectangle
+        // Append the inner component rectangle (where Angular overlays will be positioned)
+        const self = this; // Capture reference for click handler
         group.append('rect')
             .classed('overlay-component', true)
             .attr('x', -(1.4 * datapoint.radius) / 2)
@@ -483,7 +576,31 @@ export class CircleStateLayer extends D3ModelLayer {
             .attr('width', 1.4 * datapoint.radius)
             .attr('height', 1.4 * datapoint.radius)
             .attr('fill', "white")
-            .attr('stroke', "black");
+            .attr('stroke', "black")
+            .style('cursor', 'pointer')
+            .on('click', function(event: MouseEvent) {
+              // Prevent the click from triggering drag or other handlers
+              event.stopPropagation();
+              const groupElement = elements[index] as SVGGElement;
+              const stateName = datapoint.stateName || 'unknown';
+              console.log('[overlay-component click] State:', stateName);
+              // Trigger the overlay callback if set
+              if (self.onStateOverlayClick) {
+                self.onStateOverlayClick(stateName, groupElement);
+              }
+            })
+            .on('contextmenu', function(event: MouseEvent) {
+              // Prevent default browser context menu
+              event.preventDefault();
+              event.stopPropagation();
+              const groupElement = elements[index] as SVGGElement;
+              const stateName = datapoint.stateName || 'unknown';
+              console.log('[overlay-component contextmenu] State:', stateName);
+              // Trigger the context menu callback if set
+              if (self.onStateContextMenu) {
+                self.onStateContextMenu(event, stateName, groupElement);
+              }
+            });
 
         // Generate the bezier path for the circle boundary
         let bezierPath = this.generateCircularBezierPath(datapoint.radius);
@@ -742,13 +859,17 @@ export class CircleStateLayer extends D3ModelLayer {
   // --- Bounding Box Collision Detection ---
 
   /**
-   * Gets the bounding boxes of all state groups currently rendered
+   * Gets the bounding boxes of ALL state groups in the solution (across all layers)
+   * This allows cross-shape collision detection (circle vs rectangle)
    * @returns Array of bounding box objects with position and dimensions
    */
   private getAllStateBoundingBoxes(): { stateName: string; x: number; y: number; width: number; height: number; centerX: number; centerY: number }[] {
     const boundingBoxes: { stateName: string; x: number; y: number; width: number; height: number; centerX: number; centerY: number }[] = [];
 
-    this.getStateGroups().each(function(this: Element, d: any) {
+    // Query ALL state groups in the solution layer (not just this layer's groups)
+    // This enables cross-shape collision detection between circles and rectangles
+    const solutionLayer = this.getSolutionLayer();
+    solutionLayer.selectAll('g.state-group').each(function(this: Element, d: any) {
       const group = d3.select(this as SVGGElement);
       const stateName = group.attr('state-name') || 'unknown';
       const boundingRect = group.select('rect.bounding-box');
@@ -1337,17 +1458,23 @@ export class CircleStateLayer extends D3ModelLayer {
 
   /**
    * Helper to start connector drag mode - creates the tentative connector line
+   * Visual appearance differs based on whether dragging from input or output:
+   * - From output: arrow at end pointing to target (standard flow direction)
+   * - From input: arrow at start pointing to source (input), open circle at drag end
    */
   private startConnectorDrag(
     sourceX: number, sourceY: number,
     mouseX: number, mouseY: number,
-    sourceStateName?: string, sourceSlotIndex?: number
+    sourceStateName?: string, sourceSlotIndex?: number,
+    sourceIsInput?: boolean
   ): void {
     // Store the source position and slot info for use during drag
     this.connectorSourcePosition = { x: sourceX, y: sourceY };
     if (sourceStateName !== undefined && sourceSlotIndex !== undefined) {
       this.connectorSourceSlotInfo = { stateName: sourceStateName, slotIndex: sourceSlotIndex };
     }
+    // Store whether source is input for connection validation and visual logic
+    this.connectorSourceIsInput = sourceIsInput ?? null;
 
     // Create a new connector from the slot to the current mouse position
     const connector = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -1357,8 +1484,17 @@ export class CircleStateLayer extends D3ModelLayer {
     connector.setAttribute('stroke', '#333');
     connector.setAttribute('stroke-width', '2');
     connector.setAttribute('stroke-dasharray', '5,5');
-    connector.setAttribute('marker-end', 'url(#arrowhead)');
     connector.setAttribute('pointer-events', 'none'); // Ensure connector doesn't block events
+
+    // Set markers based on whether dragging from input or output
+    if (sourceIsInput) {
+      // Dragging from input: arrow points TO the input (source), open circle at drag end
+      connector.setAttribute('marker-start', 'url(#arrowhead-start)');
+      connector.setAttribute('marker-end', 'url(#open-circle)');
+    } else {
+      // Dragging from output: arrow points to target (standard behavior)
+      connector.setAttribute('marker-end', 'url(#arrowhead)');
+    }
 
     // Add source slot identification
     if (sourceStateName !== undefined) {
@@ -1463,6 +1599,11 @@ export class CircleStateLayer extends D3ModelLayer {
 
       const stateName = group.attr('state-name') || datapoint.stateName || 'unknown';
       this.hideConnectorsForState(stateName);
+
+      // Notify overlay manager to hide overlay during drag
+      if (this.onStateDragStart) {
+        this.onStateDragStart(stateName);
+      }
     }
     else if (targetElement?.tagName === 'circle' && targetElement?.classList.contains('slot-marker')) {
       event.sourceEvent.stopPropagation();
@@ -1494,8 +1635,14 @@ export class CircleStateLayer extends D3ModelLayer {
       // Store drag slot info for persistence
       this.currentDragSlotInfo = { stateName, slotIndex };
 
+      // Look up slot isInput property from slot data
+      const slotData = this.slotDataPoints.find(
+        (s: CircleSlotDataPoint) => s.stateName === stateName && s.index === slotIndex
+      );
+      const slotIsInput = slotData?.isInput ?? false;
+
       if (this.connectorMode) {
-        this.startConnectorDrag(slotSvgX, slotSvgY, event.x, event.y, stateName, slotIndex);
+        this.startConnectorDrag(slotSvgX, slotSvgY, event.x, event.y, stateName, slotIndex, slotIsInput);
       } else {
         this.interactionStateService.setInteractionState('slot-drag');
       }
@@ -1549,7 +1696,14 @@ export class CircleStateLayer extends D3ModelLayer {
 
         slotMarker.attr('cx', closestPoint.x);
         slotMarker.attr('cy', closestPoint.y);
-        this.startConnectorDrag(slotSvgX, slotSvgY, event.x, event.y, stateName, slotIndex);
+
+        // Look up slot isInput property from slot data
+        const slotData = this.slotDataPoints.find(
+          (s: CircleSlotDataPoint) => s.stateName === stateName && s.index === slotIndex
+        );
+        const slotIsInput = slotData?.isInput ?? false;
+
+        this.startConnectorDrag(slotSvgX, slotSvgY, event.x, event.y, stateName, slotIndex, slotIsInput);
         return;
       }
 
@@ -1612,25 +1766,88 @@ export class CircleStateLayer extends D3ModelLayer {
           const targetSvgX = targetSlotLocalX + targetTranslateX;
           const targetSvgY = targetSlotLocalY + targetTranslateY;
 
+          // Look up the target slot's isInput property for validation
+          const targetSlotData = this.slotDataPoints.find(
+            (s: CircleSlotDataPoint) => s.stateName === targetStateName && s.index === targetSlotIndex
+          );
+          const targetIsInput = targetSlotData?.isInput ?? false;
+          const targetIsOutput = targetSlotData?.isOutput ?? false;
+
+          // Validate connection: only allow input-to-output connections
+          const sourceIsInput = this.connectorSourceIsInput ?? false;
+          const sourceIsOutput = !sourceIsInput; // If not input, assume output
+
+          // Connection rules: input can only connect to output, output can only connect to input
+          const isValidConnection = (sourceIsInput && targetIsOutput) || (sourceIsOutput && targetIsInput);
+
           const tentativeConnector = this.connectorLayer?.select('path.tentative-connector');
           if (tentativeConnector && !tentativeConnector.empty() && this.connectorSourcePosition && this.connectorSourceSlotInfo) {
-            tentativeConnector
-              .attr('d', `M ${this.connectorSourcePosition.x} ${this.connectorSourcePosition.y} L ${targetSvgX} ${targetSvgY}`)
-              .classed('tentative-connector', false)
-              .classed('permanent-connector', true)
-              .attr('stroke-dasharray', null)
-              .attr('data-target-state', targetStateName)
-              .attr('data-target-slot', targetSlotIndex.toString());
 
-            // Persist the connector to state service
-            if (solutionName) {
-              solutionStateService.addConnector(
-                solutionName,
-                this.connectorSourceSlotInfo.stateName,
-                this.connectorSourceSlotInfo.slotIndex,
-                targetStateName,
-                targetSlotIndex
-              );
+            if (!isValidConnection) {
+              // Invalid connection: same type slots cannot connect
+              console.warn('[Connector] Invalid connection: cannot connect',
+                sourceIsInput ? 'input' : 'output', 'to',
+                targetIsInput ? 'input' : 'output');
+              tentativeConnector.remove();
+            } else {
+              // Valid connection: determine direction based on which is output (source) and input (sink)
+              // Connectors should always flow from output to input
+              let connectorSourceStateName: string;
+              let connectorSourceSlotIndex: number;
+              let connectorTargetStateName: string;
+              let connectorTargetSlotIndex: number;
+              let pathStartX: number;
+              let pathStartY: number;
+              let pathEndX: number;
+              let pathEndY: number;
+
+              if (sourceIsOutput) {
+                // Normal case: dragged from output to input
+                connectorSourceStateName = this.connectorSourceSlotInfo.stateName;
+                connectorSourceSlotIndex = this.connectorSourceSlotInfo.slotIndex;
+                connectorTargetStateName = targetStateName;
+                connectorTargetSlotIndex = targetSlotIndex;
+                pathStartX = this.connectorSourcePosition.x;
+                pathStartY = this.connectorSourcePosition.y;
+                pathEndX = targetSvgX;
+                pathEndY = targetSvgY;
+              } else {
+                // Reverse case: dragged from input to output - swap source/target
+                // The output becomes the source, input becomes the target
+                connectorSourceStateName = targetStateName;
+                connectorSourceSlotIndex = targetSlotIndex;
+                connectorTargetStateName = this.connectorSourceSlotInfo.stateName;
+                connectorTargetSlotIndex = this.connectorSourceSlotInfo.slotIndex;
+                pathStartX = targetSvgX;
+                pathStartY = targetSvgY;
+                pathEndX = this.connectorSourcePosition.x;
+                pathEndY = this.connectorSourcePosition.y;
+              }
+
+              // Update connector to permanent state with correct direction
+              tentativeConnector
+                .attr('d', `M ${pathStartX} ${pathStartY} L ${pathEndX} ${pathEndY}`)
+                .classed('tentative-connector', false)
+                .classed('permanent-connector', true)
+                .attr('stroke-dasharray', null)
+                // Set standard markers for permanent connector (arrow at end pointing to input)
+                .attr('marker-start', null)
+                .attr('marker-end', 'url(#arrowhead)')
+                .attr('data-source-state', connectorSourceStateName)
+                .attr('data-source-slot', connectorSourceSlotIndex.toString())
+                .attr('data-target-state', connectorTargetStateName)
+                .attr('data-target-slot', connectorTargetSlotIndex.toString());
+
+              // Persist the connector to state service (always output -> input direction)
+              if (solutionName) {
+                solutionStateService.addConnector(
+                  solutionName,
+                  connectorSourceStateName,
+                  connectorSourceSlotIndex,
+                  connectorTargetStateName,
+                  connectorTargetSlotIndex
+                );
+              }
             }
           }
         }
@@ -1640,6 +1857,7 @@ export class CircleStateLayer extends D3ModelLayer {
 
       this.connectorSourcePosition = null;
       this.connectorSourceSlotInfo = null;
+      this.connectorSourceIsInput = null;
     }
 
     if (interactionState === 'slot-drag') {
@@ -1743,6 +1961,11 @@ export class CircleStateLayer extends D3ModelLayer {
         }
 
         this.showAndUpdateConnectorsForState(stateName, draggedGroupElement);
+
+        // Notify overlay manager to show/reposition overlay after drag
+        if (this.onStateDragEnd) {
+          this.onStateDragEnd(stateName, draggedGroupElement);
+        }
       }
     }
 

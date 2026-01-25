@@ -10,6 +10,8 @@ import { MatListModule } from '@angular/material/list'
 import { MatCardModule } from '@angular/material/card'
 import { MatCheckboxModule } from '@angular/material/checkbox'
 import { MatChipsModule } from '@angular/material/chips'
+import { MatButtonToggleModule } from '@angular/material/button-toggle'
+import { MatSlideToggleModule } from '@angular/material/slide-toggle'
 
 const MaterialComponents = [
   MatCheckboxModule,
@@ -20,7 +22,9 @@ const MaterialComponents = [
   MatSidenavModule,
   MatToolbarModule,
   MatCardModule,
-  MatChipsModule
+  MatChipsModule,
+  MatButtonToggleModule,
+  MatSlideToggleModule
 ]
 
 @Injectable({

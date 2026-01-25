@@ -15,6 +15,7 @@ import {
   MOCK_SOLUTIONS,
   getAvailableSolutionNames
 } from '@models/noCode/mock-NCS-data';
+import { StateDefinition } from '@models/noCode/StateDefinition';
 
 /**
  * Cache structure stored in localStorage
@@ -225,7 +226,7 @@ export class NoCodeSolutionStateService {
    */
   private convertRawStateToNoCodeState(raw: NoCodeStateRawData): NoCodeState {
     const slots = raw.slots?.map(s => this.convertRawSlotToSlot(s)) || [];
-    return new NoCodeState(
+    const state = new NoCodeState(
       raw.stateName,
       raw.shapeType,
       raw.stateClass,
@@ -243,6 +244,27 @@ export class NoCodeSolutionStateService {
       raw.slotRadius,
       raw.backgroundColor
     );
+
+    // Copy rectangle-specific properties that aren't in constructor
+    if (raw.stateSvgWidth !== undefined) {
+      state.stateSvgWidth = raw.stateSvgWidth;
+    }
+    if (raw.stateSvgHeight !== undefined) {
+      state.stateSvgHeight = raw.stateSvgHeight;
+    }
+    if (raw.cornerRadius !== undefined) {
+      state.cornerRadius = raw.cornerRadius;
+    }
+
+    // Copy bound object properties
+    if (raw.boundObjectClass) {
+      state.boundObjectClass = raw.boundObjectClass;
+    }
+    if (raw.boundObjectFieldValues) {
+      state.boundObjectFieldValues = raw.boundObjectFieldValues;
+    }
+
+    return state;
   }
 
   /**
@@ -361,6 +383,100 @@ export class NoCodeSolutionStateService {
       state.stateLocationX = x;
       state.stateLocationY = y;
       this.solutionsCache.set(solutionName, solution);
+      this.saveToLocalStorage();
+    }
+  }
+
+  /**
+   * Update a state's size (radius for circles, width/height for rectangles)
+   */
+  updateStateSize(
+    solutionName: string,
+    stateName: string,
+    radius?: number,
+    width?: number,
+    height?: number
+  ): void {
+    const solution = this.solutionsCache.get(solutionName);
+    if (!solution) return;
+
+    const state = solution.stateInstances.find(s => s.stateName === stateName);
+    if (state) {
+      if (radius !== undefined) {
+        state.stateSvgRadius = radius;
+      }
+      if (width !== undefined) {
+        state.stateSvgWidth = width;
+        state.stateSvgSizeX = width;
+      }
+      if (height !== undefined) {
+        state.stateSvgHeight = height;
+        state.stateSvgSizeY = height;
+      }
+      this.solutionsCache.set(solutionName, solution);
+
+      if (this.selectedSolutionNameSubject.value === solutionName) {
+        this.selectedSolutionDataSubject.next({ ...solution });
+      }
+
+      this.saveToLocalStorage();
+    }
+  }
+
+  /**
+   * Update a state's shape type (circle or rectangle)
+   */
+  updateStateShape(solutionName: string, stateName: string, shapeType: string): void {
+    const solution = this.solutionsCache.get(solutionName);
+    if (!solution) return;
+
+    const state = solution.stateInstances.find(s => s.stateName === stateName);
+    if (state) {
+      const oldShape = state.shapeType;
+      state.shapeType = shapeType;
+      state.stateSvgName = shapeType;
+      state.layerName = `${shapeType}-layer`;
+
+      // Convert size properties when changing shapes
+      if (oldShape === 'circle' && shapeType === 'rectangle') {
+        // Convert circle radius to rectangle dimensions
+        const radius = state.stateSvgRadius || 100;
+        const diameter = radius * 2;
+        state.stateSvgWidth = diameter;
+        state.stateSvgHeight = diameter;
+        state.cornerRadius = 8;
+      } else if (oldShape === 'rectangle' && shapeType === 'circle') {
+        // Convert rectangle dimensions to circle radius
+        const width = state.stateSvgWidth || state.stateSvgSizeX || 100;
+        state.stateSvgRadius = width / 2;
+      }
+
+      this.solutionsCache.set(solutionName, solution);
+
+      if (this.selectedSolutionNameSubject.value === solutionName) {
+        this.selectedSolutionDataSubject.next({ ...solution });
+      }
+
+      this.saveToLocalStorage();
+    }
+  }
+
+  /**
+   * Update all slots for a state
+   */
+  updateStateSlots(solutionName: string, stateName: string, slots: SlotRawData[]): void {
+    const solution = this.solutionsCache.get(solutionName);
+    if (!solution) return;
+
+    const state = solution.stateInstances.find(s => s.stateName === stateName);
+    if (state) {
+      state.slots = slots;
+      this.solutionsCache.set(solutionName, solution);
+
+      if (this.selectedSolutionNameSubject.value === solutionName) {
+        this.selectedSolutionDataSubject.next({ ...solution });
+      }
+
       this.saveToLocalStorage();
     }
   }
@@ -621,6 +737,187 @@ export class NoCodeSolutionStateService {
     } catch (error) {
       console.error('Failed to import solution:', error);
       return false;
+    }
+  }
+
+  // ==================== State-Space Object Association Methods ====================
+
+  /**
+   * Bind a state to a StateDefinition template
+   */
+  bindStateToDefinition(
+    solutionName: string,
+    stateName: string,
+    stateDefinitionId: string,
+    sourceClassName: string
+  ): void {
+    const solution = this.solutionsCache.get(solutionName);
+    if (!solution) return;
+
+    const state = solution.stateInstances.find(s => s.stateName === stateName);
+    if (state) {
+      // Extend the raw data type to include state-space fields
+      (state as any).stateDefinitionId = stateDefinitionId;
+      (state as any).boundObjectClass = sourceClassName;
+      this.solutionsCache.set(solutionName, solution);
+
+      if (this.selectedSolutionNameSubject.value === solutionName) {
+        this.selectedSolutionDataSubject.next({ ...solution });
+      }
+
+      this.saveToLocalStorage();
+    }
+  }
+
+  /**
+   * Bind a state to a specific object instance
+   */
+  bindStateToObjectInstance(
+    solutionName: string,
+    stateName: string,
+    objectInstanceId: string,
+    fieldValues?: { [fieldName: string]: any }
+  ): void {
+    const solution = this.solutionsCache.get(solutionName);
+    if (!solution) return;
+
+    const state = solution.stateInstances.find(s => s.stateName === stateName);
+    if (state) {
+      (state as any).objectInstanceId = objectInstanceId;
+      if (fieldValues) {
+        (state as any).boundObjectFieldValues = fieldValues;
+      }
+      this.solutionsCache.set(solutionName, solution);
+
+      if (this.selectedSolutionNameSubject.value === solutionName) {
+        this.selectedSolutionDataSubject.next({ ...solution });
+      }
+
+      this.saveToLocalStorage();
+    }
+  }
+
+  /**
+   * Update field values for a bound state object
+   */
+  updateStateFieldValues(
+    solutionName: string,
+    stateName: string,
+    fieldValues: { [fieldName: string]: any }
+  ): void {
+    const solution = this.solutionsCache.get(solutionName);
+    if (!solution) return;
+
+    const state = solution.stateInstances.find(s => s.stateName === stateName);
+    if (state) {
+      const currentValues = (state as any).boundObjectFieldValues || {};
+      (state as any).boundObjectFieldValues = { ...currentValues, ...fieldValues };
+      this.solutionsCache.set(solutionName, solution);
+
+      if (this.selectedSolutionNameSubject.value === solutionName) {
+        this.selectedSolutionDataSubject.next({ ...solution });
+      }
+
+      this.saveToLocalStorage();
+    }
+  }
+
+  /**
+   * Get the bound object data for a state
+   */
+  getStateBoundObjectData(solutionName: string, stateName: string): {
+    stateDefinitionId?: string;
+    objectInstanceId?: string;
+    boundObjectClass?: string;
+    boundObjectFieldValues?: { [fieldName: string]: any };
+  } | null {
+    const solution = this.solutionsCache.get(solutionName);
+    if (!solution) return null;
+
+    const state = solution.stateInstances.find(s => s.stateName === stateName);
+    if (!state) return null;
+
+    return {
+      stateDefinitionId: (state as any).stateDefinitionId,
+      objectInstanceId: (state as any).objectInstanceId,
+      boundObjectClass: (state as any).boundObjectClass,
+      boundObjectFieldValues: (state as any).boundObjectFieldValues
+    };
+  }
+
+  /**
+   * Get all states in a solution that are bound to state-space objects
+   */
+  getBoundStates(solutionName: string): { stateName: string; boundObjectClass: string }[] {
+    const solution = this.solutionsCache.get(solutionName);
+    if (!solution) return [];
+
+    return solution.stateInstances
+      .filter(state => (state as any).boundObjectClass)
+      .map(state => ({
+        stateName: state.stateName,
+        boundObjectClass: (state as any).boundObjectClass
+      }));
+  }
+
+  /**
+   * Clear state-space bindings from a state
+   */
+  clearStateBindings(solutionName: string, stateName: string): void {
+    const solution = this.solutionsCache.get(solutionName);
+    if (!solution) return;
+
+    const state = solution.stateInstances.find(s => s.stateName === stateName);
+    if (state) {
+      delete (state as any).stateDefinitionId;
+      delete (state as any).objectInstanceId;
+      delete (state as any).boundObjectClass;
+      delete (state as any).boundObjectFieldValues;
+      this.solutionsCache.set(solutionName, solution);
+
+      if (this.selectedSolutionNameSubject.value === solutionName) {
+        this.selectedSolutionDataSubject.next({ ...solution });
+      }
+
+      this.saveToLocalStorage();
+    }
+  }
+
+  /**
+   * Associate states with object instances from a StateDefinition
+   * This creates the connection between visual states and actual object behavior
+   */
+  associateStateWithDefinition(
+    solutionName: string,
+    stateName: string,
+    definition: StateDefinition
+  ): void {
+    const solution = this.solutionsCache.get(solutionName);
+    if (!solution) return;
+
+    const state = solution.stateInstances.find(s => s.stateName === stateName);
+    if (state) {
+      // Set the binding information
+      (state as any).stateDefinitionId = definition.id;
+      (state as any).boundObjectClass = definition.sourceClassName;
+
+      // Initialize field values from definition's display fields
+      const initialFieldValues: { [key: string]: any } = {};
+      definition.displayFields.forEach(field => {
+        initialFieldValues[field.fieldName] = null;
+      });
+      (state as any).boundObjectFieldValues = initialFieldValues;
+
+      // Update the state class to match the definition's source class
+      state.stateClass = definition.sourceClassName;
+
+      this.solutionsCache.set(solutionName, solution);
+
+      if (this.selectedSolutionNameSubject.value === solutionName) {
+        this.selectedSolutionDataSubject.next({ ...solution });
+      }
+
+      this.saveToLocalStorage();
     }
   }
 }

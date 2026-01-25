@@ -1,0 +1,82 @@
+<!-- State Context Menu -->
+<div class="context-menu"
+     [style.left.px]="position.x"
+     [style.top.px]="position.y">
+
+  <!-- Menu Header -->
+  <div class="menu-header">
+    <span class="state-name">{{ stateName }}</span>
+  </div>
+
+  <div class="menu-divider"></div>
+
+  <!-- Size Option -->
+  <div class="menu-item has-submenu"
+       (click)="toggleSizeSubmenu()"
+       (mouseenter)="showSizeSubmenu = true; showShapeSubmenu = false">
+    <mat-icon>aspect_ratio</mat-icon>
+    <span class="menu-label">Size</span>
+    <span class="current-value">{{ getCurrentSizeName() }}</span>
+    <mat-icon class="submenu-arrow">chevron_right</mat-icon>
+
+    <!-- Size Submenu -->
+    <div class="submenu" *ngIf="showSizeSubmenu" (mouseleave)="showSizeSubmenu = false">
+      <div class="submenu-item"
+           *ngFor="let preset of sizePresets"
+           (click)="selectSize(preset); $event.stopPropagation()">
+        <span class="size-preview" [ngClass]="preset.name"></span>
+        <span>{{ preset.label }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Shape Option -->
+  <div class="menu-item has-submenu"
+       (click)="toggleShapeSubmenu()"
+       (mouseenter)="showShapeSubmenu = true; showSizeSubmenu = false">
+    <mat-icon>{{ currentShapeType === 'circle' ? 'radio_button_unchecked' : 'crop_square' }}</mat-icon>
+    <span class="menu-label">Shape</span>
+    <span class="current-value">{{ currentShapeType === 'circle' ? 'Circle' : 'Rectangle' }}</span>
+    <mat-icon class="submenu-arrow">chevron_right</mat-icon>
+
+    <!-- Shape Submenu -->
+    <div class="submenu" *ngIf="showShapeSubmenu" (mouseleave)="showShapeSubmenu = false">
+      <div class="submenu-item"
+           *ngFor="let shape of shapeOptions"
+           [class.active]="isCurrentShape(shape.name)"
+           (click)="selectShape(shape); $event.stopPropagation()">
+        <mat-icon>{{ shape.icon }}</mat-icon>
+        <span>{{ shape.label }}</span>
+        <mat-icon class="check-icon" *ngIf="isCurrentShape(shape.name)">check</mat-icon>
+      </div>
+    </div>
+  </div>
+
+  <div class="menu-divider"></div>
+
+  <!-- Manage Slots -->
+  <div class="menu-item" (click)="manageSlots()">
+    <mat-icon>settings_input_component</mat-icon>
+    <span class="menu-label">Manage Slots</span>
+  </div>
+
+  <!-- Edit Properties -->
+  <div class="menu-item" (click)="editProperties()">
+    <mat-icon>edit</mat-icon>
+    <span class="menu-label">Edit Properties</span>
+  </div>
+
+  <!-- Duplicate -->
+  <div class="menu-item" (click)="duplicateState()">
+    <mat-icon>content_copy</mat-icon>
+    <span class="menu-label">Duplicate</span>
+  </div>
+
+  <div class="menu-divider"></div>
+
+  <!-- Delete -->
+  <div class="menu-item danger" (click)="deleteState()">
+    <mat-icon>delete</mat-icon>
+    <span class="menu-label">Delete</span>
+  </div>
+</div>

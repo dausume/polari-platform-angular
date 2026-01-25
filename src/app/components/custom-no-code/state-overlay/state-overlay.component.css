@@ -1,0 +1,409 @@
+/* State Overlay Component Styles */
+/* Responsive overlay that displays on top of D3 state shapes */
+
+:host {
+  display: block;
+  position: fixed;
+  box-sizing: border-box;
+  /* Allow clicks to pass through to D3 elements underneath */
+  pointer-events: none;
+  /* Contain the stacking context so children don't escape above popups */
+  isolation: isolate;
+}
+
+.state-overlay {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  /* Transparent background - let the D3 rect show through */
+  background-color: transparent;
+  border-radius: 4px;
+  overflow: hidden;
+  font-family: 'Roboto', sans-serif;
+  font-size: 12px;
+  /* No border/shadow - the D3 shape provides the visual container */
+  pointer-events: none;
+}
+
+/* ==================== Header Section ==================== */
+
+.overlay-header {
+  padding: 4px 6px;
+  background-color: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  flex-shrink: 0;
+  text-align: center;
+  border-radius: 4px 4px 0 0;
+  /* Pass through - only title text is interactive */
+  pointer-events: none;
+}
+
+/* State title (class name, block type, solution name) */
+.state-title {
+  font-weight: 600;
+  background-color: rgba(255, 255, 255, 0.9);
+  padding: 2px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+  /* Interactive - click to toggle edit mode */
+  pointer-events: auto;
+  color: #333;
+  line-height: 1.2;
+  text-align: center;
+  width: 100%;
+  overflow: hidden;
+  /* Reset any inherited z-index to stay within overlay stacking context */
+  z-index: auto !important;
+  position: relative;
+}
+
+.title-text {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* State subtitle (function/variable name) */
+.state-subtitle {
+  color: #666;
+  line-height: 1.2;
+  text-align: center;
+  background-color: rgba(255, 255, 255, 0.85);
+  padding: 1px 4px;
+  border-radius: 2px;
+  margin-top: 2px;
+  /* Interactive */
+  pointer-events: auto;
+  width: 100%;
+  overflow: hidden;
+  margin-top: 2px;
+  /* Reset z-index to stay within overlay stacking context */
+  z-index: auto !important;
+  position: relative;
+}
+
+.subtitle-text {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-style: italic;
+}
+
+/* ==================== Class Search (Editing Mode) ==================== */
+
+.class-search-container {
+  padding: 4px;
+  background-color: rgba(255, 255, 255, 0.95);
+  border-radius: 4px;
+  /* Interactive - contains search input */
+  pointer-events: auto;
+  /* Reset z-index to stay within overlay stacking context */
+  z-index: auto !important;
+  position: relative;
+}
+
+.class-search {
+  width: 100%;
+}
+
+.class-search ::ng-deep .mat-mdc-form-field-flex {
+  background-color: white;
+  border-radius: 4px;
+}
+
+.class-search ::ng-deep .mat-mdc-text-field-wrapper {
+  padding: 0 6px;
+}
+
+.class-search ::ng-deep input {
+  font-size: 10px;
+  color: #333;
+}
+
+.class-search ::ng-deep .mat-mdc-form-field-infix {
+  padding-top: 6px;
+  padding-bottom: 6px;
+  min-height: 24px;
+}
+
+.class-search ::ng-deep .mat-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+}
+
+/* Autocomplete dropdown styles */
+::ng-deep .class-autocomplete {
+  max-height: 300px;
+}
+
+::ng-deep .class-autocomplete .mat-optgroup-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #666;
+  background-color: #f5f5f5;
+  padding: 6px 10px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.class-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.option-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+}
+
+.option-name {
+  font-weight: 500;
+  color: #333;
+  font-size: 11px;
+}
+
+/* ==================== Fields Section ==================== */
+
+.overlay-fields {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  /* Transparent background - let clicks pass through gaps */
+  background-color: transparent;
+  /* Pass through - only child elements are interactive */
+  pointer-events: none;
+  /* Prevent scroll from propagating to parent/document */
+  overscroll-behavior: contain;
+}
+
+.field-row {
+  display: flex;
+  gap: 4px;
+  /* Pass through - only child inputs are interactive */
+  pointer-events: none;
+}
+
+.field-row.double .field-item {
+  flex: 1;
+  min-width: 0;
+}
+
+.field-item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  /* Pass through - only inputs are interactive */
+  pointer-events: none;
+}
+
+.field-label {
+  color: #666;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* Pass through - clicks go to D3 elements */
+  pointer-events: none;
+}
+
+.field-input {
+  padding: 2px 4px;
+  border: 1px solid #ccc;
+  border-radius: 2px;
+  width: 100%;
+  box-sizing: border-box;
+  background-color: white;
+  /* Interactive - text input */
+  pointer-events: auto;
+  /* Reset any library-applied z-index to stay within overlay stacking context */
+  z-index: auto !important;
+  position: relative;
+}
+
+.field-input:focus {
+  outline: none;
+  border-color: #1976d2;
+  box-shadow: 0 0 0 1px rgba(25, 118, 210, 0.2);
+}
+
+.field-input.readonly {
+  background-color: #f5f5f5;
+  color: #666;
+  cursor: not-allowed;
+}
+
+/* ==================== Slot Summary ==================== */
+
+.slot-summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 2px 4px;
+  background-color: transparent;
+  flex-shrink: 0;
+  /* Pass through - let clicks go to D3 elements */
+  pointer-events: none;
+}
+
+.slot-summary .input-slots,
+.slot-summary .output-slots {
+  background-color: rgba(255, 255, 255, 0.9);
+  padding: 1px 4px;
+  border-radius: 2px;
+  /* Interactive text */
+  pointer-events: auto;
+  /* Reset z-index to stay within overlay stacking context */
+  z-index: auto !important;
+  position: relative;
+}
+
+.input-slots {
+  color: #2196f3;
+}
+
+.output-slots {
+  color: #4caf50;
+}
+
+.slot-count {
+  font-weight: 600;
+}
+
+/* ==================== Small Mode ==================== */
+/* Shows header with title only, no fields or slots */
+
+.state-overlay.small .overlay-header {
+  flex: 1;
+  padding: 4px;
+  justify-content: center;
+}
+
+.state-overlay.small .state-title {
+  font-size: 11px;
+}
+
+/* ==================== Compact Mode ==================== */
+/* Shows header with title only, very condensed */
+
+.state-overlay.compact {
+  justify-content: center;
+  align-items: center;
+}
+
+.state-overlay.compact .overlay-header {
+  flex: 1;
+  padding: 2px;
+  justify-content: center;
+}
+
+.state-overlay.compact .state-title {
+  font-size: 10px;
+}
+
+.state-overlay.compact .state-subtitle {
+  display: none;
+}
+
+/* ==================== Tiny Mode (Icon Only) ==================== */
+/* Shows just an icon, no text */
+
+.state-overlay.tiny {
+  justify-content: center;
+  align-items: center;
+  padding: 0;
+}
+
+.compact-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  /* Interactive - shows icon in tiny mode */
+  pointer-events: auto;
+  background-color: rgba(255, 255, 255, 0.9);
+  border-radius: 4px;
+  /* Reset z-index to stay within overlay stacking context */
+  z-index: auto !important;
+  position: relative;
+}
+
+.compact-icon {
+  color: #666;
+}
+
+/* ==================== Micro Mode (Dot Only) ==================== */
+/* Shows just a minimal dot indicator - smallest size */
+
+.state-overlay.micro {
+  justify-content: center;
+  align-items: center;
+  padding: 0;
+}
+
+.micro-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  pointer-events: auto;
+  /* Reset z-index to stay within overlay stacking context */
+  z-index: auto !important;
+  position: relative;
+}
+
+.micro-dot {
+  width: 8px;
+  height: 8px;
+  min-width: 4px;
+  min-height: 4px;
+  background-color: #3f51b5;
+  border-radius: 50%;
+  box-shadow: 0 0 4px rgba(63, 81, 181, 0.5);
+}
+
+/* ==================== Editing Mode ==================== */
+
+.state-overlay.editing .overlay-header {
+  padding: 2px;
+  background-color: white;
+}
+
+.state-overlay.editing {
+  border: 2px solid #1976d2;
+}
+
+/* ==================== Scrollbar Styling ==================== */
+
+.overlay-fields::-webkit-scrollbar {
+  width: 3px;
+}
+
+.overlay-fields::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 2px;
+}
+
+.overlay-fields::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 2px;
+}
+
+.overlay-fields::-webkit-scrollbar-thumb:hover {
+  background: #999;
+}

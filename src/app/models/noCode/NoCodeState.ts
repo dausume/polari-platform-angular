@@ -45,12 +45,28 @@ export class NoCodeState {
     layerName?: string;
     //
     backgroundColor?: string;
+    // Corner radius for rounded rectangle shapes
+    cornerRadius?: number;
+    // Width for rectangle shapes (alias for stateSvgSizeX for clarity)
+    stateSvgWidth?: number;
+    // Height for rectangle shapes (alias for stateSvgSizeY for clarity)
+    stateSvgHeight?: number;
+
+    // === State-Space Object System Fields ===
+    // Links this state to a StateDefinition template
+    stateDefinitionId?: string;
+    // Links to an actual object instance when this state represents a bound object
+    objectInstanceId?: string;
+    // The class name of the bound object (populated from StateDefinition.sourceClassName)
+    boundObjectClass?: string;
+    // Field values for the bound object instance
+    boundObjectFieldValues?: { [fieldName: string]: any };
 
     //Defines a configuration object used for configuring variable information for a new class, or modifying/duplicating an existing class.
     constructor(
         stateName?: string,
-        shapeType?: string, 
-        stateClass?: string, 
+        shapeType?: string,
+        stateClass?: string,
         index?:number,
         stateSvgSizeX?: number | null,
         stateSvgSizeY?: number | null,
@@ -58,12 +74,17 @@ export class NoCodeState {
         solutionName?:string,
         layerName?: string,
         stateLocationX: number = 0,
-        stateLocationY: number = 0, 
-        id?:string, 
+        stateLocationY: number = 0,
+        id?:string,
         stateSvgName?: string, // The name of the svg, if it is the same as the shapeType or empty it uses default svg.
         slots: Slot[]=[],
         slotRadius: number = 4,
-        backgroundColor="blue"
+        backgroundColor="blue",
+        // State-Space Object System fields
+        stateDefinitionId?: string,
+        objectInstanceId?: string,
+        boundObjectClass?: string,
+        boundObjectFieldValues?: { [fieldName: string]: any }
     )
     {
         this.id = id;
@@ -82,6 +103,11 @@ export class NoCodeState {
         this.backgroundColor = backgroundColor;
         this.stateSvgName = stateSvgName;
         this.slotRadius = slotRadius;
+        // State-Space Object System fields
+        this.stateDefinitionId = stateDefinitionId;
+        this.objectInstanceId = objectInstanceId;
+        this.boundObjectClass = boundObjectClass;
+        this.boundObjectFieldValues = boundObjectFieldValues;
         this.validate();
     }
 
@@ -98,6 +124,65 @@ export class NoCodeState {
         this.stateSvgSizeX = x;
         this.stateSvgSizeY = y;
     }
-    
-    
+
+    // === State-Space Object System Methods ===
+
+    /**
+     * Bind this state to a StateDefinition template
+     */
+    bindToStateDefinition(stateDefinitionId: string, sourceClassName: string): void {
+        this.stateDefinitionId = stateDefinitionId;
+        this.boundObjectClass = sourceClassName;
+    }
+
+    /**
+     * Bind this state to a specific object instance
+     */
+    bindToObjectInstance(objectInstanceId: string, fieldValues?: { [fieldName: string]: any }): void {
+        this.objectInstanceId = objectInstanceId;
+        if (fieldValues) {
+            this.boundObjectFieldValues = fieldValues;
+        }
+    }
+
+    /**
+     * Update a field value for the bound object
+     */
+    updateFieldValue(fieldName: string, value: any): void {
+        if (!this.boundObjectFieldValues) {
+            this.boundObjectFieldValues = {};
+        }
+        this.boundObjectFieldValues[fieldName] = value;
+    }
+
+    /**
+     * Get a field value from the bound object
+     */
+    getFieldValue(fieldName: string): any {
+        return this.boundObjectFieldValues?.[fieldName];
+    }
+
+    /**
+     * Check if this state is bound to a state-space object
+     */
+    isBoundToStateSpace(): boolean {
+        return !!this.stateDefinitionId || !!this.boundObjectClass;
+    }
+
+    /**
+     * Check if this state has a bound object instance
+     */
+    hasBoundInstance(): boolean {
+        return !!this.objectInstanceId;
+    }
+
+    /**
+     * Clear all state-space bindings
+     */
+    clearStateSpaceBindings(): void {
+        this.stateDefinitionId = undefined;
+        this.objectInstanceId = undefined;
+        this.boundObjectClass = undefined;
+        this.boundObjectFieldValues = undefined;
+    }
 }

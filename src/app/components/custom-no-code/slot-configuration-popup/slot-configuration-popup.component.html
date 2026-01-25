@@ -1,0 +1,95 @@
+<div class="slot-config-popup"
+     #popupContainer
+     [style.left.px]="adjustedPosition.x"
+     [style.top.px]="adjustedPosition.y"
+     (click)="onPopupClick($event)">
+
+  <!-- Header -->
+  <div class="popup-header">
+    <h3 class="popup-title">
+      {{ editedConfig.isInput ? 'Input' : 'Output' }} Slot Configuration
+    </h3>
+    <span class="slot-index">Slot #{{ editedConfig.index }}</span>
+  </div>
+
+  <!-- Slot Label -->
+  <div class="config-section">
+    <label class="section-label">Label</label>
+    <input type="text"
+           class="text-input"
+           [(ngModel)]="editedConfig.label"
+           placeholder="Optional label...">
+  </div>
+
+  <!-- Color Selection -->
+  <div class="config-section">
+    <label class="section-label">Color</label>
+    <div class="color-grid">
+      <button *ngFor="let color of slotColors"
+              class="color-swatch"
+              [style.background-color]="color.value"
+              [class.selected]="editedConfig.color === color.value"
+              [title]="color.name"
+              (click)="onColorSelect(color.value)">
+        <mat-icon *ngIf="editedConfig.color === color.value" class="check-icon">check</mat-icon>
+      </button>
+    </div>
+  </div>
+
+  <!-- Mapping Mode -->
+  <div class="config-section">
+    <label class="section-label">Mapping Mode</label>
+    <div class="mapping-modes">
+      <div *ngFor="let mode of getCurrentMappingModes()"
+           class="mapping-option"
+           [class.selected]="editedConfig.mappingMode === mode.value"
+           (click)="onMappingModeSelect(mode.value)">
+        <div class="option-header">
+          <mat-icon class="option-radio">
+            {{ editedConfig.mappingMode === mode.value ? 'radio_button_checked' : 'radio_button_unchecked' }}
+          </mat-icon>
+          <span class="option-label">{{ mode.label }}</span>
+        </div>
+        <p class="option-description">{{ mode.description }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Parameter Info (for inputs) -->
+  <div class="config-section" *ngIf="editedConfig.isInput && editedConfig.parameterName">
+    <label class="section-label">Parameter Info</label>
+    <div class="param-info">
+      <div class="param-row">
+        <span class="param-label">Name:</span>
+        <span class="param-value">{{ editedConfig.parameterName }}</span>
+      </div>
+      <div class="param-row" *ngIf="editedConfig.parameterType">
+        <span class="param-label">Type:</span>
+        <span class="param-value type-badge">{{ editedConfig.parameterType }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Return Type Info (for outputs) -->
+  <div class="config-section" *ngIf="!editedConfig.isInput && editedConfig.returnType">
+    <label class="section-label">Return Type</label>
+    <div class="param-info">
+      <span class="param-value type-badge">{{ editedConfig.returnType }}</span>
+    </div>
+  </div>
+
+  <!-- Description -->
+  <div class="config-section">
+    <label class="section-label">Description</label>
+    <textarea class="text-input description-input"
+              [(ngModel)]="editedConfig.description"
+              placeholder="Optional description..."
+              rows="2"></textarea>
+  </div>
+
+  <!-- Actions -->
+  <div class="popup-actions">
+    <button class="action-btn cancel-btn" (click)="onCancel()">Cancel</button>
+    <button class="action-btn save-btn" (click)="onSave()">Save</button>
+  </div>
+</div>

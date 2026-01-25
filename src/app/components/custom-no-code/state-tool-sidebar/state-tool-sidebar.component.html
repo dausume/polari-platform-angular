@@ -1,0 +1,430 @@
+<!-- State Tool Sidebar -->
+<div class="state-tool-sidebar" [class.collapsed]="!isExpanded">
+  <!-- Toggle Button -->
+  <button class="toggle-btn" (click)="onToggleExpanded()" [title]="isExpanded ? 'Collapse' : 'Expand'">
+    <mat-icon>{{ isExpanded ? 'chevron_right' : 'chevron_left' }}</mat-icon>
+  </button>
+
+  <!-- Expanded Content -->
+  <div class="sidebar-content" *ngIf="isExpanded">
+    <!-- Header -->
+    <div class="sidebar-header">
+      <h3>State Tools</h3>
+    </div>
+
+    <!-- Tab Buttons - Two Rows -->
+    <div class="tab-buttons-container">
+      <!-- Row 1: Main Tabs -->
+      <div class="tab-buttons">
+        <button class="tab-btn" [class.active]="activeTab === 'blocks'" (click)="setActiveTab('blocks')">
+          <mat-icon>widgets</mat-icon>
+          Blocks
+        </button>
+        <button class="tab-btn" [class.active]="activeTab === 'solutionClass'" (click)="setActiveTab('solutionClass')">
+          <mat-icon>class</mat-icon>
+          Solution
+        </button>
+      </div>
+      <!-- Row 2: Secondary Tabs -->
+      <div class="tab-buttons secondary">
+        <button class="tab-btn small" [class.active]="activeTab === 'helperClasses'" (click)="setActiveTab('helperClasses')">
+          <mat-icon>support</mat-icon>
+          Helpers
+          <span class="count-badge" *ngIf="enabledHelperClasses.length > 0">{{ enabledHelperClasses.length }}</span>
+        </button>
+        <button class="tab-btn small" [class.active]="activeTab === 'subSolutions'" (click)="setActiveTab('subSolutions')">
+          <mat-icon>account_tree</mat-icon>
+          Sub-Solutions
+          <span class="count-badge" *ngIf="availableSubSolutions.length > 0">{{ availableSubSolutions.length }}</span>
+        </button>
+        <button class="tab-btn small" [class.active]="activeTab === 'code'" (click)="setActiveTab('code')">
+          <mat-icon>code</mat-icon>
+          Python
+        </button>
+      </div>
+    </div>
+
+    <!-- SVG Shape Selector -->
+    <div class="shape-selector">
+      <label>Shape:</label>
+      <div class="shape-options">
+        <button *ngFor="let shape of availableSvgShapes"
+                class="shape-btn"
+                [class.selected]="selectedSvgShape === shape.id"
+                (click)="selectSvgShape(shape.id)"
+                [title]="shape.name">
+          <mat-icon>{{ shape.icon }}</mat-icon>
+        </button>
+      </div>
+    </div>
+
+    <!-- Blocks Tab Content (Built-in base operations) -->
+    <div class="tab-content" *ngIf="activeTab === 'blocks'">
+      <div class="categories-container">
+        <div class="category" *ngFor="let category of builtinCategories">
+          <!-- Category Header -->
+          <div class="category-header" (click)="toggleCategory(category)">
+            <mat-icon class="expand-icon">
+              {{ isCategoryExpanded(category) ? 'expand_more' : 'chevron_right' }}
+            </mat-icon>
+            <mat-icon class="category-icon" [style.color]="getCategoryColor(category)">
+              {{ getCategoryIcon(category) }}
+            </mat-icon>
+            <span class="category-name">{{ category }}</span>
+            <span class="category-count">{{ getItemsForCategory(category).length }}</span>
+          </div>
+
+          <!-- Category Items -->
+          <div class="category-items" *ngIf="isCategoryExpanded(category)">
+            <div class="tool-item"
+                 *ngFor="let item of getItemsForCategory(category)"
+                 (click)="onItemClick(item)"
+                 draggable="true"
+                 (dragstart)="onItemDragStart($event, item)"
+                 [title]="item.displayName + ' - Click or drag to create'">
+              <div class="item-icon" [style.background-color]="item.color || '#666'">
+                <mat-icon *ngIf="item.icon">{{ item.icon }}</mat-icon>
+                <span *ngIf="!item.icon">{{ item.displayName.charAt(0) }}</span>
+              </div>
+              <div class="item-info">
+                <span class="item-name">{{ item.displayName }}</span>
+              </div>
+              <mat-icon class="drag-indicator">drag_indicator</mat-icon>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Solution Class Tab Content -->
+    <div class="tab-content" *ngIf="activeTab === 'solutionClass'">
+      <div class="class-view-container">
+        <div class="class-header" *ngIf="boundClass">
+          <div class="class-badge solution-class-badge">
+            <mat-icon>class</mat-icon>
+            <span>{{ boundClass.displayName }}</span>
+          </div>
+          <p class="class-description">{{ boundClass.description }}</p>
+        </div>
+
+        <!-- Imports Section -->
+        <div class="class-section" *ngIf="boundClass && boundClass.pythonImports && boundClass.pythonImports.length > 0">
+          <h4><mat-icon>download</mat-icon> Required Imports</h4>
+          <div class="imports-list">
+            <div class="import-item" *ngFor="let imp of boundClass.pythonImports">
+              <code class="import-code">{{ imp }}</code>
+            </div>
+          </div>
+        </div>
+
+        <!-- Class Fields -->
+        <div class="class-section" *ngIf="boundClass && boundClass.fields.length > 0">
+          <h4><mat-icon>label</mat-icon> Fields</h4>
+          <div class="field-list">
+            <div class="field-item-row" *ngFor="let field of boundClass.fields">
+              <div class="field-info">
+                <span class="field-name">{{ field.name }}</span>
+                <span class="field-type">{{ field.type }}</span>
+                <span class="field-desc" *ngIf="field.description">{{ field.description }}</span>
+              </div>
+              <div class="field-actions">
+                <button class="action-btn get-btn"
+                        (click)="createFieldGetterState(field)"
+                        title="Create GET state - Returns the field value">
+                  <mat-icon>output</mat-icon>
+                  <span class="action-label">Get</span>
+                </button>
+                <button class="action-btn set-btn"
+                        (click)="createFieldSetterState(field)"
+                        title="Create SET state - Sets the field value">
+                  <mat-icon>input</mat-icon>
+                  <span class="action-label">Set</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Class Methods -->
+        <div class="class-section" *ngIf="boundClass && boundClass.methods.length > 0">
+          <h4><mat-icon>functions</mat-icon> Methods</h4>
+          <div class="method-list">
+            <div class="method-item-row" *ngFor="let method of boundClass.methods">
+              <div class="method-info">
+                <div class="method-signature">
+                  <span class="method-name">{{ method.name }}</span>
+                  <span class="method-params">({{ getMethodParamsString(method) }})</span>
+                  <span class="method-return">→ {{ method.returnType }}</span>
+                </div>
+                <span class="method-desc" *ngIf="method.description">{{ method.description }}</span>
+              </div>
+              <div class="method-actions">
+                <button class="action-btn call-btn"
+                        (click)="createMethodState(method)"
+                        title="Create state to call this method">
+                  <mat-icon>add_circle</mat-icon>
+                  <span class="slot-info" *ngIf="getMethodParamCount(method) > 0">
+                    {{ getMethodParamCount(method) }} in
+                  </span>
+                  <span class="slot-info">1 out</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Python Class Preview -->
+        <div class="class-section" *ngIf="boundClass">
+          <h4><mat-icon>code</mat-icon> Python Class</h4>
+          <div class="code-block">
+            <pre><code>{{ getPythonClassPreview() }}</code></pre>
+          </div>
+        </div>
+
+        <div class="empty-state" *ngIf="!boundClass">
+          <mat-icon>class</mat-icon>
+          <p>No Solution Class bound</p>
+          <span>This solution is not bound to a specific class yet</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Helper Classes Tab Content -->
+    <div class="tab-content" *ngIf="activeTab === 'helperClasses'">
+      <!-- Search -->
+      <div class="search-container">
+        <div class="search-input-wrapper">
+          <mat-icon class="search-icon">search</mat-icon>
+          <input type="text"
+                 class="search-input"
+                 placeholder="Search helper classes..."
+                 [(ngModel)]="helperClassSearchQuery"
+                 (ngModelChange)="filterHelperClasses()">
+          <button class="clear-btn" *ngIf="helperClassSearchQuery" (click)="clearHelperClassSearch()">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+      </div>
+
+      <!-- Helper Class Detail View (when a class is selected) -->
+      <div class="helper-class-detail" *ngIf="selectedHelperClass">
+        <div class="detail-header">
+          <button class="back-btn" (click)="clearHelperClassSelection()">
+            <mat-icon>arrow_back</mat-icon>
+          </button>
+          <div class="class-badge helper-class-badge">
+            <mat-icon>support</mat-icon>
+            <span>{{ selectedHelperClass.displayName }}</span>
+          </div>
+        </div>
+        <p class="class-description">{{ selectedHelperClass.description }}</p>
+
+        <!-- Imports -->
+        <div class="class-section" *ngIf="selectedHelperClass.pythonImports && selectedHelperClass.pythonImports.length > 0">
+          <h4><mat-icon>download</mat-icon> Imports</h4>
+          <div class="imports-list">
+            <div class="import-item" *ngFor="let imp of selectedHelperClass.pythonImports">
+              <code class="import-code">{{ imp }}</code>
+            </div>
+          </div>
+        </div>
+
+        <!-- Fields -->
+        <div class="class-section" *ngIf="selectedHelperClass.fields.length > 0">
+          <h4><mat-icon>label</mat-icon> Fields</h4>
+          <div class="field-list">
+            <div class="field-item-row" *ngFor="let field of selectedHelperClass.fields">
+              <div class="field-info">
+                <span class="field-name">{{ field.name }}</span>
+                <span class="field-type">{{ field.type }}</span>
+              </div>
+              <div class="field-actions" *ngIf="isHelperClassEnabled(selectedHelperClass)">
+                <button class="action-btn get-btn"
+                        (click)="createHelperFieldGetterState(selectedHelperClass, field)"
+                        title="Create GET state">
+                  <mat-icon>output</mat-icon>
+                  <span class="action-label">Get</span>
+                </button>
+                <button class="action-btn set-btn"
+                        (click)="createHelperFieldSetterState(selectedHelperClass, field)"
+                        title="Create SET state">
+                  <mat-icon>input</mat-icon>
+                  <span class="action-label">Set</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Methods -->
+        <div class="class-section" *ngIf="selectedHelperClass.methods.length > 0">
+          <h4><mat-icon>functions</mat-icon> Methods</h4>
+          <div class="method-list">
+            <div class="method-item-row" *ngFor="let method of selectedHelperClass.methods">
+              <div class="method-info">
+                <div class="method-signature">
+                  <span class="method-name">{{ method.name }}</span>
+                  <span class="method-params">({{ getMethodParamsString(method) }})</span>
+                  <span class="method-return">→ {{ method.returnType }}</span>
+                </div>
+              </div>
+              <div class="method-actions" *ngIf="isHelperClassEnabled(selectedHelperClass)">
+                <button class="action-btn call-btn"
+                        (click)="createHelperMethodState(selectedHelperClass, method)"
+                        title="Create state to call this method">
+                  <mat-icon>add_circle</mat-icon>
+                  <span class="slot-info" *ngIf="getMethodParamCount(method) > 0">
+                    {{ getMethodParamCount(method) }} in
+                  </span>
+                  <span class="slot-info">1 out</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Helper Classes List (when no class is selected) -->
+      <div class="helper-classes-list" *ngIf="!selectedHelperClass">
+        <div class="empty-state" *ngIf="availableHelperClasses.length === 0">
+          <mat-icon>support_agent</mat-icon>
+          <p>No helper classes available</p>
+          <span>Helper classes allow you to use variables and functions from other classes in your solution</span>
+        </div>
+
+        <div class="no-results" *ngIf="availableHelperClasses.length > 0 && filteredHelperClasses.length === 0">
+          No helper classes match "{{ helperClassSearchQuery }}"
+        </div>
+
+        <div class="helper-class-item"
+             *ngFor="let cls of filteredHelperClasses"
+             (click)="selectHelperClass(cls)">
+          <div class="helper-class-toggle">
+            <mat-icon class="toggle-icon"
+                      [class.enabled]="isHelperClassEnabled(cls)"
+                      (click)="onToggleHelperClass(cls); $event.stopPropagation()"
+                      [title]="isHelperClassEnabled(cls) ? 'Disable this helper class' : 'Enable this helper class'">
+              {{ isHelperClassEnabled(cls) ? 'check_circle' : 'radio_button_unchecked' }}
+            </mat-icon>
+          </div>
+          <div class="helper-class-info">
+            <span class="helper-class-name">{{ cls.displayName }}</span>
+            <span class="helper-class-desc">{{ cls.description }}</span>
+            <span class="helper-class-counts">
+              {{ cls.fields.length }} fields, {{ cls.methods.length }} methods
+            </span>
+          </div>
+          <mat-icon class="chevron-icon">chevron_right</mat-icon>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sub-Solutions Tab Content -->
+    <div class="tab-content" *ngIf="activeTab === 'subSolutions'">
+      <!-- Search -->
+      <div class="search-container">
+        <div class="search-input-wrapper">
+          <mat-icon class="search-icon">search</mat-icon>
+          <input type="text"
+                 class="search-input"
+                 placeholder="Search sub-solutions..."
+                 [(ngModel)]="subSolutionSearchQuery"
+                 (ngModelChange)="filterSubSolutions()">
+          <button class="clear-btn" *ngIf="subSolutionSearchQuery" (click)="clearSubSolutionSearch()">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+      </div>
+
+      <!-- Sub-Solutions List -->
+      <div class="sub-solutions-list">
+        <div class="empty-state" *ngIf="availableSubSolutions.length === 0">
+          <mat-icon>account_tree</mat-icon>
+          <p>No sub-solutions available</p>
+          <span>Create other solutions to use them as building blocks in this solution</span>
+        </div>
+
+        <div class="no-results" *ngIf="availableSubSolutions.length > 0 && filteredSubSolutions.length === 0">
+          No sub-solutions match "{{ subSolutionSearchQuery }}"
+        </div>
+
+        <div class="sub-solution-item"
+             *ngFor="let sol of filteredSubSolutions"
+             (click)="onCreateSubSolutionState(sol)"
+             [title]="sol.description + ' - Click to add as state'">
+          <div class="sub-solution-icon" [style.background-color]="sol.color || '#673AB7'">
+            <mat-icon>{{ sol.icon || 'account_tree' }}</mat-icon>
+          </div>
+          <div class="sub-solution-info">
+            <span class="sub-solution-name">{{ sol.displayName }}</span>
+            <span class="sub-solution-desc">{{ sol.description }}</span>
+            <div class="sub-solution-signature">
+              <span class="params">{{ getSubSolutionParamsString(sol) }}</span>
+              <span class="arrow">→</span>
+              <span class="return-type">{{ sol.outputType }}</span>
+            </div>
+          </div>
+          <mat-icon class="add-icon">add_circle</mat-icon>
+        </div>
+      </div>
+    </div>
+
+    <!-- Python Code View Tab Content -->
+    <div class="tab-content" *ngIf="activeTab === 'code'">
+      <div class="code-view-container">
+        <div class="code-header">
+          <mat-icon>code</mat-icon>
+          <span>Generated Python Code</span>
+        </div>
+        <div class="code-info" *ngIf="solutionName">
+          <span class="solution-label">Function:</span>
+          <span class="solution-name">{{ getFunctionName() }}</span>
+        </div>
+        <div class="code-block" *ngIf="generatedPythonCode">
+          <pre><code>{{ generatedPythonCode }}</code></pre>
+        </div>
+        <div class="empty-state" *ngIf="!generatedPythonCode">
+          <mat-icon>code_off</mat-icon>
+          <p>No code generated yet</p>
+          <span>Add blocks to your solution to see the generated Python code</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Collapsed Content -->
+  <div class="collapsed-content" *ngIf="!isExpanded">
+    <button mat-icon-button
+            [class.active]="activeTab === 'blocks'"
+            (click)="setActiveTab('blocks'); onToggleExpanded()"
+            title="Blocks">
+      <mat-icon>widgets</mat-icon>
+    </button>
+    <button mat-icon-button
+            [class.active]="activeTab === 'solutionClass'"
+            (click)="setActiveTab('solutionClass'); onToggleExpanded()"
+            title="Solution Class">
+      <mat-icon>class</mat-icon>
+    </button>
+    <div class="divider"></div>
+    <button mat-icon-button
+            [class.active]="activeTab === 'helperClasses'"
+            (click)="setActiveTab('helperClasses'); onToggleExpanded()"
+            title="Helper Classes">
+      <mat-icon>support</mat-icon>
+    </button>
+    <button mat-icon-button
+            [class.active]="activeTab === 'subSolutions'"
+            (click)="setActiveTab('subSolutions'); onToggleExpanded()"
+            title="Sub-Solutions">
+      <mat-icon>account_tree</mat-icon>
+    </button>
+    <div class="divider"></div>
+    <button mat-icon-button
+            [class.active]="activeTab === 'code'"
+            (click)="setActiveTab('code'); onToggleExpanded()"
+            title="Python Code">
+      <mat-icon>code</mat-icon>
+    </button>
+  </div>
+</div>

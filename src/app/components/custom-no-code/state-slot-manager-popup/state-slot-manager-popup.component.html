@@ -1,0 +1,126 @@
+<div class="slot-manager-popup"
+     #popupContainer
+     [style.left.px]="adjustedPosition.x"
+     [style.top.px]="adjustedPosition.y"
+     (click)="onPopupClick($event)">
+
+  <!-- Header -->
+  <div class="popup-header">
+    <h3 class="popup-title">Slot Configuration</h3>
+    <span class="state-name">{{ stateName }}</span>
+  </div>
+
+  <!-- Use Defaults Toggle -->
+  <div class="defaults-section">
+    <label class="defaults-toggle">
+      <input type="checkbox"
+             [(ngModel)]="useDefaults"
+             (change)="onUseDefaultsChange()">
+      <span class="toggle-label">Use solution defaults</span>
+    </label>
+  </div>
+
+  <!-- Input Slots Section -->
+  <div class="slots-section input-section">
+    <div class="section-header" (click)="toggleInputSection()">
+      <mat-icon class="expand-icon">
+        {{ inputSectionExpanded ? 'expand_more' : 'chevron_right' }}
+      </mat-icon>
+      <span class="section-title">Input Slots</span>
+      <span class="slot-count">{{ editedInputSlots.length }}</span>
+      <button class="add-slot-btn" (click)="addInputSlot(); $event.stopPropagation()">
+        <mat-icon>add</mat-icon>
+      </button>
+    </div>
+
+    <div class="section-content" *ngIf="inputSectionExpanded">
+      <div *ngIf="editedInputSlots.length === 0" class="empty-message">
+        No input slots configured
+      </div>
+
+      <div *ngFor="let slot of editedInputSlots; let i = index" class="slot-item">
+        <div class="slot-color-indicator" [style.background-color]="slot.color"></div>
+
+        <div class="slot-info">
+          <span class="slot-label">{{ slot.label || 'Input ' + (i + 1) }}</span>
+          <span class="slot-mode">{{ getMappingModeLabel(slot.mappingMode, true) }}</span>
+        </div>
+
+        <div class="slot-actions">
+          <!-- Quick color picker -->
+          <div class="quick-colors">
+            <button *ngFor="let color of slotColors.slice(0, 5)"
+                    class="mini-color-swatch"
+                    [style.background-color]="color.value"
+                    [class.selected]="slot.color === color.value"
+                    (click)="setSlotColor(slot, color.value)">
+            </button>
+          </div>
+
+          <button class="icon-btn" title="Configure" (click)="configureSlot(slot)">
+            <mat-icon>settings</mat-icon>
+          </button>
+
+          <button class="icon-btn remove-btn" title="Remove" (click)="removeInputSlot(i)">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Output Slots Section -->
+  <div class="slots-section output-section">
+    <div class="section-header" (click)="toggleOutputSection()">
+      <mat-icon class="expand-icon">
+        {{ outputSectionExpanded ? 'expand_more' : 'chevron_right' }}
+      </mat-icon>
+      <span class="section-title">Output Slots</span>
+      <span class="slot-count">{{ editedOutputSlots.length }}</span>
+      <button class="add-slot-btn" (click)="addOutputSlot(); $event.stopPropagation()">
+        <mat-icon>add</mat-icon>
+      </button>
+    </div>
+
+    <div class="section-content" *ngIf="outputSectionExpanded">
+      <div *ngIf="editedOutputSlots.length === 0" class="empty-message">
+        No output slots configured
+      </div>
+
+      <div *ngFor="let slot of editedOutputSlots; let i = index" class="slot-item">
+        <div class="slot-color-indicator" [style.background-color]="slot.color"></div>
+
+        <div class="slot-info">
+          <span class="slot-label">{{ slot.label || 'Output ' + (i + 1) }}</span>
+          <span class="slot-mode">{{ getMappingModeLabel(slot.mappingMode, false) }}</span>
+        </div>
+
+        <div class="slot-actions">
+          <!-- Quick color picker -->
+          <div class="quick-colors">
+            <button *ngFor="let color of slotColors.slice(0, 5)"
+                    class="mini-color-swatch"
+                    [style.background-color]="color.value"
+                    [class.selected]="slot.color === color.value"
+                    (click)="setSlotColor(slot, color.value)">
+            </button>
+          </div>
+
+          <button class="icon-btn" title="Configure" (click)="configureSlot(slot)">
+            <mat-icon>settings</mat-icon>
+          </button>
+
+          <button class="icon-btn remove-btn" title="Remove" (click)="removeOutputSlot(i)">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <div class="popup-actions">
+    <button class="action-btn cancel-btn" (click)="onCancel()">Cancel</button>
+    <button class="action-btn save-btn" (click)="onSave()">Save</button>
+  </div>
+</div>

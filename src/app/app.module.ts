@@ -22,6 +22,7 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatDialogModule } from '@angular/material/dialog';
 import { MatListModule } from '@angular/material/list';
 import { MatIconModule } from '@angular/material/icon';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 //NgRx
 import { StoreModule } from '@ngrx/store';
 import { EffectsModule } from '@ngrx/effects';
@@ -57,6 +58,13 @@ import { SolutionEditorComponent } from '@components/custom-no-code/no-code-inte
 import { SlotComponent } from '@components/custom-no-code/slot/slot';
 import { NoCodeMenuComponent } from '@components/custom-no-code/no-code-menu/no-code-menu';
 import { NoCodeStateBorderComponent } from '@components/custom-no-code/no-code-state-instance/no-code-state-border/no-code-state-border';
+import { StateOverlayComponent } from '@components/custom-no-code/state-overlay/state-overlay.component';
+import { StateDefinitionCreatorComponent } from '@components/custom-no-code/state-definition-creator/state-definition-creator.component';
+import { StateToolSidebarComponent } from '@components/custom-no-code/state-tool-sidebar/state-tool-sidebar.component';
+import { StateContextMenuComponent } from '@components/custom-no-code/state-context-menu/state-context-menu.component';
+import { SlotConfigurationPopupComponent } from '@components/custom-no-code/slot-configuration-popup/slot-configuration-popup.component';
+import { StateSlotManagerPopupComponent } from '@components/custom-no-code/state-slot-manager-popup/state-slot-manager-popup.component';
+import { StateFullViewPopupComponent } from '@components/custom-no-code/state-full-view-popup/state-full-view-popup.component';
 // Class Configuration Components
 import { DefaultCellComponent } from './components/templateClassTable/type-cells/default-cell/default-cell';
 import { ConfigCellActions } from '@components/templateClassTable/type-cells/config-cell-actions/config-cell-actions';
@@ -94,6 +102,8 @@ import { DomSanitizer } from "@angular/platform-browser";
 import { OverlayContainer } from '@angular/cdk/overlay';
 import { OverlayComponentService } from './services/no-code-services/overlay-component-service';
 import { InteractionStateService } from '@services/no-code-services/interaction-state-service';
+import { StateOverlayManager } from '@services/no-code-services/state-overlay-manager.service';
+import { StateDefinitionService } from '@services/no-code-services/state-definition.service';
 // Shared CRUD Module for dynamic class editing components
 import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/shared-crud.module';
 
@@ -122,6 +132,13 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     SlotComponent,
     NoCodeMenuComponent,
     NoCodeStateBorderComponent,
+    StateOverlayComponent,
+    StateDefinitionCreatorComponent,
+    StateToolSidebarComponent,
+    StateContextMenuComponent,
+    SlotConfigurationPopupComponent,
+    StateSlotManagerPopupComponent,
+    StateFullViewPopupComponent,
     DefaultCellComponent,
     ConfigCellActions,
     ClassDataTableComponent,
@@ -162,6 +179,7 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     MatDialogModule,
     MatListModule,
     MatIconModule,
+    MatCheckboxModule,
     // Shared CRUD Module
     SharedCrudModule,
     // NgRx
@@ -183,7 +201,9 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     DisplayConfigService,
     OverlayContainer,
     OverlayComponentService,
-    InteractionStateService
+    InteractionStateService,
+    StateOverlayManager,
+    StateDefinitionService
   ],
   bootstrap: [
     AppComponent

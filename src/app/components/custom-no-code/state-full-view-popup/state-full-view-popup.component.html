@@ -1,0 +1,106 @@
+<div class="full-view-popup"
+     #popupContainer
+     [style.left.px]="adjustedPosition.x"
+     [style.top.px]="adjustedPosition.y"
+     (click)="onPopupClick($event)">
+
+  <!-- Header with close button -->
+  <div class="popup-header">
+    <div class="header-content">
+      <mat-icon class="state-icon">{{ getStateIcon() }}</mat-icon>
+      <div class="header-text">
+        <h3 class="popup-title">{{ getStateTitle() }}</h3>
+        <span class="popup-subtitle" *ngIf="getStateSubtitle()">{{ getStateSubtitle() }}</span>
+      </div>
+    </div>
+    <button class="close-btn" (click)="onClose()" title="Close">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <!-- State name badge -->
+  <div class="state-name-badge">
+    <span class="badge-label">State:</span>
+    <span class="badge-value">{{ stateName }}</span>
+  </div>
+
+  <!-- Class selection (for editable object states) -->
+  <div class="class-section" *ngIf="stateType === 'object' && isEditable">
+    <div class="section-header" (click)="toggleEditMode()">
+      <span class="section-label">Bound Class</span>
+      <mat-icon class="edit-icon">{{ isEditing ? 'close' : 'edit' }}</mat-icon>
+    </div>
+
+    <div class="current-class" *ngIf="!isEditing">
+      <mat-icon class="class-icon">{{ getStateIcon() }}</mat-icon>
+      <span class="class-name">{{ boundClassName || 'None selected' }}</span>
+    </div>
+
+    <div class="class-search-container" *ngIf="isEditing">
+      <mat-form-field class="class-search" appearance="outline">
+        <mat-icon matPrefix>search</mat-icon>
+        <input
+          matInput
+          [formControl]="classSearchControl"
+          [matAutocomplete]="classAuto"
+          placeholder="Search classes...">
+        <mat-autocomplete
+          #classAuto="matAutocomplete"
+          (optionSelected)="onClassSelected($event)"
+          class="class-autocomplete">
+          <mat-optgroup *ngFor="let category of getCategories()" [label]="category">
+            <mat-option
+              *ngFor="let opt of getClassesForCategory(category); trackBy: trackByClassName"
+              [value]="opt.className">
+              <div class="class-option">
+                <mat-icon class="option-icon" [style.color]="opt.color">{{ opt.icon || 'code' }}</mat-icon>
+                <span class="option-name">{{ opt.displayName }}</span>
+              </div>
+            </mat-option>
+          </mat-optgroup>
+        </mat-autocomplete>
+      </mat-form-field>
+    </div>
+  </div>
+
+  <!-- Fields section -->
+  <div class="fields-section" *ngIf="hasFields()">
+    <div class="section-header">
+      <span class="section-label">Fields</span>
+    </div>
+
+    <div class="fields-list">
+      <div *ngFor="let field of displayFields" class="field-item">
+        <label class="field-label">{{ field.displayName || field.name }}</label>
+        <input
+          class="field-input"
+          [type]="field.type === 'number' ? 'number' : 'text'"
+          [value]="field.value"
+          [readonly]="!field.isEditable"
+          [class.readonly]="!field.isEditable"
+          (change)="onFieldChange(field.name, $event)">
+      </div>
+    </div>
+  </div>
+
+  <!-- Slots section -->
+  <div class="slots-section" *ngIf="inputSlotCount > 0 || outputSlotCount > 0">
+    <div class="section-header">
+      <span class="section-label">Connections</span>
+    </div>
+
+    <div class="slots-info">
+      <div class="slot-group input-group" *ngIf="inputSlotCount > 0">
+        <mat-icon class="slot-icon">arrow_forward</mat-icon>
+        <span class="slot-count">{{ inputSlotCount }}</span>
+        <span class="slot-label">Input{{ inputSlotCount > 1 ? 's' : '' }}</span>
+      </div>
+
+      <div class="slot-group output-group" *ngIf="outputSlotCount > 0">
+        <mat-icon class="slot-icon">arrow_back</mat-icon>
+        <span class="slot-count">{{ outputSlotCount }}</span>
+        <span class="slot-label">Output{{ outputSlotCount > 1 ? 's' : '' }}</span>
+      </div>
+    </div>
+  </div>
+</div>

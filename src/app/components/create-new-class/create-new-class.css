@@ -125,6 +125,43 @@ mat-grid-tile {
     border: 1px solid #b8daff;
 }
 
+/* State-Space Section */
+.state-space-section {
+    padding: 16px 0;
+    margin-bottom: 16px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.state-space-section .section-title {
+    font-size: 1.1em;
+    font-weight: 600;
+    color: #212529;
+    margin-bottom: 12px;
+}
+
+.state-space-options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.state-space-hint {
+    font-size: 0.85em;
+    color: #6c757d;
+    margin-left: 32px;
+    margin-top: -8px;
+}
+
+.fields-per-row-option {
+    margin-top: 8px;
+    margin-left: 32px;
+    max-width: 250px;
+}
+
+.fields-per-row-option mat-form-field {
+    width: 100%;
+}
+
 /* Variables Section */
 .variables-section {
     padding-top: 16px;

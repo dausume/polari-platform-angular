@@ -1,0 +1,324 @@
+/* State Slot Manager Popup Styles */
+
+.slot-manager-popup {
+  position: fixed;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+  padding: 16px;
+  min-width: 360px;
+  max-width: 420px;
+  max-height: 80vh;
+  overflow-y: auto;
+  z-index: 2000;
+  font-family: 'Roboto', sans-serif;
+}
+
+/* Header */
+.popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.popup-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.state-name {
+  font-size: 12px;
+  color: #666;
+  padding: 4px 10px;
+  background: #f5f5f5;
+  border-radius: 12px;
+}
+
+/* Defaults Section */
+.defaults-section {
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  background: #f8f9fa;
+  border-radius: 6px;
+}
+
+.defaults-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.defaults-toggle input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.toggle-label {
+  font-size: 13px;
+  color: #333;
+}
+
+/* Slots Sections */
+.slots-section {
+  margin-bottom: 16px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.input-section .section-header {
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+  border-bottom-color: #90caf9;
+}
+
+.output-section .section-header {
+  background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+  border-bottom-color: #a5d6a7;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  user-select: none;
+  border-bottom: 1px solid transparent;
+}
+
+.section-header:hover {
+  filter: brightness(0.98);
+}
+
+.expand-icon {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+  color: #666;
+}
+
+.section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+  flex: 1;
+}
+
+.slot-count {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 10px;
+  color: #666;
+}
+
+.add-slot-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease;
+}
+
+.add-slot-btn:hover {
+  background: white;
+}
+
+.add-slot-btn mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  color: #333;
+}
+
+/* Section Content */
+.section-content {
+  padding: 8px;
+  background: white;
+}
+
+.empty-message {
+  padding: 12px;
+  text-align: center;
+  color: #999;
+  font-size: 12px;
+  font-style: italic;
+}
+
+/* Slot Items */
+.slot-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  margin-bottom: 6px;
+}
+
+.slot-item:last-child {
+  margin-bottom: 0;
+}
+
+.slot-color-indicator {
+  width: 8px;
+  height: 32px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.slot-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.slot-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.slot-mode {
+  font-size: 10px;
+  color: #666;
+}
+
+.slot-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Quick Colors */
+.quick-colors {
+  display: flex;
+  gap: 3px;
+}
+
+.mini-color-swatch {
+  width: 16px;
+  height: 16px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.1s ease;
+}
+
+.mini-color-swatch:hover {
+  transform: scale(1.15);
+}
+
+.mini-color-swatch.selected {
+  border-color: #333;
+  box-shadow: 0 0 0 1px white, 0 0 0 2px #333;
+}
+
+/* Icon Buttons */
+.icon-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease;
+}
+
+.icon-btn:hover {
+  background: #e0e0e0;
+}
+
+.icon-btn mat-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  color: #666;
+}
+
+.icon-btn.remove-btn:hover {
+  background: #ffebee;
+}
+
+.icon-btn.remove-btn:hover mat-icon {
+  color: #f44336;
+}
+
+/* Actions */
+.popup-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.action-btn {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cancel-btn {
+  background: #f5f5f5;
+  color: #666;
+}
+
+.cancel-btn:hover {
+  background: #e0e0e0;
+}
+
+.save-btn {
+  background: #1976d2;
+  color: white;
+}
+
+.save-btn:hover {
+  background: #1565c0;
+}
+
+/* Scrollbar */
+.slot-manager-popup::-webkit-scrollbar {
+  width: 6px;
+}
+
+.slot-manager-popup::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.slot-manager-popup::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 3px;
+}
+
+.slot-manager-popup::-webkit-scrollbar-thumb:hover {
+  background: #999;
+}

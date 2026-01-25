@@ -1,0 +1,322 @@
+/* State Full View Popup Styles */
+
+.full-view-popup {
+  position: fixed;
+  width: 320px;
+  max-height: 80vh;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  /* Very high z-index to appear above overlays (1001) and backdrops (100000) */
+  z-index: 100001;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  font-family: 'Roboto', sans-serif;
+}
+
+/* ==================== Header ==================== */
+
+.popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #3f51b5 0%, #5c6bc0 100%);
+  color: #fff;
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.state-icon {
+  font-size: 28px;
+  width: 28px;
+  height: 28px;
+  opacity: 0.9;
+}
+
+.header-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.popup-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.popup-subtitle {
+  font-size: 12px;
+  opacity: 0.8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.close-btn {
+  background: transparent;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.8;
+  transition: opacity 0.2s, background-color 0.2s;
+}
+
+.close-btn:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.close-btn mat-icon {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+}
+
+/* ==================== State Name Badge ==================== */
+
+.state-name-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #f5f5f5;
+  border-bottom: 1px solid #e0e0e0;
+  font-size: 13px;
+}
+
+.badge-label {
+  color: #666;
+}
+
+.badge-value {
+  color: #333;
+  font-weight: 500;
+  font-family: 'Roboto Mono', monospace;
+}
+
+/* ==================== Sections ==================== */
+
+.class-section,
+.fields-section,
+.slots-section {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.class-section:last-child,
+.fields-section:last-child,
+.slots-section:last-child {
+  border-bottom: none;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+.section-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #666;
+}
+
+.edit-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  color: #999;
+}
+
+.section-header:hover .edit-icon {
+  color: #3f51b5;
+}
+
+/* ==================== Current Class ==================== */
+
+.current-class {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #fafafa;
+  border-radius: 4px;
+  border: 1px solid #e0e0e0;
+}
+
+.class-icon {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+  color: #3f51b5;
+}
+
+.class-name {
+  font-size: 14px;
+  color: #333;
+}
+
+/* ==================== Class Search ==================== */
+
+.class-search-container {
+  margin-top: 8px;
+}
+
+.class-search {
+  width: 100%;
+}
+
+.class-search ::ng-deep .mat-mdc-form-field-subscript-wrapper {
+  display: none;
+}
+
+.class-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.option-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
+.option-name {
+  font-size: 14px;
+}
+
+/* ==================== Fields ==================== */
+
+.fields-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.field-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.field-label {
+  font-size: 11px;
+  color: #666;
+  font-weight: 500;
+}
+
+.field-input {
+  padding: 8px 10px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: 'Roboto Mono', monospace;
+  background: #fff;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.field-input:focus {
+  outline: none;
+  border-color: #3f51b5;
+  box-shadow: 0 0 0 2px rgba(63, 81, 181, 0.1);
+}
+
+.field-input.readonly {
+  background: #f5f5f5;
+  color: #666;
+  cursor: not-allowed;
+}
+
+/* ==================== Slots ==================== */
+
+.slots-info {
+  display: flex;
+  gap: 16px;
+}
+
+.slot-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: #fafafa;
+  border-radius: 4px;
+  flex: 1;
+}
+
+.input-group {
+  border-left: 3px solid #2196f3;
+}
+
+.output-group {
+  border-left: 3px solid #4caf50;
+}
+
+.slot-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
+.input-group .slot-icon {
+  color: #2196f3;
+}
+
+.output-group .slot-icon {
+  color: #4caf50;
+}
+
+.slot-count {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.slot-label {
+  font-size: 12px;
+  color: #666;
+}
+
+/* ==================== Scrollbar ==================== */
+
+.fields-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.fields-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.fields-list::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 3px;
+}
+
+.fields-list::-webkit-scrollbar-thumb:hover {
+  background: #aaa;
+}

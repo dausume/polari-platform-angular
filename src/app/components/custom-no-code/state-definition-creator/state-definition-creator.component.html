@@ -1,0 +1,275 @@
+<!-- State Definition Creator Component -->
+<div class="state-definition-creator">
+  <div class="creator-header">
+    <div class="header-content">
+      <h2>{{ existingDefinition ? 'Edit' : 'Create' }} State Definition</h2>
+      <p class="subtitle">Define how a class can be used as a state in the no-code editor</p>
+    </div>
+    <button mat-icon-button class="close-btn" (click)="cancel()" title="Close">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <form [formGroup]="definitionForm" class="creator-form">
+    <!-- Basic Information Section -->
+    <div class="form-section">
+      <h3>Basic Information</h3>
+
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Definition Name</mat-label>
+          <input matInput formControlName="name" placeholder="e.g., Conditional Branch">
+          <mat-hint>Internal name for this definition</mat-hint>
+        </mat-form-field>
+      </div>
+
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Display Name</mat-label>
+          <input matInput formControlName="displayName" placeholder="e.g., If/Else Condition">
+          <mat-hint>Name shown in the UI</mat-hint>
+        </mat-form-field>
+      </div>
+
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Description</mat-label>
+          <textarea matInput formControlName="description" rows="2"
+                    placeholder="Describe what this state definition does..."></textarea>
+        </mat-form-field>
+      </div>
+    </div>
+
+    <!-- Source Selection -->
+    <div class="form-section">
+      <h3>Source</h3>
+
+      <!-- Source Type Toggle -->
+      <div class="source-type-toggle">
+        <mat-button-toggle-group [value]="sourceType" (change)="setSourceType($event.value)">
+          <mat-button-toggle value="solution">
+            <mat-icon>account_tree</mat-icon>
+            Existing Solution
+          </mat-button-toggle>
+          <mat-button-toggle value="class">
+            <mat-icon>class</mat-icon>
+            Custom Class
+          </mat-button-toggle>
+        </mat-button-toggle-group>
+      </div>
+
+      <!-- Solution Selection (for nesting solutions) -->
+      <div class="form-row" *ngIf="sourceType === 'solution'">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Select Solution</mat-label>
+          <mat-select (selectionChange)="onSolutionSelected($event.value)">
+            <mat-option *ngFor="let solution of availableSolutions" [value]="solution.name">
+              <mat-icon>account_tree</mat-icon>
+              {{ solution.displayName }}
+            </mat-option>
+          </mat-select>
+          <mat-hint>Select an existing solution to use as a nested state</mat-hint>
+        </mat-form-field>
+
+        <div class="solution-info-hint" *ngIf="availableSolutions.length === 0">
+          <mat-icon>info</mat-icon>
+          <span>No solutions available yet. Create and save solutions first to use them as nested definitions.</span>
+        </div>
+      </div>
+
+      <!-- Class Selection (for user-defined classes) -->
+      <div class="form-row" *ngIf="sourceType === 'class'">
+        <mat-form-field appearance="outline" class="full-width" *ngIf="availableClasses.length > 0">
+          <mat-label>State-Space Class</mat-label>
+          <input matInput formControlName="sourceClassName"
+                 [matAutocomplete]="classAuto"
+                 placeholder="Search for a class...">
+          <mat-autocomplete #classAuto="matAutocomplete">
+            <mat-optgroup *ngFor="let group of getClassesByCategory()" [label]="group.category">
+              <mat-option *ngFor="let cls of group.classes" [value]="cls.className">
+                <mat-icon *ngIf="cls.icon">{{ cls.icon }}</mat-icon>
+                <span>{{ cls.displayName }}</span>
+                <span class="class-name-hint">({{ cls.className }})</span>
+              </mat-option>
+            </mat-optgroup>
+          </mat-autocomplete>
+          <mat-hint>Select a user-defined state-space class</mat-hint>
+        </mat-form-field>
+
+        <div class="no-classes-hint" *ngIf="availableClasses.length === 0">
+          <mat-icon>info</mat-icon>
+          <p>No custom classes available yet.</p>
+          <span>Custom classes are user-defined classes registered with the state-space system.
+                Use "Existing Solution" to create definitions from your solutions,
+                or register custom classes from your backend.</span>
+        </div>
+      </div>
+
+      <!-- Selected Class Info -->
+      <div class="selected-class-info" *ngIf="selectedClass">
+        <div class="class-badge" [style.background-color]="selectedClass.color">
+          <mat-icon *ngIf="selectedClass.icon">{{ selectedClass.icon }}</mat-icon>
+          <span>{{ selectedClass.displayName }}</span>
+        </div>
+        <p class="class-description">{{ selectedClass.description }}</p>
+      </div>
+    </div>
+
+    <!-- Event Method Selection -->
+    <div class="form-section" *ngIf="selectedClass && selectedClass.eventMethods.length > 0">
+      <h3>Event Method</h3>
+
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Event Method</mat-label>
+          <mat-select formControlName="eventMethodName">
+            <mat-option *ngFor="let method of selectedClass.eventMethods" [value]="method.methodName">
+              {{ method.displayName }}
+            </mat-option>
+          </mat-select>
+          <mat-hint>Select the event that triggers this state</mat-hint>
+        </mat-form-field>
+      </div>
+
+      <!-- Event Method Details -->
+      <div class="event-method-details" *ngIf="selectedEventMethod">
+        <p class="method-description">{{ selectedEventMethod.description }}</p>
+      </div>
+    </div>
+
+    <!-- Slots Preview -->
+    <div class="form-section" *ngIf="previewInputSlots.length > 0 || previewOutputSlots.length > 0">
+      <h3>Slots (Auto-generated)</h3>
+
+      <div class="slots-preview">
+        <!-- Input Slots -->
+        <div class="slot-group" *ngIf="previewInputSlots.length > 0">
+          <h4>Input Slots</h4>
+          <div class="slot-item" *ngFor="let slot of previewInputSlots">
+            <mat-icon class="slot-icon input">input</mat-icon>
+            <div class="slot-info">
+              <span class="slot-name">{{ slot.displayName }}</span>
+              <span class="slot-type">{{ slot.dataType }}</span>
+              <span class="slot-required" *ngIf="slot.isRequired">Required</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Output Slots -->
+        <div class="slot-group" *ngIf="previewOutputSlots.length > 0">
+          <h4>Output Slots</h4>
+          <div class="slot-item" *ngFor="let slot of previewOutputSlots">
+            <mat-icon class="slot-icon output">output</mat-icon>
+            <div class="slot-info">
+              <span class="slot-name">{{ slot.displayName }}</span>
+              <span class="slot-type">{{ slot.dataType }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Display Fields Configuration -->
+    <div class="form-section" *ngIf="displayFieldsArray.length > 0">
+      <h3>Display Fields</h3>
+
+      <div class="layout-toggle">
+        <mat-button-toggle-group formControlName="fieldsPerRow" aria-label="Fields per row">
+          <mat-button-toggle [value]="1">
+            <mat-icon>view_agenda</mat-icon>
+            1 per row
+          </mat-button-toggle>
+          <mat-button-toggle [value]="2">
+            <mat-icon>view_column</mat-icon>
+            2 per row
+          </mat-button-toggle>
+        </mat-button-toggle-group>
+      </div>
+
+      <div class="fields-list" formArrayName="displayFields">
+        <div class="field-item" *ngFor="let field of displayFieldsArray.controls; let i = index" [formGroupName]="i">
+          <div class="field-drag-handle">
+            <mat-icon>drag_indicator</mat-icon>
+          </div>
+
+          <mat-slide-toggle formControlName="visible" class="field-toggle">
+          </mat-slide-toggle>
+
+          <div class="field-info">
+            <span class="field-name">{{ field.value.displayName }}</span>
+            <span class="field-type-badge">{{ field.value.fieldType }}</span>
+          </div>
+
+          <div class="field-actions">
+            <button mat-icon-button (click)="moveFieldUp(i)" [disabled]="i === 0" type="button">
+              <mat-icon>arrow_upward</mat-icon>
+            </button>
+            <button mat-icon-button (click)="moveFieldDown(i)" [disabled]="i === displayFieldsArray.length - 1" type="button">
+              <mat-icon>arrow_downward</mat-icon>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Appearance Section -->
+    <div class="form-section">
+      <h3>Appearance</h3>
+
+      <div class="form-row two-columns">
+        <mat-form-field appearance="outline">
+          <mat-label>Category</mat-label>
+          <mat-select formControlName="category">
+            <mat-option *ngFor="let cat of categories" [value]="cat">{{ cat }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Icon</mat-label>
+          <input matInput formControlName="icon" placeholder="e.g., call_split">
+          <mat-icon matSuffix *ngIf="definitionForm.get('icon')?.value">
+            {{ definitionForm.get('icon')?.value }}
+          </mat-icon>
+        </mat-form-field>
+      </div>
+
+      <div class="form-row">
+        <div class="color-picker-row">
+          <label>Color</label>
+          <input type="color" formControlName="color" class="color-input">
+          <span class="color-value">{{ definitionForm.get('color')?.value }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Preview Section -->
+    <div class="form-section preview-section" *ngIf="selectedClass">
+      <h3>Preview</h3>
+      <div class="state-preview" [style.border-color]="definitionForm.get('color')?.value">
+        <div class="preview-header" [style.background-color]="definitionForm.get('color')?.value">
+          <mat-icon *ngIf="definitionForm.get('icon')?.value">{{ definitionForm.get('icon')?.value }}</mat-icon>
+          <span>{{ definitionForm.get('displayName')?.value || 'State Name' }}</span>
+        </div>
+        <div class="preview-body">
+          <div class="preview-fields" [class.two-columns]="definitionForm.get('fieldsPerRow')?.value === 2">
+            <ng-container *ngFor="let field of displayFieldsArray.controls">
+              <div class="preview-field" *ngIf="field.value.visible">
+                <span class="preview-label">{{ field.value.displayName }}</span>
+                <span class="preview-value">...</span>
+              </div>
+            </ng-container>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="form-actions">
+      <button mat-button type="button" (click)="cancel()">Cancel</button>
+      <button mat-raised-button color="primary" type="button" (click)="saveDefinition()"
+              [disabled]="definitionForm.invalid">
+        {{ existingDefinition ? 'Update' : 'Create' }} Definition
+      </button>
+    </div>
+  </form>
+</div>
