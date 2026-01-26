@@ -31,8 +31,23 @@ export default class CircleSlotDataPoint {
     //
     index: number; // index of the slot in the parent state object. This is used to determine the order of the slots when rendering them.
 
-    constructor(cx: number, cy: number, radius: number, index: number, angularPosition: number, isInput: boolean, isOutput: boolean, stateName?: string, solutionName?:string) 
-    {
+    // Slot appearance
+    color?: string; // custom color for the slot (hex format)
+    label?: string; // display label (e.g., "I0", "O1")
+
+    constructor(
+        cx: number,
+        cy: number,
+        radius: number,
+        index: number,
+        angularPosition: number,
+        isInput: boolean,
+        isOutput: boolean,
+        stateName?: string,
+        solutionName?: string,
+        color?: string,
+        label?: string
+    ) {
         this.cx = cx;
         this.cy = cy;
         this.radius = radius;
@@ -41,6 +56,8 @@ export default class CircleSlotDataPoint {
         this.isOutput = isOutput;
         this.stateName = stateName;
         this.solutionName = solutionName;
-        this.index = index; // default to 0 if not provided
+        this.index = index;
+        this.color = color;
+        this.label = label;
     }
 }

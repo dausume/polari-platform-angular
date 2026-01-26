@@ -12,82 +12,214 @@
     <span class="slot-index">Slot #{{ editedConfig.index }}</span>
   </div>
 
-  <!-- Slot Label -->
-  <div class="config-section">
-    <label class="section-label">Label</label>
-    <input type="text"
-           class="text-input"
-           [(ngModel)]="editedConfig.label"
-           placeholder="Optional label...">
-  </div>
+  <!-- Scrollable content area -->
+  <div class="popup-content">
 
-  <!-- Color Selection -->
-  <div class="config-section">
-    <label class="section-label">Color</label>
-    <div class="color-grid">
-      <button *ngFor="let color of slotColors"
-              class="color-swatch"
-              [style.background-color]="color.value"
-              [class.selected]="editedConfig.color === color.value"
-              [title]="color.name"
-              (click)="onColorSelect(color.value)">
-        <mat-icon *ngIf="editedConfig.color === color.value" class="check-icon">check</mat-icon>
-      </button>
+    <!-- Slot Label -->
+    <div class="config-section">
+      <label class="section-label">Label</label>
+      <input type="text"
+             class="text-input"
+             [(ngModel)]="editedConfig.label"
+             maxlength="3"
+             placeholder="e.g., I0, O1">
+      <p class="section-warning">Max 3 characters (displayed on slot marker)</p>
     </div>
-  </div>
 
-  <!-- Mapping Mode -->
-  <div class="config-section">
-    <label class="section-label">Mapping Mode</label>
-    <div class="mapping-modes">
-      <div *ngFor="let mode of getCurrentMappingModes()"
-           class="mapping-option"
-           [class.selected]="editedConfig.mappingMode === mode.value"
-           (click)="onMappingModeSelect(mode.value)">
-        <div class="option-header">
-          <mat-icon class="option-radio">
-            {{ editedConfig.mappingMode === mode.value ? 'radio_button_checked' : 'radio_button_unchecked' }}
-          </mat-icon>
-          <span class="option-label">{{ mode.label }}</span>
+    <!-- Color Selection -->
+    <div class="config-section">
+      <label class="section-label">Color</label>
+      <div class="color-grid">
+        <button *ngFor="let color of slotColors"
+                class="color-swatch"
+                [style.background-color]="color.value"
+                [class.selected]="editedConfig.color === color.value"
+                [title]="color.name"
+                (click)="onColorSelect(color.value)">
+          <mat-icon *ngIf="editedConfig.color === color.value" class="check-icon">check</mat-icon>
+        </button>
+      </div>
+    </div>
+
+    <!-- Input Mapping Mode -->
+    <div class="config-section" *ngIf="editedConfig.isInput">
+      <label class="section-label">Mapping Mode</label>
+      <div class="mapping-modes">
+        <div *ngFor="let mode of inputMappingModes"
+             class="mapping-option"
+             [class.selected]="editedConfig.mappingMode === mode.value"
+             (click)="onMappingModeSelect(mode.value)">
+          <div class="option-header">
+            <mat-icon class="option-radio">
+              {{ editedConfig.mappingMode === mode.value ? 'radio_button_checked' : 'radio_button_unchecked' }}
+            </mat-icon>
+            <span class="option-label">{{ mode.label }}</span>
+          </div>
+          <p class="option-description">{{ mode.description }}</p>
         </div>
-        <p class="option-description">{{ mode.description }}</p>
       </div>
     </div>
-  </div>
 
-  <!-- Parameter Info (for inputs) -->
-  <div class="config-section" *ngIf="editedConfig.isInput && editedConfig.parameterName">
-    <label class="section-label">Parameter Info</label>
-    <div class="param-info">
-      <div class="param-row">
-        <span class="param-label">Name:</span>
-        <span class="param-value">{{ editedConfig.parameterName }}</span>
+    <!-- Output Trigger Type Selection -->
+    <div class="config-section" *ngIf="!editedConfig.isInput">
+      <label class="section-label">Output Trigger Type</label>
+      <div class="trigger-type-tabs">
+        <button class="trigger-tab"
+                [class.active]="editedConfig.triggerType === 'reactive'"
+                (click)="onTriggerTypeSelect('reactive')">
+          <mat-icon>sync</mat-icon>
+          <span>Reactive</span>
+        </button>
+        <button class="trigger-tab"
+                [class.active]="editedConfig.triggerType === 'functional'"
+                (click)="onTriggerTypeSelect('functional')">
+          <mat-icon>done_all</mat-icon>
+          <span>Functional</span>
+        </button>
       </div>
-      <div class="param-row" *ngIf="editedConfig.parameterType">
-        <span class="param-label">Type:</span>
-        <span class="param-value type-badge">{{ editedConfig.parameterType }}</span>
+      <p class="section-hint" *ngIf="editedConfig.triggerType === 'reactive'">
+        Fires when state changes during execution
+      </p>
+      <p class="section-hint" *ngIf="editedConfig.triggerType === 'functional'">
+        Fires when operations complete
+      </p>
+    </div>
+
+    <!-- Source Instance Selection (for reactive outputs - always instance state) -->
+    <div class="config-section" *ngIf="!editedConfig.isInput && editedConfig.triggerType === 'reactive'">
+      <label class="section-label">Source Instance</label>
+      <div class="mapping-modes">
+        <div *ngFor="let source of sourceInstanceOptions"
+             class="mapping-option compact"
+             [class.selected]="editedConfig.sourceInstance === source.value"
+             (click)="onSourceInstanceSelect(source.value)">
+          <div class="option-header">
+            <mat-icon class="option-radio">
+              {{ editedConfig.sourceInstance === source.value ? 'radio_button_checked' : 'radio_button_unchecked' }}
+            </mat-icon>
+            <span class="option-label">{{ source.label }}</span>
+          </div>
+          <p class="option-description">{{ source.description }}</p>
+        </div>
       </div>
     </div>
-  </div>
 
-  <!-- Return Type Info (for outputs) -->
-  <div class="config-section" *ngIf="!editedConfig.isInput && editedConfig.returnType">
-    <label class="section-label">Return Type</label>
-    <div class="param-info">
-      <span class="param-value type-badge">{{ editedConfig.returnType }}</span>
+    <!-- Property Path (for reactive outputs) -->
+    <div class="config-section" *ngIf="!editedConfig.isInput && editedConfig.triggerType === 'reactive'">
+      <label class="section-label">Property Path</label>
+      <input type="text"
+             class="text-input"
+             [(ngModel)]="editedConfig.propertyPath"
+             placeholder="e.g., status, items.length, user.name">
+      <p class="section-hint">The property to monitor for changes</p>
     </div>
+
+    <!-- Functional Output Mode Selection -->
+    <div class="config-section" *ngIf="!editedConfig.isInput && editedConfig.triggerType === 'functional'">
+      <label class="section-label">Output Source</label>
+      <div class="mapping-modes">
+        <!-- Instance State option -->
+        <div class="mapping-option compact"
+             [class.selected]="editedConfig.mappingMode === 'instance_state'"
+             (click)="onMappingModeSelect('instance_state')">
+          <div class="option-header">
+            <mat-icon class="option-radio">
+              {{ editedConfig.mappingMode === 'instance_state' ? 'radio_button_checked' : 'radio_button_unchecked' }}
+            </mat-icon>
+            <span class="option-label">Instance State</span>
+          </div>
+          <p class="option-description">Output from bound object's final state</p>
+        </div>
+        <!-- Functional-only modes -->
+        <div *ngFor="let mode of functionalOnlyOutputModes"
+             class="mapping-option compact"
+             [class.selected]="editedConfig.mappingMode === mode.value"
+             (click)="onMappingModeSelect(mode.value)">
+          <div class="option-header">
+            <mat-icon class="option-radio">
+              {{ editedConfig.mappingMode === mode.value ? 'radio_button_checked' : 'radio_button_unchecked' }}
+            </mat-icon>
+            <span class="option-label">{{ mode.label }}</span>
+          </div>
+          <p class="option-description">{{ mode.description }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Source Instance Selection (for functional instance_state) -->
+    <div class="config-section" *ngIf="!editedConfig.isInput && editedConfig.triggerType === 'functional' && editedConfig.mappingMode === 'instance_state'">
+      <label class="section-label">Source Instance</label>
+      <div class="mapping-modes">
+        <div *ngFor="let source of sourceInstanceOptions"
+             class="mapping-option compact"
+             [class.selected]="editedConfig.sourceInstance === source.value"
+             (click)="onSourceInstanceSelect(source.value)">
+          <div class="option-header">
+            <mat-icon class="option-radio">
+              {{ editedConfig.sourceInstance === source.value ? 'radio_button_checked' : 'radio_button_unchecked' }}
+            </mat-icon>
+            <span class="option-label">{{ source.label }}</span>
+          </div>
+          <p class="option-description">{{ source.description }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Property Path (for functional instance_state) -->
+    <div class="config-section" *ngIf="!editedConfig.isInput && editedConfig.triggerType === 'functional' && editedConfig.mappingMode === 'instance_state'">
+      <label class="section-label">Property Path</label>
+      <input type="text"
+             class="text-input"
+             [(ngModel)]="editedConfig.propertyPath"
+             placeholder="e.g., status, items.length, user.name">
+      <p class="section-hint">The property to output when operations complete</p>
+    </div>
+
+    <!-- Passthrough Variable Name (for variable_passthrough) -->
+    <div class="config-section" *ngIf="!editedConfig.isInput && editedConfig.mappingMode === 'variable_passthrough'">
+      <label class="section-label">Passthrough Variable Name</label>
+      <input type="text"
+             class="text-input"
+             [(ngModel)]="editedConfig.passthroughVariableName"
+             placeholder="e.g., orderId, userId">
+      <p class="section-hint">Which input variable to forward to the next state</p>
+    </div>
+
+    <!-- Parameter Info (for inputs) -->
+    <div class="config-section" *ngIf="editedConfig.isInput && editedConfig.parameterName">
+      <label class="section-label">Parameter Info</label>
+      <div class="param-info">
+        <div class="param-row">
+          <span class="param-label">Name:</span>
+          <span class="param-value">{{ editedConfig.parameterName }}</span>
+        </div>
+        <div class="param-row" *ngIf="editedConfig.parameterType">
+          <span class="param-label">Type:</span>
+          <span class="param-value type-badge">{{ editedConfig.parameterType }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Return Type Info (for outputs) -->
+    <div class="config-section" *ngIf="!editedConfig.isInput && editedConfig.returnType">
+      <label class="section-label">Return Type</label>
+      <div class="param-info">
+        <span class="param-value type-badge">{{ editedConfig.returnType }}</span>
+      </div>
+    </div>
+
+    <!-- Description -->
+    <div class="config-section">
+      <label class="section-label">Description</label>
+      <textarea class="text-input description-input"
+                [(ngModel)]="editedConfig.description"
+                placeholder="Optional description..."
+                rows="2"></textarea>
+    </div>
+
   </div>
 
-  <!-- Description -->
-  <div class="config-section">
-    <label class="section-label">Description</label>
-    <textarea class="text-input description-input"
-              [(ngModel)]="editedConfig.description"
-              placeholder="Optional description..."
-              rows="2"></textarea>
-  </div>
-
-  <!-- Actions -->
+  <!-- Actions (fixed at bottom) -->
   <div class="popup-actions">
     <button class="action-btn cancel-btn" (click)="onCancel()">Cancel</button>
     <button class="action-btn save-btn" (click)="onSave()">Save</button>

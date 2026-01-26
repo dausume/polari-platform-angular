@@ -1,0 +1,150 @@
+<div class="filter-list-overlay"
+     [class.compact]="isCompact"
+     [class.small]="isSmall"
+     (click)="onOverlayClick($event)"
+     (mousedown)="onMouseDown($event)"
+     (pointerdown)="onMouseDown($event)">
+
+  <!-- Header -->
+  <div class="overlay-header">
+    <mat-icon class="header-icon">{{ getFilterTypeIcon() }}</mat-icon>
+    <span class="title">{{ displayName || 'Filter List' }}</span>
+  </div>
+
+  <!-- Slot info bar -->
+  <div class="slot-info-bar" *ngIf="!isCompact">
+    <div class="slot-info">
+      <mat-icon class="slot-icon input">input</mat-icon>
+      <span class="slot-count">{{ inputSlotCount }} input(s)</span>
+    </div>
+    <button class="add-input-btn"
+            *ngIf="canAddInput()"
+            (click)="requestAddInputSlot()"
+            title="Add input slot">
+      <mat-icon>add_circle</mat-icon>
+      <span *ngIf="!isSmall">Add Input</span>
+    </button>
+    <div class="slot-info output">
+      <mat-icon class="slot-icon">output</mat-icon>
+      <span class="slot-type">list</span>
+    </div>
+  </div>
+
+  <!-- Filter type selector (if not compact) -->
+  <div class="filter-type-selector" *ngIf="!isCompact">
+    <div class="type-buttons">
+      <button *ngFor="let ft of filterTypes"
+              class="type-btn"
+              [class.active]="filterType === ft.value"
+              (click)="onFilterTypeChange(ft.value)"
+              [title]="ft.label">
+        <mat-icon>{{ ft.icon }}</mat-icon>
+        <span *ngIf="!isSmall">{{ ft.label }}</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- By Type filter -->
+  <div class="filter-content type-filter" *ngIf="filterType === 'byType' && !isCompact">
+    <label class="field-label">Object Type:</label>
+    <input type="text"
+           [value]="objectType"
+           (input)="onObjectTypeChange(getEventTargetValue($event))"
+           class="type-input"
+           placeholder="e.g., User, Order, Product...">
+  </div>
+
+  <!-- By Index filter -->
+  <div class="filter-content index-filter" *ngIf="filterType === 'byIndex' && !isCompact">
+    <div class="index-row">
+      <label class="field-label">Start Index:</label>
+      <input type="number" class="index-input" placeholder="0" min="0">
+    </div>
+    <div class="index-row">
+      <label class="field-label">End Index:</label>
+      <input type="number" class="index-input" placeholder="-1 (all)">
+    </div>
+  </div>
+
+  <!-- By Condition filter (main visual builder) -->
+  <div class="filter-content condition-filter" *ngIf="filterType === 'byCondition' && !isCompact">
+    <div class="conditions-list">
+      <div class="filter-link" *ngFor="let filter of visualFilters; let i = index; let first = first">
+        <!-- Logical operator (except for first) -->
+        <div class="logical-operator" *ngIf="!first">
+          <select [(ngModel)]="visualFilters[i-1].logicalOperator"
+                  (change)="onFieldChange(i-1, 'logicalOperator', getEventTargetValue($event))"
+                  class="operator-select">
+            <option *ngFor="let op of logicalOperators" [value]="op.value">{{ op.label }}</option>
+          </select>
+        </div>
+
+        <div class="condition-row">
+          <!-- Field dropdown -->
+          <select [(ngModel)]="filter.fieldName"
+                  (change)="onFieldChange(i, 'fieldName', getEventTargetValue($event))"
+                  class="field-select">
+            <option value="" disabled>Field...</option>
+            <option *ngFor="let field of availableInputFields" [value]="field.name">
+              {{ field.name }}
+            </option>
+            <option *ngIf="availableInputFields.length === 0" value="">
+              (No inputs)
+            </option>
+          </select>
+
+          <!-- Condition type dropdown -->
+          <select [(ngModel)]="filter.conditionType"
+                  (change)="onFieldChange(i, 'conditionType', getEventTargetValue($event))"
+                  class="condition-select">
+            <option *ngFor="let ct of conditionTypes" [value]="ct.value">{{ ct.displayName }}</option>
+          </select>
+
+          <!-- Value input (if needed) -->
+          <input *ngIf="!requiresNoValue(filter.conditionType)"
+                 type="text"
+                 [(ngModel)]="filter.conditionValue"
+                 (input)="onFieldChange(i, 'conditionValue', getEventTargetValue($event))"
+                 class="value-input"
+                 placeholder="Value...">
+
+          <!-- Second value for BETWEEN -->
+          <input *ngIf="requiresSecondValue(filter.conditionType)"
+                 type="text"
+                 [(ngModel)]="filter.conditionValueEnd"
+                 (input)="onFieldChange(i, 'conditionValueEnd', getEventTargetValue($event))"
+                 class="value-input"
+                 placeholder="End...">
+
+          <!-- Remove button -->
+          <button class="remove-btn" (click)="removeFilterCondition(i)" title="Remove">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+      </div>
+
+      <!-- Empty state -->
+      <div class="empty-state" *ngIf="visualFilters.length === 0">
+        <span>No filters defined</span>
+      </div>
+    </div>
+
+    <!-- Add filter button -->
+    <button class="add-filter-btn" (click)="addFilterCondition()">
+      <mat-icon>add</mat-icon>
+      <span>Add Filter</span>
+    </button>
+  </div>
+
+  <!-- Custom filter (code input) -->
+  <div class="filter-content custom-filter" *ngIf="filterType === 'custom' && !isCompact">
+    <textarea class="custom-input"
+              placeholder="Custom filter logic..."></textarea>
+  </div>
+
+  <!-- Compact mode: just show icon and count -->
+  <div class="compact-summary" *ngIf="isCompact">
+    <mat-icon>filter_list</mat-icon>
+    <span>{{ visualFilters.length }}</span>
+  </div>
+</div>

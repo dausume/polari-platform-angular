@@ -210,7 +210,7 @@ export class NoCodeSolutionStateService {
 
     console.log('[StateService] convertRawSlotToSlot - converted connectors:', connectors);
 
-    return new Slot(
+    const slot = new Slot(
       raw.index,
       raw.stateName,
       raw.slotAngularPosition,
@@ -219,6 +219,43 @@ export class NoCodeSolutionStateService {
       raw.allowOneToMany,
       raw.allowManyToOne
     );
+
+    // Copy slot configuration properties that aren't in the constructor
+    if (raw.color !== undefined) {
+      (slot as any).color = raw.color;
+    }
+    if (raw.label !== undefined) {
+      (slot as any).label = raw.label;
+    }
+    if (raw.mappingMode !== undefined) {
+      (slot as any).mappingMode = raw.mappingMode;
+    }
+    if (raw.description !== undefined) {
+      (slot as any).description = raw.description;
+    }
+    if (raw.parameterName !== undefined) {
+      (slot as any).parameterName = raw.parameterName;
+    }
+    if (raw.parameterType !== undefined) {
+      (slot as any).parameterType = raw.parameterType;
+    }
+    if (raw.returnType !== undefined) {
+      (slot as any).returnType = raw.returnType;
+    }
+    if (raw.triggerType !== undefined) {
+      (slot as any).triggerType = raw.triggerType;
+    }
+    if (raw.sourceInstance !== undefined) {
+      (slot as any).sourceInstance = raw.sourceInstance;
+    }
+    if (raw.propertyPath !== undefined) {
+      (slot as any).propertyPath = raw.propertyPath;
+    }
+    if (raw.passthroughVariableName !== undefined) {
+      (slot as any).passthroughVariableName = raw.passthroughVariableName;
+    }
+
+    return slot;
   }
 
   /**

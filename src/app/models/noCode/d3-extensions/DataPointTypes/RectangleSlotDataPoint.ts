@@ -24,6 +24,10 @@ export default class RectangleSlotDataPoint {
 
     index: number; // index of the slot in the parent state object
 
+    // Slot appearance
+    color?: string; // custom color for the slot (hex format)
+    label?: string; // display label (e.g., "I0", "O1")
+
     constructor(
         cx: number,
         cy: number,
@@ -34,7 +38,9 @@ export default class RectangleSlotDataPoint {
         isInput: boolean,
         isOutput: boolean,
         stateName?: string,
-        solutionName?: string
+        solutionName?: string,
+        color?: string,
+        label?: string
     ) {
         this.cx = cx;
         this.cy = cy;
@@ -46,5 +52,7 @@ export default class RectangleSlotDataPoint {
         this.stateName = stateName;
         this.solutionName = solutionName;
         this.index = index;
+        this.color = color;
+        this.label = label;
     }
 }

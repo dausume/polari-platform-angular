@@ -1,0 +1,403 @@
+:host {
+  display: block;
+}
+
+.conditional-chain-overlay {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 4px;
+  overflow: hidden;
+  font-size: 11px;
+}
+
+/* Header with tabs */
+.overlay-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 8px;
+  background: #673AB7;
+  color: white;
+  min-height: 24px;
+}
+
+.title {
+  font-weight: 500;
+  font-size: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mode-tabs {
+  display: flex;
+  gap: 2px;
+}
+
+.tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 6px;
+  border: none;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 9px;
+  transition: background 0.2s;
+}
+
+.tab-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.tab-btn.active {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.tab-btn mat-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+}
+
+/* Slot info bar */
+.slot-info-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3px 6px;
+  background: #EDE7F6;
+  border-bottom: 1px solid #D1C4E9;
+  font-size: 9px;
+}
+
+.slot-info {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  color: #5E35B1;
+}
+
+.slot-info.output {
+  color: #7B1FA2;
+}
+
+.slot-icon {
+  font-size: 12px;
+  width: 12px;
+  height: 12px;
+}
+
+.slot-icon.input {
+  color: #4CAF50;
+}
+
+.slot-count, .slot-type {
+  font-weight: 500;
+}
+
+.add-input-btn {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 6px;
+  border: 1px solid #7C4DFF;
+  background: white;
+  color: #7C4DFF;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 8px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.add-input-btn:hover {
+  background: #7C4DFF;
+  color: white;
+}
+
+.add-input-btn mat-icon {
+  font-size: 12px;
+  width: 12px;
+  height: 12px;
+}
+
+/* Visual Editor */
+.visual-editor {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  overflow: hidden;
+}
+
+.conditions-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.condition-link {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.logical-operator {
+  display: flex;
+  justify-content: center;
+  padding: 2px 0;
+}
+
+.operator-select {
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  background: #E8EAF6;
+  border: 1px solid #9FA8DA;
+  border-radius: 10px;
+  color: #3F51B5;
+  cursor: pointer;
+}
+
+.condition-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  background: #F5F5F5;
+  padding: 4px;
+  border-radius: 4px;
+  border: 1px solid #E0E0E0;
+}
+
+.field-select,
+.condition-select,
+.value-input {
+  flex: 1;
+  min-width: 0;
+  padding: 3px 6px;
+  font-size: 10px;
+  border: 1px solid #BDBDBD;
+  border-radius: 3px;
+  background: white;
+}
+
+.field-select {
+  flex: 1.2;
+}
+
+.condition-select {
+  flex: 1;
+}
+
+.value-input {
+  flex: 0.8;
+}
+
+.remove-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #9E9E9E;
+  cursor: pointer;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.remove-btn:hover {
+  background: #FFEBEE;
+  color: #F44336;
+}
+
+.remove-btn mat-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+}
+
+.empty-state {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 40px;
+  color: #9E9E9E;
+  font-style: italic;
+  font-size: 10px;
+}
+
+.add-condition-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 12px;
+  margin-top: 6px;
+  border: 1px dashed #673AB7;
+  background: transparent;
+  color: #673AB7;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 10px;
+  transition: all 0.2s;
+}
+
+.add-condition-btn:hover {
+  background: #EDE7F6;
+  border-style: solid;
+}
+
+.add-condition-btn mat-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+}
+
+/* Syntax Editor */
+.syntax-editor {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  gap: 6px;
+}
+
+.syntax-input {
+  flex: 1;
+  min-height: 60px;
+  padding: 8px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 11px;
+  border: 1px solid #BDBDBD;
+  border-radius: 4px;
+  resize: none;
+  line-height: 1.4;
+}
+
+.syntax-input:focus {
+  outline: none;
+  border-color: #673AB7;
+  box-shadow: 0 0 0 2px rgba(103, 58, 183, 0.2);
+}
+
+.syntax-input.invalid {
+  border-color: #F44336;
+}
+
+.syntax-input.invalid:focus {
+  box-shadow: 0 0 0 2px rgba(244, 67, 54, 0.2);
+}
+
+.syntax-help {
+  padding: 4px 6px;
+  background: #ECEFF1;
+  border-radius: 3px;
+}
+
+.help-text {
+  font-size: 9px;
+  color: #607D8B;
+}
+
+.syntax-error {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  background: #FFEBEE;
+  border-radius: 3px;
+  color: #C62828;
+  font-size: 9px;
+}
+
+.syntax-error mat-icon {
+  font-size: 12px;
+  width: 12px;
+  height: 12px;
+}
+
+.syntax-preview {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  background: #E8F5E9;
+  border-radius: 3px;
+  font-size: 9px;
+}
+
+.preview-label {
+  color: #2E7D32;
+}
+
+.preview-count {
+  color: #388E3C;
+  font-weight: 500;
+}
+
+/* Compact mode */
+.compact-summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 100%;
+  color: #673AB7;
+  font-size: 10px;
+}
+
+.compact-summary mat-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+}
+
+/* Small mode adjustments */
+.conditional-chain-overlay.small .overlay-header {
+  padding: 2px 6px;
+  min-height: 20px;
+}
+
+.conditional-chain-overlay.small .title {
+  font-size: 9px;
+}
+
+.conditional-chain-overlay.small .condition-row {
+  padding: 3px;
+}
+
+.conditional-chain-overlay.small .field-select,
+.conditional-chain-overlay.small .condition-select,
+.conditional-chain-overlay.small .value-input {
+  padding: 2px 4px;
+  font-size: 9px;
+}
+
+/* Scrollbar styling */
+.conditions-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.conditions-list::-webkit-scrollbar-track {
+  background: #F5F5F5;
+  border-radius: 2px;
+}
+
+.conditions-list::-webkit-scrollbar-thumb {
+  background: #BDBDBD;
+  border-radius: 2px;
+}
+
+.conditions-list::-webkit-scrollbar-thumb:hover {
+  background: #9E9E9E;
+}

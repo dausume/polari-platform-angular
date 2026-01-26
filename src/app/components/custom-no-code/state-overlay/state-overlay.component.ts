@@ -91,6 +91,10 @@ export class StateOverlayComponent implements OnInit, OnDestroy, OnChanges {
   @Input() displayFields: DisplayField[] = [];
   @Input() fieldLayout: 'single' | 'double' = 'single';
 
+  // Class names of unique states (InitialState, EndState) already in the solution
+  // Used to filter these from the class selector dropdown
+  @Input() existingUniqueStates: Set<string> = new Set();
+
   // Events
   @Output() classSelected = new EventEmitter<{ className: string; metadata: StateSpaceClassMetadata | undefined }>();
   @Output() fieldChanged = new EventEmitter<{ fieldName: string; value: any }>();
@@ -146,6 +150,11 @@ export class StateOverlayComponent implements OnInit, OnDestroy, OnChanges {
 
     if (changes['width'] || changes['height']) {
       this.updateSizeMode();
+    }
+
+    // Reload class options when existingUniqueStates changes
+    if (changes['existingUniqueStates']) {
+      this.loadClassOptionsFromRegistry();
     }
   }
 
@@ -300,6 +309,11 @@ export class StateOverlayComponent implements OnInit, OnDestroy, OnChanges {
 
     classesByCategory.forEach((classes, category) => {
       classes.forEach(metadata => {
+        // Skip unique states that are already present in the solution
+        if (this.isUniqueStateAlreadyPresent(metadata)) {
+          return;
+        }
+
         this.allClassOptions.push({
           className: metadata.className,
           displayName: metadata.displayName,
@@ -325,6 +339,17 @@ export class StateOverlayComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     this.filteredClasses = [...this.allClassOptions];
+  }
+
+  /**
+   * Check if a unique state (InitialState or EndState) is already present in the solution
+   */
+  private isUniqueStateAlreadyPresent(metadata: StateSpaceClassMetadata): boolean {
+    // Only InitialState and EndState are unique per solution
+    if (metadata.specialStateType === 'initial' || metadata.specialStateType === 'end') {
+      return this.existingUniqueStates.has(metadata.className);
+    }
+    return false;
   }
 
   private filterClasses(searchTerm: string): void {

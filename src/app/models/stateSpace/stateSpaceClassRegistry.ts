@@ -49,6 +49,32 @@ export interface StateSpaceEventMethod {
 }
 
 /**
+ * Default slot configuration for a state-space class
+ */
+export interface SlotConfigurationTemplate {
+  // Number of input slots to create by default
+  defaultInputCount: number;
+  // Number of output slots to create by default
+  defaultOutputCount: number;
+  // Whether additional input slots can be added dynamically
+  allowDynamicInputs: boolean;
+  // Whether additional output slots can be added dynamically
+  allowDynamicOutputs: boolean;
+  // Maximum number of input slots allowed (0 = unlimited)
+  maxInputSlots: number;
+  // Maximum number of output slots allowed (0 = unlimited)
+  maxOutputSlots: number;
+  // Type of data expected on input slots
+  inputType?: string;
+  // Type of data produced by output slots
+  outputType?: string;
+  // Labels for default input slots
+  inputLabels?: string[];
+  // Labels for default output slots
+  outputLabels?: string[];
+}
+
+/**
  * State-space class metadata
  */
 export interface StateSpaceClassMetadata {
@@ -73,6 +99,9 @@ export interface StateSpaceClassMetadata {
 
   // For solution-based definitions, the source solution name
   sourceSolutionName?: string;
+
+  // Default slot configuration for this class
+  slotConfiguration?: SlotConfigurationTemplate;
 
   // Available event methods
   eventMethods: StateSpaceEventMethod[];
@@ -189,6 +218,18 @@ export class StateSpaceClassRegistry {
       stateSpaceDisplayFields: ['displayName', 'defaultLogicalOperator'],
       stateSpaceFieldsPerRow: 1,
       isBuiltIn: true,
+      slotConfiguration: {
+        defaultInputCount: 1,
+        defaultOutputCount: 1,
+        allowDynamicInputs: true,
+        allowDynamicOutputs: false,
+        maxInputSlots: 0, // unlimited
+        maxOutputSlots: 1, // always exactly one output
+        inputType: 'any',
+        outputType: 'boolean',
+        inputLabels: ['Input'],
+        outputLabels: ['Result']
+      },
       eventMethods: [
         {
           methodName: 'evaluate',
@@ -337,6 +378,18 @@ export class StateSpaceClassRegistry {
       stateSpaceDisplayFields: ['displayName', 'filterType', 'objectType'],
       stateSpaceFieldsPerRow: 2,
       isBuiltIn: true,
+      slotConfiguration: {
+        defaultInputCount: 1,
+        defaultOutputCount: 1,
+        allowDynamicInputs: true,
+        allowDynamicOutputs: false,
+        maxInputSlots: 0, // unlimited
+        maxOutputSlots: 1, // always exactly one output
+        inputType: 'any',
+        outputType: 'array',
+        inputLabels: ['Input List'],
+        outputLabels: ['Filtered List']
+      },
       eventMethods: [
         {
           methodName: 'execute',

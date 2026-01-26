@@ -32,6 +32,35 @@
           <button (click)="zoomIn()" title="Zoom In">+</button>
           <button (click)="resetZoom()" title="Reset View">Reset</button>
         </div>
+
+        <!-- Solution Options Menu -->
+        <div class="solution-options">
+          <button class="options-btn"
+                  [matMenuTriggerFor]="solutionOptionsMenu"
+                  title="Solution Options">
+            <mat-icon>settings</mat-icon>
+          </button>
+          <mat-menu #solutionOptionsMenu="matMenu" class="solution-options-menu">
+            <button mat-menu-item (click)="toggleRenderingDebug()">
+              <mat-icon>{{ showRenderingDebug ? 'visibility' : 'visibility_off' }}</mat-icon>
+              <span>{{ showRenderingDebug ? 'Hide' : 'Show' }} Rendering Debug</span>
+            </button>
+            <mat-divider></mat-divider>
+            <button mat-menu-item (click)="toggleSlotLabels()">
+              <mat-icon>{{ showSlotLabels ? 'label' : 'label_off' }}</mat-icon>
+              <span>{{ showSlotLabels ? 'Hide' : 'Show' }} Slot Labels</span>
+            </button>
+            <button mat-menu-item (click)="toggleConnectorLabels()">
+              <mat-icon>{{ showConnectorLabels ? 'linear_scale' : 'remove' }}</mat-icon>
+              <span>{{ showConnectorLabels ? 'Hide' : 'Show' }} Connector Labels</span>
+            </button>
+            <mat-divider></mat-divider>
+            <button mat-menu-item (click)="exportSolution()">
+              <mat-icon>download</mat-icon>
+              <span>Export Solution</span>
+            </button>
+          </mat-menu>
+        </div>
       </div>
       <div id="d3-graph"></div>
       <div class="canvas-info">
@@ -48,6 +77,7 @@
         [availableSubSolutions]="availableSubSolutions"
         [generatedPythonCode]="generatedPythonCode"
         [solutionName]="noCodeSolution?.solutionName || ''"
+        [existingUniqueStates]="existingUniqueStates"
         (createStateFromDefinition)="onCreateStateFromDefinition($event)"
         (createStateFromClassMember)="onCreateStateFromClassMember($event)"
         (toggleHelperClass)="onToggleHelperClass($event)"

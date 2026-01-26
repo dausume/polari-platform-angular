@@ -179,17 +179,18 @@ export class StateOverlayManager {
       injector: this.injector
     });
 
-    // Set position and size inputs on the component
-    const instance = componentRef.instance as any;
-    instance.x = position.x;
-    instance.y = position.y;
-    instance.width = position.width;
-    instance.height = position.height;
-    instance.stateName = stateName;
+    // Set position and size inputs on the component using setInput for proper change detection
+    componentRef.setInput('x', position.x);
+    componentRef.setInput('y', position.y);
+    componentRef.setInput('width', position.width);
+    componentRef.setInput('height', position.height);
+    componentRef.setInput('stateName', stateName);
 
-    // Apply any additional input data
+    // Apply any additional input data using setInput
     if (inputData) {
-      Object.assign(instance, inputData);
+      Object.entries(inputData).forEach(([key, value]) => {
+        componentRef.setInput(key, value);
+      });
     }
 
     // Get the DOM element from the component's host view
@@ -468,5 +469,17 @@ export class StateOverlayManager {
    */
   getActiveStateNames(): string[] {
     return Array.from(this.activeOverlays.keys());
+  }
+
+  /**
+   * Enable or disable pointer events on an overlay's host element.
+   * Custom interactive overlays should call this with enabled=true to capture events.
+   */
+  setOverlayPointerEvents(stateName: string, enabled: boolean): void {
+    const overlay = this.activeOverlays.get(stateName);
+    if (overlay?.hostElement) {
+      overlay.hostElement.style.pointerEvents = enabled ? 'auto' : 'none';
+      console.log(`[StateOverlayManager] Set pointer-events to '${enabled ? 'auto' : 'none'}' for: ${stateName}`);
+    }
   }
 }

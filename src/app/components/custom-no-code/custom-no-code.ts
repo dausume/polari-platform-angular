@@ -15,6 +15,8 @@ import { InteractionStateService } from '@services/no-code-services/interaction-
 import { NoCodeSolutionStateService } from '@services/no-code-services/no-code-solution-state.service';
 import { StateOverlayManager } from '@services/no-code-services/state-overlay-manager.service';
 import { StateOverlayComponent } from './state-overlay/state-overlay.component';
+import { ConditionalChainOverlayComponent } from './conditional-chain-overlay/conditional-chain-overlay.component';
+import { FilterListOverlayComponent } from './filter-list-overlay/filter-list-overlay.component';
 import { CircleStateLayer } from '@models/noCode/d3-extensions/CircleStateLayer';
 import { RectangleStateLayer } from '@models/noCode/d3-extensions/RectangleStateLayer';
 import { StateDefinition } from '@models/noCode/StateDefinition';
@@ -78,6 +80,11 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
   private readonly minZoom = 0.1;
   private readonly maxZoom = 4;
 
+  // Solution options - rendering debug visibility
+  showRenderingDebug = false;  // Toggle visibility of bounding boxes and paths
+  showSlotLabels = true;       // Toggle visibility of slot labels
+  showConnectorLabels = false; // Toggle visibility of connector labels
+
   // Current state layers for overlay callbacks
   private currentCircleStateLayer: CircleStateLayer | null = null;
   private currentRectangleStateLayer: RectangleStateLayer | null = null;
@@ -138,6 +145,10 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
 
   // Generated Python code for the current solution
   generatedPythonCode: string = '';
+
+  // Track unique states (InitialState, EndState) that already exist in the solution
+  // Used to filter these from the sidebar when they're already present
+  existingUniqueStates: Set<string> = new Set();
 
   constructor(
       private elementRef: ElementRef,
@@ -270,6 +281,10 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
     console.log('[loadSelectedSolution] zoomContainer children after creation:', this.zoomContainer?.selectAll('*').size());
     console.log('[loadSelectedSolution] state-group elements in DOM:', this.zoomContainer?.selectAll('g.state-group').size());
 
+    // Update tracking of unique states (InitialState, EndState) for sidebar filtering
+    // This must happen BEFORE overlays are created so they receive the correct unique states set
+    this.updateExistingUniqueStates();
+
     // Get the CircleStateLayer and set up overlay callbacks
     this.setupOverlayCallbacks();
 
@@ -317,6 +332,28 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   /**
+   * Update the tracking of unique states (InitialState, EndState) that exist in the solution.
+   * This is used to filter these states from the sidebar when they're already present.
+   */
+  private updateExistingUniqueStates(): void {
+    this.existingUniqueStates = new Set();
+
+    if (!this.noCodeSolution) return;
+
+    // Check each state instance to see if it's a unique state type
+    for (const state of this.noCodeSolution.stateInstances) {
+      const stateClass = state.stateClass;
+      if (!stateClass) continue;
+
+      // Get the metadata for this class from the registry
+      const metadata = this.stateSpaceRegistry.getClass(stateClass);
+      if (metadata?.specialStateType === 'initial' || metadata?.specialStateType === 'end') {
+        this.existingUniqueStates.add(stateClass);
+      }
+    }
+  }
+
+  /**
    * Set up callbacks from state layers to manage overlays and context menus
    */
   private setupOverlayCallbacks(): void {
@@ -355,6 +392,11 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
         this.handleStateContextMenu(event, stateName, stateGroup, 'circle');
       });
 
+      // Set up slot context menu callback
+      circleLayer.setOnSlotContextMenu((event: MouseEvent, stateName: string, slotIndex: number, isInput: boolean) => {
+        this.handleSlotContextMenu(event, stateName, slotIndex, isInput);
+      });
+
       console.log('[setupOverlayCallbacks] Overlay callbacks configured for CircleStateLayer');
     }
 
@@ -384,6 +426,11 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
       // Set up context menu callback
       rectangleLayer.setOnStateContextMenu((event: MouseEvent, stateName: string, stateGroup: SVGGElement) => {
         this.handleStateContextMenu(event, stateName, stateGroup, 'rectangle');
+      });
+
+      // Set up slot context menu callback
+      rectangleLayer.setOnSlotContextMenu((event: MouseEvent, stateName: string, slotIndex: number, isInput: boolean) => {
+        this.handleSlotContextMenu(event, stateName, slotIndex, isInput);
       });
 
       console.log('[setupOverlayCallbacks] Overlay callbacks configured for RectangleStateLayer');
@@ -495,23 +542,32 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
 
   /**
    * Create an overlay for a specific state with its bound object info
+   * Uses different overlay components for specific state types (ConditionalChain, FilterList)
    * @returns true if the overlay was successfully created
    */
   private createOverlayForState(stateName: string, stateGroup: SVGGElement, stateInstance: NoCodeState): boolean {
-    // Build bound object info from state instance
-    const boundObjectInfo = this.buildBoundObjectInfo(stateInstance);
+    const stateClass = stateInstance.stateClass || stateInstance.boundObjectClass || '';
 
-    // Count input/output slots
+    console.log('[createOverlayForState] Creating overlay for:', stateName, 'stateClass:', stateClass);
+
+    // Determine which overlay component to use based on state class
+    if (stateClass === 'ConditionalChain') {
+      return this.createConditionalChainOverlay(stateName, stateGroup, stateInstance);
+    } else if (stateClass === 'FilterList') {
+      return this.createFilterListOverlay(stateName, stateGroup, stateInstance);
+    } else {
+      return this.createDefaultOverlay(stateName, stateGroup, stateInstance);
+    }
+  }
+
+  /**
+   * Create the default StateOverlayComponent for general states
+   */
+  private createDefaultOverlay(stateName: string, stateGroup: SVGGElement, stateInstance: NoCodeState): boolean {
+    const boundObjectInfo = this.buildBoundObjectInfo(stateInstance);
     const inputSlotCount = stateInstance.slots?.filter(s => s.isInput).length || 0;
     const outputSlotCount = stateInstance.slots?.filter(s => !s.isInput).length || 0;
 
-    console.log('[createOverlayForState] Creating overlay for:', stateName, {
-      boundClassName: stateInstance.boundObjectClass || stateInstance.stateClass || '',
-      inputSlots: inputSlotCount,
-      outputSlots: outputSlotCount
-    });
-
-    // Create the overlay component
     const componentRef = this.stateOverlayManager.createOverlayForState(
       stateName,
       stateGroup,
@@ -523,23 +579,18 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
         availableClasses: this.getAvailableClasses(),
         inputSlotCount: inputSlotCount,
         outputSlotCount: outputSlotCount,
-        isEditable: true
+        isEditable: true,
+        existingUniqueStates: this.existingUniqueStates
       }
     );
 
     if (componentRef) {
-      console.log('[createOverlayForState] Successfully created overlay for:', stateName);
-
       // Subscribe to component events
       componentRef.instance.classSelected.subscribe((event: { className: string }) => {
-        console.log('[overlay] Class selected for state:', stateName, '->', event.className);
-        // Update state binding
         stateInstance.boundObjectClass = event.className;
       });
 
       componentRef.instance.fieldChanged.subscribe((event: { fieldName: string; value: any }) => {
-        console.log('[overlay] Field changed:', stateName, event.fieldName, '->', event.value);
-        // Update bound object field values
         if (!stateInstance.boundObjectFieldValues) {
           stateInstance.boundObjectFieldValues = {};
         }
@@ -547,15 +598,237 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
       });
 
       componentRef.instance.fullViewRequested.subscribe((event: { x: number; y: number; stateName: string }) => {
-        console.log('[overlay] Full view requested for:', event.stateName);
         this.showFullViewPopup(event.x, event.y, stateInstance);
       });
 
       return true;
-    } else {
-      console.error('[createOverlayForState] Failed to create overlay for:', stateName);
-      return false;
     }
+    return false;
+  }
+
+  /**
+   * Create a ConditionalChainOverlayComponent for ConditionalChain states
+   */
+  private createConditionalChainOverlay(stateName: string, stateGroup: SVGGElement, stateInstance: NoCodeState): boolean {
+    const fieldValues = stateInstance.boundObjectFieldValues || {};
+
+    // Get slot configuration from registry
+    const registry = StateSpaceClassRegistry.getInstance();
+    const metadata = registry.getClass('ConditionalChain');
+    const slotConfig = metadata?.slotConfiguration;
+
+    // Count current input slots
+    const inputSlotCount = stateInstance.slots?.filter(s => s.isInput).length || 0;
+
+    const componentRef = this.stateOverlayManager.createOverlayForState(
+      stateName,
+      stateGroup,
+      ConditionalChainOverlayComponent,
+      {
+        stateName: stateName,
+        boundClassName: 'ConditionalChain',
+        chainLinks: fieldValues.links || [],
+        defaultLogicalOperator: fieldValues.defaultLogicalOperator || 'AND',
+        availableInputFields: this.getAvailableInputFieldsForState(stateInstance),
+        inputSlotCount: inputSlotCount,
+        allowDynamicInputs: slotConfig?.allowDynamicInputs ?? true,
+        maxInputSlots: slotConfig?.maxInputSlots ?? 0
+      }
+    );
+
+    if (componentRef) {
+      // Enable pointer events for this interactive custom overlay
+      this.stateOverlayManager.setOverlayPointerEvents(stateName, true);
+
+      // Subscribe to chain change events
+      componentRef.instance.chainChanged.subscribe((event: { links: any[]; defaultOperator: string }) => {
+        if (!stateInstance.boundObjectFieldValues) {
+          stateInstance.boundObjectFieldValues = {};
+        }
+        stateInstance.boundObjectFieldValues.links = event.links;
+        stateInstance.boundObjectFieldValues.defaultLogicalOperator = event.defaultOperator;
+      });
+
+      componentRef.instance.syntaxChanged.subscribe((syntax: string) => {
+        if (!stateInstance.boundObjectFieldValues) {
+          stateInstance.boundObjectFieldValues = {};
+        }
+        stateInstance.boundObjectFieldValues.syntaxExpression = syntax;
+      });
+
+      // Subscribe to add input slot events
+      componentRef.instance.addInputSlot.subscribe(() => {
+        this.addInputSlotToState(stateInstance, stateGroup, componentRef);
+      });
+
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Create a FilterListOverlayComponent for FilterList states
+   */
+  private createFilterListOverlay(stateName: string, stateGroup: SVGGElement, stateInstance: NoCodeState): boolean {
+    const fieldValues = stateInstance.boundObjectFieldValues || {};
+
+    // Get slot configuration from registry
+    const registry = StateSpaceClassRegistry.getInstance();
+    const metadata = registry.getClass('FilterList');
+    const slotConfig = metadata?.slotConfiguration;
+
+    // Count current input slots
+    const inputSlotCount = stateInstance.slots?.filter(s => s.isInput).length || 0;
+
+    const componentRef = this.stateOverlayManager.createOverlayForState(
+      stateName,
+      stateGroup,
+      FilterListOverlayComponent,
+      {
+        stateName: stateName,
+        boundClassName: 'FilterList',
+        displayName: fieldValues.displayName || 'Filter',
+        filterType: fieldValues.filterType || 'byCondition',
+        objectType: fieldValues.objectType || '',
+        filterConditions: fieldValues.filterConditions || [],
+        availableInputFields: this.getAvailableInputFieldsForState(stateInstance),
+        inputSlotCount: inputSlotCount,
+        allowDynamicInputs: slotConfig?.allowDynamicInputs ?? true,
+        maxInputSlots: slotConfig?.maxInputSlots ?? 0
+      }
+    );
+
+    if (componentRef) {
+      // Enable pointer events for this interactive custom overlay
+      this.stateOverlayManager.setOverlayPointerEvents(stateName, true);
+
+      // Subscribe to filter change events
+      componentRef.instance.filterChanged.subscribe((event: { filterType: string; objectType: string; conditions: any[] }) => {
+        if (!stateInstance.boundObjectFieldValues) {
+          stateInstance.boundObjectFieldValues = {};
+        }
+        stateInstance.boundObjectFieldValues.filterType = event.filterType;
+        stateInstance.boundObjectFieldValues.objectType = event.objectType;
+        stateInstance.boundObjectFieldValues.filterConditions = event.conditions;
+      });
+
+      componentRef.instance.displayNameChanged.subscribe((name: string) => {
+        if (!stateInstance.boundObjectFieldValues) {
+          stateInstance.boundObjectFieldValues = {};
+        }
+        stateInstance.boundObjectFieldValues.displayName = name;
+      });
+
+      // Subscribe to add input slot events
+      componentRef.instance.addInputSlot.subscribe(() => {
+        this.addInputSlotToState(stateInstance, stateGroup, componentRef);
+      });
+
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Get available input fields for a state based on connected input slots
+   * This provides field options for conditional/filter dropdowns
+   */
+  private getAvailableInputFieldsForState(stateInstance: NoCodeState): { name: string; type: string; source: string }[] {
+    const fields: { name: string; type: string; source: string }[] = [];
+
+    // Find all states connected to this state's input slots
+    const inputSlots = stateInstance.slots?.filter(s => s.isInput) || [];
+
+    for (const slot of inputSlots) {
+      // Look for connectors pointing to this slot
+      for (const sourceState of this.stateInstances) {
+        const sourceSlots = sourceState.slots?.filter(s => !s.isInput) || [];
+        for (const sourceSlot of sourceSlots) {
+          const connector = sourceSlot.connectors?.find(
+            c => c.targetStateName === stateInstance.stateName && c.sinkSlot === slot.index
+          );
+          if (connector) {
+            // Get the output fields from the source state's class
+            const sourceClass = sourceState.stateClass || sourceState.boundObjectClass;
+            if (sourceClass) {
+              const metadata = this.stateSpaceRegistry.getClass(sourceClass);
+              if (metadata?.variables) {
+                for (const variable of metadata.variables) {
+                  fields.push({
+                    name: variable.name,
+                    type: variable.type,
+                    source: sourceState.stateName || 'unknown'
+                  });
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Add some default fields if none found
+    if (fields.length === 0) {
+      fields.push(
+        { name: 'value', type: 'any', source: 'input' },
+        { name: 'status', type: 'string', source: 'input' },
+        { name: 'count', type: 'number', source: 'input' },
+        { name: 'isValid', type: 'boolean', source: 'input' }
+      );
+    }
+
+    return fields;
+  }
+
+  /**
+   * Add a new input slot to a state instance and re-render
+   */
+  private addInputSlotToState(stateInstance: NoCodeState, stateGroup: SVGGElement, componentRef: any): void {
+    // Initialize slots array if needed
+    if (!stateInstance.slots) {
+      stateInstance.slots = [];
+    }
+
+    // Count current input slots to determine new slot index
+    const inputSlots = stateInstance.slots.filter(s => s.isInput);
+    const newInputIndex = inputSlots.length;
+
+    // Find the highest slot index
+    const maxIndex = stateInstance.slots.length > 0
+      ? Math.max(...stateInstance.slots.map(s => s.index))
+      : -1;
+    const newSlotIndex = maxIndex + 1;
+
+    // Calculate angular position for the new input slot
+    // Inputs are typically on the left side (180 degrees +/- spread)
+    const inputSpread = 60; // degrees spread for inputs
+    const baseAngle = 180;
+    const angleOffset = (newInputIndex - (inputSlots.length / 2)) * (inputSpread / Math.max(inputSlots.length, 1));
+    const newAngle = baseAngle + angleOffset;
+
+    // Create the new slot
+    const newSlot = new Slot(
+      newSlotIndex,
+      stateInstance.stateName || '',
+      newAngle,
+      [], // no connectors yet
+      true, // isInput
+      false, // allowOneToMany
+      true  // allowManyToOne - inputs can aggregate from multiple sources
+    );
+
+    stateInstance.slots.push(newSlot);
+
+    // Update the component's input slot count
+    const newInputSlotCount = stateInstance.slots.filter(s => s.isInput).length;
+    componentRef.setInput('inputSlotCount', newInputSlotCount);
+
+    // Re-render the state's slots in D3
+    if (stateInstance.stateName) {
+      this.rerenderStateSlots(stateInstance.stateName);
+    }
+
+    console.log(`[addInputSlotToState] Added input slot ${newSlotIndex} to ${stateInstance.stateName}, total inputs: ${newInputSlotCount}`);
   }
 
   /**
@@ -871,6 +1144,109 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
         .duration(300)
         .call(this.zoomBehavior.transform, d3.zoomIdentity);
     }
+  }
+
+  // ==================== Solution Options Methods ====================
+
+  /**
+   * Toggle visibility of rendering debug elements (bounding boxes, paths)
+   */
+  toggleRenderingDebug(): void {
+    this.showRenderingDebug = !this.showRenderingDebug;
+    this.applyRenderingDebugVisibility();
+    console.log('[toggleRenderingDebug] Rendering debug:', this.showRenderingDebug ? 'visible' : 'hidden');
+  }
+
+  /**
+   * Apply the rendering debug visibility to D3 elements
+   */
+  private applyRenderingDebugVisibility(): void {
+    if (!this.zoomContainer) return;
+
+    // Toggle visibility of debug bounding boxes
+    this.zoomContainer.selectAll('.debug-bounding-box, .bounding-box')
+      .style('opacity', this.showRenderingDebug ? 1 : 0)
+      .style('pointer-events', this.showRenderingDebug ? 'auto' : 'none');
+
+    // Toggle visibility of debug paths (including slot-path)
+    this.zoomContainer.selectAll('.debug-path, .connector-path-debug, .slot-path')
+      .style('opacity', this.showRenderingDebug ? 1 : 0);
+
+    // Toggle visibility of debug labels/text
+    this.zoomContainer.selectAll('.debug-label, .debug-text')
+      .style('opacity', this.showRenderingDebug ? 1 : 0);
+
+    // Make overlay-component rect borders visible in debug mode
+    this.zoomContainer.selectAll('rect.overlay-component')
+      .style('stroke', this.showRenderingDebug ? '#ff0000' : 'transparent')
+      .style('stroke-width', this.showRenderingDebug ? '2px' : '0')
+      .style('stroke-dasharray', this.showRenderingDebug ? '4,4' : 'none');
+  }
+
+  /**
+   * Toggle visibility of slot labels
+   */
+  toggleSlotLabels(): void {
+    this.showSlotLabels = !this.showSlotLabels;
+    this.applySlotLabelsVisibility();
+    console.log('[toggleSlotLabels] Slot labels:', this.showSlotLabels ? 'visible' : 'hidden');
+  }
+
+  /**
+   * Apply slot labels visibility to D3 elements
+   */
+  private applySlotLabelsVisibility(): void {
+    if (!this.zoomContainer) return;
+
+    this.zoomContainer.selectAll('.slot-label')
+      .style('opacity', this.showSlotLabels ? 1 : 0);
+  }
+
+  /**
+   * Toggle visibility of connector labels
+   */
+  toggleConnectorLabels(): void {
+    this.showConnectorLabels = !this.showConnectorLabels;
+    this.applyConnectorLabelsVisibility();
+    console.log('[toggleConnectorLabels] Connector labels:', this.showConnectorLabels ? 'visible' : 'hidden');
+  }
+
+  /**
+   * Apply connector labels visibility to D3 elements
+   */
+  private applyConnectorLabelsVisibility(): void {
+    if (!this.zoomContainer) return;
+
+    this.zoomContainer.selectAll('.connector-label, .connection-label')
+      .style('opacity', this.showConnectorLabels ? 1 : 0);
+  }
+
+  /**
+   * Export the current solution as JSON
+   */
+  exportSolution(): void {
+    if (!this.noCodeSolution) {
+      console.warn('[exportSolution] No solution to export');
+      return;
+    }
+
+    const solutionData = {
+      solutionName: this.noCodeSolution.solutionName,
+      states: this.stateInstances,
+      exportedAt: new Date().toISOString()
+    };
+
+    const json = JSON.stringify(solutionData, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${this.noCodeSolution.solutionName || 'solution'}.json`;
+    a.click();
+
+    URL.revokeObjectURL(url);
+    console.log('[exportSolution] Exported solution:', this.noCodeSolution.solutionName);
   }
 
   private createRectangles()
@@ -1326,6 +1702,60 @@ private dragRectangle(): any {
   }
 
   /**
+   * Handle right-click on a slot to open slot configuration popup directly
+   */
+  private handleSlotContextMenu(event: MouseEvent, stateName: string, slotIndex: number, isInput: boolean): void {
+    console.log('[handleSlotContextMenu] ===== SLOT CONTEXT MENU =====');
+    console.log('[handleSlotContextMenu] State:', stateName, 'Slot:', slotIndex, 'isInput:', isInput);
+
+    // Find the state instance
+    const stateInstance = this.stateInstances.find(s => s.stateName === stateName);
+    if (!stateInstance) {
+      console.warn('[handleSlotContextMenu] State not found:', stateName);
+      return;
+    }
+
+    // Find the slot in the state
+    const slot = stateInstance.slots?.find(s => s.index === slotIndex);
+    if (!slot) {
+      console.warn('[handleSlotContextMenu] Slot not found:', slotIndex);
+      return;
+    }
+
+    console.log('[handleSlotContextMenu] Found slot:', slot);
+    console.log('[handleSlotContextMenu] Slot color from data:', (slot as any).color);
+    console.log('[handleSlotContextMenu] Slot label from data:', (slot as any).label);
+
+    // Create slot configuration from the slot data
+    const slotConfig: SlotConfiguration = {
+      index: slot.index,
+      stateName: stateName,
+      isInput: slot.isInput,
+      color: (slot as any).color || (slot.isInput ? '#2196f3' : '#4caf50'),
+      mappingMode: (slot as any).mappingMode || (slot.isInput ? 'object_state' : 'function_return'),
+      label: (slot as any).label || (slot.isInput ? `I${slot.index}` : `O${slot.index}`),
+      parameterName: (slot as any).parameterName,
+      parameterType: (slot as any).parameterType,
+      returnType: (slot as any).returnType,
+      description: (slot as any).description,
+      // Output-specific configuration
+      triggerType: (slot as any).triggerType,
+      sourceInstance: (slot as any).sourceInstance,
+      propertyPath: (slot as any).propertyPath,
+      passthroughVariableName: (slot as any).passthroughVariableName
+    };
+
+    // Position the popup at the click position
+    this.currentSlotConfig = slotConfig;
+    this.slotConfigPosition = {
+      x: event.clientX,
+      y: event.clientY
+    };
+    this.slotConfigPopupVisible = true;
+    this.changeDetectorRef.markForCheck();
+  }
+
+  /**
    * Handle context menu actions
    */
   onContextMenuAction(action: StateContextMenuAction): void {
@@ -1685,7 +2115,12 @@ private dragRectangle(): any {
    * Handle slot configuration changes
    */
   onSlotConfigChanged(config: SlotConfiguration): void {
-    // Update the slot in the appropriate array
+    console.log('[onSlotConfigChanged] ===== SLOT CONFIG CHANGE =====');
+    console.log('[onSlotConfigChanged] Config:', config);
+    console.log('[onSlotConfigChanged] StateName:', config.stateName, 'SlotIndex:', config.index);
+    console.log('[onSlotConfigChanged] Color:', config.color, 'Label:', config.label);
+
+    // Update the slot manager arrays (for slot manager modal)
     if (config.isInput) {
       const index = this.slotManagerInputSlots.findIndex(s => s.index === config.index);
       if (index >= 0) {
@@ -1697,7 +2132,108 @@ private dragRectangle(): any {
         this.slotManagerOutputSlots[index] = config;
       }
     }
+
+    // Persist the slot configuration to the state instance and service
+    if (this.selectedSolutionName && config.stateName) {
+      // Find the state instance
+      const stateInstance = this.stateInstances.find(s => s.stateName === config.stateName);
+      if (stateInstance && stateInstance.slots) {
+        // Find and update the slot
+        const slot = stateInstance.slots.find(s => s.index === config.index);
+        if (slot) {
+          // Update slot properties
+          (slot as any).color = config.color;
+          (slot as any).label = config.label;
+          (slot as any).mappingMode = config.mappingMode;
+          (slot as any).description = config.description;
+          (slot as any).parameterName = config.parameterName;
+          (slot as any).parameterType = config.parameterType;
+          (slot as any).returnType = config.returnType;
+          (slot as any).triggerType = config.triggerType;
+          (slot as any).sourceInstance = config.sourceInstance;
+          (slot as any).propertyPath = config.propertyPath;
+          (slot as any).passthroughVariableName = config.passthroughVariableName;
+
+          console.log('[onSlotConfigChanged] Updated slot:', slot);
+          console.log('[onSlotConfigChanged] Updated slot color:', (slot as any).color);
+          console.log('[onSlotConfigChanged] Updated slot label:', (slot as any).label);
+
+          // Persist to service
+          const slotRawDataArray = stateInstance.slots.map(s => ({
+            index: s.index,
+            stateName: s.stateName || config.stateName,
+            slotAngularPosition: s.slotAngularPosition || 0,
+            connectors: (s.connectors || []).map(c => ({
+              id: c.id,
+              sourceSlot: c.sourceSlot,
+              sinkSlot: c.sinkSlot,
+              targetStateName: c.targetStateName
+            })),
+            isInput: s.isInput,
+            allowOneToMany: s.allowOneToMany,
+            allowManyToOne: s.allowManyToOne,
+            color: (s as any).color,
+            label: (s as any).label,
+            mappingMode: (s as any).mappingMode,
+            description: (s as any).description,
+            parameterName: (s as any).parameterName,
+            parameterType: (s as any).parameterType,
+            returnType: (s as any).returnType,
+            triggerType: (s as any).triggerType,
+            sourceInstance: (s as any).sourceInstance,
+            propertyPath: (s as any).propertyPath,
+            passthroughVariableName: (s as any).passthroughVariableName
+          }));
+
+          this.solutionStateService.updateStateSlots(
+            this.selectedSolutionName,
+            config.stateName,
+            slotRawDataArray
+          );
+
+          // Re-render the D3 layer to reflect visual changes
+          this.rerenderStateSlots(config.stateName);
+        }
+      }
+    }
+
     this.closeSlotConfigPopup();
+  }
+
+  /**
+   * Re-render slots for a specific state to reflect configuration changes
+   */
+  private rerenderStateSlots(stateName: string): void {
+    console.log('[rerenderStateSlots] ===== RE-RENDERING SLOTS =====');
+    console.log('[rerenderStateSlots] StateName:', stateName);
+
+    // Find the state instance
+    const stateInstance = this.stateInstances.find(s => s.stateName === stateName);
+    if (!stateInstance) {
+      console.log('[rerenderStateSlots] State not found!');
+      return;
+    }
+
+    console.log('[rerenderStateSlots] State found, slots count:', stateInstance.slots?.length);
+    stateInstance.slots?.forEach((s, i) => {
+      console.log(`[rerenderStateSlots] Slot ${i}: color=${(s as any).color}, label=${(s as any).label}`);
+    });
+
+    // Determine which layer to update based on shape type
+    const shapeType = stateInstance.shapeType || 'circle';
+    console.log('[rerenderStateSlots] ShapeType:', shapeType);
+
+    if (shapeType === 'circle' && this.currentCircleStateLayer) {
+      console.log('[rerenderStateSlots] Calling CircleStateLayer.rerenderState');
+      // Re-render the circle state layer
+      this.currentCircleStateLayer.rerenderState(stateName);
+    } else if (shapeType === 'rectangle' && this.currentRectangleStateLayer) {
+      console.log('[rerenderStateSlots] Calling RectangleStateLayer.rerenderState');
+      // Re-render the rectangle state layer
+      this.currentRectangleStateLayer.rerenderState(stateName);
+    } else {
+      console.log('[rerenderStateSlots] No layer found for shape type:', shapeType);
+    }
   }
 
   /**

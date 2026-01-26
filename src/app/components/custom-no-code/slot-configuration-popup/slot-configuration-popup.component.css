@@ -8,8 +8,20 @@
   padding: 16px;
   min-width: 280px;
   max-width: 340px;
+  max-height: 80vh;
   z-index: 2000;
   font-family: 'Roboto', sans-serif;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Scrollable content area */
+.popup-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+  margin-right: -4px;
 }
 
 /* Header */
@@ -234,4 +246,70 @@
 
 .save-btn:hover {
   background: #1565c0;
+}
+
+/* Trigger Type Tabs */
+.trigger-type-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.trigger-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 12px;
+  font-weight: 500;
+  color: #666;
+}
+
+.trigger-tab mat-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+}
+
+.trigger-tab:hover {
+  border-color: #1976d2;
+  background: #f8f9ff;
+}
+
+.trigger-tab.active {
+  border-color: #1976d2;
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+/* Section Hint */
+.section-hint {
+  margin: 6px 0 8px 0;
+  font-size: 11px;
+  color: #888;
+  font-style: italic;
+}
+
+/* Section Warning */
+.section-warning {
+  margin: 4px 0 0 0;
+  font-size: 10px;
+  color: #f57c00;
+  font-weight: 500;
+}
+
+/* Compact mapping option variant */
+.mapping-option.compact {
+  padding: 8px 10px;
+}
+
+.mapping-option.compact .option-description {
+  margin-top: 2px;
+  margin-left: 26px;
 }

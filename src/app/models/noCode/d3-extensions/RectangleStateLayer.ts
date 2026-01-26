@@ -10,6 +10,12 @@ import * as d3 from 'd3';
 import { NoCodeState } from '../NoCodeState';
 import { NoCodeSolution } from '../NoCodeSolution';
 import { InteractionStateService } from '@services/no-code-services/interaction-state-service';
+import {
+  getContrastingTextColor,
+  generateSlotLabel,
+  DEFAULT_INPUT_SLOT_COLOR,
+  DEFAULT_OUTPUT_SLOT_COLOR
+} from '../../../utils/color-utils';
 
 // Defines how to render rectangles that can be dragged around the screen.
 // This is used to represent end states and other block-like components in the No-Code Interface.
@@ -35,6 +41,7 @@ export class RectangleStateLayer extends D3ModelLayer {
   private onStateDragStart: ((stateName: string) => void) | null = null;
   private onStateDragEnd: ((stateName: string, stateGroup: SVGGElement) => void) | null = null;
   private onStateContextMenu: ((event: MouseEvent, stateName: string, stateGroup: SVGGElement) => void) | null = null;
+  private onSlotContextMenu: ((event: MouseEvent, stateName: string, slotIndex: number, isInput: boolean) => void) | null = null;
 
   constructor(
     private rendererManager: NoCodeStateRendererManager,
@@ -81,6 +88,10 @@ export class RectangleStateLayer extends D3ModelLayer {
 
   setOnStateContextMenu(callback: (event: MouseEvent, stateName: string, stateGroup: SVGGElement) => void): void {
     this.onStateContextMenu = callback;
+  }
+
+  setOnSlotContextMenu(callback: (event: MouseEvent, stateName: string, slotIndex: number, isInput: boolean) => void): void {
+    this.onSlotContextMenu = callback;
   }
 
   getStateGroupByName(stateName: string): SVGGElement | null {
@@ -130,19 +141,37 @@ export class RectangleStateLayer extends D3ModelLayer {
 
     return noCodeSolution.stateInstances
       .filter(state => state.shapeType === "rectangle")
-      .flatMap((state: NoCodeState) =>
-        state.slots?.map((slot: Slot) => new RectangleSlotDataPoint(
-          state.stateLocationX ?? 0,
-          state.stateLocationY ?? 0,
-          state.stateSvgWidth ?? state.stateSvgRadius ?? 20,
-          state.stateSvgHeight ?? state.stateSvgWidth ?? state.stateSvgRadius ?? 20,
-          slot.index,
-          slot.slotAngularPosition ?? 0,
-          slot.isInput,
-          slot.isOutput,
-          state.stateName ?? "unknown"
-        )) || []
-      );
+      .flatMap((state: NoCodeState) => {
+        // Track input and output indices separately for labeling
+        let inputIndex = 0;
+        let outputIndex = 0;
+
+        return state.slots?.map((slot: Slot) => {
+          // Generate label based on slot type
+          const label = slot.isInput
+            ? generateSlotLabel(true, inputIndex++)
+            : generateSlotLabel(false, outputIndex++);
+
+          // Use configured color or default based on slot type
+          const color = (slot as any).color ||
+            (slot.isInput ? DEFAULT_INPUT_SLOT_COLOR : DEFAULT_OUTPUT_SLOT_COLOR);
+
+          return new RectangleSlotDataPoint(
+            state.stateLocationX ?? 0,
+            state.stateLocationY ?? 0,
+            state.stateSvgWidth ?? state.stateSvgRadius ?? 20,
+            state.stateSvgHeight ?? state.stateSvgWidth ?? state.stateSvgRadius ?? 20,
+            slot.index,
+            slot.slotAngularPosition ?? 0,
+            slot.isInput,
+            slot.isOutput,
+            state.stateName ?? "unknown",
+            undefined, // solutionName
+            color,
+            label
+          );
+        }) || [];
+      });
   }
 
   // --- Rendering Functions ---
@@ -330,6 +359,56 @@ export class RectangleStateLayer extends D3ModelLayer {
     return this.slotDataPoints[index];
   }
 
+  /**
+   * Re-render a specific state's slots after configuration changes.
+   * Updates the internal slot data from the solution and re-renders the slot markers.
+   */
+  rerenderState(stateName: string): void {
+    if (!this.noCodeSolution) return;
+
+    // Find the state in the solution
+    const state = this.noCodeSolution.stateInstances.find(s => s.stateName === stateName);
+    if (!state || state.shapeType !== 'rectangle') return;
+
+    // Update slotDataPoints for this state
+    // First remove existing slot data for this state
+    this.slotDataPoints = this.slotDataPoints.filter(
+      (slot: RectangleSlotDataPoint) => slot.stateName !== stateName
+    );
+
+    // Then add updated slot data from the state
+    let inputIndex = 0;
+    let outputIndex = 0;
+    const newSlotDataPoints = state.slots?.map((slot: Slot) => {
+      const label = (slot as any).label || (slot.isInput
+        ? generateSlotLabel(true, inputIndex++)
+        : generateSlotLabel(false, outputIndex++));
+
+      const color = (slot as any).color ||
+        (slot.isInput ? DEFAULT_INPUT_SLOT_COLOR : DEFAULT_OUTPUT_SLOT_COLOR);
+
+      return new RectangleSlotDataPoint(
+        state.stateLocationX ?? 0,
+        state.stateLocationY ?? 0,
+        state.stateSvgWidth ?? state.stateSvgRadius ?? 20,
+        state.stateSvgHeight ?? state.stateSvgWidth ?? state.stateSvgRadius ?? 20,
+        slot.index,
+        slot.slotAngularPosition ?? 0,
+        slot.isInput,
+        slot.isOutput,
+        stateName,
+        undefined, // solutionName
+        color,
+        label
+      );
+    }) || [];
+
+    this.slotDataPoints.push(...newSlotDataPoints);
+
+    // Re-render the slot layer (it clears and redraws all slots)
+    this.initializeSlotLayer();
+  }
+
   // --- Layer Level Functions ---
 
   initializeLayerGroup(): void {
@@ -398,8 +477,10 @@ export class RectangleStateLayer extends D3ModelLayer {
         const innerPadding = 10; // Inner component is 10px smaller than background
 
         // Append the bounding box rectangle (largest, 10px padding around background)
+        // Hidden by default - only shown in debug mode
         group.append('rect')
           .classed('bounding-box', true)
+          .classed('debug-element', true)
           .attr('x', -(halfWidth + boundingPadding))
           .attr('y', -(halfHeight + boundingPadding))
           .attr('width', datapoint.width + boundingPadding * 2)
@@ -407,9 +488,12 @@ export class RectangleStateLayer extends D3ModelLayer {
           .attr('rx', cornerRadius + boundingPadding / 2)
           .attr('ry', cornerRadius + boundingPadding / 2)
           .attr('fill', "white")
-          .attr('stroke', "black");
+          .attr('stroke', "black")
+          .style('opacity', 0);
 
         // Append the main rectangle (visual representation of state - the actual shape)
+        // Note: Left-click is reserved for dragging, so only contextmenu (right-click) handler here
+        const self = this; // Capture reference for contextmenu handler
         group.append('rect')
           .classed('draggable-shape', true)
           .attr('x', -halfWidth)
@@ -419,52 +503,60 @@ export class RectangleStateLayer extends D3ModelLayer {
           .attr('rx', cornerRadius)
           .attr('ry', cornerRadius)
           .attr('fill', "#F44336") // Red for end states
-          .attr('stroke', "black");
+          .attr('stroke', "black")
+          .on('contextmenu', function(event: MouseEvent) {
+            event.preventDefault();
+            event.stopPropagation();
+            const groupElement = elements[index] as SVGGElement;
+            const stateName = datapoint.stateName || 'unknown';
+            console.log('[draggable-shape contextmenu] State:', stateName);
+            if (self.onStateContextMenu) {
+              self.onStateContextMenu(event, stateName, groupElement);
+            }
+          });
 
         // Append the inner component rectangle (where Angular overlays will be positioned)
+        // Hidden by default - only shown in debug mode
         // 10px smaller than the background shape on each side
         const innerHalfWidth = halfWidth - innerPadding;
         const innerHalfHeight = halfHeight - innerPadding;
         const innerCornerRadius = Math.max(0, cornerRadius - innerPadding / 2);
-        const self = this;
+        // Append the inner component rectangle (positioning marker for Angular overlays)
+        // Hidden by default - receives events for drag detection (see CSS: pointer-events: all)
+        // Only contextmenu handler here - drag behavior is handled by D3 drag on the state group
         group.append('rect')
           .classed('overlay-component', true)
+          .classed('debug-element', true)
           .attr('x', -innerHalfWidth)
           .attr('y', -innerHalfHeight)
           .attr('width', innerHalfWidth * 2)
           .attr('height', innerHalfHeight * 2)
           .attr('rx', innerCornerRadius)
           .attr('ry', innerCornerRadius)
-          .attr('fill', "white")
-          .attr('stroke', "black")
-          .style('cursor', 'pointer')
-          .on('click', function(event: MouseEvent) {
-            event.stopPropagation();
-            const groupElement = elements[index] as SVGGElement;
-            const stateName = datapoint.stateName || 'unknown';
-            if (self.onStateOverlayClick) {
-              self.onStateOverlayClick(stateName, groupElement);
-            }
-          })
+          .attr('fill', 'transparent')
+          .attr('stroke', 'transparent')
           .on('contextmenu', function(event: MouseEvent) {
             event.preventDefault();
             event.stopPropagation();
             const groupElement = elements[index] as SVGGElement;
             const stateName = datapoint.stateName || 'unknown';
-            console.log('[RectangleStateLayer contextmenu] State:', stateName);
+            console.log('[overlay-component contextmenu] State:', stateName);
             if (self.onStateContextMenu) {
               self.onStateContextMenu(event, stateName, groupElement);
             }
           });
 
         // Generate the rectangular path for slot placement (follows background shape)
+        // Hidden by default - only shown in debug mode
         let rectPath = this.generateRectangularPath(halfWidth, halfHeight, cornerRadius);
         group.append('path')
           .attr('d', rectPath)
           .classed('slot-path', true)
+          .classed('debug-element', true)
           .attr('fill', 'none')
           .attr('stroke', 'red')
-          .attr('stroke-width', 8);
+          .attr('stroke-width', 8)
+          .style('opacity', 0);
       });
 
     newGroups.on('mousedown.preventZoom', function(this: SVGGElement, event: MouseEvent) {
@@ -554,7 +646,9 @@ export class RectangleStateLayer extends D3ModelLayer {
     stateGroups.each((datapoint: RectangleStateDataPoint, index: number, elements: any) => {
       let currentStateGroup = d3.select(elements[index]);
 
+      // Remove existing slot markers and labels
       currentStateGroup.selectAll('circle.slot-marker').remove();
+      currentStateGroup.selectAll('text.slot-label').remove();
 
       let currentStateSlots = this.slotDataPoints.filter((slot: RectangleSlotDataPoint) => slot.stateName === datapoint.stateName);
       let indexSortedSlots = currentStateSlots.slice().sort((a: RectangleSlotDataPoint, b: RectangleSlotDataPoint) => a.index - b.index);
@@ -571,14 +665,55 @@ export class RectangleStateLayer extends D3ModelLayer {
         const angle = slotData.angularPosition ?? (slotData.index * (360 / currentStateSlots.length));
         const { x, y } = this.getSlotPositionOnPath(path, angle);
 
+        // Get slot color (from data point or default)
+        const slotColor = slotData.color ||
+          (slotData.isInput ? DEFAULT_INPUT_SLOT_COLOR : DEFAULT_OUTPUT_SLOT_COLOR);
+
+        // Get slot label (from data point or generate)
+        const label = slotData.label || (slotData.isInput ? `I${slotData.index}` : `O${slotData.index}`);
+
+        // Create slot marker circle with right-click handler for slot configuration
+        const self = this;
         currentStateGroup.append('circle')
           .classed('slot-marker', true)
           .attr('slot-index', String(slotData.index))
           .attr('data-state-name', datapoint.stateName)
+          .attr('data-is-input', String(slotData.isInput))
           .attr('cx', x)
           .attr('cy', y)
           .attr('r', slotRadius)
-          .attr('fill', slotData.isInput ? 'green' : 'blue');
+          .attr('fill', slotColor)
+          .on('contextmenu', function(event: MouseEvent) {
+            // Prevent default browser context menu
+            event.preventDefault();
+            event.stopPropagation();
+            const stateName = datapoint.stateName || 'unknown';
+            const slotIndex = slotData.index;
+            const isInput = slotData.isInput;
+            console.log('[slot-marker contextmenu] State:', stateName, 'Slot:', slotIndex, 'isInput:', isInput);
+            // Trigger the slot context menu callback if set
+            if (self.onSlotContextMenu) {
+              self.onSlotContextMenu(event, stateName, slotIndex, isInput);
+            }
+          });
+
+        // Create slot label text with contrasting color
+        const fontSize = Math.max(slotRadius * 0.7, 4);
+        const textColor = getContrastingTextColor(slotColor);
+
+        currentStateGroup.append('text')
+          .classed('slot-label', true)
+          .attr('slot-index', String(slotData.index))
+          .attr('x', x)
+          .attr('y', y)
+          .attr('text-anchor', 'middle')
+          .attr('dominant-baseline', 'central')
+          .attr('font-size', `${fontSize}px`)
+          .attr('font-family', 'Arial, sans-serif')
+          .attr('font-weight', 'bold')
+          .attr('fill', textColor)
+          .attr('pointer-events', 'none')
+          .text(label);
       }
     });
   }
@@ -1060,6 +1195,8 @@ export class RectangleStateLayer extends D3ModelLayer {
         this.startConnectorDrag(slotSvgX, slotSvgY, event.x, event.y, stateName, slotIndex);
       } else {
         this.interactionStateService.setInteractionState('slot-drag');
+        // Hide the slot label during drag - will be re-rendered on drop
+        group.select(`text.slot-label[slot-index="${slotIndex}"]`).style('display', 'none');
       }
       group.raise().attr('stroke', 'black');
     }
@@ -1207,6 +1344,17 @@ export class RectangleStateLayer extends D3ModelLayer {
               slotInfo.slotIndex,
               currentAngle
             );
+          }
+
+          // Re-render the slot label at the new position
+          const finalLocalX = parseFloat(slotMarker.attr('cx') || '0');
+          const finalLocalY = parseFloat(slotMarker.attr('cy') || '0');
+          const slotLabel = group.select(`text.slot-label[slot-index="${slotInfo.slotIndex}"]`);
+          if (!slotLabel.empty()) {
+            slotLabel
+              .attr('x', finalLocalX)
+              .attr('y', finalLocalY)
+              .style('display', null); // Remove display:none to show again
           }
         }
       }

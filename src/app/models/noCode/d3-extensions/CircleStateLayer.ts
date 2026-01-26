@@ -11,6 +11,12 @@ import * as d3 from 'd3';
 import { NoCodeState } from '../NoCodeState';
 import { NoCodeSolution } from '../NoCodeSolution';
 import { InteractionStateService } from '@services/no-code-services/interaction-state-service';
+import {
+  getContrastingTextColor,
+  generateSlotLabel,
+  DEFAULT_INPUT_SLOT_COLOR,
+  DEFAULT_OUTPUT_SLOT_COLOR
+} from '../../../utils/color-utils';
 
 // Defines how to render solid circles that can be dragged around the screen.
 // This is used to represent the state components in the No-Code Interface.
@@ -50,6 +56,9 @@ export class CircleStateLayer extends D3ModelLayer {
 
   // Callback for right-click context menu on a state
   private onStateContextMenu: ((event: MouseEvent, stateName: string, stateGroup: SVGGElement) => void) | null = null;
+
+  // Callback for right-click context menu on a slot
+  private onSlotContextMenu: ((event: MouseEvent, stateName: string, slotIndex: number, isInput: boolean) => void) | null = null;
 
   constructor(
     private rendererManager: NoCodeStateRendererManager,
@@ -117,6 +126,14 @@ export class CircleStateLayer extends D3ModelLayer {
   }
 
   /**
+   * Set callback for right-click context menu on a slot.
+   * The callback receives the mouse event, state name, slot index, and whether it's an input slot.
+   */
+  setOnSlotContextMenu(callback: (event: MouseEvent, stateName: string, slotIndex: number, isInput: boolean) => void): void {
+    this.onSlotContextMenu = callback;
+  }
+
+  /**
    * Get a state group element by state name.
    */
   getStateGroupByName(stateName: string): SVGGElement | null {
@@ -169,6 +186,8 @@ export class CircleStateLayer extends D3ModelLayer {
             state.stateSvgRadius ?? 10,
             state.slotRadius ?? 4,
             state.stateName ?? "unknown",
+            state.stateClass,  // Pass state class for special rendering (InitialState, EndState, etc.)
+            state.backgroundColor  // Pass background color if specified
         ));
   }
 
@@ -180,18 +199,36 @@ export class CircleStateLayer extends D3ModelLayer {
 
     return noCodeSolution.stateInstances
       .filter(state => state.shapeType === "circle")
-      .flatMap((state: NoCodeState) =>
-          state.slots?.map((slot: Slot) => new CircleSlotDataPoint(
-              state.stateLocationX ?? 0,
-              state.stateLocationY ?? 0,
-              state.stateSvgRadius ?? 10,
-              slot.index,
-              slot.slotAngularPosition ?? 0,
-              slot.isInput,
-              slot.isOutput,
-              state.stateName ?? "unknown"
-          )) || []
-      );
+      .flatMap((state: NoCodeState) => {
+          // Count inputs and outputs separately for labeling
+          let inputIndex = 0;
+          let outputIndex = 0;
+
+          return state.slots?.map((slot: Slot) => {
+              // Generate label based on slot type and position
+              const label = slot.isInput
+                ? generateSlotLabel(true, inputIndex++)
+                : generateSlotLabel(false, outputIndex++);
+
+              // Use slot's configured color or default based on type
+              const color = (slot as any).color ||
+                (slot.isInput ? DEFAULT_INPUT_SLOT_COLOR : DEFAULT_OUTPUT_SLOT_COLOR);
+
+              return new CircleSlotDataPoint(
+                  state.stateLocationX ?? 0,
+                  state.stateLocationY ?? 0,
+                  state.stateSvgRadius ?? 10,
+                  slot.index,
+                  slot.slotAngularPosition ?? 0,
+                  slot.isInput,
+                  slot.isOutput,
+                  state.stateName ?? "unknown",
+                  noCodeSolution.solutionName,
+                  color,
+                  label
+              );
+          }) || [];
+      });
   }
 
   // --- Rendering Functions ---
@@ -465,6 +502,77 @@ export class CircleStateLayer extends D3ModelLayer {
     return this.slotDataPoints[index];
   }
 
+  /**
+   * Re-render a specific state's slots after configuration changes.
+   * Updates the internal slot data from the solution and re-renders the slot markers.
+   */
+  rerenderState(stateName: string): void {
+    console.log('[CircleStateLayer.rerenderState] ===== CIRCLE RERENDER =====');
+    console.log('[CircleStateLayer.rerenderState] StateName:', stateName);
+
+    if (!this.noCodeSolution) {
+      console.log('[CircleStateLayer.rerenderState] No solution!');
+      return;
+    }
+
+    // Find the state in the solution
+    const state = this.noCodeSolution.stateInstances.find(s => s.stateName === stateName);
+    console.log('[CircleStateLayer.rerenderState] Found state:', !!state, 'shapeType:', state?.shapeType);
+    if (!state || state.shapeType !== 'circle') {
+      console.log('[CircleStateLayer.rerenderState] State not found or wrong shape type');
+      return;
+    }
+
+    console.log('[CircleStateLayer.rerenderState] State slots:', state.slots?.length);
+    state.slots?.forEach((s, i) => {
+      console.log(`[CircleStateLayer.rerenderState] Slot ${i}: color=${(s as any).color}, label=${(s as any).label}`);
+    });
+
+    // Update slotDataPoints for this state
+    // First remove existing slot data for this state
+    this.slotDataPoints = this.slotDataPoints.filter(
+      (slot: CircleSlotDataPoint) => slot.stateName !== stateName
+    );
+
+    // Then add updated slot data from the state
+    let inputIndex = 0;
+    let outputIndex = 0;
+    const newSlotDataPoints = state.slots?.map((slot: Slot) => {
+      const label = (slot as any).label || (slot.isInput
+        ? generateSlotLabel(true, inputIndex++)
+        : generateSlotLabel(false, outputIndex++));
+
+      const color = (slot as any).color ||
+        (slot.isInput ? DEFAULT_INPUT_SLOT_COLOR : DEFAULT_OUTPUT_SLOT_COLOR);
+
+      return new CircleSlotDataPoint(
+        state.stateLocationX ?? 0,
+        state.stateLocationY ?? 0,
+        state.stateSvgRadius ?? 10,
+        slot.index,
+        slot.slotAngularPosition ?? 0,
+        slot.isInput,
+        slot.isOutput,
+        stateName,
+        undefined, // solutionName
+        color,
+        label
+      );
+    }) || [];
+
+    this.slotDataPoints.push(...newSlotDataPoints);
+
+    console.log('[CircleStateLayer.rerenderState] New slot data points created:', newSlotDataPoints.length);
+    newSlotDataPoints.forEach((sdp, i) => {
+      console.log(`[CircleStateLayer.rerenderState] New SDP ${i}: color=${sdp.color}, label=${sdp.label}`);
+    });
+
+    // Re-render the slot layer (it clears and redraws all slots)
+    console.log('[CircleStateLayer.rerenderState] Calling initializeSlotLayer');
+    this.initializeSlotLayer();
+    console.log('[CircleStateLayer.rerenderState] Done');
+  }
+
   // -- Layer Level Functions --
 
   initializeLayerGroup(): void {
@@ -551,65 +659,124 @@ export class CircleStateLayer extends D3ModelLayer {
         console.log('[initializeStateGroups] Creating state group for:', datapoint.stateName);
 
         // Append the bounding box rectangle
+        // Hidden by default - only shown in debug mode
         group.append('rect')
             .classed('bounding-box', true)
+            .classed('debug-element', true)
             .attr('x', -datapoint.radius)
             .attr('y', -datapoint.radius)
             .attr('width', 2 * datapoint.radius)
             .attr('height', 2 * datapoint.radius)
             .attr('fill', "white")
-            .attr('stroke', "black");
+            .attr('stroke', "black")
+            .style('opacity', 0);
 
         // Append the background circle (visual representation of state)
-        group.append('circle')
+        // Check for special state types and render appropriate icons
+        const stateClass = datapoint.stateClass;
+        const self = this; // Capture reference for click/contextmenu handlers
+
+        // Helper function to add contextmenu (right-click) handler to draggable shapes
+        // Note: Left-click is reserved for dragging, so no click handler here
+        const addShapeEventHandlers = (shape: d3.Selection<SVGCircleElement, unknown, null, undefined>) => {
+          shape
+            .on('contextmenu', function(event: MouseEvent) {
+              event.preventDefault();
+              event.stopPropagation();
+              const groupElement = elements[index] as SVGGElement;
+              const stateName = datapoint.stateName || 'unknown';
+              console.log('[draggable-shape contextmenu] State:', stateName);
+              if (self.onStateContextMenu) {
+                self.onStateContextMenu(event, stateName, groupElement);
+              }
+            });
+        };
+
+        if (stateClass === 'InitialState') {
+          // Green circle with play button icon for InitialState
+          const circle = group.append('circle')
             .classed('draggable-shape', true)
             .attr('r', datapoint.radius)
-            .attr('fill', "blue")
-            .attr('stroke', "black");
+            .attr('fill', '#27ae60')  // Green background
+            .attr('stroke', '#1e8449')
+            .attr('stroke-width', 2);
+          addShapeEventHandlers(circle);
 
-        // Append the inner component rectangle (where Angular overlays will be positioned)
-        const self = this; // Capture reference for click handler
+          // Play button triangle icon (pointing right)
+          const iconSize = datapoint.radius * 0.6;
+          group.append('path')
+            .classed('state-icon', true)
+            .attr('d', `M ${-iconSize * 0.4} ${-iconSize * 0.6} L ${iconSize * 0.6} 0 L ${-iconSize * 0.4} ${iconSize * 0.6} Z`)
+            .attr('fill', 'white')
+            .attr('stroke', 'none')
+            .style('pointer-events', 'none');
+        } else if (stateClass === 'EndState') {
+          // Red circle with stop button icon for EndState
+          const circle = group.append('circle')
+            .classed('draggable-shape', true)
+            .attr('r', datapoint.radius)
+            .attr('fill', '#e74c3c')  // Red background
+            .attr('stroke', '#c0392b')
+            .attr('stroke-width', 2);
+          addShapeEventHandlers(circle);
+
+          // Stop button square icon
+          const iconSize = datapoint.radius * 0.5;
+          group.append('rect')
+            .classed('state-icon', true)
+            .attr('x', -iconSize * 0.7)
+            .attr('y', -iconSize * 0.7)
+            .attr('width', iconSize * 1.4)
+            .attr('height', iconSize * 1.4)
+            .attr('fill', 'white')
+            .attr('stroke', 'none')
+            .attr('rx', 2)  // Slightly rounded corners
+            .style('pointer-events', 'none');
+        } else {
+          // Default circle for regular states
+          const fillColor = datapoint.backgroundColor || 'blue';
+          const circle = group.append('circle')
+            .classed('draggable-shape', true)
+            .attr('r', datapoint.radius)
+            .attr('fill', fillColor)
+            .attr('stroke', 'black');
+          addShapeEventHandlers(circle);
+        }
+
+        // Append the inner component rectangle (positioning marker for Angular overlays)
+        // Hidden by default - receives events for drag detection (see CSS: pointer-events: all)
+        // Only contextmenu handler here - drag behavior is handled by D3 drag on the state group
         group.append('rect')
             .classed('overlay-component', true)
+            .classed('debug-element', true)
             .attr('x', -(1.4 * datapoint.radius) / 2)
             .attr('y', -(1.4 * datapoint.radius) / 2)
             .attr('width', 1.4 * datapoint.radius)
             .attr('height', 1.4 * datapoint.radius)
-            .attr('fill', "white")
-            .attr('stroke', "black")
-            .style('cursor', 'pointer')
-            .on('click', function(event: MouseEvent) {
-              // Prevent the click from triggering drag or other handlers
-              event.stopPropagation();
-              const groupElement = elements[index] as SVGGElement;
-              const stateName = datapoint.stateName || 'unknown';
-              console.log('[overlay-component click] State:', stateName);
-              // Trigger the overlay callback if set
-              if (self.onStateOverlayClick) {
-                self.onStateOverlayClick(stateName, groupElement);
-              }
-            })
+            .attr('fill', 'transparent')
+            .attr('stroke', 'transparent')
             .on('contextmenu', function(event: MouseEvent) {
-              // Prevent default browser context menu
               event.preventDefault();
               event.stopPropagation();
               const groupElement = elements[index] as SVGGElement;
               const stateName = datapoint.stateName || 'unknown';
               console.log('[overlay-component contextmenu] State:', stateName);
-              // Trigger the context menu callback if set
               if (self.onStateContextMenu) {
                 self.onStateContextMenu(event, stateName, groupElement);
               }
             });
 
         // Generate the bezier path for the circle boundary
+        // Hidden by default - only shown in debug mode
         let bezierPath = this.generateCircularBezierPath(datapoint.radius);
         group.append('path')
             .attr('d', bezierPath)
             .classed('slot-path', true)
+            .classed('debug-element', true)
             .attr('fill', 'none')
             .attr('stroke', 'red')
-            .attr('stroke-width', 8);
+            .attr('stroke-width', 8)
+            .style('opacity', 0);
       });
 
     console.log('[initializeStateGroups] New groups created:', newGroups.size());
@@ -790,8 +957,9 @@ export class CircleStateLayer extends D3ModelLayer {
     stateGroups.each((datapoint: CircleStateDataPoint, index: number, elements: any) => {
       let currentStateGroup = d3.select(elements[index]);
 
-      // Clear any existing slot markers to prevent duplicates on re-render
+      // Clear any existing slot markers and labels to prevent duplicates on re-render
       currentStateGroup.selectAll('circle.slot-marker').remove();
+      currentStateGroup.selectAll('text.slot-label').remove();
 
       // Get and sort slots for the current state-group
       let currentStateSlots = this.slotDataPoints.filter((slot: CircleSlotDataPoint) => slot.stateName === datapoint.stateName);
@@ -810,20 +978,63 @@ export class CircleStateLayer extends D3ModelLayer {
         return;
       }
 
-      // Create slot markers
+      // Create slot markers and labels
       for (let i = 0; i < indexSortedSlots.length; i++) {
         const slotData = indexSortedSlots[i];
         const angle = slotData.angularPosition ?? (slotData.index * (360 / currentStateSlots.length));
         const { x, y } = this.getSlotPositionOnBezier(path, angle);
 
+        // Use configured color or default
+        const slotColor = slotData.color ||
+          (slotData.isInput ? DEFAULT_INPUT_SLOT_COLOR : DEFAULT_OUTPUT_SLOT_COLOR);
+
+        // Create slot marker circle with right-click handler for slot configuration
+        const self = this;
         currentStateGroup.append('circle')
           .classed('slot-marker', true)
           .attr('slot-index', String(slotData.index))
           .attr('data-state-name', datapoint.stateName)
+          .attr('data-is-input', String(slotData.isInput))
           .attr('cx', x)
           .attr('cy', y)
           .attr('r', slotRadius)
-          .attr('fill', slotData.isInput ? 'green' : 'blue');
+          .attr('fill', slotColor)
+          .on('contextmenu', function(event: MouseEvent) {
+            // Prevent default browser context menu
+            event.preventDefault();
+            event.stopPropagation();
+            const stateName = datapoint.stateName || 'unknown';
+            const slotIndex = slotData.index;
+            const isInput = slotData.isInput;
+            console.log('[slot-marker contextmenu] State:', stateName, 'Slot:', slotIndex, 'isInput:', isInput);
+            // Trigger the slot context menu callback if set
+            if (self.onSlotContextMenu) {
+              self.onSlotContextMenu(event, stateName, slotIndex, isInput);
+            }
+          });
+
+        // Calculate font size to fit 3-letter label (e.g., "I10", "O99")
+        // Font size should be about 70% of slot diameter for readability
+        const fontSize = Math.max(slotRadius * 0.7, 4); // Minimum 4px
+
+        // Get contrasting text color for the slot background
+        const textColor = getContrastingTextColor(slotColor);
+
+        // Create slot label text
+        const label = slotData.label || generateSlotLabel(slotData.isInput, slotData.index);
+        currentStateGroup.append('text')
+          .classed('slot-label', true)
+          .attr('slot-index', String(slotData.index))
+          .attr('x', x)
+          .attr('y', y)
+          .attr('text-anchor', 'middle')
+          .attr('dominant-baseline', 'central')
+          .attr('font-size', `${fontSize}px`)
+          .attr('font-weight', 'bold')
+          .attr('font-family', 'Arial, sans-serif')
+          .attr('fill', textColor)
+          .attr('pointer-events', 'none') // Labels don't intercept mouse events
+          .text(label);
       }
     });
   }
@@ -869,6 +1080,7 @@ export class CircleStateLayer extends D3ModelLayer {
     // Query ALL state groups in the solution layer (not just this layer's groups)
     // This enables cross-shape collision detection between circles and rectangles
     const solutionLayer = this.getSolutionLayer();
+    console.log('[getAllStateBoundingBoxes] Solution layer:', solutionLayer.node(), 'State groups found:', solutionLayer.selectAll('g.state-group').size());
     solutionLayer.selectAll('g.state-group').each(function(this: Element, d: any) {
       const group = d3.select(this as SVGGElement);
       const stateName = group.attr('state-name') || 'unknown';
@@ -903,6 +1115,7 @@ export class CircleStateLayer extends D3ModelLayer {
       });
     });
 
+    console.log('[getAllStateBoundingBoxes] Found bounding boxes:', boundingBoxes);
     return boundingBoxes;
   }
 
@@ -1645,6 +1858,8 @@ export class CircleStateLayer extends D3ModelLayer {
         this.startConnectorDrag(slotSvgX, slotSvgY, event.x, event.y, stateName, slotIndex, slotIsInput);
       } else {
         this.interactionStateService.setInteractionState('slot-drag');
+        // Hide the slot label during drag - will be re-rendered on drop
+        group.select(`text.slot-label[slot-index="${slotIndex}"]`).style('display', 'none');
       }
       group.raise().attr('stroke', 'black');
     }
@@ -1917,12 +2132,24 @@ export class CircleStateLayer extends D3ModelLayer {
               resolvedAngle
             );
           }
+
+          // Re-render the slot label at the new position
+          const finalLocalX = parseFloat(slotMarker.attr('cx') || '0');
+          const finalLocalY = parseFloat(slotMarker.attr('cy') || '0');
+          const slotLabel = group.select(`text.slot-label[slot-index="${slotInfo.slotIndex}"]`);
+          if (!slotLabel.empty()) {
+            slotLabel
+              .attr('x', finalLocalX)
+              .attr('y', finalLocalY)
+              .style('display', null); // Remove display:none to show again
+          }
         }
       }
     }
 
     if (interactionState === 'state-drag') {
       const draggedGroupElement = this.currentGroupElement;
+      console.log('[CircleStateLayer drag end] draggedGroupElement:', !!draggedGroupElement, 'originalStatePosition:', this.originalStatePosition);
       if (draggedGroupElement && this.originalStatePosition) {
         const group = d3.select(draggedGroupElement);
         const stateName = group.attr('state-name') || 'unknown';
@@ -1937,6 +2164,7 @@ export class CircleStateLayer extends D3ModelLayer {
         const boundingRect = group.select('rect.bounding-box');
         const boxWidth = parseFloat(boundingRect.attr('width') || '0');
         const boxHeight = parseFloat(boundingRect.attr('height') || '0');
+        console.log('[CircleStateLayer drag end] State:', stateName, 'Position:', currentX, currentY, 'BoxSize:', boxWidth, boxHeight);
 
         // Resolve any collisions
         const resolvedPosition = this.resolveCollision(
@@ -1946,6 +2174,7 @@ export class CircleStateLayer extends D3ModelLayer {
           stateName,
           this.originalStatePosition
         );
+        console.log('[CircleStateLayer drag end] Resolved position:', resolvedPosition);
 
         // Apply the resolved position
         group.attr('transform', `translate(${resolvedPosition.x}, ${resolvedPosition.y})`);

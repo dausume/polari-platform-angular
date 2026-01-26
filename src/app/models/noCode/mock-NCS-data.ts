@@ -66,6 +66,19 @@ export interface SlotRawData {
   isInput: boolean;
   allowOneToMany: boolean;
   allowManyToOne: boolean;
+  // Slot configuration properties
+  color?: string;
+  label?: string;
+  mappingMode?: string;
+  description?: string;
+  parameterName?: string;
+  parameterType?: string;
+  returnType?: string;
+  // Output-specific configuration
+  triggerType?: 'reactive' | 'functional';
+  sourceInstance?: 'solution_instance' | 'helper_instance';
+  propertyPath?: string;
+  passthroughVariableName?: string;
 }
 
 /**
@@ -620,19 +633,19 @@ export const MOCK_SOLUTION_ORDER_PROCESS: NoCodeSolutionRawData = {
       slotRadius: 5,
       backgroundColor: "#F44336"  // Red for end state
     },
-    // End State - Red Rectangle (Failure)
+    // Return Statement - Red Rectangle (Failure path)
     {
       stateName: "Failed",
-      id: "end-failure",
+      id: "return-failure",
       index: 7,
       shapeType: "rectangle",
       solutionName: "Order.process_order",
-      stateClass: "EndState",
-      boundObjectClass: "EndState",
+      stateClass: "ReturnStatement",
+      boundObjectClass: "ReturnStatement",
       boundObjectFieldValues: {
         displayName: "Failed",
-        description: "Order processing failed",
-        output: "False"
+        description: "Return failure result",
+        returnValue: "False"
       },
       stateSvgSizeX: null,
       stateSvgSizeY: null,

@@ -1,0 +1,397 @@
+:host {
+  display: block;
+}
+
+.filter-list-overlay {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 4px;
+  overflow: hidden;
+  font-size: 11px;
+}
+
+/* Header */
+.overlay-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: #00BCD4;
+  color: white;
+  min-height: 24px;
+}
+
+.header-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+}
+
+.title {
+  font-weight: 500;
+  font-size: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Slot info bar */
+.slot-info-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3px 6px;
+  background: #E0F7FA;
+  border-bottom: 1px solid #B2EBF2;
+  font-size: 9px;
+}
+
+.slot-info {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  color: #00838F;
+}
+
+.slot-info.output {
+  color: #006064;
+}
+
+.slot-icon {
+  font-size: 12px;
+  width: 12px;
+  height: 12px;
+}
+
+.slot-icon.input {
+  color: #4CAF50;
+}
+
+.slot-count, .slot-type {
+  font-weight: 500;
+}
+
+.add-input-btn {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 6px;
+  border: 1px solid #00BCD4;
+  background: white;
+  color: #00BCD4;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 8px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.add-input-btn:hover {
+  background: #00BCD4;
+  color: white;
+}
+
+.add-input-btn mat-icon {
+  font-size: 12px;
+  width: 12px;
+  height: 12px;
+}
+
+/* Filter type selector */
+.filter-type-selector {
+  padding: 4px 6px;
+  background: #E0F7FA;
+  border-bottom: 1px solid #B2EBF2;
+}
+
+.type-buttons {
+  display: flex;
+  gap: 2px;
+}
+
+.type-btn {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #00838F;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 9px;
+  transition: all 0.2s;
+}
+
+.type-btn:hover {
+  background: #B2EBF2;
+}
+
+.type-btn.active {
+  background: #00BCD4;
+  color: white;
+}
+
+.type-btn mat-icon {
+  font-size: 12px;
+  width: 12px;
+  height: 12px;
+}
+
+/* Filter content area */
+.filter-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  overflow: hidden;
+}
+
+/* By Type filter */
+.type-filter {
+  gap: 4px;
+}
+
+.field-label {
+  font-size: 9px;
+  color: #616161;
+  font-weight: 500;
+}
+
+.type-input {
+  padding: 6px 8px;
+  font-size: 11px;
+  border: 1px solid #BDBDBD;
+  border-radius: 4px;
+}
+
+.type-input:focus {
+  outline: none;
+  border-color: #00BCD4;
+}
+
+/* By Index filter */
+.index-filter {
+  gap: 6px;
+}
+
+.index-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.index-input {
+  flex: 1;
+  padding: 4px 6px;
+  font-size: 11px;
+  border: 1px solid #BDBDBD;
+  border-radius: 3px;
+}
+
+/* By Condition filter */
+.condition-filter {
+  gap: 4px;
+}
+
+.conditions-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.filter-link {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.logical-operator {
+  display: flex;
+  justify-content: center;
+  padding: 1px 0;
+}
+
+.operator-select {
+  padding: 1px 6px;
+  font-size: 9px;
+  font-weight: 600;
+  background: #E0F7FA;
+  border: 1px solid #80DEEA;
+  border-radius: 8px;
+  color: #00838F;
+  cursor: pointer;
+}
+
+.condition-row {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+  background: #FAFAFA;
+  padding: 3px;
+  border-radius: 3px;
+  border: 1px solid #E0E0E0;
+}
+
+.field-select,
+.condition-select,
+.value-input {
+  flex: 1;
+  min-width: 0;
+  padding: 2px 4px;
+  font-size: 9px;
+  border: 1px solid #BDBDBD;
+  border-radius: 2px;
+  background: white;
+}
+
+.field-select {
+  flex: 1;
+}
+
+.condition-select {
+  flex: 0.8;
+}
+
+.value-input {
+  flex: 0.7;
+}
+
+.remove-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #BDBDBD;
+  cursor: pointer;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.remove-btn:hover {
+  background: #FFEBEE;
+  color: #F44336;
+}
+
+.remove-btn mat-icon {
+  font-size: 12px;
+  width: 12px;
+  height: 12px;
+}
+
+.empty-state {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 30px;
+  color: #9E9E9E;
+  font-style: italic;
+  font-size: 9px;
+}
+
+.add-filter-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 4px 10px;
+  margin-top: 4px;
+  border: 1px dashed #00BCD4;
+  background: transparent;
+  color: #00BCD4;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 9px;
+  transition: all 0.2s;
+}
+
+.add-filter-btn:hover {
+  background: #E0F7FA;
+  border-style: solid;
+}
+
+.add-filter-btn mat-icon {
+  font-size: 12px;
+  width: 12px;
+  height: 12px;
+}
+
+/* Custom filter */
+.custom-filter {
+  padding: 6px;
+}
+
+.custom-input {
+  flex: 1;
+  min-height: 50px;
+  padding: 6px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 10px;
+  border: 1px solid #BDBDBD;
+  border-radius: 3px;
+  resize: none;
+}
+
+.custom-input:focus {
+  outline: none;
+  border-color: #00BCD4;
+}
+
+/* Compact mode */
+.compact-summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  height: 100%;
+  color: #00BCD4;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.compact-summary mat-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+}
+
+/* Small mode adjustments */
+.filter-list-overlay.small .overlay-header {
+  padding: 2px 6px;
+  min-height: 20px;
+}
+
+.filter-list-overlay.small .title {
+  font-size: 9px;
+}
+
+.filter-list-overlay.small .type-btn {
+  padding: 1px 4px;
+}
+
+.filter-list-overlay.small .condition-row {
+  padding: 2px;
+}
+
+/* Scrollbar styling */
+.conditions-list::-webkit-scrollbar {
+  width: 3px;
+}
+
+.conditions-list::-webkit-scrollbar-track {
+  background: #F5F5F5;
+  border-radius: 2px;
+}
+
+.conditions-list::-webkit-scrollbar-thumb {
+  background: #BDBDBD;
+  border-radius: 2px;
+}

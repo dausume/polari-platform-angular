@@ -1,6 +1,6 @@
 // Defines the data which should exist in the data-point being used with d3 to render these kinds of circles.
 export default class CircleStateDataPoint {
-  
+
     // Used for rendering the solid circle
     cx: number; // x coordinate of the center of the circle
     cy: number; // y coordinate of the center of the circle
@@ -9,6 +9,10 @@ export default class CircleStateDataPoint {
     stateName?: string; // name of the state this data point.
     // Used for determining the color of the circle
     styleName?: string; // name of the style class to be applied to the circle
+    // State class name (e.g., 'InitialState', 'EndState', 'ConditionalChain')
+    stateClass?: string;
+    // Background color for the circle
+    backgroundColor?: string;
 
     // The following should be calculated dynamically so they are allowed to be undefined in some conditions.
 
@@ -29,17 +33,21 @@ export default class CircleStateDataPoint {
     _dragOffsetY?: number; // y offset of the drag event when dragging the state
 
     constructor(
-        cx: number, 
-        cy: number, 
-        radius: number, 
+        cx: number,
+        cy: number,
+        radius: number,
         slotRadius: number = 4,
-        stateName?: string
+        stateName?: string,
+        stateClass?: string,
+        backgroundColor?: string
     ) {
         this.cx = cx;
         this.cy = cy;
         this.radius = radius;
         this.slotRadius = slotRadius;
         this.stateName = stateName;
+        this.stateClass = stateClass;
+        this.backgroundColor = backgroundColor;
 
         // **Auto-Derived Values Based on Sample SVG**
         

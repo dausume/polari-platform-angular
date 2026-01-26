@@ -65,6 +65,8 @@ import { StateContextMenuComponent } from '@components/custom-no-code/state-cont
 import { SlotConfigurationPopupComponent } from '@components/custom-no-code/slot-configuration-popup/slot-configuration-popup.component';
 import { StateSlotManagerPopupComponent } from '@components/custom-no-code/state-slot-manager-popup/state-slot-manager-popup.component';
 import { StateFullViewPopupComponent } from '@components/custom-no-code/state-full-view-popup/state-full-view-popup.component';
+import { ConditionalChainOverlayComponent } from '@components/custom-no-code/conditional-chain-overlay/conditional-chain-overlay.component';
+import { FilterListOverlayComponent } from '@components/custom-no-code/filter-list-overlay/filter-list-overlay.component';
 // Class Configuration Components
 import { DefaultCellComponent } from './components/templateClassTable/type-cells/default-cell/default-cell';
 import { ConfigCellActions } from '@components/templateClassTable/type-cells/config-cell-actions/config-cell-actions';
@@ -139,6 +141,8 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     SlotConfigurationPopupComponent,
     StateSlotManagerPopupComponent,
     StateFullViewPopupComponent,
+    ConditionalChainOverlayComponent,
+    FilterListOverlayComponent,
     DefaultCellComponent,
     ConfigCellActions,
     ClassDataTableComponent,

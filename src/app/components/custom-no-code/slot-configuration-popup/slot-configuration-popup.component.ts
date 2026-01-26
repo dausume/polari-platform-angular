@@ -8,9 +8,27 @@ import { Component, Input, Output, EventEmitter, OnInit, AfterViewInit, OnDestro
 export type InputMappingMode = 'object_state' | 'function_input';
 
 /**
- * Slot mapping mode for outputs
+ * Output trigger type - when the output fires
+ * - reactive: Fires when state changes at any point during execution
+ * - functional: Fires when the state's operations complete
  */
-export type OutputMappingMode = 'state_change' | 'function_return';
+export type OutputTriggerType = 'reactive' | 'functional';
+
+/**
+ * Slot mapping mode for outputs
+ *
+ * - instance_state: Outputs from source instance property (reactive or functional based on triggerType)
+ * - function_return: Return value from function call (functional only)
+ * - variable_passthrough: Named variable from input, potentially modified, passed to next state (functional only)
+ */
+export type OutputMappingMode = 'instance_state' | 'function_return' | 'variable_passthrough';
+
+/**
+ * Source instance for state-based outputs
+ * - solution_instance: The solution's bound object (e.g., Order)
+ * - helper_instance: A helper class instance the state uses
+ */
+export type OutputSourceInstance = 'solution_instance' | 'helper_instance';
 
 /**
  * Color options for slots
@@ -42,6 +60,16 @@ export interface SlotConfiguration {
   parameterType?: string;
   returnType?: string;
   description?: string;
+
+  // Output-specific configuration
+  /** For outputs: reactive (on change) vs functional (on completion) */
+  triggerType?: OutputTriggerType;
+  /** For state-based outputs: which instance the output is sourced from */
+  sourceInstance?: OutputSourceInstance;
+  /** For state-based outputs: the specific property/field path to output */
+  propertyPath?: string;
+  /** For variable_passthrough: which input variable to forward */
+  passthroughVariableName?: string;
 }
 
 /**
@@ -75,11 +103,20 @@ export class SlotConfigurationPopupComponent implements OnInit, AfterViewInit, O
     { value: 'function_input', label: 'Function Input Parameter', description: 'Map input to a function parameter' }
   ];
 
-  // Output mapping modes
-  outputMappingModes = [
-    { value: 'state_change', label: 'State Change Impulse', description: 'Trigger output when object state changes' },
-    { value: 'function_return', label: 'Function Return Value', description: 'Map function return value to output' }
+  // Functional-only output modes (only available when triggerType is 'functional')
+  functionalOnlyOutputModes = [
+    { value: 'function_return', label: 'Function Return', description: 'Return value from function call' },
+    { value: 'variable_passthrough', label: 'Variable Passthrough', description: 'Named variable from input, passed to next state' }
   ];
+
+  // Source instance options for state-based outputs
+  sourceInstanceOptions = [
+    { value: 'solution_instance', label: 'Solution Instance', description: 'The solution\'s bound object (e.g., Order)' },
+    { value: 'helper_instance', label: 'Helper Instance', description: 'A helper class instance this state uses' }
+  ];
+
+  // Click outside handler bound reference
+  private boundClickOutsideHandler: (event: MouseEvent) => void;
 
   // Local copy for editing
   editedConfig: SlotConfiguration = {
@@ -95,6 +132,7 @@ export class SlotConfigurationPopupComponent implements OnInit, AfterViewInit, O
 
   constructor(private elementRef: ElementRef) {
     this.hostElement = this.elementRef.nativeElement;
+    this.boundClickOutsideHandler = this.onClickOutside.bind(this);
   }
 
   ngOnInit(): void {
@@ -103,9 +141,38 @@ export class SlotConfigurationPopupComponent implements OnInit, AfterViewInit, O
     // Create a copy for editing
     this.editedConfig = { ...this.configuration };
     this.adjustedPosition = { ...this.position };
+
+    // Set default trigger type for outputs if not already set
+    if (!this.editedConfig.isInput && !this.editedConfig.triggerType) {
+      this.editedConfig.triggerType = 'functional';
+    }
+
+    // Set default source instance for outputs if not set
+    if (!this.editedConfig.isInput && !this.editedConfig.sourceInstance) {
+      this.editedConfig.sourceInstance = 'solution_instance';
+    }
+
+    // Set default mapping mode for outputs if using old mode values
+    if (!this.editedConfig.isInput) {
+      const mode = this.editedConfig.mappingMode as string;
+      if (mode === 'object_state_signal' || mode === 'object_state_output' || mode === 'function_return') {
+        // Migrate old modes to new instance_state mode
+        if (mode === 'object_state_signal' || mode === 'object_state_output') {
+          this.editedConfig.mappingMode = 'instance_state';
+        }
+      }
+    }
+
+    // Add click outside listener after a small delay to avoid immediate trigger
+    setTimeout(() => {
+      document.addEventListener('click', this.boundClickOutsideHandler);
+    }, 100);
   }
 
   ngOnDestroy(): void {
+    // Remove click outside listener
+    document.removeEventListener('click', this.boundClickOutsideHandler);
+
     // Remove from document.body when component is destroyed
     if (this.hostElement && this.hostElement.parentElement === document.body) {
       document.body.removeChild(this.hostElement);
@@ -163,8 +230,12 @@ export class SlotConfigurationPopupComponent implements OnInit, AfterViewInit, O
       const found = this.inputMappingModes.find(m => m.value === mode);
       return found?.label || mode;
     } else {
-      const found = this.outputMappingModes.find(m => m.value === mode);
-      return found?.label || mode;
+      // Check functional-only modes
+      const found = this.functionalOnlyOutputModes.find(m => m.value === mode);
+      if (found) return found.label;
+      // Check for instance_state
+      if (mode === 'instance_state') return 'Instance State';
+      return mode;
     }
   }
 
@@ -172,7 +243,14 @@ export class SlotConfigurationPopupComponent implements OnInit, AfterViewInit, O
    * Get current mapping modes based on slot type
    */
   getCurrentMappingModes() {
-    return this.editedConfig.isInput ? this.inputMappingModes : this.outputMappingModes;
+    if (this.editedConfig.isInput) {
+      return this.inputMappingModes;
+    }
+    // For outputs, return combined list
+    return [
+      { value: 'instance_state', label: 'Instance State', description: 'Output from bound object state' },
+      ...this.functionalOnlyOutputModes
+    ];
   }
 
   /**
@@ -187,6 +265,40 @@ export class SlotConfigurationPopupComponent implements OnInit, AfterViewInit, O
    */
   onMappingModeSelect(mode: string): void {
     this.editedConfig.mappingMode = mode as InputMappingMode | OutputMappingMode;
+  }
+
+  /**
+   * Handle trigger type selection (reactive vs functional)
+   */
+  onTriggerTypeSelect(triggerType: OutputTriggerType): void {
+    this.editedConfig.triggerType = triggerType;
+    // When switching to reactive, instance_state is the only option
+    if (triggerType === 'reactive') {
+      this.editedConfig.mappingMode = 'instance_state';
+    }
+  }
+
+  /**
+   * Handle source instance selection
+   */
+  onSourceInstanceSelect(source: string): void {
+    this.editedConfig.sourceInstance = source as OutputSourceInstance;
+  }
+
+  /**
+   * Check if the current output mode requires source instance selection
+   */
+  requiresSourceInstance(): boolean {
+    return this.editedConfig.mappingMode === 'instance_state';
+  }
+
+  /**
+   * Handle click outside popup to close
+   */
+  private onClickOutside(event: MouseEvent): void {
+    if (this.popupContainer && !this.popupContainer.nativeElement.contains(event.target as Node)) {
+      this.closed.emit();
+    }
   }
 
   /**

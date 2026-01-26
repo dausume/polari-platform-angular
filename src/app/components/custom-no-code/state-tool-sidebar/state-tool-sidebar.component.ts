@@ -2,7 +2,7 @@
 // polari-platform-angular/src/app/components/custom-no-code/state-tool-sidebar/state-tool-sidebar.component.ts
 // Side toolbar for selecting state definitions and creating state instances
 
-import { Component, OnInit, OnDestroy, Output, EventEmitter, Input } from '@angular/core';
+import { Component, OnInit, OnDestroy, OnChanges, SimpleChanges, Output, EventEmitter, Input } from '@angular/core';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { StateDefinition } from '@models/noCode/StateDefinition';
@@ -107,7 +107,7 @@ export const AVAILABLE_SVG_SHAPES = [
   templateUrl: './state-tool-sidebar.component.html',
   styleUrls: ['./state-tool-sidebar.component.css']
 })
-export class StateToolSidebarComponent implements OnInit, OnDestroy {
+export class StateToolSidebarComponent implements OnInit, OnDestroy, OnChanges {
   @Input() isExpanded = true;
 
   // The class this solution is bound to (Solution Class)
@@ -127,6 +127,10 @@ export class StateToolSidebarComponent implements OnInit, OnDestroy {
 
   // Current solution name
   @Input() solutionName: string = '';
+
+  // Class names of unique states (InitialState, EndState) already in the solution
+  // Used to filter out these states from the sidebar when they're already present
+  @Input() existingUniqueStates: Set<string> = new Set();
 
   @Output() createStateFromDefinition = new EventEmitter<StateToolItem>();
   @Output() openDefinitionCreator = new EventEmitter<void>();
@@ -180,6 +184,13 @@ export class StateToolSidebarComponent implements OnInit, OnDestroy {
     this.filterSubSolutions();
   }
 
+  ngOnChanges(changes: SimpleChanges): void {
+    // Refresh builtin items when existingUniqueStates changes
+    if (changes['existingUniqueStates']) {
+      this.loadBuiltinItems();
+    }
+  }
+
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
@@ -187,12 +198,18 @@ export class StateToolSidebarComponent implements OnInit, OnDestroy {
 
   /**
    * Load built-in state-space classes from registry
+   * Filters out unique states (InitialState, EndState) that already exist in the solution
    */
   private loadBuiltinItems(): void {
     this.builtinItemsByCategory.clear();
 
     const builtInClasses = this.registry.getAllClasses();
     builtInClasses.forEach(metadata => {
+      // Skip unique states that are already present in the solution
+      if (this.isUniqueStateAlreadyPresent(metadata)) {
+        return;
+      }
+
       const item: StateToolItem = {
         id: `builtin_${metadata.className}`,
         name: metadata.className,
@@ -217,6 +234,25 @@ export class StateToolSidebarComponent implements OnInit, OnDestroy {
     if (this.expandedCategories.size === 0) {
       this.builtinCategories.slice(0, 3).forEach(cat => this.expandedCategories.add(cat));
     }
+  }
+
+  /**
+   * Check if a unique state (InitialState or EndState) is already present in the solution
+   */
+  private isUniqueStateAlreadyPresent(metadata: StateSpaceClassMetadata): boolean {
+    // Only InitialState and EndState are unique per solution
+    if (metadata.specialStateType === 'initial' || metadata.specialStateType === 'end') {
+      return this.existingUniqueStates.has(metadata.className);
+    }
+    return false;
+  }
+
+  /**
+   * Refresh the sidebar when the existing unique states change
+   * Call this from the parent component when state instances are added/removed
+   */
+  public refreshBuiltinItems(): void {
+    this.loadBuiltinItems();
   }
 
   /**

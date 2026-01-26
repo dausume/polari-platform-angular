@@ -1,0 +1,145 @@
+<div class="conditional-chain-overlay"
+     [class.compact]="isCompact"
+     [class.small]="isSmall"
+     (click)="onOverlayClick($event)"
+     (mousedown)="onMouseDown($event)"
+     (pointerdown)="onMouseDown($event)">
+
+  <!-- Header with mode tabs -->
+  <div class="overlay-header">
+    <span class="title">Conditional Chain</span>
+    <div class="mode-tabs" *ngIf="!isCompact">
+      <button class="tab-btn"
+              [class.active]="editorMode === 'visual'"
+              (click)="setEditorMode('visual')">
+        <mat-icon>view_list</mat-icon>
+        <span *ngIf="!isSmall">Visual</span>
+      </button>
+      <button class="tab-btn"
+              [class.active]="editorMode === 'syntax'"
+              (click)="setEditorMode('syntax')">
+        <mat-icon>code</mat-icon>
+        <span *ngIf="!isSmall">Syntax</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Slot info bar -->
+  <div class="slot-info-bar" *ngIf="!isCompact">
+    <div class="slot-info">
+      <mat-icon class="slot-icon input">input</mat-icon>
+      <span class="slot-count">{{ inputSlotCount }} input(s)</span>
+    </div>
+    <button class="add-input-btn"
+            *ngIf="canAddInput()"
+            (click)="requestAddInputSlot()"
+            title="Add input slot">
+      <mat-icon>add_circle</mat-icon>
+      <span *ngIf="!isSmall">Add Input</span>
+    </button>
+    <div class="slot-info output">
+      <mat-icon class="slot-icon">output</mat-icon>
+      <span class="slot-type">boolean</span>
+    </div>
+  </div>
+
+  <!-- Visual Mode: Step-by-step dropdown chain builder -->
+  <div class="visual-editor" *ngIf="editorMode === 'visual' && !isCompact">
+    <div class="conditions-list">
+      <div class="condition-link" *ngFor="let link of visualLinks; let i = index; let first = first">
+        <!-- Logical operator (except for first) -->
+        <div class="logical-operator" *ngIf="!first">
+          <select [(ngModel)]="visualLinks[i-1].logicalOperator"
+                  (change)="onFieldChange(i-1, 'logicalOperator', getEventTargetValue($event))"
+                  class="operator-select">
+            <option *ngFor="let op of logicalOperators" [value]="op.value">{{ op.label }}</option>
+          </select>
+        </div>
+
+        <div class="condition-row">
+          <!-- Field dropdown -->
+          <select [(ngModel)]="link.fieldName"
+                  (change)="onFieldChange(i, 'fieldName', getEventTargetValue($event))"
+                  class="field-select">
+            <option value="" disabled>Select field...</option>
+            <option *ngFor="let field of availableInputFields" [value]="field.name">
+              {{ field.name }} ({{ field.type }})
+            </option>
+            <option *ngIf="availableInputFields.length === 0" value="">
+              (No inputs connected)
+            </option>
+          </select>
+
+          <!-- Condition type dropdown -->
+          <select [(ngModel)]="link.conditionType"
+                  (change)="onFieldChange(i, 'conditionType', getEventTargetValue($event))"
+                  class="condition-select">
+            <option *ngFor="let ct of conditionTypes" [value]="ct.value">{{ ct.displayName }}</option>
+          </select>
+
+          <!-- Value input (if needed) -->
+          <input *ngIf="!requiresNoValue(link.conditionType)"
+                 type="text"
+                 [(ngModel)]="link.conditionValue"
+                 (input)="onFieldChange(i, 'conditionValue', getEventTargetValue($event))"
+                 class="value-input"
+                 placeholder="Value...">
+
+          <!-- Second value for BETWEEN -->
+          <input *ngIf="requiresSecondValue(link.conditionType)"
+                 type="text"
+                 [(ngModel)]="link.conditionValueEnd"
+                 (input)="onFieldChange(i, 'conditionValueEnd', getEventTargetValue($event))"
+                 class="value-input"
+                 placeholder="End value...">
+
+          <!-- Remove button -->
+          <button class="remove-btn" (click)="removeConditionLink(i)" title="Remove condition">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+      </div>
+
+      <!-- Empty state -->
+      <div class="empty-state" *ngIf="visualLinks.length === 0">
+        <span>No conditions defined</span>
+      </div>
+    </div>
+
+    <!-- Add condition button -->
+    <button class="add-condition-btn" (click)="addConditionLink()">
+      <mat-icon>add</mat-icon>
+      <span>Add Condition</span>
+    </button>
+  </div>
+
+  <!-- Syntax Mode: Text-based condition editor -->
+  <div class="syntax-editor" *ngIf="editorMode === 'syntax' && !isCompact">
+    <textarea
+      [formControl]="syntaxControl"
+      (input)="onSyntaxChange()"
+      class="syntax-input"
+      [class.invalid]="!syntaxValid"
+      placeholder="e.g., status == 'active' AND count > 10"></textarea>
+
+    <div class="syntax-help">
+      <span class="help-text">Use: field == value, AND, OR, >, <, >=, <=, CONTAINS, IS NULL</span>
+    </div>
+
+    <div class="syntax-error" *ngIf="!syntaxValid && syntaxError">
+      <mat-icon>error</mat-icon>
+      <span>{{ syntaxError }}</span>
+    </div>
+
+    <div class="syntax-preview" *ngIf="syntaxValid && visualLinks.length > 0">
+      <span class="preview-label">Parsed:</span>
+      <span class="preview-count">{{ visualLinks.length }} condition(s)</span>
+    </div>
+  </div>
+
+  <!-- Compact mode: just show summary -->
+  <div class="compact-summary" *ngIf="isCompact">
+    <mat-icon>filter_alt</mat-icon>
+    <span>{{ visualLinks.length }} conditions</span>
+  </div>
+</div>
