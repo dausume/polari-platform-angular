@@ -1,0 +1,271 @@
+<!-- View Context Overlay - Debug view for inspecting state context -->
+<div class="overlay-backdrop" (click)="onBackdropClick()"></div>
+
+<div class="context-overlay"
+     [style.left.px]="position.x"
+     [style.top.px]="position.y"
+     (click)="onOverlayClick($event)">
+
+  <!-- Header -->
+  <div class="overlay-header">
+    <div class="header-title">
+      <mat-icon>visibility</mat-icon>
+      <span>Context Inspector</span>
+    </div>
+    <button class="close-btn" (click)="close()" title="Close (Esc)">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <!-- State Info -->
+  <div class="state-info-bar">
+    <div class="state-badge">
+      <mat-icon>radio_button_checked</mat-icon>
+      <span class="state-name">{{ stateName }}</span>
+    </div>
+    <div class="solution-name" *ngIf="solutionName">
+      in {{ solutionName }}
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="overlay-content" *ngIf="context; else noContext">
+
+    <!-- Summary Stats -->
+    <div class="summary-stats">
+      <div class="stat-item">
+        <span class="stat-value">{{ getVariableCount() }}</span>
+        <span class="stat-label">Variables</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value">{{ getObjectTypeCount() }}</span>
+        <span class="stat-label">Object Types</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value">{{ context.distanceFromInitial }}</span>
+        <span class="stat-label">Steps</span>
+      </div>
+      <div class="stat-item" *ngIf="hasBranchedVariables()">
+        <span class="stat-value">{{ getBranchCount() }}</span>
+        <span class="stat-label">Branches</span>
+      </div>
+    </div>
+
+    <!-- Solution Object Section (Always Available) -->
+    <div class="accordion-section solution-object-section" *ngIf="hasSolutionObject()">
+      <div class="section-header" (click)="toggleSection('solutionObject')">
+        <mat-icon class="expand-icon" [class.expanded]="solutionObjectExpanded">
+          chevron_right
+        </mat-icon>
+        <mat-icon class="section-icon solution-icon">apartment</mat-icon>
+        <span class="section-title">Solution Object</span>
+        <span class="always-available-badge">Always Available</span>
+      </div>
+
+      <div class="section-content" *ngIf="solutionObjectExpanded">
+        <div class="solution-object-item" *ngIf="getSolutionObject() as solObj">
+          <div class="object-type-header">
+            <span class="class-name">{{ solObj.className }}</span>
+          </div>
+
+          <div class="object-fields" *ngIf="solObj.fields.length > 0">
+            <div class="field-item" *ngFor="let field of solObj.fields">
+              <span class="field-path" (click)="copyToClipboard(field.path)" title="Click to copy">
+                {{ field.displayName }}
+              </span>
+              <span class="field-type">{{ formatType(field.type) }}</span>
+              <mat-icon class="writable-icon" *ngIf="field.writable" title="Writable">edit</mat-icon>
+            </div>
+          </div>
+
+          <div class="empty-message small" *ngIf="solObj.fields.length === 0">
+            <span>No fields defined</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Variables Section (Grouped by Branch) -->
+    <div class="accordion-section">
+      <div class="section-header" (click)="toggleSection('variables')">
+        <mat-icon class="expand-icon" [class.expanded]="variablesExpanded">
+          chevron_right
+        </mat-icon>
+        <span class="section-title">Flow Variables ({{ getVariableCount() }})</span>
+      </div>
+
+      <div class="section-content" *ngIf="variablesExpanded">
+        <ng-container *ngIf="getVariableCount() > 0; else noVariables">
+          <!-- Group by branch path -->
+          <div class="branch-group" *ngFor="let branchGroup of getVariablesByBranch()">
+            <div class="branch-header" [class.main-flow]="branchGroup.branchLabel === 'main flow'">
+              <mat-icon *ngIf="branchGroup.branchLabel === 'main flow'">trending_flat</mat-icon>
+              <mat-icon *ngIf="branchGroup.branchLabel !== 'main flow'">call_split</mat-icon>
+              <span>{{ branchGroup.branchLabel }}</span>
+            </div>
+
+            <div class="variable-list">
+              <div class="variable-item" *ngFor="let variable of branchGroup.variables"
+                   [class.branched]="hasBranchPath(variable)">
+                <div class="variable-main">
+                  <span class="variable-name" (click)="copyToClipboard(variable.name)" title="Click to copy">
+                    {{ variable.name }}
+                  </span>
+                  <span class="variable-type">{{ formatType(variable.type) }}</span>
+                </div>
+                <div class="variable-meta">
+                  <span class="source-state" title="Source state">
+                    <mat-icon>arrow_back</mat-icon>
+                    {{ variable.sourceStateName }}
+                  </span>
+                  <span class="input-slot" *ngIf="variable.inputSlotIndex !== undefined">
+                    slot {{ variable.inputSlotIndex }}
+                  </span>
+                  <span class="flow-distance"
+                        [ngClass]="getDistanceBadgeClass(variable.flowDistance)"
+                        title="Flow distance (steps)">
+                    {{ variable.flowDistance }} step{{ variable.flowDistance !== 1 ? 's' : '' }}
+                  </span>
+                </div>
+                <!-- Branch path details -->
+                <div class="branch-path-detail" *ngIf="hasBranchPath(variable)">
+                  <mat-icon>route</mat-icon>
+                  <span>{{ formatBranchPath(variable.branchPath) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </ng-container>
+
+        <ng-template #noVariables>
+          <div class="empty-message">
+            <mat-icon>info_outline</mat-icon>
+            <span>No flow variables at this state</span>
+          </div>
+        </ng-template>
+      </div>
+    </div>
+
+    <!-- Object Types Section (Non-Solution) -->
+    <div class="accordion-section" *ngIf="getNonSolutionObjectTypes().length > 0">
+      <div class="section-header" (click)="toggleSection('objectTypes')">
+        <mat-icon class="expand-icon" [class.expanded]="objectTypesExpanded">
+          chevron_right
+        </mat-icon>
+        <span class="section-title">State Object Types ({{ getNonSolutionObjectTypes().length }})</span>
+      </div>
+
+      <div class="section-content" *ngIf="objectTypesExpanded">
+        <div class="object-type-item" *ngFor="let objType of getNonSolutionObjectTypes()">
+          <div class="object-type-header">
+            <mat-icon>class</mat-icon>
+            <span class="class-name">{{ objType.className }}</span>
+            <span class="flow-distance"
+                  [ngClass]="getDistanceBadgeClass(objType.flowDistance)">
+              {{ objType.flowDistance }} step{{ objType.flowDistance !== 1 ? 's' : '' }}
+            </span>
+          </div>
+
+          <div class="object-fields" *ngIf="objType.fields.length > 0">
+            <div class="field-item" *ngFor="let field of objType.fields">
+              <span class="field-path" (click)="copyToClipboard(field.path)" title="Click to copy">
+                {{ field.displayName }}
+              </span>
+              <span class="field-type">{{ formatType(field.type) }}</span>
+              <mat-icon class="writable-icon" *ngIf="field.writable" title="Writable">edit</mat-icon>
+            </div>
+          </div>
+
+          <div class="source-info">
+            <mat-icon>arrow_back</mat-icon>
+            <span>from {{ objType.sourceStateName }}</span>
+          </div>
+
+          <!-- Branch path for object type -->
+          <div class="branch-path-detail" *ngIf="objType.branchPath && objType.branchPath.length > 0">
+            <mat-icon>route</mat-icon>
+            <span>{{ formatBranchPath(objType.branchPath) }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Branch Info Section -->
+    <div class="accordion-section" *ngIf="hasBranchedVariables()">
+      <div class="section-header" (click)="toggleSection('branchInfo')">
+        <mat-icon class="expand-icon" [class.expanded]="branchInfoExpanded">
+          chevron_right
+        </mat-icon>
+        <span class="section-title">Branch Paths ({{ getBranchCount() }})</span>
+      </div>
+
+      <div class="section-content" *ngIf="branchInfoExpanded">
+        <div class="branch-info-item" *ngFor="let branchGroup of getVariablesByBranch()">
+          <div class="branch-path-label">
+            <mat-icon *ngIf="branchGroup.branchLabel === 'main flow'">trending_flat</mat-icon>
+            <mat-icon *ngIf="branchGroup.branchLabel !== 'main flow'">call_split</mat-icon>
+            <span>{{ branchGroup.branchLabel }}</span>
+          </div>
+          <div class="branch-path-detail" *ngIf="branchGroup.branchPath.length > 0">
+            <div class="branch-point" *ngFor="let bp of branchGroup.branchPath; let i = index">
+              <span class="branch-state">{{ bp.originStateName }}</span>
+              <span class="branch-index">[{{ bp.branchLabel || 'branch ' + bp.branchIndex }}]</span>
+              <span class="branch-step">at step {{ bp.stepAtBranch }}</span>
+              <mat-icon *ngIf="i < branchGroup.branchPath.length - 1">arrow_forward</mat-icon>
+            </div>
+          </div>
+          <div class="branch-var-count">
+            {{ branchGroup.variables.length }} variable{{ branchGroup.variables.length !== 1 ? 's' : '' }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Flow Info Section -->
+    <div class="accordion-section">
+      <div class="section-header" (click)="toggleSection('flowInfo')">
+        <mat-icon class="expand-icon" [class.expanded]="flowInfoExpanded">
+          chevron_right
+        </mat-icon>
+        <span class="section-title">Flow Information</span>
+      </div>
+
+      <div class="section-content" *ngIf="flowInfoExpanded">
+        <div class="flow-info-item">
+          <span class="info-label">Direct Upstream States:</span>
+          <div class="state-list" *ngIf="context.directUpstreamStates.length > 0; else noUpstream">
+            <span class="state-chip" *ngFor="let state of context.directUpstreamStates">
+              {{ state }}
+            </span>
+          </div>
+          <ng-template #noUpstream>
+            <span class="info-value muted">None (initial state)</span>
+          </ng-template>
+        </div>
+
+        <div class="flow-info-item">
+          <span class="info-label">All Upstream States:</span>
+          <div class="state-list" *ngIf="context.allUpstreamStates.length > 0; else noAllUpstream">
+            <span class="state-chip" *ngFor="let state of context.allUpstreamStates">
+              {{ state }}
+            </span>
+          </div>
+          <ng-template #noAllUpstream>
+            <span class="info-value muted">None</span>
+          </ng-template>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- No Context State -->
+  <ng-template #noContext>
+    <div class="no-context-message">
+      <mat-icon>warning</mat-icon>
+      <p>Unable to load context for this state.</p>
+      <p class="hint">This may occur if the state is not part of the current solution.</p>
+    </div>
+  </ng-template>
+
+</div>

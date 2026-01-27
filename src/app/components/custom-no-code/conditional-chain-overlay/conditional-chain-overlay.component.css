@@ -10,6 +10,7 @@
   border-radius: 4px;
   overflow: hidden;
   font-size: 11px;
+  position: relative;
 }
 
 /* Header with tabs */
@@ -133,6 +134,7 @@
   flex-direction: column;
   padding: 6px;
   overflow: hidden;
+  position: relative;
 }
 
 .conditions-list {
@@ -140,13 +142,13 @@
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .condition-link {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
 }
 
 .logical-operator {
@@ -157,7 +159,7 @@
 
 .operator-select {
   padding: 2px 8px;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 600;
   background: #E8EAF6;
   border: 1px solid #9FA8DA;
@@ -166,40 +168,100 @@
   cursor: pointer;
 }
 
-.condition-row {
+/* Compact condition row */
+.condition-row.compact-row {
   display: flex;
   gap: 4px;
   align-items: center;
   background: #F5F5F5;
-  padding: 4px;
+  padding: 4px 6px;
   border-radius: 4px;
   border: 1px solid #E0E0E0;
+  min-height: 28px;
 }
 
-.field-select,
-.condition-select,
-.value-input {
+/* Value display buttons */
+.value-display-btn {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 8px;
+  border: 1px solid #BDBDBD;
+  border-radius: 3px;
+  background: white;
+  color: #424242;
+  cursor: pointer;
+  font-size: 10px;
+  min-width: 60px;
+  max-width: 120px;
+  transition: all 0.15s ease;
+}
+
+.value-display-btn:hover {
+  background: #E3F2FD;
+  border-color: #2196F3;
+}
+
+.value-display-btn.active {
+  background: #E8EAF6;
+  border-color: #673AB7;
+  box-shadow: 0 0 0 2px rgba(103, 58, 183, 0.2);
+}
+
+.value-display-btn .value-text {
   flex: 1;
-  min-width: 0;
-  padding: 3px 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.value-display-btn .edit-icon {
+  font-size: 12px;
+  width: 12px;
+  height: 12px;
+  color: #9E9E9E;
+  flex-shrink: 0;
+}
+
+.value-display-btn:hover .edit-icon {
+  color: #2196F3;
+}
+
+.value-display-btn.active .edit-icon {
+  color: #673AB7;
+}
+
+.value-display-btn.left-btn {
+  flex: 1;
+}
+
+.value-display-btn.right-btn {
+  flex: 1;
+}
+
+.value-display-btn.end-btn {
+  flex: 0.8;
+}
+
+/* Condition select dropdown */
+.condition-row .condition-select {
+  flex: 0 0 auto;
+  min-width: 70px;
+  padding: 3px 4px;
   font-size: 10px;
   border: 1px solid #BDBDBD;
   border-radius: 3px;
   background: white;
+  color: #616161;
 }
 
-.field-select {
-  flex: 1.2;
+.condition-row .condition-select:focus {
+  outline: none;
+  border-color: #673AB7;
 }
 
-.condition-select {
-  flex: 1;
-}
-
-.value-input {
-  flex: 0.8;
-}
-
+/* Remove button */
 .remove-btn {
   display: flex;
   align-items: center;
@@ -226,6 +288,7 @@
   height: 14px;
 }
 
+/* Empty state */
 .empty-state {
   display: flex;
   justify-content: center;
@@ -236,6 +299,7 @@
   font-size: 10px;
 }
 
+/* Add condition button */
 .add-condition-btn {
   display: flex;
   align-items: center;
@@ -261,6 +325,63 @@
   font-size: 14px;
   width: 14px;
   height: 14px;
+}
+
+/* ==================== Value Popup ==================== */
+.value-popup {
+  position: fixed;
+  z-index: 10000;
+  min-width: 320px;
+  max-width: 500px;
+  background: #2D2D2D;
+  border: 1px solid #555;
+  border-radius: 6px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  overflow: visible;
+}
+
+.popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  background: #3D3D3D;
+  border-bottom: 1px solid #444;
+}
+
+.popup-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.popup-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #999;
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+.popup-close-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.popup-close-btn mat-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+}
+
+.popup-content {
+  padding: 4px;
 }
 
 /* Syntax Editor */
@@ -372,15 +493,26 @@
   font-size: 9px;
 }
 
-.conditional-chain-overlay.small .condition-row {
-  padding: 3px;
+.conditional-chain-overlay.small .condition-row.compact-row {
+  padding: 3px 4px;
+  gap: 3px;
 }
 
-.conditional-chain-overlay.small .field-select,
-.conditional-chain-overlay.small .condition-select,
-.conditional-chain-overlay.small .value-input {
-  padding: 2px 4px;
+.conditional-chain-overlay.small .value-display-btn {
+  padding: 2px 6px;
   font-size: 9px;
+  min-width: 50px;
+  max-width: 90px;
+}
+
+.conditional-chain-overlay.small .condition-select {
+  min-width: 60px;
+  font-size: 9px;
+  padding: 2px 3px;
+}
+
+.conditional-chain-overlay.small .value-display-btn .edit-icon {
+  display: none;
 }
 
 /* Scrollbar styling */

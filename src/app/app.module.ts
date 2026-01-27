@@ -1,5 +1,6 @@
 // app.module.ts
-import { CUSTOM_ELEMENTS_SCHEMA, NgModule } from '@angular/core';
+import { APP_INITIALIZER, CUSTOM_ELEMENTS_SCHEMA, NgModule } from '@angular/core';
+import { RuntimeConfigService } from '@services/runtime-config.service';
 import { BrowserModule } from '@angular/platform-browser';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
@@ -67,6 +68,11 @@ import { StateSlotManagerPopupComponent } from '@components/custom-no-code/state
 import { StateFullViewPopupComponent } from '@components/custom-no-code/state-full-view-popup/state-full-view-popup.component';
 import { ConditionalChainOverlayComponent } from '@components/custom-no-code/conditional-chain-overlay/conditional-chain-overlay.component';
 import { FilterListOverlayComponent } from '@components/custom-no-code/filter-list-overlay/filter-list-overlay.component';
+import { VariableAssignmentOverlayComponent } from '@components/custom-no-code/variable-assignment-overlay/variable-assignment-overlay.component';
+import { InitialStateOverlayComponent } from '@components/custom-no-code/initial-state-overlay/initial-state-overlay.component';
+import { MathOperationOverlayComponent } from '@components/custom-no-code/math-operation-overlay/math-operation-overlay.component';
+import { ValueSourceSelectorComponent } from '@components/custom-no-code/value-source-selector/value-source-selector.component';
+import { ViewContextOverlayComponent } from '@components/custom-no-code/view-context-overlay/view-context-overlay.component';
 // Class Configuration Components
 import { DefaultCellComponent } from './components/templateClassTable/type-cells/default-cell/default-cell';
 import { ConfigCellActions } from '@components/templateClassTable/type-cells/config-cell-actions/config-cell-actions';
@@ -143,6 +149,11 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     StateFullViewPopupComponent,
     ConditionalChainOverlayComponent,
     FilterListOverlayComponent,
+    VariableAssignmentOverlayComponent,
+    InitialStateOverlayComponent,
+    MathOperationOverlayComponent,
+    ValueSourceSelectorComponent,
+    ViewContextOverlayComponent,
     DefaultCellComponent,
     ConfigCellActions,
     ClassDataTableComponent,
@@ -198,6 +209,13 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
 
   ],
   providers: [
+    RuntimeConfigService,
+    {
+      provide: APP_INITIALIZER,
+      useFactory: (configService: RuntimeConfigService) => () => configService.initialize(),
+      deps: [RuntimeConfigService],
+      multi: true
+    },
     PolariService,
     CRUDEservicesManager,
     CertificateTrustService,

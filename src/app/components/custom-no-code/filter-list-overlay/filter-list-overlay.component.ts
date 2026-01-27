@@ -111,7 +111,7 @@ export class FilterListOverlayComponent implements OnInit, OnDestroy {
   private initializeFromFilterConditions(): void {
     this.visualFilters = this.filterConditions.map(link => ({
       id: link.id,
-      fieldName: link.fieldName,
+      fieldName: link.fieldName || '',
       conditionType: link.conditionType,
       conditionValue: String(link.conditionValue ?? ''),
       conditionValueEnd: link.conditionValueEnd ? String(link.conditionValueEnd) : undefined,

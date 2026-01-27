@@ -1,0 +1,133 @@
+<div class="math-operation-overlay"
+     [class.compact]="isCompact"
+     [class.small]="isSmall"
+     (click)="onOverlayClick($event)"
+     (mousedown)="onMouseDown($event)"
+     (pointerdown)="onMouseDown($event)">
+
+  <!-- Header -->
+  <div class="overlay-header">
+    <mat-icon class="header-icon">calculate</mat-icon>
+    <span class="title">Math Operation</span>
+  </div>
+
+  <!-- Main content (non-compact mode) -->
+  <div class="overlay-content" *ngIf="!isCompact">
+
+    <!-- Operation Type Selection -->
+    <div class="section operation-section">
+      <div class="operation-buttons">
+        <button *ngFor="let op of operations"
+                class="op-btn"
+                [class.active]="config.operationType === op.value"
+                (click)="onOperationChange(op.value)"
+                [title]="op.label">
+          <span class="op-symbol">{{ op.symbol }}</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Operands Row -->
+    <div class="section operands-section">
+      <div class="operand-row">
+        <!-- Left Operand -->
+        <button class="operand-btn"
+                [class.active]="activePopup === 'left'"
+                (click)="openPopup($event, 'left')"
+                title="Left operand">
+          <span class="operand-value">{{ getOperandDisplayText(config.leftOperand) }}</span>
+          <mat-icon class="edit-icon">edit</mat-icon>
+        </button>
+
+        <!-- Operation Symbol -->
+        <span class="operation-symbol">{{ getOperationSymbol() }}</span>
+
+        <!-- Right Operand -->
+        <button class="operand-btn"
+                [class.active]="activePopup === 'right'"
+                (click)="openPopup($event, 'right')"
+                title="Right operand">
+          <span class="operand-value">{{ getOperandDisplayText(config.rightOperand) }}</span>
+          <mat-icon class="edit-icon">edit</mat-icon>
+        </button>
+      </div>
+    </div>
+
+    <!-- Result Section -->
+    <div class="section result-section">
+      <label class="section-label">Store Result In</label>
+
+      <div class="result-target-tabs">
+        <button class="target-tab"
+                [class.active]="config.resultTarget === 'solution_field'"
+                (click)="onResultTargetChange('solution_field')">
+          <mat-icon>apartment</mat-icon>
+          <span *ngIf="!isSmall">Field</span>
+        </button>
+        <button class="target-tab"
+                [class.active]="config.resultTarget === 'new_variable'"
+                (click)="onResultTargetChange('new_variable')">
+          <mat-icon>add_circle</mat-icon>
+          <span *ngIf="!isSmall">Variable</span>
+        </button>
+      </div>
+
+      <!-- Solution Field Selector -->
+      <select *ngIf="config.resultTarget === 'solution_field'"
+              class="result-select"
+              [value]="config.resultFieldPath"
+              (change)="onResultFieldChange($any($event.target).value)">
+        <option value="">-- Select field --</option>
+        <option *ngFor="let field of solutionObjectFields"
+                [value]="field.path">
+          {{ field.displayName || field.path }} ({{ field.type }})
+        </option>
+      </select>
+
+      <!-- Variable Name Input -->
+      <input *ngIf="config.resultTarget === 'new_variable'"
+             type="text"
+             class="result-input"
+             [value]="config.resultVariableName"
+             (input)="onResultVariableChange($any($event.target).value)"
+             placeholder="Variable name">
+    </div>
+
+    <!-- Preview -->
+    <div class="section preview-section" *ngIf="!isSmall">
+      <code class="preview-code">{{ getPreviewExpression() }}</code>
+    </div>
+  </div>
+
+  <!-- Value Source Popup -->
+  <div class="value-popup"
+       *ngIf="activePopup"
+       [style.top.px]="popupPosition.top"
+       [style.left.px]="popupPosition.left"
+       (click)="$event.stopPropagation()"
+       (mousedown)="$event.stopPropagation()"
+       (pointerdown)="$event.stopPropagation()">
+    <div class="popup-header">
+      <span class="popup-title">{{ activePopup === 'left' ? 'Left' : 'Right' }} Operand</span>
+      <button class="popup-close-btn" (click)="closePopup()">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+    <div class="popup-content">
+      <app-value-source-selector
+        [config]="getPopupConfig()"
+        [availableInputs]="availableInputs"
+        [sourceObjectFields]="getSourceObjectFieldsForSelector()"
+        [label]="''"
+        [compact]="false"
+        (configChange)="onPopupConfigChange($event)">
+      </app-value-source-selector>
+    </div>
+  </div>
+
+  <!-- Compact mode -->
+  <div class="compact-summary" *ngIf="isCompact">
+    <mat-icon>calculate</mat-icon>
+    <span class="compact-text">{{ getOperationSymbol() }}</span>
+  </div>
+</div>

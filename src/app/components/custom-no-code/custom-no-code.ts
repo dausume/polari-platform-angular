@@ -17,6 +17,9 @@ import { StateOverlayManager } from '@services/no-code-services/state-overlay-ma
 import { StateOverlayComponent } from './state-overlay/state-overlay.component';
 import { ConditionalChainOverlayComponent } from './conditional-chain-overlay/conditional-chain-overlay.component';
 import { FilterListOverlayComponent } from './filter-list-overlay/filter-list-overlay.component';
+import { VariableAssignmentOverlayComponent } from './variable-assignment-overlay/variable-assignment-overlay.component';
+import { InitialStateOverlayComponent } from './initial-state-overlay/initial-state-overlay.component';
+import { MathOperationOverlayComponent } from './math-operation-overlay/math-operation-overlay.component';
 import { CircleStateLayer } from '@models/noCode/d3-extensions/CircleStateLayer';
 import { RectangleStateLayer } from '@models/noCode/d3-extensions/RectangleStateLayer';
 import { StateDefinition } from '@models/noCode/StateDefinition';
@@ -25,8 +28,9 @@ import { StateToolItem, BoundClassDefinition, ClassMemberStateRequest, HelperCla
 import { StateSpaceClassRegistry } from '@models/stateSpace/stateSpaceClassRegistry';
 import { PythonCodeGeneratorService } from '@services/no-code-services/python-code-generator.service';
 import { StateContextMenuAction, SIZE_PRESETS } from './state-context-menu/state-context-menu.component';
-import { SlotConfiguration, InputMappingMode, OutputMappingMode } from './slot-configuration-popup/slot-configuration-popup.component';
+import { SlotConfiguration, InputMappingMode, OutputMappingMode, ProducedVariable } from './slot-configuration-popup/slot-configuration-popup.component';
 import { StateSlotManagerConfig, SolutionSlotDefaults } from './state-slot-manager-popup/state-slot-manager-popup.component';
+import { PotentialContext } from '@models/stateSpace/solutionContext';
 
 // An Editor which creates a new No-Code Solution by default.
 @Component({
@@ -106,6 +110,9 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
   slotConfigPopupVisible = false;
   slotConfigPosition = { x: 0, y: 0 };
   currentSlotConfig: SlotConfiguration | null = null;
+  slotConfigStateContext: PotentialContext | null = null;
+  slotConfigStateClass: string = '';
+  slotConfigProducedVariables: ProducedVariable[] = [];
   solutionSlotDefaults: SolutionSlotDefaults = {
     inputColor: '#2196f3',
     outputColor: '#4caf50',
@@ -117,6 +124,12 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
   fullViewPopupVisible = false;
   fullViewPopupPosition = { x: 0, y: 0 };
   fullViewPopupState: NoCodeState | null = null;
+
+  // View context overlay state (for debugging)
+  viewContextOverlayVisible = false;
+  viewContextOverlayPosition = { x: 0, y: 0 };
+  viewContextOverlayStateName = '';
+  viewContextOverlayContext: PotentialContext | null = null;
 
   // Overlay creation cancellation token
   private overlayCreationToken: number = 0;
@@ -555,6 +568,12 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
       return this.createConditionalChainOverlay(stateName, stateGroup, stateInstance);
     } else if (stateClass === 'FilterList') {
       return this.createFilterListOverlay(stateName, stateGroup, stateInstance);
+    } else if (stateClass === 'VariableAssignment') {
+      return this.createVariableAssignmentOverlay(stateName, stateGroup, stateInstance);
+    } else if (stateClass === 'InitialState') {
+      return this.createInitialStateOverlay(stateName, stateGroup, stateInstance);
+    } else if (stateClass === 'MathOperation') {
+      return this.createMathOperationOverlay(stateName, stateGroup, stateInstance);
     } else {
       return this.createDefaultOverlay(stateName, stateGroup, stateInstance);
     }
@@ -630,6 +649,9 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
         chainLinks: fieldValues.links || [],
         defaultLogicalOperator: fieldValues.defaultLogicalOperator || 'AND',
         availableInputFields: this.getAvailableInputFieldsForState(stateInstance),
+        // NEW: Pass flow-based inputs and object fields for ValueSourceSelector
+        availableInputs: this.getAvailableInputsForState(stateInstance),
+        sourceObjectFields: this.getSourceObjectFieldsForState(stateInstance),
         inputSlotCount: inputSlotCount,
         allowDynamicInputs: slotConfig?.allowDynamicInputs ?? true,
         maxInputSlots: slotConfig?.maxInputSlots ?? 0
@@ -692,6 +714,7 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
         objectType: fieldValues.objectType || '',
         filterConditions: fieldValues.filterConditions || [],
         availableInputFields: this.getAvailableInputFieldsForState(stateInstance),
+        // TODO: Add availableInputs and sourceObjectFields when FilterListOverlay supports ValueSourceSelector
         inputSlotCount: inputSlotCount,
         allowDynamicInputs: slotConfig?.allowDynamicInputs ?? true,
         maxInputSlots: slotConfig?.maxInputSlots ?? 0
@@ -730,54 +753,374 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   /**
+   * Create a VariableAssignmentOverlayComponent for VariableAssignment states
+   */
+  private createVariableAssignmentOverlay(stateName: string, stateGroup: SVGGElement, stateInstance: NoCodeState): boolean {
+    const fieldValues = stateInstance.boundObjectFieldValues || {};
+
+    // Get available input fields from connected states
+    const availableInputs = this.getAvailableInputsForSelector(stateInstance);
+
+    // Get Solution Object fields from the bound class
+    const solutionObjectFields = this.getSolutionObjectFieldsForState(stateInstance);
+
+    // Get existing variables from context
+    const existingVariables = this.getAvailableInputFieldsForState(stateInstance);
+
+    const componentRef = this.stateOverlayManager.createOverlayForState(
+      stateName,
+      stateGroup,
+      VariableAssignmentOverlayComponent,
+      {
+        stateName: stateName,
+        boundClassName: 'VariableAssignment',
+        availableInputs: availableInputs,
+        solutionObjectFields: solutionObjectFields,
+        existingVariables: existingVariables,
+        boundObjectFieldValues: fieldValues
+      }
+    );
+
+    if (componentRef) {
+      // Enable pointer events for this interactive custom overlay
+      this.stateOverlayManager.setOverlayPointerEvents(stateName, true);
+
+      // Subscribe to assignment change events
+      componentRef.instance.assignmentChanged.subscribe((config: any) => {
+        if (!stateInstance.boundObjectFieldValues) {
+          stateInstance.boundObjectFieldValues = {};
+        }
+        // Store the assignment configuration
+        stateInstance.boundObjectFieldValues.assignmentConfig = config;
+
+        // Also update the service cache
+        if (this.selectedSolutionName) {
+          this.solutionStateService.updateStateFieldValues(
+            this.selectedSolutionName,
+            stateName,
+            { assignmentConfig: config }
+          );
+        }
+      });
+
+      // Subscribe to field values change events
+      componentRef.instance.fieldValuesChanged.subscribe((fieldValues: { [key: string]: any }) => {
+        if (!stateInstance.boundObjectFieldValues) {
+          stateInstance.boundObjectFieldValues = {};
+        }
+        // Merge field values
+        Object.assign(stateInstance.boundObjectFieldValues, fieldValues);
+
+        // Also update the service cache
+        if (this.selectedSolutionName) {
+          this.solutionStateService.updateStateFieldValues(
+            this.selectedSolutionName,
+            stateName,
+            fieldValues
+          );
+        }
+      });
+
+      // Subscribe to new variable created events
+      componentRef.instance.newVariableCreated.subscribe((variable: { name: string; type: string }) => {
+        console.log('[VariableAssignment] ===== NEW VARIABLE EVENT RECEIVED =====');
+        console.log('[VariableAssignment] Variable:', variable);
+        console.log('[VariableAssignment] State Name:', stateName);
+        console.log('[VariableAssignment] State Instance:', stateInstance);
+
+        // Store the output variable info
+        if (!stateInstance.boundObjectFieldValues) {
+          stateInstance.boundObjectFieldValues = {};
+        }
+        stateInstance.boundObjectFieldValues.outputVariable = variable;
+        console.log('[VariableAssignment] Stored outputVariable in boundObjectFieldValues:', stateInstance.boundObjectFieldValues);
+
+        // IMPORTANT: Also update the service cache so context resolution can see the variable
+        if (this.selectedSolutionName) {
+          this.solutionStateService.updateStateFieldValues(
+            this.selectedSolutionName,
+            stateName,
+            { outputVariable: variable }
+          );
+          console.log('[VariableAssignment] Updated service cache with outputVariable');
+        }
+
+        // Ensure an output slot exists
+        if (!stateInstance.slots) {
+          stateInstance.slots = [];
+        }
+
+        // Find or create the output slot
+        let outputSlot = stateInstance.slots.find(s => !s.isInput);
+        if (!outputSlot) {
+          // Create an output slot
+          const slotIndex = stateInstance.slots.length;
+          outputSlot = {
+            index: slotIndex,
+            stateName: stateName,
+            slotAngularPosition: 0, // Right side
+            connectors: [],
+            isInput: false,
+            isOutput: true,
+            allowOneToMany: true,
+            allowManyToOne: false
+          };
+          stateInstance.slots.push(outputSlot);
+          console.log('[VariableAssignment] Created output slot for variable:', variable.name);
+        }
+
+        // Configure the output slot with the variable info
+        (outputSlot as any).parameterName = variable.name;
+        (outputSlot as any).parameterType = variable.type;
+        (outputSlot as any).returnType = variable.type;
+        (outputSlot as any).label = variable.name;
+
+        console.log('[VariableAssignment] Configured output slot:', outputSlot);
+      });
+
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Create an InitialStateOverlayComponent for InitialState states
+   */
+  private createInitialStateOverlay(stateName: string, stateGroup: SVGGElement, stateInstance: NoCodeState): boolean {
+    const fieldValues = stateInstance.boundObjectFieldValues || {};
+
+    // Get Solution Object fields
+    const solutionFields = this.getSolutionObjectFieldsForState(stateInstance);
+
+    // Get solution info
+    const solutionData = this.selectedSolutionName
+      ? this.solutionStateService.getSolutionData(this.selectedSolutionName)
+      : null;
+
+    const boundClass = solutionData?.boundClass;
+
+    // Get input params from bound field values
+    const inputParams = fieldValues.inputParams || [];
+
+    const componentRef = this.stateOverlayManager.createOverlayForState(
+      stateName,
+      stateGroup,
+      InitialStateOverlayComponent,
+      {
+        stateName: stateName,
+        boundClassName: 'InitialState',
+        solutionName: this.selectedSolutionName || '',
+        solutionClassName: boundClass?.className || boundClass?.displayName || '',
+        solutionDescription: boundClass?.description || '',
+        solutionFields: solutionFields,
+        inputParams: inputParams
+      }
+    );
+
+    if (componentRef) {
+      // InitialState overlay is read-only, no events to subscribe to
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Create a MathOperationOverlayComponent for MathOperation states
+   */
+  private createMathOperationOverlay(stateName: string, stateGroup: SVGGElement, stateInstance: NoCodeState): boolean {
+    const fieldValues = stateInstance.boundObjectFieldValues || {};
+
+    // Get available inputs from connected states
+    const availableInputs = this.getAvailableInputsForSelector(stateInstance);
+
+    // Get Solution Object fields
+    const solutionObjectFields = this.getSolutionObjectFieldsForState(stateInstance);
+
+    const componentRef = this.stateOverlayManager.createOverlayForState(
+      stateName,
+      stateGroup,
+      MathOperationOverlayComponent,
+      {
+        stateName: stateName,
+        boundClassName: 'MathOperation',
+        availableInputs: availableInputs,
+        solutionObjectFields: solutionObjectFields,
+        boundObjectFieldValues: fieldValues
+      }
+    );
+
+    if (componentRef) {
+      // Enable pointer events for this interactive custom overlay
+      this.stateOverlayManager.setOverlayPointerEvents(stateName, true);
+
+      // Subscribe to operation change events
+      componentRef.instance.operationChanged.subscribe((config: any) => {
+        if (!stateInstance.boundObjectFieldValues) {
+          stateInstance.boundObjectFieldValues = {};
+        }
+        stateInstance.boundObjectFieldValues.operationConfig = config;
+      });
+
+      // Subscribe to field values change events
+      componentRef.instance.fieldValuesChanged.subscribe((fieldValues: { [key: string]: any }) => {
+        if (!stateInstance.boundObjectFieldValues) {
+          stateInstance.boundObjectFieldValues = {};
+        }
+        Object.assign(stateInstance.boundObjectFieldValues, fieldValues);
+      });
+
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Get Solution Object fields for a state (from the solution's bound class)
+   */
+  private getSolutionObjectFieldsForState(stateInstance: NoCodeState): { name: string; displayName: string; type: string; path: string; description?: string }[] {
+    if (!this.selectedSolutionName) {
+      return [];
+    }
+
+    // Get the raw solution data which contains the boundClass
+    const solutionData = this.solutionStateService.getSolutionData(this.selectedSolutionName);
+    if (!solutionData?.boundClass) {
+      return [];
+    }
+
+    const boundClass = solutionData.boundClass;
+    return (boundClass.fields || []).map(field => ({
+      name: field.name,
+      displayName: field.displayName || field.name,
+      type: field.type,
+      path: field.name,
+      description: field.description
+    }));
+  }
+
+  /**
+   * Get available inputs formatted for ValueSourceSelector
+   */
+  private getAvailableInputsForSelector(stateInstance: NoCodeState): { slotIndex: number; variableName: string; type: string; sourceStateName: string }[] {
+    const inputs: { slotIndex: number; variableName: string; type: string; sourceStateName: string }[] = [];
+
+    // Use the PotentialContext from the service for proper flow tracing
+    if (this.selectedSolutionName && stateInstance.stateName) {
+      const context = this.solutionStateService.getPotentialContextForState(
+        this.selectedSolutionName,
+        stateInstance.stateName
+      );
+
+      // Convert PotentialVariables to the input selector format
+      let slotIndex = 0;
+      for (const variable of context.getVariables()) {
+        inputs.push({
+          slotIndex: variable.inputSlotIndex ?? slotIndex,
+          variableName: variable.name,
+          type: variable.type,
+          sourceStateName: variable.sourceStateName
+        });
+        slotIndex++;
+      }
+    }
+
+    return inputs;
+  }
+
+  /**
    * Get available input fields for a state based on connected input slots
    * This provides field options for conditional/filter dropdowns
+   * Uses flow-based context resolution to trace through the solution graph
    */
   private getAvailableInputFieldsForState(stateInstance: NoCodeState): { name: string; type: string; source: string }[] {
     const fields: { name: string; type: string; source: string }[] = [];
 
-    // Find all states connected to this state's input slots
-    const inputSlots = stateInstance.slots?.filter(s => s.isInput) || [];
+    // Use the PotentialContext from the service for proper flow tracing
+    if (this.selectedSolutionName && stateInstance.stateName) {
+      const context = this.solutionStateService.getPotentialContextForState(
+        this.selectedSolutionName,
+        stateInstance.stateName
+      );
 
-    for (const slot of inputSlots) {
-      // Look for connectors pointing to this slot
-      for (const sourceState of this.stateInstances) {
-        const sourceSlots = sourceState.slots?.filter(s => !s.isInput) || [];
-        for (const sourceSlot of sourceSlots) {
-          const connector = sourceSlot.connectors?.find(
-            c => c.targetStateName === stateInstance.stateName && c.sinkSlot === slot.index
-          );
-          if (connector) {
-            // Get the output fields from the source state's class
-            const sourceClass = sourceState.stateClass || sourceState.boundObjectClass;
-            if (sourceClass) {
-              const metadata = this.stateSpaceRegistry.getClass(sourceClass);
-              if (metadata?.variables) {
-                for (const variable of metadata.variables) {
-                  fields.push({
-                    name: variable.name,
-                    type: variable.type,
-                    source: sourceState.stateName || 'unknown'
-                  });
-                }
-              }
-            }
-          }
-        }
+      // Convert PotentialVariables to the legacy format
+      for (const variable of context.getVariables()) {
+        fields.push({
+          name: variable.name,
+          type: variable.type,
+          source: variable.sourceStateName
+        });
       }
     }
 
-    // Add some default fields if none found
-    if (fields.length === 0) {
-      fields.push(
-        { name: 'value', type: 'any', source: 'input' },
-        { name: 'status', type: 'string', source: 'input' },
-        { name: 'count', type: 'number', source: 'input' },
-        { name: 'isValid', type: 'boolean', source: 'input' }
+    return fields;
+  }
+
+  /**
+   * Get the PotentialContext for a state - provides full flow-based context
+   * including available variables and object types
+   */
+  private getPotentialContextForState(stateInstance: NoCodeState) {
+    if (this.selectedSolutionName && stateInstance.stateName) {
+      return this.solutionStateService.getPotentialContextForState(
+        this.selectedSolutionName,
+        stateInstance.stateName
       );
     }
+    return null;
+  }
 
-    return fields;
+  /**
+   * Get available inputs formatted for ValueSourceSelector
+   * Converts from PotentialContext to the AvailableInput format
+   */
+  private getAvailableInputsForState(stateInstance: NoCodeState): {
+    slotIndex: number;
+    variableName: string;
+    type: string;
+    sourceStateName?: string;
+    label?: string;
+  }[] {
+    if (!this.selectedSolutionName || !stateInstance.stateName) {
+      return [];
+    }
+
+    const context = this.solutionStateService.getPotentialContextForState(
+      this.selectedSolutionName,
+      stateInstance.stateName
+    );
+
+    return context.getVariables().map(v => ({
+      slotIndex: v.inputSlotIndex ?? 0,
+      variableName: v.name,
+      type: v.type,
+      sourceStateName: v.sourceStateName,
+      label: v.label || v.name
+    }));
+  }
+
+  /**
+   * Get source object fields formatted for ValueSourceSelector
+   * Converts from PotentialContext to the SourceObjectField format
+   */
+  private getSourceObjectFieldsForState(stateInstance: NoCodeState): {
+    path: string;
+    type: string;
+    displayName?: string;
+  }[] {
+    if (!this.selectedSolutionName || !stateInstance.stateName) {
+      return [];
+    }
+
+    const context = this.solutionStateService.getPotentialContextForState(
+      this.selectedSolutionName,
+      stateInstance.stateName
+    );
+
+    return context.getAllObjectFields().map(f => ({
+      path: f.path,
+      type: f.type,
+      displayName: f.displayName
+    }));
   }
 
   /**
@@ -1742,7 +2085,12 @@ private dragRectangle(): any {
       triggerType: (slot as any).triggerType,
       sourceInstance: (slot as any).sourceInstance,
       propertyPath: (slot as any).propertyPath,
-      passthroughVariableName: (slot as any).passthroughVariableName
+      passthroughVariableName: (slot as any).passthroughVariableName,
+      // Conditional output configuration
+      isConditional: (slot as any).isConditional,
+      conditionLabel: (slot as any).conditionLabel,
+      conditionExpression: (slot as any).conditionExpression,
+      conditionalGroup: (slot as any).conditionalGroup
     };
 
     // Position the popup at the click position
@@ -1751,8 +2099,85 @@ private dragRectangle(): any {
       x: event.clientX,
       y: event.clientY
     };
+
+    // Get context and state class for the slot's state
+    if (this.selectedSolutionName) {
+      console.log('[handleSlotContextMenu] Getting context for state:', stateName);
+      this.slotConfigStateContext = this.solutionStateService.getPotentialContextForState(
+        this.selectedSolutionName,
+        stateName
+      );
+      console.log('[handleSlotContextMenu] State context:', this.slotConfigStateContext);
+      this.slotConfigStateClass = stateInstance.stateClass || '';
+      console.log('[handleSlotContextMenu] State class:', this.slotConfigStateClass);
+
+      // Get produced variables from the state (for VariableAssignment, MathOperation, etc.)
+      console.log('[handleSlotContextMenu] Getting produced variables from state instance:', stateInstance);
+      this.slotConfigProducedVariables = this.getProducedVariablesForState(stateInstance);
+      console.log('[handleSlotContextMenu] Produced variables:', this.slotConfigProducedVariables);
+    } else {
+      this.slotConfigStateContext = null;
+      this.slotConfigStateClass = '';
+      this.slotConfigProducedVariables = [];
+    }
+
     this.slotConfigPopupVisible = true;
     this.changeDetectorRef.markForCheck();
+  }
+
+  /**
+   * Get produced variables from a state's boundObjectFieldValues
+   */
+  private getProducedVariablesForState(stateInstance: NoCodeState | { boundObjectFieldValues?: { [key: string]: any } }): ProducedVariable[] {
+    console.log('[getProducedVariablesForState] ===== GETTING PRODUCED VARIABLES =====');
+    console.log('[getProducedVariablesForState] State Instance:', stateInstance);
+    console.log('[getProducedVariablesForState] boundObjectFieldValues:', stateInstance.boundObjectFieldValues);
+
+    const produced: ProducedVariable[] = [];
+
+    if (!stateInstance.boundObjectFieldValues) {
+      console.log('[getProducedVariablesForState] No boundObjectFieldValues, returning empty');
+      return produced;
+    }
+
+    // Check for outputVariable (from VariableAssignment)
+    const outputVar = stateInstance.boundObjectFieldValues.outputVariable;
+    if (outputVar && outputVar.name && outputVar.type) {
+      produced.push({
+        name: outputVar.name,
+        type: outputVar.type
+      });
+    }
+
+    // Check for new variable name and type directly (alternative storage format)
+    const variableName = stateInstance.boundObjectFieldValues.variableName;
+    const dataType = stateInstance.boundObjectFieldValues.dataType;
+    const assignmentConfig = stateInstance.boundObjectFieldValues.assignmentConfig;
+
+    // If we have assignment config and it's a new_variable target type
+    if (assignmentConfig && assignmentConfig.targetType === 'new_variable' && assignmentConfig.variableName) {
+      // Check if not already in produced
+      if (!produced.find(p => p.name === assignmentConfig.variableName)) {
+        produced.push({
+          name: assignmentConfig.variableName,
+          type: assignmentConfig.dataType || 'any'
+        });
+      }
+    }
+
+    // Check for MathOperation result variable
+    const mathConfig = stateInstance.boundObjectFieldValues.mathConfig;
+    if (mathConfig && mathConfig.resultTarget === 'new_variable' && mathConfig.resultVariableName) {
+      if (!produced.find(p => p.name === mathConfig.resultVariableName)) {
+        produced.push({
+          name: mathConfig.resultVariableName,
+          type: 'number'
+        });
+      }
+    }
+
+    console.log('[getProducedVariablesForState] Returning produced variables:', produced);
+    return produced;
   }
 
   /**
@@ -1784,6 +2209,9 @@ private dragRectangle(): any {
         break;
       case 'manageSlots':
         this.handleManageSlotsAction(action);
+        break;
+      case 'viewContext':
+        this.handleViewContextAction(action);
         break;
     }
 
@@ -1933,6 +2361,44 @@ private dragRectangle(): any {
     this.changeDetectorRef.markForCheck();
   }
 
+  // ==================== View Context Overlay Methods ====================
+
+  /**
+   * Handle view context action from context menu
+   * Opens the View Context overlay to inspect the PotentialContext at this state
+   */
+  private handleViewContextAction(action: StateContextMenuAction): void {
+    if (!this.selectedSolutionName) return;
+
+    // Get the potential context for this state
+    const context = this.solutionStateService.getPotentialContextForState(
+      this.selectedSolutionName,
+      action.stateName
+    );
+
+    console.log('[handleViewContextAction] Context for state:', action.stateName, context);
+
+    // Position the overlay near the context menu position
+    this.viewContextOverlayStateName = action.stateName;
+    this.viewContextOverlayContext = context;
+    this.viewContextOverlayPosition = {
+      x: this.contextMenuPosition.x + 20,
+      y: this.contextMenuPosition.y + 20
+    };
+    this.viewContextOverlayVisible = true;
+    this.changeDetectorRef.markForCheck();
+  }
+
+  /**
+   * Close the view context overlay
+   */
+  closeViewContextOverlay(): void {
+    this.viewContextOverlayVisible = false;
+    this.viewContextOverlayStateName = '';
+    this.viewContextOverlayContext = null;
+    this.changeDetectorRef.markForCheck();
+  }
+
   /**
    * Close the slot manager popup
    */
@@ -2073,7 +2539,12 @@ private dragRectangle(): any {
         allowManyToOne: false,
         color: slotConfig.color,
         mappingMode: slotConfig.mappingMode,
-        label: slotConfig.label
+        label: slotConfig.label,
+        // Conditional output properties
+        isConditional: slotConfig.isConditional,
+        conditionLabel: slotConfig.conditionLabel,
+        conditionExpression: slotConfig.conditionExpression,
+        conditionalGroup: slotConfig.conditionalGroup
       });
     });
 
@@ -2093,11 +2564,50 @@ private dragRectangle(): any {
    * Handle request to open individual slot configuration
    */
   onSlotConfigRequested(slotConfig: SlotConfiguration): void {
+    console.log('[onSlotConfigRequested] ===== SLOT CONFIG REQUESTED =====');
+    console.log('[onSlotConfigRequested] SlotConfig:', slotConfig);
+
     this.currentSlotConfig = slotConfig;
     this.slotConfigPosition = {
       x: this.slotManagerPosition.x + 320,
       y: this.slotManagerPosition.y
     };
+
+    // Get context and state class for the slot's state
+    if (this.selectedSolutionName && slotConfig.stateName) {
+      this.slotConfigStateContext = this.solutionStateService.getPotentialContextForState(
+        this.selectedSolutionName,
+        slotConfig.stateName
+      );
+      console.log('[onSlotConfigRequested] State context:', this.slotConfigStateContext);
+
+      // Get state class from the solution - NOTE: this gets from service, not this.stateInstances
+      const solution = this.solutionStateService.getSolutionData(this.selectedSolutionName);
+      const stateFromService = solution?.stateInstances.find(s => s.stateName === slotConfig.stateName);
+      console.log('[onSlotConfigRequested] State from service:', stateFromService);
+
+      // Also check this.stateInstances for comparison
+      const stateFromLocal = this.stateInstances.find(s => s.stateName === slotConfig.stateName);
+      console.log('[onSlotConfigRequested] State from local stateInstances:', stateFromLocal);
+      console.log('[onSlotConfigRequested] Local state boundObjectFieldValues:', stateFromLocal?.boundObjectFieldValues);
+
+      this.slotConfigStateClass = stateFromService?.stateClass || '';
+
+      // Get produced variables from the LOCAL state (which has the latest boundObjectFieldValues)
+      if (stateFromLocal) {
+        this.slotConfigProducedVariables = this.getProducedVariablesForState(stateFromLocal);
+      } else if (stateFromService) {
+        this.slotConfigProducedVariables = this.getProducedVariablesForState(stateFromService);
+      } else {
+        this.slotConfigProducedVariables = [];
+      }
+      console.log('[onSlotConfigRequested] Produced variables:', this.slotConfigProducedVariables);
+    } else {
+      this.slotConfigStateContext = null;
+      this.slotConfigStateClass = '';
+      this.slotConfigProducedVariables = [];
+    }
+
     this.slotConfigPopupVisible = true;
     this.changeDetectorRef.markForCheck();
   }
@@ -2108,6 +2618,9 @@ private dragRectangle(): any {
   closeSlotConfigPopup(): void {
     this.slotConfigPopupVisible = false;
     this.currentSlotConfig = null;
+    this.slotConfigStateContext = null;
+    this.slotConfigStateClass = '';
+    this.slotConfigProducedVariables = [];
     this.changeDetectorRef.markForCheck();
   }
 
@@ -2182,7 +2695,12 @@ private dragRectangle(): any {
             triggerType: (s as any).triggerType,
             sourceInstance: (s as any).sourceInstance,
             propertyPath: (s as any).propertyPath,
-            passthroughVariableName: (s as any).passthroughVariableName
+            passthroughVariableName: (s as any).passthroughVariableName,
+            // Conditional output properties
+            isConditional: (s as any).isConditional,
+            conditionLabel: (s as any).conditionLabel,
+            conditionExpression: (s as any).conditionExpression,
+            conditionalGroup: (s as any).conditionalGroup
           }));
 
           this.solutionStateService.updateStateSlots(
@@ -2259,6 +2777,61 @@ private dragRectangle(): any {
     // Get class metadata for default configuration
     const classMetadata = this.stateSpaceRegistry.getClass(item.sourceClassName);
 
+    // Create default slots from class metadata
+    const slots: any[] = [];
+    if (classMetadata?.slotConfiguration) {
+      const slotConfig = classMetadata.slotConfiguration;
+      let slotIndex = 0;
+
+      // Create input slots
+      const inputCount = slotConfig.defaultInputCount || 0;
+      for (let i = 0; i < inputCount; i++) {
+        slots.push({
+          index: slotIndex++,
+          stateName: stateName,
+          slotAngularPosition: 180 - (i * 30) + ((inputCount - 1) * 15),
+          connectors: [],
+          isInput: true,
+          isOutput: false,
+          allowOneToMany: false,
+          allowManyToOne: true,
+          label: slotConfig.inputLabels?.[i] || `I${i}`,
+          color: '#2196f3' // default blue
+        });
+      }
+
+      // Create output slots
+      const outputCount = slotConfig.defaultOutputCount || 0;
+      for (let i = 0; i < outputCount; i++) {
+        const outputSlot: any = {
+          index: slotIndex++,
+          stateName: stateName,
+          slotAngularPosition: (i * 45) - ((outputCount - 1) * 22.5),
+          connectors: [],
+          isInput: false,
+          isOutput: true,
+          allowOneToMany: true,
+          allowManyToOne: false,
+          label: slotConfig.outputLabels?.[i] || `O${i}`,
+          color: '#4caf50' // default green
+        };
+
+        // Apply conditional output configuration if present
+        if (slotConfig.conditionalOutputs && slotConfig.conditionalOutputs[i]) {
+          const condConfig = slotConfig.conditionalOutputs[i];
+          outputSlot.isConditional = true;
+          outputSlot.conditionLabel = condConfig.conditionLabel;
+          outputSlot.conditionExpression = condConfig.conditionExpression;
+          outputSlot.conditionalGroup = condConfig.conditionalGroup;
+          if (condConfig.color) {
+            outputSlot.color = condConfig.color;
+          }
+        }
+
+        slots.push(outputSlot);
+      }
+    }
+
     // Create new state instance
     const newState = new NoCodeState(
       stateName,
@@ -2274,7 +2847,9 @@ private dragRectangle(): any {
       200 + Math.random() * 300, // Random Y position
       `state_${Date.now()}`, // Unique ID
       undefined, // stateSvgName
-      [], // slots (will be populated based on class)
+      slots.map(s => new Slot(
+        s.index, s.stateName, s.slotAngularPosition, [], s.isInput, s.allowOneToMany, s.allowManyToOne
+      )), // Create Slot instances
       4, // slotRadius
       item.color || '#3f51b5' // backgroundColor
     );
@@ -2290,7 +2865,7 @@ private dragRectangle(): any {
     // Add to solution
     this.noCodeSolution.stateInstances.push(newState);
 
-    // Persist to state service
+    // Persist to state service (include all slot properties including conditional)
     this.solutionStateService.addStateToSolution(this.selectedSolutionName, {
       id: newState.id || `state_${Date.now()}`,
       stateName: newState.stateName || stateName,
@@ -2305,7 +2880,7 @@ private dragRectangle(): any {
       stateSvgSizeY: newState.stateSvgSizeY ?? null,
       stateSvgRadius: newState.stateSvgRadius ?? 100,
       stateSvgName: newState.stateSvgName || '',
-      slots: [],
+      slots: slots, // Include full slot data with conditional properties
       slotRadius: newState.slotRadius ?? 4,
       backgroundColor: newState.backgroundColor || item.color || '#3f51b5'
     });
@@ -2313,7 +2888,7 @@ private dragRectangle(): any {
     // Re-render the solution to show the new state
     this.loadSelectedSolution();
 
-    console.log('[CustomNoCode] Created new state:', stateName);
+    console.log('[CustomNoCode] Created new state:', stateName, 'with', slots.length, 'slots');
   }
 
   /**

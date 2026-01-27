@@ -12,6 +12,31 @@
     <span class="slot-index">Slot #{{ editedConfig.index }}</span>
   </div>
 
+  <!-- Conditional Output Indicator -->
+  <div class="conditional-output-banner" *ngIf="!editedConfig.isInput && editedConfig.isConditional">
+    <mat-icon>call_split</mat-icon>
+    <div class="conditional-info">
+      <span class="conditional-label">{{ editedConfig.conditionLabel || 'Conditional Output' }}</span>
+      <span class="conditional-hint">Only fires when condition is met</span>
+    </div>
+    <span class="conditional-group-badge" *ngIf="editedConfig.conditionalGroup">
+      {{ editedConfig.conditionalGroup }}
+    </span>
+  </div>
+
+  <!-- State Type Indicator -->
+  <div class="state-type-indicator" *ngIf="stateClass">
+    <mat-icon *ngIf="isInitialState()">play_circle</mat-icon>
+    <mat-icon *ngIf="isControlFlowState() && !isInitialState()">call_split</mat-icon>
+    <mat-icon *ngIf="!isControlFlowState()">check_box</mat-icon>
+    <span>{{ stateClass }}</span>
+    <span class="context-indicator">
+      <span *ngIf="hasSolutionObject()" class="context-badge solution">Solution Object</span>
+      <span *ngIf="hasFlowVariables()" class="context-badge variables">{{ stateContext?.variables?.size || 0 }} vars</span>
+      <span *ngIf="hasProducedVariables()" class="context-badge produced">{{ producedVariables.length }} created</span>
+    </span>
+  </div>
+
   <!-- Scrollable content area -->
   <div class="popup-content">
 
@@ -107,31 +132,29 @@
     <!-- Property Path (for reactive outputs) -->
     <div class="config-section" *ngIf="!editedConfig.isInput && editedConfig.triggerType === 'reactive'">
       <label class="section-label">Property Path</label>
-      <input type="text"
+      <!-- Show dropdown if we have solution object fields -->
+      <select *ngIf="getSolutionObjectFields().length > 0"
+              class="text-input"
+              [(ngModel)]="editedConfig.propertyPath">
+        <option value="">-- Select a field --</option>
+        <option *ngFor="let field of getSolutionObjectFields()" [value]="field.path">
+          {{ field.displayName }} ({{ field.type }})
+        </option>
+      </select>
+      <!-- Fallback to text input if no fields available -->
+      <input *ngIf="getSolutionObjectFields().length === 0"
+             type="text"
              class="text-input"
              [(ngModel)]="editedConfig.propertyPath"
              placeholder="e.g., status, items.length, user.name">
       <p class="section-hint">The property to monitor for changes</p>
     </div>
 
-    <!-- Functional Output Mode Selection -->
+    <!-- Functional Output Mode Selection (Context-Aware) -->
     <div class="config-section" *ngIf="!editedConfig.isInput && editedConfig.triggerType === 'functional'">
       <label class="section-label">Output Source</label>
       <div class="mapping-modes">
-        <!-- Instance State option -->
-        <div class="mapping-option compact"
-             [class.selected]="editedConfig.mappingMode === 'instance_state'"
-             (click)="onMappingModeSelect('instance_state')">
-          <div class="option-header">
-            <mat-icon class="option-radio">
-              {{ editedConfig.mappingMode === 'instance_state' ? 'radio_button_checked' : 'radio_button_unchecked' }}
-            </mat-icon>
-            <span class="option-label">Instance State</span>
-          </div>
-          <p class="option-description">Output from bound object's final state</p>
-        </div>
-        <!-- Functional-only modes -->
-        <div *ngFor="let mode of functionalOnlyOutputModes"
+        <div *ngFor="let mode of getAvailableFunctionalOutputModes()"
              class="mapping-option compact"
              [class.selected]="editedConfig.mappingMode === mode.value"
              (click)="onMappingModeSelect(mode.value)">
@@ -143,6 +166,14 @@
           </div>
           <p class="option-description">{{ mode.description }}</p>
         </div>
+      </div>
+    </div>
+
+    <!-- Proceed Only Info -->
+    <div class="config-section info-section" *ngIf="!editedConfig.isInput && editedConfig.mappingMode === 'proceed_only'">
+      <div class="info-box">
+        <mat-icon>info</mat-icon>
+        <p>This output will trigger the next state without passing any specific data. The next state will still have access to the Solution Object.</p>
       </div>
     </div>
 
@@ -168,21 +199,101 @@
     <!-- Property Path (for functional instance_state) -->
     <div class="config-section" *ngIf="!editedConfig.isInput && editedConfig.triggerType === 'functional' && editedConfig.mappingMode === 'instance_state'">
       <label class="section-label">Property Path</label>
-      <input type="text"
+      <!-- Show dropdown if we have solution object fields -->
+      <select *ngIf="getSolutionObjectFields().length > 0"
+              class="text-input"
+              [(ngModel)]="editedConfig.propertyPath">
+        <option value="">-- Select a field --</option>
+        <option *ngFor="let field of getSolutionObjectFields()" [value]="field.path">
+          {{ field.displayName }} ({{ field.type }})
+        </option>
+      </select>
+      <!-- Fallback to text input if no fields available -->
+      <input *ngIf="getSolutionObjectFields().length === 0"
+             type="text"
              class="text-input"
              [(ngModel)]="editedConfig.propertyPath"
-             placeholder="e.g., status, items.length, user.name">
+             placeholder="e.g., status, items.length">
       <p class="section-hint">The property to output when operations complete</p>
     </div>
 
-    <!-- Passthrough Variable Name (for variable_passthrough) -->
-    <div class="config-section" *ngIf="!editedConfig.isInput && editedConfig.mappingMode === 'variable_passthrough'">
+    <!-- Function Return Value Selector -->
+    <div class="config-section" *ngIf="shouldShowFunctionReturnSelector()">
+      <label class="section-label">
+        Select Values to Return
+        <span class="selection-count">({{ getSelectedReturnValueCount() }} selected)</span>
+      </label>
+
+      <div class="context-value-groups">
+        <div *ngFor="let group of getContextValuesBySource()" class="context-value-group">
+          <div class="group-header">
+            <mat-icon *ngIf="group.source === 'solution_object_field'">apartment</mat-icon>
+            <mat-icon *ngIf="group.source === 'variable'">data_object</mat-icon>
+            <mat-icon *ngIf="group.source === 'state_object_field'">class</mat-icon>
+            <span>{{ group.label }}</span>
+          </div>
+          <div class="context-value-list">
+            <div *ngFor="let value of group.values"
+                 class="context-value-item"
+                 [class.selected]="value.selected"
+                 (click)="toggleContextValueSelection(value)">
+              <mat-icon class="checkbox-icon">
+                {{ value.selected ? 'check_box' : 'check_box_outline_blank' }}
+              </mat-icon>
+              <span class="value-name">{{ value.displayName }}</span>
+              <span class="value-type">{{ value.type }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p class="section-hint" *ngIf="getSelectedReturnValueCount() === 0">
+        Select at least one value to pass to the next state
+      </p>
+    </div>
+
+    <!-- Variable Passthrough Selection -->
+    <div class="config-section" *ngIf="shouldShowVariablePassthrough()">
+      <label class="section-label">Select Variable to Pass Through</label>
+      <select class="text-input"
+              [(ngModel)]="editedConfig.passthroughVariableName">
+        <option value="">-- Select a variable --</option>
+        <option *ngFor="let variable of getFlowVariables()" [value]="variable.name">
+          {{ variable.name }} ({{ variable.type }}) - from {{ variable.sourceStateName }}
+        </option>
+      </select>
+      <p class="section-hint">Which input variable to forward to the next state</p>
+    </div>
+
+    <!-- Fallback: Manual Variable Name (if no context) -->
+    <div class="config-section" *ngIf="!editedConfig.isInput && editedConfig.mappingMode === 'variable_passthrough' && !hasFlowVariables()">
       <label class="section-label">Passthrough Variable Name</label>
       <input type="text"
              class="text-input"
              [(ngModel)]="editedConfig.passthroughVariableName"
              placeholder="e.g., orderId, userId">
       <p class="section-hint">Which input variable to forward to the next state</p>
+    </div>
+
+    <!-- Produced Variable Selection -->
+    <div class="config-section" *ngIf="shouldShowProducedVariable()">
+      <label class="section-label">Variable Created by This State</label>
+      <div class="produced-variable-list">
+        <div *ngFor="let pv of getProducedVariables()"
+             class="produced-variable-item"
+             [class.selected]="editedConfig.passthroughVariableName === pv.name"
+             (click)="editedConfig.passthroughVariableName = pv.name">
+          <mat-icon class="checkbox-icon">
+            {{ editedConfig.passthroughVariableName === pv.name ? 'radio_button_checked' : 'radio_button_unchecked' }}
+          </mat-icon>
+          <span class="value-name">{{ pv.name }}</span>
+          <span class="value-type">{{ pv.type }}</span>
+        </div>
+      </div>
+      <div class="info-box produced-variable-info" *ngIf="getProducedVariables().length > 0">
+        <mat-icon>info</mat-icon>
+        <p>This variable will be created by this state and passed to connected states.</p>
+      </div>
     </div>
 
     <!-- Parameter Info (for inputs) -->

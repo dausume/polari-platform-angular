@@ -16,6 +16,14 @@ import {
   getAvailableSolutionNames
 } from '@models/noCode/mock-NCS-data';
 import { StateDefinition } from '@models/noCode/StateDefinition';
+import {
+  PotentialContext,
+  PotentialVariable,
+  PotentialObjectType,
+  PotentialObjectField,
+  BranchPoint,
+  CONTROL_FLOW_STATE_TYPES
+} from '@models/stateSpace/solutionContext';
 
 /**
  * Cache structure stored in localStorage
@@ -24,10 +32,11 @@ interface SolutionCache {
   solutions: { [solutionName: string]: NoCodeSolutionRawData };
   selectedSolutionName: string | null;
   lastUpdated: number;
+  version?: number; // Cache version for invalidation when mock data changes
 }
 
 const CACHE_KEY = 'polari-no-code-solutions-cache';
-const CACHE_VERSION = 1;
+const CACHE_VERSION = 3; // Bump version when mock data changes to force cache invalidation
 
 @Injectable({
   providedIn: 'root'
@@ -63,12 +72,15 @@ export class NoCodeSolutionStateService {
     const cached = this.loadFromLocalStorage();
     console.log('[StateService] initializeFromCache - cached:', cached);
 
-    // Check if cache has all expected mock solutions
-    const expectedSolutionCount = MOCK_SOLUTIONS.length;
-    const cachedSolutionCount = cached ? Object.keys(cached.solutions).length : 0;
+    // Check cache validity: version must match AND solution names must match exactly
+    const expectedSolutionNames = MOCK_SOLUTIONS.map(s => s.solutionName).sort();
+    const cachedSolutionNames = cached ? Object.keys(cached.solutions).sort() : [];
+    const versionMatch = cached?.version === CACHE_VERSION;
+    const namesMatch = expectedSolutionNames.length === cachedSolutionNames.length &&
+      expectedSolutionNames.every((name, i) => name === cachedSolutionNames[i]);
 
-    if (cached && cachedSolutionCount >= expectedSolutionCount) {
-      console.log('[StateService] Restoring from cache');
+    if (cached && versionMatch && namesMatch) {
+      console.log('[StateService] Restoring from cache (version', cached.version, ')');
       // Restore from cache
       Object.entries(cached.solutions).forEach(([name, data]) => {
         console.log('[StateService] Restoring solution:', name, 'with', data.stateInstances?.length, 'states');
@@ -84,7 +96,10 @@ export class NoCodeSolutionStateService {
         this.selectSolution(cached.selectedSolutionName);
       }
     } else {
-      console.log('[StateService] Cache missing or incomplete (expected', expectedSolutionCount, 'solutions, found', cachedSolutionCount, '), loading mock solutions');
+      console.log('[StateService] Cache invalid - version match:', versionMatch,
+        ', names match:', namesMatch,
+        ', expected:', expectedSolutionNames,
+        ', cached:', cachedSolutionNames);
       // Initialize with mock data (cache is stale or missing)
       this.loadMockSolutions();
     }
@@ -143,7 +158,8 @@ export class NoCodeSolutionStateService {
       const cache: SolutionCache = {
         solutions: {},
         selectedSolutionName: this.selectedSolutionNameSubject.value,
-        lastUpdated: Date.now()
+        lastUpdated: Date.now(),
+        version: CACHE_VERSION
       };
 
       this.solutionsCache.forEach((solution, name) => {
@@ -920,6 +936,147 @@ export class NoCodeSolutionStateService {
     }
   }
 
+  // ==================== Input Tracing Methods ====================
+
+  /**
+   * Get all available input variables for a state by tracing back through connectors.
+   * This is used by ValueSourceSelector to populate the "From Input" dropdown.
+   *
+   * @param solutionName - The name of the solution
+   * @param stateName - The name of the state to get inputs for
+   * @returns Array of available input variables with their source information
+   */
+  getAvailableInputsForState(solutionName: string, stateName: string): {
+    slotIndex: number;
+    variableName: string;
+    type: string;
+    sourceStateName: string;
+    label?: string;
+  }[] {
+    const solution = this.solutionsCache.get(solutionName);
+    if (!solution) return [];
+
+    const targetState = solution.stateInstances.find(s => s.stateName === stateName);
+    if (!targetState || !targetState.slots) return [];
+
+    const availableInputs: {
+      slotIndex: number;
+      variableName: string;
+      type: string;
+      sourceStateName: string;
+      label?: string;
+    }[] = [];
+
+    // Find all input slots for this state
+    const inputSlots = targetState.slots.filter(slot => slot.isInput);
+
+    for (const inputSlot of inputSlots) {
+      // Find the source connector that connects TO this input slot
+      const sourceInfo = this.findSourceForInputSlot(solution, stateName, inputSlot.index);
+
+      if (sourceInfo) {
+        availableInputs.push({
+          slotIndex: inputSlot.index,
+          variableName: sourceInfo.variableName || inputSlot.parameterName || `input_${inputSlot.index}`,
+          type: sourceInfo.type || inputSlot.parameterType || 'any',
+          sourceStateName: sourceInfo.sourceStateName,
+          label: inputSlot.label || sourceInfo.variableName
+        });
+      } else {
+        // No connection found, but still report the slot
+        availableInputs.push({
+          slotIndex: inputSlot.index,
+          variableName: inputSlot.parameterName || `input_${inputSlot.index}`,
+          type: inputSlot.parameterType || 'any',
+          sourceStateName: '(not connected)',
+          label: inputSlot.label
+        });
+      }
+    }
+
+    return availableInputs;
+  }
+
+  /**
+   * Find the source state and variable that connects to a specific input slot
+   */
+  private findSourceForInputSlot(
+    solution: NoCodeSolutionRawData,
+    targetStateName: string,
+    targetSlotIndex: number
+  ): { sourceStateName: string; variableName: string; type: string } | null {
+    // Search all states for connectors that target this input slot
+    for (const state of solution.stateInstances) {
+      if (!state.slots) continue;
+
+      for (const slot of state.slots) {
+        // Only check output slots (non-input)
+        if (slot.isInput) continue;
+
+        for (const connector of slot.connectors || []) {
+          if (connector.targetStateName === targetStateName && connector.sinkSlot === targetSlotIndex) {
+            // Found the source! Extract variable information
+            return {
+              sourceStateName: state.stateName,
+              variableName: slot.passthroughVariableName || slot.label || `output_${slot.index}`,
+              type: slot.returnType || slot.parameterType || 'any'
+            };
+          }
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Get source object fields for a state (properties of self/bound object)
+   * Used by ValueSourceSelector for "From Source Object" option.
+   */
+  getSourceObjectFieldsForState(solutionName: string, stateName: string): {
+    path: string;
+    type: string;
+    displayName?: string;
+  }[] {
+    const solution = this.solutionsCache.get(solutionName);
+    if (!solution) return [];
+
+    const state = solution.stateInstances.find(s => s.stateName === stateName);
+    if (!state) return [];
+
+    const fields: { path: string; type: string; displayName?: string }[] = [];
+
+    // If there's a bound class, get its fields
+    if (solution.boundClass?.fields) {
+      for (const field of solution.boundClass.fields) {
+        fields.push({
+          path: `self.${field.name}`,
+          type: field.type,
+          displayName: field.displayName || field.name
+        });
+      }
+    }
+
+    // If the state has bound object field values, include those
+    if (state.boundObjectFieldValues) {
+      for (const [key, value] of Object.entries(state.boundObjectFieldValues)) {
+        // Skip non-field entries
+        if (typeof value === 'object' && value !== null) continue;
+
+        // Only add if not already present from boundClass
+        if (!fields.find(f => f.path === `self.${key}`)) {
+          fields.push({
+            path: `self.${key}`,
+            type: typeof value,
+            displayName: key
+          });
+        }
+      }
+    }
+
+    return fields;
+  }
+
   /**
    * Associate states with object instances from a StateDefinition
    * This creates the connection between visual states and actual object behavior
@@ -956,5 +1113,508 @@ export class NoCodeSolutionStateService {
 
       this.saveToLocalStorage();
     }
+  }
+
+  // ==================== Flow-Based Context Resolution ====================
+
+  /**
+   * Check if a state type is a control flow state (doesn't produce data variables)
+   */
+  private isControlFlowState(stateClass: string | undefined): boolean {
+    if (!stateClass) return false;
+    return CONTROL_FLOW_STATE_TYPES.includes(stateClass);
+  }
+
+  /**
+   * Check if a state is a branching state (has multiple output slots, like ConditionalChain)
+   */
+  private isBranchingState(state: NoCodeStateRawData): boolean {
+    if (!state.slots) return false;
+    const outputSlots = state.slots.filter(s => !s.isInput);
+    // A state branches if it has more than one output slot with connections
+    const connectedOutputs = outputSlots.filter(s =>
+      s.connectors && s.connectors.length > 0
+    );
+    return connectedOutputs.length > 1;
+  }
+
+  /**
+   * Build a PotentialContext for a state by tracing backwards through the flow graph.
+   * This determines what variables and object types COULD be available at this state
+   * based on its position in the solution graph.
+   *
+   * Control Flow States (InitialState, VariableAssignment, ConditionalChain):
+   * - Do NOT produce data variables to pass through context
+   * - InitialState: Only provides access to Solution Object
+   * - VariableAssignment: Assigns values but doesn't produce flow variables
+   * - ConditionalChain: Routes flow but doesn't produce variables
+   *
+   * Branch Tracking:
+   * - When flow passes through a branching state, the branch path is recorded
+   * - Variables carry their branch path for full traceability
+   *
+   * @param solutionName - The name of the solution
+   * @param stateName - The name of the state to build context for
+   * @returns PotentialContext with all available variables and object types
+   */
+  getPotentialContextForState(solutionName: string, stateName: string): PotentialContext {
+    const solution = this.solutionsCache.get(solutionName);
+    const context = new PotentialContext(solutionName, stateName);
+
+    if (!solution) {
+      return context;
+    }
+
+    const targetState = solution.stateInstances.find(s => s.stateName === stateName);
+    if (!targetState) {
+      return context;
+    }
+
+    // ALWAYS add Solution Object first - it's always available
+    this.addSolutionObject(solution, context);
+
+    // Build context by tracing backwards with branch tracking
+    const visited = new Set<string>();
+    const currentBranchPath: BranchPoint[] = [];
+
+    this.buildContextWithBranches(
+      solution,
+      stateName,
+      context,
+      visited,
+      0,  // depth
+      currentBranchPath
+    );
+
+    return context;
+  }
+
+  /**
+   * Recursively trace backwards through the flow graph to collect all
+   * potential variables and object types, tracking branch paths.
+   *
+   * Key behaviors:
+   * - Control flow states (InitialState, VariableAssignment, ConditionalChain)
+   *   do NOT add their output variables to context
+   * - When passing through a branching state, the branch index is recorded
+   * - Variables maintain their full branch path for differentiation
+   */
+  private buildContextWithBranches(
+    solution: NoCodeSolutionRawData,
+    stateName: string,
+    context: PotentialContext,
+    visited: Set<string>,
+    depth: number,
+    branchPath: BranchPoint[]
+  ): void {
+    // Create a unique visit key that includes the branch path
+    // This allows visiting the same state via different branches
+    const branchKey = branchPath.map(bp => `${bp.originStateName}:${bp.branchIndex}`).join('>');
+    const visitKey = `${stateName}|${branchKey}`;
+
+    if (visited.has(visitKey)) {
+      return;
+    }
+    visited.add(visitKey);
+
+    const state = solution.stateInstances.find(s => s.stateName === stateName);
+    if (!state || !state.slots) {
+      return;
+    }
+
+    // Update distance from initial
+    if (depth > context.distanceFromInitial) {
+      context.distanceFromInitial = depth;
+    }
+
+    // Find all input slots and their sources
+    const inputSlots = state.slots.filter(slot => slot.isInput);
+
+    for (const inputSlot of inputSlots) {
+      // Find what connects to this input slot
+      const sourceInfo = this.findSourceConnectionInfoExtended(solution, stateName, inputSlot.index);
+
+      if (sourceInfo) {
+        // Record upstream states
+        if (depth === 0 && !context.directUpstreamStates.includes(sourceInfo.sourceStateName)) {
+          context.directUpstreamStates.push(sourceInfo.sourceStateName);
+        }
+        if (!context.allUpstreamStates.includes(sourceInfo.sourceStateName)) {
+          context.allUpstreamStates.push(sourceInfo.sourceStateName);
+        }
+
+        // Get the source state to check if it's a control flow state
+        const sourceState = solution.stateInstances.find(s => s.stateName === sourceInfo.sourceStateName);
+        const isSourceControlFlow = this.isControlFlowState(sourceState?.stateClass);
+
+        // Determine if we're coming through a branch
+        let updatedBranchPath = [...branchPath];
+        if (sourceState && this.isBranchingState(sourceState)) {
+          // Add this branch point to the path
+          const branchPoint: BranchPoint = {
+            originStateName: sourceInfo.sourceStateName,
+            branchIndex: sourceInfo.sourceSlotIndex,
+            stepAtBranch: depth + 1,
+            branchLabel: sourceInfo.branchLabel
+          };
+          updatedBranchPath = [branchPoint, ...updatedBranchPath];
+        }
+
+        // Only add variables from NON-control-flow states
+        if (!isSourceControlFlow && sourceInfo.variableName) {
+          const variable: PotentialVariable = {
+            name: sourceInfo.variableName,
+            type: sourceInfo.type,
+            sourceStateName: sourceInfo.sourceStateName,
+            sourceSlotIndex: sourceInfo.sourceSlotIndex,
+            flowDistance: depth + 1,
+            inputSlotIndex: inputSlot.index,
+            label: inputSlot.label || sourceInfo.variableName,
+            branchPath: updatedBranchPath
+          };
+          context.addVariable(variable);
+
+          // Handle comma-separated variable names (passthrough)
+          if (sourceInfo.variableName.includes(',')) {
+            const varNames = sourceInfo.variableName.split(',').map(v => v.trim());
+            for (const varName of varNames) {
+              if (varName) {
+                context.addVariable({
+                  ...variable,
+                  name: varName,
+                  label: varName
+                });
+              }
+            }
+          }
+        }
+
+        // SPECIAL CASE: VariableAssignment states that have configured output variables
+        // These DO produce variables that should be available downstream
+        if (sourceState && sourceState.stateClass === 'VariableAssignment') {
+          const bofv = sourceState.boundObjectFieldValues;
+          if (bofv) {
+            // Check for outputVariable (new variable creation)
+            const outputVar = bofv.outputVariable;
+            if (outputVar && outputVar.name && outputVar.type) {
+              const variable: PotentialVariable = {
+                name: outputVar.name,
+                type: outputVar.type,
+                sourceStateName: sourceInfo.sourceStateName,
+                sourceSlotIndex: sourceInfo.sourceSlotIndex,
+                flowDistance: depth + 1,
+                inputSlotIndex: inputSlot.index,
+                label: outputVar.name,
+                branchPath: updatedBranchPath
+              };
+              context.addVariable(variable);
+            }
+
+            // Also check assignmentConfig for new_variable target type
+            const assignmentConfig = bofv.assignmentConfig;
+            if (assignmentConfig && assignmentConfig.targetType === 'new_variable' && assignmentConfig.variableName) {
+              // Only add if not already added from outputVariable
+              if (!context.variables.has(assignmentConfig.variableName)) {
+                const variable: PotentialVariable = {
+                  name: assignmentConfig.variableName,
+                  type: assignmentConfig.dataType || 'any',
+                  sourceStateName: sourceInfo.sourceStateName,
+                  sourceSlotIndex: sourceInfo.sourceSlotIndex,
+                  flowDistance: depth + 1,
+                  inputSlotIndex: inputSlot.index,
+                  label: assignmentConfig.variableName,
+                  branchPath: updatedBranchPath
+                };
+                context.addVariable(variable);
+              }
+            }
+          }
+        }
+
+        // SPECIAL CASE: MathOperation states that create new variables
+        if (sourceState && sourceState.stateClass === 'MathOperation') {
+          const bofv = sourceState.boundObjectFieldValues;
+          if (bofv && bofv.mathConfig) {
+            const mathConfig = bofv.mathConfig;
+            if (mathConfig.resultTarget === 'new_variable' && mathConfig.resultVariableName) {
+              const variable: PotentialVariable = {
+                name: mathConfig.resultVariableName,
+                type: 'number',
+                sourceStateName: sourceInfo.sourceStateName,
+                sourceSlotIndex: sourceInfo.sourceSlotIndex,
+                flowDistance: depth + 1,
+                inputSlotIndex: inputSlot.index,
+                label: mathConfig.resultVariableName,
+                branchPath: updatedBranchPath
+              };
+              context.addVariable(variable);
+            }
+          }
+        }
+
+        // Extract object type from non-control-flow states (but not InitialState)
+        if (sourceState && !this.isControlFlowState(sourceState.stateClass)) {
+          this.extractObjectTypeFromStateWithBranch(
+            solution,
+            sourceInfo.sourceStateName,
+            context,
+            depth + 1,
+            updatedBranchPath
+          );
+        }
+
+        // Continue tracing backwards
+        this.buildContextWithBranches(
+          solution,
+          sourceInfo.sourceStateName,
+          context,
+          visited,
+          depth + 1,
+          updatedBranchPath
+        );
+      }
+    }
+
+    // For the target state itself (depth 0), extract its object type if bound
+    // but only if it's not a control flow state
+    if (depth === 0 && !this.isControlFlowState(state.stateClass)) {
+      this.extractObjectTypeFromStateWithBranch(solution, stateName, context, 0, branchPath);
+    }
+  }
+
+  /**
+   * Find detailed connection info for an input slot, including branch info
+   */
+  private findSourceConnectionInfoExtended(
+    solution: NoCodeSolutionRawData,
+    targetStateName: string,
+    targetSlotIndex: number
+  ): {
+    sourceStateName: string;
+    sourceSlotIndex: number;
+    variableName: string;
+    type: string;
+    branchLabel?: string;
+  } | null {
+    for (const state of solution.stateInstances) {
+      if (!state.slots) continue;
+
+      for (const slot of state.slots) {
+        if (slot.isInput) continue;
+
+        for (const connector of slot.connectors || []) {
+          if (connector.targetStateName === targetStateName && connector.sinkSlot === targetSlotIndex) {
+            return {
+              sourceStateName: state.stateName,
+              sourceSlotIndex: slot.index,
+              variableName: slot.passthroughVariableName || slot.label || `output_${slot.index}`,
+              type: slot.returnType || slot.parameterType || 'any',
+              branchLabel: slot.label || undefined
+            };
+          }
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Legacy method for backwards compatibility
+   */
+  private findSourceConnectionInfo(
+    solution: NoCodeSolutionRawData,
+    targetStateName: string,
+    targetSlotIndex: number
+  ): {
+    sourceStateName: string;
+    sourceSlotIndex: number;
+    variableName: string;
+    type: string;
+  } | null {
+    const extended = this.findSourceConnectionInfoExtended(solution, targetStateName, targetSlotIndex);
+    if (!extended) return null;
+    return {
+      sourceStateName: extended.sourceStateName,
+      sourceSlotIndex: extended.sourceSlotIndex,
+      variableName: extended.variableName,
+      type: extended.type
+    };
+  }
+
+  /**
+   * Extract object type information from a state, including branch path
+   */
+  private extractObjectTypeFromStateWithBranch(
+    solution: NoCodeSolutionRawData,
+    stateName: string,
+    context: PotentialContext,
+    flowDistance: number,
+    branchPath: BranchPoint[]
+  ): void {
+    const state = solution.stateInstances.find(s => s.stateName === stateName);
+    if (!state) return;
+
+    const boundClass = (state as any).boundObjectClass;
+    if (!boundClass) return;
+
+    // Check if we already have this object type (regardless of branch)
+    if (context.hasObjectType(boundClass)) {
+      return;
+    }
+
+    // Create the potential object type
+    const objectType: PotentialObjectType = {
+      className: boundClass,
+      fields: [],
+      sourceStateName: stateName,
+      flowDistance,
+      instanceId: (state as any).objectInstanceId,
+      branchPath: [...branchPath]
+    };
+
+    // Get fields from the state's bound values
+    const fieldValues = (state as any).boundObjectFieldValues;
+    if (fieldValues) {
+      for (const [fieldName, value] of Object.entries(fieldValues)) {
+        objectType.fields.push({
+          path: `self.${fieldName}`,
+          displayName: fieldName,
+          type: typeof value === 'object' ? 'object' : typeof value,
+          writable: true
+        });
+      }
+    }
+
+    context.addObjectType(objectType);
+  }
+
+  /**
+   * Legacy method for backwards compatibility
+   */
+  private extractObjectTypeFromState(
+    solution: NoCodeSolutionRawData,
+    stateName: string,
+    context: PotentialContext,
+    flowDistance: number
+  ): void {
+    this.extractObjectTypeFromStateWithBranch(solution, stateName, context, flowDistance, []);
+  }
+
+  /**
+   * Add the Solution Object to context.
+   * The Solution Object is the bound class of the solution itself and is
+   * ALWAYS available at every state, regardless of flow position.
+   * This is the only context available at InitialState.
+   */
+  private addSolutionObject(
+    solution: NoCodeSolutionRawData,
+    context: PotentialContext
+  ): void {
+    // Get solution's bound class
+    const boundClass = solution.boundClass;
+    if (!boundClass) return;
+
+    const className = (boundClass as any).name ||
+                      (boundClass as any).className ||
+                      'SolutionObject';
+
+    const fields: PotentialObjectField[] = [];
+
+    // Add fields from bound class definition
+    if (boundClass.fields) {
+      for (const field of boundClass.fields) {
+        fields.push({
+          path: `self.${field.name}`,
+          displayName: field.displayName || field.name,
+          type: field.type,
+          writable: true
+        });
+      }
+    }
+
+    // Create the solution object type
+    const solutionObject: PotentialObjectType = {
+      className,
+      fields,
+      sourceStateName: '__solution__',
+      flowDistance: 0,
+      branchPath: [],
+      isSolutionObject: true
+    };
+
+    context.setSolutionObject(solutionObject);
+  }
+
+  /**
+   * Legacy method - redirects to addSolutionObject
+   */
+  private addSolutionObjectFields(
+    solution: NoCodeSolutionRawData,
+    context: PotentialContext
+  ): void {
+    // Now handled by addSolutionObject at the start of getPotentialContextForState
+    // This method is kept for any external callers
+    if (!context.solutionObject) {
+      this.addSolutionObject(solution, context);
+    }
+  }
+
+  /**
+   * Find the initial state(s) of a solution
+   */
+  findInitialStates(solutionName: string): string[] {
+    const solution = this.solutionsCache.get(solutionName);
+    if (!solution) return [];
+
+    const initialStates: string[] = [];
+
+    for (const state of solution.stateInstances) {
+      // A state is initial if it has no input slots with connections
+      const inputSlots = state.slots?.filter(s => s.isInput) || [];
+
+      if (inputSlots.length === 0) {
+        // No input slots = initial state
+        initialStates.push(state.stateName);
+      } else {
+        // Check if any input slot has a connection
+        let hasConnection = false;
+        for (const inputSlot of inputSlots) {
+          if (this.findSourceConnectionInfo(solution, state.stateName, inputSlot.index)) {
+            hasConnection = true;
+            break;
+          }
+        }
+        if (!hasConnection) {
+          initialStates.push(state.stateName);
+        }
+      }
+    }
+
+    return initialStates;
+  }
+
+  /**
+   * Calculate the minimum distance from a state to any initial state
+   */
+  getDistanceFromInitial(solutionName: string, stateName: string): number {
+    const context = this.getPotentialContextForState(solutionName, stateName);
+    return context.distanceFromInitial;
+  }
+
+  /**
+   * Get all states that feed into a given state (direct connections only)
+   */
+  getDirectUpstreamStates(solutionName: string, stateName: string): string[] {
+    const context = this.getPotentialContextForState(solutionName, stateName);
+    return context.directUpstreamStates;
+  }
+
+  /**
+   * Get all states that are upstream of a given state (any distance)
+   */
+  getAllUpstreamStates(solutionName: string, stateName: string): string[] {
+    const context = this.getPotentialContextForState(solutionName, stateName);
+    return context.allUpstreamStates;
   }
 }

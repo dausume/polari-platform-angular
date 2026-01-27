@@ -645,6 +645,34 @@ export class ReturnStatement implements OperationStateBase {
 }
 
 /**
+ * Types of value sources for log output variables (matching conditionalChain.ts)
+ */
+export type LogOutputValueSourceType = 'from_input' | 'from_source_object' | 'direct_assignment';
+
+/**
+ * Configuration for a single variable to log
+ */
+export interface LogOutputVariable {
+  /** The type of source for this variable */
+  sourceType: LogOutputValueSourceType;
+
+  /** Variable name when from_input - the variable name from the input slot */
+  variableName?: string;
+
+  /** When from_input - which input slot index to read from */
+  inputSlotIndex?: number;
+
+  /** When from_source_object - the property path (e.g., "self.order_id") */
+  sourceObjectPath?: string;
+
+  /** Optional format string for this variable (e.g., "{}" or "{:.2f}") */
+  formatString?: string;
+
+  /** Optional label/description for this variable in the UI */
+  label?: string;
+}
+
+/**
  * LogOutput - Debug/log output
  *
  * Equivalent to: console.log(message, ...values)
@@ -652,6 +680,7 @@ export class ReturnStatement implements OperationStateBase {
  * Usage in state-space:
  * - Configure log message template
  * - Wire values to interpolate
+ * - Select specific variables from inputs to log
  */
 export class LogOutput implements OperationStateBase {
   id: string;
@@ -661,6 +690,9 @@ export class LogOutput implements OperationStateBase {
   logLevel: 'debug' | 'info' | 'warn' | 'error' = 'info';
   messageTemplate: string = '';
   values: ValueSource[] = [];
+
+  // NEW: Structured variables to log (replaces simple values array)
+  logVariables: LogOutputVariable[] = [];
 
   // Execution state
   isExecuted: boolean = false;
@@ -683,10 +715,33 @@ export class LogOutput implements OperationStateBase {
   }
 
   /**
-   * Add a value to log
+   * Add a value to log (legacy API)
    */
   addValue(valueSource: ValueSource): void {
     this.values.push(valueSource);
+  }
+
+  /**
+   * Add a structured log variable (new API)
+   */
+  addLogVariable(logVar: LogOutputVariable): void {
+    this.logVariables.push(logVar);
+  }
+
+  /**
+   * Remove a log variable by index
+   */
+  removeLogVariable(index: number): void {
+    if (index >= 0 && index < this.logVariables.length) {
+      this.logVariables.splice(index, 1);
+    }
+  }
+
+  /**
+   * Clear all log variables
+   */
+  clearLogVariables(): void {
+    this.logVariables = [];
   }
 
   /**
@@ -694,14 +749,23 @@ export class LogOutput implements OperationStateBase {
    */
   execute(context: Record<string, any>): Record<string, any> {
     try {
-      // Resolve values
-      const resolvedValues = this.values.map(vs => {
+      // Resolve values from both legacy values array and new logVariables array
+      const resolvedValues: any[] = [];
+
+      // First, resolve legacy values
+      this.values.forEach(vs => {
         switch (vs.sourceType) {
-          case 'literal': return vs.value;
-          case 'variable': return context[vs.variableName!];
-          case 'slot': return context[`__slot_${vs.slotId}`];
-          default: return null;
+          case 'literal': resolvedValues.push(vs.value); break;
+          case 'variable': resolvedValues.push(context[vs.variableName!]); break;
+          case 'slot': resolvedValues.push(context[`__slot_${vs.slotId}`]); break;
+          default: resolvedValues.push(null);
         }
+      });
+
+      // Then resolve new logVariables
+      this.logVariables.forEach(lv => {
+        const value = this.resolveLogVariable(lv, context);
+        resolvedValues.push(value);
       });
 
       // Format message (replace {0}, {1}, etc.)
@@ -732,6 +796,51 @@ export class LogOutput implements OperationStateBase {
       this.isExecuted = true;
       return context;
     }
+  }
+
+  /**
+   * Resolve a LogOutputVariable to its actual value
+   */
+  private resolveLogVariable(logVar: LogOutputVariable, context: Record<string, any>): any {
+    switch (logVar.sourceType) {
+      case 'from_input':
+        if (logVar.variableName) {
+          return context[logVar.variableName];
+        }
+        if (logVar.inputSlotIndex !== undefined) {
+          return context[`__input_${logVar.inputSlotIndex}`];
+        }
+        return undefined;
+
+      case 'from_source_object':
+        if (logVar.sourceObjectPath) {
+          return this.resolveObjectPath(logVar.sourceObjectPath, context);
+        }
+        return undefined;
+
+      case 'direct_assignment':
+        return logVar.variableName; // Use variableName as literal for direct assignment
+
+      default:
+        return undefined;
+    }
+  }
+
+  /**
+   * Resolve a dot-notation object path
+   */
+  private resolveObjectPath(path: string, context: Record<string, any>): any {
+    const parts = path.split('.');
+    let current: any = context;
+
+    for (const part of parts) {
+      if (current === null || current === undefined) {
+        return undefined;
+      }
+      current = current[part];
+    }
+
+    return current;
   }
 
   /**
@@ -766,7 +875,7 @@ export class LogOutput implements OperationStateBase {
       ],
       displayFields: this.stateSpaceDisplayFields,
       fieldsPerRow: this.stateSpaceFieldsPerRow,
-      variables: ['logLevel', 'messageTemplate', 'values']
+      variables: ['logLevel', 'messageTemplate', 'values', 'logVariables']
     };
   }
 
@@ -777,7 +886,8 @@ export class LogOutput implements OperationStateBase {
       type: 'LogOutput',
       logLevel: this.logLevel,
       messageTemplate: this.messageTemplate,
-      values: this.values
+      values: this.values,
+      logVariables: this.logVariables
     };
   }
 
@@ -785,6 +895,7 @@ export class LogOutput implements OperationStateBase {
     const op = new LogOutput(json.displayName, json.messageTemplate);
     op.id = json.id;
     op.logLevel = json.logLevel || 'info';
+    op.logVariables = json.logVariables || [];
     op.values = json.values || [];
     return op;
   }

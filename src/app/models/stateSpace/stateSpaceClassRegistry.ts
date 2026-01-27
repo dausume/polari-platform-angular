@@ -51,6 +51,20 @@ export interface StateSpaceEventMethod {
 /**
  * Default slot configuration for a state-space class
  */
+/**
+ * Configuration for a conditional output slot
+ */
+export interface ConditionalSlotConfig {
+  // Human-readable label for the condition (e.g., "If True", "If False", "Default")
+  conditionLabel: string;
+  // The condition expression that triggers this output (e.g., "true", "false", "x > 5")
+  conditionExpression: string;
+  // Group ID for exclusive conditional outputs (only one in a group fires)
+  conditionalGroup: string;
+  // Default color for this conditional output
+  color?: string;
+}
+
 export interface SlotConfigurationTemplate {
   // Number of input slots to create by default
   defaultInputCount: number;
@@ -72,6 +86,9 @@ export interface SlotConfigurationTemplate {
   inputLabels?: string[];
   // Labels for default output slots
   outputLabels?: string[];
+  // Configuration for conditional output slots (for ConditionalChain, etc.)
+  // If provided, the output slots are marked as conditional
+  conditionalOutputs?: ConditionalSlotConfig[];
 }
 
 /**
@@ -220,15 +237,29 @@ export class StateSpaceClassRegistry {
       isBuiltIn: true,
       slotConfiguration: {
         defaultInputCount: 1,
-        defaultOutputCount: 1,
+        defaultOutputCount: 2,
         allowDynamicInputs: true,
         allowDynamicOutputs: false,
         maxInputSlots: 0, // unlimited
-        maxOutputSlots: 1, // always exactly one output
+        maxOutputSlots: 2, // two conditional outputs (true/false)
         inputType: 'any',
         outputType: 'boolean',
         inputLabels: ['Input'],
-        outputLabels: ['Result']
+        outputLabels: ['T', 'F'],
+        conditionalOutputs: [
+          {
+            conditionLabel: 'If True',
+            conditionExpression: 'true',
+            conditionalGroup: 'conditional_result',
+            color: '#4caf50' // green for true
+          },
+          {
+            conditionLabel: 'If False',
+            conditionExpression: 'false',
+            conditionalGroup: 'conditional_result',
+            color: '#f44336' // red for false
+          }
+        ]
       },
       eventMethods: [
         {
@@ -472,6 +503,53 @@ export class StateSpaceClassRegistry {
         { name: 'operation', displayName: 'Operation', type: 'string', isEditable: true, defaultValue: 'sum' }
       ],
       factory: () => ({ type: 'ReduceList', displayName: 'Reduce', operation: 'sum' })
+    });
+
+    this.registerClass({
+      className: 'MathOperation',
+      displayName: 'Math Operation',
+      description: 'Perform basic math operations: add, subtract, multiply, divide, modulo',
+      category: 'Data',
+      icon: 'calculate',
+      color: '#2196F3',
+      isStateSpaceObject: true,
+      stateSpaceDisplayFields: ['displayName', 'operationType'],
+      stateSpaceFieldsPerRow: 2,
+      isBuiltIn: true,
+      slotConfiguration: {
+        defaultInputCount: 1,
+        defaultOutputCount: 1,
+        allowDynamicInputs: false,
+        allowDynamicOutputs: false,
+        maxInputSlots: 1,
+        maxOutputSlots: 1,
+        inputType: 'any',
+        outputType: 'number',
+        inputLabels: ['Input'],
+        outputLabels: ['Result']
+      },
+      eventMethods: [
+        {
+          methodName: 'execute',
+          displayName: 'Execute Operation',
+          description: 'Perform the math operation',
+          category: 'Data',
+          inputParams: [
+            { name: 'leftOperand', displayName: 'Left Operand', type: 'number', isRequired: true },
+            { name: 'rightOperand', displayName: 'Right Operand', type: 'number', isRequired: true }
+          ],
+          output: { type: 'number', displayName: 'Result' }
+        }
+      ],
+      variables: [
+        { name: 'displayName', displayName: 'Display Name', type: 'string', isEditable: true, defaultValue: 'Math' },
+        { name: 'operationType', displayName: 'Operation', type: 'string', isEditable: true, defaultValue: 'add' },
+        { name: 'leftOperand', displayName: 'Left Operand', type: 'object', isEditable: true },
+        { name: 'rightOperand', displayName: 'Right Operand', type: 'object', isEditable: true },
+        { name: 'resultFieldPath', displayName: 'Result Field', type: 'string', isEditable: true },
+        { name: 'resultVariableName', displayName: 'Result Variable', type: 'string', isEditable: true }
+      ],
+      factory: () => ({ type: 'MathOperation', displayName: 'Math', operationType: 'add' })
     });
 
     this.registerClass({

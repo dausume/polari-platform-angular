@@ -43,7 +43,7 @@
     </div>
   </div>
 
-  <!-- Visual Mode: Step-by-step dropdown chain builder -->
+  <!-- Visual Mode: Compact row-based chain builder -->
   <div class="visual-editor" *ngIf="editorMode === 'visual' && !isCompact">
     <div class="conditions-list">
       <div class="condition-link" *ngFor="let link of visualLinks; let i = index; let first = first">
@@ -56,19 +56,16 @@
           </select>
         </div>
 
-        <div class="condition-row">
-          <!-- Field dropdown -->
-          <select [(ngModel)]="link.fieldName"
-                  (change)="onFieldChange(i, 'fieldName', getEventTargetValue($event))"
-                  class="field-select">
-            <option value="" disabled>Select field...</option>
-            <option *ngFor="let field of availableInputFields" [value]="field.name">
-              {{ field.name }} ({{ field.type }})
-            </option>
-            <option *ngIf="availableInputFields.length === 0" value="">
-              (No inputs connected)
-            </option>
-          </select>
+        <!-- Compact condition row: [Left] [Op] [Right] [X] -->
+        <div class="condition-row compact-row">
+          <!-- Left value button -->
+          <button class="value-display-btn left-btn"
+                  [class.active]="popupVisible && popupLinkIndex === i && popupEditingSide === 'left'"
+                  (click)="openValuePopup($event, i, 'left')"
+                  title="Click to edit left value">
+            <span class="value-text">{{ getCompactDisplayText(link.leftSource) }}</span>
+            <mat-icon class="edit-icon">edit</mat-icon>
+          </button>
 
           <!-- Condition type dropdown -->
           <select [(ngModel)]="link.conditionType"
@@ -77,21 +74,25 @@
             <option *ngFor="let ct of conditionTypes" [value]="ct.value">{{ ct.displayName }}</option>
           </select>
 
-          <!-- Value input (if needed) -->
-          <input *ngIf="!requiresNoValue(link.conditionType)"
-                 type="text"
-                 [(ngModel)]="link.conditionValue"
-                 (input)="onFieldChange(i, 'conditionValue', getEventTargetValue($event))"
-                 class="value-input"
-                 placeholder="Value...">
+          <!-- Right value button (if needed) -->
+          <button class="value-display-btn right-btn"
+                  *ngIf="!requiresNoValue(link.conditionType)"
+                  [class.active]="popupVisible && popupLinkIndex === i && popupEditingSide === 'right'"
+                  (click)="openValuePopup($event, i, 'right')"
+                  title="Click to edit right value">
+            <span class="value-text">{{ getCompactDisplayText(link.rightSource) }}</span>
+            <mat-icon class="edit-icon">edit</mat-icon>
+          </button>
 
-          <!-- Second value for BETWEEN -->
-          <input *ngIf="requiresSecondValue(link.conditionType)"
-                 type="text"
-                 [(ngModel)]="link.conditionValueEnd"
-                 (input)="onFieldChange(i, 'conditionValueEnd', getEventTargetValue($event))"
-                 class="value-input"
-                 placeholder="End value...">
+          <!-- End value button for BETWEEN -->
+          <button class="value-display-btn end-btn"
+                  *ngIf="requiresSecondValue(link.conditionType)"
+                  [class.active]="popupVisible && popupLinkIndex === i && popupEditingSide === 'rightEnd'"
+                  (click)="openValuePopup($event, i, 'rightEnd')"
+                  title="Click to edit end value">
+            <span class="value-text">{{ getCompactDisplayText(link.rightSourceEnd) }}</span>
+            <mat-icon class="edit-icon">edit</mat-icon>
+          </button>
 
           <!-- Remove button -->
           <button class="remove-btn" (click)="removeConditionLink(i)" title="Remove condition">
@@ -111,6 +112,32 @@
       <mat-icon>add</mat-icon>
       <span>Add Condition</span>
     </button>
+  </div>
+
+  <!-- Value Source Popup (position: fixed, renders above everything) -->
+  <div class="value-popup"
+       *ngIf="popupVisible"
+       [style.top.px]="popupPosition.top"
+       [style.left.px]="popupPosition.left"
+       (click)="$event.stopPropagation()"
+       (mousedown)="$event.stopPropagation()"
+       (pointerdown)="$event.stopPropagation()">
+    <div class="popup-header">
+      <span class="popup-title">{{ getPopupLabel() }}</span>
+      <button class="popup-close-btn" (click)="closeValuePopup()">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+    <div class="popup-content">
+      <app-value-source-selector
+        [config]="getPopupConfig()"
+        [availableInputs]="getAvailableInputsForSelector()"
+        [sourceObjectFields]="sourceObjectFields"
+        [label]="''"
+        [compact]="false"
+        (configChange)="onPopupConfigChange($event)">
+      </app-value-source-selector>
+    </div>
   </div>
 
   <!-- Syntax Mode: Text-based condition editor -->

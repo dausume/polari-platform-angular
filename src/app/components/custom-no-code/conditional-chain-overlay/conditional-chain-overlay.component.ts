@@ -1,12 +1,20 @@
 // Author: Dustin Etts
 // Custom overlay component for ConditionalChain state with two modes:
 // 1. Syntax-based - text input for condition expressions
-// 2. Step-by-step - dropdown-based visual chain builder
+// 2. Step-by-step - dropdown-based visual chain builder with ValueSourceSelector
 
-import { Component, Input, Output, EventEmitter, OnInit, OnDestroy } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, ElementRef, HostListener } from '@angular/core';
 import { FormControl } from '@angular/forms';
-import { ConditionalChainLink, LogicalOperator } from '../../../models/stateSpace/conditionalChain';
+import {
+  ConditionalChainLink,
+  LogicalOperator,
+  ValueSourceConfig,
+  ValueSourceType,
+  createDefaultValueSourceConfig,
+  getSourceLabel
+} from '../../../models/stateSpace/conditionalChain';
 import { ConditionType, CONDITION_TYPE_OPTIONS } from '../../../models/stateSpace/conditionTypeOptions';
+import { AvailableInput, SourceObjectField } from '../value-source-selector/value-source-selector.component';
 
 /**
  * Mode for building conditional chains
@@ -14,15 +22,28 @@ import { ConditionType, CONDITION_TYPE_OPTIONS } from '../../../models/stateSpac
 export type ConditionalEditorMode = 'syntax' | 'visual';
 
 /**
+ * Which side of a condition is being edited in the popup
+ */
+export type EditingSide = 'left' | 'right' | 'rightEnd' | null;
+
+/**
  * A visual representation of a condition link for the step-by-step builder
+ * Now includes ValueSourceConfig for left and right sides
  */
 export interface VisualConditionLink {
   id: string;
-  fieldName: string;
   conditionType: ConditionType;
+  logicalOperator: LogicalOperator;
+
+  // NEW: Source configurations for left and right sides
+  leftSource: ValueSourceConfig;
+  rightSource: ValueSourceConfig;
+  rightSourceEnd?: ValueSourceConfig;
+
+  // Legacy fields (for backwards compatibility and display)
+  fieldName: string;
   conditionValue: string;
   conditionValueEnd?: string;
-  logicalOperator: LogicalOperator;
 }
 
 /**
@@ -46,8 +67,14 @@ export class ConditionalChainOverlayComponent implements OnInit, OnDestroy {
   @Input() stateName: string = '';
   @Input() boundClassName: string = 'ConditionalChain';
 
-  // Available input fields from connected states (for dropdown)
+  // Available input fields from connected states (for dropdown) - legacy format
   @Input() availableInputFields: { name: string; type: string; source: string }[] = [];
+
+  // NEW: Available inputs in structured format for ValueSourceSelector
+  @Input() availableInputs: AvailableInput[] = [];
+
+  // NEW: Available source object fields for ValueSourceSelector
+  @Input() sourceObjectFields: SourceObjectField[] = [];
 
   // Current chain data
   @Input() chainLinks: ConditionalChainLink[] = [];
@@ -87,6 +114,14 @@ export class ConditionalChainOverlayComponent implements OnInit, OnDestroy {
   isCompact: boolean = false;
   isSmall: boolean = false;
 
+  // Popup state for value source editing
+  popupVisible: boolean = false;
+  popupLinkIndex: number = -1;
+  popupEditingSide: EditingSide = null;
+  popupPosition: { top: number; left: number } = { top: 0, left: 0 };
+
+  constructor(private elementRef: ElementRef) {}
+
   ngOnInit(): void {
     this.updateSizeMode();
     this.initializeFromChainLinks();
@@ -110,12 +145,58 @@ export class ConditionalChainOverlayComponent implements OnInit, OnDestroy {
   private initializeFromChainLinks(): void {
     this.visualLinks = this.chainLinks.map(link => ({
       id: link.id,
-      fieldName: link.fieldName,
       conditionType: link.conditionType,
+      logicalOperator: link.logicalOperator,
+      // NEW: Use ValueSourceConfig if available, otherwise create from legacy fields
+      leftSource: link.leftSource || this.createSourceFromLegacy(link.fieldName, 'from_input'),
+      rightSource: link.rightSource || this.createSourceFromLegacy(link.conditionValue, 'direct_assignment'),
+      rightSourceEnd: link.rightSourceEnd || (link.conditionValueEnd
+        ? this.createSourceFromLegacy(link.conditionValueEnd, 'direct_assignment')
+        : undefined),
+      // Legacy fields for backwards compatibility
+      fieldName: link.fieldName || getSourceLabel(link.leftSource || createDefaultValueSourceConfig()),
       conditionValue: String(link.conditionValue ?? ''),
-      conditionValueEnd: link.conditionValueEnd ? String(link.conditionValueEnd) : undefined,
-      logicalOperator: link.logicalOperator
+      conditionValueEnd: link.conditionValueEnd ? String(link.conditionValueEnd) : undefined
     }));
+  }
+
+  /**
+   * Create a ValueSourceConfig from a legacy field value
+   */
+  private createSourceFromLegacy(value: any, defaultType: ValueSourceType): ValueSourceConfig {
+    if (value === undefined || value === null || value === '') {
+      return createDefaultValueSourceConfig(defaultType);
+    }
+
+    // If value looks like a variable name (no spaces, alphanumeric + underscore)
+    const strValue = String(value);
+    if (/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(strValue)) {
+      // Check if it matches an available input
+      const matchingInput = this.getAvailableInputsForSelector().find(
+        input => input.variableName === strValue
+      );
+      if (matchingInput) {
+        return {
+          sourceType: 'from_input',
+          inputSlotIndex: matchingInput.slotIndex,
+          inputVariableName: strValue
+        };
+      }
+      // Could be a source object reference
+      if (strValue.startsWith('self.') || this.sourceObjectFields.find(f => f.path === strValue)) {
+        return {
+          sourceType: 'from_source_object',
+          sourceObjectPath: strValue
+        };
+      }
+    }
+
+    // Default to direct assignment
+    return {
+      sourceType: 'direct_assignment',
+      directValue: value,
+      directValueType: typeof value === 'number' ? 'int' : 'str'
+    };
   }
 
   /**
@@ -136,15 +217,82 @@ export class ConditionalChainOverlayComponent implements OnInit, OnDestroy {
    * Add a new condition link at the bottom
    */
   addConditionLink(): void {
+    // Create default sources based on available inputs
+    const inputs = this.getAvailableInputsForSelector();
+    const leftSource: ValueSourceConfig = inputs.length > 0
+      ? { sourceType: 'from_input', inputSlotIndex: inputs[0].slotIndex, inputVariableName: inputs[0].variableName }
+      : createDefaultValueSourceConfig('from_input');
+
+    const rightSource: ValueSourceConfig = inputs.length > 1
+      ? { sourceType: 'from_input', inputSlotIndex: inputs[1].slotIndex, inputVariableName: inputs[1].variableName }
+      : createDefaultValueSourceConfig('direct_assignment');
+
     const newLink: VisualConditionLink = {
       id: 'link_' + Math.random().toString(36).substring(2, 11),
-      fieldName: this.availableInputFields.length > 0 ? this.availableInputFields[0].name : '',
       conditionType: 'equals',
-      conditionValue: '',
-      logicalOperator: this.defaultLogicalOperator
+      logicalOperator: this.defaultLogicalOperator,
+      leftSource,
+      rightSource,
+      // Legacy fields
+      fieldName: inputs.length > 0 ? inputs[0].variableName : '',
+      conditionValue: ''
     };
     this.visualLinks.push(newLink);
     this.emitChainChange();
+  }
+
+  /**
+   * Get available inputs formatted for ValueSourceSelector
+   */
+  getAvailableInputsForSelector(): AvailableInput[] {
+    // Prefer new availableInputs format, fall back to legacy availableInputFields
+    if (this.availableInputs && this.availableInputs.length > 0) {
+      return this.availableInputs;
+    }
+
+    // Convert legacy format
+    return this.availableInputFields.map((field, index) => ({
+      slotIndex: index,
+      variableName: field.name,
+      type: field.type,
+      sourceStateName: field.source
+    }));
+  }
+
+  /**
+   * Handle left source configuration change
+   */
+  onLeftSourceChange(index: number, config: ValueSourceConfig): void {
+    if (this.visualLinks[index]) {
+      this.visualLinks[index].leftSource = config;
+      // Update legacy field for backwards compatibility
+      this.visualLinks[index].fieldName = getSourceLabel(config);
+      this.emitChainChange();
+    }
+  }
+
+  /**
+   * Handle right source configuration change
+   */
+  onRightSourceChange(index: number, config: ValueSourceConfig): void {
+    if (this.visualLinks[index]) {
+      this.visualLinks[index].rightSource = config;
+      // Update legacy field for backwards compatibility
+      this.visualLinks[index].conditionValue = getSourceLabel(config);
+      this.emitChainChange();
+    }
+  }
+
+  /**
+   * Handle right source end (for BETWEEN) configuration change
+   */
+  onRightSourceEndChange(index: number, config: ValueSourceConfig): void {
+    if (this.visualLinks[index]) {
+      this.visualLinks[index].rightSourceEnd = config;
+      // Update legacy field for backwards compatibility
+      this.visualLinks[index].conditionValueEnd = getSourceLabel(config);
+      this.emitChainChange();
+    }
   }
 
   /**
@@ -186,13 +334,18 @@ export class ConditionalChainOverlayComponent implements OnInit, OnDestroy {
   private emitChainChange(): void {
     const links: ConditionalChainLink[] = this.visualLinks.map(vl => ({
       id: vl.id,
-      displayName: `${vl.fieldName} ${vl.conditionType} ${vl.conditionValue}`,
-      fieldName: vl.fieldName,
+      displayName: `${getSourceLabel(vl.leftSource)} ${vl.conditionType} ${getSourceLabel(vl.rightSource)}`,
       conditionType: vl.conditionType,
-      conditionValue: vl.conditionValue,
-      conditionValueEnd: vl.conditionValueEnd,
       logicalOperator: vl.logicalOperator,
-      isStateSpaceObject: true
+      isStateSpaceObject: true,
+      // NEW: Include ValueSourceConfig
+      leftSource: vl.leftSource,
+      rightSource: vl.rightSource,
+      rightSourceEnd: vl.rightSourceEnd,
+      // Legacy fields for backwards compatibility
+      fieldName: vl.fieldName || getSourceLabel(vl.leftSource),
+      conditionValue: vl.conditionValue || getSourceLabel(vl.rightSource),
+      conditionValueEnd: vl.conditionValueEnd
     }));
 
     this.chainChanged.emit({
@@ -218,13 +371,23 @@ export class ConditionalChainOverlayComponent implements OnInit, OnDestroy {
       const link = this.visualLinks[i];
       let condition = '';
 
+      // Get labels from sources
+      const leftLabel = getSourceLabel(link.leftSource);
+      const rightLabel = getSourceLabel(link.rightSource);
+      const rightEndLabel = link.rightSourceEnd ? getSourceLabel(link.rightSourceEnd) : '?';
+
       if (this.requiresNoValue(link.conditionType)) {
-        condition = `${link.fieldName} ${this.getConditionSymbol(link.conditionType)}`;
+        condition = `${leftLabel} ${this.getConditionSymbol(link.conditionType)}`;
       } else if (this.requiresSecondValue(link.conditionType)) {
-        condition = `${link.fieldName} ${this.getConditionSymbol(link.conditionType)} ${link.conditionValue} AND ${link.conditionValueEnd || '?'}`;
+        condition = `${leftLabel} ${this.getConditionSymbol(link.conditionType)} ${rightLabel} AND ${rightEndLabel}`;
       } else {
-        const value = isNaN(Number(link.conditionValue)) ? `'${link.conditionValue}'` : link.conditionValue;
-        condition = `${link.fieldName} ${this.getConditionSymbol(link.conditionType)} ${value}`;
+        // Format the right value based on source type
+        let formattedRight = rightLabel;
+        if (link.rightSource.sourceType === 'direct_assignment' &&
+            link.rightSource.directValueType === 'str') {
+          formattedRight = `'${rightLabel}'`;
+        }
+        condition = `${leftLabel} ${this.getConditionSymbol(link.conditionType)} ${formattedRight}`;
       }
 
       if (i === 0) {
@@ -313,12 +476,22 @@ export class ConditionalChainOverlayComponent implements OnInit, OnDestroy {
       const match = part.match(/^(\w+)\s*(==|!=|>=|<=|>|<|CONTAINS|LIKE|IS\s+NULL|IS\s+NOT\s+NULL)\s*(.*)$/i);
       if (match) {
         const [, fieldName, op, value] = match;
+        const trimmedField = fieldName.trim();
+        const trimmedValue = value.replace(/^['"]|['"]$/g, '').trim();
+
+        // Create ValueSourceConfigs from parsed syntax
+        const leftSource: ValueSourceConfig = this.createSourceFromLegacy(trimmedField, 'from_input');
+        const rightSource: ValueSourceConfig = this.createSourceFromLegacy(trimmedValue, 'direct_assignment');
+
         links.push({
           id: 'link_' + Math.random().toString(36).substring(2, 11),
-          fieldName: fieldName.trim(),
           conditionType: this.parseOperator(op.trim()),
-          conditionValue: value.replace(/^['"]|['"]$/g, '').trim(),
-          logicalOperator: currentOperator
+          logicalOperator: currentOperator,
+          leftSource,
+          rightSource,
+          // Legacy fields
+          fieldName: trimmedField,
+          conditionValue: trimmedValue
         });
         currentOperator = 'AND'; // Reset to default
       }
@@ -425,5 +598,172 @@ export class ConditionalChainOverlayComponent implements OnInit, OnDestroy {
    */
   onMouseDown(event: MouseEvent): void {
     event.stopPropagation();
+  }
+
+  // ==================== Popup Management ====================
+
+  /**
+   * Open the value source popup for a specific link and side
+   */
+  openValuePopup(event: MouseEvent, linkIndex: number, side: EditingSide): void {
+    event.stopPropagation();
+    event.preventDefault();
+
+    // Calculate popup position in viewport coordinates (for position: fixed)
+    const target = event.currentTarget as HTMLElement;
+    const rect = target.getBoundingClientRect();
+
+    // Position popup below the clicked button, in viewport coordinates
+    // Ensure it doesn't go off-screen
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const popupEstimatedWidth = 400; // Estimate for initial width
+    const popupEstimatedHeight = 150;
+
+    let top = rect.bottom + 4;
+    let left = rect.left;
+
+    // Adjust if popup would go off the right edge
+    if (left + popupEstimatedWidth > viewportWidth - 10) {
+      left = Math.max(10, viewportWidth - popupEstimatedWidth - 10);
+    }
+
+    // Adjust if popup would go off the bottom edge - show above instead
+    if (top + popupEstimatedHeight > viewportHeight - 10) {
+      top = rect.top - popupEstimatedHeight - 4;
+    }
+
+    this.popupPosition = { top, left };
+    this.popupLinkIndex = linkIndex;
+    this.popupEditingSide = side;
+    this.popupVisible = true;
+  }
+
+  /**
+   * Close the value source popup
+   */
+  closeValuePopup(): void {
+    this.popupVisible = false;
+    this.popupLinkIndex = -1;
+    this.popupEditingSide = null;
+  }
+
+  /**
+   * Get the current config for the popup based on which side is being edited
+   */
+  getPopupConfig(): ValueSourceConfig {
+    if (this.popupLinkIndex < 0 || !this.popupEditingSide) {
+      return createDefaultValueSourceConfig('from_input');
+    }
+
+    const link = this.visualLinks[this.popupLinkIndex];
+    if (!link) {
+      return createDefaultValueSourceConfig('from_input');
+    }
+
+    switch (this.popupEditingSide) {
+      case 'left':
+        return link.leftSource;
+      case 'right':
+        return link.rightSource;
+      case 'rightEnd':
+        return link.rightSourceEnd || createDefaultValueSourceConfig('direct_assignment');
+      default:
+        return createDefaultValueSourceConfig('from_input');
+    }
+  }
+
+  /**
+   * Handle value source change from popup
+   */
+  onPopupConfigChange(config: ValueSourceConfig): void {
+    if (this.popupLinkIndex < 0 || !this.popupEditingSide) {
+      return;
+    }
+
+    switch (this.popupEditingSide) {
+      case 'left':
+        this.onLeftSourceChange(this.popupLinkIndex, config);
+        break;
+      case 'right':
+        this.onRightSourceChange(this.popupLinkIndex, config);
+        break;
+      case 'rightEnd':
+        this.onRightSourceEndChange(this.popupLinkIndex, config);
+        break;
+    }
+  }
+
+  /**
+   * Get compact display text for a value source config
+   * Format: varName | Object.path | [type] value
+   */
+  getCompactDisplayText(config: ValueSourceConfig | undefined): string {
+    if (!config) {
+      return '(select)';
+    }
+
+    switch (config.sourceType) {
+      case 'from_input':
+        if (config.inputVariableName) {
+          return config.inputVariableName;
+        }
+        return `input[${config.inputSlotIndex ?? 0}]`;
+
+      case 'from_source_object':
+        const path = config.sourceObjectPath || '';
+        // Show as Object.path format
+        if (path.startsWith('self.')) {
+          return `Object.${path.substring(5)}`;
+        }
+        return path ? `Object.${path}` : 'Object.(?)';
+
+      case 'direct_assignment':
+        const typeLabel = config.directValueType || 'str';
+        const value = config.directValue;
+        if (value === undefined || value === null || value === '') {
+          return `[${typeLabel}] (empty)`;
+        }
+        // Truncate long values
+        const strValue = String(value);
+        const displayValue = strValue.length > 10 ? strValue.substring(0, 10) + '...' : strValue;
+        return `[${typeLabel}] ${displayValue}`;
+
+      default:
+        return '(?)';
+    }
+  }
+
+  /**
+   * Handle document click to close popup when clicking outside
+   */
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    if (this.popupVisible) {
+      const target = event.target as HTMLElement;
+      const popup = this.elementRef.nativeElement.querySelector('.value-popup');
+      const isInsidePopup = popup && popup.contains(target);
+      const isValueButton = target.closest('.value-display-btn');
+
+      if (!isInsidePopup && !isValueButton) {
+        this.closeValuePopup();
+      }
+    }
+  }
+
+  /**
+   * Get the popup label based on which side is being edited
+   */
+  getPopupLabel(): string {
+    switch (this.popupEditingSide) {
+      case 'left':
+        return 'Left Value';
+      case 'right':
+        return 'Right Value';
+      case 'rightEnd':
+        return 'End Value';
+      default:
+        return 'Value';
+    }
   }
 }

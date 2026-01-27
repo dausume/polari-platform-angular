@@ -1,0 +1,183 @@
+/* value-source-selector.component.css */
+/* Horizontal progressive disclosure layout */
+
+.value-source-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  font-size: 11px;
+  background: transparent;
+}
+
+.value-source-selector.disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Horizontal flow container */
+.selection-flow {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: nowrap;
+}
+
+/* Individual step in the flow */
+.flow-step {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 100px;
+}
+
+.flow-step.source-type-step {
+  min-width: 110px;
+}
+
+.flow-step.input-step,
+.flow-step.object-step {
+  min-width: 140px;
+}
+
+.flow-step.type-step {
+  min-width: 80px;
+}
+
+.flow-step.value-step {
+  min-width: 100px;
+  flex: 1;
+}
+
+/* Step labels */
+.step-label {
+  font-size: 9px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Dropdowns in the flow */
+.flow-dropdown {
+  padding: 6px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 11px;
+  cursor: pointer;
+  width: 100%;
+}
+
+.flow-dropdown:focus {
+  outline: none;
+  border-color: #4CAF50;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.flow-dropdown:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.flow-dropdown option {
+  background: #333;
+  color: #fff;
+}
+
+.flow-dropdown:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Text inputs in the flow */
+.flow-input {
+  padding: 6px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 11px;
+  width: 100%;
+}
+
+.flow-input:focus {
+  outline: none;
+  border-color: #4CAF50;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.flow-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* No options hint */
+.no-options-hint {
+  font-size: 10px;
+  color: rgba(255, 200, 100, 0.8);
+  font-style: italic;
+  padding: 4px 0;
+}
+
+/* Result preview */
+.result-preview {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: rgba(76, 175, 80, 0.15);
+  border: 1px solid rgba(76, 175, 80, 0.3);
+  border-radius: 4px;
+  margin-top: 4px;
+}
+
+.preview-label {
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+}
+
+.preview-value {
+  font-size: 11px;
+  color: #4CAF50;
+  font-weight: 500;
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
+/* Compact mode - vertical stack */
+.value-source-selector.compact {
+  padding: 4px;
+  gap: 4px;
+}
+
+.value-source-selector.compact .selection-flow {
+  flex-direction: column;
+  gap: 6px;
+}
+
+.value-source-selector.compact .flow-step {
+  min-width: unset;
+  width: 100%;
+}
+
+.value-source-selector.compact .step-label {
+  font-size: 8px;
+}
+
+.value-source-selector.compact .flow-dropdown,
+.value-source-selector.compact .flow-input {
+  padding: 4px 6px;
+  font-size: 10px;
+}
+
+.value-source-selector.compact .result-preview {
+  padding: 4px 6px;
+}
+
+/* Disabled state */
+.value-source-selector.disabled select,
+.value-source-selector.disabled input {
+  cursor: not-allowed;
+  opacity: 0.5;
+}

@@ -138,6 +138,9 @@
       *ngIf="slotConfigPopupVisible && currentSlotConfig"
       [configuration]="currentSlotConfig"
       [position]="slotConfigPosition"
+      [stateContext]="slotConfigStateContext"
+      [stateClass]="slotConfigStateClass"
+      [producedVariables]="slotConfigProducedVariables"
       (configurationChanged)="onSlotConfigChanged($event)"
       (closed)="closeSlotConfigPopup()">
     </slot-configuration-popup>
@@ -165,4 +168,14 @@
 
     <!-- Backdrop for full view popup -->
     <div class="popup-backdrop" *ngIf="fullViewPopupVisible" (click)="closeFullViewPopup()"></div>
+
+    <!-- View Context Overlay (Debug) -->
+    <view-context-overlay
+      *ngIf="viewContextOverlayVisible"
+      [context]="viewContextOverlayContext"
+      [stateName]="viewContextOverlayStateName"
+      [solutionName]="selectedSolutionName || ''"
+      [position]="viewContextOverlayPosition"
+      (closed)="closeViewContextOverlay()">
+    </view-context-overlay>
 </mat-card>

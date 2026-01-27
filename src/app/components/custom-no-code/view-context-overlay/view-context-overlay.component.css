@@ -1,0 +1,685 @@
+/* View Context Overlay Styles */
+
+.overlay-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 99999;
+}
+
+.context-overlay {
+  position: fixed;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  min-width: 360px;
+  max-width: 480px;
+  max-height: 80vh;
+  z-index: 100000;
+  display: flex;
+  flex-direction: column;
+  font-family: 'Roboto', sans-serif;
+  overflow: hidden;
+}
+
+/* Header */
+.overlay-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.header-title mat-icon {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.8;
+  transition: opacity 0.2s, background 0.2s;
+}
+
+.close-btn:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.close-btn mat-icon {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+}
+
+/* State Info Bar */
+.state-info-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.state-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  color: #333;
+}
+
+.state-badge mat-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  color: #667eea;
+}
+
+.state-name {
+  font-size: 14px;
+}
+
+.solution-name {
+  font-size: 12px;
+  color: #666;
+}
+
+/* Content Area */
+.overlay-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+
+/* Summary Stats */
+.summary-stats {
+  display: flex;
+  justify-content: space-around;
+  padding: 16px;
+  background: #fafbfc;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 600;
+  color: #333;
+}
+
+.stat-label {
+  font-size: 11px;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Accordion Sections */
+.accordion-section {
+  border-bottom: 1px solid #e9ecef;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  cursor: pointer;
+  user-select: none;
+  background: white;
+  transition: background 0.15s;
+}
+
+.section-header:hover {
+  background: #f8f9fa;
+}
+
+.expand-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  color: #666;
+  transition: transform 0.2s;
+  margin-right: 8px;
+}
+
+.expand-icon.expanded {
+  transform: rotate(90deg);
+}
+
+.section-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.section-content {
+  padding: 0 16px 16px;
+}
+
+/* Slot Groups */
+.slot-group {
+  margin-bottom: 12px;
+}
+
+.slot-group:last-child {
+  margin-bottom: 0;
+}
+
+.slot-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: #e3f2fd;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #1565c0;
+}
+
+.slot-header mat-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+}
+
+/* Variable List */
+.variable-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.variable-item {
+  padding: 8px 10px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border-left: 3px solid #667eea;
+}
+
+.variable-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.variable-name {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 13px;
+  font-weight: 500;
+  color: #333;
+  cursor: pointer;
+}
+
+.variable-name:hover {
+  color: #667eea;
+  text-decoration: underline;
+}
+
+.variable-type {
+  font-size: 11px;
+  padding: 2px 6px;
+  background: #e9ecef;
+  border-radius: 4px;
+  color: #666;
+  font-family: 'Roboto Mono', monospace;
+}
+
+.variable-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #666;
+}
+
+.source-state {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.source-state mat-icon {
+  font-size: 12px;
+  width: 12px;
+  height: 12px;
+}
+
+/* Flow Distance Badges */
+.flow-distance {
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.distance-immediate {
+  background: #d4edda;
+  color: #155724;
+}
+
+.distance-close {
+  background: #cce5ff;
+  color: #004085;
+}
+
+.distance-medium {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.distance-far {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+/* Object Types */
+.object-type-item {
+  padding: 10px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 3px solid #28a745;
+  margin-bottom: 8px;
+}
+
+.object-type-item:last-child {
+  margin-bottom: 0;
+}
+
+.object-type-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.object-type-header mat-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  color: #28a745;
+}
+
+.class-name {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 13px;
+  font-weight: 500;
+  color: #333;
+  flex: 1;
+}
+
+.object-fields {
+  padding-left: 24px;
+  margin-bottom: 8px;
+}
+
+.field-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 12px;
+}
+
+.field-path {
+  font-family: 'Roboto Mono', monospace;
+  color: #555;
+  cursor: pointer;
+}
+
+.field-path:hover {
+  color: #667eea;
+  text-decoration: underline;
+}
+
+.field-type {
+  font-size: 10px;
+  padding: 1px 4px;
+  background: #e9ecef;
+  border-radius: 3px;
+  color: #666;
+  font-family: 'Roboto Mono', monospace;
+}
+
+.writable-icon {
+  font-size: 12px !important;
+  width: 12px !important;
+  height: 12px !important;
+  color: #ffc107;
+}
+
+.source-info {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #666;
+}
+
+.source-info mat-icon {
+  font-size: 12px;
+  width: 12px;
+  height: 12px;
+}
+
+/* Flow Information */
+.flow-info-item {
+  margin-bottom: 12px;
+}
+
+.flow-info-item:last-child {
+  margin-bottom: 0;
+}
+
+.info-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: #666;
+  margin-bottom: 6px;
+}
+
+.info-value {
+  font-size: 13px;
+  color: #333;
+}
+
+.info-value.muted {
+  color: #999;
+  font-style: italic;
+}
+
+.state-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.state-chip {
+  padding: 4px 8px;
+  background: #e9ecef;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #333;
+}
+
+/* Empty States */
+.empty-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  color: #666;
+  font-size: 13px;
+}
+
+.empty-message mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  color: #999;
+}
+
+/* No Context State */
+.no-context-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  text-align: center;
+  color: #666;
+}
+
+.no-context-message mat-icon {
+  font-size: 48px;
+  width: 48px;
+  height: 48px;
+  color: #ffc107;
+  margin-bottom: 16px;
+}
+
+.no-context-message p {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+.no-context-message .hint {
+  font-size: 12px;
+  color: #999;
+}
+
+/* Solution Object Section */
+.solution-object-section {
+  background: linear-gradient(to right, #e8f5e9, #f8f9fa);
+}
+
+.solution-object-section .section-header {
+  background: transparent;
+}
+
+.section-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  margin-right: 4px;
+}
+
+.solution-icon {
+  color: #2e7d32;
+}
+
+.always-available-badge {
+  margin-left: auto;
+  font-size: 10px;
+  padding: 2px 8px;
+  background: #c8e6c9;
+  color: #2e7d32;
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+.solution-object-item {
+  padding: 10px;
+  background: white;
+  border-radius: 8px;
+  border-left: 3px solid #2e7d32;
+}
+
+.solution-object-item .object-type-header {
+  margin-bottom: 8px;
+}
+
+.solution-object-item .object-type-header mat-icon {
+  color: #2e7d32;
+}
+
+/* Branch Groups */
+.branch-group {
+  margin-bottom: 12px;
+}
+
+.branch-group:last-child {
+  margin-bottom: 0;
+}
+
+.branch-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: #fff3e0;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #e65100;
+}
+
+.branch-header.main-flow {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.branch-header mat-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+}
+
+/* Branched Variable Styling */
+.variable-item.branched {
+  border-left-color: #ff9800;
+}
+
+.input-slot {
+  font-size: 10px;
+  padding: 1px 4px;
+  background: #e3f2fd;
+  color: #1565c0;
+  border-radius: 3px;
+  margin-right: 6px;
+}
+
+/* Branch Path Detail */
+.branch-path-detail {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  padding: 4px 8px;
+  background: #fff8e1;
+  border-radius: 4px;
+  font-size: 10px;
+  color: #f57c00;
+}
+
+.branch-path-detail mat-icon {
+  font-size: 12px;
+  width: 12px;
+  height: 12px;
+}
+
+/* Branch Info Section */
+.branch-info-item {
+  padding: 10px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  border-left: 3px solid #ff9800;
+}
+
+.branch-info-item:last-child {
+  margin-bottom: 0;
+}
+
+.branch-path-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #e65100;
+  margin-bottom: 6px;
+}
+
+.branch-path-label mat-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+}
+
+.branch-point {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: 8px;
+}
+
+.branch-state {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 11px;
+  color: #333;
+}
+
+.branch-index {
+  font-size: 10px;
+  color: #f57c00;
+  font-weight: 500;
+}
+
+.branch-step {
+  font-size: 10px;
+  color: #999;
+}
+
+.branch-point mat-icon {
+  font-size: 12px;
+  width: 12px;
+  height: 12px;
+  color: #ccc;
+}
+
+.branch-var-count {
+  font-size: 11px;
+  color: #666;
+  margin-top: 4px;
+}
+
+/* Empty message small variant */
+.empty-message.small {
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+/* Scrollbar styling */
+.overlay-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.overlay-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.overlay-content::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 3px;
+}
+
+.overlay-content::-webkit-scrollbar-thumb:hover {
+  background: #aaa;
+}

@@ -1,0 +1,110 @@
+<div class="value-source-selector"
+     [class.compact]="compact"
+     [class.disabled]="disabled"
+     (click)="onInteractionStart($event)"
+     (mousedown)="onInteractionStart($event)">
+
+  <!-- Horizontal flow of selections -->
+  <div class="selection-flow">
+
+    <!-- Step 1: Source Type Selection -->
+    <div class="flow-step source-type-step">
+      <label class="step-label">Source</label>
+      <select class="flow-dropdown source-type-dropdown"
+              [disabled]="disabled"
+              [(ngModel)]="selectedSourceType"
+              (change)="onSourceTypeChange(selectedSourceType)">
+        <option value="" disabled>Choose...</option>
+        <option *ngFor="let opt of sourceTypeOptions" [value]="opt.value">
+          {{ opt.label }}
+        </option>
+      </select>
+    </div>
+
+    <!-- Step 2: Secondary selection based on source type -->
+
+    <!-- From Input: Variable dropdown -->
+    <div class="flow-step input-step" *ngIf="selectedSourceType === 'from_input'">
+      <label class="step-label">Variable</label>
+      <select class="flow-dropdown input-dropdown"
+              [disabled]="disabled || availableInputs.length === 0"
+              [ngModel]="getSelectedInputKey()"
+              (change)="onInputChange($any($event.target).value)">
+        <option value="" disabled>Choose...</option>
+        <option *ngFor="let input of availableInputs"
+                [value]="getInputKey(input)">
+          {{ input.variableName }} ({{ input.type }})
+        </option>
+      </select>
+      <span class="no-options-hint" *ngIf="availableInputs.length === 0">
+        No inputs connected
+      </span>
+    </div>
+
+    <!-- From Source Object: Property dropdown -->
+    <div class="flow-step object-step" *ngIf="selectedSourceType === 'from_source_object'">
+      <label class="step-label">Property</label>
+      <select class="flow-dropdown object-dropdown"
+              *ngIf="sourceObjectFields.length > 0"
+              [disabled]="disabled"
+              [(ngModel)]="selectedObjectPath"
+              (change)="onObjectPathChange(selectedObjectPath)">
+        <option value="" disabled>Choose...</option>
+        <option *ngFor="let field of sourceObjectFields"
+                [value]="field.path">
+          {{ field.displayName || field.path }} ({{ field.type }})
+        </option>
+      </select>
+      <!-- Manual path input if no predefined fields -->
+      <input *ngIf="sourceObjectFields.length === 0"
+             type="text"
+             class="flow-input object-path-input"
+             placeholder="e.g., self.property"
+             [disabled]="disabled"
+             [(ngModel)]="selectedObjectPath"
+             (input)="onObjectPathChange(selectedObjectPath)">
+    </div>
+
+    <!-- Direct Assignment: Type dropdown + Value input -->
+    <div class="flow-step type-step" *ngIf="selectedSourceType === 'direct_assignment'">
+      <label class="step-label">Type</label>
+      <select class="flow-dropdown type-dropdown"
+              [disabled]="disabled"
+              [(ngModel)]="directValueType"
+              (change)="onDirectValueTypeChange(directValueType)">
+        <option *ngFor="let type of directValueTypes" [value]="type.value">
+          {{ type.label }}
+        </option>
+      </select>
+    </div>
+
+    <!-- Step 3: Value input for direct assignment -->
+    <div class="flow-step value-step" *ngIf="selectedSourceType === 'direct_assignment'">
+      <label class="step-label">Value</label>
+      <!-- Text/number input -->
+      <input *ngIf="directValueType !== 'bool'"
+             type="text"
+             class="flow-input value-input"
+             [placeholder]="getValuePlaceholder()"
+             [disabled]="disabled"
+             [(ngModel)]="directValue"
+             (input)="onDirectValueChange(directValue)">
+      <!-- Boolean dropdown -->
+      <select *ngIf="directValueType === 'bool'"
+              class="flow-dropdown bool-dropdown"
+              [disabled]="disabled"
+              [(ngModel)]="directValue"
+              (change)="onDirectValueChange(directValue)">
+        <option value="true">True</option>
+        <option value="false">False</option>
+      </select>
+    </div>
+
+  </div>
+
+  <!-- Result preview -->
+  <div class="result-preview" *ngIf="hasCompleteSelection()">
+    <span class="preview-label">Result:</span>
+    <span class="preview-value">{{ getDisplayText() }}</span>
+  </div>
+</div>

@@ -1,0 +1,158 @@
+<div class="variable-assignment-overlay"
+     [class.compact]="isCompact"
+     [class.small]="isSmall"
+     (click)="onOverlayClick($event)"
+     (mousedown)="onMouseDown($event)"
+     (pointerdown)="onMouseDown($event)">
+
+  <!-- Header -->
+  <div class="overlay-header">
+    <mat-icon class="header-icon">assignment</mat-icon>
+    <span class="title">Variable Assignment</span>
+  </div>
+
+  <!-- Main content (non-compact mode) -->
+  <div class="overlay-content" *ngIf="!isCompact">
+
+    <!-- Target Type Selection -->
+    <div class="section target-type-section">
+      <label class="section-label">Assign To</label>
+      <div class="target-type-tabs">
+        <button *ngFor="let target of targetTypes"
+                class="target-tab"
+                [class.active]="config.targetType === target.value"
+                (click)="onTargetTypeChange(target.value)"
+                [title]="target.label">
+          <mat-icon>{{ target.icon }}</mat-icon>
+          <span *ngIf="!isSmall">{{ target.label }}</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Solution Object Field Selection -->
+    <div class="section" *ngIf="config.targetType === 'solution_object_field'">
+      <label class="section-label">Solution Field</label>
+      <select class="field-select"
+              [value]="config.solutionFieldPath"
+              (change)="onSolutionFieldChange($any($event.target).value)">
+        <option value="">-- Select a field --</option>
+        <option *ngFor="let field of solutionObjectFields"
+                [value]="field.path">
+          {{ field.displayName || field.path }} ({{ field.type }})
+        </option>
+      </select>
+      <p class="field-hint" *ngIf="config.solutionFieldPath">
+        Assigning to: <code>{{ config.solutionFieldPath }}</code>
+      </p>
+    </div>
+
+    <!-- New Variable Configuration -->
+    <div class="section" *ngIf="config.targetType === 'new_variable'">
+      <label class="section-label">Variable Name <span class="required">*</span></label>
+      <input type="text"
+             class="text-input"
+             [class.error]="variableNameError"
+             [value]="config.variableName"
+             (input)="onVariableNameChange($any($event.target).value)"
+             placeholder="e.g., myVariable">
+      <p class="error-message" *ngIf="variableNameError">
+        <mat-icon class="error-icon">error</mat-icon>
+        {{ variableNameError }}
+      </p>
+      <p class="success-hint" *ngIf="!variableNameError && config.variableName && isVariableNameUnique">
+        <mat-icon class="success-icon">check_circle</mat-icon>
+        Variable will be added to context and default output
+      </p>
+
+      <div class="row-group">
+        <div class="field-group">
+          <label class="mini-label">Type</label>
+          <select class="mini-select"
+                  [value]="config.dataType"
+                  (change)="onDataTypeChange($any($event.target).value)">
+            <option *ngFor="let type of dataTypes" [value]="type.value">
+              {{ type.label }}
+            </option>
+          </select>
+        </div>
+
+        <div class="field-group">
+          <label class="mini-label">Options</label>
+          <label class="checkbox-label">
+            <input type="checkbox"
+                   [checked]="config.isConst"
+                   (change)="onConstToggle()">
+            <span>Constant</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Existing Variable Selection -->
+    <div class="section" *ngIf="config.targetType === 'existing_variable'">
+      <label class="section-label">Select Variable</label>
+      <select class="field-select"
+              [value]="config.variableName"
+              (change)="onVariableNameChange($any($event.target).value)">
+        <option value="">-- Select a variable --</option>
+        <option *ngFor="let variable of existingVariables"
+                [value]="variable.name">
+          {{ variable.name }} ({{ variable.type }}) - from {{ variable.source }}
+        </option>
+      </select>
+      <p class="empty-hint" *ngIf="existingVariables.length === 0">
+        No variables available in current context
+      </p>
+    </div>
+
+    <!-- Value Assignment Section -->
+    <div class="section value-section">
+      <label class="section-label">Value</label>
+      <button class="value-display-btn"
+              [class.active]="valuePopupVisible"
+              (click)="openValuePopup($event)"
+              title="Click to configure value">
+        <span class="value-text">{{ getValueDisplayText() }}</span>
+        <mat-icon class="edit-icon">edit</mat-icon>
+      </button>
+    </div>
+
+    <!-- Preview -->
+    <div class="section preview-section" *ngIf="getTargetName()">
+      <label class="section-label">Preview</label>
+      <code class="preview-code">{{ getDisplayName() }}</code>
+    </div>
+  </div>
+
+  <!-- Value Source Popup -->
+  <div class="value-popup"
+       *ngIf="valuePopupVisible"
+       [style.top.px]="popupPosition.top"
+       [style.left.px]="popupPosition.left"
+       (click)="$event.stopPropagation()"
+       (mousedown)="$event.stopPropagation()"
+       (pointerdown)="$event.stopPropagation()">
+    <div class="popup-header">
+      <span class="popup-title">Configure Value</span>
+      <button class="popup-close-btn" (click)="closeValuePopup()">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+    <div class="popup-content">
+      <app-value-source-selector
+        [config]="config.valueSource"
+        [availableInputs]="availableInputs"
+        [sourceObjectFields]="getSourceObjectFieldsForSelector()"
+        [label]="''"
+        [compact]="false"
+        (configChange)="onValueSourceChange($event)">
+      </app-value-source-selector>
+    </div>
+  </div>
+
+  <!-- Compact mode: just show summary -->
+  <div class="compact-summary" *ngIf="isCompact">
+    <mat-icon>assignment</mat-icon>
+    <span class="compact-text">{{ getTargetName() || 'Assign' }}</span>
+  </div>
+</div>

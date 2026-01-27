@@ -3,7 +3,7 @@
 import { Component, EventEmitter, Input, Output, HostListener, ElementRef, OnInit, OnDestroy } from '@angular/core';
 
 export interface StateContextMenuAction {
-  type: 'resize' | 'changeShape' | 'delete' | 'duplicate' | 'editProperties' | 'manageSlots';
+  type: 'resize' | 'changeShape' | 'delete' | 'duplicate' | 'editProperties' | 'manageSlots' | 'viewContext';
   stateName: string;
   value?: any;
 }
@@ -150,6 +150,14 @@ export class StateContextMenuComponent implements OnInit, OnDestroy {
   manageSlots(): void {
     this.menuAction.emit({
       type: 'manageSlots',
+      stateName: this.stateName
+    });
+    this.closeMenu();
+  }
+
+  viewContext(): void {
+    this.menuAction.emit({
+      type: 'viewContext',
       stateName: this.stateName
     });
     this.closeMenu();

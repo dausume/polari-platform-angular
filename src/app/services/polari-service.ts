@@ -106,11 +106,18 @@ export class PolariService {
         // Subscribe to Tier 2/3 configuration from RuntimeConfigService
         this.subscribeToConfigChanges();
 
-        // Initialize with current config values
-        this.initializeFromConfig();
+        // Wait for RuntimeConfigService to finish loading before initializing
+        // This ensures runtime-config.json values are available
+        this.runtimeConfig.isConfigLoaded$.subscribe(loaded => {
+            if (loaded) {
+                console.log('[PolariService] RuntimeConfig loaded, initializing...');
+                // Initialize with current config values
+                this.initializeFromConfig();
 
-        // Triggers the attempt to connect to the Polari Node with the set polariService values.
-        this.establishPolariConnection();
+                // Triggers the attempt to connect to the Polari Node with the set polariService values.
+                this.establishPolariConnection();
+            }
+        });
     }
 
     /**

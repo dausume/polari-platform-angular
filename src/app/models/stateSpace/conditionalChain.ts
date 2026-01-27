@@ -21,6 +21,49 @@ import { ConditionOperator, ConditionType, CONDITION_TYPE_OPTIONS } from './cond
 export type LogicalOperator = 'AND' | 'OR' | 'NOT' | 'XOR';
 
 /**
+ * Types of value sources for conditional chain comparisons
+ */
+export type ValueSourceType = 'from_input' | 'from_source_object' | 'direct_assignment';
+
+/**
+ * Configuration for where a value comes from in a conditional comparison.
+ * Supports selecting from input slots, source object properties, or direct literals.
+ */
+export interface ValueSourceConfig {
+  /** The type of source for this value */
+  sourceType: ValueSourceType;
+
+  /** When 'from_input' - which input slot index to read from */
+  inputSlotIndex?: number;
+
+  /** When 'from_input' - the variable name from that input slot */
+  inputVariableName?: string;
+
+  /** When 'from_source_object' - the property path (e.g., "self.total_amount") */
+  sourceObjectPath?: string;
+
+  /** When 'direct_assignment' - the literal value */
+  directValue?: any;
+
+  /** When 'direct_assignment' - the type of the literal value (int, str, bool, float) */
+  directValueType?: 'int' | 'str' | 'bool' | 'float';
+}
+
+/**
+ * Create a default ValueSourceConfig
+ */
+export function createDefaultValueSourceConfig(sourceType: ValueSourceType = 'from_input'): ValueSourceConfig {
+  return {
+    sourceType,
+    inputSlotIndex: sourceType === 'from_input' ? 0 : undefined,
+    inputVariableName: undefined,
+    sourceObjectPath: undefined,
+    directValue: undefined,
+    directValueType: undefined
+  };
+}
+
+/**
  * How conditions are grouped/evaluated
  */
 export type EvaluationMode = 'sequential' | 'parallel' | 'nested';
@@ -32,17 +75,17 @@ export interface ConditionalChainLink {
   id: string;
   displayName: string;
 
-  // The field/variable to evaluate
-  fieldName: string;
+  // NEW: Left side of comparison (what we're evaluating)
+  leftSource?: ValueSourceConfig;
 
   // The comparison operator (equals, greaterThan, contains, etc.)
   conditionType: ConditionType;
 
-  // The value to compare against
-  conditionValue: any;
+  // NEW: Right side of comparison (what we're comparing to)
+  rightSource?: ValueSourceConfig;
 
-  // Secondary value for range operations (BETWEEN)
-  conditionValueEnd?: any;
+  // NEW: Right side end value for BETWEEN operations
+  rightSourceEnd?: ValueSourceConfig;
 
   // How this link connects to the next (AND/OR)
   logicalOperator: LogicalOperator;
@@ -56,6 +99,14 @@ export interface ConditionalChainLink {
 
   // State-space configuration
   isStateSpaceObject: boolean;
+
+  // --- Backwards compatibility fields (derived from sources) ---
+  // Deprecated - use leftSource instead
+  fieldName?: string;
+  // Deprecated - use rightSource instead
+  conditionValue?: any;
+  // Deprecated - use rightSourceEnd instead
+  conditionValueEnd?: any;
 }
 
 /**
@@ -228,10 +279,102 @@ export class ConditionalChain {
       return link.nestedConditions.evaluate(data);
     }
 
-    const fieldValue = data[link.fieldName];
-    const conditionValue = link.conditionValue;
+    // Resolve left side value using new source config or legacy fieldName
+    const fieldValue = this.resolveValueSource(link.leftSource, data, link.fieldName);
 
-    return this.evaluateCondition(fieldValue, link.conditionType, conditionValue, link.conditionValueEnd);
+    // Resolve right side value using new source config or legacy conditionValue
+    const conditionValue = this.resolveValueSource(link.rightSource, data, link.conditionValue);
+
+    // Resolve end value for BETWEEN operations
+    const conditionValueEnd = link.rightSourceEnd
+      ? this.resolveValueSource(link.rightSourceEnd, data)
+      : link.conditionValueEnd;
+
+    return this.evaluateCondition(fieldValue, link.conditionType, conditionValue, conditionValueEnd);
+  }
+
+  /**
+   * Resolve a value from a ValueSourceConfig
+   */
+  private resolveValueSource(
+    source: ValueSourceConfig | undefined,
+    data: Record<string, any>,
+    legacyValue?: any
+  ): any {
+    // If no source config, fall back to legacy value
+    if (!source) {
+      return legacyValue;
+    }
+
+    switch (source.sourceType) {
+      case 'from_input':
+        // Get value from input slot variable
+        if (source.inputVariableName) {
+          return data[source.inputVariableName];
+        }
+        // Fall back to slot-based access
+        if (source.inputSlotIndex !== undefined) {
+          return data[`__input_${source.inputSlotIndex}`];
+        }
+        return legacyValue;
+
+      case 'from_source_object':
+        // Navigate object path (e.g., "self.total_amount")
+        if (source.sourceObjectPath) {
+          return this.resolveObjectPath(source.sourceObjectPath, data);
+        }
+        return legacyValue;
+
+      case 'direct_assignment':
+        // Return the direct value, with type coercion if specified
+        if (source.directValue !== undefined) {
+          return this.coerceValueType(source.directValue, source.directValueType);
+        }
+        return legacyValue;
+
+      default:
+        return legacyValue;
+    }
+  }
+
+  /**
+   * Resolve a dot-notation object path
+   */
+  private resolveObjectPath(path: string, data: Record<string, any>): any {
+    const parts = path.split('.');
+    let current: any = data;
+
+    for (const part of parts) {
+      if (current === null || current === undefined) {
+        return undefined;
+      }
+      current = current[part];
+    }
+
+    return current;
+  }
+
+  /**
+   * Coerce a value to the specified type
+   */
+  private coerceValueType(value: any, type?: 'int' | 'str' | 'bool' | 'float'): any {
+    if (!type) return value;
+
+    switch (type) {
+      case 'int':
+        return parseInt(String(value), 10);
+      case 'float':
+        return parseFloat(String(value));
+      case 'bool':
+        if (typeof value === 'string') {
+          return value.toLowerCase() === 'true' || value === '1';
+        }
+        return Boolean(value);
+      case 'str':
+        return String(value);
+      default:
+        return value;
+    }
   }
 
   /**
@@ -486,7 +629,7 @@ export class ConditionalChain {
 // --- Factory Functions ---
 
 /**
- * Create a new ConditionalChainLink
+ * Create a new ConditionalChainLink (legacy API - maintains backwards compatibility)
  */
 export function createConditionLink(
   fieldName: string,
@@ -504,6 +647,60 @@ export function createConditionLink(
     logicalOperator,
     isStateSpaceObject: true
   };
+}
+
+/**
+ * Create a new ConditionalChainLink using ValueSourceConfig (new API)
+ */
+export function createConditionLinkWithSources(
+  leftSource: ValueSourceConfig,
+  conditionType: ConditionType,
+  rightSource: ValueSourceConfig,
+  logicalOperator: LogicalOperator = 'AND',
+  displayName?: string,
+  rightSourceEnd?: ValueSourceConfig
+): ConditionalChainLink {
+  // Generate display name from sources
+  const leftLabel = getSourceLabel(leftSource);
+  const rightLabel = getSourceLabel(rightSource);
+  const generatedName = displayName || `${leftLabel} ${conditionType} ${rightLabel}`;
+
+  return {
+    id: 'link_' + Math.random().toString(36).substring(2, 11),
+    displayName: generatedName,
+    leftSource,
+    conditionType,
+    rightSource,
+    rightSourceEnd,
+    logicalOperator,
+    isStateSpaceObject: true,
+    // Backwards compatibility: derive legacy fields from sources
+    fieldName: leftSource.inputVariableName || leftSource.sourceObjectPath || '',
+    conditionValue: rightSource.directValue ?? rightSource.inputVariableName ?? rightSource.sourceObjectPath,
+    conditionValueEnd: rightSourceEnd?.directValue ?? rightSourceEnd?.inputVariableName
+  };
+}
+
+/**
+ * Get a human-readable label for a ValueSourceConfig
+ */
+export function getSourceLabel(source: ValueSourceConfig): string {
+  switch (source.sourceType) {
+    case 'from_input':
+      if (source.inputVariableName) {
+        return source.inputVariableName;
+      }
+      return `input[${source.inputSlotIndex ?? 0}]`;
+    case 'from_source_object':
+      return source.sourceObjectPath || 'self';
+    case 'direct_assignment':
+      if (source.directValue !== undefined) {
+        return String(source.directValue);
+      }
+      return '(value)';
+    default:
+      return '?';
+  }
 }
 
 /**

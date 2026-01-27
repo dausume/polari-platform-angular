@@ -107,278 +107,380 @@ export interface NoCodeSolutionRawData {
 }
 
 /**
- * Sample Solution 1: "testSolution" - 3 states (existing sample)
- * The original test solution with initial, intermediate, and final states
+ * Sample Solution 1: "Addition Test" - Simple arithmetic with conditional check
+ * Tests adding two numbers and checking if the result matches an expected value
+ *
+ * Flow (Parallel Branch & Merge Pattern):
+ *                     ┌→ [Compute Sum] ────────┐
+ * [Start] ────────────┤                        ├→ [Check Result] → Return True/False
+ *                     └→ [Get Expected] ───────┘
+ *
+ * 1. Start with input variables (num_a, num_b, expected_result)
+ * 2. PARALLEL: Compute Sum (sum_result = num_a + num_b)
+ * 3. PARALLEL: Get Expected (comparison_value = expected_result)
+ * 4. Check Result compares inputs from both branches using ValueSourceConfig
+ * 5. Output the boolean result
  */
-export const MOCK_SOLUTION_TEST: NoCodeSolutionRawData = {
+export const MOCK_SOLUTION_ADDITION_TEST: NoCodeSolutionRawData = {
   id: 1,
-  solutionName: "testSolution",
-  xBounds: 1200,
-  yBounds: 800,
+  solutionName: "Addition Test",
+  functionName: "test_addition",
+  xBounds: 1000,
+  yBounds: 600,
+  boundClass: {
+    className: "AdditionTester",
+    displayName: "Addition Tester",
+    description: "A simple test that adds two numbers and checks if the result matches an expected value",
+    pythonImports: [],
+    fields: [
+      { name: "num_a", displayName: "Number A", type: "int", defaultValue: 0, description: "First number to add" },
+      { name: "num_b", displayName: "Number B", type: "int", defaultValue: 0, description: "Second number to add" },
+      { name: "expected_result", displayName: "Expected Result", type: "int", defaultValue: 0, description: "Expected sum for comparison" },
+      { name: "sum_result", displayName: "Sum Result", type: "int", defaultValue: 0, description: "Calculated sum of num_a + num_b" },
+      { name: "comparison_value", displayName: "Comparison Value", type: "int", defaultValue: 0, description: "Expected value passed through for comparison" },
+      { name: "test_passed", displayName: "Test Passed", type: "bool", defaultValue: false, description: "Whether the sum matches expected" }
+    ],
+    methods: [
+      {
+        name: "test_addition",
+        displayName: "Test Addition",
+        parameters: [
+          { name: "num_a", type: "int" },
+          { name: "num_b", type: "int" },
+          { name: "expected_result", type: "int" }
+        ],
+        returnType: "bool",
+        description: "Add two numbers and check if result matches expected value"
+      }
+    ]
+  },
   stateInstances: [
+    // Start State - Green Circle (2 output slots for parallel branches)
     {
-      stateName: "initial-state",
-      id: "state-id-0",
+      stateName: "Start",
+      id: "start-state",
       index: 0,
       shapeType: "circle",
-      solutionName: "testSolution",
-      stateClass: "Polari Wrapped Python Class",
+      solutionName: "Addition Test",
+      stateClass: "InitialState",
+      boundObjectClass: "InitialState",
+      boundObjectFieldValues: {
+        displayName: "Start",
+        description: "Begin addition test with input parameters",
+        inputParams: [
+          { name: "num_a", type: "int", description: "First number" },
+          { name: "num_b", type: "int", description: "Second number" },
+          { name: "expected_result", type: "int", description: "Expected sum" }
+        ]
+      },
       stateSvgSizeX: null,
       stateSvgSizeY: null,
-      stateSvgRadius: 100,
-      layerName: "initial-state-layer",
-      stateLocationX: 0,
-      stateLocationY: 0,
+      stateSvgRadius: 60,
+      layerName: "start-layer",
+      stateLocationX: 80,
+      stateLocationY: 280,
       stateSvgName: "circle",
       slots: [
+        // Output slot 0 → Compute Sum
         {
           index: 0,
-          stateName: "initial-state",
-          slotAngularPosition: 0,
-          connectors: [],
-          isInput: false,
-          allowOneToMany: false,
-          allowManyToOne: false
-        }
-      ],
-      slotRadius: 4,
-      backgroundColor: "blue"
-    },
-    {
-      stateName: "state-001",
-      id: "state-id-1",
-      index: 1,
-      shapeType: "circle",
-      solutionName: "testSolution",
-      stateClass: "Polari Wrapped Python Class",
-      stateSvgSizeX: null,
-      stateSvgSizeY: null,
-      stateSvgRadius: 100,
-      layerName: "circle-state-layer",
-      stateLocationX: 100,
-      stateLocationY: 100,
-      stateSvgName: "circle",
-      slots: [
-        {
-          index: 0,
-          stateName: "state-001",
-          slotAngularPosition: 0,
-          connectors: [],
-          isInput: false,
-          allowOneToMany: false,
-          allowManyToOne: false
-        },
-        {
-          index: 1,
-          stateName: "state-001",
-          slotAngularPosition: 180,
-          connectors: [],
-          isInput: false,
-          allowOneToMany: false,
-          allowManyToOne: false
-        }
-      ],
-      slotRadius: 4,
-      backgroundColor: "blue"
-    },
-    {
-      stateName: "final-state",
-      id: "state-id-2",
-      index: 2,
-      shapeType: "circle",
-      solutionName: "testSolution",
-      stateClass: "Polari Wrapped Python Class",
-      stateSvgSizeX: null,
-      stateSvgSizeY: null,
-      stateSvgRadius: 100,
-      layerName: "final-state-layer",
-      stateLocationX: 200,
-      stateLocationY: 200,
-      stateSvgName: "circle",
-      slots: [
-        {
-          index: 0,
-          stateName: "final-state",
-          slotAngularPosition: 0,
-          connectors: [],
-          isInput: false,
-          allowOneToMany: false,
-          allowManyToOne: false
-        }
-      ],
-      slotRadius: 4,
-      backgroundColor: "blue"
-    }
-  ]
-};
-
-/**
- * Sample Solution 2: "ML Workflow" - 4 states
- * A machine learning workflow with data prep, training, validation, and deployment
- */
-export const MOCK_SOLUTION_ML_WORKFLOW: NoCodeSolutionRawData = {
-  id: 2,
-  solutionName: "ML Workflow",
-  xBounds: 1200,
-  yBounds: 800,
-  stateInstances: [
-    {
-      stateName: "data-preparation",
-      id: "state-id-0",
-      index: 0,
-      shapeType: "circle",
-      solutionName: "ML Workflow",
-      stateClass: "DataPreparationModule",
-      stateSvgSizeX: null,
-      stateSvgSizeY: null,
-      stateSvgRadius: 90,
-      layerName: "prep-state-layer",
-      stateLocationX: 100,
-      stateLocationY: 350,
-      stateSvgName: "circle",
-      slots: [
-        {
-          index: 0,
-          stateName: "data-preparation",
-          slotAngularPosition: 0,
-          connectors: [],
+          stateName: "Start",
+          slotAngularPosition: 30,
+          connectors: [{ id: 1, sourceSlot: 0, sinkSlot: 0, targetStateName: "Compute Sum" }],
           isInput: false,
           allowOneToMany: true,
-          allowManyToOne: false
+          allowManyToOne: false,
+          label: "To Sum",
+          passthroughVariableName: "num_a,num_b"
+        },
+        // Output slot 1 → Get Expected
+        {
+          index: 1,
+          stateName: "Start",
+          slotAngularPosition: 330,
+          connectors: [{ id: 2, sourceSlot: 1, sinkSlot: 0, targetStateName: "Get Expected" }],
+          isInput: false,
+          allowOneToMany: true,
+          allowManyToOne: false,
+          label: "To Expected",
+          passthroughVariableName: "expected_result"
         }
       ],
       slotRadius: 5,
-      backgroundColor: "#9C27B0"
+      backgroundColor: "#4CAF50"  // Green for start
     },
+    // Compute Sum - Variable Assignment (Purple) - computes sum_result = num_a + num_b
     {
-      stateName: "model-training",
-      id: "state-id-1",
+      stateName: "Compute Sum",
+      id: "compute-sum",
       index: 1,
       shapeType: "circle",
-      solutionName: "ML Workflow",
-      stateClass: "ModelTrainingModule",
+      solutionName: "Addition Test",
+      stateClass: "VariableAssignment",
+      boundObjectClass: "VariableAssignment",
+      boundObjectFieldValues: {
+        displayName: "Compute Sum",
+        variableName: "sum_result",
+        value: "num_a + num_b",
+        dataType: "int",
+        description: "Calculate the sum of the two input numbers"
+      },
       stateSvgSizeX: null,
       stateSvgSizeY: null,
-      stateSvgRadius: 100,
-      layerName: "training-state-layer",
-      stateLocationX: 350,
-      stateLocationY: 200,
+      stateSvgRadius: 65,
+      layerName: "assignment-layer",
+      stateLocationX: 280,
+      stateLocationY: 180,
       stateSvgName: "circle",
       slots: [
+        // Input slot 0 - receives from Start
         {
           index: 0,
-          stateName: "model-training",
+          stateName: "Compute Sum",
           slotAngularPosition: 180,
           connectors: [],
           isInput: true,
           allowOneToMany: false,
-          allowManyToOne: true
+          allowManyToOne: true,
+          label: "Input"
         },
+        // Output slot 1 → Check Result input 0
         {
           index: 1,
-          stateName: "model-training",
+          stateName: "Compute Sum",
           slotAngularPosition: 0,
-          connectors: [],
+          connectors: [{ id: 3, sourceSlot: 1, sinkSlot: 0, targetStateName: "Check Result" }],
           isInput: false,
           allowOneToMany: true,
-          allowManyToOne: false
-        },
-        {
-          index: 2,
-          stateName: "model-training",
-          slotAngularPosition: 90,
-          connectors: [],
-          isInput: false,
-          allowOneToMany: false,
-          allowManyToOne: false
+          allowManyToOne: false,
+          label: "sum_result",
+          passthroughVariableName: "sum_result"
         }
       ],
       slotRadius: 5,
-      backgroundColor: "#E91E63"
+      backgroundColor: "#9C27B0"  // Purple for variable assignment
     },
+    // Get Expected - Variable Assignment (Purple) - passes through comparison_value = expected_result
     {
-      stateName: "model-validation",
-      id: "state-id-2",
+      stateName: "Get Expected",
+      id: "get-expected",
       index: 2,
       shapeType: "circle",
-      solutionName: "ML Workflow",
-      stateClass: "ModelValidationModule",
+      solutionName: "Addition Test",
+      stateClass: "VariableAssignment",
+      boundObjectClass: "VariableAssignment",
+      boundObjectFieldValues: {
+        displayName: "Get Expected",
+        variableName: "comparison_value",
+        value: "expected_result",
+        dataType: "int",
+        description: "Pass through the expected result for comparison"
+      },
       stateSvgSizeX: null,
       stateSvgSizeY: null,
-      stateSvgRadius: 85,
-      layerName: "validation-state-layer",
-      stateLocationX: 600,
-      stateLocationY: 350,
+      stateSvgRadius: 65,
+      layerName: "assignment-layer",
+      stateLocationX: 280,
+      stateLocationY: 380,
       stateSvgName: "circle",
       slots: [
+        // Input slot 0 - receives from Start
         {
           index: 0,
-          stateName: "model-validation",
+          stateName: "Get Expected",
           slotAngularPosition: 180,
           connectors: [],
           isInput: true,
           allowOneToMany: false,
-          allowManyToOne: false
+          allowManyToOne: true,
+          label: "Input"
         },
+        // Output slot 1 → Check Result input 1
         {
           index: 1,
-          stateName: "model-validation",
+          stateName: "Get Expected",
           slotAngularPosition: 0,
-          connectors: [],
+          connectors: [{ id: 4, sourceSlot: 1, sinkSlot: 1, targetStateName: "Check Result" }],
           isInput: false,
           allowOneToMany: true,
-          allowManyToOne: false
+          allowManyToOne: false,
+          label: "comparison_value",
+          passthroughVariableName: "comparison_value"
         }
       ],
       slotRadius: 5,
-      backgroundColor: "#00BCD4"
+      backgroundColor: "#9C27B0"  // Purple for variable assignment
     },
+    // Check Result - Conditional (Green) - 2 input slots for merge
     {
-      stateName: "model-deployment",
-      id: "state-id-3",
+      stateName: "Check Result",
+      id: "check-result",
       index: 3,
       shapeType: "circle",
-      solutionName: "ML Workflow",
-      stateClass: "ModelDeploymentModule",
+      solutionName: "Addition Test",
+      stateClass: "ConditionalChain",
+      boundObjectClass: "ConditionalChain",
+      boundObjectFieldValues: {
+        displayName: "Check Result",
+        description: "Check if the calculated sum matches the expected result",
+        defaultLogicalOperator: "AND",
+        // New: ValueSourceConfig-based condition
+        links: [
+          {
+            id: "link_check_equality",
+            displayName: "sum_result == comparison_value",
+            conditionType: "equals",
+            logicalOperator: "AND",
+            isStateSpaceObject: true,
+            // Left side: from input slot 0 (sum_result)
+            leftSource: {
+              sourceType: "from_input",
+              inputSlotIndex: 0,
+              inputVariableName: "sum_result"
+            },
+            // Right side: from input slot 1 (comparison_value)
+            rightSource: {
+              sourceType: "from_input",
+              inputSlotIndex: 1,
+              inputVariableName: "comparison_value"
+            },
+            // Legacy compatibility
+            fieldName: "sum_result",
+            conditionValue: "comparison_value"
+          }
+        ]
+      },
       stateSvgSizeX: null,
       stateSvgSizeY: null,
-      stateSvgRadius: 95,
-      layerName: "deployment-state-layer",
-      stateLocationX: 850,
-      stateLocationY: 200,
+      stateSvgRadius: 70,
+      layerName: "conditional-layer",
+      stateLocationX: 520,
+      stateLocationY: 280,
       stateSvgName: "circle",
       slots: [
+        // Input slot 0 - receives sum_result from Compute Sum
         {
           index: 0,
-          stateName: "model-deployment",
-          slotAngularPosition: 180,
+          stateName: "Check Result",
+          slotAngularPosition: 150,
           connectors: [],
           isInput: true,
           allowOneToMany: false,
-          allowManyToOne: true
+          allowManyToOne: true,
+          label: "sum_result",
+          parameterName: "sum_result",
+          parameterType: "int"
         },
+        // Input slot 1 - receives comparison_value from Get Expected
         {
           index: 1,
-          stateName: "model-deployment",
-          slotAngularPosition: 270,
+          stateName: "Check Result",
+          slotAngularPosition: 210,
           connectors: [],
           isInput: true,
           allowOneToMany: false,
-          allowManyToOne: false
+          allowManyToOne: true,
+          label: "comparison_value",
+          parameterName: "comparison_value",
+          parameterType: "int"
+        },
+        // Output slot 2 - True path
+        {
+          index: 2,
+          stateName: "Check Result",
+          slotAngularPosition: 30,
+          connectors: [{ id: 5, sourceSlot: 2, sinkSlot: 0, targetStateName: "Return True" }],
+          isInput: false,
+          allowOneToMany: true,
+          allowManyToOne: false,
+          label: "True",
+          color: "#4CAF50"
+        },
+        // Output slot 3 - False path
+        {
+          index: 3,
+          stateName: "Check Result",
+          slotAngularPosition: 330,
+          connectors: [{ id: 6, sourceSlot: 3, sinkSlot: 0, targetStateName: "Return False" }],
+          isInput: false,
+          allowOneToMany: true,
+          allowManyToOne: false,
+          label: "False",
+          color: "#F44336"
         }
       ],
       slotRadius: 5,
-      backgroundColor: "#FF9800"
+      backgroundColor: "#4CAF50"  // Green for conditional
+    },
+    // Return True - End State (Success)
+    {
+      stateName: "Return True",
+      id: "return-true",
+      index: 4,
+      shapeType: "rectangle",
+      solutionName: "Addition Test",
+      stateClass: "ReturnStatement",
+      boundObjectClass: "ReturnStatement",
+      boundObjectFieldValues: {
+        displayName: "Return True",
+        description: "Test passed - sum matches expected",
+        returnValue: "True"
+      },
+      stateSvgSizeX: null,
+      stateSvgSizeY: null,
+      stateSvgRadius: null,
+      stateSvgWidth: 120,
+      stateSvgHeight: 80,
+      cornerRadius: 8,
+      layerName: "end-layer",
+      stateLocationX: 740,
+      stateLocationY: 180,
+      stateSvgName: "rectangle",
+      slots: [
+        { index: 0, stateName: "Return True", slotAngularPosition: 180, connectors: [], isInput: true, allowOneToMany: false, allowManyToOne: true }
+      ],
+      slotRadius: 5,
+      backgroundColor: "#4CAF50"  // Green for success
+    },
+    // Return False - End State (Failure)
+    {
+      stateName: "Return False",
+      id: "return-false",
+      index: 5,
+      shapeType: "rectangle",
+      solutionName: "Addition Test",
+      stateClass: "ReturnStatement",
+      boundObjectClass: "ReturnStatement",
+      boundObjectFieldValues: {
+        displayName: "Return False",
+        description: "Test failed - sum does not match expected",
+        returnValue: "False"
+      },
+      stateSvgSizeX: null,
+      stateSvgSizeY: null,
+      stateSvgRadius: null,
+      stateSvgWidth: 120,
+      stateSvgHeight: 80,
+      cornerRadius: 8,
+      layerName: "end-layer",
+      stateLocationX: 740,
+      stateLocationY: 380,
+      stateSvgName: "rectangle",
+      slots: [
+        { index: 0, stateName: "Return False", slotAngularPosition: 180, connectors: [], isInput: true, allowOneToMany: false, allowManyToOne: true }
+      ],
+      slotRadius: 5,
+      backgroundColor: "#F44336"  // Red for failure
     }
   ]
 };
 
 /**
- * Sample Solution 3: "Order.process_order" - Realistic class method
+ * Sample Solution 2: "Order.process_order" - Realistic class method
  * Demonstrates a no-code function on a custom Order class
  */
 export const MOCK_SOLUTION_ORDER_PROCESS: NoCodeSolutionRawData = {
-  id: 3,
+  id: 2,
   solutionName: "Order.process_order",
   functionName: "process_order",
   xBounds: 1200,
@@ -620,7 +722,7 @@ export const MOCK_SOLUTION_ORDER_PROCESS: NoCodeSolutionRawData = {
       stateSvgSizeX: null,
       stateSvgSizeY: null,
       stateSvgRadius: null,
-      stateSvgWidth: 120,  // Comparable to circles with radius 60 (diameter 120)
+      stateSvgWidth: 120,
       stateSvgHeight: 120,
       cornerRadius: 8,
       layerName: "end-layer",
@@ -650,7 +752,7 @@ export const MOCK_SOLUTION_ORDER_PROCESS: NoCodeSolutionRawData = {
       stateSvgSizeX: null,
       stateSvgSizeY: null,
       stateSvgRadius: null,
-      stateSvgWidth: 120,  // Comparable to circles with radius 60 (diameter 120)
+      stateSvgWidth: 120,
       stateSvgHeight: 120,
       cornerRadius: 8,
       layerName: "end-layer",
@@ -670,8 +772,7 @@ export const MOCK_SOLUTION_ORDER_PROCESS: NoCodeSolutionRawData = {
  * Collection of all mock solutions
  */
 export const MOCK_SOLUTIONS: NoCodeSolutionRawData[] = [
-  MOCK_SOLUTION_TEST,
-  MOCK_SOLUTION_ML_WORKFLOW,
+  MOCK_SOLUTION_ADDITION_TEST,
   MOCK_SOLUTION_ORDER_PROCESS
 ];
 

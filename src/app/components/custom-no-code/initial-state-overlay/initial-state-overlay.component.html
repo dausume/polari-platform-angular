@@ -1,0 +1,92 @@
+<div class="initial-state-overlay"
+     [class.compact]="isCompact"
+     [class.small]="isSmall"
+     (click)="onOverlayClick($event)"
+     (mousedown)="onMouseDown($event)"
+     (pointerdown)="onMouseDown($event)">
+
+  <!-- Header -->
+  <div class="overlay-header">
+    <mat-icon class="header-icon">play_circle</mat-icon>
+    <span class="title">Initial State</span>
+  </div>
+
+  <!-- Main content (non-compact mode) -->
+  <div class="overlay-content" *ngIf="!isCompact">
+
+    <!-- Solution Object Info -->
+    <div class="solution-info" *ngIf="solutionClassName">
+      <div class="solution-class">
+        <mat-icon>apartment</mat-icon>
+        <span class="class-name">{{ solutionClassName }}</span>
+      </div>
+      <p class="solution-description" *ngIf="solutionDescription && !isSmall">
+        {{ solutionDescription }}
+      </p>
+    </div>
+
+    <!-- Solution Object Fields -->
+    <div class="fields-section" *ngIf="solutionFields.length > 0">
+      <div class="section-header">
+        <span class="section-label">Solution Object Fields</span>
+        <span class="field-count">{{ solutionFields.length }}</span>
+      </div>
+
+      <div class="fields-list">
+        <div *ngFor="let field of getVisibleFields()" class="field-item">
+          <div class="field-main">
+            <span class="field-name">{{ field.displayName || field.name }}</span>
+            <span class="field-type" [ngClass]="getTypeBadgeClass(field.type)">{{ field.type }}</span>
+          </div>
+          <p class="field-description" *ngIf="field.description && !isSmall">
+            {{ field.description }}
+          </p>
+        </div>
+
+        <!-- Show more button -->
+        <button *ngIf="hasMoreFields()"
+                class="show-more-btn"
+                (click)="toggleShowAllFields()">
+          <mat-icon>expand_more</mat-icon>
+          <span>+{{ getHiddenFieldCount() }} more fields</span>
+        </button>
+
+        <!-- Show less button -->
+        <button *ngIf="showAllFields && solutionFields.length > maxVisibleFields"
+                class="show-more-btn"
+                (click)="toggleShowAllFields()">
+          <mat-icon>expand_less</mat-icon>
+          <span>Show less</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Input Parameters (if defined) -->
+    <div class="params-section" *ngIf="inputParams.length > 0 && !isSmall">
+      <div class="section-header">
+        <span class="section-label">Input Parameters</span>
+        <span class="field-count">{{ inputParams.length }}</span>
+      </div>
+
+      <div class="params-list">
+        <div *ngFor="let param of inputParams" class="param-item">
+          <mat-icon class="param-icon">input</mat-icon>
+          <span class="param-name">{{ param.name }}</span>
+          <span class="param-type" [ngClass]="getTypeBadgeClass(param.type)">{{ param.type }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty state -->
+    <div class="empty-state" *ngIf="solutionFields.length === 0 && inputParams.length === 0">
+      <mat-icon>info_outline</mat-icon>
+      <span>No Solution Object defined</span>
+    </div>
+  </div>
+
+  <!-- Compact mode: just show summary -->
+  <div class="compact-summary" *ngIf="isCompact">
+    <mat-icon>play_circle</mat-icon>
+    <span class="compact-text">Start</span>
+  </div>
+</div>
