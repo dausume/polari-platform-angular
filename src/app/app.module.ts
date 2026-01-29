@@ -94,10 +94,13 @@ import { ManagerInfoComponent } from '@components/manager-info/manager-info';
 import { TypingInfoComponent } from '@components/typing-info/typing-info';
 // Certificate Trust Component
 import { CertificateTrustPromptComponent } from '@components/certificate-trust-prompt/certificate-trust-prompt';
+// API Profiler Component
+import { ApiProfilerComponent } from '@components/api-profiler/api-profiler.component';
 //Services (Backend Access)
 import { PolariService } from '@services/polari-service';
 import { CRUDEservicesManager } from '@services/crude-services-manager';
 import { CertificateTrustService } from '@services/certificate-trust.service';
+import { ApiProfilerService } from '@services/api-profiler.service';
 // Display Services
 import { DefaultDisplayFactory } from '@services/dashboard/default-dashboard-factory.service';
 import { DisplayConfigService } from '@services/dashboard/dashboard-config.service';
@@ -168,7 +171,8 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     DictViewComponent,
     ManagerInfoComponent,
     TypingInfoComponent,
-    CertificateTrustPromptComponent
+    CertificateTrustPromptComponent,
+    ApiProfilerComponent
   ],
   imports: [
     BrowserModule,
@@ -219,6 +223,7 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     PolariService,
     CRUDEservicesManager,
     CertificateTrustService,
+    ApiProfilerService,
     DefaultDisplayFactory,
     DisplayConfigService,
     OverlayContainer,

@@ -1,0 +1,997 @@
+<div class="api-profiler-container">
+    <!-- Header -->
+    <div class="profiler-header">
+        <h1>API Profiler</h1>
+        <p class="subtitle">Query external APIs, analyze responses, and create Polari classes</p>
+    </div>
+
+    <!-- Error Display -->
+    <div class="error-banner" *ngIf="error">
+        <mat-icon>error</mat-icon>
+        <span>{{ error }}</span>
+        <button mat-icon-button (click)="clearError()">
+            <mat-icon>close</mat-icon>
+        </button>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div class="loading-overlay" *ngIf="isLoading">
+        <mat-spinner diameter="40"></mat-spinner>
+        <span>Processing...</span>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="tab-navigation">
+        <button mat-button
+                [class.active]="activeTab === 'query'"
+                (click)="setActiveTab('query')">
+            <mat-icon>send</mat-icon>
+            Query API
+        </button>
+        <button mat-button
+                [class.active]="activeTab === 'analyze'"
+                (click)="setActiveTab('analyze')"
+                [disabled]="!lastResponse">
+            <mat-icon>analytics</mat-icon>
+            Analyze
+        </button>
+        <button mat-button
+                [class.active]="activeTab === 'profiles'"
+                (click)="setActiveTab('profiles')">
+            <mat-icon>folder</mat-icon>
+            Profiles
+        </button>
+        <button mat-button
+                [class.active]="activeTab === 'endpoints'"
+                (click)="setActiveTab('endpoints')">
+            <mat-icon>dns</mat-icon>
+            Endpoints
+        </button>
+        <button mat-button
+                [class.active]="activeTab === 'create'"
+                (click)="setActiveTab('create')"
+                [disabled]="!builtProfile && !selectedProfile">
+            <mat-icon>add_circle</mat-icon>
+            Create Class
+        </button>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="tab-content">
+
+        <!-- ============================================================ -->
+        <!-- QUERY TAB -->
+        <!-- ============================================================ -->
+        <div class="tab-panel" *ngIf="activeTab === 'query'">
+            <mat-card class="query-card">
+                <mat-card-header>
+                    <mat-card-title>Query External API</mat-card-title>
+                </mat-card-header>
+                <mat-card-content>
+                    <!-- URL and Method -->
+                    <div class="query-row">
+                        <mat-form-field class="method-field">
+                            <mat-label>Method</mat-label>
+                            <mat-select [(ngModel)]="queryMethod">
+                                <mat-option *ngFor="let method of httpMethods" [value]="method">
+                                    {{ method }}
+                                </mat-option>
+                            </mat-select>
+                        </mat-form-field>
+                        <mat-form-field class="url-field">
+                            <mat-label>URL</mat-label>
+                            <input matInput [(ngModel)]="queryUrl" placeholder="https://api.example.com/endpoint">
+                        </mat-form-field>
+                        <button mat-raised-button color="primary" (click)="executeQuery()" [disabled]="isLoading">
+                            <mat-icon>send</mat-icon>
+                            Send
+                        </button>
+                    </div>
+
+                    <!-- Headers -->
+                    <div class="headers-section">
+                        <div class="section-header">
+                            <span>Headers</span>
+                            <button mat-icon-button (click)="addHeader()" matTooltip="Add Header">
+                                <mat-icon>add</mat-icon>
+                            </button>
+                        </div>
+                        <div class="header-row" *ngFor="let header of queryHeaders; let i = index; trackBy: trackByKey">
+                            <mat-form-field class="header-key">
+                                <mat-label>Key</mat-label>
+                                <input matInput [(ngModel)]="header.key" placeholder="Content-Type">
+                            </mat-form-field>
+                            <mat-form-field class="header-value">
+                                <mat-label>Value</mat-label>
+                                <input matInput [(ngModel)]="header.value" placeholder="application/json">
+                            </mat-form-field>
+                            <button mat-icon-button (click)="removeHeader(i)" [disabled]="queryHeaders.length <= 1">
+                                <mat-icon>remove_circle</mat-icon>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Request Body -->
+                    <div class="body-section" *ngIf="queryMethod !== 'GET'">
+                        <mat-form-field class="full-width">
+                            <mat-label>Request Body (JSON)</mat-label>
+                            <textarea matInput [(ngModel)]="queryBody" rows="4"
+                                      placeholder='{"key": "value"}'></textarea>
+                        </mat-form-field>
+                    </div>
+
+                    <!-- Options -->
+                    <div class="options-section">
+                        <mat-form-field class="root-path-field">
+                            <mat-label>Response Root Path</mat-label>
+                            <input matInput [(ngModel)]="responseRootPath"
+                                   placeholder="data.items (optional)">
+                            <mat-hint>Dot-notation path to extract data from response</mat-hint>
+                        </mat-form-field>
+                        <mat-checkbox [(ngModel)]="matchProfiles">Match against profiles</mat-checkbox>
+                        <mat-checkbox [(ngModel)]="autoCreateProfile">Auto-create profile</mat-checkbox>
+                        <mat-form-field *ngIf="autoCreateProfile" class="profile-name-field">
+                            <mat-label>Profile Name</mat-label>
+                            <input matInput [(ngModel)]="newProfileName" placeholder="MyApiProfile">
+                        </mat-form-field>
+                    </div>
+                </mat-card-content>
+            </mat-card>
+
+            <!-- Results -->
+            <div class="results-section" *ngIf="queryResult">
+                <!-- Response -->
+                <mat-card class="result-card">
+                    <mat-card-header (click)="responseExpanded = !responseExpanded" class="clickable">
+                        <mat-card-title>
+                            <mat-icon>{{ responseExpanded ? 'expand_less' : 'expand_more' }}</mat-icon>
+                            Response
+                            <span class="badge" [class.success]="queryResult.success" [class.error]="!queryResult.success">
+                                {{ queryResult.success ? 'Success' : 'Failed' }}
+                            </span>
+                        </mat-card-title>
+                    </mat-card-header>
+                    <mat-card-content *ngIf="responseExpanded">
+                        <pre class="json-display">{{ formatJson(queryResult.response) }}</pre>
+                        <div class="action-buttons">
+                            <button mat-button (click)="copyToClipboard(formatJson(queryResult.response))">
+                                <mat-icon>content_copy</mat-icon> Copy
+                            </button>
+                        </div>
+                    </mat-card-content>
+                </mat-card>
+
+                <!-- Analysis -->
+                <mat-card class="result-card" *ngIf="queryResult.analysis">
+                    <mat-card-header (click)="analysisExpanded = !analysisExpanded" class="clickable">
+                        <mat-card-title>
+                            <mat-icon>{{ analysisExpanded ? 'expand_less' : 'expand_more' }}</mat-icon>
+                            Analysis
+                        </mat-card-title>
+                    </mat-card-header>
+                    <mat-card-content *ngIf="analysisExpanded">
+                        <div class="analysis-grid">
+                            <div class="analysis-item">
+                                <span class="label">Samples:</span>
+                                <span class="value">{{ queryResult.analysis.sampleCount }}</span>
+                            </div>
+                            <div class="analysis-item">
+                                <span class="label">Fields:</span>
+                                <span class="value">{{ queryResult.analysis.fieldCount }}</span>
+                            </div>
+                        </div>
+                        <div class="field-list">
+                            <h4>Detected Fields:</h4>
+                            <mat-chip-listbox>
+                                <mat-chip *ngFor="let field of queryResult.analysis.fields">
+                                    {{ field }}: {{ queryResult.analysis.detectedTypes[field] || 'unknown' }}
+                                </mat-chip>
+                            </mat-chip-listbox>
+                        </div>
+                        <div class="suggested-templates" *ngIf="queryResult.analysis.suggestedTemplates?.length">
+                            <h4>Suggested Templates:</h4>
+                            <mat-chip-listbox>
+                                <mat-chip *ngFor="let template of queryResult.analysis.suggestedTemplates" color="accent">
+                                    {{ template }}
+                                </mat-chip>
+                            </mat-chip-listbox>
+                        </div>
+                    </mat-card-content>
+                </mat-card>
+
+                <!-- Matches -->
+                <mat-card class="result-card" *ngIf="matches.length > 0">
+                    <mat-card-header (click)="matchesExpanded = !matchesExpanded" class="clickable">
+                        <mat-card-title>
+                            <mat-icon>{{ matchesExpanded ? 'expand_less' : 'expand_more' }}</mat-icon>
+                            Profile Matches ({{ matches.length }})
+                        </mat-card-title>
+                    </mat-card-header>
+                    <mat-card-content *ngIf="matchesExpanded">
+                        <div class="matches-list">
+                            <div class="match-item" *ngFor="let match of matches"
+                                 [class]="getMatchClass(match.confidence)">
+                                <div class="match-header">
+                                    <span class="profile-name">{{ match.profileName }}</span>
+                                    <span class="confidence">{{ match.confidence }}%</span>
+                                </div>
+                                <div class="match-details">
+                                    <mat-chip *ngIf="match.isTemplate">Template</mat-chip>
+                                    <mat-chip *ngIf="match.isMatch" color="primary">Match</mat-chip>
+                                </div>
+                            </div>
+                        </div>
+                    </mat-card-content>
+                </mat-card>
+
+                <!-- Created Profile -->
+                <mat-card class="result-card" *ngIf="queryResult.profile">
+                    <mat-card-header>
+                        <mat-card-title>
+                            <mat-icon>check_circle</mat-icon>
+                            Profile Created
+                        </mat-card-title>
+                    </mat-card-header>
+                    <mat-card-content>
+                        <p><strong>Name:</strong> {{ queryResult.profile.profileName }}</p>
+                        <p><strong>Fields:</strong> {{ queryResult.profile.fieldSignatures?.length || 0 }}</p>
+                        <button mat-raised-button color="accent" (click)="useResponseForProfile()">
+                            <mat-icon>arrow_forward</mat-icon>
+                            Use for Class Creation
+                        </button>
+                    </mat-card-content>
+                </mat-card>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- ANALYZE TAB -->
+        <!-- ============================================================ -->
+        <div class="tab-panel" *ngIf="activeTab === 'analyze'">
+            <mat-card>
+                <mat-card-header>
+                    <mat-card-title>Analyze Response Data</mat-card-title>
+                </mat-card-header>
+                <mat-card-content>
+                    <div class="analyze-options">
+                        <mat-form-field>
+                            <mat-label>Type Field (for multi-type detection)</mat-label>
+                            <input matInput [(ngModel)]="typeField" placeholder="type">
+                            <mat-hint>Field name that indicates object type</mat-hint>
+                        </mat-form-field>
+                        <div class="action-buttons">
+                            <button mat-raised-button color="primary" (click)="analyzeResponse()">
+                                <mat-icon>analytics</mat-icon>
+                                Detect Types
+                            </button>
+                            <button mat-raised-button (click)="matchAgainstProfiles()">
+                                <mat-icon>compare</mat-icon>
+                                Match Profiles
+                            </button>
+                        </div>
+                    </div>
+                </mat-card-content>
+            </mat-card>
+
+            <!-- Detected Types -->
+            <mat-card *ngIf="detectedTypes.length > 0" class="result-card">
+                <mat-card-header>
+                    <mat-card-title>Detected Types ({{ detectedTypes.length }})</mat-card-title>
+                </mat-card-header>
+                <mat-card-content>
+                    <div class="type-list">
+                        <mat-card *ngFor="let type of detectedTypes; trackBy: trackByTypeId" class="type-card">
+                            <mat-card-header>
+                                <mat-card-title>{{ type.typeId }}</mat-card-title>
+                                <mat-card-subtitle>{{ type.sampleCount }} samples | {{ type.method }} detection</mat-card-subtitle>
+                            </mat-card-header>
+                            <mat-card-content>
+                                <div class="field-chips">
+                                    <mat-chip *ngFor="let field of type.fieldSignature">{{ field }}</mat-chip>
+                                </div>
+                            </mat-card-content>
+                        </mat-card>
+                    </div>
+                </mat-card-content>
+            </mat-card>
+
+            <!-- Match Results -->
+            <mat-card *ngIf="matches.length > 0" class="result-card">
+                <mat-card-header>
+                    <mat-card-title>Profile Matches</mat-card-title>
+                </mat-card-header>
+                <mat-card-content>
+                    <div class="matches-list">
+                        <div class="match-item" *ngFor="let match of matches"
+                             [class]="getMatchClass(match.confidence)">
+                            <div class="match-header">
+                                <span class="profile-name">{{ match.profileName }}</span>
+                                <span class="confidence">{{ match.confidence }}%</span>
+                            </div>
+                            <div class="match-details">
+                                <mat-chip *ngIf="match.isTemplate">Template</mat-chip>
+                                <mat-chip *ngIf="match.isMatch" color="primary">Match</mat-chip>
+                            </div>
+                        </div>
+                    </div>
+                </mat-card-content>
+            </mat-card>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- PROFILES TAB -->
+        <!-- ============================================================ -->
+        <div class="tab-panel" *ngIf="activeTab === 'profiles'">
+
+            <!-- Info Banner -->
+            <div class="info-banner">
+                <mat-icon>info</mat-icon>
+                <div>
+                    <strong>Profiles</strong> define generic API response format patterns.
+                    <strong>Endpoints</strong> (next tab) configure specific APIs and link to profiles.
+                </div>
+            </div>
+
+            <!-- Common API Format Profiles -->
+            <mat-card class="format-templates-card">
+                <mat-card-header>
+                    <mat-card-title>
+                        <mat-icon>schema</mat-icon>
+                        API Response Format Profiles
+                    </mat-card-title>
+                    <mat-card-subtitle>Generic patterns that match many APIs</mat-card-subtitle>
+                </mat-card-header>
+                <mat-card-content>
+                    <div class="format-templates-grid">
+                        <!-- Uniform Object Array -->
+                        <div class="format-template"
+                             [class.selected]="selectedFormatProfile === 'uniformArray'"
+                             (click)="selectFormatTemplate('uniformArray')">
+                            <div class="format-header">
+                                <mat-icon>list</mat-icon>
+                                <span class="format-name">Uniform Object Array</span>
+                            </div>
+                            <pre class="format-schema">[
+  {{ '{' }} &lt;field&gt;: &lt;type&gt;, ... {{ '}' }},
+  {{ '{' }} &lt;field&gt;: &lt;type&gt;, ... {{ '}' }},
+  ...
+]</pre>
+                            <div class="format-desc">Array of objects with identical structure</div>
+                            <div class="format-path">Root Path: <code>(none)</code></div>
+                        </div>
+
+                        <!-- Wrapped Response -->
+                        <div class="format-template"
+                             [class.selected]="selectedFormatProfile === 'wrappedResponse'"
+                             (click)="selectFormatTemplate('wrappedResponse')">
+                            <div class="format-header">
+                                <mat-icon>folder</mat-icon>
+                                <span class="format-name">Wrapped Response</span>
+                            </div>
+                            <pre class="format-schema">{{ '{' }}
+  "data": [ {{ '{' }}...{{ '}' }}, {{ '{' }}...{{ '}' }} ],
+  "meta": {{ '{' }} &lt;pagination&gt; {{ '}' }}
+{{ '}' }}</pre>
+                            <div class="format-desc">Data nested under key with metadata</div>
+                            <div class="format-path">Root Path: <code>data</code></div>
+                        </div>
+
+                        <!-- GeoJSON FeatureCollection -->
+                        <div class="format-template"
+                             [class.selected]="selectedFormatProfile === 'geoJson'"
+                             (click)="selectFormatTemplate('geoJson')">
+                            <div class="format-header">
+                                <mat-icon>place</mat-icon>
+                                <span class="format-name">GeoJSON FeatureCollection</span>
+                            </div>
+                            <pre class="format-schema">{{ '{' }}
+  "type": "FeatureCollection",
+  "features": [
+    {{ '{' }} "geometry": {{ '{' }}...{{ '}' }}, "properties": {{ '{' }}...{{ '}' }} {{ '}' }}
+  ]
+{{ '}' }}</pre>
+                            <div class="format-desc">Standard GeoJSON for geographic data</div>
+                            <div class="format-path">Root Path: <code>features</code></div>
+                        </div>
+
+                        <!-- Paginated Response -->
+                        <div class="format-template"
+                             [class.selected]="selectedFormatProfile === 'paginated'"
+                             (click)="selectFormatTemplate('paginated')">
+                            <div class="format-header">
+                                <mat-icon>auto_stories</mat-icon>
+                                <span class="format-name">Paginated Response</span>
+                            </div>
+                            <pre class="format-schema">{{ '{' }}
+  "results": [ {{ '{' }}...{{ '}' }}, ... ],
+  "count": &lt;int&gt;,
+  "next": &lt;url|null&gt;
+{{ '}' }}</pre>
+                            <div class="format-desc">Paginated list with navigation</div>
+                            <div class="format-path">Root Path: <code>results</code></div>
+                        </div>
+
+                        <!-- HAL+JSON -->
+                        <div class="format-template"
+                             [class.selected]="selectedFormatProfile === 'hal'"
+                             (click)="selectFormatTemplate('hal')">
+                            <div class="format-header">
+                                <mat-icon>link</mat-icon>
+                                <span class="format-name">HAL+JSON</span>
+                            </div>
+                            <pre class="format-schema">{{ '{' }}
+  "_links": {{ '{' }} "self": {{ '{' }}...{{ '}' }} {{ '}' }},
+  "_embedded": {{ '{' }} "items": [...] {{ '}' }}
+{{ '}' }}</pre>
+                            <div class="format-desc">Hypermedia API with embedded resources</div>
+                            <div class="format-path">Root Path: <code>_embedded.items</code></div>
+                        </div>
+
+                        <!-- GraphQL Response -->
+                        <div class="format-template"
+                             [class.selected]="selectedFormatProfile === 'graphql'"
+                             (click)="selectFormatTemplate('graphql')">
+                            <div class="format-header">
+                                <mat-icon>hub</mat-icon>
+                                <span class="format-name">GraphQL Response</span>
+                            </div>
+                            <pre class="format-schema">{{ '{' }}
+  "data": {{ '{' }} "&lt;query&gt;": [...] {{ '}' }},
+  "errors": null
+{{ '}' }}</pre>
+                            <div class="format-desc">Standard GraphQL response envelope</div>
+                            <div class="format-path">Root Path: <code>data.&lt;queryName&gt;</code></div>
+                        </div>
+
+                        <!-- Polari CRUDE -->
+                        <div class="format-template"
+                             [class.selected]="selectedFormatProfile === 'polariCrude'"
+                             (click)="selectFormatTemplate('polariCrude')">
+                            <div class="format-header">
+                                <mat-icon>storage</mat-icon>
+                                <span class="format-name">Polari CRUDE</span>
+                            </div>
+                            <pre class="format-schema">{{ '{' }}
+  "class": "&lt;ClassName&gt;",
+  "instances": [ {{ '{' }}...{{ '}' }}, ... ]
+{{ '}' }}</pre>
+                            <div class="format-desc">Polari standard CRUDE response</div>
+                            <div class="format-path">Root Path: <code>instances</code></div>
+                        </div>
+
+                        <!-- Single Object -->
+                        <div class="format-template"
+                             [class.selected]="selectedFormatProfile === 'singleObject'"
+                             (click)="selectFormatTemplate('singleObject')">
+                            <div class="format-header">
+                                <mat-icon>data_object</mat-icon>
+                                <span class="format-name">Single Object</span>
+                            </div>
+                            <pre class="format-schema">{{ '{' }}
+  &lt;field&gt;: &lt;type&gt;,
+  &lt;field&gt;: &lt;type&gt;,
+  ...
+{{ '}' }}</pre>
+                            <div class="format-desc">Single object response (not array)</div>
+                            <div class="format-path">Root Path: <code>(none)</code></div>
+                        </div>
+                    </div>
+                </mat-card-content>
+            </mat-card>
+
+            <!-- Selected Profile Info -->
+            <mat-card *ngIf="selectedFormatProfile" class="selected-profile-card">
+                <mat-card-header>
+                    <mat-card-title>
+                        <mat-icon>check_circle</mat-icon>
+                        Selected: {{ getFormatProfileDisplayName(selectedFormatProfile) }}
+                    </mat-card-title>
+                </mat-card-header>
+                <mat-card-content>
+                    <p>When creating an <strong>Endpoint</strong>, link it to this profile to automatically set the correct root path for data extraction.</p>
+                    <div class="selected-info">
+                        <span class="label">Root Path:</span>
+                        <code>{{ getFormatProfileRootPath(selectedFormatProfile) || '(root level)' }}</code>
+                    </div>
+                </mat-card-content>
+                <mat-card-actions>
+                    <button mat-raised-button color="primary" (click)="goToEndpointsWithProfile()">
+                        <mat-icon>add</mat-icon>
+                        Create Endpoint with this Profile
+                    </button>
+                    <button mat-button (click)="selectedFormatProfile = null">
+                        Clear Selection
+                    </button>
+                </mat-card-actions>
+            </mat-card>
+
+            <!-- Custom Profiles from Backend -->
+            <mat-card *ngIf="storedProfiles.length > 0 || availableTemplates.length > 0">
+                <mat-card-header>
+                    <mat-card-title>Custom & Backend Profiles</mat-card-title>
+                </mat-card-header>
+                <mat-card-content>
+                    <div *ngIf="storedProfiles.length > 0" class="profile-chips">
+                        <mat-chip-listbox>
+                            <mat-chip *ngFor="let profile of storedProfiles"
+                                      (click)="previewProfile(profile)">
+                                {{ profile.profileName }}
+                            </mat-chip>
+                        </mat-chip-listbox>
+                    </div>
+                    <div *ngIf="availableTemplates.length > 0" class="template-chips">
+                        <h4>Backend Templates:</h4>
+                        <mat-chip-listbox>
+                            <mat-chip *ngFor="let template of availableTemplates" color="accent">
+                                {{ template }}
+                            </mat-chip>
+                        </mat-chip-listbox>
+                    </div>
+                </mat-card-content>
+            </mat-card>
+
+            <!-- Profile Preview Dialog -->
+            <mat-card *ngIf="previewingProfile" class="profile-preview-card">
+                <mat-card-header>
+                    <mat-card-title>
+                        <mat-icon>preview</mat-icon>
+                        Profile: {{ previewingProfile.profileName }}
+                    </mat-card-title>
+                </mat-card-header>
+                <mat-card-content>
+                    <div class="preview-content">
+                        <div class="preview-section">
+                            <h4>Format Pattern</h4>
+                            <pre class="schema-display">{{ generateProfileSchema(previewingProfile) }}</pre>
+                        </div>
+                    </div>
+                </mat-card-content>
+                <mat-card-actions>
+                    <button mat-button (click)="previewingProfile = null">
+                        <mat-icon>close</mat-icon>
+                        Close
+                    </button>
+                </mat-card-actions>
+            </mat-card>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- ENDPOINTS TAB -->
+        <!-- ============================================================ -->
+        <div class="tab-panel" *ngIf="activeTab === 'endpoints'">
+            <!-- Create/Edit Endpoint Form -->
+            <mat-card class="endpoint-form-card">
+                <mat-card-header>
+                    <mat-card-title>
+                        {{ editingEndpoint ? 'Edit Endpoint' : 'Create New Endpoint' }}
+                    </mat-card-title>
+                </mat-card-header>
+                <mat-card-content>
+                    <div class="endpoint-form">
+                        <div class="form-row">
+                            <mat-form-field class="name-field">
+                                <mat-label>Endpoint Name</mat-label>
+                                <input matInput [(ngModel)]="endpointForm.name"
+                                       placeholder="my-api-endpoint"
+                                       [disabled]="!!editingEndpoint">
+                                <mat-hint>Unique identifier (no spaces)</mat-hint>
+                            </mat-form-field>
+                            <mat-form-field class="display-name-field">
+                                <mat-label>Display Name</mat-label>
+                                <input matInput [(ngModel)]="endpointForm.displayName"
+                                       placeholder="My API Endpoint">
+                            </mat-form-field>
+                        </div>
+
+                        <mat-form-field class="full-width">
+                            <mat-label>Description</mat-label>
+                            <textarea matInput [(ngModel)]="endpointForm.description"
+                                      rows="2" placeholder="What this endpoint provides"></textarea>
+                        </mat-form-field>
+
+                        <!-- Domain Selection -->
+                        <div class="domain-section">
+                            <div class="form-row">
+                                <mat-form-field class="domain-select-field">
+                                    <mat-label>Domain</mat-label>
+                                    <mat-select [(ngModel)]="endpointForm.domainName" (selectionChange)="onDomainChange()">
+                                        <mat-option value="">-- Select or Add Domain --</mat-option>
+                                        <mat-optgroup label="Available Domains">
+                                            <mat-option *ngFor="let domain of storedDomains" [value]="domain.name">
+                                                <mat-icon>{{ getHostTypeIcon(domain.hostType) }}</mat-icon>
+                                                {{ getDomainDisplayName(domain) }}
+                                            </mat-option>
+                                        </mat-optgroup>
+                                    </mat-select>
+                                    <mat-hint>Select a domain or add a new one</mat-hint>
+                                </mat-form-field>
+                                <button mat-stroked-button type="button" (click)="toggleAddDomain()" class="add-domain-btn">
+                                    <mat-icon>{{ showAddDomain ? 'close' : 'add' }}</mat-icon>
+                                    {{ showAddDomain ? 'Cancel' : 'New Domain' }}
+                                </button>
+                            </div>
+
+                            <!-- Add New Domain Form (collapsible) -->
+                            <div class="new-domain-form" *ngIf="showAddDomain">
+                                <div class="form-row">
+                                    <mat-form-field class="host-field">
+                                        <mat-label>Host</mat-label>
+                                        <input matInput [(ngModel)]="newDomainForm.host"
+                                               placeholder="localhost, 192.168.1.1, api.example.com"
+                                               (blur)="generateDomainName()">
+                                    </mat-form-field>
+                                    <mat-form-field class="port-field">
+                                        <mat-label>Port</mat-label>
+                                        <input matInput type="number" [(ngModel)]="newDomainForm.port"
+                                               placeholder="8800" (blur)="generateDomainName()">
+                                    </mat-form-field>
+                                    <mat-form-field class="protocol-field">
+                                        <mat-label>Protocol</mat-label>
+                                        <mat-select [(ngModel)]="newDomainForm.protocol">
+                                            <mat-option value="http">HTTP</mat-option>
+                                            <mat-option value="https">HTTPS</mat-option>
+                                        </mat-select>
+                                    </mat-form-field>
+                                </div>
+                                <div class="form-row">
+                                    <mat-form-field class="name-field">
+                                        <mat-label>Domain Name (ID)</mat-label>
+                                        <input matInput [(ngModel)]="newDomainForm.name" placeholder="my-api-server">
+                                    </mat-form-field>
+                                    <mat-form-field class="display-name-field">
+                                        <mat-label>Display Name</mat-label>
+                                        <input matInput [(ngModel)]="newDomainForm.displayName" placeholder="My API Server">
+                                    </mat-form-field>
+                                </div>
+                                <div class="ssl-options">
+                                    <mat-checkbox [(ngModel)]="newDomainForm.verifySSL">Verify SSL</mat-checkbox>
+                                    <mat-checkbox [(ngModel)]="newDomainForm.trustSelfSigned">Trust Self-Signed Certs</mat-checkbox>
+                                </div>
+                                <button mat-raised-button color="accent" (click)="saveDomain()" [disabled]="!newDomainForm.host">
+                                    <mat-icon>save</mat-icon> Save Domain
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <mat-form-field class="method-field">
+                                <mat-label>HTTP Method</mat-label>
+                                <mat-select [(ngModel)]="endpointForm.httpMethod">
+                                    <mat-option *ngFor="let method of httpMethods" [value]="method">
+                                        {{ method }}
+                                    </mat-option>
+                                </mat-select>
+                            </mat-form-field>
+                            <mat-form-field class="url-field">
+                                <mat-label>Endpoint Path</mat-label>
+                                <input matInput [(ngModel)]="endpointForm.endpointPath"
+                                       placeholder="/api/v1/users"
+                                       (input)="onEndpointPathChange()">
+                                <mat-hint>Path on the domain (e.g., /api/v1/data)</mat-hint>
+                            </mat-form-field>
+                        </div>
+
+                        <!-- URL Preview -->
+                        <div class="url-preview" *ngIf="endpointForm.domainName || endpointForm.endpointPath">
+                            <span class="label">Full URL:</span>
+                            <code>{{ getPreviewUrl() }}</code>
+                        </div>
+
+                        <mat-form-field class="full-width">
+                            <mat-label>Response Root Path</mat-label>
+                            <input matInput [(ngModel)]="endpointForm.responseRootPath"
+                                   placeholder="data.items">
+                            <mat-hint>JSONPath to extract data from response (optional)</mat-hint>
+                        </mat-form-field>
+
+                        <!-- Authentication -->
+                        <div class="auth-section">
+                            <mat-form-field class="auth-type-field">
+                                <mat-label>Authentication</mat-label>
+                                <mat-select [(ngModel)]="endpointForm.authType">
+                                    <mat-option value="none">None</mat-option>
+                                    <mat-option value="bearer">Bearer Token</mat-option>
+                                    <mat-option value="apikey">API Key</mat-option>
+                                    <mat-option value="basic">Basic Auth</mat-option>
+                                </mat-select>
+                            </mat-form-field>
+                            <mat-form-field *ngIf="endpointForm.authType !== 'none'" class="auth-value-field">
+                                <mat-label>{{ getAuthLabel() }}</mat-label>
+                                <input matInput [(ngModel)]="endpointForm.authConfig"
+                                       [type]="showAuthConfig ? 'text' : 'password'"
+                                       [placeholder]="getAuthPlaceholder()">
+                                <button mat-icon-button matSuffix (click)="showAuthConfig = !showAuthConfig">
+                                    <mat-icon>{{ showAuthConfig ? 'visibility_off' : 'visibility' }}</mat-icon>
+                                </button>
+                            </mat-form-field>
+                        </div>
+
+                        <!-- Profile Linking -->
+                        <div class="profile-link-section">
+                            <mat-form-field class="profile-select-field">
+                                <mat-label>Linked Profile</mat-label>
+                                <mat-select [(ngModel)]="endpointForm.linkedProfileName">
+                                    <mat-option value="">None</mat-option>
+                                    <mat-optgroup label="Format Profiles">
+                                        <mat-option *ngFor="let formatKey of getFormatProfileKeys()" [value]="'format:' + formatKey">
+                                            {{ getFormatProfileDisplayName(formatKey) }}
+                                        </mat-option>
+                                    </mat-optgroup>
+                                    <mat-optgroup label="Custom Profiles" *ngIf="storedProfiles.length > 0">
+                                        <mat-option *ngFor="let profile of storedProfiles" [value]="profile.profileName">
+                                            {{ profile.displayName || profile.profileName }}
+                                        </mat-option>
+                                    </mat-optgroup>
+                                </mat-select>
+                                <mat-hint>Link to a profile for type mapping</mat-hint>
+                            </mat-form-field>
+                        </div>
+
+                        <!-- Data Persistence -->
+                        <div class="persistence-section">
+                            <mat-checkbox [(ngModel)]="endpointForm.persistData">Persist data in Polari</mat-checkbox>
+                            <mat-form-field *ngIf="endpointForm.persistData" class="class-name-field">
+                                <mat-label>Polari Class Name</mat-label>
+                                <input matInput [(ngModel)]="endpointForm.polariClassName"
+                                       placeholder="MyDataClass">
+                                <mat-hint>Class to store fetched data as</mat-hint>
+                            </mat-form-field>
+                        </div>
+
+                        <mat-checkbox [(ngModel)]="endpointForm.isActive">Active</mat-checkbox>
+
+                        <div class="form-actions">
+                            <button mat-raised-button color="primary"
+                                    (click)="saveEndpoint()"
+                                    [disabled]="isLoading || !endpointForm.name || !endpointForm.url">
+                                <mat-icon>{{ editingEndpoint ? 'save' : 'add' }}</mat-icon>
+                                {{ editingEndpoint ? 'Update' : 'Create' }} Endpoint
+                            </button>
+                            <button mat-button *ngIf="editingEndpoint" (click)="cancelEditEndpoint()">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </mat-card-content>
+            </mat-card>
+
+            <!-- Stored Endpoints List -->
+            <mat-card *ngIf="storedEndpoints.length > 0" class="endpoints-list-card">
+                <mat-card-header>
+                    <mat-card-title>Stored Endpoints ({{ storedEndpoints.length }})</mat-card-title>
+                </mat-card-header>
+                <mat-card-content>
+                    <div class="endpoints-list">
+                        <mat-card *ngFor="let endpoint of storedEndpoints; trackBy: trackByEndpointName"
+                                  class="endpoint-card" [class.inactive]="!endpoint.isActive">
+                            <mat-card-header>
+                                <mat-card-title>
+                                    <mat-icon [class.success]="endpoint.lastFetchSuccess"
+                                              [class.error]="endpoint.lastFetchTime && !endpoint.lastFetchSuccess">
+                                        {{ endpoint.isActive ? 'dns' : 'block' }}
+                                    </mat-icon>
+                                    {{ endpoint.displayName || endpoint.name }}
+                                </mat-card-title>
+                                <mat-card-subtitle>
+                                    {{ endpoint.httpMethod }} {{ endpoint.url }}
+                                </mat-card-subtitle>
+                            </mat-card-header>
+                            <mat-card-content>
+                                <div class="endpoint-details">
+                                    <div class="detail-row" *ngIf="endpoint.description">
+                                        <span class="label">Description:</span>
+                                        <span class="value">{{ endpoint.description }}</span>
+                                    </div>
+                                    <div class="detail-row" *ngIf="endpoint.linkedProfileName">
+                                        <span class="label">Format Profile:</span>
+                                        <mat-chip>{{ getLinkedProfileDisplayName(endpoint.linkedProfileName) }}</mat-chip>
+                                    </div>
+                                    <div class="detail-row" *ngIf="endpoint.responseRootPath">
+                                        <span class="label">Data Path:</span>
+                                        <code class="path-value">{{ endpoint.responseRootPath }}</code>
+                                    </div>
+                                    <div class="detail-row" *ngIf="endpoint.persistData">
+                                        <span class="label">Persist to:</span>
+                                        <mat-chip color="accent">{{ endpoint.polariClassName }}</mat-chip>
+                                    </div>
+                                    <div class="detail-row" *ngIf="endpoint.lastFetchTime">
+                                        <span class="label">Last Fetch:</span>
+                                        <span class="value" [class.success]="endpoint.lastFetchSuccess"
+                                              [class.error]="!endpoint.lastFetchSuccess">
+                                            {{ formatDate(endpoint.lastFetchTime) }}
+                                            ({{ endpoint.lastFetchSuccess ? endpoint.lastResponseRecordCount + ' records' : endpoint.lastFetchError }})
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <!-- Field Abstraction View - Shows detected fields mapping to profile -->
+                                <div class="endpoint-field-abstraction" *ngIf="endpoint.lastResponseSample && endpoint.lastFetchSuccess">
+                                    <div class="abstraction-header">
+                                        <mat-icon>account_tree</mat-icon>
+                                        <span>Detected Structure ({{ endpoint.lastResponseFieldCount }} fields)</span>
+                                    </div>
+                                    <pre class="field-schema">{{ generateEndpointFieldSchema(endpoint) }}</pre>
+                                </div>
+
+                                <!-- Raw Sample (collapsed by default) -->
+                                <div class="endpoint-sample-section" *ngIf="endpoint.lastResponseSample">
+                                    <div class="sample-header" (click)="toggleEndpointSample(endpoint)">
+                                        <mat-icon>{{ isEndpointSampleExpanded(endpoint) ? 'expand_less' : 'expand_more' }}</mat-icon>
+                                        <span>Raw Sample</span>
+                                    </div>
+                                    <pre class="sample-json" *ngIf="isEndpointSampleExpanded(endpoint)">{{ formatJson(endpoint.lastResponseSample) }}</pre>
+                                </div>
+                            </mat-card-content>
+                            <mat-card-actions>
+                                <button mat-button color="primary" (click)="fetchFromEndpoint(endpoint)"
+                                        [disabled]="isLoading || !endpoint.isActive">
+                                    <mat-icon>download</mat-icon>
+                                    Fetch
+                                </button>
+                                <button mat-button (click)="editEndpoint(endpoint)">
+                                    <mat-icon>edit</mat-icon>
+                                    Edit
+                                </button>
+                                <button mat-button (click)="useEndpointForQuery(endpoint)">
+                                    <mat-icon>send</mat-icon>
+                                    Query
+                                </button>
+                                <button mat-button color="warn" (click)="deleteEndpoint(endpoint)">
+                                    <mat-icon>delete</mat-icon>
+                                    Delete
+                                </button>
+                            </mat-card-actions>
+                        </mat-card>
+                    </div>
+                </mat-card-content>
+            </mat-card>
+
+            <!-- No Endpoints Message -->
+            <mat-card *ngIf="storedEndpoints.length === 0" class="no-endpoints-card">
+                <mat-card-content>
+                    <div class="no-data-message">
+                        <mat-icon>dns</mat-icon>
+                        <p>No API endpoints configured yet.</p>
+                        <p>Create an endpoint above to start tracking external API data sources.</p>
+                    </div>
+                </mat-card-content>
+            </mat-card>
+
+            <!-- Fetch Result -->
+            <mat-card *ngIf="fetchResult" class="fetch-result-card">
+                <mat-card-header>
+                    <mat-card-title>
+                        <mat-icon [class.success]="fetchResult.success" [class.error]="!fetchResult.success">
+                            {{ fetchResult.success ? 'check_circle' : 'error' }}
+                        </mat-icon>
+                        Fetch Result
+                    </mat-card-title>
+                </mat-card-header>
+                <mat-card-content>
+                    <div *ngIf="fetchResult.success" class="fetch-success">
+                        <div class="result-grid">
+                            <div class="result-item">
+                                <span class="label">Endpoint:</span>
+                                <span class="value">{{ fetchResult.endpointName }}</span>
+                            </div>
+                            <div class="result-item">
+                                <span class="label">Records:</span>
+                                <span class="value">{{ fetchResult.recordCount }}</span>
+                            </div>
+                            <div class="result-item">
+                                <span class="label">Fields:</span>
+                                <span class="value">{{ fetchResult.fieldCount }}</span>
+                            </div>
+                            <div class="result-item" *ngIf="fetchResult.persisted">
+                                <span class="label">Persisted to:</span>
+                                <mat-chip color="accent">{{ fetchResult.persistedClassName }}</mat-chip>
+                                <span class="value">({{ fetchResult.persistedCount }} records)</span>
+                            </div>
+                            <div class="result-item" *ngIf="fetchResult.classCreated">
+                                <mat-chip color="primary">Class Created</mat-chip>
+                            </div>
+                        </div>
+                        <div class="fetch-data" *ngIf="fetchResult.data && !fetchResult.persisted">
+                            <h4>Fetched Data:</h4>
+                            <pre class="json-display">{{ formatJson(fetchResult.data) }}</pre>
+                        </div>
+                    </div>
+                    <div *ngIf="!fetchResult.success" class="fetch-error">
+                        <p>{{ fetchResult.error }}</p>
+                        <div *ngIf="fetchResult.debug" class="debug-info">
+                            <h4>Debug Info:</h4>
+                            <pre class="json-display">{{ formatJson(fetchResult.debug) }}</pre>
+                        </div>
+                    </div>
+                </mat-card-content>
+                <mat-card-actions>
+                    <button mat-button (click)="clearFetchResult()">
+                        <mat-icon>close</mat-icon>
+                        Dismiss
+                    </button>
+                </mat-card-actions>
+            </mat-card>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- CREATE CLASS TAB -->
+        <!-- ============================================================ -->
+        <div class="tab-panel" *ngIf="activeTab === 'create'">
+            <mat-card>
+                <mat-card-header>
+                    <mat-card-title>Create Polari Class from Profile</mat-card-title>
+                </mat-card-header>
+                <mat-card-content>
+                    <div class="create-form" *ngIf="selectedProfile || builtProfile">
+                        <div class="selected-profile-info">
+                            <mat-icon>folder</mat-icon>
+                            <span>Using profile: <strong>{{ (selectedProfile || builtProfile)?.profileName }}</strong></span>
+                        </div>
+
+                        <mat-form-field class="full-width">
+                            <mat-label>Class Name</mat-label>
+                            <input matInput [(ngModel)]="newClassName"
+                                   placeholder="MyClassName"
+                                   [value]="(selectedProfile || builtProfile)?.profileName">
+                            <mat-hint>PascalCase class name for the Polari object</mat-hint>
+                        </mat-form-field>
+
+                        <div class="options">
+                            <mat-checkbox [(ngModel)]="registerCRUDE">Register CRUDE Endpoints</mat-checkbox>
+                            <mat-checkbox [(ngModel)]="isStateSpaceObject">State-Space Object</mat-checkbox>
+                        </div>
+
+                        <button mat-raised-button color="primary" (click)="createClass()" [disabled]="isLoading">
+                            <mat-icon>add_circle</mat-icon>
+                            Create Class
+                        </button>
+                    </div>
+
+                    <div class="no-data-message" *ngIf="!selectedProfile && !builtProfile">
+                        <mat-icon>info</mat-icon>
+                        <p>Build or select a profile first to create a Polari class.</p>
+                    </div>
+                </mat-card-content>
+            </mat-card>
+
+            <!-- Create Result -->
+            <mat-card *ngIf="createClassResult" class="result-card">
+                <mat-card-header>
+                    <mat-card-title>
+                        <mat-icon *ngIf="createClassResult.success" class="success-icon">check_circle</mat-icon>
+                        <mat-icon *ngIf="!createClassResult.success" class="error-icon">error</mat-icon>
+                        {{ createClassResult.success ? 'Class Created!' : 'Creation Failed' }}
+                    </mat-card-title>
+                </mat-card-header>
+                <mat-card-content>
+                    <div *ngIf="createClassResult.success" class="success-details">
+                        <p><strong>Class Name:</strong> {{ createClassResult.className }}</p>
+                        <p><strong>API Endpoint:</strong> {{ createClassResult.apiEndpoint }}</p>
+                        <p><strong>Variables:</strong> {{ createClassResult.variableCount }}</p>
+                        <p><strong>CRUDE Registered:</strong> {{ createClassResult.crudeRegistered ? 'Yes' : 'No' }}</p>
+                        <p><strong>State-Space:</strong> {{ createClassResult.isStateSpaceObject ? 'Yes' : 'No' }}</p>
+
+                        <div class="variables-list" *ngIf="createClassResult.variables">
+                            <h4>Variables:</h4>
+                            <div class="variable-grid">
+                                <div *ngFor="let v of createClassResult.variables" class="variable-item">
+                                    <span class="var-name">{{ v.varName }}</span>
+                                    <span class="var-type">{{ v.varType }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <p class="success-note">
+                            <mat-icon>info</mat-icon>
+                            The new class is now available in the navigation menu.
+                        </p>
+                    </div>
+                    <div *ngIf="!createClassResult.success" class="error-details">
+                        <p>{{ createClassResult.error }}</p>
+                    </div>
+                </mat-card-content>
+            </mat-card>
+        </div>
+
+    </div>
+</div>

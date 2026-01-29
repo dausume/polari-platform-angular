@@ -28,7 +28,8 @@ export class ClassTypingService {
         new navComponent("Home","","HomeComponent", {}, []),
         new navComponent("Polari Configuration","polari-config","PolariConfigComponent", {}, []),
         new navComponent("Create Class","create-class","CreateNewClassComponent", {}, []),
-        new navComponent("Custom No-Code","custom-no-code","CustomNoCodeComponent", {}, [])
+        new navComponent("Custom No-Code","custom-no-code","CustomNoCodeComponent", {}, []),
+        new navComponent("API Profiler","api-profiler","ApiProfilerComponent", {}, [])
     ]
 
     // Dynamic navigation items for object class pages WITH instances (shown in main dropdown)
