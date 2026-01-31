@@ -161,38 +161,103 @@
                     </mat-card-content>
                 </mat-card>
 
-                <!-- Analysis -->
-                <mat-card class="result-card" *ngIf="queryResult.analysis">
-                    <mat-card-header (click)="analysisExpanded = !analysisExpanded" class="clickable">
+                <!-- API Format Analysis - Full response structure -->
+                <mat-card class="result-card" *ngIf="queryResult.formatAnalysis">
+                    <mat-card-header (click)="formatAnalysisExpanded = !formatAnalysisExpanded" class="clickable">
                         <mat-card-title>
-                            <mat-icon>{{ analysisExpanded ? 'expand_less' : 'expand_more' }}</mat-icon>
-                            Analysis
+                            <mat-icon>{{ formatAnalysisExpanded ? 'expand_less' : 'expand_more' }}</mat-icon>
+                            API Format Analysis
+                            <span class="format-badge" *ngIf="queryResult.formatAnalysis.detectedFormat">
+                                {{ queryResult.formatAnalysis.detectedFormatDisplayName || queryResult.formatAnalysis.detectedFormat }}
+                                ({{ queryResult.formatAnalysis.detectedFormatConfidence }}%)
+                            </span>
                         </mat-card-title>
                     </mat-card-header>
-                    <mat-card-content *ngIf="analysisExpanded">
+                    <mat-card-content *ngIf="formatAnalysisExpanded">
+                        <p class="analysis-description">{{ queryResult.formatAnalysis.description }}</p>
                         <div class="analysis-grid">
                             <div class="analysis-item">
-                                <span class="label">Samples:</span>
-                                <span class="value">{{ queryResult.analysis.sampleCount }}</span>
+                                <span class="label">Root Type:</span>
+                                <span class="value type-value">{{ queryResult.formatAnalysis.rootType }}</span>
+                            </div>
+                            <div class="analysis-item">
+                                <span class="label">Max Depth:</span>
+                                <span class="value">{{ queryResult.formatAnalysis.maxDepth }}</span>
+                            </div>
+                            <div class="analysis-item">
+                                <span class="label">Type Signatures:</span>
+                                <span class="value">{{ queryResult.formatAnalysis.totalTypeSignatures }}</span>
+                            </div>
+                            <div class="analysis-item">
+                                <span class="label">Field Signatures:</span>
+                                <span class="value">{{ queryResult.formatAnalysis.totalFieldSignatures }}</span>
+                            </div>
+                            <div class="analysis-item" *ngIf="queryResult.formatAnalysis.detectedDataPath">
+                                <span class="label">Data Path:</span>
+                                <span class="value"><code>{{ queryResult.formatAnalysis.detectedDataPath }}</code></span>
+                            </div>
+                        </div>
+                        <div class="signature-details-inline" *ngIf="queryResult.formatAnalysis.typeSignatures">
+                            <h4>Type Structure:</h4>
+                            <div *ngFor="let level of getObjectKeys(queryResult.formatAnalysis.typeSignatures)">
+                                <div class="level-header">Level {{ level }} types</div>
+                                <div class="field-chips">
+                                    <span class="field-chip signature-detected" *ngFor="let typeStr of queryResult.formatAnalysis.typeSignatures[level]">
+                                        <mat-icon class="chip-icon">data_object</mat-icon>
+                                        <span class="field-label">{{ typeStr }}</span>
+                                        <span class="field-badge detected">found</span>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="field-list" *ngIf="queryResult.formatAnalysis.fieldSignatures">
+                            <h4>Field Structure:</h4>
+                            <div *ngFor="let level of getObjectKeys(queryResult.formatAnalysis.fieldSignatures)">
+                                <div class="level-header">Level {{ level }} fields</div>
+                                <div class="field-chips">
+                                    <span class="field-chip signature-detected" *ngFor="let field of queryResult.formatAnalysis.fieldSignatures[level]">
+                                        <mat-icon class="chip-icon">label</mat-icon>
+                                        <span class="field-label">{{ field }}</span>
+                                        <span class="field-badge detected">found</span>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </mat-card-content>
+                </mat-card>
+
+                <!-- Data Records Analysis - Extracted records -->
+                <mat-card class="result-card" *ngIf="queryResult.recordsAnalysis">
+                    <mat-card-header (click)="recordsAnalysisExpanded = !recordsAnalysisExpanded" class="clickable">
+                        <mat-card-title>
+                            <mat-icon>{{ recordsAnalysisExpanded ? 'expand_less' : 'expand_more' }}</mat-icon>
+                            Data Records Analysis
+                            <span class="path-badge" *ngIf="queryResult.recordsAnalysis.effectiveDataPath">
+                                &#64; {{ queryResult.recordsAnalysis.effectiveDataPath }}
+                            </span>
+                        </mat-card-title>
+                    </mat-card-header>
+                    <mat-card-content *ngIf="recordsAnalysisExpanded">
+                        <p class="analysis-description">{{ queryResult.recordsAnalysis.description }}</p>
+                        <div class="analysis-grid">
+                            <div class="analysis-item">
+                                <span class="label">Root Type:</span>
+                                <span class="value type-value">{{ queryResult.recordsAnalysis.rootType }}</span>
+                            </div>
+                            <div class="analysis-item">
+                                <span class="label">Records:</span>
+                                <span class="value">{{ queryResult.recordsAnalysis.sampleCount }}</span>
                             </div>
                             <div class="analysis-item">
                                 <span class="label">Fields:</span>
-                                <span class="value">{{ queryResult.analysis.fieldCount }}</span>
+                                <span class="value">{{ queryResult.recordsAnalysis.fieldCount }}</span>
                             </div>
                         </div>
                         <div class="field-list">
-                            <h4>Detected Fields:</h4>
+                            <h4>Record Fields:</h4>
                             <mat-chip-listbox>
-                                <mat-chip *ngFor="let field of queryResult.analysis.fields">
-                                    {{ field }}: {{ queryResult.analysis.detectedTypes[field] || 'unknown' }}
-                                </mat-chip>
-                            </mat-chip-listbox>
-                        </div>
-                        <div class="suggested-templates" *ngIf="queryResult.analysis.suggestedTemplates?.length">
-                            <h4>Suggested Templates:</h4>
-                            <mat-chip-listbox>
-                                <mat-chip *ngFor="let template of queryResult.analysis.suggestedTemplates" color="accent">
-                                    {{ template }}
+                                <mat-chip *ngFor="let field of queryResult.recordsAnalysis.fields">
+                                    {{ field }}: {{ queryResult.recordsAnalysis.detectedTypes[field] || 'unknown' }}
                                 </mat-chip>
                             </mat-chip-listbox>
                         </div>
@@ -204,20 +269,147 @@
                     <mat-card-header (click)="matchesExpanded = !matchesExpanded" class="clickable">
                         <mat-card-title>
                             <mat-icon>{{ matchesExpanded ? 'expand_less' : 'expand_more' }}</mat-icon>
-                            Profile Matches ({{ matches.length }})
+                            Profile Matches ({{ getMatchCount() }} Match{{ getMatchCount() !== 1 ? 'es' : '' }}, {{ getPartialMatchCount() }} Partial)
                         </mat-card-title>
                     </mat-card-header>
                     <mat-card-content *ngIf="matchesExpanded">
+                        <!-- Ranking Weights Info -->
+                        <div class="ranking-weights-info">
+                            <span class="weights-label">Ranking Weights:</span>
+                            <span class="weight-item">W1: Req Count (0.40)</span>
+                            <span class="weight-item">W2: Req % (0.30)</span>
+                            <span class="weight-item">W3: Opt Count (0.20)</span>
+                            <span class="weight-item">W4: Opt % (0.10)</span>
+                        </div>
                         <div class="matches-list">
                             <div class="match-item" *ngFor="let match of matches"
-                                 [class]="getMatchClass(match.confidence)">
-                                <div class="match-header">
-                                    <span class="profile-name">{{ match.profileName }}</span>
-                                    <span class="confidence">{{ match.confidence }}%</span>
+                                 [class]="getMatchCategoryClass(match)">
+                                <div class="match-header clickable" (click)="toggleMatchExpanded(match)">
+                                    <div class="match-title">
+                                        <mat-icon class="expand-icon">{{ isMatchExpanded(match) ? 'expand_less' : 'expand_more' }}</mat-icon>
+                                        <span class="profile-name">{{ match.displayName || match.profileName }}</span>
+                                    </div>
+                                    <div class="match-summary">
+                                        <mat-chip *ngIf="match.isTemplate" class="chip-small">Template</mat-chip>
+                                        <mat-chip *ngIf="match.matchCategory === 'Match'" color="primary" class="chip-small category-badge">
+                                            Match #{{ match.categoryRank }}/{{ match.totalMatches }}
+                                        </mat-chip>
+                                        <mat-chip *ngIf="match.matchCategory === 'Partial Match'" color="accent" class="chip-small category-badge">
+                                            Partial #{{ match.categoryRank }}/{{ match.totalPartialMatches }}
+                                        </mat-chip>
+                                        <span class="rank-score" *ngIf="match.normalizedScore !== undefined">
+                                            Score: {{ (match.normalizedScore * 100).toFixed(0) }}
+                                        </span>
+                                    </div>
                                 </div>
-                                <div class="match-details">
-                                    <mat-chip *ngIf="match.isTemplate">Template</mat-chip>
-                                    <mat-chip *ngIf="match.isMatch" color="primary">Match</mat-chip>
+
+                                <!-- Signature Summary Row -->
+                                <div class="signature-summary" *ngIf="match.totalTypeSignatures || match.totalFieldSignatures">
+                                    <!-- Type Signatures Summary -->
+                                    <span class="sig-badge type-sig required" [class.complete]="match.matchedRequiredTypes === match.totalRequiredTypes"
+                                          *ngIf="match.totalRequiredTypes">
+                                        <mat-icon>category</mat-icon>
+                                        Types (req): {{ match.matchedRequiredTypes }}/{{ match.totalRequiredTypes }}
+                                    </span>
+                                    <span class="sig-badge type-sig optional" [class.complete]="match.matchedOptionalTypes === match.totalOptionalTypes"
+                                          *ngIf="match.totalOptionalTypes">
+                                        <mat-icon>category</mat-icon>
+                                        Types (opt): {{ match.matchedOptionalTypes }}/{{ match.totalOptionalTypes }}
+                                    </span>
+                                    <!-- Field Signatures Summary -->
+                                    <span class="sig-badge field-sig required" [class.complete]="match.matchedRequiredFields === match.totalRequiredFields"
+                                          *ngIf="match.totalRequiredFields">
+                                        <mat-icon>list</mat-icon>
+                                        Fields (req): {{ match.matchedRequiredFields }}/{{ match.totalRequiredFields }}
+                                    </span>
+                                    <span class="sig-badge field-sig optional" [class.complete]="match.matchedOptionalFields === match.totalOptionalFields"
+                                          *ngIf="match.totalOptionalFields">
+                                        <mat-icon>list</mat-icon>
+                                        Fields (opt): {{ match.matchedOptionalFields }}/{{ match.totalOptionalFields }}
+                                    </span>
+                                </div>
+
+                                <!-- Expanded Signature Details -->
+                                <div class="signature-details" *ngIf="isMatchExpanded(match)">
+                                    <!-- Type Signatures Section -->
+                                    <div class="signature-section" *ngIf="match.typeSignatureMatches?.length">
+                                        <div class="section-header">
+                                            <mat-icon>category</mat-icon>
+                                            <span>Type Signatures</span>
+                                            <span class="section-count">
+                                                (req: {{ match.matchedRequiredTypes || 0 }}/{{ match.totalRequiredTypes || 0 }},
+                                                 opt: {{ match.matchedOptionalTypes || 0 }}/{{ match.totalOptionalTypes || 0 }})
+                                            </span>
+                                        </div>
+                                        <div class="signature-list">
+                                            <ng-container *ngFor="let levelGroup of getLevels(groupSignaturesByLevel(getTypeSignaturesByLevel(match)))">
+                                                <div class="level-header">Level {{ levelGroup }} types</div>
+                                                <div class="field-chips">
+                                                    <ng-container *ngFor="let sig of groupSignaturesByLevel(getTypeSignaturesByLevel(match))[levelGroup]">
+                                                        <span class="field-chip"
+                                                              [class.signature-matched]="sig.matched"
+                                                              [class.signature-missing]="!sig.matched && !sig.extra"
+                                                              [class.signature-extra]="sig.extra"
+                                                              [class.signature-required]="sig.required"
+                                                              [class.signature-optional]="sig.optional">
+                                                            <mat-icon class="chip-icon">{{ sig.extra ? 'info' : (sig.matched ? 'check' : 'close') }}</mat-icon>
+                                                            <span class="field-label">{{ sig.expected || '(any)' }}</span>
+                                                            <span class="field-badge" *ngIf="sig.required">req</span>
+                                                            <span class="field-badge optional" *ngIf="sig.optional">opt</span>
+                                                        </span>
+                                                    </ng-container>
+                                                </div>
+                                            </ng-container>
+                                        </div>
+                                    </div>
+
+                                    <!-- Field Signatures Section -->
+                                    <div class="signature-section" *ngIf="match.fieldSignatureMatches?.length">
+                                        <div class="section-header">
+                                            <mat-icon>list</mat-icon>
+                                            <span>Field Signatures</span>
+                                        </div>
+                                        <div class="signature-list">
+                                            <ng-container *ngFor="let levelGroup of getLevels(groupSignaturesByLevel(getFieldSignaturesByLevel(match)))">
+                                                <div class="level-header">Level {{ levelGroup }} fields (contained within this level)</div>
+                                                <div class="field-chips">
+                                                    <ng-container *ngFor="let sig of groupSignaturesByLevel(getFieldSignaturesByLevel(match))[levelGroup]">
+                                                        <span class="field-chip"
+                                                              [class.signature-matched]="sig.matched"
+                                                              [class.signature-missing]="!sig.matched && !sig.extra"
+                                                              [class.signature-required]="sig.required"
+                                                              [class.signature-optional]="sig.optional">
+                                                            <mat-icon class="chip-icon">{{ sig.matched ? 'check' : 'close' }}</mat-icon>
+                                                            <span class="field-label" [class.required-field]="sig.required">{{ sig.field || sig.expected || sig.found }}</span>
+                                                            <span class="field-type" *ngIf="sig.expectedType">: {{ sig.expectedType }}</span>
+                                                            <span class="field-badge" *ngIf="sig.required">req</span>
+                                                            <span class="field-badge optional" *ngIf="sig.optional">opt</span>
+                                                        </span>
+                                                    </ng-container>
+                                                </div>
+                                            </ng-container>
+                                        </div>
+
+                                        <!-- Extra/Unexpected Fields -->
+                                        <div class="extra-fields" *ngIf="getExtraFields(match).length > 0">
+                                            <div class="extra-header">
+                                                <mat-icon>info</mat-icon>
+                                                <span>Extra Fields Found (not in profile)</span>
+                                            </div>
+                                            <div class="field-chips">
+                                                <span class="field-chip signature-extra" *ngFor="let sig of getExtraFields(match)">
+                                                    <mat-icon class="chip-icon">add</mat-icon>
+                                                    L{{ sig.level }}: {{ sig.field || sig.found }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Data Path Info -->
+                                    <div class="data-path-info" *ngIf="match.dataPath">
+                                        <mat-icon>folder_open</mat-icon>
+                                        <span>Data Path: <code>{{ match.dataPath }}</code></span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -234,7 +426,8 @@
                     </mat-card-header>
                     <mat-card-content>
                         <p><strong>Name:</strong> {{ queryResult.profile.profileName }}</p>
-                        <p><strong>Fields:</strong> {{ queryResult.profile.fieldSignatures?.length || 0 }}</p>
+                        <p><strong>Fields:</strong> {{ queryResult.profile.totalFieldSignatures || 0 }}</p>
+                        <p><strong>Levels:</strong> {{ queryResult.profile.totalTypeSignatures || 0 }}</p>
                         <button mat-raised-button color="accent" (click)="useResponseForProfile()">
                             <mat-icon>arrow_forward</mat-icon>
                             Use for Class Creation
@@ -301,16 +494,144 @@
                     <mat-card-title>Profile Matches</mat-card-title>
                 </mat-card-header>
                 <mat-card-content>
+                    <!-- Ranking Weights Info -->
+                    <div class="ranking-weights-info">
+                        <span class="weights-label">Ranking Weights:</span>
+                        <span class="weight-item">W1: Req Count (0.40)</span>
+                        <span class="weight-item">W2: Req % (0.30)</span>
+                        <span class="weight-item">W3: Opt Count (0.20)</span>
+                        <span class="weight-item">W4: Opt % (0.10)</span>
+                    </div>
                     <div class="matches-list">
                         <div class="match-item" *ngFor="let match of matches"
-                             [class]="getMatchClass(match.confidence)">
-                            <div class="match-header">
-                                <span class="profile-name">{{ match.profileName }}</span>
-                                <span class="confidence">{{ match.confidence }}%</span>
+                             [class]="getMatchCategoryClass(match)">
+                            <div class="match-header clickable" (click)="toggleMatchExpanded(match)">
+                                <div class="match-title">
+                                    <mat-icon class="expand-icon">{{ isMatchExpanded(match) ? 'expand_less' : 'expand_more' }}</mat-icon>
+                                    <span class="profile-name">{{ match.displayName || match.profileName }}</span>
+                                </div>
+                                <div class="match-summary">
+                                    <mat-chip *ngIf="match.isTemplate" class="chip-small">Template</mat-chip>
+                                    <mat-chip *ngIf="match.matchCategory === 'Match'" color="primary" class="chip-small category-badge">
+                                        Match #{{ match.categoryRank }}/{{ match.totalMatches }}
+                                    </mat-chip>
+                                    <mat-chip *ngIf="match.matchCategory === 'Partial Match'" color="accent" class="chip-small category-badge">
+                                        Partial #{{ match.categoryRank }}/{{ match.totalPartialMatches }}
+                                    </mat-chip>
+                                    <span class="rank-score" *ngIf="match.normalizedScore !== undefined">
+                                        Score: {{ (match.normalizedScore * 100).toFixed(0) }}
+                                    </span>
+                                </div>
                             </div>
-                            <div class="match-details">
-                                <mat-chip *ngIf="match.isTemplate">Template</mat-chip>
-                                <mat-chip *ngIf="match.isMatch" color="primary">Match</mat-chip>
+
+                            <!-- Signature Summary Row -->
+                            <div class="signature-summary" *ngIf="match.totalTypeSignatures || match.totalFieldSignatures">
+                                <!-- Type Signatures Summary -->
+                                <span class="sig-badge type-sig required" [class.complete]="match.matchedRequiredTypes === match.totalRequiredTypes"
+                                      *ngIf="match.totalRequiredTypes">
+                                    <mat-icon>category</mat-icon>
+                                    Types (req): {{ match.matchedRequiredTypes }}/{{ match.totalRequiredTypes }}
+                                </span>
+                                <span class="sig-badge type-sig optional" [class.complete]="match.matchedOptionalTypes === match.totalOptionalTypes"
+                                      *ngIf="match.totalOptionalTypes">
+                                    <mat-icon>category</mat-icon>
+                                    Types (opt): {{ match.matchedOptionalTypes }}/{{ match.totalOptionalTypes }}
+                                </span>
+                                <!-- Field Signatures Summary -->
+                                <span class="sig-badge field-sig required" [class.complete]="match.matchedRequiredFields === match.totalRequiredFields"
+                                      *ngIf="match.totalRequiredFields">
+                                    <mat-icon>list</mat-icon>
+                                    Fields (req): {{ match.matchedRequiredFields }}/{{ match.totalRequiredFields }}
+                                </span>
+                                <span class="sig-badge field-sig optional" [class.complete]="match.matchedOptionalFields === match.totalOptionalFields"
+                                      *ngIf="match.totalOptionalFields">
+                                    <mat-icon>list</mat-icon>
+                                    Fields (opt): {{ match.matchedOptionalFields }}/{{ match.totalOptionalFields }}
+                                </span>
+                            </div>
+
+                            <!-- Expanded Signature Details -->
+                            <div class="signature-details" *ngIf="isMatchExpanded(match)">
+                                <!-- Type Signatures Section -->
+                                <div class="signature-section" *ngIf="match.typeSignatureMatches?.length">
+                                    <div class="section-header">
+                                        <mat-icon>category</mat-icon>
+                                        <span>Type Signatures</span>
+                                        <span class="section-count">
+                                            (req: {{ match.matchedRequiredTypes || 0 }}/{{ match.totalRequiredTypes || 0 }},
+                                             opt: {{ match.matchedOptionalTypes || 0 }}/{{ match.totalOptionalTypes || 0 }})
+                                        </span>
+                                    </div>
+                                    <div class="signature-list">
+                                        <ng-container *ngFor="let levelGroup of getLevels(groupSignaturesByLevel(getTypeSignaturesByLevel(match)))">
+                                            <div class="level-header">Level {{ levelGroup }} types</div>
+                                            <div class="field-chips">
+                                                <ng-container *ngFor="let sig of groupSignaturesByLevel(getTypeSignaturesByLevel(match))[levelGroup]">
+                                                    <span class="field-chip"
+                                                          [class.signature-matched]="sig.matched"
+                                                          [class.signature-missing]="!sig.matched && !sig.extra"
+                                                          [class.signature-extra]="sig.extra"
+                                                          [class.signature-required]="sig.required"
+                                                          [class.signature-optional]="sig.optional">
+                                                        <mat-icon class="chip-icon">{{ sig.extra ? 'info' : (sig.matched ? 'check' : 'close') }}</mat-icon>
+                                                        <span class="field-label">{{ sig.expected || '(any)' }}</span>
+                                                        <span class="field-badge" *ngIf="sig.required">req</span>
+                                                        <span class="field-badge optional" *ngIf="sig.optional">opt</span>
+                                                    </span>
+                                                </ng-container>
+                                            </div>
+                                        </ng-container>
+                                    </div>
+                                </div>
+
+                                <!-- Field Signatures Section -->
+                                <div class="signature-section" *ngIf="match.fieldSignatureMatches?.length">
+                                    <div class="section-header">
+                                        <mat-icon>list</mat-icon>
+                                        <span>Field Signatures</span>
+                                        <span class="section-count">({{ match.matchedFieldSignatures }}/{{ match.totalFieldSignatures }} matched)</span>
+                                    </div>
+                                    <div class="signature-list">
+                                        <ng-container *ngFor="let levelGroup of getLevels(groupSignaturesByLevel(getFieldSignaturesByLevel(match)))">
+                                            <div class="level-header">Level {{ levelGroup }} fields (contained within this level)</div>
+                                            <div class="field-chips">
+                                                <ng-container *ngFor="let sig of groupSignaturesByLevel(getFieldSignaturesByLevel(match))[levelGroup]">
+                                                    <span class="field-chip"
+                                                          [class.signature-matched]="sig.matched"
+                                                          [class.signature-missing]="!sig.matched && !sig.extra"
+                                                          [class.signature-required]="sig.required"
+                                                          [class.signature-optional]="sig.optional">
+                                                        <mat-icon class="chip-icon">{{ sig.matched ? 'check' : 'close' }}</mat-icon>
+                                                        <span class="field-label" [class.required-field]="sig.required">{{ sig.field || sig.expected || sig.found }}</span>
+                                                        <span class="field-type" *ngIf="sig.expectedType">: {{ sig.expectedType }}</span>
+                                                        <span class="field-badge" *ngIf="sig.required">req</span>
+                                                        <span class="field-badge optional" *ngIf="sig.optional">opt</span>
+                                                    </span>
+                                                </ng-container>
+                                            </div>
+                                        </ng-container>
+                                    </div>
+
+                                    <!-- Extra/Unexpected Fields -->
+                                    <div class="extra-fields" *ngIf="getExtraFields(match).length > 0">
+                                        <div class="extra-header">
+                                            <mat-icon>info</mat-icon>
+                                            <span>Extra Fields Found</span>
+                                        </div>
+                                        <div class="field-chips">
+                                            <span class="field-chip signature-extra" *ngFor="let sig of getExtraFields(match)">
+                                                <mat-icon class="chip-icon">add</mat-icon>
+                                                L{{ sig.level }}: {{ sig.field || sig.found }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Data Path Info -->
+                                <div class="data-path-info" *ngIf="match.dataPath">
+                                    <mat-icon>folder_open</mat-icon>
+                                    <span>Data Path: <code>{{ match.dataPath }}</code></span>
+                                </div>
                             </div>
                         </div>
                     </div>

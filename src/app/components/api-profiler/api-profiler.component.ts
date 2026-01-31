@@ -79,9 +79,12 @@ export class ApiProfilerComponent implements OnInit, OnDestroy {
     error: string = '';
     responseExpanded: boolean = false;
     analysisExpanded: boolean = true;
+    formatAnalysisExpanded: boolean = true;  // API Format Analysis section
+    recordsAnalysisExpanded: boolean = true;  // Data Records Analysis section
     matchesExpanded: boolean = true;
     formatTemplatesExpanded: boolean = true;  // Show format templates by default
     expandedProfiles: Set<string> = new Set();
+    expandedMatches: Set<string> = new Set();  // Track which match cards are expanded
     previewingProfile: APIProfile | null = null;
     detectedFieldsExpanded: boolean = false;
     selectedFormatProfile: string | null = null;
@@ -349,6 +352,14 @@ export class ApiProfilerComponent implements OnInit, OnDestroy {
         }
     }
 
+    /**
+     * Get object keys as an array for template iteration
+     */
+    getObjectKeys(obj: any): string[] {
+        if (!obj) return [];
+        return Object.keys(obj).sort((a, b) => parseInt(a) - parseInt(b));
+    }
+
     copyToClipboard(text: string): void {
         navigator.clipboard.writeText(text).then(() => {
             console.log('Copied to clipboard');
@@ -363,10 +374,143 @@ export class ApiProfilerComponent implements OnInit, OnDestroy {
         }
     }
 
+    /**
+     * Get CSS class based on match category
+     */
+    getMatchCategoryClass(match: ProfileMatch): string {
+        if (match.matchCategory === 'Match') return 'match-full';
+        if (match.matchCategory === 'Partial Match') return 'match-partial';
+        return 'match-none';
+    }
+
+    /**
+     * Get count of full matches
+     */
+    getMatchCount(): number {
+        return this.matches.filter(m => m.matchCategory === 'Match').length;
+    }
+
+    /**
+     * Get count of partial matches
+     */
+    getPartialMatchCount(): number {
+        return this.matches.filter(m => m.matchCategory === 'Partial Match').length;
+    }
+
+    /**
+     * Legacy method for backwards compatibility
+     * @deprecated Use getMatchCategoryClass instead
+     */
     getMatchClass(confidence: number): string {
         if (confidence >= 80) return 'match-high';
         if (confidence >= 60) return 'match-medium';
         return 'match-low';
+    }
+
+    // ============================================================================
+    // Match Expansion and Signature Display Methods
+    // ============================================================================
+
+    /**
+     * Toggle expansion of a match card to show signature details
+     */
+    toggleMatchExpanded(match: ProfileMatch): void {
+        const key = match.profileName;
+        if (this.expandedMatches.has(key)) {
+            this.expandedMatches.delete(key);
+        } else {
+            this.expandedMatches.add(key);
+        }
+    }
+
+    /**
+     * Check if a match card is expanded
+     */
+    isMatchExpanded(match: ProfileMatch): boolean {
+        return this.expandedMatches.has(match.profileName);
+    }
+
+    /**
+     * Get type signature match summary string
+     */
+    getTypeSignatureSummary(match: ProfileMatch): string {
+        const matched = match.matchedTypeSignatures || 0;
+        const total = match.totalTypeSignatures || 0;
+        return `${matched}/${total}`;
+    }
+
+    /**
+     * Get field signature match summary string
+     */
+    getFieldSignatureSummary(match: ProfileMatch): string {
+        const matched = match.matchedFieldSignatures || 0;
+        const total = match.totalFieldSignatures || 0;
+        return `${matched}/${total}`;
+    }
+
+    /**
+     * Get CSS class for signature match status
+     */
+    getSignatureMatchClass(matched: boolean, isExtra?: boolean): string {
+        if (isExtra) return 'signature-extra';
+        return matched ? 'signature-matched' : 'signature-missing';
+    }
+
+    /**
+     * Format a type signature for display
+     */
+    formatTypeSignature(sig: any): string {
+        if (!sig) return '';
+        const level = sig.level !== undefined ? `L${sig.level}` : '';
+        const expected = sig.expected || '(none)';
+        const found = sig.found || '(not found)';
+        return `${level}: ${expected}`;
+    }
+
+    /**
+     * Get type signatures grouped by level from a match
+     */
+    getTypeSignaturesByLevel(match: ProfileMatch): any[] {
+        return match.typeSignatureMatches || [];
+    }
+
+    /**
+     * Get field signatures grouped by level from a match
+     * Returns only expected fields (not extra ones)
+     */
+    getFieldSignaturesByLevel(match: ProfileMatch): any[] {
+        const sigs = match.fieldSignatureMatches || [];
+        return sigs.filter(s => !s.extra);
+    }
+
+    /**
+     * Get extra (unexpected) fields from a match
+     */
+    getExtraFields(match: ProfileMatch): any[] {
+        const sigs = match.fieldSignatureMatches || [];
+        return sigs.filter(s => s.extra);
+    }
+
+    /**
+     * Group signatures by level for display
+     */
+    groupSignaturesByLevel(signatures: any[]): { [level: number]: any[] } {
+        const grouped: { [level: number]: any[] } = {};
+        for (const sig of signatures) {
+            const level = sig.level || 0;
+            if (!grouped[level]) {
+                grouped[level] = [];
+            }
+            grouped[level].push(sig);
+        }
+        return grouped;
+    }
+
+    /**
+     * Get levels from grouped signatures
+     */
+    getLevels(grouped: { [level: number]: any[] }): number[] {
+        return Object.keys(grouped).map(Number).sort((a, b) => a - b);
     }
 
     trackByKey(index: number, item: HeaderEntry): number {
@@ -391,61 +535,109 @@ export class ApiProfilerComponent implements OnInit, OnDestroy {
 
     /**
      * Generate an abstract schema representation of a profile
-     * Shows the generic format pattern, not specific field names
+     * Shows the structure at each nesting level based on type and field signatures
      */
     generateProfileSchema(profile: APIProfile | null): string {
         if (!profile) return '';
 
-        const fields = profile.fieldSignatures || [];
-        const types = profile.fieldTypes || {};
-        const fieldCount = fields.length;
+        const fieldSigs = profile.fieldSignatures || {};
+        const typeSigs = profile.typeSignatures || {};
+        const totalFields = profile.totalFieldSignatures || 0;
+        const totalLevels = profile.totalTypeSignatures || Object.keys(typeSigs).length;
 
-        if (fieldCount === 0) {
-            return '// No fields detected';
+        if (totalFields === 0 && totalLevels === 0) {
+            return '// No structure detected';
         }
 
-        // Detect unique types in the profile
-        const uniqueTypes = new Set<string>();
-        fields.forEach(field => {
-            uniqueTypes.add(this.getTypeSchemaNotation(types[field] || 'any'));
-        });
-        const typeList = Array.from(uniqueTypes).join(', ');
-
-        // Build abstract schema representation
         const schemaLines: string[] = [];
+        schemaLines.push(`// Structure: ${totalLevels} levels, ${totalFields} total fields`);
+        schemaLines.push('');
 
-        // Check if there's a root path (wrapped response)
-        if (profile.responseRootPath) {
-            schemaLines.push('// Wrapped Response Format');
-            schemaLines.push('{');
-            schemaLines.push(`  "${profile.responseRootPath}": [`);
-            schemaLines.push('    {');
-            schemaLines.push(`      <field₁>: <type>,`);
-            schemaLines.push(`      <field₂>: <type>,`);
-            schemaLines.push(`      ...`);
-            schemaLines.push(`    },  // ${fieldCount} fields per object`);
-            schemaLines.push('    { ... },');
-            schemaLines.push('    ...');
-            schemaLines.push('  ],');
-            schemaLines.push('  <metadata>: { ... }');
-            schemaLines.push('}');
-        } else {
-            schemaLines.push('// Uniform Object Array Format');
-            schemaLines.push('[');
-            schemaLines.push('  {');
-            schemaLines.push(`    <field₁>: <type>,`);
-            schemaLines.push(`    <field₂>: <type>,`);
-            schemaLines.push(`    ...`);
-            schemaLines.push(`  },  // ${fieldCount} fields per object`);
-            schemaLines.push('  { ... },');
-            schemaLines.push('  ...');
-            schemaLines.push(']');
+        // Build schema based on type signatures at each level
+        const levels = Object.keys(typeSigs).map(Number).sort((a, b) => a - b);
+
+        for (const level of levels) {
+            const typeAtLevel = typeSigs[level];
+            const fieldsAtLevel = fieldSigs[level] || [];
+            const indent = '  '.repeat(level);
+
+            schemaLines.push(`${indent}// Level ${level}: ${typeAtLevel}`);
+
+            if (fieldsAtLevel.length > 0) {
+                if (fieldsAtLevel.length <= 5) {
+                    schemaLines.push(`${indent}// Fields: ${fieldsAtLevel.join(', ')}`);
+                } else {
+                    const preview = fieldsAtLevel.slice(0, 3).join(', ');
+                    schemaLines.push(`${indent}// Fields: ${preview}, ... (${fieldsAtLevel.length} total)`);
+                }
+            }
         }
 
         schemaLines.push('');
-        schemaLines.push(`// Types detected: ${typeList}`);
+
+        // Build visual representation based on root type
+        // typeSigs[0] is now an array, get the first type or 'unknown'
+        const rootTypes = typeSigs[0] || [];
+        const rootType = Array.isArray(rootTypes) ? (rootTypes[0] || 'unknown') : rootTypes;
+
+        if (rootType.startsWith('list')) {
+            schemaLines.push('[');
+            const itemFields = fieldSigs[1] || [];
+            if (itemFields.length > 0) {
+                schemaLines.push('  {');
+                itemFields.slice(0, 4).forEach((field, i) => {
+                    const comma = i < Math.min(itemFields.length - 1, 3) ? ',' : '';
+                    schemaLines.push(`    "${field}": <type>${comma}`);
+                });
+                if (itemFields.length > 4) {
+                    schemaLines.push(`    // ... ${itemFields.length - 4} more fields`);
+                }
+                schemaLines.push(`  },  // ${itemFields.length} fields per item`);
+            } else {
+                schemaLines.push('  { ... },');
+            }
+            schemaLines.push('  ...');
+            schemaLines.push(']');
+        } else if (rootType === 'dict') {
+            schemaLines.push('{');
+            const rootFields = fieldSigs[0] || [];
+            rootFields.slice(0, 4).forEach((field, i) => {
+                const comma = i < Math.min(rootFields.length - 1, 3) ? ',' : '';
+                schemaLines.push(`  "${field}": <type>${comma}`);
+            });
+            if (rootFields.length > 4) {
+                schemaLines.push(`  // ... ${rootFields.length - 4} more fields`);
+            }
+            schemaLines.push('}');
+        } else {
+            schemaLines.push(`// Root type: ${rootType}`);
+        }
 
         return schemaLines.join('\n');
+    }
+
+    /**
+     * Get all fields from a profile across all nesting levels
+     */
+    getAllFieldsFromProfile(profile: APIProfile | null): string[] {
+        if (!profile || !profile.fieldSignatures) return [];
+
+        const allFields: string[] = [];
+        const fieldSigs = profile.fieldSignatures;
+
+        for (const level of Object.keys(fieldSigs)) {
+            allFields.push(...fieldSigs[Number(level)]);
+        }
+
+        return allFields;
+    }
+
+    /**
+     * Get field count from profile (uses totalFieldSignatures)
+     */
+    getProfileFieldCount(profile: APIProfile | null): number {
+        if (!profile) return 0;
+        return profile.totalFieldSignatures || 0;
     }
 
     /**

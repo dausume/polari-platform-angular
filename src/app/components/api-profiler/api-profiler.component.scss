@@ -210,8 +210,471 @@ mat-card-actions{display:flex;flex-wrap:wrap;gap:4px;padding:8px 16px;border-top
 /* Match items - ensure dark text on light backgrounds */
 .match-item{
     color:#333 !important;
+    flex-direction: column;
     .profile-name{color:#333 !important}
 }
 .match-item.match-high{background:#c8e6c9}
 .match-item.match-medium{background:#ffe0b2}
 .match-item.match-low{background:#eeeeee}
+
+/* Match header with expansion */
+.match-item .match-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    cursor: pointer;
+    padding: 4px 0;
+}
+.match-item .match-header:hover {
+    background: rgba(0,0,0,0.03);
+    margin: -4px;
+    padding: 4px;
+    border-radius: 4px;
+}
+.match-item .match-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.match-item .expand-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    color: #666;
+}
+.match-item .match-summary {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.match-item .chip-small {
+    transform: scale(0.85);
+}
+
+/* Signature summary badges */
+.signature-summary {
+    display: flex;
+    gap: 16px;
+    margin-top: 8px;
+    padding: 8px 12px;
+    background: rgba(0,0,0,0.04);
+    border-radius: 4px;
+}
+.sig-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #666;
+    mat-icon {
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+    }
+}
+.sig-badge.complete {
+    color: #2e7d32;
+    mat-icon { color: #4caf50; }
+}
+.sig-badge.type-sig mat-icon { color: #7b1fa2; }
+.sig-badge.field-sig mat-icon { color: #1976d2; }
+
+/* Expanded signature details */
+.signature-details {
+    margin-top: 12px;
+    padding: 12px;
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+}
+
+.signature-section {
+    margin-bottom: 16px;
+    &:last-child { margin-bottom: 0; }
+}
+
+.signature-section .section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    font-weight: 500;
+    font-size: 13px;
+    color: #333;
+    mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+        color: #7b1fa2;
+    }
+    .section-count {
+        color: #666;
+        font-weight: normal;
+        font-size: 12px;
+    }
+}
+
+/* Type signature list */
+.signature-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.signature-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: #f5f5f5;
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: monospace;
+}
+.signature-item.signature-matched {
+    background: #e8f5e9;
+    border-left: 3px solid #4caf50;
+}
+.signature-item.signature-missing {
+    background: #fff3e0;
+    border-left: 3px solid #ff9800;
+}
+.signature-item.signature-extra {
+    background: #e3f2fd;
+    border-left: 3px solid #2196f3;
+    opacity: 0.85;
+}
+.signature-item .status-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+.signature-item.signature-matched .status-icon { color: #4caf50; }
+.signature-item.signature-missing .status-icon { color: #ff9800; }
+.signature-item.signature-extra .status-icon { color: #2196f3; }
+.signature-item .sig-level {
+    color: #7b1fa2;
+    font-weight: 600;
+    min-width: 55px;
+}
+.signature-item .sig-expected {
+    color: #333;
+}
+.signature-item .sig-arrow {
+    color: #999;
+}
+.signature-item .sig-found {
+    color: #2e7d32;
+}
+.signature-item .sig-found.not-found {
+    color: #c62828;
+    font-style: italic;
+}
+
+/* Level headers for field signatures */
+.level-header {
+    font-size: 11px;
+    font-weight: 600;
+    color: #7b1fa2;
+    margin: 8px 0 4px;
+    padding: 4px 8px;
+    background: #f3e5f5;
+    border-radius: 3px;
+    display: inline-block;
+}
+
+/* Field chips */
+.field-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+.field-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-family: monospace;
+    background: #e0e0e0;
+    color: #333;
+}
+.field-chip.signature-matched {
+    background: #c8e6c9;
+    color: #1b5e20;
+}
+.field-chip.signature-missing {
+    background: #ffecb3;
+    color: #e65100;
+}
+.field-chip.signature-extra {
+    background: #e3f2fd;
+    color: #1565c0;
+}
+.field-chip .chip-icon {
+    font-size: 12px;
+    width: 12px;
+    height: 12px;
+}
+.field-chip.signature-matched .chip-icon { color: #2e7d32; }
+.field-chip.signature-missing .chip-icon { color: #ff9800; }
+.field-chip.signature-extra .chip-icon { color: #1976d2; }
+
+/* Extra fields section */
+.extra-fields {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px dashed #e0e0e0;
+}
+.extra-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 8px;
+    mat-icon {
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+        color: #1976d2;
+    }
+}
+
+/* Data path info */
+.data-path-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 8px 12px;
+    background: #f5f5f5;
+    border-radius: 4px;
+    font-size: 12px;
+    color: #666;
+    mat-icon {
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+        color: #1976d2;
+    }
+    code {
+        background: #e3f2fd;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-family: monospace;
+        color: #1565c0;
+    }
+}
+
+/* Format/Records Analysis Sections */
+.format-badge, .path-badge {
+    font-size: 12px;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 12px;
+    margin-left: 8px;
+}
+.format-badge {
+    background: #e8f5e9;
+    color: #2e7d32;
+}
+.path-badge {
+    background: #e3f2fd;
+    color: #1565c0;
+    font-family: monospace;
+}
+
+.analysis-description {
+    color: #666;
+    font-size: 13px;
+    margin: 0 0 12px 0;
+    font-style: italic;
+}
+
+.type-value {
+    font-family: monospace;
+    background: #f3e5f5;
+    color: #7b1fa2;
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
+.signature-details-inline {
+    margin: 12px 0;
+}
+.signature-details-inline h4 {
+    margin: 0 0 8px 0;
+    font-size: 13px;
+    color: #333;
+}
+
+.type-structure {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.type-level {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    background: #f5f5f5;
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: monospace;
+}
+.type-level .level-num {
+    color: #7b1fa2;
+    font-weight: 600;
+}
+.type-level .level-type {
+    color: #333;
+}
+
+.level-label {
+    display: inline-block;
+    color: #7b1fa2;
+    font-weight: 600;
+    font-size: 12px;
+    margin-right: 8px;
+    min-width: 60px;
+}
+
+/* Required/Optional field badges */
+.sig-badge.required {
+    background: #fff3e0;
+    border-color: #ff9800;
+}
+.sig-badge.optional {
+    background: #f3e5f5;
+    border-color: #9c27b0;
+}
+
+.field-chip.signature-required {
+    border-left: 3px solid #ff9800;
+}
+.field-chip.signature-optional {
+    border-left: 3px solid #9c27b0;
+    opacity: 0.9;
+}
+.field-chip .field-label {
+    color: inherit;
+}
+.field-chip .field-label.required-field {
+    font-weight: 600;
+}
+.field-chip .field-type {
+    font-size: 10px;
+    color: #7b1fa2;
+    font-style: italic;
+    opacity: 0.8;
+}
+.field-chip .field-badge {
+    font-size: 9px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    background: #ff9800;
+    color: white;
+    margin-left: 4px;
+    text-transform: uppercase;
+}
+.field-chip .field-badge.optional {
+    background: #9c27b0;
+}
+
+/* Type badge for type signatures */
+.signature-item .type-badge {
+    font-size: 9px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    background: #ff9800;
+    color: white;
+    margin-left: auto;
+    text-transform: uppercase;
+}
+.signature-item .type-badge.optional {
+    background: #9c27b0;
+}
+
+/* Required/optional styling for signature items */
+.signature-item.signature-required {
+    border-left-width: 4px;
+}
+.signature-item.signature-optional {
+    border-left-style: dashed;
+    opacity: 0.9;
+}
+
+.inline-chips {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    vertical-align: middle;
+}
+
+/* Detected type styling for format analysis */
+.field-chip.signature-detected {
+    background: #e8f5e9;
+    color: #1b5e20;
+    border: 1px solid #a5d6a7;
+}
+.field-chip .field-badge.detected {
+    background: #4caf50;
+    color: white;
+}
+
+/* Match category classes */
+.match-item.match-full {
+    border-left: 4px solid #4caf50;
+    background: #e8f5e9;
+}
+.match-item.match-partial {
+    border-left: 4px solid #ff9800;
+    background: #fff3e0;
+}
+.match-item.match-none {
+    border-left: 4px solid #9e9e9e;
+    background: #fafafa;
+}
+
+/* Ranking weights info bar */
+.ranking-weights-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    background: #f5f5f5;
+    border-radius: 4px;
+    margin-bottom: 12px;
+    font-size: 11px;
+    color: #666;
+}
+.ranking-weights-info .weights-label {
+    font-weight: 600;
+    color: #333;
+}
+.ranking-weights-info .weight-item {
+    padding: 2px 6px;
+    background: #e0e0e0;
+    border-radius: 3px;
+    font-family: monospace;
+}
+
+/* Rank score display */
+.rank-score {
+    font-size: 12px;
+    font-weight: 600;
+    color: #7b1fa2;
+    padding: 2px 8px;
+    background: #f3e5f5;
+    border-radius: 10px;
+}
+
+/* Category badge styling */
+.category-badge {
+    font-weight: 600;
+}
