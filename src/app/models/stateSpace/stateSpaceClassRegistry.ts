@@ -111,7 +111,7 @@ export interface StateSpaceClassMetadata {
   // User-defined classes and Solutions as Definitions will have this as false
   isBuiltIn: boolean;
 
-  // Special state type - for InitialState and EndState
+  // Special state type - for InitialState and ReturnStatement
   specialStateType?: 'initial' | 'end' | 'solution';
 
   // For solution-based definitions, the source solution name
@@ -192,36 +192,8 @@ export class StateSpaceClassRegistry {
       factory: () => ({ type: 'InitialState', displayName: 'Start', description: 'Solution entry point' })
     });
 
-    this.registerClass({
-      className: 'EndState',
-      displayName: 'End State',
-      description: 'The termination point of a solution - defines output and completion',
-      category: 'Control Flow',
-      icon: 'stop_circle',
-      color: '#F44336',
-      isStateSpaceObject: true,
-      stateSpaceDisplayFields: ['displayName', 'description'],
-      stateSpaceFieldsPerRow: 1,
-      isBuiltIn: true,
-      specialStateType: 'end',
-      eventMethods: [
-        {
-          methodName: 'complete',
-          displayName: 'Complete Execution',
-          description: 'End solution execution and return output',
-          category: 'Control Flow',
-          inputParams: [
-            { name: 'context', displayName: 'Final Context', type: 'object', isRequired: true }
-          ],
-          output: { type: 'any', displayName: 'Solution Output' }
-        }
-      ],
-      variables: [
-        { name: 'displayName', displayName: 'Display Name', type: 'string', isEditable: true, defaultValue: 'End' },
-        { name: 'description', displayName: 'Description', type: 'string', isEditable: true, defaultValue: 'Solution completion point' }
-      ],
-      factory: () => ({ type: 'EndState', displayName: 'End', description: 'Solution completion point' })
-    });
+    // Note: EndState has been deprecated in favor of ReturnStatement
+    // ReturnStatement now serves as the solution termination point with specialStateType: 'end'
 
     // === Conditionals ===
     this.registerClass({
@@ -555,7 +527,7 @@ export class StateSpaceClassRegistry {
     this.registerClass({
       className: 'ReturnStatement',
       displayName: 'Return',
-      description: 'Return a value and exit the current flow',
+      description: 'Return a value and exit the solution flow',
       category: 'Control Flow',
       icon: 'exit_to_app',
       color: '#F44336',
@@ -563,6 +535,7 @@ export class StateSpaceClassRegistry {
       stateSpaceDisplayFields: ['displayName'],
       stateSpaceFieldsPerRow: 1,
       isBuiltIn: true,
+      specialStateType: 'end',  // Marks solution termination point (replaces deprecated EndState)
       eventMethods: [
         {
           methodName: 'execute',
@@ -772,7 +745,7 @@ export class StateSpaceClassRegistry {
   }
 
   /**
-   * Get special state types (InitialState, EndState)
+   * Get special state types (InitialState, ReturnStatement)
    */
   getSpecialStateTypes(): StateSpaceClassMetadata[] {
     return this.getAllClasses().filter(c => c.specialStateType !== undefined);

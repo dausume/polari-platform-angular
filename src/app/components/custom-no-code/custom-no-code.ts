@@ -22,6 +22,7 @@ import { InitialStateOverlayComponent } from './initial-state-overlay/initial-st
 import { MathOperationOverlayComponent } from './math-operation-overlay/math-operation-overlay.component';
 import { CircleStateLayer } from '@models/noCode/d3-extensions/CircleStateLayer';
 import { RectangleStateLayer } from '@models/noCode/d3-extensions/RectangleStateLayer';
+import { DiamondStateLayer } from '@models/noCode/d3-extensions/DiamondStateLayer';
 import { StateDefinition } from '@models/noCode/StateDefinition';
 import { StateDefinitionService } from '@services/no-code-services/state-definition.service';
 import { StateToolItem, BoundClassDefinition, ClassMemberStateRequest, HelperClassDefinition, SubSolutionDefinition } from './state-tool-sidebar/state-tool-sidebar.component';
@@ -92,6 +93,7 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
   // Current state layers for overlay callbacks
   private currentCircleStateLayer: CircleStateLayer | null = null;
   private currentRectangleStateLayer: RectangleStateLayer | null = null;
+  private currentDiamondStateLayer: DiamondStateLayer | null = null;
 
   // State context menu
   stateContextMenuVisible = false;
@@ -159,7 +161,7 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
   // Generated Python code for the current solution
   generatedPythonCode: string = '';
 
-  // Track unique states (InitialState, EndState) that already exist in the solution
+  // Track unique states (InitialState, ReturnStatement) that already exist in the solution
   // Used to filter these from the sidebar when they're already present
   existingUniqueStates: Set<string> = new Set();
 
@@ -256,6 +258,8 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
     this.overlayCreationToken++;
     this.stateOverlayManager.destroyAllOverlays();
     this.currentCircleStateLayer = null;
+    this.currentRectangleStateLayer = null;
+    this.currentDiamondStateLayer = null;
 
     // Clear the existing SVG content (except the zoom container itself)
     console.log('[loadSelectedSolution] Clearing zoom container...');
@@ -294,7 +298,7 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
     console.log('[loadSelectedSolution] zoomContainer children after creation:', this.zoomContainer?.selectAll('*').size());
     console.log('[loadSelectedSolution] state-group elements in DOM:', this.zoomContainer?.selectAll('g.state-group').size());
 
-    // Update tracking of unique states (InitialState, EndState) for sidebar filtering
+    // Update tracking of unique states (InitialState, ReturnStatement) for sidebar filtering
     // This must happen BEFORE overlays are created so they receive the correct unique states set
     this.updateExistingUniqueStates();
 
@@ -345,7 +349,7 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   /**
-   * Update the tracking of unique states (InitialState, EndState) that exist in the solution.
+   * Update the tracking of unique states (InitialState, ReturnStatement) that exist in the solution.
    * This is used to filter these states from the sidebar when they're already present.
    */
   private updateExistingUniqueStates(): void {
@@ -449,6 +453,42 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
       console.log('[setupOverlayCallbacks] Overlay callbacks configured for RectangleStateLayer');
     }
 
+    // Get the DiamondStateLayer from the solution's render layers
+    const diamondLayer = this.noCodeSolution.renderLayers.get('diamond');
+    if (diamondLayer && diamondLayer instanceof DiamondStateLayer) {
+      this.currentDiamondStateLayer = diamondLayer;
+
+      // Set up click callback
+      diamondLayer.setOnStateOverlayClick((stateName: string, stateGroup: SVGGElement) => {
+        console.log('[overlay callback] Diamond state clicked for overlay:', stateName);
+        this.handleStateOverlayClick(stateName, stateGroup);
+      });
+
+      // Set up drag callbacks
+      diamondLayer.setOnStateDragStart((stateName: string) => {
+        this.stateOverlayManager.hideOverlayForState(stateName);
+      });
+
+      diamondLayer.setOnStateDragEnd((stateName: string, stateGroup: SVGGElement) => {
+        if (this.stateOverlayManager.hasOverlay(stateName)) {
+          this.stateOverlayManager.updateOverlayPosition(stateName, stateGroup);
+          this.stateOverlayManager.showOverlayForState(stateName);
+        }
+      });
+
+      // Set up context menu callback
+      diamondLayer.setOnStateContextMenu((event: MouseEvent, stateName: string, stateGroup: SVGGElement) => {
+        this.handleStateContextMenu(event, stateName, stateGroup, 'diamond');
+      });
+
+      // Set up slot context menu callback
+      diamondLayer.setOnSlotContextMenu((event: MouseEvent, stateName: string, slotIndex: number, isInput: boolean) => {
+        this.handleSlotContextMenu(event, stateName, slotIndex, isInput);
+      });
+
+      console.log('[setupOverlayCallbacks] Overlay callbacks configured for DiamondStateLayer');
+    }
+
     // Auto-create overlays for all states after D3 rendering is complete
     // Use a longer delay and requestAnimationFrame to ensure DOM is fully updated
     this.scheduleOverlayCreation();
@@ -498,6 +538,7 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
     console.log('[createOverlaysForAllStates] Creating overlays for', this.stateInstances.length, 'states');
     console.log('[createOverlaysForAllStates] Circle layer:', !!this.currentCircleStateLayer);
     console.log('[createOverlaysForAllStates] Rectangle layer:', !!this.currentRectangleStateLayer);
+    console.log('[createOverlaysForAllStates] Diamond layer:', !!this.currentDiamondStateLayer);
 
     let createdCount = 0;
     let foundCount = 0;
@@ -528,6 +569,14 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
         stateGroup = this.currentRectangleStateLayer.getStateGroupByName(stateName);
         if (stateGroup) {
           console.log('[createOverlaysForAllStates] Found', stateName, 'in rectangle layer');
+        }
+      }
+
+      // Check diamond layer if not found
+      if (!stateGroup && this.currentDiamondStateLayer) {
+        stateGroup = this.currentDiamondStateLayer.getStateGroupByName(stateName);
+        if (stateGroup) {
+          console.log('[createOverlaysForAllStates] Found', stateName, 'in diamond layer');
         }
       }
 
@@ -1299,6 +1348,8 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
     // Clean up all overlays
     this.stateOverlayManager.destroyAllOverlays();
     this.currentCircleStateLayer = null;
+    this.currentRectangleStateLayer = null;
+    this.currentDiamondStateLayer = null;
 
     this.destroy$.next();
     this.destroy$.complete();
@@ -1451,7 +1502,7 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
     // Get the canvas element for clipping bounds
     const canvasElement = this.elementRef.nativeElement.querySelector('#d3-graph') as HTMLElement;
 
-    // Get state group lookup function that checks both circle and rectangle layers
+    // Get state group lookup function that checks all shape layers
     const getStateGroup = (stateName: string): SVGGElement | null => {
       // Check circle layer first
       let stateGroup = this.currentCircleStateLayer?.getStateGroupByName(stateName) || null;
@@ -1459,6 +1510,10 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
 
       // Then check rectangle layer
       stateGroup = this.currentRectangleStateLayer?.getStateGroupByName(stateName) || null;
+      if (stateGroup) return stateGroup;
+
+      // Then check diamond layer
+      stateGroup = this.currentDiamondStateLayer?.getStateGroupByName(stateName) || null;
       return stateGroup;
     };
 
@@ -2749,6 +2804,10 @@ private dragRectangle(): any {
       console.log('[rerenderStateSlots] Calling RectangleStateLayer.rerenderState');
       // Re-render the rectangle state layer
       this.currentRectangleStateLayer.rerenderState(stateName);
+    } else if (shapeType === 'diamond' && this.currentDiamondStateLayer) {
+      console.log('[rerenderStateSlots] Calling DiamondStateLayer.rerenderState');
+      // Re-render the diamond state layer
+      this.currentDiamondStateLayer.rerenderState(stateName);
     } else {
       console.log('[rerenderStateSlots] No layer found for shape type:', shapeType);
     }

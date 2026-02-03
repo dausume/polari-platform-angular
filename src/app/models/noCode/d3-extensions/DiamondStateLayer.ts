@@ -1,8 +1,8 @@
 // Author: Dustin Etts
-// polari-platform-angular/src/app/models/noCode/d3-extensions/RectangleStateLayer.ts
+// polari-platform-angular/src/app/models/noCode/d3-extensions/DiamondStateLayer.ts
 import { D3ModelLayer } from './D3ModelLayer';
-import RectangleStateDataPoint from './DataPointTypes/RectangleStateDataPoint';
-import RectangleSlotDataPoint from './DataPointTypes/RectangleSlotDataPoint';
+import DiamondStateDataPoint from './DataPointTypes/DiamondStateDataPoint';
+import DiamondSlotDataPoint from './DataPointTypes/DiamondSlotDataPoint';
 import { NoCodeStateRendererManager } from '@services/no-code-services/no-code-state-renderer-manager';
 import { BehaviorSubject, Subscription } from 'rxjs';
 import { Slot } from '../Slot';
@@ -17,23 +17,23 @@ import {
   DEFAULT_OUTPUT_SLOT_COLOR
 } from '../../../utils/color-utils';
 
-// Defines how to render rectangles that can be dragged around the screen.
-// This is used to represent end states and other block-like components in the No-Code Interface.
-// Shares the same slot path logic as CircleStateLayer but uses a rectangular perimeter path.
-export class RectangleStateLayer extends D3ModelLayer {
+// Defines how to render diamonds that can be dragged around the screen.
+// This is used to represent conditional states (if/else branching) in the No-Code Interface.
+// A diamond is a square rotated 45 degrees, commonly used in flowcharts for decision points.
+export class DiamondStateLayer extends D3ModelLayer {
 
   connectorMode: boolean;
   currentDragElement: HTMLElement | null = null;
   currentGroupElement: SVGGElement | null = null;
-  currentDragTargetDataPoint: RectangleStateDataPoint | RectangleSlotDataPoint | null = null;
+  currentDragTargetDataPoint: DiamondStateDataPoint | DiamondSlotDataPoint | null = null;
   currentGroupCenter: {x: number, y: number} | null = null;
   currentGroupCoordinateTransformMatrix: DOMMatrix | null = null;
   connectorSourcePosition: {x: number, y: number} | null = null;
   connectorSourceSlotInfo: {stateName: string, slotIndex: number} | null = null;
+  connectorSourceIsInput: boolean | null = null;
   originalSlotPosition: {x: number, y: number} | null = null;
   originalSlotAngularPosition: number = 0;
-  currentDragStateWidth: number = 0;
-  currentDragStateHeight: number = 0;
+  currentDragStateSize: number = 0;
   originalStatePosition: {x: number, y: number} | null = null;
   currentDragSlotInfo: {stateName: string, slotIndex: number} | null = null;
 
@@ -48,9 +48,9 @@ export class RectangleStateLayer extends D3ModelLayer {
     private interactionStateService: InteractionStateService,
     shapeType: string,
     noCodeSolution: NoCodeSolution,
-    stateDataPoints: RectangleStateDataPoint[],
+    stateDataPoints: DiamondStateDataPoint[],
     iconSvgString?: string,
-    slotDataPoints?: RectangleSlotDataPoint[],
+    slotDataPoints?: DiamondSlotDataPoint[],
     slotBorderLayer?: d3.Selection<SVGGElement, unknown, null, undefined>,
     slotLayer?: d3.Selection<SVGGElement, unknown, null, undefined>,
     connectorLayer?: d3.Selection<SVGGElement, unknown, null, undefined>,
@@ -67,8 +67,8 @@ export class RectangleStateLayer extends D3ModelLayer {
         this.setD3SvgBaseLayer(baseLayer);
       }
     });
-    this.stateDataPoints = this.getRectangleStateDataPointsFromSolution(noCodeSolution);
-    this.slotDataPoints = this.getRectangleSlotDataPointsFromSolution(noCodeSolution);
+    this.stateDataPoints = this.getDiamondStateDataPointsFromSolution(noCodeSolution);
+    this.slotDataPoints = this.getDiamondSlotDataPointsFromSolution(noCodeSolution);
     this.connectorMode = false;
   }
 
@@ -114,59 +114,55 @@ export class RectangleStateLayer extends D3ModelLayer {
       .selectAll(`g.solution-layer-${this.getSanitizedSolutionName()}`);
   }
 
-  private getRectangleStateDataPointsFromSolution(noCodeSolution: NoCodeSolution): RectangleStateDataPoint[] {
+  private getDiamondStateDataPointsFromSolution(noCodeSolution: NoCodeSolution): DiamondStateDataPoint[] {
     if (!noCodeSolution) {
-      console.error("NoCodeSolution is undefined. Cannot retrieve rectangle state data points.");
+      console.error("NoCodeSolution is undefined. Cannot retrieve diamond state data points.");
       return [];
     }
 
     return noCodeSolution.stateInstances
-      .filter(state => state.shapeType === "rectangle")
-      .map(state => new RectangleStateDataPoint(
+      .filter(state => state.shapeType === "diamond")
+      .map(state => new DiamondStateDataPoint(
         state.stateLocationX ?? 0,
         state.stateLocationY ?? 0,
-        state.stateSvgWidth ?? state.stateSvgRadius ?? 20,
-        state.stateSvgHeight ?? state.stateSvgWidth ?? state.stateSvgRadius ?? 20,
+        state.stateSvgRadius ?? 50, // Use radius as diamond size
         state.slotRadius ?? 4,
         state.stateName ?? "unknown",
-        state.cornerRadius ?? 0
+        state.stateClass,
+        state.backgroundColor
       ));
   }
 
-  private getRectangleSlotDataPointsFromSolution(noCodeSolution: NoCodeSolution): RectangleSlotDataPoint[] {
+  private getDiamondSlotDataPointsFromSolution(noCodeSolution: NoCodeSolution): DiamondSlotDataPoint[] {
     if (!noCodeSolution) {
       console.error("NoCodeSolution is undefined. Cannot retrieve slot data points.");
       return [];
     }
 
     return noCodeSolution.stateInstances
-      .filter(state => state.shapeType === "rectangle")
+      .filter(state => state.shapeType === "diamond")
       .flatMap((state: NoCodeState) => {
-        // Track input and output indices separately for labeling
         let inputIndex = 0;
         let outputIndex = 0;
 
         return state.slots?.map((slot: Slot) => {
-          // Generate label based on slot type
           const label = slot.isInput
             ? generateSlotLabel(true, inputIndex++)
             : generateSlotLabel(false, outputIndex++);
 
-          // Use configured color or default based on slot type
           const color = (slot as any).color ||
             (slot.isInput ? DEFAULT_INPUT_SLOT_COLOR : DEFAULT_OUTPUT_SLOT_COLOR);
 
-          return new RectangleSlotDataPoint(
+          return new DiamondSlotDataPoint(
             state.stateLocationX ?? 0,
             state.stateLocationY ?? 0,
-            state.stateSvgWidth ?? state.stateSvgRadius ?? 20,
-            state.stateSvgHeight ?? state.stateSvgWidth ?? state.stateSvgRadius ?? 20,
+            state.stateSvgRadius ?? 50,
             slot.index,
             slot.slotAngularPosition ?? 0,
             slot.isInput,
             slot.isOutput,
             state.stateName ?? "unknown",
-            undefined, // solutionName
+            noCodeSolution.solutionName,
             color,
             label
           );
@@ -177,7 +173,7 @@ export class RectangleStateLayer extends D3ModelLayer {
   // --- Rendering Functions ---
 
   render(): void {
-    console.log('=== RectangleStateLayer.render() called ===');
+    console.log('=== DiamondStateLayer.render() called ===');
     this.initializeLayerGroup();
     this.initializeArrowheadMarker();
     this.initializeConnectorLayer();
@@ -196,6 +192,7 @@ export class RectangleStateLayer extends D3ModelLayer {
         slot.connectors?.forEach(connector => {
           if (!connector.targetStateName) return;
 
+          // Find source slot position
           const sourceGroup = this.getLayerGroup()
             .select(`g.state-group[state-name="${sourceState.stateName}"]`);
           if (sourceGroup.empty()) return;
@@ -204,7 +201,7 @@ export class RectangleStateLayer extends D3ModelLayer {
           if (sourceSlotMarker.empty()) return;
 
           // Find target slot position - search across ALL layers (not just this layer)
-          // This enables cross-layer connectors (e.g., rectangle to circle)
+          // This enables cross-layer connectors (e.g., diamond to circle or rectangle)
           const targetGroup = this.getSolutionLayer()
             .select(`g.state-group[state-name="${connector.targetStateName}"]`);
           if (targetGroup.empty()) return;
@@ -272,6 +269,20 @@ export class RectangleStateLayer extends D3ModelLayer {
         .attr('d', 'M0,-5L10,0L0,5')
         .attr('fill', '#333');
     }
+
+    if (defs.select('#arrowhead-start').empty()) {
+      defs.append('marker')
+        .attr('id', 'arrowhead-start')
+        .attr('viewBox', '0 -5 10 10')
+        .attr('refX', 2)
+        .attr('refY', 0)
+        .attr('markerWidth', 6)
+        .attr('markerHeight', 6)
+        .attr('orient', 'auto')
+        .append('path')
+        .attr('d', 'M10,-5L0,0L10,5')
+        .attr('fill', '#333');
+    }
   }
 
   private initializeConnectorLayer(): void {
@@ -290,16 +301,15 @@ export class RectangleStateLayer extends D3ModelLayer {
   // --- Data Manipulation Functions ---
 
   addNoCodeState(newState: NoCodeState): void {
-    if (newState.shapeType === "rectangle") {
+    if (newState.shapeType === "diamond") {
       const cx = newState.stateLocationX ?? 0;
       const cy = newState.stateLocationY ?? 0;
-      const width = newState.stateSvgWidth ?? newState.stateSvgRadius ?? 20;
-      const height = newState.stateSvgHeight ?? width;
-      const newStateDataPoint = new RectangleStateDataPoint(cx, cy, width, height);
+      const size = newState.stateSvgRadius ?? 50;
+      const newStateDataPoint = new DiamondStateDataPoint(cx, cy, size);
       // TODO: Add the new state data point to the layer
     } else {
       console.warn(
-        "Invalid No-Code State: Ensure shapeType is 'rectangle' for states added to the RectangleStateLayer."
+        "Invalid No-Code State: Ensure shapeType is 'diamond' for states added to the DiamondStateLayer."
       );
     }
   }
@@ -317,25 +327,25 @@ export class RectangleStateLayer extends D3ModelLayer {
     this.render();
   }
 
-  addStateDataPoint(datapoint: RectangleStateDataPoint): void {
+  addStateDataPoint(datapoint: DiamondStateDataPoint): void {
     this.stateDataPoints.push(datapoint);
   }
 
-  removeDataPoint(datapoint: RectangleStateDataPoint): void {
+  removeDataPoint(datapoint: DiamondStateDataPoint): void {
     const index = this.stateDataPoints.indexOf(datapoint);
     if (index > -1) {
       this.stateDataPoints.splice(index, 1);
     }
   }
 
-  updateDataPoint(oldDatapoint: RectangleStateDataPoint, newDatapoint: RectangleStateDataPoint): void {
+  updateDataPoint(oldDatapoint: DiamondStateDataPoint, newDatapoint: DiamondStateDataPoint): void {
     const index = this.stateDataPoints.indexOf(oldDatapoint);
     if (index > -1) {
       this.stateDataPoints[index] = newDatapoint;
     }
   }
 
-  getDataPoint(index: number): RectangleStateDataPoint {
+  getDataPoint(index: number): DiamondStateDataPoint {
     return this.stateDataPoints[index];
   }
 
@@ -361,24 +371,16 @@ export class RectangleStateLayer extends D3ModelLayer {
     return this.slotDataPoints[index];
   }
 
-  /**
-   * Re-render a specific state's slots after configuration changes.
-   * Updates the internal slot data from the solution and re-renders the slot markers.
-   */
   rerenderState(stateName: string): void {
     if (!this.noCodeSolution) return;
 
-    // Find the state in the solution
     const state = this.noCodeSolution.stateInstances.find(s => s.stateName === stateName);
-    if (!state || state.shapeType !== 'rectangle') return;
+    if (!state || state.shapeType !== 'diamond') return;
 
-    // Update slotDataPoints for this state
-    // First remove existing slot data for this state
     this.slotDataPoints = this.slotDataPoints.filter(
-      (slot: RectangleSlotDataPoint) => slot.stateName !== stateName
+      (slot: DiamondSlotDataPoint) => slot.stateName !== stateName
     );
 
-    // Then add updated slot data from the state
     let inputIndex = 0;
     let outputIndex = 0;
     const newSlotDataPoints = state.slots?.map((slot: Slot) => {
@@ -389,32 +391,29 @@ export class RectangleStateLayer extends D3ModelLayer {
       const color = (slot as any).color ||
         (slot.isInput ? DEFAULT_INPUT_SLOT_COLOR : DEFAULT_OUTPUT_SLOT_COLOR);
 
-      return new RectangleSlotDataPoint(
+      return new DiamondSlotDataPoint(
         state.stateLocationX ?? 0,
         state.stateLocationY ?? 0,
-        state.stateSvgWidth ?? state.stateSvgRadius ?? 20,
-        state.stateSvgHeight ?? state.stateSvgWidth ?? state.stateSvgRadius ?? 20,
+        state.stateSvgRadius ?? 50,
         slot.index,
         slot.slotAngularPosition ?? 0,
         slot.isInput,
         slot.isOutput,
         stateName,
-        undefined, // solutionName
+        undefined,
         color,
         label
       );
     }) || [];
 
     this.slotDataPoints.push(...newSlotDataPoints);
-
-    // Re-render the slot layer (it clears and redraws all slots)
     this.initializeSlotLayer();
   }
 
   // --- Layer Level Functions ---
 
   initializeLayerGroup(): void {
-    console.log('[RectangleStateLayer.initializeLayerGroup] Starting for layer:', this.layerName);
+    console.log('[DiamondStateLayer.initializeLayerGroup] Starting for layer:', this.layerName);
 
     let layerGroup = this.d3SvgBaseLayer
       .selectAll(`g.${this.layerName}`)
@@ -440,17 +439,17 @@ export class RectangleStateLayer extends D3ModelLayer {
   // --- State-Group Functions ---
 
   initializeStateGroups(): void {
-    console.log('[RectangleStateLayer.initializeStateGroups] Starting...');
+    console.log('[DiamondStateLayer.initializeStateGroups] Starting...');
 
     if (!this.d3SvgBaseLayer) {
-      console.log('[RectangleStateLayer.initializeStateGroups] ABORT - no d3SvgBaseLayer!');
+      console.log('[DiamondStateLayer.initializeStateGroups] ABORT - no d3SvgBaseLayer!');
       return;
     }
 
     let layerGroup = this.getLayerGroup();
 
     if (layerGroup.size() === 0) {
-      console.log('[RectangleStateLayer.initializeStateGroups] WARNING: layerGroup is empty!');
+      console.log('[DiamondStateLayer.initializeStateGroups] WARNING: layerGroup is empty!');
       return;
     }
 
@@ -467,75 +466,54 @@ export class RectangleStateLayer extends D3ModelLayer {
       .classed('state-group', true)
       .attr('state-name', (datapoint) => datapoint.stateName || "unknown")
       .attr('transform', (datapoint) => `translate(${datapoint.cx}, ${datapoint.cy})`)
-      .each((datapoint: RectangleStateDataPoint, index, elements) => {
+      .each((datapoint: DiamondStateDataPoint, index, elements) => {
         let group = d3.select(elements[index]);
-        const halfWidth = datapoint.width / 2;
-        const halfHeight = datapoint.height / 2;
-        const cornerRadius = datapoint.cornerRadius || 0;
+        const size = datapoint.size;
+        const self = this;
 
-        // Sizing hierarchy: bounding box > background shape > inner component
-        // Minimum 10px difference between each layer
-        const boundingPadding = 10; // Bounding box is 10px larger than background
-        const innerPadding = 10; // Inner component is 10px smaller than background
-
-        // Append the bounding box rectangle (largest, 10px padding around background)
-        // Hidden by default - only shown in debug mode, no pointer events
+        // Append the bounding box rectangle (hidden by default, no pointer events)
         group.append('rect')
           .classed('bounding-box', true)
           .classed('debug-element', true)
-          .attr('x', -(halfWidth + boundingPadding))
-          .attr('y', -(halfHeight + boundingPadding))
-          .attr('width', datapoint.width + boundingPadding * 2)
-          .attr('height', datapoint.height + boundingPadding * 2)
-          .attr('rx', cornerRadius + boundingPadding / 2)
-          .attr('ry', cornerRadius + boundingPadding / 2)
+          .attr('x', -size)
+          .attr('y', -size)
+          .attr('width', size * 2)
+          .attr('height', size * 2)
           .attr('fill', "white")
           .attr('stroke', "black")
           .style('opacity', 0)
           .style('pointer-events', 'none');
 
-        // Append the main rectangle (visual representation of state - the actual shape)
-        // Note: Left-click is reserved for dragging, so only contextmenu (right-click) handler here
-        const self = this; // Capture reference for contextmenu handler
-        group.append('rect')
+        // Append the diamond shape (polygon with 4 vertices)
+        // Diamond vertices: top, right, bottom, left (rotated square)
+        const diamondPath = `M 0 ${-size} L ${size} 0 L 0 ${size} L ${-size} 0 Z`;
+        const fillColor = datapoint.backgroundColor || '#4CAF50';
+
+        group.append('path')
           .classed('draggable-shape', true)
-          .attr('x', -halfWidth)
-          .attr('y', -halfHeight)
-          .attr('width', datapoint.width)
-          .attr('height', datapoint.height)
-          .attr('rx', cornerRadius)
-          .attr('ry', cornerRadius)
-          .attr('fill', "#F44336") // Red for end states
-          .attr('stroke', "black")
+          .attr('d', diamondPath)
+          .attr('fill', fillColor)
+          .attr('stroke', 'black')
+          .attr('stroke-width', 2)
           .on('contextmenu', function(event: MouseEvent) {
             event.preventDefault();
             event.stopPropagation();
             const groupElement = elements[index] as SVGGElement;
             const stateName = datapoint.stateName || 'unknown';
-            console.log('[draggable-shape contextmenu] State:', stateName);
             if (self.onStateContextMenu) {
               self.onStateContextMenu(event, stateName, groupElement);
             }
           });
 
-        // Append the inner component rectangle (where Angular overlays will be positioned)
-        // Hidden by default - only shown in debug mode
-        // 10px smaller than the background shape on each side
-        const innerHalfWidth = halfWidth - innerPadding;
-        const innerHalfHeight = halfHeight - innerPadding;
-        const innerCornerRadius = Math.max(0, cornerRadius - innerPadding / 2);
         // Append the inner component rectangle (positioning marker for Angular overlays)
-        // Hidden by default - receives events for drag detection (see CSS: pointer-events: all)
-        // Only contextmenu handler here - drag behavior is handled by D3 drag on the state group
+        const innerSize = size * 0.5;
         group.append('rect')
           .classed('overlay-component', true)
           .classed('debug-element', true)
-          .attr('x', -innerHalfWidth)
-          .attr('y', -innerHalfHeight)
-          .attr('width', innerHalfWidth * 2)
-          .attr('height', innerHalfHeight * 2)
-          .attr('rx', innerCornerRadius)
-          .attr('ry', innerCornerRadius)
+          .attr('x', -innerSize)
+          .attr('y', -innerSize)
+          .attr('width', innerSize * 2)
+          .attr('height', innerSize * 2)
           .attr('fill', 'transparent')
           .attr('stroke', 'transparent')
           .on('contextmenu', function(event: MouseEvent) {
@@ -543,17 +521,15 @@ export class RectangleStateLayer extends D3ModelLayer {
             event.stopPropagation();
             const groupElement = elements[index] as SVGGElement;
             const stateName = datapoint.stateName || 'unknown';
-            console.log('[overlay-component contextmenu] State:', stateName);
             if (self.onStateContextMenu) {
               self.onStateContextMenu(event, stateName, groupElement);
             }
           });
 
-        // Generate the rectangular path for slot placement (follows background shape)
-        // Hidden by default - only shown in debug mode
-        let rectPath = this.generateRectangularPath(halfWidth, halfHeight, cornerRadius);
+        // Generate the diamond path for slot placement
+        let slotPath = this.generateDiamondPath(size);
         group.append('path')
-          .attr('d', rectPath)
+          .attr('d', slotPath)
           .classed('slot-path', true)
           .classed('debug-element', true)
           .attr('fill', 'none')
@@ -570,12 +546,12 @@ export class RectangleStateLayer extends D3ModelLayer {
 
     const allGroups = newGroups.merge(stateGroups);
 
-    allGroups.each((d: RectangleStateDataPoint | null, i: number, nodes: ArrayLike<SVGGElement>) => {
+    allGroups.each((d: DiamondStateDataPoint | null, i: number, nodes: ArrayLike<SVGGElement>) => {
       const element = nodes[i];
       const stateName = element.getAttribute('state-name');
 
       if (!d) {
-        const dataPoint = validDataPoints.find((dp: RectangleStateDataPoint) => dp.stateName === stateName);
+        const dataPoint = validDataPoints.find((dp: DiamondStateDataPoint) => dp.stateName === stateName);
         if (dataPoint) {
           d3.select(element).datum(dataPoint);
         }
@@ -593,52 +569,21 @@ export class RectangleStateLayer extends D3ModelLayer {
       .selectAll('g.state-group');
   }
 
-  getRectangleElements(): d3.Selection<SVGGElement, RectangleStateDataPoint, any, unknown> {
+  getDiamondElements(): d3.Selection<SVGGElement, DiamondStateDataPoint, any, unknown> {
     return this.getStateGroups()
-      .selectAll('rect.draggable-shape');
+      .selectAll('path.draggable-shape');
   }
 
-  // --- Path Generation for Rectangle Perimeter ---
+  // --- Path Generation for Diamond Perimeter ---
 
   /**
-   * Generates a path that follows the perimeter of a rectangle.
-   * This path is used for placing slots along the rectangle's border.
-   * @param halfWidth Half the width of the rectangle
-   * @param halfHeight Half the height of the rectangle
-   * @param cornerRadius Corner radius for rounded corners
+   * Generates a path that follows the perimeter of a diamond.
+   * Diamond vertices: top (0, -size), right (size, 0), bottom (0, size), left (-size, 0)
+   * @param size Distance from center to vertex
    * @returns SVG path string
    */
-  generateRectangularPath(halfWidth: number, halfHeight: number, cornerRadius: number = 0): string {
-    // For simplicity, we create a path that goes around the rectangle perimeter
-    // Starting from top-left and going clockwise
-    const w = halfWidth;
-    const h = halfHeight;
-    const r = Math.min(cornerRadius, halfWidth, halfHeight);
-
-    if (r > 0) {
-      // Rounded rectangle path
-      return `
-        M ${-w + r}, ${-h}
-        L ${w - r}, ${-h}
-        Q ${w}, ${-h} ${w}, ${-h + r}
-        L ${w}, ${h - r}
-        Q ${w}, ${h} ${w - r}, ${h}
-        L ${-w + r}, ${h}
-        Q ${-w}, ${h} ${-w}, ${h - r}
-        L ${-w}, ${-h + r}
-        Q ${-w}, ${-h} ${-w + r}, ${-h}
-        Z
-      `;
-    } else {
-      // Sharp corner rectangle path
-      return `
-        M ${-w}, ${-h}
-        L ${w}, ${-h}
-        L ${w}, ${h}
-        L ${-w}, ${h}
-        Z
-      `;
-    }
+  generateDiamondPath(size: number): string {
+    return `M 0 ${-size} L ${size} 0 L 0 ${size} L ${-size} 0 Z`;
   }
 
   // --- Slot Placement Functions ---
@@ -646,21 +591,21 @@ export class RectangleStateLayer extends D3ModelLayer {
   initializeSlotLayer(): void {
     let stateGroups = this.getStateGroups();
 
-    stateGroups.each((datapoint: RectangleStateDataPoint, index: number, elements: any) => {
+    stateGroups.each((datapoint: DiamondStateDataPoint, index: number, elements: any) => {
       let currentStateGroup = d3.select(elements[index]);
 
       // Remove existing slot markers and labels
       currentStateGroup.selectAll('circle.slot-marker').remove();
       currentStateGroup.selectAll('text.slot-label').remove();
 
-      let currentStateSlots = this.slotDataPoints.filter((slot: RectangleSlotDataPoint) => slot.stateName === datapoint.stateName);
-      let indexSortedSlots = currentStateSlots.slice().sort((a: RectangleSlotDataPoint, b: RectangleSlotDataPoint) => a.index - b.index);
+      let currentStateSlots = this.slotDataPoints.filter((slot: DiamondSlotDataPoint) => slot.stateName === datapoint.stateName);
+      let indexSortedSlots = currentStateSlots.slice().sort((a: DiamondSlotDataPoint, b: DiamondSlotDataPoint) => a.index - b.index);
 
       const path = currentStateGroup.select('path.slot-path').node() as SVGPathElement;
       if (!path) return;
 
-      const bezierLength = path.getTotalLength();
-      const slotLength = bezierLength / currentStateSlots.length || 0;
+      const pathLength = path.getTotalLength();
+      const slotLength = pathLength / currentStateSlots.length || 0;
       const slotRadius = Math.min(slotLength / currentStateSlots.length, 10);
 
       for (let i = 0; i < indexSortedSlots.length; i++) {
@@ -668,14 +613,11 @@ export class RectangleStateLayer extends D3ModelLayer {
         const angle = slotData.angularPosition ?? (slotData.index * (360 / currentStateSlots.length));
         const { x, y } = this.getSlotPositionOnPath(path, angle);
 
-        // Get slot color (from data point or default)
         const slotColor = slotData.color ||
           (slotData.isInput ? DEFAULT_INPUT_SLOT_COLOR : DEFAULT_OUTPUT_SLOT_COLOR);
 
-        // Get slot label (from data point or generate)
         const label = slotData.label || (slotData.isInput ? `I${slotData.index}` : `O${slotData.index}`);
 
-        // Create slot marker circle with right-click handler for slot configuration
         const self = this;
         currentStateGroup.append('circle')
           .classed('slot-marker', true)
@@ -687,20 +629,16 @@ export class RectangleStateLayer extends D3ModelLayer {
           .attr('r', slotRadius)
           .attr('fill', slotColor)
           .on('contextmenu', function(event: MouseEvent) {
-            // Prevent default browser context menu
             event.preventDefault();
             event.stopPropagation();
             const stateName = datapoint.stateName || 'unknown';
             const slotIndex = slotData.index;
             const isInput = slotData.isInput;
-            console.log('[slot-marker contextmenu] State:', stateName, 'Slot:', slotIndex, 'isInput:', isInput);
-            // Trigger the slot context menu callback if set
             if (self.onSlotContextMenu) {
               self.onSlotContextMenu(event, stateName, slotIndex, isInput);
             }
           });
 
-        // Create slot label text with contrasting color
         const fontSize = Math.max(slotRadius * 0.7, 4);
         const textColor = getContrastingTextColor(slotColor);
 
@@ -721,9 +659,6 @@ export class RectangleStateLayer extends D3ModelLayer {
     });
   }
 
-  /**
-   * Gets a point on the path at a given angle (0-360)
-   */
   getSlotPositionOnPath(path: SVGPathElement, angle: number): { x: number; y: number } {
     const totalLength = path.getTotalLength();
     const theta = angle % 360;
@@ -780,15 +715,9 @@ export class RectangleStateLayer extends D3ModelLayer {
 
   // --- Collision Detection ---
 
-  /**
-   * Gets the bounding boxes of ALL state groups in the solution (across all layers)
-   * This allows cross-shape collision detection (rectangle vs circle)
-   */
   private getAllStateBoundingBoxes(): { stateName: string; x: number; y: number; width: number; height: number; centerX: number; centerY: number }[] {
     const boundingBoxes: { stateName: string; x: number; y: number; width: number; height: number; centerX: number; centerY: number }[] = [];
 
-    // Query ALL state groups in the solution layer (not just this layer's groups)
-    // This enables cross-shape collision detection between rectangles and circles
     const solutionLayer = this.getSolutionLayer();
     solutionLayer.selectAll('g.state-group').each(function(this: Element, d: any) {
       const group = d3.select(this as SVGGElement);
@@ -853,66 +782,43 @@ export class RectangleStateLayer extends D3ModelLayer {
     return false;
   }
 
-  /**
-   * Resolve collision for a rectangle state after dragging
-   * Returns a valid non-overlapping position
-   */
   private resolveCollision(
     currentPosition: { x: number; y: number },
-    boxWidth: number,
-    boxHeight: number,
+    boxSize: number,
     stateName: string,
     originalPosition: { x: number; y: number }
   ): { x: number; y: number } {
-    const halfWidth = boxWidth / 2;
-    const halfHeight = boxHeight / 2;
-
     const currentBox = {
-      x: currentPosition.x - halfWidth,
-      y: currentPosition.y - halfHeight,
-      width: boxWidth,
-      height: boxHeight,
+      x: currentPosition.x - boxSize,
+      y: currentPosition.y - boxSize,
+      width: boxSize * 2,
+      height: boxSize * 2,
       centerX: currentPosition.x,
       centerY: currentPosition.y
     };
 
-    // Check if there's a collision at current position
     if (!this.hasCollisionWithOtherStates(currentBox, stateName)) {
-      return currentPosition; // No collision, keep current position
+      return currentPosition;
     }
 
-    // Get the nearest tangent direction away from collision
     const tangent = this.getNearestTangentDirection(currentBox, stateName);
     if (!tangent) {
-      return originalPosition; // Fallback
+      return originalPosition;
     }
 
-    // Define multipliers to try: 0.5x, 1x, 2x bounding box size
     const multipliers = [0.5, 1, 2];
-    const boxSize = Math.max(boxWidth, boxHeight);
 
-    // Define direction variations to try
     const getDirectionsToTry = (dx: number, dy: number): { dx: number; dy: number }[] => {
       const directions: { dx: number; dy: number }[] = [];
-
-      // Primary tangent direction
       directions.push({ dx, dy });
 
-      // Diagonal variations
       const angle = Math.atan2(dy, dx);
       const diag1Angle = angle + Math.PI / 4;
       const diag2Angle = angle - Math.PI / 4;
 
-      directions.push({
-        dx: Math.cos(diag1Angle),
-        dy: Math.sin(diag1Angle)
-      });
-      directions.push({
-        dx: Math.cos(diag2Angle),
-        dy: Math.sin(diag2Angle)
-      });
+      directions.push({ dx: Math.cos(diag1Angle), dy: Math.sin(diag1Angle) });
+      directions.push({ dx: Math.cos(diag2Angle), dy: Math.sin(diag2Angle) });
 
-      // Cardinal directions nearest to tangent
       const absDx = Math.abs(dx);
       const absDy = Math.abs(dy);
 
@@ -929,11 +835,9 @@ export class RectangleStateLayer extends D3ModelLayer {
 
     const directionsToTry = getDirectionsToTry(tangent.dx, tangent.dy);
 
-    // Try each multiplier
     for (const multiplier of multipliers) {
-      const offset = boxSize * multiplier;
+      const offset = boxSize * 2 * multiplier;
 
-      // Try each direction
       for (const direction of directionsToTry) {
         const testPosition = {
           x: currentPosition.x + direction.dx * offset,
@@ -941,25 +845,21 @@ export class RectangleStateLayer extends D3ModelLayer {
         };
 
         const testBox = {
-          x: testPosition.x - halfWidth,
-          y: testPosition.y - halfHeight,
-          width: boxWidth,
-          height: boxHeight
+          x: testPosition.x - boxSize,
+          y: testPosition.y - boxSize,
+          width: boxSize * 2,
+          height: boxSize * 2
         };
 
         if (!this.hasCollisionWithOtherStates(testBox, stateName)) {
-          return testPosition; // Found a valid position
+          return testPosition;
         }
       }
     }
 
-    // All attempts failed, return to original position
     return originalPosition;
   }
 
-  /**
-   * Get the tangent direction pointing away from the nearest colliding state
-   */
   private getNearestTangentDirection(
     box: { x: number; y: number; width: number; height: number; centerX: number; centerY: number },
     excludeStateName: string
@@ -986,13 +886,11 @@ export class RectangleStateLayer extends D3ModelLayer {
 
     if (!nearestBox) return null;
 
-    // Direction from colliding box center to dragged box center
     const dx = box.centerX - nearestBox.centerX;
     const dy = box.centerY - nearestBox.centerY;
     const magnitude = Math.sqrt(dx * dx + dy * dy);
 
     if (magnitude === 0) {
-      // If centers are the same, push in a default direction
       return { dx: 1, dy: 0 };
     }
 
@@ -1100,9 +998,9 @@ export class RectangleStateLayer extends D3ModelLayer {
 
   // --- Drag Behavior ---
 
-  private createDragStateBehavior(): d3.DragBehavior<SVGGElement, RectangleStateDataPoint, RectangleStateDataPoint> {
+  private createDragStateBehavior(): d3.DragBehavior<SVGGElement, DiamondStateDataPoint, DiamondStateDataPoint> {
     const self = this;
-    return d3.drag<SVGGElement, RectangleStateDataPoint>()
+    return d3.drag<SVGGElement, DiamondStateDataPoint>()
       .container(() => this.d3SvgBaseLayer.node() as SVGSVGElement)
       .subject(function(event, d) {
         if (!d) {
@@ -1110,7 +1008,7 @@ export class RectangleStateLayer extends D3ModelLayer {
           const groupElement = target?.closest('g.state-group') as SVGGElement | null;
           if (groupElement) {
             const stateName = groupElement.getAttribute('state-name');
-            const dataPoint = self.stateDataPoints.find((dp: RectangleStateDataPoint) => dp.stateName === stateName);
+            const dataPoint = self.stateDataPoints.find((dp: DiamondStateDataPoint) => dp.stateName === stateName);
             if (dataPoint) {
               d3.select(groupElement).datum(dataPoint);
               return dataPoint;
@@ -1125,8 +1023,8 @@ export class RectangleStateLayer extends D3ModelLayer {
   }
 
   private onDragStateStart(
-    event: d3.D3DragEvent<SVGGElement, RectangleStateDataPoint | RectangleSlotDataPoint, RectangleStateDataPoint | RectangleSlotDataPoint>,
-    datapoint: RectangleStateDataPoint | RectangleSlotDataPoint
+    event: d3.D3DragEvent<SVGGElement, DiamondStateDataPoint | DiamondSlotDataPoint, DiamondStateDataPoint | DiamondSlotDataPoint>,
+    datapoint: DiamondStateDataPoint | DiamondSlotDataPoint
   ): void {
     const targetElement = event.sourceEvent.target as HTMLElement;
     const groupElement: SVGGElement | null = targetElement?.closest('g.state-group');
@@ -1142,9 +1040,9 @@ export class RectangleStateLayer extends D3ModelLayer {
       y: (groupBounds?.top || 0) + (groupBounds?.height || 0) / 2
     };
 
-    // Check if clicking on draggable elements (rect, overlay-component, or slot-path)
+    // Check if clicking on draggable elements (path, overlay-component, or slot-path)
     // Note: bounding-box is excluded as it's a debug element with pointer-events: none
-    const isDraggableShape = targetElement?.tagName === 'rect' && targetElement?.classList.contains('draggable-shape');
+    const isDraggableShape = targetElement?.tagName === 'path' && targetElement?.classList.contains('draggable-shape');
     const isOverlayComponent = targetElement?.tagName === 'rect' && targetElement?.classList.contains('overlay-component');
     const isSlotPath = targetElement?.tagName === 'path' && targetElement?.classList.contains('slot-path');
 
@@ -1159,7 +1057,7 @@ export class RectangleStateLayer extends D3ModelLayer {
       const groupY = matchGroup ? parseFloat(matchGroup[2]) : 0;
       this.originalStatePosition = { x: groupX, y: groupY };
 
-      const stateName = group.attr('state-name') || (datapoint as RectangleStateDataPoint).stateName || 'unknown';
+      const stateName = group.attr('state-name') || (datapoint as DiamondStateDataPoint).stateName || 'unknown';
       this.hideConnectorsForState(stateName);
 
       if (this.onStateDragStart) {
@@ -1181,12 +1079,11 @@ export class RectangleStateLayer extends D3ModelLayer {
       const slotSvgX = slotLocalX + groupTranslateX;
       const slotSvgY = slotLocalY + groupTranslateY;
 
-      const stateName = group.attr('state-name') || (datapoint as RectangleStateDataPoint).stateName || 'unknown';
+      const stateName = group.attr('state-name') || (datapoint as DiamondStateDataPoint).stateName || 'unknown';
       const slotIndex = parseInt(slotMarker.attr('slot-index') || '0', 10);
 
       this.originalSlotPosition = { x: slotSvgX, y: slotSvgY };
-      this.currentDragStateWidth = (datapoint as RectangleStateDataPoint).width || 100;
-      this.currentDragStateHeight = (datapoint as RectangleStateDataPoint).height || 100;
+      this.currentDragStateSize = (datapoint as DiamondStateDataPoint).size || 50;
 
       const path = group.select('path.slot-path').node() as SVGPathElement;
       if (path) {
@@ -1207,7 +1104,7 @@ export class RectangleStateLayer extends D3ModelLayer {
     }
   }
 
-  private onDragState(event: d3.D3DragEvent<SVGGElement, RectangleStateDataPoint, RectangleStateDataPoint>, datapoint: RectangleStateDataPoint): void {
+  private onDragState(event: d3.D3DragEvent<SVGGElement, DiamondStateDataPoint, DiamondStateDataPoint>, datapoint: DiamondStateDataPoint): void {
     const targetElement = this.currentDragElement;
     const groupElement = this.currentGroupElement;
     const group = d3.select(groupElement);
@@ -1233,7 +1130,7 @@ export class RectangleStateLayer extends D3ModelLayer {
       const tangentialDx = localMouseX - closestPoint.x;
       const tangentialDy = localMouseY - closestPoint.y;
       const tangentialDistance = Math.sqrt(tangentialDx * tangentialDx + tangentialDy * tangentialDy);
-      const threshold = Math.min(this.currentDragStateWidth, this.currentDragStateHeight) / 2;
+      const threshold = this.currentDragStateSize / 2;
 
       if (tangentialDistance > threshold) {
         const slotSvgX = closestPoint.x + groupTranslateX;
@@ -1273,7 +1170,7 @@ export class RectangleStateLayer extends D3ModelLayer {
     }
   }
 
-  private onDragStateEnd(event: d3.D3DragEvent<SVGGElement, RectangleStateDataPoint, RectangleStateDataPoint>, datapoint: RectangleStateDataPoint): void {
+  private onDragStateEnd(event: d3.D3DragEvent<SVGGElement, DiamondStateDataPoint, DiamondStateDataPoint>, datapoint: DiamondStateDataPoint): void {
     const interactionState = this.interactionStateService.getCurrentState();
     const solutionStateService = this.rendererManager.getSolutionStateService();
     const solutionName = this.noCodeSolution?.solutionName || '';
@@ -1351,7 +1248,6 @@ export class RectangleStateLayer extends D3ModelLayer {
             );
           }
 
-          // Re-render the slot label at the new position
           const finalLocalX = parseFloat(slotMarker.attr('cx') || '0');
           const finalLocalY = parseFloat(slotMarker.attr('cy') || '0');
           const slotLabel = group.select(`text.slot-label[slot-index="${slotInfo.slotIndex}"]`);
@@ -1359,7 +1255,7 @@ export class RectangleStateLayer extends D3ModelLayer {
             slotLabel
               .attr('x', finalLocalX)
               .attr('y', finalLocalY)
-              .style('display', null); // Remove display:none to show again
+              .style('display', null);
           }
 
           // Show connectors again after drag ends (they were hidden during drag)
@@ -1379,21 +1275,16 @@ export class RectangleStateLayer extends D3ModelLayer {
         const currentX = matchCurrent ? parseFloat(matchCurrent[1]) : 0;
         const currentY = matchCurrent ? parseFloat(matchCurrent[2]) : 0;
 
-        // Get bounding box dimensions for collision resolution
         const boundingRect = group.select('rect.bounding-box');
-        const boxWidth = parseFloat(boundingRect.attr('width') || '0');
-        const boxHeight = parseFloat(boundingRect.attr('height') || '0');
+        const boxSize = parseFloat(boundingRect.attr('width') || '0') / 2;
 
-        // Resolve any collisions
         const resolvedPosition = this.resolveCollision(
           { x: currentX, y: currentY },
-          boxWidth,
-          boxHeight,
+          boxSize,
           stateName,
           this.originalStatePosition
         );
 
-        // Apply the resolved position
         group.attr('transform', `translate(${resolvedPosition.x}, ${resolvedPosition.y})`);
 
         if (solutionName) {
@@ -1426,8 +1317,7 @@ export class RectangleStateLayer extends D3ModelLayer {
     this.originalStatePosition = null;
     this.originalSlotAngularPosition = 0;
     this.currentDragSlotInfo = null;
-    this.currentDragStateWidth = 0;
-    this.currentDragStateHeight = 0;
+    this.currentDragStateSize = 0;
   }
 
   /**

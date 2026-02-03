@@ -186,7 +186,7 @@ export class CircleStateLayer extends D3ModelLayer {
             state.stateSvgRadius ?? 10,
             state.slotRadius ?? 4,
             state.stateName ?? "unknown",
-            state.stateClass,  // Pass state class for special rendering (InitialState, EndState, etc.)
+            state.stateClass,  // Pass state class for special rendering (InitialState, ReturnStatement, etc.)
             state.backgroundColor  // Pass background color if specified
         ));
   }
@@ -282,8 +282,9 @@ export class CircleStateLayer extends D3ModelLayer {
           const sourceSlotMarker = sourceGroup.select(`circle.slot-marker[slot-index="${slot.index}"]`);
           if (sourceSlotMarker.empty()) return;
 
-          // Find target slot position
-          const targetGroup = this.getLayerGroup()
+          // Find target slot position - search across ALL layers (not just this layer)
+          // This enables cross-layer connectors (e.g., circle to rectangle)
+          const targetGroup = this.getSolutionLayer()
             .select(`g.state-group[state-name="${connector.targetStateName}"]`);
           if (targetGroup.empty()) return;
 
@@ -659,7 +660,7 @@ export class CircleStateLayer extends D3ModelLayer {
         console.log('[initializeStateGroups] Creating state group for:', datapoint.stateName);
 
         // Append the bounding box rectangle
-        // Hidden by default - only shown in debug mode
+        // Hidden by default - only shown in debug mode, no pointer events
         group.append('rect')
             .classed('bounding-box', true)
             .classed('debug-element', true)
@@ -669,7 +670,8 @@ export class CircleStateLayer extends D3ModelLayer {
             .attr('height', 2 * datapoint.radius)
             .attr('fill', "white")
             .attr('stroke', "black")
-            .style('opacity', 0);
+            .style('opacity', 0)
+            .style('pointer-events', 'none');
 
         // Append the background circle (visual representation of state)
         // Check for special state types and render appropriate icons
@@ -710,8 +712,8 @@ export class CircleStateLayer extends D3ModelLayer {
             .attr('fill', 'white')
             .attr('stroke', 'none')
             .style('pointer-events', 'none');
-        } else if (stateClass === 'EndState') {
-          // Red circle with stop button icon for EndState
+        } else if (stateClass === 'ReturnStatement') {
+          // Red circle with exit arrow icon for ReturnStatement
           const circle = group.append('circle')
             .classed('draggable-shape', true)
             .attr('r', datapoint.radius)
@@ -720,17 +722,15 @@ export class CircleStateLayer extends D3ModelLayer {
             .attr('stroke-width', 2);
           addShapeEventHandlers(circle);
 
-          // Stop button square icon
+          // Exit arrow icon (arrow pointing right with tail)
           const iconSize = datapoint.radius * 0.5;
-          group.append('rect')
+          group.append('path')
             .classed('state-icon', true)
-            .attr('x', -iconSize * 0.7)
-            .attr('y', -iconSize * 0.7)
-            .attr('width', iconSize * 1.4)
-            .attr('height', iconSize * 1.4)
+            .attr('d', `M ${-iconSize * 0.6} 0 L ${iconSize * 0.3} 0 L ${iconSize * 0.3} ${-iconSize * 0.4} L ${iconSize * 0.8} 0 L ${iconSize * 0.3} ${iconSize * 0.4} L ${iconSize * 0.3} 0`)
             .attr('fill', 'white')
-            .attr('stroke', 'none')
-            .attr('rx', 2)  // Slightly rounded corners
+            .attr('stroke', 'white')
+            .attr('stroke-width', iconSize * 0.15)
+            .attr('stroke-linejoin', 'round')
             .style('pointer-events', 'none');
         } else {
           // Default circle for regular states
@@ -1589,14 +1589,12 @@ export class CircleStateLayer extends D3ModelLayer {
    * Hides all connectors attached to a state (used during state drag for performance)
    */
   private hideConnectorsForState(stateName: string): void {
-    if (!this.connectorLayer) return;
-
-    // Hide connectors where this state is the source
-    this.connectorLayer.selectAll(`path.permanent-connector[data-source-state="${stateName}"]`)
+    // Hide connectors where this state is the source (search entire document for cross-layer support)
+    d3.selectAll(`path.permanent-connector[data-source-state="${stateName}"]`)
       .style('display', 'none');
 
-    // Hide connectors where this state is the target
-    this.connectorLayer.selectAll(`path.permanent-connector[data-target-state="${stateName}"]`)
+    // Hide connectors where this state is the target (search entire document for cross-layer support)
+    d3.selectAll(`path.permanent-connector[data-target-state="${stateName}"]`)
       .style('display', 'none');
   }
 
@@ -1604,8 +1602,6 @@ export class CircleStateLayer extends D3ModelLayer {
    * Shows and repositions all connectors attached to a state (called after state drag ends)
    */
   private showAndUpdateConnectorsForState(stateName: string, groupElement: SVGGElement): void {
-    if (!this.connectorLayer) return;
-
     const group = d3.select(groupElement);
     const transform = group.attr("transform") || "translate(0,0)";
     const match = transform.match(/translate\(([-\d.]+),\s*([-\d.]+)\)/);
@@ -1625,12 +1621,12 @@ export class CircleStateLayer extends D3ModelLayer {
       this.updateConnectorsForSlot(stateName, slotIndex, svgX, svgY);
     });
 
-    // Show connectors where this state is the source
-    this.connectorLayer.selectAll(`path.permanent-connector[data-source-state="${stateName}"]`)
+    // Show connectors where this state is the source (search entire document for cross-layer support)
+    d3.selectAll(`path.permanent-connector[data-source-state="${stateName}"]`)
       .style('display', null);
 
-    // Show connectors where this state is the target
-    this.connectorLayer.selectAll(`path.permanent-connector[data-target-state="${stateName}"]`)
+    // Show connectors where this state is the target (search entire document for cross-layer support)
+    d3.selectAll(`path.permanent-connector[data-target-state="${stateName}"]`)
       .style('display', null);
   }
 
@@ -1639,13 +1635,11 @@ export class CircleStateLayer extends D3ModelLayer {
    * Called when a slot is being dragged to reposition it.
    */
   private updateConnectorsForSlot(stateName: string, slotIndex: number, newX: number, newY: number): void {
-    if (!this.connectorLayer) return;
-
     const sourceSelector = `path.permanent-connector[data-source-state="${stateName}"][data-source-slot="${slotIndex}"]`;
     const targetSelector = `path.permanent-connector[data-target-state="${stateName}"][data-target-slot="${slotIndex}"]`;
 
-    // Find connectors where this slot is the source and update their start point
-    this.connectorLayer.selectAll(sourceSelector).each((d, i, nodes) => {
+    // Find connectors where this slot is the source and update their start point (search entire document for cross-layer support)
+    d3.selectAll(sourceSelector).each((d: any, i: number, nodes: any) => {
       const connector = d3.select(nodes[i]);
       const currentPath = connector.attr('d') || '';
       const match = currentPath.match(/M\s*([-\d.]+)\s+([-\d.]+)\s+L\s*([-\d.]+)\s+([-\d.]+)/);
@@ -1656,8 +1650,8 @@ export class CircleStateLayer extends D3ModelLayer {
       }
     });
 
-    // Find connectors where this slot is the target and update their end point
-    this.connectorLayer.selectAll(targetSelector).each((d, i, nodes) => {
+    // Find connectors where this slot is the target and update their end point (search entire document for cross-layer support)
+    d3.selectAll(targetSelector).each((d: any, i: number, nodes: any) => {
       const connector = d3.select(nodes[i]);
       const currentPath = connector.attr('d') || '';
       const match = currentPath.match(/M\s*([-\d.]+)\s+([-\d.]+)\s+L\s*([-\d.]+)\s+([-\d.]+)/);
@@ -1792,13 +1786,13 @@ export class CircleStateLayer extends D3ModelLayer {
       y: (groupBounds?.top || 0) + (groupBounds?.height || 0) / 2
     };
 
-    // Check if clicking on draggable elements (circle, overlay-component, or bounding-box)
+    // Check if clicking on draggable elements (circle, overlay-component, or slot-path)
+    // Note: bounding-box is excluded as it's a debug element with pointer-events: none
     const isDraggableShape = targetElement?.tagName === 'circle' && targetElement?.classList.contains('draggable-shape');
     const isOverlayComponent = targetElement?.tagName === 'rect' && targetElement?.classList.contains('overlay-component');
-    const isBoundingBox = targetElement?.tagName === 'rect' && targetElement?.classList.contains('bounding-box');
     const isSlotPath = targetElement?.tagName === 'path' && targetElement?.classList.contains('slot-path');
 
-    if (isDraggableShape || isOverlayComponent || isBoundingBox || isSlotPath) {
+    if (isDraggableShape || isOverlayComponent || isSlotPath) {
       event.sourceEvent.stopPropagation();
       this.interactionStateService.setInteractionState('state-drag');
       group.raise().attr('stroke', 'black');
@@ -1858,8 +1852,9 @@ export class CircleStateLayer extends D3ModelLayer {
         this.startConnectorDrag(slotSvgX, slotSvgY, event.x, event.y, stateName, slotIndex, slotIsInput);
       } else {
         this.interactionStateService.setInteractionState('slot-drag');
-        // Hide the slot label during drag - will be re-rendered on drop
+        // Hide the slot label and connectors during drag - will be re-rendered on drop
         group.select(`text.slot-label[slot-index="${slotIndex}"]`).style('display', 'none');
+        this.setConnectorsVisibilityForSlot(stateName, slotIndex, false);
       }
       group.raise().attr('stroke', 'black');
     }
@@ -1982,11 +1977,10 @@ export class CircleStateLayer extends D3ModelLayer {
           const targetSvgY = targetSlotLocalY + targetTranslateY;
 
           // Look up the target slot's isInput property for validation
-          const targetSlotData = this.slotDataPoints.find(
-            (s: CircleSlotDataPoint) => s.stateName === targetStateName && s.index === targetSlotIndex
-          );
-          const targetIsInput = targetSlotData?.isInput ?? false;
-          const targetIsOutput = targetSlotData?.isOutput ?? false;
+          // Read from DOM attribute to support cross-layer connections (e.g., circle to rectangle)
+          const targetIsInputAttr = targetSlotMarker.attr('data-is-input');
+          const targetIsInput = targetIsInputAttr === 'true';
+          const targetIsOutput = !targetIsInput;
 
           // Validate connection: only allow input-to-output connections
           const sourceIsInput = this.connectorSourceIsInput ?? false;
@@ -2143,6 +2137,9 @@ export class CircleStateLayer extends D3ModelLayer {
               .attr('y', finalLocalY)
               .style('display', null); // Remove display:none to show again
           }
+
+          // Show connectors again after drag ends (they were hidden during drag)
+          this.setConnectorsVisibilityForSlot(slotInfo.stateName, slotInfo.slotIndex, true);
         }
       }
     }
@@ -2215,6 +2212,29 @@ export class CircleStateLayer extends D3ModelLayer {
     this.currentDragStateRadius = 0;
   }
 
+
+  /**
+   * Hide or show connectors associated with a specific slot during drag operations.
+   * Uses d3.selectAll to search entire document for cross-layer connector support.
+   */
+  private setConnectorsVisibilityForSlot(stateName: string, slotIndex: number, visible: boolean): void {
+    const displayValue = visible ? null : 'none';
+    const sourceSelector = `path.permanent-connector[data-source-state="${stateName}"][data-source-slot="${slotIndex}"]`;
+    const targetSelector = `path.permanent-connector[data-target-state="${stateName}"][data-target-slot="${slotIndex}"]`;
+
+    console.log('[setConnectorsVisibilityForSlot] stateName:', stateName, 'slotIndex:', slotIndex, 'visible:', visible);
+    console.log('[setConnectorsVisibilityForSlot] sourceSelector:', sourceSelector);
+    console.log('[setConnectorsVisibilityForSlot] targetSelector:', targetSelector);
+
+    const sourceConnectors = d3.selectAll(sourceSelector);
+    const targetConnectors = d3.selectAll(targetSelector);
+
+    console.log('[setConnectorsVisibilityForSlot] sourceConnectors found:', sourceConnectors.size());
+    console.log('[setConnectorsVisibilityForSlot] targetConnectors found:', targetConnectors.size());
+
+    sourceConnectors.style('display', displayValue);
+    targetConnectors.style('display', displayValue);
+  }
 
   // Ensure cleanup of the subscription
   public destroy(): void {

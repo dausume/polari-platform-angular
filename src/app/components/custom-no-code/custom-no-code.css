@@ -21,22 +21,6 @@
   background-color: #f5f5f5;
 }
 
-/* Menu bar at top - fixed height */
-.menu-container {
-  flex: 0 0 auto;
-  height: auto;
-  min-height: 50px;
-  z-index: 2;
-  margin-bottom: 16px;
-  background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.no-code-container .item {
-  padding: 10px;
-}
-
 /* Canvas wrapper - contains the SVG and controls */
 .canvas-wrapper {
   flex: 1;

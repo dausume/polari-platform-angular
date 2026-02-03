@@ -17,7 +17,7 @@ export const CONTROL_FLOW_STATE_TYPES = [
   'InitialState',
   'VariableAssignment',
   'ConditionalChain',
-  'EndState'
+  'ReturnStatement'
 ];
 
 /**

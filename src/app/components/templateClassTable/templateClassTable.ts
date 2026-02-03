@@ -596,6 +596,29 @@ export class templateClassTableComponent implements OnInit, OnDestroy {
           this.instanceList = [];
         }
 
+        // Deduplicate instances by ID to prevent duplicate rows in table
+        if (this.instanceList.length > 0) {
+          const originalLength = this.instanceList.length;
+          const seenIds = new Set<string>();
+          this.instanceList = this.instanceList.filter((instance: any) => {
+            // Try common ID field names
+            const id = instance.id || instance._id || instance._instanceId || instance.Id || instance.ID;
+            if (id === undefined || id === null) {
+              // Keep instances without IDs (shouldn't happen but be safe)
+              return true;
+            }
+            if (seenIds.has(id)) {
+              console.warn(`[TemplateClassTable] Duplicate instance detected with id: ${id}`);
+              return false;
+            }
+            seenIds.add(id);
+            return true;
+          });
+          if (this.instanceList.length !== originalLength) {
+            console.warn(`[TemplateClassTable] Removed ${originalLength - this.instanceList.length} duplicate instances`);
+          }
+        }
+
         console.log(`[TemplateClassTable] ===== Final Result =====`);
         console.log(`[TemplateClassTable] instanceList length:`, this.instanceList.length);
         console.log(`[TemplateClassTable] instanceList:`, this.instanceList);

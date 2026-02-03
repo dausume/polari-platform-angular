@@ -36,7 +36,7 @@ interface SolutionCache {
 }
 
 const CACHE_KEY = 'polari-no-code-solutions-cache';
-const CACHE_VERSION = 3; // Bump version when mock data changes to force cache invalidation
+const CACHE_VERSION = 4; // Bump version when mock data changes to force cache invalidation
 
 @Injectable({
   providedIn: 'root'

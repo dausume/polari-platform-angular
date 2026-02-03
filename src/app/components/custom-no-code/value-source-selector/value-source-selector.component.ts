@@ -66,7 +66,7 @@ export class ValueSourceSelectorComponent implements OnInit, OnChanges {
 
   // Source type options
   sourceTypeOptions: { value: ValueSourceType; label: string; icon: string }[] = [
-    { value: 'from_input', label: 'From Input', icon: 'input' },
+    { value: 'from_input', label: 'Variable', icon: 'data_object' },
     { value: 'from_source_object', label: 'From Object', icon: 'account_tree' },
     { value: 'direct_assignment', label: 'Direct Value', icon: 'edit' }
   ];

@@ -57,7 +57,6 @@ import { NoCodeStateInstanceComponentD3 } from '@components/custom-no-code/no-co
 import { NoCodeInterfaceComponent } from '@components/custom-no-code/no-code-interface/no-code-interface';
 import { SolutionEditorComponent } from '@components/custom-no-code/no-code-interface/solution-editor/solution-editor';
 import { SlotComponent } from '@components/custom-no-code/slot/slot';
-import { NoCodeMenuComponent } from '@components/custom-no-code/no-code-menu/no-code-menu';
 import { NoCodeStateBorderComponent } from '@components/custom-no-code/no-code-state-instance/no-code-state-border/no-code-state-border';
 import { StateOverlayComponent } from '@components/custom-no-code/state-overlay/state-overlay.component';
 import { StateDefinitionCreatorComponent } from '@components/custom-no-code/state-definition-creator/state-definition-creator.component';
@@ -96,6 +95,8 @@ import { TypingInfoComponent } from '@components/typing-info/typing-info';
 import { CertificateTrustPromptComponent } from '@components/certificate-trust-prompt/certificate-trust-prompt';
 // API Profiler Component
 import { ApiProfilerComponent } from '@components/api-profiler/api-profiler.component';
+// API Config Component
+import { ApiConfigComponent } from '@components/api-config/api-config';
 //Services (Backend Access)
 import { PolariService } from '@services/polari-service';
 import { CRUDEservicesManager } from '@services/crude-services-manager';
@@ -141,7 +142,6 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     NoCodeStateInstanceComponentD3,
     SolutionEditorComponent,
     SlotComponent,
-    NoCodeMenuComponent,
     NoCodeStateBorderComponent,
     StateOverlayComponent,
     StateDefinitionCreatorComponent,
@@ -172,7 +172,8 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     ManagerInfoComponent,
     TypingInfoComponent,
     CertificateTrustPromptComponent,
-    ApiProfilerComponent
+    ApiProfilerComponent,
+    ApiConfigComponent
   ],
   imports: [
     BrowserModule,

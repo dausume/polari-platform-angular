@@ -1,11 +1,4 @@
-<mat-card class="no-code-container">
-    <mat-card (contextmenu)="showContextMenu($event)" class="menu-container">
-      <no-code-menu class="no-code-menu item"
-                    (newStateInstance)="onNewStateInstance()"
-                    (openDefinitionCreator)="onOpenDefinitionCreator()">
-      </no-code-menu>
-    </mat-card>
-
+<mat-card class="no-code-container" (contextmenu)="showContextMenu($event)">
     <div class="main-content-area">
       <div class="canvas-wrapper">
       <div class="canvas-toolbar">

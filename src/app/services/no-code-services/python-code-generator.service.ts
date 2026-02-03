@@ -13,7 +13,6 @@ import { BoundClassDefinition } from '../../components/custom-no-code/state-tool
 export const PYTHON_TEMPLATES: { [key: string]: string } = {
   // Control Flow
   'InitialState': '# Entry point - receive input parameters',
-  'EndState': 'return {output}',
   'ReturnStatement': 'return {value}',
   'BreakStatement': 'break',
   'ContinueStatement': 'continue',
@@ -137,9 +136,9 @@ export class PythonCodeGeneratorService {
       case 'InitialState':
         return `# ${state.stateName || 'Start'}: Entry point`;
 
-      case 'EndState':
-        const output = values['output'] || 'result';
-        return `return ${output}`;
+      case 'ReturnStatement':
+        const returnValue = values['value'] || values['output'] || 'result';
+        return `return ${returnValue}`;
 
       case 'ForLoop':
         result = result

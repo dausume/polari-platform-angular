@@ -6,6 +6,7 @@ import { BehaviorSubject, Subscription } from 'rxjs';
 import { D3ModelLayer } from '@models/noCode/d3-extensions/D3ModelLayer';
 import { CircleStateLayer } from '@models/noCode/d3-extensions/CircleStateLayer';
 import { RectangleStateLayer } from '@models/noCode/d3-extensions/RectangleStateLayer';
+import { DiamondStateLayer } from '@models/noCode/d3-extensions/DiamondStateLayer';
 // Import the NoCodeState object which is used to define the state of the No-Code Solution.
 import { NoCodeState } from '@models/noCode/NoCodeState';
 import { NoCodeSolution } from '@models/noCode/NoCodeSolution';
@@ -114,6 +115,11 @@ export class NoCodeStateRendererManager {
     this.stateShapeTypeToD3ModelLayerTypeMap.set(
       "rectangle",
       RectangleStateLayer
+    );
+    // Define the D3ModelLayer object for rendering diamonds (conditional/decision states).
+    this.stateShapeTypeToD3ModelLayerTypeMap.set(
+      "diamond",
+      DiamondStateLayer
     );
   }
 

@@ -97,7 +97,7 @@ export const AVAILABLE_SVG_SHAPES = [
   { id: 'circle', name: 'Circle', icon: 'radio_button_unchecked' },
   { id: 'rectangle', name: 'Rectangle', icon: 'crop_square' },
   { id: 'rounded-rect', name: 'Rounded Rectangle', icon: 'rounded_corner' },
-  { id: 'diamond', name: 'Diamond', icon: 'change_history' },
+  { id: 'diamond', name: 'Diamond', icon: 'diamond' },
   { id: 'hexagon', name: 'Hexagon', icon: 'hexagon' },
   { id: 'parallelogram', name: 'Parallelogram', icon: 'category' }
 ];
@@ -128,7 +128,7 @@ export class StateToolSidebarComponent implements OnInit, OnDestroy, OnChanges {
   // Current solution name
   @Input() solutionName: string = '';
 
-  // Class names of unique states (InitialState, EndState) already in the solution
+  // Class names of unique states (InitialState, ReturnStatement) already in the solution
   // Used to filter out these states from the sidebar when they're already present
   @Input() existingUniqueStates: Set<string> = new Set();
 
@@ -198,7 +198,7 @@ export class StateToolSidebarComponent implements OnInit, OnDestroy, OnChanges {
 
   /**
    * Load built-in state-space classes from registry
-   * Filters out unique states (InitialState, EndState) that already exist in the solution
+   * Filters out unique states (InitialState, ReturnStatement) that already exist in the solution
    */
   private loadBuiltinItems(): void {
     this.builtinItemsByCategory.clear();
@@ -237,10 +237,10 @@ export class StateToolSidebarComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   /**
-   * Check if a unique state (InitialState or EndState) is already present in the solution
+   * Check if a unique state (InitialState or ReturnStatement) is already present in the solution
    */
   private isUniqueStateAlreadyPresent(metadata: StateSpaceClassMetadata): boolean {
-    // Only InitialState and EndState are unique per solution
+    // Only InitialState and ReturnStatement are unique per solution
     if (metadata.specialStateType === 'initial' || metadata.specialStateType === 'end') {
       return this.existingUniqueStates.has(metadata.className);
     }

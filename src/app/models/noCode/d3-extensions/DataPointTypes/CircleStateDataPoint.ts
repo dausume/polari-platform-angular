@@ -9,7 +9,7 @@ export default class CircleStateDataPoint {
     stateName?: string; // name of the state this data point.
     // Used for determining the color of the circle
     styleName?: string; // name of the style class to be applied to the circle
-    // State class name (e.g., 'InitialState', 'EndState', 'ConditionalChain')
+    // State class name (e.g., 'InitialState', 'ReturnStatement', 'ConditionalChain')
     stateClass?: string;
     // Background color for the circle
     backgroundColor?: string;

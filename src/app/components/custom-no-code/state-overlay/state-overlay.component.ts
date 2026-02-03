@@ -91,7 +91,7 @@ export class StateOverlayComponent implements OnInit, OnDestroy, OnChanges {
   @Input() displayFields: DisplayField[] = [];
   @Input() fieldLayout: 'single' | 'double' = 'single';
 
-  // Class names of unique states (InitialState, EndState) already in the solution
+  // Class names of unique states (InitialState, ReturnStatement) already in the solution
   // Used to filter these from the class selector dropdown
   @Input() existingUniqueStates: Set<string> = new Set();
 
@@ -342,10 +342,10 @@ export class StateOverlayComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   /**
-   * Check if a unique state (InitialState or EndState) is already present in the solution
+   * Check if a unique state (InitialState or ReturnStatement) is already present in the solution
    */
   private isUniqueStateAlreadyPresent(metadata: StateSpaceClassMetadata): boolean {
-    // Only InitialState and EndState are unique per solution
+    // Only InitialState and ReturnStatement are unique per solution
     if (metadata.specialStateType === 'initial' || metadata.specialStateType === 'end') {
       return this.existingUniqueStates.has(metadata.className);
     }

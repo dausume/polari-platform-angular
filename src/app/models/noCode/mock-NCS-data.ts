@@ -311,12 +311,12 @@ export const MOCK_SOLUTION_ADDITION_TEST: NoCodeSolutionRawData = {
       slotRadius: 5,
       backgroundColor: "#9C27B0"  // Purple for variable assignment
     },
-    // Check Result - Conditional (Green) - 2 input slots for merge
+    // Check Result - Conditional (Diamond shape) - 2 input slots for merge
     {
       stateName: "Check Result",
       id: "check-result",
       index: 3,
-      shapeType: "circle",
+      shapeType: "diamond",
       solutionName: "Addition Test",
       stateClass: "ConditionalChain",
       boundObjectClass: "ConditionalChain",
@@ -356,7 +356,7 @@ export const MOCK_SOLUTION_ADDITION_TEST: NoCodeSolutionRawData = {
       layerName: "conditional-layer",
       stateLocationX: 520,
       stateLocationY: 280,
-      stateSvgName: "circle",
+      stateSvgName: "diamond",
       slots: [
         // Input slot 0 - receives sum_result from Compute Sum
         {
@@ -705,19 +705,19 @@ export const MOCK_SOLUTION_ORDER_PROCESS: NoCodeSolutionRawData = {
       slotRadius: 5,
       backgroundColor: "#607D8B"  // Gray for debug
     },
-    // End State - Red Rectangle (Success)
+    // Return Statement - Red Rectangle (Success path)
     {
       stateName: "Success",
-      id: "end-success",
+      id: "return-success",
       index: 6,
       shapeType: "rectangle",
       solutionName: "Order.process_order",
-      stateClass: "EndState",
-      boundObjectClass: "EndState",
+      stateClass: "ReturnStatement",
+      boundObjectClass: "ReturnStatement",
       boundObjectFieldValues: {
         displayName: "Success",
         description: "Order processed successfully",
-        output: "True"
+        value: "True"
       },
       stateSvgSizeX: null,
       stateSvgSizeY: null,
