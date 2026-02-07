@@ -491,3 +491,142 @@
 .mini-icon.required {
   color: #f44336;
 }
+
+/* ===== API Formats Tab ===== */
+
+.formats-tab-content {
+  padding-top: 15px;
+}
+
+/* Format Legend Icons */
+.format-icon {
+  font-size: 20px;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
+.format-icon.tree {
+  color: #1565c0;
+}
+
+.format-icon.flat {
+  color: #2e7d32;
+}
+
+.format-icon.d3 {
+  color: #e65100;
+}
+
+/* Error Banner */
+.error-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 15px;
+  background: #ffebee;
+  border: 1px solid #ef9a9a;
+  border-radius: 4px;
+  margin-bottom: 15px;
+  color: #c62828;
+  font-size: 0.9rem;
+}
+
+.error-banner button {
+  margin-left: auto;
+}
+
+/* Format Matrix Table */
+.format-matrix {
+  width: 100%;
+}
+
+.format-matrix th {
+  background: #f5f5f5 !important;
+  font-weight: 600;
+  color: #333 !important;
+}
+
+.format-matrix td,
+.format-matrix th {
+  padding: 12px 16px;
+  vertical-align: top;
+}
+
+.format-header {
+  white-space: nowrap;
+}
+
+.format-header mat-icon {
+  vertical-align: middle;
+  margin-right: 4px;
+  font-size: 20px;
+}
+
+/* Format Cell Layout */
+.format-cell {
+  min-width: 180px;
+}
+
+.format-always-on {
+  color: #1565c0;
+  font-size: 22px;
+}
+
+.format-toggle-row {
+  margin-bottom: 4px;
+}
+
+.format-endpoint-row {
+  margin-bottom: 2px;
+}
+
+.endpoint-label {
+  display: inline-block;
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: #555;
+  background: #f5f5f5;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+/* Prefix Display and Editing */
+.format-prefix-row {
+  margin-top: 4px;
+}
+
+.prefix-label {
+  font-size: 0.8rem;
+  color: #888;
+  font-family: monospace;
+}
+
+.prefix-label.clickable {
+  cursor: pointer;
+  border-bottom: 1px dashed #aaa;
+}
+
+.prefix-label.clickable:hover {
+  color: #1565c0;
+  border-bottom-color: #1565c0;
+}
+
+.prefix-edit {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.prefix-input {
+  font-family: monospace;
+  font-size: 0.85rem;
+  padding: 4px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  width: 120px;
+}
+
+.prefix-input:focus {
+  outline: none;
+  border-color: #1565c0;
+}

@@ -55,6 +55,30 @@ export interface GeneralAccess {
 }
 
 /**
+ * API format types available in the system
+ */
+export type ApiFormatType = 'polariTree' | 'flatJson' | 'd3Column';
+
+/**
+ * Configuration for a single API format on an object
+ */
+export interface ApiFormatConfigEntry {
+  enabled: boolean;
+  endpoint: string | null;
+  prefix: string | null;
+  description: string;
+}
+
+/**
+ * All API format configurations for an object
+ */
+export interface ApiFormats {
+  polariTree: ApiFormatConfigEntry;
+  flatJson: ApiFormatConfigEntry;
+  d3Column: ApiFormatConfigEntry;
+}
+
+/**
  * Configuration for a single registered object
  */
 export interface ApiConfigObject {
@@ -70,6 +94,7 @@ export interface ApiConfigObject {
   generalAccess: GeneralAccess;
   crudeRegistered: boolean;
   crudeEndpoint: string | null;
+  apiFormats: ApiFormats;
   permissionSetRefs: string[];
   variables: VariableInfo[];
   events: EventInfo[];
@@ -150,6 +175,28 @@ export interface PermissionUpdateRequest {
 export interface PermissionUpdateResponse {
   success: boolean;
   message?: string;
+  error?: string;
+}
+
+/**
+ * Request body for updating API format configuration
+ */
+export interface FormatUpdateRequest {
+  className: string;
+  flatJson?: boolean;
+  d3Column?: boolean;
+  flatJsonPrefix?: string;
+  d3ColumnPrefix?: string;
+}
+
+/**
+ * Response from format update
+ */
+export interface FormatUpdateResponse {
+  success: boolean;
+  message?: string;
+  registered?: [string, string][];
+  unregistered?: string[];
   error?: string;
 }
 

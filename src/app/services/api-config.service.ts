@@ -5,7 +5,9 @@ import { RuntimeConfigService } from './runtime-config.service';
 import {
   ApiConfigResponse,
   PermissionUpdateRequest,
-  PermissionUpdateResponse
+  PermissionUpdateResponse,
+  FormatUpdateRequest,
+  FormatUpdateResponse
 } from '@models/apiConfig';
 
 /**
@@ -42,5 +44,15 @@ export class ApiConfigService {
   updatePermissions(request: PermissionUpdateRequest): Observable<PermissionUpdateResponse> {
     const baseUrl = this.runtimeConfig.getBackendBaseUrl();
     return this.http.put<PermissionUpdateResponse>(`${baseUrl}/api-config/permissions`, request);
+  }
+
+  /**
+   * Update API format configuration for an object.
+   * Enables/disables flat JSON and/or D3 column format endpoints.
+   * Optionally changes endpoint prefixes.
+   */
+  updateFormats(request: FormatUpdateRequest): Observable<FormatUpdateResponse> {
+    const baseUrl = this.runtimeConfig.getBackendBaseUrl();
+    return this.http.put<FormatUpdateResponse>(`${baseUrl}/api-config/formats`, request);
   }
 }

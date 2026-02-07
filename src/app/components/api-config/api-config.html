@@ -3,7 +3,7 @@
   <div class="page-header">
     <div class="header-content">
       <h1>API Configuration</h1>
-      <p class="subtitle">View and manage CRUDE permissions for registered objects</p>
+      <p class="subtitle">View and manage CRUDE permissions and API formats for registered objects</p>
     </div>
     <button mat-icon-button (click)="refresh()" [disabled]="loading" matTooltip="Refresh">
       <mat-icon>refresh</mat-icon>
@@ -23,391 +23,564 @@
     <button mat-raised-button color="primary" (click)="refresh()">Retry</button>
   </div>
 
-  <!-- Main Content -->
+  <!-- Main Content with Tabs -->
   <div *ngIf="!loading && !error" class="main-content">
+    <mat-tab-group (selectedTabChange)="onTabChange($event)" animationDuration="200ms">
 
-    <!-- Filter Controls -->
-    <mat-card class="filter-card">
-      <div class="filter-row">
-        <mat-form-field appearance="outline" class="filter-field">
-          <mat-label>Filter objects</mat-label>
-          <input matInput [(ngModel)]="filterText" placeholder="Search by name...">
-          <mat-icon matSuffix>search</mat-icon>
-        </mat-form-field>
+      <!-- Tab 1: Permissions -->
+      <mat-tab label="Permissions">
+        <ng-template matTabContent>
+          <!-- Filter Controls -->
+          <mat-card class="filter-card">
+            <div class="filter-row">
+              <mat-form-field appearance="outline" class="filter-field">
+                <mat-label>Filter objects</mat-label>
+                <input matInput [(ngModel)]="filterText" placeholder="Search by name...">
+                <mat-icon matSuffix>search</mat-icon>
+              </mat-form-field>
 
-        <div class="filter-toggles">
-          <mat-checkbox [(ngModel)]="showBaseObjects" color="accent">
-            Framework Objects
-          </mat-checkbox>
-          <mat-checkbox [(ngModel)]="showUserCreatedObjects" color="primary">
-            User-Created Objects
-          </mat-checkbox>
-        </div>
+              <div class="filter-toggles">
+                <mat-checkbox [(ngModel)]="showBaseObjects" color="accent">
+                  Framework Objects
+                </mat-checkbox>
+                <mat-checkbox [(ngModel)]="showUserCreatedObjects" color="primary">
+                  User-Created Objects
+                </mat-checkbox>
+              </div>
 
-        <div class="stats">
-          <span class="stat-item">
-            <strong>{{ filteredObjects.length }}</strong> / {{ objects.length }} objects
-          </span>
-        </div>
-      </div>
-    </mat-card>
+              <div class="stats">
+                <span class="stat-item">
+                  <strong>{{ filteredObjects.length }}</strong> / {{ objects.length }} objects
+                </span>
+              </div>
+            </div>
+          </mat-card>
 
-    <!-- Legend -->
-    <div class="legend">
-      <span class="legend-item">
-        <span class="legend-icon type-framework">F</span> Framework (Read-Only)
-      </span>
-      <span class="legend-item">
-        <span class="legend-icon type-server">S</span> Server Only
-      </span>
-      <span class="legend-item">
-        <span class="legend-icon type-user">U</span> User-Created (Editable)
-      </span>
-      <span class="legend-divider">|</span>
-      <span class="legend-item">
-        <mat-icon class="legend-check">check</mat-icon> Allowed
-      </span>
-      <span class="legend-item">
-        <mat-icon class="legend-close">close</mat-icon> Denied
-      </span>
-    </div>
-
-    <!-- Permission Matrix Table -->
-    <mat-card class="matrix-card">
-      <table mat-table [dataSource]="filteredObjects" class="permission-matrix">
-
-        <!-- Expand Column -->
-        <ng-container matColumnDef="expand">
-          <th mat-header-cell *matHeaderCellDef></th>
-          <td mat-cell *matCellDef="let obj">
-            <button mat-icon-button (click)="toggleExpand(obj)" class="expand-btn">
-              <mat-icon>{{ isExpanded(obj) ? 'expand_less' : 'expand_more' }}</mat-icon>
-            </button>
-          </td>
-        </ng-container>
-
-        <!-- Class Name Column -->
-        <ng-container matColumnDef="className">
-          <th mat-header-cell *matHeaderCellDef>Object</th>
-          <td mat-cell *matCellDef="let obj">
-            <span class="class-name">{{ obj.className }}</span>
-            <span class="endpoint" *ngIf="obj.crudeEndpoint">{{ obj.crudeEndpoint }}</span>
-          </td>
-        </ng-container>
-
-        <!-- Type Column -->
-        <ng-container matColumnDef="type">
-          <th mat-header-cell *matHeaderCellDef>Type</th>
-          <td mat-cell *matCellDef="let obj">
-            <span class="type-chip" [ngClass]="getTypeClass(obj)">
-              {{ getTypeLabel(obj) }}
+          <!-- Legend -->
+          <div class="legend">
+            <span class="legend-item">
+              <span class="legend-icon type-framework">F</span> Framework (Read-Only)
             </span>
-          </td>
-        </ng-container>
+            <span class="legend-item">
+              <span class="legend-icon type-server">S</span> Server Only
+            </span>
+            <span class="legend-item">
+              <span class="legend-icon type-user">U</span> User-Created (Editable)
+            </span>
+            <span class="legend-divider">|</span>
+            <span class="legend-item">
+              <mat-icon class="legend-check">check</mat-icon> Allowed
+            </span>
+            <span class="legend-item">
+              <mat-icon class="legend-close">close</mat-icon> Denied
+            </span>
+          </div>
 
-        <!-- Create (C) Column -->
-        <ng-container matColumnDef="C">
-          <th mat-header-cell *matHeaderCellDef class="crud-header" matTooltip="Create">C</th>
-          <td mat-cell *matCellDef="let obj" class="crud-cell">
-            <ng-container *ngIf="!isEditing(obj)">
-              <mat-icon [ngClass]="getPermissionClass(obj, 'create')">
-                {{ hasPermission(obj, 'create') ? 'check' : 'close' }}
-              </mat-icon>
-            </ng-container>
-            <ng-container *ngIf="isEditing(obj)">
-              <mat-checkbox
-                [checked]="getPendingPermission(obj, 'create')"
-                (change)="togglePermission(obj, 'create')"
-                color="primary">
-              </mat-checkbox>
-            </ng-container>
-          </td>
-        </ng-container>
+          <!-- Permission Matrix Table -->
+          <mat-card class="matrix-card">
+            <table mat-table [dataSource]="filteredObjects" class="permission-matrix">
 
-        <!-- Read (R) Column -->
-        <ng-container matColumnDef="R">
-          <th mat-header-cell *matHeaderCellDef class="crud-header" matTooltip="Read">R</th>
-          <td mat-cell *matCellDef="let obj" class="crud-cell">
-            <ng-container *ngIf="!isEditing(obj)">
-              <mat-icon [ngClass]="getPermissionClass(obj, 'read')">
-                {{ hasPermission(obj, 'read') ? 'check' : 'close' }}
-              </mat-icon>
-            </ng-container>
-            <ng-container *ngIf="isEditing(obj)">
-              <mat-checkbox
-                [checked]="getPendingPermission(obj, 'read')"
-                (change)="togglePermission(obj, 'read')"
-                color="primary">
-              </mat-checkbox>
-            </ng-container>
-          </td>
-        </ng-container>
-
-        <!-- Update (U) Column -->
-        <ng-container matColumnDef="U">
-          <th mat-header-cell *matHeaderCellDef class="crud-header" matTooltip="Update">U</th>
-          <td mat-cell *matCellDef="let obj" class="crud-cell">
-            <ng-container *ngIf="!isEditing(obj)">
-              <mat-icon [ngClass]="getPermissionClass(obj, 'update')">
-                {{ hasPermission(obj, 'update') ? 'check' : 'close' }}
-              </mat-icon>
-            </ng-container>
-            <ng-container *ngIf="isEditing(obj)">
-              <mat-checkbox
-                [checked]="getPendingPermission(obj, 'update')"
-                (change)="togglePermission(obj, 'update')"
-                color="primary">
-              </mat-checkbox>
-            </ng-container>
-          </td>
-        </ng-container>
-
-        <!-- Delete (D) Column -->
-        <ng-container matColumnDef="D">
-          <th mat-header-cell *matHeaderCellDef class="crud-header" matTooltip="Delete">D</th>
-          <td mat-cell *matCellDef="let obj" class="crud-cell">
-            <ng-container *ngIf="!isEditing(obj)">
-              <mat-icon [ngClass]="getPermissionClass(obj, 'delete')">
-                {{ hasPermission(obj, 'delete') ? 'check' : 'close' }}
-              </mat-icon>
-            </ng-container>
-            <ng-container *ngIf="isEditing(obj)">
-              <mat-checkbox
-                [checked]="getPendingPermission(obj, 'delete')"
-                (change)="togglePermission(obj, 'delete')"
-                color="primary">
-              </mat-checkbox>
-            </ng-container>
-          </td>
-        </ng-container>
-
-        <!-- Events (E) Column -->
-        <ng-container matColumnDef="E">
-          <th mat-header-cell *matHeaderCellDef class="crud-header" matTooltip="Events">E</th>
-          <td mat-cell *matCellDef="let obj" class="crud-cell">
-            <ng-container *ngIf="!isEditing(obj)">
-              <mat-icon [ngClass]="getPermissionClass(obj, 'events')">
-                {{ hasPermission(obj, 'events') ? 'check' : 'close' }}
-              </mat-icon>
-            </ng-container>
-            <ng-container *ngIf="isEditing(obj)">
-              <mat-checkbox
-                [checked]="getPendingPermission(obj, 'events')"
-                (change)="togglePermission(obj, 'events')"
-                color="primary">
-              </mat-checkbox>
-            </ng-container>
-          </td>
-        </ng-container>
-
-        <!-- Actions Column -->
-        <ng-container matColumnDef="actions">
-          <th mat-header-cell *matHeaderCellDef>Actions</th>
-          <td mat-cell *matCellDef="let obj" class="actions-cell">
-            <ng-container *ngIf="!obj.isBaseObject">
-              <button mat-icon-button
-                      *ngIf="!isEditing(obj)"
-                      (click)="startEditing(obj)"
-                      matTooltip="Edit Permissions"
-                      color="primary">
-                <mat-icon>edit</mat-icon>
-              </button>
-              <ng-container *ngIf="isEditing(obj)">
-                <button mat-icon-button
-                        (click)="saveChanges(obj)"
-                        [disabled]="saving"
-                        matTooltip="Save"
-                        color="primary">
-                  <mat-icon>save</mat-icon>
-                </button>
-                <button mat-icon-button
-                        (click)="cancelEditing()"
-                        [disabled]="saving"
-                        matTooltip="Cancel">
-                  <mat-icon>close</mat-icon>
-                </button>
+              <!-- Expand Column -->
+              <ng-container matColumnDef="expand">
+                <th mat-header-cell *matHeaderCellDef></th>
+                <td mat-cell *matCellDef="let obj">
+                  <button mat-icon-button (click)="toggleExpand(obj)" class="expand-btn">
+                    <mat-icon>{{ isExpanded(obj) ? 'expand_less' : 'expand_more' }}</mat-icon>
+                  </button>
+                </td>
               </ng-container>
-            </ng-container>
-            <mat-icon *ngIf="obj.isBaseObject"
-                      class="readonly-icon"
-                      matTooltip="Framework object - Read Only">
-              lock
-            </mat-icon>
-          </td>
-        </ng-container>
 
-        <!-- Header and Row Definitions -->
-        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: displayedColumns;"
-            [class.base-object]="row.isBaseObject"
-            [class.user-created]="row.isUserCreated"
-            [class.server-only]="row.serverAccessOnly"
-            [class.expanded]="isExpanded(row)"
-            [class.editing]="isEditing(row)">
-        </tr>
-      </table>
+              <!-- Class Name Column -->
+              <ng-container matColumnDef="className">
+                <th mat-header-cell *matHeaderCellDef>Object</th>
+                <td mat-cell *matCellDef="let obj">
+                  <span class="class-name">{{ obj.className }}</span>
+                  <span class="endpoint" *ngIf="obj.crudeEndpoint">{{ obj.crudeEndpoint }}</span>
+                </td>
+              </ng-container>
 
-      <!-- No Data Message -->
-      <div *ngIf="filteredObjects.length === 0" class="no-data">
-        <mat-icon>inbox</mat-icon>
-        <p>No objects match your filters</p>
-      </div>
-    </mat-card>
+              <!-- Type Column -->
+              <ng-container matColumnDef="type">
+                <th mat-header-cell *matHeaderCellDef>Type</th>
+                <td mat-cell *matCellDef="let obj">
+                  <span class="type-chip" [ngClass]="getTypeClass(obj)">
+                    {{ getTypeLabel(obj) }}
+                  </span>
+                </td>
+              </ng-container>
 
-    <!-- Expanded Detail Panel -->
-    <mat-card *ngIf="selectedObject" class="detail-panel">
-      <mat-card-header>
-        <mat-card-title>
-          {{ selectedObject.className }} - Access Levels
-        </mat-card-title>
-        <span class="type-chip" [ngClass]="getTypeClass(selectedObject)">
-          {{ getTypeLabel(selectedObject) }}
-        </span>
-      </mat-card-header>
+              <!-- Create (C) Column -->
+              <ng-container matColumnDef="C">
+                <th mat-header-cell *matHeaderCellDef class="crud-header" matTooltip="Create">C</th>
+                <td mat-cell *matCellDef="let obj" class="crud-cell">
+                  <ng-container *ngIf="!isEditing(obj)">
+                    <mat-icon [ngClass]="getPermissionClass(obj, 'create')">
+                      {{ hasPermission(obj, 'create') ? 'check' : 'close' }}
+                    </mat-icon>
+                  </ng-container>
+                  <ng-container *ngIf="isEditing(obj)">
+                    <mat-checkbox
+                      [checked]="getPendingPermission(obj, 'create')"
+                      (change)="togglePermission(obj, 'create')"
+                      color="primary">
+                    </mat-checkbox>
+                  </ng-container>
+                </td>
+              </ng-container>
 
-      <mat-card-content>
-        <!-- General Access -->
-        <div class="access-section">
-          <h3>
-            <mat-icon>public</mat-icon>
-            General Access (Base Permissions)
-          </h3>
-          <div class="permission-summary">
-            <span>CRUDE: <strong>{{ getCrudeSummary(selectedObject) }}</strong></span>
-          </div>
-        </div>
+              <!-- Read (R) Column -->
+              <ng-container matColumnDef="R">
+                <th mat-header-cell *matHeaderCellDef class="crud-header" matTooltip="Read">R</th>
+                <td mat-cell *matCellDef="let obj" class="crud-cell">
+                  <ng-container *ngIf="!isEditing(obj)">
+                    <mat-icon [ngClass]="getPermissionClass(obj, 'read')">
+                      {{ hasPermission(obj, 'read') ? 'check' : 'close' }}
+                    </mat-icon>
+                  </ng-container>
+                  <ng-container *ngIf="isEditing(obj)">
+                    <mat-checkbox
+                      [checked]="getPendingPermission(obj, 'read')"
+                      (change)="togglePermission(obj, 'read')"
+                      color="primary">
+                    </mat-checkbox>
+                  </ng-container>
+                </td>
+              </ng-container>
 
-        <!-- Server Access -->
-        <div class="access-section">
-          <h3>
-            <mat-icon>dns</mat-icon>
-            Server Access Only
-          </h3>
-          <div class="permission-summary">
-            <span *ngIf="selectedObject.serverAccessOnly">
-              <mat-icon class="status-icon enabled">check_circle</mat-icon>
-              This object is only accessible by the server internally
-            </span>
-            <span *ngIf="!selectedObject.serverAccessOnly">
-              <mat-icon class="status-icon disabled">cancel</mat-icon>
-              External API access is allowed
-            </span>
-          </div>
-        </div>
+              <!-- Update (U) Column -->
+              <ng-container matColumnDef="U">
+                <th mat-header-cell *matHeaderCellDef class="crud-header" matTooltip="Update">U</th>
+                <td mat-cell *matCellDef="let obj" class="crud-cell">
+                  <ng-container *ngIf="!isEditing(obj)">
+                    <mat-icon [ngClass]="getPermissionClass(obj, 'update')">
+                      {{ hasPermission(obj, 'update') ? 'check' : 'close' }}
+                    </mat-icon>
+                  </ng-container>
+                  <ng-container *ngIf="isEditing(obj)">
+                    <mat-checkbox
+                      [checked]="getPendingPermission(obj, 'update')"
+                      (change)="togglePermission(obj, 'update')"
+                      color="primary">
+                    </mat-checkbox>
+                  </ng-container>
+                </td>
+              </ng-container>
 
-        <!-- Role Access -->
-        <div class="access-section">
-          <h3>
-            <mat-icon>group</mat-icon>
-            Role Access (User Groups)
-          </h3>
-          <div class="groups-list" *ngIf="getGroupsWithAccess(selectedObject.className).length > 0">
-            <div *ngFor="let group of getGroupsWithAccess(selectedObject.className)" class="group-item">
-              <mat-icon>people</mat-icon>
-              <span class="group-name">{{ group.name }}</span>
-              <span class="user-count">({{ group.userCount }} users)</span>
+              <!-- Delete (D) Column -->
+              <ng-container matColumnDef="D">
+                <th mat-header-cell *matHeaderCellDef class="crud-header" matTooltip="Delete">D</th>
+                <td mat-cell *matCellDef="let obj" class="crud-cell">
+                  <ng-container *ngIf="!isEditing(obj)">
+                    <mat-icon [ngClass]="getPermissionClass(obj, 'delete')">
+                      {{ hasPermission(obj, 'delete') ? 'check' : 'close' }}
+                    </mat-icon>
+                  </ng-container>
+                  <ng-container *ngIf="isEditing(obj)">
+                    <mat-checkbox
+                      [checked]="getPendingPermission(obj, 'delete')"
+                      (change)="togglePermission(obj, 'delete')"
+                      color="primary">
+                    </mat-checkbox>
+                  </ng-container>
+                </td>
+              </ng-container>
+
+              <!-- Events (E) Column -->
+              <ng-container matColumnDef="E">
+                <th mat-header-cell *matHeaderCellDef class="crud-header" matTooltip="Events">E</th>
+                <td mat-cell *matCellDef="let obj" class="crud-cell">
+                  <ng-container *ngIf="!isEditing(obj)">
+                    <mat-icon [ngClass]="getPermissionClass(obj, 'events')">
+                      {{ hasPermission(obj, 'events') ? 'check' : 'close' }}
+                    </mat-icon>
+                  </ng-container>
+                  <ng-container *ngIf="isEditing(obj)">
+                    <mat-checkbox
+                      [checked]="getPendingPermission(obj, 'events')"
+                      (change)="togglePermission(obj, 'events')"
+                      color="primary">
+                    </mat-checkbox>
+                  </ng-container>
+                </td>
+              </ng-container>
+
+              <!-- Actions Column -->
+              <ng-container matColumnDef="actions">
+                <th mat-header-cell *matHeaderCellDef>Actions</th>
+                <td mat-cell *matCellDef="let obj" class="actions-cell">
+                  <ng-container *ngIf="!obj.isBaseObject">
+                    <button mat-icon-button
+                            *ngIf="!isEditing(obj)"
+                            (click)="startEditing(obj)"
+                            matTooltip="Edit Permissions"
+                            color="primary">
+                      <mat-icon>edit</mat-icon>
+                    </button>
+                    <ng-container *ngIf="isEditing(obj)">
+                      <button mat-icon-button
+                              (click)="saveChanges(obj)"
+                              [disabled]="saving"
+                              matTooltip="Save"
+                              color="primary">
+                        <mat-icon>save</mat-icon>
+                      </button>
+                      <button mat-icon-button
+                              (click)="cancelEditing()"
+                              [disabled]="saving"
+                              matTooltip="Cancel">
+                        <mat-icon>close</mat-icon>
+                      </button>
+                    </ng-container>
+                  </ng-container>
+                  <mat-icon *ngIf="obj.isBaseObject"
+                            class="readonly-icon"
+                            matTooltip="Framework object - Read Only">
+                    lock
+                  </mat-icon>
+                </td>
+              </ng-container>
+
+              <!-- Header and Row Definitions -->
+              <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+              <tr mat-row *matRowDef="let row; columns: displayedColumns;"
+                  [class.base-object]="row.isBaseObject"
+                  [class.user-created]="row.isUserCreated"
+                  [class.server-only]="row.serverAccessOnly"
+                  [class.expanded]="isExpanded(row)"
+                  [class.editing]="isEditing(row)">
+              </tr>
+            </table>
+
+            <!-- No Data Message -->
+            <div *ngIf="filteredObjects.length === 0" class="no-data">
+              <mat-icon>inbox</mat-icon>
+              <p>No objects match your filters</p>
             </div>
+          </mat-card>
+
+          <!-- Expanded Detail Panel -->
+          <mat-card *ngIf="selectedObject" class="detail-panel">
+            <mat-card-header>
+              <mat-card-title>
+                {{ selectedObject.className }} - Access Levels
+              </mat-card-title>
+              <span class="type-chip" [ngClass]="getTypeClass(selectedObject)">
+                {{ getTypeLabel(selectedObject) }}
+              </span>
+            </mat-card-header>
+
+            <mat-card-content>
+              <!-- General Access -->
+              <div class="access-section">
+                <h3>
+                  <mat-icon>public</mat-icon>
+                  General Access (Base Permissions)
+                </h3>
+                <div class="permission-summary">
+                  <span>CRUDE: <strong>{{ getCrudeSummary(selectedObject) }}</strong></span>
+                </div>
+              </div>
+
+              <!-- Server Access -->
+              <div class="access-section">
+                <h3>
+                  <mat-icon>dns</mat-icon>
+                  Server Access Only
+                </h3>
+                <div class="permission-summary">
+                  <span *ngIf="selectedObject.serverAccessOnly">
+                    <mat-icon class="status-icon enabled">check_circle</mat-icon>
+                    This object is only accessible by the server internally
+                  </span>
+                  <span *ngIf="!selectedObject.serverAccessOnly">
+                    <mat-icon class="status-icon disabled">cancel</mat-icon>
+                    External API access is allowed
+                  </span>
+                </div>
+              </div>
+
+              <!-- Role Access -->
+              <div class="access-section">
+                <h3>
+                  <mat-icon>group</mat-icon>
+                  Role Access (User Groups)
+                </h3>
+                <div class="groups-list" *ngIf="getGroupsWithAccess(selectedObject.className).length > 0">
+                  <div *ngFor="let group of getGroupsWithAccess(selectedObject.className)" class="group-item">
+                    <mat-icon>people</mat-icon>
+                    <span class="group-name">{{ group.name }}</span>
+                    <span class="user-count">({{ group.userCount }} users)</span>
+                  </div>
+                </div>
+                <p *ngIf="getGroupsWithAccess(selectedObject.className).length === 0" class="no-access">
+                  No user groups have specific permissions for this object
+                </p>
+              </div>
+
+              <!-- Direct User Access -->
+              <div class="access-section">
+                <h3>
+                  <mat-icon>person</mat-icon>
+                  Direct User Access
+                </h3>
+                <div class="users-list" *ngIf="getUsersWithAccess(selectedObject.className).length > 0">
+                  <div *ngFor="let user of getUsersWithAccess(selectedObject.className)" class="user-item">
+                    <mat-icon>person</mat-icon>
+                    <span class="username">{{ user.username }}</span>
+                  </div>
+                </div>
+                <p *ngIf="getUsersWithAccess(selectedObject.className).length === 0" class="no-access">
+                  No users have direct permissions for this object
+                </p>
+              </div>
+
+              <!-- Variable-Level CRUD Permissions -->
+              <div class="access-section" *ngIf="selectedObject.variables && selectedObject.variables.length > 0">
+                <h3>
+                  <mat-icon>code</mat-icon>
+                  Variable-Level Permissions ({{ selectedObject.variables.length }})
+                </h3>
+                <div class="compact-table">
+                  <div class="compact-header">
+                    <span class="col-name">Variable</span>
+                    <span class="col-type">Type</span>
+                    <span class="col-crud">C</span>
+                    <span class="col-crud">R</span>
+                    <span class="col-crud">U</span>
+                  </div>
+                  <div *ngFor="let variable of selectedObject.variables" class="compact-row">
+                    <span class="col-name">
+                      {{ variable.name }}
+                      <mat-icon *ngIf="variable.isIdentifier" class="mini-icon id" matTooltip="Identifier (read-only)">key</mat-icon>
+                      <mat-icon *ngIf="variable.isRequired" class="mini-icon required" matTooltip="Required">star</mat-icon>
+                    </span>
+                    <span class="col-type">{{ variable.type }}</span>
+                    <span class="col-crud">
+                      <mat-icon [class]="variable.crud?.create ? 'perm-yes' : 'perm-no'">
+                        {{ variable.crud?.create ? 'check' : 'close' }}
+                      </mat-icon>
+                    </span>
+                    <span class="col-crud">
+                      <mat-icon [class]="variable.crud?.read ? 'perm-yes' : 'perm-no'">
+                        {{ variable.crud?.read ? 'check' : 'close' }}
+                      </mat-icon>
+                    </span>
+                    <span class="col-crud">
+                      <mat-icon [class]="variable.crud?.update ? 'perm-yes' : 'perm-no'">
+                        {{ variable.crud?.update ? 'check' : 'close' }}
+                      </mat-icon>
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Event-Level Permissions -->
+              <div class="access-section" *ngIf="selectedObject.events && selectedObject.events.length > 0">
+                <h3>
+                  <mat-icon>bolt</mat-icon>
+                  Event-Level Permissions ({{ selectedObject.events.length }})
+                </h3>
+                <div class="compact-table">
+                  <div class="compact-header">
+                    <span class="col-name">Event/Method</span>
+                    <span class="col-access">Accessible</span>
+                    <span class="col-auth">Auth Required</span>
+                  </div>
+                  <div *ngFor="let event of selectedObject.events" class="compact-row">
+                    <span class="col-name">{{ event.name }}</span>
+                    <span class="col-access">
+                      <mat-icon [class]="event.accessible ? 'perm-yes' : 'perm-no'">
+                        {{ event.accessible ? 'check' : 'close' }}
+                      </mat-icon>
+                    </span>
+                    <span class="col-auth">
+                      <mat-icon [class]="event.requiresAuth ? 'perm-auth' : 'perm-no-auth'">
+                        {{ event.requiresAuth ? 'lock' : 'lock_open' }}
+                      </mat-icon>
+                    </span>
+                  </div>
+                </div>
+                <p *ngIf="selectedObject.events.length === 0" class="no-access">
+                  No events defined for this object
+                </p>
+              </div>
+
+              <!-- Read-Only Notice -->
+              <div class="readonly-notice" *ngIf="selectedObject.isBaseObject">
+                <mat-icon>lock</mat-icon>
+                <span>This is a framework object. Permissions cannot be modified.</span>
+              </div>
+            </mat-card-content>
+          </mat-card>
+        </ng-template>
+      </mat-tab>
+
+      <!-- Tab 2: API Formats -->
+      <mat-tab label="API Formats">
+        <ng-template matTabContent>
+          <div class="formats-tab-content">
+
+            <!-- Format Legend -->
+            <div class="legend">
+              <span class="legend-item">
+                <mat-icon class="format-icon tree">account_tree</mat-icon> Polari Tree (Always On)
+              </span>
+              <span class="legend-item">
+                <mat-icon class="format-icon flat">data_object</mat-icon> Flat JSON (Opt-In)
+              </span>
+              <span class="legend-item">
+                <mat-icon class="format-icon d3">bar_chart</mat-icon> D3 Column (Opt-In)
+              </span>
+            </div>
+
+            <!-- Format Error Banner -->
+            <div *ngIf="formatError" class="error-banner">
+              <mat-icon color="warn">error</mat-icon>
+              <span>{{ formatError }}</span>
+              <button mat-icon-button (click)="formatError = null">
+                <mat-icon>close</mat-icon>
+              </button>
+            </div>
+
+            <!-- Format Configuration Table -->
+            <mat-card class="matrix-card">
+              <table mat-table [dataSource]="filteredObjects" class="format-matrix">
+
+                <!-- Class Name Column -->
+                <ng-container matColumnDef="className">
+                  <th mat-header-cell *matHeaderCellDef>Object</th>
+                  <td mat-cell *matCellDef="let obj">
+                    <span class="class-name">{{ obj.className }}</span>
+                  </td>
+                </ng-container>
+
+                <!-- Type Column -->
+                <ng-container matColumnDef="type">
+                  <th mat-header-cell *matHeaderCellDef>Type</th>
+                  <td mat-cell *matCellDef="let obj">
+                    <span class="type-chip" [ngClass]="getTypeClass(obj)">
+                      {{ getTypeLabel(obj) }}
+                    </span>
+                  </td>
+                </ng-container>
+
+                <!-- Polari Tree Column (always enabled) -->
+                <ng-container matColumnDef="polariTree">
+                  <th mat-header-cell *matHeaderCellDef class="format-header">
+                    <mat-icon>account_tree</mat-icon> Polari Tree
+                  </th>
+                  <td mat-cell *matCellDef="let obj" class="format-cell">
+                    <mat-icon class="format-always-on">check_circle</mat-icon>
+                    <span class="endpoint-label" *ngIf="getFormatEndpoint(obj, 'polariTree')">
+                      {{ getFormatEndpoint(obj, 'polariTree') }}
+                    </span>
+                  </td>
+                </ng-container>
+
+                <!-- Flat JSON Column -->
+                <ng-container matColumnDef="flatJson">
+                  <th mat-header-cell *matHeaderCellDef class="format-header">
+                    <mat-icon>data_object</mat-icon> Flat JSON
+                  </th>
+                  <td mat-cell *matCellDef="let obj" class="format-cell">
+                    <div class="format-toggle-row">
+                      <mat-slide-toggle
+                        [checked]="isFormatEnabled(obj, 'flatJson')"
+                        [disabled]="obj.isBaseObject || savingFormat"
+                        (change)="toggleFormat(obj, 'flatJson')"
+                        color="primary">
+                      </mat-slide-toggle>
+                    </div>
+                    <div class="format-endpoint-row" *ngIf="isFormatEnabled(obj, 'flatJson')">
+                      <span class="endpoint-label">{{ getFormatEndpoint(obj, 'flatJson') }}</span>
+                    </div>
+                    <div class="format-prefix-row">
+                      <ng-container *ngIf="!isEditingPrefix(obj, 'flatJson')">
+                        <span class="prefix-label"
+                              [class.clickable]="!obj.isBaseObject"
+                              (click)="startEditingPrefix(obj, 'flatJson')"
+                              matTooltip="Click to change endpoint prefix">
+                          prefix: {{ getFormatPrefix(obj, 'flatJson') }}
+                        </span>
+                      </ng-container>
+                      <ng-container *ngIf="isEditingPrefix(obj, 'flatJson')">
+                        <div class="prefix-edit">
+                          <input matInput
+                                 [(ngModel)]="editingPrefixValue"
+                                 placeholder="/flat/"
+                                 class="prefix-input">
+                          <button mat-icon-button (click)="savePrefix(obj, 'flatJson')" [disabled]="savingFormat" color="primary">
+                            <mat-icon>check</mat-icon>
+                          </button>
+                          <button mat-icon-button (click)="cancelEditingPrefix()">
+                            <mat-icon>close</mat-icon>
+                          </button>
+                        </div>
+                      </ng-container>
+                    </div>
+                  </td>
+                </ng-container>
+
+                <!-- D3 Column Column -->
+                <ng-container matColumnDef="d3Column">
+                  <th mat-header-cell *matHeaderCellDef class="format-header">
+                    <mat-icon>bar_chart</mat-icon> D3 Column
+                  </th>
+                  <td mat-cell *matCellDef="let obj" class="format-cell">
+                    <div class="format-toggle-row">
+                      <mat-slide-toggle
+                        [checked]="isFormatEnabled(obj, 'd3Column')"
+                        [disabled]="obj.isBaseObject || savingFormat"
+                        (change)="toggleFormat(obj, 'd3Column')"
+                        color="primary">
+                      </mat-slide-toggle>
+                    </div>
+                    <div class="format-endpoint-row" *ngIf="isFormatEnabled(obj, 'd3Column')">
+                      <span class="endpoint-label">{{ getFormatEndpoint(obj, 'd3Column') }}</span>
+                    </div>
+                    <div class="format-prefix-row">
+                      <ng-container *ngIf="!isEditingPrefix(obj, 'd3Column')">
+                        <span class="prefix-label"
+                              [class.clickable]="!obj.isBaseObject"
+                              (click)="startEditingPrefix(obj, 'd3Column')"
+                              matTooltip="Click to change endpoint prefix">
+                          prefix: {{ getFormatPrefix(obj, 'd3Column') }}
+                        </span>
+                      </ng-container>
+                      <ng-container *ngIf="isEditingPrefix(obj, 'd3Column')">
+                        <div class="prefix-edit">
+                          <input matInput
+                                 [(ngModel)]="editingPrefixValue"
+                                 placeholder="/d3/"
+                                 class="prefix-input">
+                          <button mat-icon-button (click)="savePrefix(obj, 'd3Column')" [disabled]="savingFormat" color="primary">
+                            <mat-icon>check</mat-icon>
+                          </button>
+                          <button mat-icon-button (click)="cancelEditingPrefix()">
+                            <mat-icon>close</mat-icon>
+                          </button>
+                        </div>
+                      </ng-container>
+                    </div>
+                  </td>
+                </ng-container>
+
+                <tr mat-header-row *matHeaderRowDef="formatColumns"></tr>
+                <tr mat-row *matRowDef="let row; columns: formatColumns;"
+                    [class.base-object]="row.isBaseObject">
+                </tr>
+              </table>
+
+              <!-- No Data Message -->
+              <div *ngIf="filteredObjects.length === 0" class="no-data">
+                <mat-icon>inbox</mat-icon>
+                <p>No objects match your filters</p>
+              </div>
+            </mat-card>
           </div>
-          <p *ngIf="getGroupsWithAccess(selectedObject.className).length === 0" class="no-access">
-            No user groups have specific permissions for this object
-          </p>
-        </div>
+        </ng-template>
+      </mat-tab>
 
-        <!-- Direct User Access -->
-        <div class="access-section">
-          <h3>
-            <mat-icon>person</mat-icon>
-            Direct User Access
-          </h3>
-          <div class="users-list" *ngIf="getUsersWithAccess(selectedObject.className).length > 0">
-            <div *ngFor="let user of getUsersWithAccess(selectedObject.className)" class="user-item">
-              <mat-icon>person</mat-icon>
-              <span class="username">{{ user.username }}</span>
-            </div>
-          </div>
-          <p *ngIf="getUsersWithAccess(selectedObject.className).length === 0" class="no-access">
-            No users have direct permissions for this object
-          </p>
-        </div>
-
-        <!-- Variable-Level CRUD Permissions -->
-        <div class="access-section" *ngIf="selectedObject.variables && selectedObject.variables.length > 0">
-          <h3>
-            <mat-icon>code</mat-icon>
-            Variable-Level Permissions ({{ selectedObject.variables.length }})
-          </h3>
-          <div class="compact-table">
-            <div class="compact-header">
-              <span class="col-name">Variable</span>
-              <span class="col-type">Type</span>
-              <span class="col-crud">C</span>
-              <span class="col-crud">R</span>
-              <span class="col-crud">U</span>
-            </div>
-            <div *ngFor="let variable of selectedObject.variables" class="compact-row">
-              <span class="col-name">
-                {{ variable.name }}
-                <mat-icon *ngIf="variable.isIdentifier" class="mini-icon id" matTooltip="Identifier (read-only)">key</mat-icon>
-                <mat-icon *ngIf="variable.isRequired" class="mini-icon required" matTooltip="Required">star</mat-icon>
-              </span>
-              <span class="col-type">{{ variable.type }}</span>
-              <span class="col-crud">
-                <mat-icon [class]="variable.crud?.create ? 'perm-yes' : 'perm-no'">
-                  {{ variable.crud?.create ? 'check' : 'close' }}
-                </mat-icon>
-              </span>
-              <span class="col-crud">
-                <mat-icon [class]="variable.crud?.read ? 'perm-yes' : 'perm-no'">
-                  {{ variable.crud?.read ? 'check' : 'close' }}
-                </mat-icon>
-              </span>
-              <span class="col-crud">
-                <mat-icon [class]="variable.crud?.update ? 'perm-yes' : 'perm-no'">
-                  {{ variable.crud?.update ? 'check' : 'close' }}
-                </mat-icon>
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Event-Level Permissions -->
-        <div class="access-section" *ngIf="selectedObject.events && selectedObject.events.length > 0">
-          <h3>
-            <mat-icon>bolt</mat-icon>
-            Event-Level Permissions ({{ selectedObject.events.length }})
-          </h3>
-          <div class="compact-table">
-            <div class="compact-header">
-              <span class="col-name">Event/Method</span>
-              <span class="col-access">Accessible</span>
-              <span class="col-auth">Auth Required</span>
-            </div>
-            <div *ngFor="let event of selectedObject.events" class="compact-row">
-              <span class="col-name">{{ event.name }}</span>
-              <span class="col-access">
-                <mat-icon [class]="event.accessible ? 'perm-yes' : 'perm-no'">
-                  {{ event.accessible ? 'check' : 'close' }}
-                </mat-icon>
-              </span>
-              <span class="col-auth">
-                <mat-icon [class]="event.requiresAuth ? 'perm-auth' : 'perm-no-auth'">
-                  {{ event.requiresAuth ? 'lock' : 'lock_open' }}
-                </mat-icon>
-              </span>
-            </div>
-          </div>
-          <p *ngIf="selectedObject.events.length === 0" class="no-access">
-            No events defined for this object
-          </p>
-        </div>
-
-        <!-- Read-Only Notice -->
-        <div class="readonly-notice" *ngIf="selectedObject.isBaseObject">
-          <mat-icon>lock</mat-icon>
-          <span>This is a framework object. Permissions cannot be modified.</span>
-        </div>
-      </mat-card-content>
-    </mat-card>
-
+    </mat-tab-group>
   </div>
 </div>

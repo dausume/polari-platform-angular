@@ -24,6 +24,7 @@ import { MatDialogModule } from '@angular/material/dialog';
 import { MatListModule } from '@angular/material/list';
 import { MatIconModule } from '@angular/material/icon';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatTabsModule } from '@angular/material/tabs';
 //NgRx
 import { StoreModule } from '@ngrx/store';
 import { EffectsModule } from '@ngrx/effects';
@@ -200,6 +201,7 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     MatListModule,
     MatIconModule,
     MatCheckboxModule,
+    MatTabsModule,
     // Shared CRUD Module
     SharedCrudModule,
     // NgRx

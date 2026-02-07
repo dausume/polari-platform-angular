@@ -9,7 +9,9 @@ import {
   PermissionSetInfo,
   CRUDEPermissions,
   AccessLevel,
-  PermissionUpdateRequest
+  PermissionUpdateRequest,
+  ApiFormatType,
+  FormatUpdateRequest
 } from '@models/apiConfig';
 
 /**
@@ -53,6 +55,14 @@ export class ApiConfigComponent implements OnInit, OnDestroy {
 
   // Table columns
   displayedColumns: string[] = ['expand', 'className', 'type', 'C', 'R', 'U', 'D', 'E', 'actions'];
+
+  // API Formats tab state
+  activeTab: number = 0;
+  formatColumns: string[] = ['className', 'type', 'polariTree', 'flatJson', 'd3Column'];
+  savingFormat: boolean = false;
+  formatError: string | null = null;
+  editingPrefix: { className: string; format: ApiFormatType } | null = null;
+  editingPrefixValue: string = '';
 
   private subscriptions: Subscription[] = [];
 
@@ -347,5 +357,131 @@ export class ApiConfigComponent implements OnInit, OnDestroy {
     if (crude.events) parts.push('E');
 
     return parts.length > 0 ? parts.join('') : 'None';
+  }
+
+  // ===== API Formats Tab Methods =====
+
+  onTabChange(event: any): void {
+    this.activeTab = event.index;
+  }
+
+  isFormatEnabled(obj: ApiConfigObject, format: ApiFormatType): boolean {
+    return obj.apiFormats?.[format]?.enabled ?? false;
+  }
+
+  getFormatEndpoint(obj: ApiConfigObject, format: ApiFormatType): string | null {
+    return obj.apiFormats?.[format]?.endpoint ?? null;
+  }
+
+  getFormatPrefix(obj: ApiConfigObject, format: ApiFormatType): string | null {
+    return obj.apiFormats?.[format]?.prefix ?? null;
+  }
+
+  getFormatLabel(format: ApiFormatType): string {
+    switch (format) {
+      case 'polariTree': return 'Polari Tree (CRUDE)';
+      case 'flatJson': return 'Flat JSON (REST)';
+      case 'd3Column': return 'D3 Column Series';
+    }
+  }
+
+  getFormatIcon(format: ApiFormatType): string {
+    switch (format) {
+      case 'polariTree': return 'account_tree';
+      case 'flatJson': return 'data_object';
+      case 'd3Column': return 'bar_chart';
+    }
+  }
+
+  toggleFormat(obj: ApiConfigObject, format: ApiFormatType): void {
+    if (obj.isBaseObject || format === 'polariTree') return;
+
+    this.savingFormat = true;
+    this.formatError = null;
+
+    const request: FormatUpdateRequest = {
+      className: obj.className,
+    };
+
+    if (format === 'flatJson') {
+      request.flatJson = !this.isFormatEnabled(obj, 'flatJson');
+    } else if (format === 'd3Column') {
+      request.d3Column = !this.isFormatEnabled(obj, 'd3Column');
+    }
+
+    const sub = this.apiConfigService.updateFormats(request).subscribe({
+      next: (response) => {
+        if (response.success) {
+          this.loadData();
+        } else {
+          this.formatError = response.error || 'Failed to update format';
+        }
+        this.savingFormat = false;
+      },
+      error: (err) => {
+        console.error('[ApiConfig] Error updating format:', err);
+        this.formatError = err.error?.error || err.message || 'Failed to update format';
+        this.savingFormat = false;
+      }
+    });
+    this.subscriptions.push(sub);
+  }
+
+  startEditingPrefix(obj: ApiConfigObject, format: ApiFormatType): void {
+    if (obj.isBaseObject || format === 'polariTree') return;
+    this.editingPrefix = { className: obj.className, format };
+    this.editingPrefixValue = this.getFormatPrefix(obj, format) || '';
+  }
+
+  cancelEditingPrefix(): void {
+    this.editingPrefix = null;
+    this.editingPrefixValue = '';
+  }
+
+  isEditingPrefix(obj: ApiConfigObject, format: ApiFormatType): boolean {
+    return this.editingPrefix?.className === obj.className && this.editingPrefix?.format === format;
+  }
+
+  savePrefix(obj: ApiConfigObject, format: ApiFormatType): void {
+    if (!this.editingPrefix) return;
+
+    this.savingFormat = true;
+    this.formatError = null;
+
+    const request: FormatUpdateRequest = {
+      className: obj.className,
+    };
+
+    if (format === 'flatJson') {
+      request.flatJsonPrefix = this.editingPrefixValue;
+      // Re-enable to re-register with new prefix
+      if (this.isFormatEnabled(obj, 'flatJson')) {
+        request.flatJson = true;
+      }
+    } else if (format === 'd3Column') {
+      request.d3ColumnPrefix = this.editingPrefixValue;
+      if (this.isFormatEnabled(obj, 'd3Column')) {
+        request.d3Column = true;
+      }
+    }
+
+    const sub = this.apiConfigService.updateFormats(request).subscribe({
+      next: (response) => {
+        if (response.success) {
+          this.loadData();
+          this.editingPrefix = null;
+          this.editingPrefixValue = '';
+        } else {
+          this.formatError = response.error || 'Failed to update prefix';
+        }
+        this.savingFormat = false;
+      },
+      error: (err) => {
+        console.error('[ApiConfig] Error updating prefix:', err);
+        this.formatError = err.error?.error || err.message || 'Failed to update prefix';
+        this.savingFormat = false;
+      }
+    });
+    this.subscriptions.push(sub);
   }
 }
