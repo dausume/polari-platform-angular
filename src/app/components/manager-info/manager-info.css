@@ -88,6 +88,20 @@ mat-card-title {
   color: rgba(0, 0, 0, 0.87);
 }
 
+.database-mode {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.database-mode mat-icon {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+  margin-left: 0;
+  color: rgba(0, 0, 0, 0.6);
+}
+
 .property-item mat-icon {
   margin-left: auto;
 }

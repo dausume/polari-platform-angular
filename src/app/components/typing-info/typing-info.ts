@@ -4,6 +4,8 @@ import { Subscription } from 'rxjs';
 
 interface VariableInfo {
   name: string;
+  pythonTypeDefault: string;
+  displayName: string;
   recordedTypes: string[];
   recordedFormats: string[];
   isPrimary: boolean;
@@ -110,11 +112,14 @@ export class TypingInfoComponent implements OnInit, OnDestroy {
     return obj ? Object.keys(obj) : [];
   }
 
-  // Calculate total types recorded across all variables
+  // Calculate total unique types across all variables
   getTotalTypesRecorded(classData: TypeData): number {
     const typesSet = new Set<string>();
     classData.variables.forEach(v => {
-      v.recordedTypes.forEach(t => typesSet.add(t));
+      if (v.pythonTypeDefault) {
+        typesSet.add(v.pythonTypeDefault);
+      }
+      v.recordedTypes?.forEach(t => typesSet.add(t));
     });
     return typesSet.size;
   }

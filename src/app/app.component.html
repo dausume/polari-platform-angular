@@ -18,30 +18,72 @@
                 <span>Object Pages ({{ dynamicClassNavComponents.length }})</span>
             </mat-list-item>
 
-            <!-- Dynamic Class Pages WITH instances (collapsible) -->
+            <!-- Object Pages Sub-categories (collapsible) -->
             <div *ngIf="objectPagesExpanded" class="dropdown-items">
-                <mat-list-item
-                    *ngFor="let classNav of dynamicClassNavComponents"
-                    (click)="navigateToClassPage(classNav)"
-                    class="dropdown-item">
-                    <span class="dropdown-item-text">{{ classNav.title }}</span>
+
+                <!-- Framework Objects sub-dropdown -->
+                <mat-list-item *ngIf="getObjectPagesByCategory('framework').length > 0"
+                    (click)="toggleObjectPagesSub('framework')" class="sub-dropdown-header sub-framework-header">
+                    <mat-icon>{{ objectPagesSubExpanded.framework ? 'expand_less' : 'expand_more' }}</mat-icon>
+                    <span>Framework Objects ({{ getObjectPagesByCategory('framework').length }})</span>
                 </mat-list-item>
+                <div *ngIf="objectPagesSubExpanded.framework" class="sub-dropdown-items sub-framework-items">
+                    <mat-list-item *ngFor="let classNav of getObjectPagesByCategory('framework')"
+                        (click)="navigateToClassPage(classNav)" class="dropdown-item sub-dropdown-item">
+                        <span class="dropdown-item-text">{{ classNav.title }}</span>
+                    </mat-list-item>
+                </div>
+
+                <!-- Custom Objects sub-dropdown -->
+                <mat-list-item *ngIf="getObjectPagesByCategory('custom').length > 0"
+                    (click)="toggleObjectPagesSub('custom')" class="sub-dropdown-header sub-custom-header">
+                    <mat-icon>{{ objectPagesSubExpanded.custom ? 'expand_less' : 'expand_more' }}</mat-icon>
+                    <span>Custom Objects ({{ getObjectPagesByCategory('custom').length }})</span>
+                </mat-list-item>
+                <div *ngIf="objectPagesSubExpanded.custom" class="sub-dropdown-items sub-custom-items">
+                    <mat-list-item *ngFor="let classNav of getObjectPagesByCategory('custom')"
+                        (click)="navigateToClassPage(classNav)" class="dropdown-item sub-dropdown-item">
+                        <span class="dropdown-item-text">{{ classNav.title }}</span>
+                    </mat-list-item>
+                </div>
+
             </div>
 
-            <!-- Unused Objects Dropdown (nested under Object Pages, only show if we have unused classes) -->
+            <!-- Unused Objects Dropdown (only show if we have unused classes) -->
             <mat-list-item *ngIf="unusedClassNavComponents.length > 0" (click)="toggleUnusedPages()" class="dropdown-header unused-header">
                 <mat-icon>{{ unusedPagesExpanded ? 'expand_less' : 'expand_more' }}</mat-icon>
                 <span>Unused Objects ({{ unusedClassNavComponents.length }})</span>
             </mat-list-item>
 
-            <!-- Unused Class Pages WITHOUT instances (collapsible) -->
+            <!-- Unused Objects Sub-categories (collapsible) -->
             <div *ngIf="unusedPagesExpanded" class="dropdown-items unused-items">
-                <mat-list-item
-                    *ngFor="let classNav of unusedClassNavComponents"
-                    (click)="navigateToClassPage(classNav)"
-                    class="dropdown-item unused-item">
-                    <span class="dropdown-item-text">{{ classNav.title }}</span>
+
+                <!-- Framework Objects sub-dropdown (unused) -->
+                <mat-list-item *ngIf="getUnusedPagesByCategory('framework').length > 0"
+                    (click)="toggleUnusedPagesSub('framework')" class="sub-dropdown-header sub-framework-header">
+                    <mat-icon>{{ unusedPagesSubExpanded.framework ? 'expand_less' : 'expand_more' }}</mat-icon>
+                    <span>Framework Objects ({{ getUnusedPagesByCategory('framework').length }})</span>
                 </mat-list-item>
+                <div *ngIf="unusedPagesSubExpanded.framework" class="sub-dropdown-items sub-framework-items">
+                    <mat-list-item *ngFor="let classNav of getUnusedPagesByCategory('framework')"
+                        (click)="navigateToClassPage(classNav)" class="dropdown-item sub-dropdown-item unused-item">
+                        <span class="dropdown-item-text">{{ classNav.title }}</span>
+                    </mat-list-item>
+                </div>
+
+                <!-- Custom Objects sub-dropdown (unused) -->
+                <mat-list-item *ngIf="getUnusedPagesByCategory('custom').length > 0"
+                    (click)="toggleUnusedPagesSub('custom')" class="sub-dropdown-header sub-custom-header">
+                    <mat-icon>{{ unusedPagesSubExpanded.custom ? 'expand_less' : 'expand_more' }}</mat-icon>
+                    <span>Custom Objects ({{ getUnusedPagesByCategory('custom').length }})</span>
+                </mat-list-item>
+                <div *ngIf="unusedPagesSubExpanded.custom" class="sub-dropdown-items sub-custom-items">
+                    <mat-list-item *ngFor="let classNav of getUnusedPagesByCategory('custom')"
+                        (click)="navigateToClassPage(classNav)" class="dropdown-item sub-dropdown-item unused-item">
+                        <span class="dropdown-item-text">{{ classNav.title }}</span>
+                    </mat-list-item>
+                </div>
+
             </div>
           </mat-nav-list>
     </mat-sidenav>

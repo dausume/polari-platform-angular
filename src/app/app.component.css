@@ -104,3 +104,58 @@ mat-sidenav-container {
   .unused-item:hover {
     background-color: rgba(128, 128, 128, 0.1);
   }
+
+  /* Sub-dropdown Styles (nested category headers) */
+  .sub-dropdown-header {
+    cursor: pointer;
+    border-radius: 4px;
+    margin-top: 4px;
+    padding-left: 16px !important;
+    font-size: 0.9em;
+    font-weight: 500;
+  }
+
+  .sub-dropdown-header:hover {
+    filter: brightness(0.92);
+  }
+
+  .sub-dropdown-header mat-icon {
+    margin-right: 6px;
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+
+  .sub-dropdown-items {
+    border-left: 2px solid;
+    margin-left: 20px;
+    max-height: 250px;
+    overflow-y: auto;
+  }
+
+  .sub-dropdown-item {
+    padding-left: 32px !important;
+    font-size: 0.85em;
+  }
+
+  /* Framework Objects - blue theme */
+  .sub-framework-header {
+    background-color: rgba(63, 81, 181, 0.08);
+    color: #3f51b5;
+  }
+
+  .sub-framework-items {
+    border-left-color: #3f51b5;
+    background-color: rgba(63, 81, 181, 0.03);
+  }
+
+  /* Custom Objects - green theme */
+  .sub-custom-header {
+    background-color: rgba(76, 175, 80, 0.08);
+    color: #2e7d32;
+  }
+
+  .sub-custom-items {
+    border-left-color: #4caf50;
+    background-color: rgba(76, 175, 80, 0.03);
+  }

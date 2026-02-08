@@ -5,7 +5,9 @@ import { PolariService } from "./polari-service"
 import { DataSetCollection } from "@models/objectData/dataSetCollection";
 import { classPolyTyping, ClassConfig } from "@models/polyTyping/classPolyTyping";
 import { variablePolyTyping } from "@models/polyTyping/variablePolyTyping";
-import { navComponent } from "@models/navComponent";
+import { navComponent, ObjectCategory } from "@models/navComponent";
+import { ApiConfigService } from "./api-config.service";
+import { ApiConfigObject } from "@models/apiConfig";
 import { BehaviorSubject, Observable, Subscription } from "rxjs";
 
 //A service that provides the overall typing for the different objects, as well as serves functions related to typing data.
@@ -30,7 +32,8 @@ export class ClassTypingService {
         new navComponent("Create Class","create-class","CreateNewClassComponent", {}, []),
         new navComponent("Custom No-Code","custom-no-code","CustomNoCodeComponent", {}, []),
         new navComponent("API Profiler","api-profiler","ApiProfilerComponent", {}, []),
-        new navComponent("API Config","api-config","ApiConfigComponent", {}, [])
+        new navComponent("API Config","api-config","ApiConfigComponent", {}, []),
+        new navComponent("System Diagnostics","system-diagnostics","SystemDiagnosticsComponent", {}, [])
     ]
 
     // Dynamic navigation items for object class pages WITH instances (shown in main dropdown)
@@ -43,6 +46,9 @@ export class ClassTypingService {
     classesWithInstances: string[] = [];
     // Classes without instances (from backend)
     classesWithoutInstances: string[] = [];
+
+    // Cached object category map from /api-config endpoint (className -> category)
+    apiConfigCategoryMap: Map<string, ObjectCategory> = new Map();
 
     // Combined nav components (for backwards compatibility)
     navComponents : navComponent[] = [...this.staticNavComponents];
@@ -65,14 +71,18 @@ export class ClassTypingService {
     //Behaviorsubject that can be used by components to subscribe to and effectively use any typign data easily.
     polyTypingBehaviorSubject = new BehaviorSubject<any>(this.polyTyping);
 
-    constructor(private http: HttpClient, private polariService: PolariService)
+    constructor(private http: HttpClient, private polariService: PolariService, private apiConfigService: ApiConfigService)
     {
         this.http = http;
         this.polariService = polariService;
+        this.apiConfigService = apiConfigService;
         this.polyTyping = {};
 
         // Fetch class instance counts to determine used vs unused classes
         this.fetchClassInstanceCounts();
+
+        // Fetch API config to get object category flags (isBaseObject, serverAccessOnly, isUserCreated)
+        this.fetchApiConfigCategories();
 
         //Subscribe to the data on polariService related to object typing.
         this.objTypingSubscription = this.polariService.polyTypedObjectsData
@@ -146,7 +156,10 @@ export class ClassTypingService {
                         allowClassEdit: typeObj.config.allowClassEdit ?? false,
                         isStateSpaceObject: typeObj.config.isStateSpaceObject ?? false,
                         excludeFromCRUDE: typeObj.config.excludeFromCRUDE ?? true,
-                        isDynamicClass: typeObj.config.isDynamicClass ?? false
+                        isDynamicClass: typeObj.config.isDynamicClass ?? false,
+                        isBaseObject: typeObj.config.isBaseObject ?? false,
+                        serverAccessOnly: typeObj.config.serverAccessOnly ?? false,
+                        isUserCreated: typeObj.config.isUserCreated ?? false
                     } : undefined;
 
                     this.polyTyping[typeObj.className] = new classPolyTyping(
@@ -165,6 +178,11 @@ export class ClassTypingService {
                     const classTypingObj = this.polyTyping[typeObj.className] as classPolyTyping;
                     const isEditable = classTypingObj?.canEditInstances() ?? true;
 
+                    // Prefer category from /api-config (authoritative), fall back to polyTyping config
+                    const objectCategory = this.apiConfigCategoryMap.get(typeObj.className)
+                        ?? classTypingObj?.getObjectCategory()
+                        ?? 'custom';
+
                     let navComp : navComponent = new navComponent(
                         className,
                         "class-main-page/"+typeObj.className,
@@ -173,7 +191,8 @@ export class ClassTypingService {
                         [], // queryParams
                         undefined, // componentModifiers
                         isEditable, // isEditable flag
-                        typeObj.className // className
+                        typeObj.className, // className
+                        objectCategory // objectCategory
                     );
 
                     // Check if this class nav already exists in either list
@@ -378,6 +397,39 @@ export class ClassTypingService {
     }
 
     /**
+     * Fetch object categories from /api-config endpoint.
+     * The api-config response has authoritative isBaseObject, serverAccessOnly, isUserCreated flags
+     * that the polyTypedObjects endpoint does not provide.
+     */
+    fetchApiConfigCategories() {
+        this.polariService.connectionSuccessSubject.subscribe(isConnected => {
+            if (isConnected) {
+                console.log('[ClassTypingService] Fetching API config for object categories...');
+                this.apiConfigService.getApiConfig().subscribe({
+                    next: (response) => {
+                        if (response.success && response.objects) {
+                            this.apiConfigCategoryMap.clear();
+                            response.objects.forEach((obj: ApiConfigObject) => {
+                                const category: ObjectCategory = (obj.isBaseObject || obj.serverAccessOnly)
+                                    ? 'framework' : 'custom';
+                                this.apiConfigCategoryMap.set(obj.className, category);
+                            });
+                            console.log('[ClassTypingService] API config categories loaded:',
+                                this.apiConfigCategoryMap.size, 'objects');
+
+                            // Re-categorize nav components with the correct categories
+                            this.recategorizeNavComponents();
+                        }
+                    },
+                    error: (err: any) => {
+                        console.error('[ClassTypingService] Error fetching API config categories:', err);
+                    }
+                });
+            }
+        });
+    }
+
+    /**
      * Re-categorize nav components into "used" and "unused" based on instance counts.
      * Also categorizes by editability.
      */
@@ -395,9 +447,13 @@ export class ClassTypingService {
             // Extract class name from path (format: "class-main-page/className") or use stored className
             const className = nav.className || (nav.path.split('/').length > 1 ? nav.path.split('/')[1] : '');
 
-            // Update isEditable flag based on current polyTyping data
+            // Update isEditable flag and objectCategory based on current data
             const classTyping = this.getClassPolyTyping(className);
             nav.isEditable = classTyping?.canEditInstances() ?? true;
+            // Prefer category from /api-config (authoritative), fall back to polyTyping config
+            nav.objectCategory = this.apiConfigCategoryMap.get(className)
+                ?? classTyping?.getObjectCategory()
+                ?? 'custom';
 
             const hasInstances = this.classesWithInstances.includes(className);
 

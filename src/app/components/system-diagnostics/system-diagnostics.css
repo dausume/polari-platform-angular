@@ -1,0 +1,234 @@
+.system-diagnostics-container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+mat-card {
+  margin-bottom: 20px;
+}
+
+.header-card mat-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+mat-card-title {
+  font-size: 24px;
+  font-weight: 500;
+}
+
+mat-card-header mat-icon[mat-card-avatar] {
+  font-size: 32px;
+  width: 32px;
+  height: 32px;
+  color: rgba(0, 0, 0, 0.54);
+}
+
+.info-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background-color: #e3f2fd;
+  border-radius: 4px;
+  color: #1565c0;
+  margin: 0;
+}
+
+.info-banner mat-icon {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+}
+
+/* Container Notice */
+.container-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 16px;
+  background-color: #fff3e0;
+  border-radius: 4px;
+  color: #e65100;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.container-notice mat-icon {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* Loading State */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+
+.loading-container p {
+  margin-top: 16px;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+/* Error State */
+.error-container {
+  display: flex;
+  align-items: center;
+  padding: 20px;
+  color: #d32f2f;
+}
+
+.error-container mat-icon {
+  margin-right: 12px;
+}
+
+/* Property Grid */
+.property-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.property-item {
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+}
+
+.property-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.property-value {
+  font-size: 16px;
+  color: rgba(0, 0, 0, 0.87);
+}
+
+/* Progress Bar Section */
+.progress-section {
+  margin-top: 16px;
+  margin-bottom: 8px;
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.percent-label {
+  font-weight: 600;
+  font-size: 16px;
+  color: rgba(0, 0, 0, 0.87);
+}
+
+mat-progress-bar {
+  height: 8px;
+  border-radius: 4px;
+}
+
+.memory-details {
+  margin-top: 16px;
+}
+
+/* Boot Profile */
+.boot-type-indicator {
+  margin: 16px 0;
+}
+
+.boot-checkpoints {
+  margin-top: 16px;
+}
+
+.checkpoint {
+  padding: 16px;
+  background-color: #fafafa;
+  border-left: 4px solid #1976d2;
+  border-radius: 0 4px 4px 0;
+  margin-bottom: 8px;
+}
+
+.checkpoint h4 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.87);
+}
+
+.checkpoint-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.detail-item {
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.87);
+}
+
+.detail-label {
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.6);
+  margin-right: 4px;
+}
+
+.timestamp {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.38);
+}
+
+.checkpoint-arrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  color: rgba(0, 0, 0, 0.38);
+}
+
+.delta {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e65100;
+}
+
+.no-db-note {
+  padding: 12px 16px;
+  background-color: #fff3e0;
+  border-radius: 4px;
+  color: #e65100;
+  font-size: 13px;
+  font-style: italic;
+  margin-top: 8px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .property-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .checkpoint-details {
+    flex-direction: column;
+    gap: 8px;
+  }
+}

@@ -1,4 +1,6 @@
 // Author: Dustin Etts
+export type ObjectCategory = 'framework' | 'custom';
+
 export class navComponent {
     title : string;
     path: string;
@@ -11,6 +13,8 @@ export class navComponent {
     isEditable?: boolean;
     /** The class name (for class-based nav items) */
     className?: string;
+    /** Category of the object: framework (base/core), serverOnly (server-access), or custom (user-created) */
+    objectCategory?: ObjectCategory;
 
     static classComponentTemplates = ["ClassMainPageComponent"]
 
@@ -22,7 +26,8 @@ export class navComponent {
         queryParams?: any,
         componentModifiers?:object,
         isEditable?: boolean,
-        className?: string
+        className?: string,
+        objectCategory?: ObjectCategory
     )
     {
         this.component = component;
@@ -48,5 +53,6 @@ export class navComponent {
         this.componentModifiers = componentModifiers;
         this.isEditable = isEditable ?? true;  // Default to editable for backwards compat
         this.className = className;
+        this.objectCategory = objectCategory ?? 'custom';  // Default to custom for backwards compat
     }
 }

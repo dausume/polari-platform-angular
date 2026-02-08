@@ -14,6 +14,12 @@ export interface ClassConfig {
     excludeFromCRUDE: boolean;
     /** Whether this is a dynamically created class (vs core framework class) */
     isDynamicClass: boolean;
+    /** Whether this is a core framework/base object (read-only, built into the system) */
+    isBaseObject: boolean;
+    /** Whether this object can only be accessed by the backend server (not exposed to client APIs) */
+    serverAccessOnly: boolean;
+    /** Whether this object was dynamically created by a user */
+    isUserCreated: boolean;
 }
 
 /**
@@ -24,7 +30,10 @@ export const DEFAULT_CLASS_CONFIG: ClassConfig = {
     allowClassEdit: false,
     isStateSpaceObject: false,
     excludeFromCRUDE: true,
-    isDynamicClass: false
+    isDynamicClass: false,
+    isBaseObject: false,
+    serverAccessOnly: false,
+    isUserCreated: false
 };
 
 /**
@@ -36,7 +45,10 @@ export const PERMISSIVE_CLASS_CONFIG: ClassConfig = {
     allowClassEdit: false,
     isStateSpaceObject: false,
     excludeFromCRUDE: false,  // Allow CRUD operations by default for backwards compat
-    isDynamicClass: false
+    isDynamicClass: false,
+    isBaseObject: false,
+    serverAccessOnly: false,
+    isUserCreated: false
 };
 
 export class classPolyTyping {
@@ -131,5 +143,13 @@ export class classPolyTyping {
     /** Check if this class should appear in No-Code/State-Space environments */
     isAvailableInStateSpace(): boolean {
         return this.config.isStateSpaceObject;
+    }
+
+    /** Determine the object category for navigation grouping */
+    getObjectCategory(): 'framework' | 'custom' {
+        if (this.config.isBaseObject || this.config.serverAccessOnly) {
+            return 'framework';
+        }
+        return 'custom';
     }
 }

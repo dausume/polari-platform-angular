@@ -123,16 +123,19 @@
                         </td>
                       </ng-container>
 
-                      <!-- Recorded Types Column -->
+                      <!-- Type Column -->
                       <ng-container matColumnDef="types">
-                        <th mat-header-cell *matHeaderCellDef>Recorded Types</th>
+                        <th mat-header-cell *matHeaderCellDef>Type</th>
                         <td mat-cell *matCellDef="let variable">
-                          <mat-chip-set *ngIf="variable.recordedTypes.length > 0">
-                            <mat-chip *ngFor="let type of variable.recordedTypes" class="type-chip">
+                          <mat-chip class="type-chip" *ngIf="variable.pythonTypeDefault">
+                            {{ variable.pythonTypeDefault }}
+                          </mat-chip>
+                          <mat-chip-set *ngIf="variable.recordedTypes?.length > 0">
+                            <mat-chip *ngFor="let type of variable.recordedTypes" class="recorded-type-chip">
                               {{ type }}
                             </mat-chip>
                           </mat-chip-set>
-                          <span *ngIf="variable.recordedTypes.length === 0" class="no-data">No types recorded</span>
+                          <span *ngIf="!variable.pythonTypeDefault && (!variable.recordedTypes || variable.recordedTypes.length === 0)" class="no-data">Unknown</span>
                         </td>
                       </ng-container>
 

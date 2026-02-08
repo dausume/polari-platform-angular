@@ -11,6 +11,7 @@ import { ManagerInfoComponent } from '@components/manager-info/manager-info';
 import { TypingInfoComponent } from '@components/typing-info/typing-info';
 import { ApiProfilerComponent } from '@components/api-profiler/api-profiler.component';
 import { ApiConfigComponent } from '@components/api-config/api-config';
+import { SystemDiagnosticsComponent } from '@components/system-diagnostics/system-diagnostics';
 
 const routes: Routes = [
   { path: '', component: HomeComponent},
@@ -22,7 +23,8 @@ const routes: Routes = [
   { path: 'manager-info', component: ManagerInfoComponent },
   { path: 'typing-info', component: TypingInfoComponent },
   { path: 'api-profiler', component: ApiProfilerComponent },
-  { path: 'api-config', component: ApiConfigComponent }
+  { path: 'api-config', component: ApiConfigComponent },
+  { path: 'system-diagnostics', component: SystemDiagnosticsComponent }
 ];
 
 @NgModule({

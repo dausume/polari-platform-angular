@@ -1,5 +1,6 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Subscription } from 'rxjs';
+import { MatDialog } from '@angular/material/dialog';
 import { ApiConfigService } from '@services/api-config.service';
 import {
   ApiConfigResponse,
@@ -13,6 +14,7 @@ import {
   ApiFormatType,
   FormatUpdateRequest
 } from '@models/apiConfig';
+import { ApiConfigDetailDialogComponent, ApiConfigDetailDialogData } from './api-config-detail-dialog';
 
 /**
  * API Configuration Component
@@ -45,8 +47,6 @@ export class ApiConfigComponent implements OnInit, OnDestroy {
   filterText: string = '';
   showBaseObjects: boolean = true;
   showUserCreatedObjects: boolean = true;
-  expandedObjects: Set<string> = new Set();
-  selectedObject: ApiConfigObject | null = null;
 
   // Edit mode
   editingObject: string | null = null;
@@ -54,7 +54,7 @@ export class ApiConfigComponent implements OnInit, OnDestroy {
   saving: boolean = false;
 
   // Table columns
-  displayedColumns: string[] = ['expand', 'className', 'type', 'C', 'R', 'U', 'D', 'E', 'actions'];
+  displayedColumns: string[] = ['className', 'type', 'C', 'R', 'U', 'D', 'E', 'actions'];
 
   // API Formats tab state
   activeTab: number = 0;
@@ -66,7 +66,7 @@ export class ApiConfigComponent implements OnInit, OnDestroy {
 
   private subscriptions: Subscription[] = [];
 
-  constructor(private apiConfigService: ApiConfigService) {}
+  constructor(private apiConfigService: ApiConfigService, private dialog: MatDialog) {}
 
   ngOnInit(): void {
     this.loadData();
@@ -138,33 +138,30 @@ export class ApiConfigComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Toggle object expansion to show access levels
+   * Open details dialog for an object
    */
-  toggleExpand(obj: ApiConfigObject): void {
-    if (this.expandedObjects.has(obj.className)) {
-      this.expandedObjects.delete(obj.className);
-      this.selectedObject = null;
-    } else {
-      this.expandedObjects.add(obj.className);
-      this.selectedObject = obj;
-    }
-  }
+  openDetails(obj: ApiConfigObject): void {
+    const dialogData: ApiConfigDetailDialogData = {
+      object: obj,
+      typeLabel: this.getTypeLabel(obj),
+      typeClass: this.getTypeClass(obj),
+      crudeSummary: this.getCrudeSummary(obj),
+      groupsWithAccess: this.getGroupsWithAccess(obj.className),
+      usersWithAccess: this.getUsersWithAccess(obj.className)
+    };
 
-  /**
-   * Check if object is expanded
-   */
-  isExpanded(obj: ApiConfigObject): boolean {
-    return this.expandedObjects.has(obj.className);
+    this.dialog.open(ApiConfigDetailDialogComponent, {
+      data: dialogData,
+      width: '700px',
+      maxHeight: '85vh'
+    });
   }
 
   /**
    * Get object type label
    */
   getTypeLabel(obj: ApiConfigObject): string {
-    if (obj.serverAccessOnly) {
-      return 'Server Only';
-    }
-    if (obj.isBaseObject) {
+    if (obj.isBaseObject || obj.serverAccessOnly) {
       return 'Framework';
     }
     if (obj.isDynamicClass) {
@@ -177,10 +174,7 @@ export class ApiConfigComponent implements OnInit, OnDestroy {
    * Get CSS class for object type chip
    */
   getTypeClass(obj: ApiConfigObject): string {
-    if (obj.serverAccessOnly) {
-      return 'type-server';
-    }
-    if (obj.isBaseObject) {
+    if (obj.isBaseObject || obj.serverAccessOnly) {
       return 'type-framework';
     }
     return 'type-user';

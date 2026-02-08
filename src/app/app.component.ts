@@ -1,6 +1,6 @@
 // app.component.ts
 import { Router } from '@angular/router';
-import { navComponent } from '@models/navComponent';
+import { navComponent, ObjectCategory } from '@models/navComponent';
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { map } from 'rxjs/operators'
 //
@@ -42,6 +42,15 @@ export class AppComponent {
   unusedClassNavComponents: navComponent[] = [];   // Classes WITHOUT instances
   objectPagesExpanded: boolean = false;
   unusedPagesExpanded: boolean = false;
+
+  // Sub-category expanded state for Object Pages
+  objectPagesSubExpanded: { framework: boolean; custom: boolean } = {
+    framework: false, custom: false
+  };
+  // Sub-category expanded state for Unused Objects
+  unusedPagesSubExpanded: { framework: boolean; custom: boolean } = {
+    framework: false, custom: false
+  };
 
   constructor(router: Router, polariService: PolariService, typingService: ClassTypingService, crudeServicesManager: CRUDEservicesManager)
   {
@@ -90,6 +99,26 @@ export class AppComponent {
   // Toggle the unused pages dropdown
   toggleUnusedPages() {
     this.unusedPagesExpanded = !this.unusedPagesExpanded;
+  }
+
+  // Toggle a sub-category within Object Pages
+  toggleObjectPagesSub(category: 'framework' | 'custom') {
+    this.objectPagesSubExpanded[category] = !this.objectPagesSubExpanded[category];
+  }
+
+  // Toggle a sub-category within Unused Objects
+  toggleUnusedPagesSub(category: 'framework' | 'custom') {
+    this.unusedPagesSubExpanded[category] = !this.unusedPagesSubExpanded[category];
+  }
+
+  // Filter dynamic class nav components by object category
+  getObjectPagesByCategory(category: ObjectCategory): navComponent[] {
+    return this.dynamicClassNavComponents.filter(nav => nav.objectCategory === category);
+  }
+
+  // Filter unused class nav components by object category
+  getUnusedPagesByCategory(category: ObjectCategory): navComponent[] {
+    return this.unusedClassNavComponents.filter(nav => nav.objectCategory === category);
   }
 
   // Navigate to a dynamic class page

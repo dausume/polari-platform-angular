@@ -65,4 +65,21 @@ export class ManagerInfoComponent implements OnInit, OnDestroy {
   getObjectKeys(obj: any): string[] {
     return obj ? Object.keys(obj) : [];
   }
+
+  // Determine the database mode label from manager data
+  getDatabaseModeLabel(): string {
+    if (!this.managerData?.hasDB) {
+      return 'Disabled (In-Memory-Tree-Only)';
+    }
+    // TODO: When Redis & MariaDB support is built out, check for that mode here
+    return 'Sqlite DB (Default)';
+  }
+
+  // Get the icon for the current database mode
+  getDatabaseModeIcon(): string {
+    if (!this.managerData?.hasDB) {
+      return 'memory';
+    }
+    return 'storage';
+  }
 }

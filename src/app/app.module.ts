@@ -25,6 +25,7 @@ import { MatListModule } from '@angular/material/list';
 import { MatIconModule } from '@angular/material/icon';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatTabsModule } from '@angular/material/tabs';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
 //NgRx
 import { StoreModule } from '@ngrx/store';
 import { EffectsModule } from '@ngrx/effects';
@@ -98,6 +99,9 @@ import { CertificateTrustPromptComponent } from '@components/certificate-trust-p
 import { ApiProfilerComponent } from '@components/api-profiler/api-profiler.component';
 // API Config Component
 import { ApiConfigComponent } from '@components/api-config/api-config';
+import { ApiConfigDetailDialogComponent } from '@components/api-config/api-config-detail-dialog';
+// System Diagnostics Component
+import { SystemDiagnosticsComponent } from '@components/system-diagnostics/system-diagnostics';
 //Services (Backend Access)
 import { PolariService } from '@services/polari-service';
 import { CRUDEservicesManager } from '@services/crude-services-manager';
@@ -174,7 +178,9 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     TypingInfoComponent,
     CertificateTrustPromptComponent,
     ApiProfilerComponent,
-    ApiConfigComponent
+    ApiConfigComponent,
+    ApiConfigDetailDialogComponent,
+    SystemDiagnosticsComponent
   ],
   imports: [
     BrowserModule,
@@ -202,6 +208,7 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     MatIconModule,
     MatCheckboxModule,
     MatTabsModule,
+    MatProgressBarModule,
     // Shared CRUD Module
     SharedCrudModule,
     // NgRx

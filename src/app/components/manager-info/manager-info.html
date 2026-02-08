@@ -27,26 +27,11 @@
           <h3>Basic Properties</h3>
           <div class="property-grid">
             <div class="property-item">
-              <span class="property-label">ID:</span>
-              <span class="property-value">{{ managerData.id }}</span>
-            </div>
-            <div class="property-item">
-              <span class="property-label">Has Server:</span>
-              <mat-icon [color]="managerData.hasServer ? 'primary' : 'warn'">
-                {{ managerData.hasServer ? 'check_circle' : 'cancel' }}
-              </mat-icon>
-            </div>
-            <div class="property-item">
-              <span class="property-label">Has Database:</span>
-              <mat-icon [color]="managerData.hasDB ? 'primary' : 'warn'">
-                {{ managerData.hasDB ? 'check_circle' : 'cancel' }}
-              </mat-icon>
-            </div>
-            <div class="property-item">
-              <span class="property-label">Complete:</span>
-              <mat-icon [color]="managerData.complete ? 'primary' : 'warn'">
-                {{ managerData.complete ? 'check_circle' : 'cancel' }}
-              </mat-icon>
+              <span class="property-label">Database:</span>
+              <span class="property-value database-mode">
+                <mat-icon>{{ getDatabaseModeIcon() }}</mat-icon>
+                {{ getDatabaseModeLabel() }}
+              </span>
             </div>
           </div>
         </div>

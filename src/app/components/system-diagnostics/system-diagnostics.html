@@ -1,0 +1,253 @@
+<div class="system-diagnostics-container">
+  <!-- Header -->
+  <mat-card class="header-card">
+    <mat-card-header>
+      <mat-card-title>System Diagnostics</mat-card-title>
+      <button mat-icon-button (click)="refresh()" [disabled]="loading">
+        <mat-icon>refresh</mat-icon>
+      </button>
+    </mat-card-header>
+    <mat-card-content>
+      <p class="info-banner">
+        <mat-icon>info</mat-icon>
+        System resource baseline for self-load-balancing diagnostics
+      </p>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-container">
+    <mat-spinner diameter="50"></mat-spinner>
+    <p>Loading system data...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="!loading && error" class="error-container">
+    <mat-icon color="warn">error</mat-icon>
+    <p>{{ error }}</p>
+  </div>
+
+  <!-- System Data -->
+  <div *ngIf="!loading && !error && systemData" class="system-data">
+
+    <!-- Platform Information -->
+    <mat-card>
+      <mat-card-header>
+        <mat-icon mat-card-avatar>computer</mat-icon>
+        <mat-card-title>Platform Information</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <div *ngIf="systemData.platform?.isContainerized" class="container-notice">
+          <mat-icon>info</mat-icon>
+          <span>Running inside a container. Hostname is the container ID. Resource values reflect the host system unless cgroup limits are applied.</span>
+        </div>
+        <div class="property-grid">
+          <div class="property-item">
+            <span class="property-label">OS Type</span>
+            <span class="property-value">{{ systemData.platform?.systemType }}</span>
+          </div>
+          <div class="property-item">
+            <span class="property-label">{{ systemData.platform?.isContainerized ? 'Container ID' : 'Hostname' }}</span>
+            <span class="property-value">{{ systemData.platform?.networkName }}</span>
+          </div>
+          <div class="property-item">
+            <span class="property-label">IP Address</span>
+            <span class="property-value">{{ systemData.platform?.IPaddress }}</span>
+          </div>
+          <div class="property-item">
+            <span class="property-label">Domain</span>
+            <span class="property-value">{{ systemData.platform?.domainName }}</span>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- CPU Resources -->
+    <mat-card>
+      <mat-card-header>
+        <mat-icon mat-card-avatar>memory</mat-icon>
+        <mat-card-title>CPU Resources</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="property-grid">
+          <div class="property-item">
+            <span class="property-label">Physical Cores</span>
+            <span class="property-value">{{ systemData.cpu?.numPhysicalCPUs }}</span>
+          </div>
+          <div class="property-item">
+            <span class="property-label">Logical Cores</span>
+            <span class="property-value">{{ systemData.cpu?.numLogicalCPUs }}</span>
+          </div>
+          <div class="property-item">
+            <span class="property-label">Current Usage</span>
+            <span class="property-value">{{ systemData.cpu?.currentUsagePercent }}%</span>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Memory Usage -->
+    <mat-card>
+      <mat-card-header>
+        <mat-icon mat-card-avatar>storage</mat-icon>
+        <mat-card-title>Memory Usage</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="progress-section">
+          <div class="progress-header">
+            <span>{{ formatBytes(systemData.memory?.used) }} / {{ formatBytes(systemData.memory?.total) }}</span>
+            <span class="percent-label">{{ getMemoryPercent() }}%</span>
+          </div>
+          <mat-progress-bar
+            [mode]="'determinate'"
+            [value]="getMemoryPercent()"
+            [color]="getProgressColor(getMemoryPercent())">
+          </mat-progress-bar>
+        </div>
+        <div class="property-grid memory-details">
+          <div class="property-item">
+            <span class="property-label">Total</span>
+            <span class="property-value">{{ formatBytes(systemData.memory?.total) }}</span>
+          </div>
+          <div class="property-item">
+            <span class="property-label">Used</span>
+            <span class="property-value">{{ formatBytes(systemData.memory?.used) }}</span>
+          </div>
+          <div class="property-item">
+            <span class="property-label">Available</span>
+            <span class="property-value">{{ formatBytes(systemData.memory?.available) }}</span>
+          </div>
+          <div class="property-item">
+            <span class="property-label">Free</span>
+            <span class="property-value">{{ formatBytes(systemData.memory?.free) }}</span>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Swap Memory -->
+    <mat-card>
+      <mat-card-header>
+        <mat-icon mat-card-avatar>swap_horiz</mat-icon>
+        <mat-card-title>Swap Memory</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="progress-section">
+          <div class="progress-header">
+            <span>{{ formatBytes(systemData.swap?.used) }} / {{ formatBytes(systemData.swap?.total) }}</span>
+            <span class="percent-label">{{ getSwapPercent() }}%</span>
+          </div>
+          <mat-progress-bar
+            [mode]="'determinate'"
+            [value]="getSwapPercent()"
+            [color]="getProgressColor(getSwapPercent())">
+          </mat-progress-bar>
+        </div>
+        <div class="property-grid">
+          <div class="property-item">
+            <span class="property-label">Total</span>
+            <span class="property-value">{{ formatBytes(systemData.swap?.total) }}</span>
+          </div>
+          <div class="property-item">
+            <span class="property-label">Used</span>
+            <span class="property-value">{{ formatBytes(systemData.swap?.used) }}</span>
+          </div>
+          <div class="property-item">
+            <span class="property-label">Free</span>
+            <span class="property-value">{{ formatBytes(systemData.swap?.free) }}</span>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Boot Resource Profile -->
+    <mat-card *ngIf="systemData.bootProfile">
+      <mat-card-header>
+        <mat-icon mat-card-avatar>timeline</mat-icon>
+        <mat-card-title>Boot Resource Profile</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="boot-type-indicator">
+          <mat-chip-set>
+            <mat-chip [color]="systemData.bootProfile.isFreshBoot ? 'accent' : 'primary'" selected>
+              {{ systemData.bootProfile.isFreshBoot ? 'Fresh Boot' : 'DB Restore' }}
+            </mat-chip>
+          </mat-chip-set>
+        </div>
+
+        <div class="boot-checkpoints">
+          <!-- Baseline -->
+          <div class="checkpoint" *ngIf="systemData.bootProfile.baseline">
+            <h4>Baseline (Pre-Tree Build)</h4>
+            <div class="checkpoint-details">
+              <span class="detail-item">
+                <span class="detail-label">Used Memory:</span>
+                {{ formatBytes(systemData.bootProfile.baseline.usedMemory) }}
+              </span>
+              <span class="detail-item">
+                <span class="detail-label">Available:</span>
+                {{ formatBytes(systemData.bootProfile.baseline.availableMemory) }}
+              </span>
+              <span class="detail-item timestamp">
+                {{ systemData.bootProfile.baseline.timestamp }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Post-Tree -->
+          <div class="checkpoint" *ngIf="systemData.bootProfile.postTree">
+            <div class="checkpoint-arrow">
+              <mat-icon>arrow_downward</mat-icon>
+              <span class="delta" *ngIf="getBootMemoryDelta(systemData.bootProfile.baseline, systemData.bootProfile.postTree) !== null">
+                {{ getBootMemoryDelta(systemData.bootProfile.baseline, systemData.bootProfile.postTree) }}
+              </span>
+            </div>
+            <h4>Post-Tree Build + Analysis</h4>
+            <div class="checkpoint-details">
+              <span class="detail-item">
+                <span class="detail-label">Used Memory:</span>
+                {{ formatBytes(systemData.bootProfile.postTree.usedMemory) }}
+              </span>
+              <span class="detail-item">
+                <span class="detail-label">Available:</span>
+                {{ formatBytes(systemData.bootProfile.postTree.availableMemory) }}
+              </span>
+              <span class="detail-item timestamp">
+                {{ systemData.bootProfile.postTree.timestamp }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Post-DB (Fresh Boot Only) -->
+          <div class="checkpoint" *ngIf="systemData.bootProfile.postDB">
+            <div class="checkpoint-arrow">
+              <mat-icon>arrow_downward</mat-icon>
+              <span class="delta" *ngIf="getBootMemoryDelta(systemData.bootProfile.postTree, systemData.bootProfile.postDB) !== null">
+                {{ getBootMemoryDelta(systemData.bootProfile.postTree, systemData.bootProfile.postDB) }}
+              </span>
+            </div>
+            <h4>Post-Database Init</h4>
+            <div class="checkpoint-details">
+              <span class="detail-item">
+                <span class="detail-label">Used Memory:</span>
+                {{ formatBytes(systemData.bootProfile.postDB.usedMemory) }}
+              </span>
+              <span class="detail-item">
+                <span class="detail-label">Available:</span>
+                {{ formatBytes(systemData.bootProfile.postDB.availableMemory) }}
+              </span>
+              <span class="detail-item timestamp">
+                {{ systemData.bootProfile.postDB.timestamp }}
+              </span>
+            </div>
+          </div>
+
+          <div *ngIf="!systemData.bootProfile.postDB && !systemData.bootProfile.isFreshBoot" class="no-db-note">
+            Post-DB checkpoint only available on fresh boot (not DB restore).
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+  </div>
+</div>
