@@ -128,9 +128,6 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
 @NgModule({
   declarations: [
     AppComponent,
-    HomeComponent,
-    HeaderComponent,
-    NavigationComponent,
     PolariConfigComponent,
     templateClassTableComponent,
     ClassMainPageComponent,
@@ -139,7 +136,6 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     VariableModifierComponent,
     // Display Components
     DisplayRendererComponent,
-    DisplayMetricCardComponent,
     // No-Code Components
     CustomNoCodeComponent,
     NoCodeInterfaceComponent,
@@ -162,25 +158,14 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     MathOperationOverlayComponent,
     ValueSourceSelectorComponent,
     ViewContextOverlayComponent,
-    DefaultCellComponent,
-    ConfigCellActions,
     ClassDataTableComponent,
-    StringCellComponent,
-    NumberCellComponent,
-    BooleanCellComponent,
-    DateCellComponent,
     ListCellComponent,
     DictCellComponent,
-    ObjectCellComponent,
     ListViewComponent,
     DictViewComponent,
-    ManagerInfoComponent,
-    TypingInfoComponent,
-    CertificateTrustPromptComponent,
     ApiProfilerComponent,
     ApiConfigComponent,
-    ApiConfigDetailDialogComponent,
-    SystemDiagnosticsComponent
+    ApiConfigDetailDialogComponent
   ],
   imports: [
     BrowserModule,
@@ -211,6 +196,22 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     MatProgressBarModule,
     // Shared CRUD Module
     SharedCrudModule,
+    // Standalone Components (Phase 1)
+    StringCellComponent,
+    NumberCellComponent,
+    BooleanCellComponent,
+    DateCellComponent,
+    ObjectCellComponent,
+    ConfigCellActions,
+    DefaultCellComponent,
+    NavigationComponent,
+    HeaderComponent,
+    DisplayMetricCardComponent,
+    HomeComponent,
+    CertificateTrustPromptComponent,
+    ManagerInfoComponent,
+    TypingInfoComponent,
+    SystemDiagnosticsComponent,
     // NgRx
     StoreModule.forRoot(rootReducers),
     EffectsModule.forRoot([PolariEffects, DynamicObjectsEffects]),

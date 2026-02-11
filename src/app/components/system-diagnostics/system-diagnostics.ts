@@ -1,12 +1,23 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { CRUDEservicesManager } from '@services/crude-services-manager';
 import { Subscription } from 'rxjs';
+import { MatCardModule } from '@angular/material/card';
+import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatChipsModule } from '@angular/material/chips';
 
 @Component({
-  standalone: false,
+  standalone: true,
   selector: 'system-diagnostics',
   templateUrl: './system-diagnostics.html',
-  styleUrls: ['./system-diagnostics.css']
+  styleUrls: ['./system-diagnostics.css'],
+  imports: [
+    CommonModule, MatCardModule, MatIconModule, MatButtonModule,
+    MatProgressSpinnerModule, MatProgressBarModule, MatChipsModule
+  ]
 })
 export class SystemDiagnosticsComponent implements OnInit, OnDestroy {
   systemData: any = null;

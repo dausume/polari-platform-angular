@@ -4,13 +4,15 @@ import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, ViewChild, E
 import { FormControl, FormGroup } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { BehaviorSubject, interval, Observable, Observer, Subscription } from 'rxjs';
+import { MatButtonModule } from '@angular/material/button';
 
 
 @Component({
-  standalone: false,
+  standalone: true,
   selector: 'nav-component',
   templateUrl: 'nav-component.html',
-  styleUrls: ['./nav-component.css']
+  styleUrls: ['./nav-component.css'],
+  imports: [MatButtonModule]
 })
 export class NavigationComponent {
   //Pulls in the navigation component provided by the parent component.

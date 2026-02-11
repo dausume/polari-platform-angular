@@ -1,4 +1,6 @@
 import { Component, Input } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { MatIconModule } from '@angular/material/icon';
 import { MetricData } from '@models/dashboards/DisplayItem';
 
 /**
@@ -6,10 +8,11 @@ import { MetricData } from '@models/dashboards/DisplayItem';
  * Used in default dashboards for quick statistics display.
  */
 @Component({
-  standalone: false,
+  standalone: true,
     selector: 'dashboard-metric-card',
     templateUrl: './dashboard-metric-card.html',
-    styleUrls: ['./dashboard-metric-card.css']
+    styleUrls: ['./dashboard-metric-card.css'],
+    imports: [CommonModule, MatIconModule]
 })
 export class DisplayMetricCardComponent {
     /** The metric data to display */

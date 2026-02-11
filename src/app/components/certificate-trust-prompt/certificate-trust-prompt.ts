@@ -1,5 +1,10 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { Subscription } from 'rxjs';
+import { MatCardModule } from '@angular/material/card';
+import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
+import { MatListModule } from '@angular/material/list';
 import { CertificateTrustService, EndpointStatus } from '../../services/certificate-trust.service';
 
 /**
@@ -10,10 +15,11 @@ import { CertificateTrustService, EndpointStatus } from '../../services/certific
  * and instructions on how to proceed.
  */
 @Component({
-  standalone: false,
+  standalone: true,
   selector: 'app-certificate-trust-prompt',
   templateUrl: './certificate-trust-prompt.html',
-  styleUrls: ['./certificate-trust-prompt.css']
+  styleUrls: ['./certificate-trust-prompt.css'],
+  imports: [CommonModule, MatCardModule, MatIconModule, MatButtonModule, MatListModule]
 })
 export class CertificateTrustPromptComponent implements OnInit, OnDestroy {
 

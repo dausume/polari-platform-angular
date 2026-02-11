@@ -1,12 +1,14 @@
-// default-cell.component.ts
+// config-cell-actions.component.ts
 import { Component, Input, EventEmitter, Output } from '@angular/core';
-import { MatGridListModule, MatGridList, MatGridTile, MatGridTileText } from '@angular/material/grid-list';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
 
 @Component({
-  standalone: false,
+  standalone: true,
   selector: 'config-cell-actions',
   templateUrl: `config-cell-actions.html`,
-  styleUrls: ['./config-cell-actions.css']
+  styleUrls: ['./config-cell-actions.css'],
+  imports: [MatButtonModule, MatIconModule]
 })
 export class ConfigCellActions {
   @Input() varInfo: any;

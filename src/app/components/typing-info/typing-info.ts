@@ -1,6 +1,17 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { CRUDEservicesManager } from '@services/crude-services-manager';
 import { Subscription } from 'rxjs';
+import { MatCardModule } from '@angular/material/card';
+import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatTableModule } from '@angular/material/table';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 interface VariableInfo {
   name: string;
@@ -27,10 +38,15 @@ interface TypeData {
 }
 
 @Component({
-  standalone: false,
+  standalone: true,
   selector: 'typing-info',
   templateUrl: './typing-info.html',
-  styleUrls: ['./typing-info.css']
+  styleUrls: ['./typing-info.css'],
+  imports: [
+    CommonModule, FormsModule, MatCardModule, MatIconModule, MatButtonModule,
+    MatProgressSpinnerModule, MatChipsModule, MatFormFieldModule, MatInputModule,
+    MatTableModule, MatTooltipModule
+  ]
 })
 export class TypingInfoComponent implements OnInit, OnDestroy {
   typingData: { [className: string]: TypeData } | null = null;

@@ -1,13 +1,14 @@
-import { style } from '@angular/animations';
 import { Input } from '@angular/core';
 import { Component } from '@angular/core';
+import { MatToolbarModule } from '@angular/material/toolbar';
 
 
 @Component({
-  standalone: false,
+  standalone: true,
   selector: 'header',
   templateUrl: 'header.html',
-  styleUrls: ['header.css']
+  styleUrls: ['header.css'],
+  imports: [MatToolbarModule]
 })
 export class HeaderComponent {
   @Input()

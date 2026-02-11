@@ -1,12 +1,19 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { CRUDEservicesManager } from '@services/crude-services-manager';
 import { Subscription } from 'rxjs';
+import { MatCardModule } from '@angular/material/card';
+import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatChipsModule } from '@angular/material/chips';
 
 @Component({
-  standalone: false,
+  standalone: true,
   selector: 'manager-info',
   templateUrl: './manager-info.html',
-  styleUrls: ['./manager-info.css']
+  styleUrls: ['./manager-info.css'],
+  imports: [CommonModule, MatCardModule, MatIconModule, MatButtonModule, MatProgressSpinnerModule, MatChipsModule]
 })
 export class ManagerInfoComponent implements OnInit, OnDestroy {
   managerData: any = null;

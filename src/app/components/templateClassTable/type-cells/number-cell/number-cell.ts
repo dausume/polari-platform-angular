@@ -2,7 +2,7 @@
 import { Component, Input } from '@angular/core';
 
 @Component({
-  standalone: false,
+  standalone: true,
   selector: 'number-cell',
   templateUrl: `number-cell.html`,
   styleUrls: ['./number-cell.css']
