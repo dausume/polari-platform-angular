@@ -6,6 +6,7 @@ import * as d3 from 'd3';
 
 //Defines a no code state
 @Component({
+  standalone: false,
   selector: 'no-code-state-instance-d3',
   templateUrl: 'no-code-state-instance-d3.html',
   styleUrls: ['./no-code-state-instance-d3.css']

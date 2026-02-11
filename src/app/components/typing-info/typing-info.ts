@@ -27,6 +27,7 @@ interface TypeData {
 }
 
 @Component({
+  standalone: false,
   selector: 'typing-info',
   templateUrl: './typing-info.html',
   styleUrls: ['./typing-info.css']

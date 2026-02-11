@@ -6,6 +6,7 @@ import { MetricData } from '@models/dashboards/DisplayItem';
  * Used in default dashboards for quick statistics display.
  */
 @Component({
+  standalone: false,
     selector: 'dashboard-metric-card',
     templateUrl: './dashboard-metric-card.html',
     styleUrls: ['./dashboard-metric-card.css']

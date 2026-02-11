@@ -35,6 +35,7 @@ import { PotentialContext } from '@models/stateSpace/solutionContext';
 
 // An Editor which creates a new No-Code Solution by default.
 @Component({
+  standalone: false,
   selector: 'custom-no-code',
   templateUrl: 'custom-no-code.html',
   styleUrls: ['./custom-no-code.css']

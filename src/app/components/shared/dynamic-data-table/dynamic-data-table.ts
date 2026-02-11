@@ -31,6 +31,7 @@ import {
 import { DynamicObjectsActions } from '../../../state/actions/dynamic-objects.actions';
 
 @Component({
+  standalone: false,
   selector: 'dynamic-data-table',
   templateUrl: 'dynamic-data-table.html',
   styleUrls: ['./dynamic-data-table.css']

@@ -3,6 +3,7 @@ import { FormControl } from '@angular/forms';
 import { Slot } from '@models/noCode/Slot';
 
 @Component({
+  standalone: false,
   selector: 'slot',
   templateUrl: 'slot.html',
   styleUrls: ['./slot.css']

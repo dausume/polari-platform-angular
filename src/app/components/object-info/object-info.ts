@@ -6,6 +6,7 @@ import { PolariService } from '@services/polari-service';
 import { BehaviorSubject, interval, Observable, Observer, Subscription } from 'rxjs';
 
 @Component({
+  standalone: false,
   selector: 'object-info',
   templateUrl: 'object-info.html',
   styleUrls: ['./object-info.css']

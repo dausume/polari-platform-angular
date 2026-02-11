@@ -15,6 +15,7 @@ import * as d3 from 'd3';
 // template State Object that can be used across different no-code solutions.  Or it may be used to
 // edit a specific instance of a state object that is used in a specific no-code solution.
 @Component({
+  standalone: false,
   selector: 'state-manager.',
   templateUrl: 'state-manager.html',
   styleUrls: ['./state-manager.css']

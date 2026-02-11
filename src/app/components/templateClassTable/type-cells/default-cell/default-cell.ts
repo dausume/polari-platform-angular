@@ -3,6 +3,7 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 export type DefaultCellMode = 'base' | 'tree';
 
 @Component({
+  standalone: false,
   selector: 'default-cell',
   templateUrl: './default-cell.html',
   styleUrls: ['./default-cell.css'],

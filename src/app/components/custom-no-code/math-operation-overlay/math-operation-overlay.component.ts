@@ -43,6 +43,7 @@ export interface SolutionFieldInfo {
  * basic math operations in the no-code visual programming system.
  */
 @Component({
+  standalone: false,
   selector: 'math-operation-overlay',
   templateUrl: './math-operation-overlay.component.html',
   styleUrls: ['./math-operation-overlay.component.css']

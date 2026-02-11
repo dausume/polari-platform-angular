@@ -3,6 +3,7 @@ import { CRUDEservicesManager } from '@services/crude-services-manager';
 import { Subscription } from 'rxjs';
 
 @Component({
+  standalone: false,
   selector: 'manager-info',
   templateUrl: './manager-info.html',
   styleUrls: ['./manager-info.css']

@@ -3,6 +3,7 @@ import { Component, Input } from '@angular/core';
 import { Router } from '@angular/router';
 
 @Component({
+  standalone: false,
   selector: 'object-cell',
   templateUrl: `object-cell.html`,
   styleUrls: ['./object-cell.css']

@@ -4,6 +4,7 @@ import { BaseEditableCell } from '../base-editable-cell';
 import { SelectOption } from '../../models/crud-config.models';
 
 @Component({
+  standalone: false,
   selector: 'editable-select-cell',
   templateUrl: 'editable-select-cell.html',
   styleUrls: ['./editable-select-cell.css']

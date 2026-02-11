@@ -20,6 +20,7 @@ export interface SolutionField {
  * that is available at the start of the solution flow.
  */
 @Component({
+  standalone: false,
   selector: 'initial-state-overlay',
   templateUrl: './initial-state-overlay.component.html',
   styleUrls: ['./initial-state-overlay.component.css']

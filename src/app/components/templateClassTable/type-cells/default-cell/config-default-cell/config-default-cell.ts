@@ -3,6 +3,7 @@ import { Component, Input } from '@angular/core';
 import { MatGridListModule, MatGridList, MatGridTile, MatGridTileText } from '@angular/material/grid-list';
 
 @Component({
+  standalone: false,
   selector: 'config-default-cell',
   templateUrl: `config-default-cell.html`,
   styleUrls: ['./config-default-cell.css']

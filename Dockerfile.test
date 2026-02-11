@@ -3,7 +3,7 @@
 # Dockerfile for testing polari-platform-angular
 # Supports both isolation testing and full-stack testing
 
-FROM node:18.13
+FROM node:20
 
 WORKDIR /app
 
@@ -20,14 +20,14 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Angular CLI globally
-RUN npm install -g @angular/cli@13.3.0
+RUN npm install -g @angular/cli@19.2.0
 
 # Copy package files for dependency installation
 COPY package*.json ./
 
-# Install dependencies with cache mount
+# Install dependencies
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci
+    npm install
 
 # Copy application source code
 COPY . .

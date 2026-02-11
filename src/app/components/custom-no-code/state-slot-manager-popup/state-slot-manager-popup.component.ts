@@ -28,6 +28,7 @@ export interface StateSlotManagerConfig {
  * with separate sections for input and output slots.
  */
 @Component({
+  standalone: false,
   selector: 'state-slot-manager-popup',
   templateUrl: './state-slot-manager-popup.component.html',
   styleUrls: ['./state-slot-manager-popup.component.css']

@@ -4,6 +4,7 @@ import { ValidatorFn, Validators } from '@angular/forms';
 import { BaseEditableCell } from '../base-editable-cell';
 
 @Component({
+  standalone: false,
   selector: 'editable-string-cell',
   templateUrl: 'editable-string-cell.html',
   styleUrls: ['./editable-string-cell.css']

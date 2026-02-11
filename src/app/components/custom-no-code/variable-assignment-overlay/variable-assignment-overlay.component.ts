@@ -58,6 +58,7 @@ export interface AssignmentConfig {
  * - Various value sources (literal, variable, expression, slot)
  */
 @Component({
+  standalone: false,
   selector: 'variable-assignment-overlay',
   templateUrl: './variable-assignment-overlay.component.html',
   styleUrls: ['./variable-assignment-overlay.component.css']

@@ -103,6 +103,7 @@ export const AVAILABLE_SVG_SHAPES = [
 ];
 
 @Component({
+  standalone: false,
   selector: 'app-state-tool-sidebar',
   templateUrl: './state-tool-sidebar.component.html',
   styleUrls: ['./state-tool-sidebar.component.css']

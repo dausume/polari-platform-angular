@@ -5,6 +5,7 @@ import { VariableModifierComponent } from './variable-modifier/variable-modifier
 import { RuntimeConfigService } from '@services/runtime-config.service';
 
 @Component({
+  standalone: false,
   selector: 'create-new-class',
   templateUrl: 'create-new-class.html',
   styleUrls: ['./create-new-class.css']

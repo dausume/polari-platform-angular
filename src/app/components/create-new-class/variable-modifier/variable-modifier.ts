@@ -4,6 +4,7 @@ import { variableConfigDef } from '@models/classEditor/variableDef';
 import { ChangeDetectorRef } from '@angular/core';
 
 @Component({
+  standalone: false,
   selector: 'variable-modifier',
   templateUrl: 'variable-modifier.html',
   styleUrls: ['./variable-modifier.css']

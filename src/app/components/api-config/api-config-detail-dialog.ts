@@ -12,6 +12,7 @@ export interface ApiConfigDetailDialogData {
 }
 
 @Component({
+  standalone: false,
   selector: 'api-config-detail-dialog',
   template: `
     <h2 mat-dialog-title>

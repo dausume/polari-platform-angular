@@ -59,6 +59,7 @@ import { variablePolyTyping } from '@models/polyTyping/variablePolyTyping';
 import { TableConfig } from '@models/tableConfiguration';
 
 @Component({
+  standalone: false,
   selector: 'template-class-table',
   templateUrl: 'templateClassTable.html',
   styleUrls: ['./templateClassTable.css']

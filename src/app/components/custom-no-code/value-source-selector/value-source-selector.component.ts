@@ -34,6 +34,7 @@ export interface SourceObjectField {
  * 3. Direct Assignment - Enter a literal value with type
  */
 @Component({
+  standalone: false,
   selector: 'app-value-source-selector',
   templateUrl: './value-source-selector.component.html',
   styleUrls: ['./value-source-selector.component.css']

@@ -2,6 +2,7 @@
 import { Component, Input } from '@angular/core';
 
 @Component({
+  standalone: false,
   selector: 'date-cell',
   templateUrl: `date-cell.html`,
   styleUrls: ['./date-cell.css']

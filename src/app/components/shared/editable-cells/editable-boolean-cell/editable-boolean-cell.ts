@@ -3,6 +3,7 @@ import { Component, Input } from '@angular/core';
 import { BaseEditableCell } from '../base-editable-cell';
 
 @Component({
+  standalone: false,
   selector: 'editable-boolean-cell',
   templateUrl: 'editable-boolean-cell.html',
   styleUrls: ['./editable-boolean-cell.css']

@@ -33,7 +33,7 @@ export class objectIdentifiersSpec {
           if(Array.isArray(identifiersList[someIdIndex][0].tuple[1]))
           {
             //This is should be a sub-reference
-            this.identifiers[identifiersList[someIdIndex][0].tuple[0]] = new objectIdentifiersSpec(identifiersList[someIdIndex][0].tuple[1]);
+            this.identifiers[identifiersList[someIdIndex][0].tuple[0]] = new objectIdentifiersSpec(identifiersList[someIdIndex][0].tuple[1] as [string, any[]]);
           }
           else
           {

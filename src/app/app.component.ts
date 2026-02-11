@@ -12,6 +12,7 @@ import { CRUDEservicesManager } from '@services/crude-services-manager';
 
 
 @Component({
+  standalone: false,
   selector: 'app-root',
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.css']

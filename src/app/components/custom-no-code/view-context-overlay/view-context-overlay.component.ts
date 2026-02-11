@@ -40,6 +40,7 @@ export interface VariablesByBranch {
  * Display overlay for debugging/inspecting what context is available at a state
  */
 @Component({
+  standalone: false,
   selector: 'view-context-overlay',
   templateUrl: './view-context-overlay.component.html',
   styleUrls: ['./view-context-overlay.component.css']

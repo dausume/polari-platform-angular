@@ -8,6 +8,7 @@ export interface DictViewData {
 }
 
 @Component({
+  standalone: false,
   selector: 'dict-view',
   templateUrl: './dict-view.html',
   styleUrls: ['./dict-view.css']

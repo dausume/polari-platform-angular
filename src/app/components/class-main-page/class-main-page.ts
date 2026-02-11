@@ -10,6 +10,7 @@ import { Display } from '@models/dashboards/Display';
 import { Subscription } from 'rxjs';
 
 @Component({
+  standalone: false,
   selector: 'class-main-page',
   templateUrl: 'class-main-page.html',
   styleUrls: ['./class-main-page.css']

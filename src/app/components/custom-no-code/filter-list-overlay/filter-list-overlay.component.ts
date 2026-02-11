@@ -27,6 +27,7 @@ export interface VisualFilterLink {
  * list filter conditions in the no-code visual programming system.
  */
 @Component({
+  standalone: false,
   selector: 'filter-list-overlay',
   templateUrl: './filter-list-overlay.component.html',
   styleUrls: ['./filter-list-overlay.component.css']

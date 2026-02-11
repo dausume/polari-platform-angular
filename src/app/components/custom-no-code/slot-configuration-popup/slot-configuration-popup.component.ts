@@ -123,6 +123,7 @@ export interface SlotConfiguration {
  * - For functional outputs: Can select which context values to pass
  */
 @Component({
+  standalone: false,
   selector: 'slot-configuration-popup',
   templateUrl: './slot-configuration-popup.component.html',
   styleUrls: ['./slot-configuration-popup.component.css']

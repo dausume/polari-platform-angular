@@ -58,6 +58,7 @@ export interface BoundObjectInfo {
  * available width/height to ensure content fits any state size.
  */
 @Component({
+  standalone: false,
   selector: 'state-overlay',
   templateUrl: './state-overlay.component.html',
   styleUrls: ['./state-overlay.component.css']

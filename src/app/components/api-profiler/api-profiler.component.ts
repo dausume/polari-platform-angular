@@ -31,6 +31,7 @@ interface HeaderEntry {
 }
 
 @Component({
+  standalone: false,
     selector: 'app-api-profiler',
     templateUrl: './api-profiler.component.html',
     styleUrls: ['./api-profiler.component.scss']

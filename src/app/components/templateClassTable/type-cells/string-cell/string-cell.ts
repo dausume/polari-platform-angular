@@ -2,6 +2,7 @@
 import { Component, Input } from '@angular/core';
 
 @Component({
+  standalone: false,
   selector: 'string-cell',
   templateUrl: `string-cell.html`,
   styleUrls: ['./string-cell.css']

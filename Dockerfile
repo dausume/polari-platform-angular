@@ -3,21 +3,20 @@
 # Optimized Dockerfile for polari-platform-angular
 # Uses layer caching to speed up rebuilds when only source code changes
 
-FROM node:18.13
+FROM node:20
 
 WORKDIR /project
 
 # Install Angular CLI globally (cached layer - rarely changes)
-RUN npm install -g @angular/cli@13.3.0
+RUN npm install -g @angular/cli@19.2.0
 
 # Copy package files FIRST for better caching
 # This layer only rebuilds when package.json or package-lock.json changes
 COPY package*.json ./
 
-# Use npm ci for faster, more reliable installs
-# Cache mount speeds up npm downloads across rebuilds
+# Install dependencies (using npm install to handle lock file version differences)
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci
+    npm install
 
 # Copy source code LAST (this invalidates cache most often)
 # Separating this from dependencies ensures npm packages are cached

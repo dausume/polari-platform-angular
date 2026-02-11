@@ -51,6 +51,7 @@ export interface VisualConditionLink {
  * conditional logic chains in the no-code visual programming system.
  */
 @Component({
+  standalone: false,
   selector: 'conditional-chain-overlay',
   templateUrl: './conditional-chain-overlay.component.html',
   styleUrls: ['./conditional-chain-overlay.component.css']

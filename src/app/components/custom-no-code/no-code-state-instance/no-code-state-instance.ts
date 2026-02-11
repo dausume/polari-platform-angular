@@ -7,6 +7,7 @@ import { NoCodeState } from '@models/noCode/NoCodeState';
 //user interface that allows for connectors and dynamic configuration, instantiation, and utilization of functionality
 //defined on classes while using their defined state.
 @Component({
+  standalone: false,
   selector: 'no-code-state-instance',
   templateUrl: 'no-code-state-instance.html',
   styleUrls: ['./no-code-state-instance.css']

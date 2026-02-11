@@ -22,6 +22,7 @@ import {
 import { StateDefinitionService } from '@services/no-code-services/state-definition.service';
 
 @Component({
+  standalone: false,
   selector: 'app-state-definition-creator',
   templateUrl: './state-definition-creator.component.html',
   styleUrls: ['./state-definition-creator.component.css']

@@ -2,6 +2,7 @@
 import { Component, Input } from '@angular/core';
 
 @Component({
+  standalone: false,
   selector: 'boolean-cell',
   templateUrl: `boolean-cell.html`,
   styleUrls: ['./boolean-cell.css']

@@ -3,6 +3,7 @@ import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { RowActionsConfig, DEFAULT_ROW_ACTIONS_CONFIG, CustomAction, RowActionEvent } from '../models/crud-config.models';
 
 @Component({
+  standalone: false,
   selector: 'row-actions-cell',
   templateUrl: 'row-actions-cell.html',
   styleUrls: ['./row-actions-cell.css']

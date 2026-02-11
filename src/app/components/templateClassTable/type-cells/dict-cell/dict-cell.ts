@@ -4,6 +4,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { DictViewComponent } from '../dict-view/dict-view';
 
 @Component({
+  standalone: false,
   selector: 'dict-cell',
   templateUrl: `dict-cell.html`,
   styleUrls: ['./dict-cell.css']

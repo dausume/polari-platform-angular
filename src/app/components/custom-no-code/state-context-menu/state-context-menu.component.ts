@@ -29,6 +29,7 @@ export const SHAPE_OPTIONS = [
 ];
 
 @Component({
+  standalone: false,
   selector: 'app-state-context-menu',
   templateUrl: './state-context-menu.component.html',
   styleUrls: ['./state-context-menu.component.css']

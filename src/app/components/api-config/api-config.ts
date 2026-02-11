@@ -29,6 +29,7 @@ import { ApiConfigDetailDialogComponent, ApiConfigDetailDialogData } from './api
  * Base/framework objects are read-only. User-created objects can be edited.
  */
 @Component({
+  standalone: false,
   selector: 'api-config',
   templateUrl: './api-config.html',
   styleUrls: ['./api-config.css']

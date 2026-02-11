@@ -9,6 +9,7 @@ import { environment } from 'src/environments/environment-dev';
 
 
 @Component({
+  standalone: false,
   selector: 'polari-config',
   templateUrl: 'polari-config.html',
   styleUrls: ['./polari-config.css']

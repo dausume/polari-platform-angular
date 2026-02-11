@@ -14,6 +14,7 @@ import { CrudDialogComponent } from '@components/shared/crud-dialog/crud-dialog'
 import { CrudDialogData, CrudDialogResult, VariableDefinition } from '@components/shared/models/crud-config.models';
 
 @Component({
+  standalone: false,
   selector: 'class-data-table',
   templateUrl: 'class-data-table.html',
   styleUrls: ['./class-data-table.css']

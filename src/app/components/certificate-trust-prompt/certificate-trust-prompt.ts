@@ -10,6 +10,7 @@ import { CertificateTrustService, EndpointStatus } from '../../services/certific
  * and instructions on how to proceed.
  */
 @Component({
+  standalone: false,
   selector: 'app-certificate-trust-prompt',
   templateUrl: './certificate-trust-prompt.html',
   styleUrls: ['./certificate-trust-prompt.css']

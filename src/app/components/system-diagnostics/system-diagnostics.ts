@@ -3,6 +3,7 @@ import { CRUDEservicesManager } from '@services/crude-services-manager';
 import { Subscription } from 'rxjs';
 
 @Component({
+  standalone: false,
   selector: 'system-diagnostics',
   templateUrl: './system-diagnostics.html',
   styleUrls: ['./system-diagnostics.css']

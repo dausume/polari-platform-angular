@@ -4,6 +4,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { ListViewComponent } from '../list-view/list-view';
 
 @Component({
+  standalone: false,
   selector: 'list-cell',
   templateUrl: `list-cell.html`,
   styleUrls: ['./list-cell.css']

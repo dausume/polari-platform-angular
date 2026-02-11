@@ -2,6 +2,7 @@ import { Component, HostListener, Input, Output, EventEmitter } from '@angular/c
 import { Slot } from '@models/noCode/Slot';
 
 @Component({
+  standalone: false,
   selector: 'no-code-state-border',
   templateUrl: 'no-code-state-border.html',
   styleUrls: ['./no-code-state-border.css']

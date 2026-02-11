@@ -3,6 +3,7 @@ import { Component, Input, EventEmitter, Output } from '@angular/core';
 import { MatGridListModule, MatGridList, MatGridTile, MatGridTileText } from '@angular/material/grid-list';
 
 @Component({
+  standalone: false,
   selector: 'config-cell-actions',
   templateUrl: `config-cell-actions.html`,
   styleUrls: ['./config-cell-actions.css']

@@ -3,6 +3,7 @@ import { FormGroup, FormBuilder, Validators } from '@angular/forms';
 import { NoCodeSolution } from '@models/noCode/NoCodeSolution';
 
 @Component({
+  standalone: false,
   selector: 'solution-editor',
   templateUrl: 'solution-editor.html',
   styleUrls: ['./solution-editor.css']

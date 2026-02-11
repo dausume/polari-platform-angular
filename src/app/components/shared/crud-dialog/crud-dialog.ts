@@ -15,6 +15,7 @@ import {
 } from '../models/crud-config.models';
 
 @Component({
+  standalone: false,
   selector: 'crud-dialog',
   templateUrl: 'crud-dialog.html',
   styleUrls: ['./crud-dialog.css']

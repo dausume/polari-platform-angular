@@ -7,6 +7,7 @@ import { BehaviorSubject, interval, Observable, Observer, Subscription } from 'r
 
 
 @Component({
+  standalone: false,
   selector: 'nav-component',
   templateUrl: 'nav-component.html',
   styleUrls: ['./nav-component.css']

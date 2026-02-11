@@ -30,6 +30,7 @@ export interface DisplayField {
  * as a popup, useful when the overlay is zoomed out too small to interact with.
  */
 @Component({
+  standalone: false,
   selector: 'state-full-view-popup',
   templateUrl: './state-full-view-popup.component.html',
   styleUrls: ['./state-full-view-popup.component.css']

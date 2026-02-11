@@ -9,6 +9,7 @@ import { NoCodeStateRendererManager } from '@services/no-code-services/no-code-s
 import { InteractionStateService } from '@services/no-code-services/interaction-state-service';
 
 @Component({
+  standalone: false,
   selector: 'no-code-interface',
   templateUrl: 'no-code-interface.html',
   styleUrls: ['./no-code-interface.css']

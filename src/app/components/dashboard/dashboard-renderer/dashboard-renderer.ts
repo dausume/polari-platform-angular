@@ -18,6 +18,7 @@ export interface DisplayContext {
  * Handles grid-based layout and dynamic component loading.
  */
 @Component({
+  standalone: false,
     selector: 'dashboard-renderer',
     templateUrl: './dashboard-renderer.html',
     styleUrls: ['./dashboard-renderer.css']

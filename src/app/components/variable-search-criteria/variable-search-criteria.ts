@@ -6,6 +6,7 @@ import { PolariService } from '@services/polari-service';
 import { BehaviorSubject, interval, Observable, Observer, Subscription } from 'rxjs';
 
 @Component({
+  standalone: false,
   selector: 'variable-search-criteria',
   templateUrl: 'variable-search-criteria.html',
   styleUrls: ['./variable-search-criteria.css']

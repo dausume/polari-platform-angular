@@ -8,6 +8,7 @@ export interface ListViewData {
 }
 
 @Component({
+  standalone: false,
   selector: 'list-view',
   templateUrl: './list-view.html',
   styleUrls: ['./list-view.css']

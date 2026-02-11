@@ -3,6 +3,7 @@ import { Component, Input } from '@angular/core';
 import { BaseEditableCell } from '../base-editable-cell';
 
 @Component({
+  standalone: false,
   selector: 'editable-date-cell',
   templateUrl: 'editable-date-cell.html',
   styleUrls: ['./editable-date-cell.css']
