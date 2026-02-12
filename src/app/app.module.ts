@@ -39,7 +39,6 @@ import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 //Components
 // App Base Components
-import { HomeComponent } from 'src/app/components/home/home';
 import { HeaderComponent } from 'src/app/components/header/header';
 import { PolariConfigComponent } from '@components/polari-config/polari-config';
 import { NavigationComponent } from '@components/nav-component/nav-component';
@@ -89,10 +88,7 @@ import { ObjectCellComponent } from '@components/templateClassTable/type-cells/o
 // Cell View Components (for popups)
 import { ListViewComponent } from '@components/templateClassTable/type-cells/list-view/list-view';
 import { DictViewComponent } from '@components/templateClassTable/type-cells/dict-view/dict-view';
-// Manager Info Component
-import { ManagerInfoComponent } from '@components/manager-info/manager-info';
-// Typing Info Component
-import { TypingInfoComponent } from '@components/typing-info/typing-info';
+// (ManagerInfoComponent and TypingInfoComponent are lazy-loaded via router)
 // Certificate Trust Component
 import { CertificateTrustPromptComponent } from '@components/certificate-trust-prompt/certificate-trust-prompt';
 // API Profiler Component
@@ -100,8 +96,7 @@ import { ApiProfilerComponent } from '@components/api-profiler/api-profiler.comp
 // API Config Component
 import { ApiConfigComponent } from '@components/api-config/api-config';
 import { ApiConfigDetailDialogComponent } from '@components/api-config/api-config-detail-dialog';
-// System Diagnostics Component
-import { SystemDiagnosticsComponent } from '@components/system-diagnostics/system-diagnostics';
+// (SystemDiagnosticsComponent and HomeComponent are lazy-loaded via router)
 //Services (Backend Access)
 import { PolariService } from '@services/polari-service';
 import { CRUDEservicesManager } from '@services/crude-services-manager';
@@ -207,11 +202,7 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     NavigationComponent,
     HeaderComponent,
     DisplayMetricCardComponent,
-    HomeComponent,
     CertificateTrustPromptComponent,
-    ManagerInfoComponent,
-    TypingInfoComponent,
-    SystemDiagnosticsComponent,
     // NgRx
     StoreModule.forRoot(rootReducers),
     EffectsModule.forRoot([PolariEffects, DynamicObjectsEffects]),
