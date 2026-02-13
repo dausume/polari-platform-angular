@@ -45,12 +45,12 @@ export class AppComponent {
   unusedPagesExpanded: boolean = false;
 
   // Sub-category expanded state for Object Pages
-  objectPagesSubExpanded: { framework: boolean; custom: boolean } = {
-    framework: false, custom: false
+  objectPagesSubExpanded: { framework: boolean; custom: boolean; materials_science: boolean } = {
+    framework: false, custom: false, materials_science: false
   };
   // Sub-category expanded state for Unused Objects
-  unusedPagesSubExpanded: { framework: boolean; custom: boolean } = {
-    framework: false, custom: false
+  unusedPagesSubExpanded: { framework: boolean; custom: boolean; materials_science: boolean } = {
+    framework: false, custom: false, materials_science: false
   };
 
   constructor(router: Router, polariService: PolariService, typingService: ClassTypingService, crudeServicesManager: CRUDEservicesManager)
@@ -103,12 +103,12 @@ export class AppComponent {
   }
 
   // Toggle a sub-category within Object Pages
-  toggleObjectPagesSub(category: 'framework' | 'custom') {
+  toggleObjectPagesSub(category: 'framework' | 'custom' | 'materials_science') {
     this.objectPagesSubExpanded[category] = !this.objectPagesSubExpanded[category];
   }
 
   // Toggle a sub-category within Unused Objects
-  toggleUnusedPagesSub(category: 'framework' | 'custom') {
+  toggleUnusedPagesSub(category: 'framework' | 'custom' | 'materials_science') {
     this.unusedPagesSubExpanded[category] = !this.unusedPagesSubExpanded[category];
   }
 

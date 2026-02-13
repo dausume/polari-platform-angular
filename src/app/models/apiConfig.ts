@@ -84,6 +84,7 @@ export interface ApiFormats {
 export interface ApiConfigObject {
   className: string;
   displayName: string;
+  sourceModule?: string;
   isBaseObject: boolean;
   isUserCreated: boolean;
   excludeFromCRUDE: boolean;

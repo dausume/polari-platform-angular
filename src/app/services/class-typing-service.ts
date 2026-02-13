@@ -33,7 +33,8 @@ export class ClassTypingService {
         new navComponent("Custom No-Code","custom-no-code","CustomNoCodeComponent", {}, []),
         new navComponent("API Profiler","api-profiler","ApiProfilerComponent", {}, []),
         new navComponent("API Config","api-config","ApiConfigComponent", {}, []),
-        new navComponent("System Diagnostics","system-diagnostics","SystemDiagnosticsComponent", {}, [])
+        new navComponent("System Diagnostics","system-diagnostics","SystemDiagnosticsComponent", {}, []),
+        new navComponent("Module Management","module-management","ModuleManagementComponent", {}, [])
     ]
 
     // Dynamic navigation items for object class pages WITH instances (shown in main dropdown)
@@ -410,8 +411,14 @@ export class ClassTypingService {
                         if (response.success && response.objects) {
                             this.apiConfigCategoryMap.clear();
                             response.objects.forEach((obj: ApiConfigObject) => {
-                                const category: ObjectCategory = (obj.isBaseObject || obj.serverAccessOnly)
-                                    ? 'framework' : 'custom';
+                                let category: ObjectCategory;
+                                if (obj.sourceModule === 'materials_science') {
+                                    category = 'materials_science';
+                                } else if (obj.isBaseObject || obj.serverAccessOnly) {
+                                    category = 'framework';
+                                } else {
+                                    category = 'custom';
+                                }
                                 this.apiConfigCategoryMap.set(obj.className, category);
                             });
                             console.log('[ClassTypingService] API config categories loaded:',
@@ -486,6 +493,20 @@ export class ClassTypingService {
                     'Unused:', this.unusedClassNavComponents.length,
                     'Editable Used:', this.editableUsedClassNavComponents.length,
                     'Editable Unused:', this.editableUnusedClassNavComponents.length);
+    }
+
+    /**
+     * Refresh all object data after a module has been enabled/disabled.
+     * Re-fetches polyTypedObjects, polyTypedVariables, api-config categories,
+     * and class instance counts from the backend.
+     */
+    refreshAfterModuleChange() {
+        console.log('[ClassTypingService] Refreshing after module change...');
+        // Re-fetch object typing and variable typing from the backend
+        this.polariService.getObjectTyping();
+        // Re-fetch api-config categories and class instance counts
+        this.fetchClassInstanceCounts();
+        this.fetchApiConfigCategories();
     }
 
     /**

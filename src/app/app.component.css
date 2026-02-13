@@ -159,3 +159,18 @@ mat-sidenav-container {
     border-left-color: #4caf50;
     background-color: rgba(76, 175, 80, 0.03);
   }
+
+  /* Material Science Objects - orange/amber theme */
+  .sub-materials-header {
+    background-color: rgba(255, 152, 0, 0.08);
+    color: #e65100;
+  }
+
+  .sub-materials-header:hover {
+    background-color: rgba(255, 152, 0, 0.14);
+  }
+
+  .sub-materials-items {
+    border-left-color: #ff9800;
+    background-color: rgba(255, 152, 0, 0.03);
+  }

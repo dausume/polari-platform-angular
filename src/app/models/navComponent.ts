@@ -1,5 +1,5 @@
 // Author: Dustin Etts
-export type ObjectCategory = 'framework' | 'custom';
+export type ObjectCategory = 'framework' | 'custom' | 'materials_science';
 
 export class navComponent {
     title : string;

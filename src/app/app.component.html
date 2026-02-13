@@ -47,6 +47,19 @@
                     </mat-list-item>
                 </div>
 
+                <!-- Material Science Objects sub-dropdown -->
+                <mat-list-item *ngIf="getObjectPagesByCategory('materials_science').length > 0"
+                    (click)="toggleObjectPagesSub('materials_science')" class="sub-dropdown-header sub-materials-header">
+                    <mat-icon>{{ objectPagesSubExpanded.materials_science ? 'expand_less' : 'expand_more' }}</mat-icon>
+                    <span>Material Science Objects ({{ getObjectPagesByCategory('materials_science').length }})</span>
+                </mat-list-item>
+                <div *ngIf="objectPagesSubExpanded.materials_science" class="sub-dropdown-items sub-materials-items">
+                    <mat-list-item *ngFor="let classNav of getObjectPagesByCategory('materials_science')"
+                        (click)="navigateToClassPage(classNav)" class="dropdown-item sub-dropdown-item">
+                        <span class="dropdown-item-text">{{ classNav.title }}</span>
+                    </mat-list-item>
+                </div>
+
             </div>
 
             <!-- Unused Objects Dropdown (only show if we have unused classes) -->
@@ -79,6 +92,19 @@
                 </mat-list-item>
                 <div *ngIf="unusedPagesSubExpanded.custom" class="sub-dropdown-items sub-custom-items">
                     <mat-list-item *ngFor="let classNav of getUnusedPagesByCategory('custom')"
+                        (click)="navigateToClassPage(classNav)" class="dropdown-item sub-dropdown-item unused-item">
+                        <span class="dropdown-item-text">{{ classNav.title }}</span>
+                    </mat-list-item>
+                </div>
+
+                <!-- Material Science Objects sub-dropdown (unused) -->
+                <mat-list-item *ngIf="getUnusedPagesByCategory('materials_science').length > 0"
+                    (click)="toggleUnusedPagesSub('materials_science')" class="sub-dropdown-header sub-materials-header">
+                    <mat-icon>{{ unusedPagesSubExpanded.materials_science ? 'expand_less' : 'expand_more' }}</mat-icon>
+                    <span>Material Science Objects ({{ getUnusedPagesByCategory('materials_science').length }})</span>
+                </mat-list-item>
+                <div *ngIf="unusedPagesSubExpanded.materials_science" class="sub-dropdown-items sub-materials-items">
+                    <mat-list-item *ngFor="let classNav of getUnusedPagesByCategory('materials_science')"
                         (click)="navigateToClassPage(classNav)" class="dropdown-item sub-dropdown-item unused-item">
                         <span class="dropdown-item-text">{{ classNav.title }}</span>
                     </mat-list-item>

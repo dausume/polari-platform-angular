@@ -20,7 +20,8 @@ const routes: Routes = [
   { path: 'typing-info', loadComponent: () => import('@components/typing-info/typing-info').then(m => m.TypingInfoComponent) },
   { path: 'api-profiler', component: ApiProfilerComponent },
   { path: 'api-config', component: ApiConfigComponent },
-  { path: 'system-diagnostics', loadComponent: () => import('@components/system-diagnostics/system-diagnostics').then(m => m.SystemDiagnosticsComponent) }
+  { path: 'system-diagnostics', loadComponent: () => import('@components/system-diagnostics/system-diagnostics').then(m => m.SystemDiagnosticsComponent) },
+  { path: 'module-management', loadComponent: () => import('@components/module-management/module-management.component').then(m => m.ModuleManagementComponent) }
 ];
 
 @NgModule({
