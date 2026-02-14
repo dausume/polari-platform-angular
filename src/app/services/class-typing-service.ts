@@ -444,15 +444,33 @@ export class ClassTypingService {
         // Get all dynamic nav components
         const allNavs = [...this.dynamicClassNavComponents, ...this.unusedClassNavComponents];
 
+        // Build the set of classes the backend still knows about
+        const knownClasses = new Set([...this.classesWithInstances, ...this.classesWithoutInstances]);
+
         // Reset all arrays
         this.dynamicClassNavComponents = [];
         this.unusedClassNavComponents = [];
         this.editableUsedClassNavComponents = [];
         this.editableUnusedClassNavComponents = [];
 
+        const removedClasses: string[] = [];
+
         allNavs.forEach(nav => {
             // Extract class name from path (format: "class-main-page/className") or use stored className
             const className = nav.className || (nav.path.split('/').length > 1 ? nav.path.split('/')[1] : '');
+
+            // If the backend no longer knows about this class (e.g. module was purged), remove it entirely
+            if (knownClasses.size > 0 && !knownClasses.has(className)) {
+                removedClasses.push(className);
+                // Clean up cached typing data for purged classes
+                if (this.polyTyping[className]) { delete this.polyTyping[className]; }
+                if (this.polyVarTyping[className]) { delete this.polyVarTyping[className]; }
+                this.apiConfigCategoryMap.delete(className);
+                // Remove from combined navComponents array
+                const navIdx = this.navComponents.findIndex(nc => nc.className === className);
+                if (navIdx !== -1) { this.navComponents.splice(navIdx, 1); }
+                return;
+            }
 
             // Update isEditable flag and objectCategory based on current data
             const classTyping = this.getClassPolyTyping(className);
@@ -476,6 +494,11 @@ export class ClassTypingService {
                 }
             }
         });
+
+        if (removedClasses.length > 0) {
+            console.log('[ClassTypingService] Removed nav components for purged classes:', removedClasses);
+            this.polyTypingBehaviorSubject.next(this.polyVarTyping);
+        }
 
         // Sort all lists
         this.dynamicClassNavComponents.sort((a, b) => a.title.localeCompare(b.title));

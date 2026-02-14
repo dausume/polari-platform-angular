@@ -8,8 +8,10 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { PolariService } from '@services/polari-service';
 import { ClassTypingService } from '@services/class-typing-service';
+import { ModuleDisableConfirmDialogComponent, ModuleDisableConfirmData } from './module-disable-confirm-dialog';
 
 interface ModuleInfo {
   id: string;
@@ -134,7 +136,7 @@ interface ModuleInfo {
   `],
   imports: [
     CommonModule, MatCardModule, MatIconModule, MatButtonModule,
-    MatSlideToggleModule, MatProgressSpinnerModule, MatChipsModule
+    MatSlideToggleModule, MatProgressSpinnerModule, MatChipsModule, MatDialogModule
   ]
 })
 export class ModuleManagementComponent implements OnInit, OnDestroy {
@@ -147,7 +149,7 @@ export class ModuleManagementComponent implements OnInit, OnDestroy {
   toggleError = false;
   private subscriptions: Subscription[] = [];
 
-  constructor(private http: HttpClient, private polariService: PolariService, private typingService: ClassTypingService) {}
+  constructor(private http: HttpClient, private polariService: PolariService, private typingService: ClassTypingService, private dialog: MatDialog) {}
 
   ngOnInit(): void {
     this.subscriptions.push(
@@ -185,6 +187,32 @@ export class ModuleManagementComponent implements OnInit, OnDestroy {
   }
 
   toggleModule(mod: ModuleInfo, enabled: boolean): void {
+    if (enabled) {
+      this.executeToggle(mod, true);
+    } else {
+      const dialogRef = this.dialog.open(ModuleDisableConfirmDialogComponent, {
+        width: '480px',
+        data: {
+          moduleName: mod.name,
+          moduleId: mod.id,
+          classCount: mod.classCount,
+          instanceCount: mod.seedInstanceCount
+        } as ModuleDisableConfirmData
+      });
+
+      this.subscriptions.push(
+        dialogRef.afterClosed().subscribe((confirmed: boolean) => {
+          if (confirmed) {
+            this.executeToggle(mod, false);
+          } else {
+            this.loadModules();
+          }
+        })
+      );
+    }
+  }
+
+  private executeToggle(mod: ModuleInfo, enabled: boolean): void {
     this.toggling = true;
     this.toggleMessage = null;
     const url = this.polariService.getBackendBaseUrl() + '/modules';
@@ -195,7 +223,11 @@ export class ModuleManagementComponent implements OnInit, OnDestroy {
           this.toggling = false;
           if (res.success) {
             this.toggleError = false;
-            this.toggleMessage = res.message;
+            if (res.purgeSummary) {
+              this.toggleMessage = `${res.message} — purged ${res.purgeSummary.instancesPurged} instances across ${res.purgeSummary.classesPurged} classes`;
+            } else {
+              this.toggleMessage = res.message;
+            }
             if (res.modules) { this.modules = res.modules; }
             this.typingService.refreshAfterModuleChange();
           } else {
