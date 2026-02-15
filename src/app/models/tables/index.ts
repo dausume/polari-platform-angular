@@ -108,6 +108,14 @@ export { PaginationConfig, IPaginationConfig, DEFAULT_PAGINATION } from './Pagin
 export { FilterConfig, IFilterConfig, DEFAULT_FILTER } from './FilterConfig';
 export { SectionState, ISectionState, DEFAULT_SECTIONS } from './SectionState';
 
+// Named table configuration (backend-persisted)
+export {
+    NamedTableConfig,
+    TableDefinitionSummary,
+    RowWrappingConfig,
+    CrudPermissionConfig
+} from './NamedTableConfig';
+
 // Visibility styling utilities
 export {
     VISIBILITY_CLASSES,

@@ -1,8 +1,11 @@
 import { Component, Input, OnInit, OnChanges, SimpleChanges, Type } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { MatIconModule } from '@angular/material/icon';
 import { Display } from '@models/dashboards/Display';
 import { DisplayRow } from '@models/dashboards/DisplayRow';
 import { DisplayItem, DisplayItemType, MetricData } from '@models/dashboards/DisplayItem';
 import { DISPLAY_COMPONENT_REGISTRY } from '@models/dashboards/ComponentRegistry';
+import { DisplayMetricCardComponent } from '@components/dashboard/dashboard-metric-card/dashboard-metric-card';
 
 /**
  * Context data passed to child components within the dashboard
@@ -18,10 +21,11 @@ export interface DisplayContext {
  * Handles grid-based layout and dynamic component loading.
  */
 @Component({
-  standalone: false,
+  standalone: true,
     selector: 'dashboard-renderer',
     templateUrl: './dashboard-renderer.html',
-    styleUrls: ['./dashboard-renderer.css']
+    styleUrls: ['./dashboard-renderer.css'],
+    imports: [CommonModule, MatIconModule, DisplayMetricCardComponent]
 })
 export class DisplayRendererComponent implements OnInit, OnChanges {
     /** The dashboard model to render */

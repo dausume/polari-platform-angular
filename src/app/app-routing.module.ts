@@ -13,7 +13,7 @@ const routes: Routes = [
   { path: '', loadComponent: () => import('@components/home/home').then(m => m.HomeComponent) },
   { path: 'polari-config', component: PolariConfigComponent},
   { path: 'polari-config/:polariAccessNode', component: PolariConfigComponent},
-  { path: 'class-main-page/:class', component: ClassMainPageComponent},
+{ path: 'class-main-page/:class', component: ClassMainPageComponent},
   { path: 'create-class', component: CreateNewClassComponent },
   { path: 'custom-no-code', component: CustomNoCodeComponent },
   { path: 'manager-info', loadComponent: () => import('@components/manager-info/manager-info').then(m => m.ManagerInfoComponent) },

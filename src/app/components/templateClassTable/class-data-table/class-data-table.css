@@ -46,6 +46,29 @@
     min-width: 300px;
 }
 
+/* Force dark text in filter field on light backgrounds */
+.filter-field ::ng-deep .mat-mdc-text-field-wrapper,
+.filter-field ::ng-deep .mdc-text-field--outlined {
+    background: #fff;
+}
+
+.filter-field ::ng-deep .mat-mdc-form-field-input-control,
+.filter-field ::ng-deep .mdc-floating-label,
+.filter-field ::ng-deep .mat-mdc-select-value-text,
+.filter-field ::ng-deep input.mat-mdc-input-element {
+    color: #333 !important;
+}
+
+.filter-field ::ng-deep .mdc-notched-outline__leading,
+.filter-field ::ng-deep .mdc-notched-outline__notch,
+.filter-field ::ng-deep .mdc-notched-outline__trailing {
+    border-color: rgba(0, 0, 0, 0.38) !important;
+}
+
+.filter-field ::ng-deep .mat-mdc-form-field-icon-suffix mat-icon {
+    color: #666 !important;
+}
+
 .create-btn {
     display: flex;
     align-items: center;
@@ -330,6 +353,27 @@ mat-paginator {
     border-radius: 0 0 6px 6px;
 }
 
+mat-paginator ::ng-deep .mat-mdc-paginator-container {
+    color: #333;
+}
+
+mat-paginator ::ng-deep .mat-mdc-paginator-range-label,
+mat-paginator ::ng-deep .mat-mdc-paginator-page-size-label {
+    color: #333;
+}
+
+mat-paginator ::ng-deep .mat-mdc-select-value-text {
+    color: #333 !important;
+}
+
+mat-paginator ::ng-deep .mat-mdc-paginator-navigation-button {
+    color: #555;
+}
+
+mat-paginator ::ng-deep .mat-mdc-paginator-navigation-button[disabled] {
+    color: #bbb;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .table-header-section {
@@ -413,4 +457,77 @@ mat-paginator {
     font-size: 20px;
     width: 20px;
     height: 20px;
+}
+
+/* ===== Table Options Menu ===== */
+.options-btn {
+    color: #555;
+}
+
+::ng-deep .table-options-menu {
+    max-height: 400px;
+}
+
+.menu-section-label {
+    padding: 8px 16px 4px;
+    font-size: 0.75em;
+    font-weight: 600;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* ===== Wrapped Row Mode ===== */
+.wrapped-table-wrapper {
+    padding: 8px 0;
+}
+
+.wrapped-instance {
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    background: #fff;
+    overflow: hidden;
+}
+
+.wrapped-sub-row {
+    display: flex;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.wrapped-sub-row:last-child {
+    border-bottom: none;
+}
+
+.wrapped-cell {
+    flex: 1;
+    padding: 8px 16px;
+    min-width: 0;
+}
+
+.wrapped-cell-header {
+    font-size: 0.75em;
+    font-weight: 600;
+    color: #6c757d;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+
+.wrapped-cell-value {
+    font-size: 0.9em;
+    color: #495057;
+}
+
+.separator-thin {
+    margin-bottom: 4px;
+}
+
+.separator-thick {
+    margin-bottom: 12px;
+    border-bottom: 4px solid #dee2e6;
+}
+
+.separator-double {
+    margin-bottom: 8px;
+    border-bottom: 3px double #adb5bd;
 }

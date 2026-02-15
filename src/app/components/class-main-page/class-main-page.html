@@ -1,20 +1,402 @@
-<!-- Dashboard view for class pages -->
-<dashboard-renderer
-    *ngIf="dashboard"
-    [dashboard]="dashboard"
-    [context]="dashboardContext">
-</dashboard-renderer>
+<mat-tab-group [selectedIndex]="selectedTabIndex" (selectedIndexChange)="onTabChange($event)">
 
-<!-- Fallback: Direct table display when no dashboard yet -->
-<div class="fallback-container" *ngIf="!dashboard && className">
-    <template-class-table
-        [className]="className"
-        [classTypeData]="classTypeData">
-    </template-class-table>
-</div>
+  <!-- ===== OVERVIEW TAB ===== -->
+  <mat-tab label="Overview">
+    <div class="tab-content">
+      <!-- Dashboard view for class pages -->
+      <dashboard-renderer
+          *ngIf="dashboard"
+          [dashboard]="dashboard"
+          [context]="dashboardContext">
+      </dashboard-renderer>
 
-<!-- Loading state -->
-<div class="loading-container" *ngIf="!dashboard && !className">
-    <mat-spinner diameter="40"></mat-spinner>
-    <p>Loading class data...</p>
-</div>
+      <!-- Fallback: Direct table display when no dashboard yet -->
+      <div class="fallback-container" *ngIf="!dashboard && className">
+          <template-class-table
+              [className]="className"
+              [classTypeData]="classTypeData">
+          </template-class-table>
+      </div>
+
+      <!-- Loading state -->
+      <div class="loading-container" *ngIf="!dashboard && !className">
+          <mat-spinner diameter="40"></mat-spinner>
+          <p>Loading class data...</p>
+      </div>
+    </div>
+  </mat-tab>
+
+  <!-- ===== TABLES TAB ===== -->
+  <mat-tab label="Tables">
+    <div class="tab-content">
+
+      <!-- Table Config List View (no config selected) -->
+      <div *ngIf="!selectedTableConfig" class="displays-list-view">
+        <div class="displays-header">
+          <div>
+            <h3>Table Configurations for {{ className }}</h3>
+            <p class="subtitle">Create and manage custom table configurations for this class.</p>
+          </div>
+          <button mat-fab color="primary" (click)="openCreateTableConfigDialog()" class="create-btn">
+            <mat-icon>add</mat-icon>
+          </button>
+        </div>
+
+        <mat-spinner *ngIf="tableConfigsLoading" diameter="40"></mat-spinner>
+
+        <!-- Empty state -->
+        <div *ngIf="!tableConfigsLoading && tableConfigList.length === 0" class="empty-state">
+          <mat-icon class="empty-icon">table_chart</mat-icon>
+          <h3>No Table Configurations Yet</h3>
+          <p>Get started by creating your first table configuration for this class.</p>
+          <button mat-flat-button color="primary" (click)="openCreateTableConfigDialog()">
+            <mat-icon>add</mat-icon> Create Your First Table Config
+          </button>
+        </div>
+
+        <!-- Table config cards grid -->
+        <div *ngIf="!tableConfigsLoading && tableConfigList.length > 0" class="displays-grid">
+          <mat-card *ngFor="let tc of tableConfigList" class="display-card table-def-card">
+            <mat-card-header>
+              <mat-icon mat-card-avatar class="display-icon table-def-icon">table_chart</mat-icon>
+              <mat-card-title>{{ tc.name || 'Untitled Config' }}</mat-card-title>
+              <mat-card-subtitle *ngIf="tc.description">{{ tc.description }}</mat-card-subtitle>
+            </mat-card-header>
+            <mat-card-actions align="end">
+              <button mat-stroked-button color="primary" (click)="selectTableConfig(tc)" title="Edit table config">
+                <mat-icon>edit</mat-icon> Edit
+              </button>
+              <button mat-icon-button color="warn" (click)="deleteTableConfig(tc, $event)" title="Delete table config">
+                <mat-icon>delete</mat-icon>
+              </button>
+            </mat-card-actions>
+          </mat-card>
+        </div>
+      </div>
+
+      <!-- Table Config Editor View (config selected) -->
+      <div *ngIf="selectedTableConfig" class="display-editor-view">
+        <div class="editor-toolbar">
+          <div class="editor-toolbar-left">
+            <button mat-icon-button (click)="deselectTableConfig()" title="Back to list">
+              <mat-icon>arrow_back</mat-icon>
+            </button>
+            <h3>{{ selectedTableConfig.name || 'Untitled Config' }}</h3>
+            <span *ngIf="hasTableDraftChanges" class="unsaved-badge">Unsaved changes</span>
+          </div>
+          <div class="editor-toolbar-right">
+            <button mat-flat-button color="primary" *ngIf="hasTableDraftChanges" (click)="saveTableConfig()">
+              <mat-icon>save</mat-icon> Save
+            </button>
+            <button mat-icon-button (click)="tableConfigPanelOpen = !tableConfigPanelOpen"
+                    [color]="tableConfigPanelOpen ? 'primary' : ''">
+              <mat-icon>settings</mat-icon>
+            </button>
+          </div>
+        </div>
+
+        <div class="editor-body">
+          <!-- Preview area -->
+          <div class="editor-preview" [class.with-config-panel]="tableConfigPanelOpen">
+            <class-data-table
+              [className]="className"
+              [classTypeData]="classTypeData"
+              [instanceData]="previewInstanceData"
+              [namedTableConfig]="selectedTableConfig"
+              [hideColumnSelector]="true">
+            </class-data-table>
+          </div>
+
+          <!-- Config sidebar -->
+          <div class="config-panel" *ngIf="tableConfigPanelOpen">
+            <table-config-sidebar
+              [config]="selectedTableConfig"
+              [classTypeData]="classTypeData"
+              (configChange)="onTableConfigChange($event)">
+            </table-config-sidebar>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </mat-tab>
+
+  <!-- ===== GRAPHS TAB ===== -->
+  <mat-tab label="Graphs">
+    <div class="tab-content">
+
+      <!-- Graph Config List View (no config selected) -->
+      <div *ngIf="!selectedGraphConfig" class="displays-list-view">
+        <div class="displays-header">
+          <div>
+            <h3>Graph Configurations for {{ className }}</h3>
+            <p class="subtitle">Create and manage custom graph configurations for this class.</p>
+          </div>
+          <button mat-fab color="primary" (click)="openCreateGraphConfigDialog()" class="create-btn">
+            <mat-icon>add</mat-icon>
+          </button>
+        </div>
+
+        <mat-spinner *ngIf="graphConfigsLoading" diameter="40"></mat-spinner>
+
+        <!-- Empty state -->
+        <div *ngIf="!graphConfigsLoading && graphConfigList.length === 0" class="empty-state">
+          <mat-icon class="empty-icon">show_chart</mat-icon>
+          <h3>No Graph Configurations Yet</h3>
+          <p>Get started by creating your first graph configuration for this class.</p>
+          <button mat-flat-button color="primary" (click)="openCreateGraphConfigDialog()">
+            <mat-icon>add</mat-icon> Create Your First Graph Config
+          </button>
+        </div>
+
+        <!-- Graph config cards grid -->
+        <div *ngIf="!graphConfigsLoading && graphConfigList.length > 0" class="displays-grid">
+          <mat-card *ngFor="let gc of graphConfigList" class="display-card graph-def-card">
+            <mat-card-header>
+              <mat-icon mat-card-avatar class="display-icon graph-def-icon">show_chart</mat-icon>
+              <mat-card-title>{{ gc.name || 'Untitled Config' }}</mat-card-title>
+              <mat-card-subtitle *ngIf="gc.description">{{ gc.description }}</mat-card-subtitle>
+            </mat-card-header>
+            <mat-card-actions align="end">
+              <button mat-stroked-button color="primary" (click)="selectGraphConfig(gc)" title="Edit graph config">
+                <mat-icon>edit</mat-icon> Edit
+              </button>
+              <button mat-icon-button color="warn" (click)="deleteGraphConfig(gc, $event)" title="Delete graph config">
+                <mat-icon>delete</mat-icon>
+              </button>
+            </mat-card-actions>
+          </mat-card>
+        </div>
+      </div>
+
+      <!-- Graph Config Editor View (config selected) -->
+      <div *ngIf="selectedGraphConfig" class="display-editor-view">
+        <div class="editor-toolbar">
+          <div class="editor-toolbar-left">
+            <button mat-icon-button (click)="deselectGraphConfig()" title="Back to list">
+              <mat-icon>arrow_back</mat-icon>
+            </button>
+            <h3>{{ selectedGraphConfig.name || 'Untitled Config' }}</h3>
+            <span *ngIf="hasGraphDraftChanges" class="unsaved-badge">Unsaved changes</span>
+          </div>
+          <div class="editor-toolbar-right">
+            <button mat-flat-button color="primary" *ngIf="hasGraphDraftChanges" (click)="saveGraphConfig()">
+              <mat-icon>save</mat-icon> Save
+            </button>
+            <button mat-icon-button (click)="graphConfigPanelOpen = !graphConfigPanelOpen"
+                    [color]="graphConfigPanelOpen ? 'primary' : ''">
+              <mat-icon>settings</mat-icon>
+            </button>
+          </div>
+        </div>
+
+        <div class="editor-body">
+          <!-- Preview area (placeholder for now) -->
+          <div class="editor-preview" [class.with-config-panel]="graphConfigPanelOpen">
+            <div class="graph-preview-placeholder">
+              <mat-icon class="preview-placeholder-icon">show_chart</mat-icon>
+              <h3>Graph Preview</h3>
+              <p>Graph rendering will appear here once chart rendering is implemented.</p>
+              <div class="preview-config-summary" *ngIf="selectedGraphConfig.graphConfig">
+                <div class="summary-row">
+                  <strong>Chart Type:</strong> {{ selectedGraphConfig.graphConfig.renderStyle }}
+                </div>
+                <div class="summary-row" *ngIf="selectedGraphConfig.graphConfig.xDimension">
+                  <strong>X Axis:</strong> {{ selectedGraphConfig.graphConfig.xDimension }}
+                </div>
+                <div class="summary-row" *ngIf="selectedGraphConfig.graphConfig.yDimensions.length > 0">
+                  <strong>Y Series:</strong> {{ selectedGraphConfig.graphConfig.yDimensions.join(', ') }}
+                </div>
+                <div class="summary-row">
+                  <strong>Size:</strong> {{ selectedGraphConfig.graphConfig.options.width }}x{{ selectedGraphConfig.graphConfig.options.height }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Config sidebar -->
+          <div class="config-panel" *ngIf="graphConfigPanelOpen">
+            <graph-config-sidebar
+              [config]="selectedGraphConfig"
+              [classTypeData]="classTypeData"
+              (configChange)="onGraphConfigChange($event)">
+            </graph-config-sidebar>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </mat-tab>
+
+  <!-- ===== DISPLAYS TAB ===== -->
+  <mat-tab label="Displays">
+    <div class="tab-content">
+
+      <!-- Display List View (no display selected) -->
+      <div *ngIf="!selectedDisplay" class="displays-list-view">
+        <div class="displays-header">
+          <div>
+            <h3>Displays for {{ className }}</h3>
+            <p class="subtitle">Create and manage custom displays for this class.</p>
+          </div>
+          <button mat-fab color="primary" (click)="openCreateDisplayDialog()" class="create-btn">
+            <mat-icon>add</mat-icon>
+          </button>
+        </div>
+
+        <mat-spinner *ngIf="displaysLoading" diameter="40"></mat-spinner>
+
+        <!-- Empty state -->
+        <div *ngIf="!displaysLoading && displayList.length === 0" class="empty-state">
+          <mat-icon class="empty-icon">dashboard_customize</mat-icon>
+          <h3>No Displays Yet</h3>
+          <p>Get started by creating your first display for this class.</p>
+          <button mat-flat-button color="primary" (click)="openCreateDisplayDialog()">
+            <mat-icon>add</mat-icon> Create Your First Display
+          </button>
+        </div>
+
+        <!-- Display cards grid -->
+        <div *ngIf="!displaysLoading && displayList.length > 0" class="displays-grid">
+          <mat-card *ngFor="let display of displayList" class="display-card">
+            <mat-card-header>
+              <mat-icon mat-card-avatar class="display-icon">dashboard</mat-icon>
+              <mat-card-title>{{ display.name || 'Untitled Display' }}</mat-card-title>
+              <mat-card-subtitle *ngIf="display.description">{{ display.description }}</mat-card-subtitle>
+            </mat-card-header>
+            <mat-card-actions align="end">
+              <button mat-stroked-button color="primary" (click)="selectDisplay(display)" title="Edit display">
+                <mat-icon>edit</mat-icon> Edit
+              </button>
+              <button mat-icon-button color="warn" (click)="deleteDisplay(display, $event)" title="Delete display">
+                <mat-icon>delete</mat-icon>
+              </button>
+            </mat-card-actions>
+          </mat-card>
+        </div>
+      </div>
+
+      <!-- Display Editor View (display selected) -->
+      <div *ngIf="selectedDisplay" class="display-editor-view">
+        <div class="editor-toolbar">
+          <div class="editor-toolbar-left">
+            <button mat-icon-button (click)="deselectDisplay()" title="Back to list">
+              <mat-icon>arrow_back</mat-icon>
+            </button>
+            <h3>{{ selectedDisplay.name || 'Untitled Display' }}</h3>
+            <span *ngIf="hasDraftChanges" class="unsaved-badge">Unsaved changes</span>
+          </div>
+          <div class="editor-toolbar-right">
+            <button mat-flat-button color="primary" *ngIf="hasDraftChanges" (click)="saveDisplay()">
+              <mat-icon>save</mat-icon> Save
+            </button>
+            <button mat-icon-button (click)="configPanelOpen = !configPanelOpen"
+                    [color]="configPanelOpen ? 'primary' : ''">
+              <mat-icon>settings</mat-icon>
+            </button>
+          </div>
+        </div>
+
+        <div class="editor-body">
+          <!-- Preview area -->
+          <div class="editor-preview" [class.with-config-panel]="configPanelOpen">
+            <dashboard-renderer [dashboard]="selectedDisplay"></dashboard-renderer>
+          </div>
+
+          <!-- Config panel -->
+          <div class="config-panel" *ngIf="configPanelOpen">
+            <div class="config-panel-content">
+
+              <!-- Display Properties -->
+              <div class="config-section">
+                <h4>Display Properties</h4>
+                <mat-form-field appearance="outline" class="full-width">
+                  <mat-label>Name</mat-label>
+                  <input matInput [(ngModel)]="selectedDisplay.name" (ngModelChange)="onDisplayPropertyChange()">
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="full-width">
+                  <mat-label>Description</mat-label>
+                  <textarea matInput [(ngModel)]="selectedDisplay.description" (ngModelChange)="onDisplayPropertyChange()" rows="2"></textarea>
+                </mat-form-field>
+              </div>
+
+              <mat-divider></mat-divider>
+
+              <!-- Rows -->
+              <div class="config-section">
+                <div class="section-header">
+                  <h4>Rows</h4>
+                  <button mat-icon-button color="primary" (click)="addDisplayRow()" title="Add Row">
+                    <mat-icon>add</mat-icon>
+                  </button>
+                </div>
+
+                <div *ngIf="selectedDisplay.rows.length === 0" class="empty-rows">
+                  <p>No rows yet. Add a row to start building your display.</p>
+                </div>
+
+                <mat-accordion>
+                  <mat-expansion-panel *ngFor="let row of selectedDisplay.rows; let i = index">
+                    <mat-expansion-panel-header>
+                      <mat-panel-title>Row {{ i + 1 }}</mat-panel-title>
+                      <mat-panel-description>
+                        {{ row.rowSegments }} cols, {{ row.dashboardItems.length }} items
+                      </mat-panel-description>
+                    </mat-expansion-panel-header>
+
+                    <div class="row-config">
+                      <mat-form-field appearance="outline" class="half-width">
+                        <mat-label>Segments</mat-label>
+                        <input matInput type="number" [(ngModel)]="row.rowSegments" (ngModelChange)="onDisplayPropertyChange()" min="1" max="24">
+                      </mat-form-field>
+
+                      <mat-form-field appearance="outline" class="half-width">
+                        <mat-label>Min Height (px)</mat-label>
+                        <input matInput type="number" [(ngModel)]="row.minRowHeight" (ngModelChange)="onDisplayPropertyChange()" min="0">
+                      </mat-form-field>
+
+                      <mat-form-field appearance="outline" class="half-width">
+                        <mat-label>Max Height (px)</mat-label>
+                        <input matInput type="number" [(ngModel)]="row.maxRowHeight" (ngModelChange)="onDisplayPropertyChange()">
+                      </mat-form-field>
+
+                      <mat-slide-toggle [(ngModel)]="row.autoHeight" (ngModelChange)="onDisplayPropertyChange()">
+                        Auto Height
+                      </mat-slide-toggle>
+
+                      <mat-form-field appearance="outline" class="full-width">
+                        <mat-label>CSS Class</mat-label>
+                        <input matInput [(ngModel)]="row.cssClass" (ngModelChange)="onDisplayPropertyChange()">
+                      </mat-form-field>
+
+                      <div class="row-items-summary" *ngIf="row.dashboardItems.length > 0">
+                        <h5>Items ({{ row.dashboardItems.length }})</h5>
+                        <mat-list dense>
+                          <mat-list-item *ngFor="let item of row.dashboardItems">
+                            <mat-icon matListItemIcon>{{ getItemIcon(item.type) }}</mat-icon>
+                            <span matListItemTitle>{{ item.title || item.type }} ({{ item.rowSegmentsUsed }} cols)</span>
+                          </mat-list-item>
+                        </mat-list>
+                      </div>
+
+                      <button mat-stroked-button color="warn" (click)="removeDisplayRow(i)">
+                        <mat-icon>delete</mat-icon> Remove Row
+                      </button>
+                    </div>
+                  </mat-expansion-panel>
+                </mat-accordion>
+
+                <button mat-stroked-button color="primary" (click)="addDisplayRow()" class="add-row-btn">
+                  <mat-icon>add</mat-icon> Add Row
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </mat-tab>
+
+</mat-tab-group>

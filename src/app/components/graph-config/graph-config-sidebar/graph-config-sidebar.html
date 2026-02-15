@@ -1,0 +1,112 @@
+<div class="sidebar-content">
+
+  <!-- Configuration Properties (always visible) -->
+  <div class="config-section">
+    <h4>Configuration Properties</h4>
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Name</mat-label>
+      <input matInput [ngModel]="config.name" (ngModelChange)="onNameChange($event)">
+    </mat-form-field>
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Description</mat-label>
+      <textarea matInput [ngModel]="config.description" (ngModelChange)="onDescriptionChange($event)" rows="2"></textarea>
+    </mat-form-field>
+  </div>
+
+  <mat-divider></mat-divider>
+
+  <mat-accordion multi>
+
+    <!-- Chart Type Section -->
+    <mat-expansion-panel [expanded]="true">
+      <mat-expansion-panel-header>
+        <mat-panel-title>Chart Type</mat-panel-title>
+      </mat-expansion-panel-header>
+
+      <p class="section-hint">Select the type of chart to render.</p>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Render Style</mat-label>
+        <mat-select [ngModel]="config.graphConfig.renderStyle" (ngModelChange)="onRenderStyleChange($event)">
+          <mat-option *ngFor="let opt of renderStyleOptions" [value]="opt.value">
+            {{ opt.label }}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+    </mat-expansion-panel>
+
+    <!-- Dimensions Section -->
+    <mat-expansion-panel [expanded]="true">
+      <mat-expansion-panel-header>
+        <mat-panel-title>Dimensions</mat-panel-title>
+      </mat-expansion-panel-header>
+
+      <p class="section-hint">Map class fields to chart axes.</p>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>X Axis Dimension</mat-label>
+        <mat-select [ngModel]="config.graphConfig.xDimension" (ngModelChange)="onXDimensionChange($event)">
+          <mat-option value="">-- None --</mat-option>
+          <mat-option *ngFor="let field of availableFields" [value]="field">
+            {{ field }}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <div class="subsection-label">Y Axis Dimensions</div>
+      <p class="section-hint">Toggle fields to include as Y series.</p>
+      <div class="field-toggle-list">
+        <div *ngFor="let field of availableFields" class="field-toggle-row">
+          <mat-slide-toggle
+            [checked]="isYDimension(field)"
+            (change)="toggleYDimension(field)">
+            {{ field }}
+          </mat-slide-toggle>
+        </div>
+      </div>
+
+      <!-- Series Colors -->
+      <div *ngIf="config.graphConfig.yDimensions.length > 0" class="series-colors">
+        <div class="subsection-label">Series Colors</div>
+        <div *ngFor="let dim of config.graphConfig.yDimensions; let i = index" class="color-row">
+          <span class="color-label">{{ dim }}</span>
+          <input type="color"
+                 [value]="config.graphConfig.seriesColors[i] || '#4e79a7'"
+                 (change)="onSeriesColorChange(i, $any($event.target).value)">
+        </div>
+      </div>
+    </mat-expansion-panel>
+
+    <!-- Layout Section -->
+    <mat-expansion-panel>
+      <mat-expansion-panel-header>
+        <mat-panel-title>Layout</mat-panel-title>
+      </mat-expansion-panel-header>
+
+      <p class="section-hint">Configure chart size and display options.</p>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Width (px)</mat-label>
+        <input matInput type="number" [ngModel]="config.graphConfig.options.width" (ngModelChange)="onWidthChange($event)" min="200" max="2000">
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Height (px)</mat-label>
+        <input matInput type="number" [ngModel]="config.graphConfig.options.height" (ngModelChange)="onHeightChange($event)" min="100" max="1200">
+      </mat-form-field>
+
+      <mat-slide-toggle
+        [checked]="config.graphConfig.options.showLegend"
+        (change)="onLegendToggle($event.checked)">
+        Show Legend
+      </mat-slide-toggle>
+
+      <mat-slide-toggle
+        [checked]="config.graphConfig.options.showGrid"
+        (change)="onGridToggle($event.checked)">
+        Show Grid
+      </mat-slide-toggle>
+    </mat-expansion-panel>
+
+  </mat-accordion>
+</div>

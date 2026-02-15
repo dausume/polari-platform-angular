@@ -1,0 +1,218 @@
+<div class="sidebar-content">
+
+  <!-- Configuration Properties (always visible) -->
+  <div class="config-section">
+    <h4>Configuration Properties</h4>
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Name</mat-label>
+      <input matInput [(ngModel)]="config.name" (ngModelChange)="emitChange()">
+    </mat-form-field>
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Description</mat-label>
+      <textarea matInput [(ngModel)]="config.description" (ngModelChange)="emitChange()" rows="2"></textarea>
+    </mat-form-field>
+  </div>
+
+  <mat-divider></mat-divider>
+
+  <!-- Accordion Sections -->
+  <mat-accordion multi>
+
+    <!-- Fields Section -->
+    <mat-expansion-panel [expanded]="true">
+      <mat-expansion-panel-header>
+        <mat-panel-title>Fields</mat-panel-title>
+        <mat-panel-description>{{availableFields.length}} of {{fields.length}} available</mat-panel-description>
+      </mat-expansion-panel-header>
+
+      <p class="section-instructions">Toggle which fields are available in this table configuration. Unavailable fields are completely hidden from the table.</p>
+
+      <div class="field-group">
+        <h5>Available Fields:</h5>
+        <div *ngFor="let field of fields" class="field-toggle-row">
+          <mat-slide-toggle
+            [checked]="field.available"
+            (change)="toggleFieldAvailability(field)"
+            color="primary">
+            <span class="field-label">
+              <span class="field-type-icon">{{field.typeIcon}}</span>
+              {{field.name}}
+              <span class="field-type-badge">{{field.type}}</span>
+            </span>
+          </mat-slide-toggle>
+        </div>
+      </div>
+
+      <mat-divider class="inner-divider"></mat-divider>
+
+      <div class="field-group">
+        <h5>Default Visibility:</h5>
+        <p class="section-instructions">Only available fields can have their visibility toggled. Hidden fields won't show by default but remain accessible.</p>
+        <div *ngFor="let field of availableFields" class="field-toggle-row">
+          <mat-slide-toggle
+            [checked]="field.visible"
+            (change)="toggleFieldVisibility(field)"
+            color="accent">
+            <span class="field-label">{{field.name}}</span>
+          </mat-slide-toggle>
+        </div>
+      </div>
+    </mat-expansion-panel>
+
+    <!-- Layout Section -->
+    <mat-expansion-panel>
+      <mat-expansion-panel-header>
+        <mat-panel-title>Layout</mat-panel-title>
+        <mat-panel-description>Page size, density, wrapping</mat-panel-description>
+      </mat-expansion-panel-header>
+
+      <div class="layout-group">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Default Page Size</mat-label>
+          <mat-select [value]="config.tableConfiguration.pagination.pageSize" (selectionChange)="onPageSizeChange($event.value)">
+            <mat-option *ngFor="let size of pageSizeOptions" [value]="size">{{size}}</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <div class="toggle-group-wrapper">
+          <label class="toggle-group-label">Density:</label>
+          <mat-button-toggle-group [value]="config.tableConfiguration.density" (change)="onDensityChange($event.value)">
+            <mat-button-toggle value="compact">Compact</mat-button-toggle>
+            <mat-button-toggle value="standard">Standard</mat-button-toggle>
+            <mat-button-toggle value="comfortable">Comfortable</mat-button-toggle>
+          </mat-button-toggle-group>
+        </div>
+      </div>
+
+      <mat-divider class="inner-divider"></mat-divider>
+
+      <div class="layout-group">
+        <h5>Row Wrapping</h5>
+        <p class="section-instructions">When enabled, each instance spans multiple rows. Fields are grouped into sub-rows for a card-like layout.</p>
+        <mat-slide-toggle
+          [checked]="config.rowWrapping.enabled"
+          (change)="onRowWrappingToggle($event.checked)"
+          color="primary">
+          Enable row wrapping
+        </mat-slide-toggle>
+
+        <div *ngIf="config.rowWrapping.enabled" class="wrapping-options">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Fields per row</mat-label>
+            <input matInput type="number" [ngModel]="config.rowWrapping.fieldsPerRow"
+                   (ngModelChange)="onFieldsPerRowChange($event)" min="1" max="20">
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Separator Style</mat-label>
+            <mat-select [value]="config.rowWrapping.separatorStyle" (selectionChange)="onSeparatorStyleChange($event.value)">
+              <mat-option value="thin">Thin</mat-option>
+              <mat-option value="thick">Thick</mat-option>
+              <mat-option value="double">Double</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+      </div>
+    </mat-expansion-panel>
+
+    <!-- Actions Section -->
+    <mat-expansion-panel>
+      <mat-expansion-panel-header>
+        <mat-panel-title>Actions</mat-panel-title>
+        <mat-panel-description>Create, edit, delete controls</mat-panel-description>
+      </mat-expansion-panel-header>
+
+      <p class="section-instructions">Control which CRUD operations are available in this table configuration. Disabling an action hides the corresponding button from the table.</p>
+
+      <div class="display-toggles">
+        <mat-slide-toggle
+          [checked]="config.crudPermissions.allowCreate"
+          (change)="onCrudPermissionChange('allowCreate', $event.checked)"
+          color="primary">
+          Allow creating new instances
+        </mat-slide-toggle>
+
+        <mat-slide-toggle
+          [checked]="config.crudPermissions.allowEdit"
+          (change)="onCrudPermissionChange('allowEdit', $event.checked)"
+          color="primary">
+          Allow row-level editing
+        </mat-slide-toggle>
+
+        <mat-slide-toggle
+          [checked]="config.crudPermissions.allowDelete"
+          (change)="onCrudPermissionChange('allowDelete', $event.checked)"
+          color="primary">
+          Allow row-level deletion
+        </mat-slide-toggle>
+      </div>
+    </mat-expansion-panel>
+
+    <!-- Display Section -->
+    <mat-expansion-panel>
+      <mat-expansion-panel-header>
+        <mat-panel-title>Display</mat-panel-title>
+        <mat-panel-description>Visual options, sort order</mat-panel-description>
+      </mat-expansion-panel-header>
+
+      <div class="display-toggles">
+        <mat-slide-toggle
+          [checked]="config.tableConfiguration.showHeaders"
+          (change)="onDisplaySettingChange('showHeaders', $event.checked)"
+          color="primary">
+          Show column headers
+        </mat-slide-toggle>
+
+        <mat-slide-toggle
+          [checked]="config.tableConfiguration.showRowNumbers"
+          (change)="onDisplaySettingChange('showRowNumbers', $event.checked)"
+          color="primary">
+          Show row numbers
+        </mat-slide-toggle>
+
+        <mat-slide-toggle
+          [checked]="config.tableConfiguration.stripedRows"
+          (change)="onDisplaySettingChange('stripedRows', $event.checked)"
+          color="primary">
+          Striped rows
+        </mat-slide-toggle>
+
+        <mat-slide-toggle
+          [checked]="config.tableConfiguration.showGridLines"
+          (change)="onDisplaySettingChange('showGridLines', $event.checked)"
+          color="primary">
+          Show grid lines
+        </mat-slide-toggle>
+
+        <mat-slide-toggle
+          [checked]="config.tableConfiguration.hoverHighlight"
+          (change)="onDisplaySettingChange('hoverHighlight', $event.checked)"
+          color="primary">
+          Hover highlight
+        </mat-slide-toggle>
+      </div>
+
+      <mat-divider class="inner-divider"></mat-divider>
+
+      <div class="sort-group">
+        <div class="toggle-group-wrapper">
+          <label class="toggle-group-label">Sort Order:</label>
+          <mat-button-toggle-group [value]="config.tableConfiguration.sortOrder" (change)="onSortOrderChange($event.value)">
+            <mat-button-toggle value="alphabetical">A-Z</mat-button-toggle>
+            <mat-button-toggle value="custom">Custom</mat-button-toggle>
+            <mat-button-toggle value="type">Type</mat-button-toggle>
+          </mat-button-toggle-group>
+        </div>
+
+        <div class="toggle-group-wrapper">
+          <label class="toggle-group-label">Direction:</label>
+          <mat-button-toggle-group [value]="config.tableConfiguration.sortDirection" (change)="onSortDirectionChange($event.value)">
+            <mat-button-toggle value="asc">Asc</mat-button-toggle>
+            <mat-button-toggle value="desc">Desc</mat-button-toggle>
+          </mat-button-toggle-group>
+        </div>
+      </div>
+    </mat-expansion-panel>
+
+  </mat-accordion>
+</div>

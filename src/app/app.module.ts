@@ -26,6 +26,11 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatExpansionModule } from '@angular/material/expansion';
+import { MatDividerModule } from '@angular/material/divider';
+import { MatSidenavModule } from '@angular/material/sidenav';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 //NgRx
 import { StoreModule } from '@ngrx/store';
 import { EffectsModule } from '@ngrx/effects';
@@ -96,6 +101,10 @@ import { ApiProfilerComponent } from '@components/api-profiler/api-profiler.comp
 // API Config Component
 import { ApiConfigComponent } from '@components/api-config/api-config';
 import { ApiConfigDetailDialogComponent } from '@components/api-config/api-config-detail-dialog';
+// Table Config Components
+import { TableConfigSidebarComponent } from '@components/table-config/table-config-sidebar/table-config-sidebar';
+// Graph Config Components
+import { GraphConfigSidebarComponent } from '@components/graph-config/graph-config-sidebar/graph-config-sidebar';
 // (SystemDiagnosticsComponent and HomeComponent are lazy-loaded via router)
 //Services (Backend Access)
 import { PolariService } from '@services/polari-service';
@@ -129,8 +138,6 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     classInstanceSearchComponent,
     CreateNewClassComponent,
     VariableModifierComponent,
-    // Display Components
-    DisplayRendererComponent,
     // No-Code Components
     CustomNoCodeComponent,
     NoCodeInterfaceComponent,
@@ -160,7 +167,9 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     DictViewComponent,
     ApiProfilerComponent,
     ApiConfigComponent,
-    ApiConfigDetailDialogComponent
+    ApiConfigDetailDialogComponent,
+    TableConfigSidebarComponent,
+    GraphConfigSidebarComponent
   ],
   imports: [
     BrowserModule,
@@ -189,6 +198,11 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     MatCheckboxModule,
     MatTabsModule,
     MatProgressBarModule,
+    MatExpansionModule,
+    MatDividerModule,
+    MatSidenavModule,
+    MatSlideToggleModule,
+    MatButtonToggleModule,
     // Shared CRUD Module
     SharedCrudModule,
     // Standalone Components (Phase 1)
@@ -202,6 +216,7 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     NavigationComponent,
     HeaderComponent,
     DisplayMetricCardComponent,
+    DisplayRendererComponent,
     CertificateTrustPromptComponent,
     // NgRx
     StoreModule.forRoot(rootReducers),

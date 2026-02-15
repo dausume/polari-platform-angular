@@ -6,6 +6,7 @@ import { MatPaginator } from '@angular/material/paginator';
 import { MatDialog } from '@angular/material/dialog';
 import { HttpClient } from '@angular/common/http';
 import { TableConfig } from '@models/tableConfiguration';
+import { NamedTableConfig } from '@models/tables/NamedTableConfig';
 import { classPolyTyping } from '@models/polyTyping/classPolyTyping';
 import { variablePolyTyping } from '@models/polyTyping/variablePolyTyping';
 import { RuntimeConfigService } from '@services/runtime-config.service';
@@ -24,6 +25,8 @@ export class ClassDataTableComponent implements OnInit, OnChanges {
   @Input() classTypeData: any = {};
   @Input() instanceData: any[] = [];
   @Input() tableConfig?: TableConfig;
+  @Input() namedTableConfig?: NamedTableConfig;
+  @Input() hideColumnSelector: boolean = false;
 
   @Output() instanceCreated = new EventEmitter<any>();
   @Output() instanceUpdated = new EventEmitter<any>();
@@ -43,6 +46,14 @@ export class ClassDataTableComponent implements OnInit, OnChanges {
   canCreate: boolean = false;
   canEdit: boolean = false;
   canDelete: boolean = false;
+
+  // Wrapped row mode
+  wrappedMode: boolean = false;
+  wrappedColumnGroups: string[][] = [];
+  separatorClass: string = 'separator-thick';
+
+  // Table options menu state
+  showOptionsMenu: boolean = false;
 
   constructor(
     private dialog: MatDialog,
@@ -68,7 +79,7 @@ export class ClassDataTableComponent implements OnInit, OnChanges {
     }
 
     // Reinitialize table when any input changes
-    if (changes.classTypeData || changes.instanceData || changes.tableConfig || changes.className) {
+    if (changes.classTypeData || changes.instanceData || changes.tableConfig || changes.className || changes.namedTableConfig) {
       this.initializeTable();
     }
   }
@@ -89,69 +100,19 @@ export class ClassDataTableComponent implements OnInit, OnChanges {
       console.log(`[ClassDataTable] Permissions for ${this.className}: create=${this.canCreate}, edit=${this.canEdit}, delete=${this.canDelete}`);
     }
 
-    let keys: string[] = [];
+    // Named table config takes precedence over legacy tableConfig
+    if (this.namedTableConfig) {
+      this.initializeFromNamedConfig();
 
-    if (this.classTypeData && Object.keys(this.classTypeData).length > 0) {
-      keys = Object.keys(this.classTypeData);
-
-      // Store column types for rendering
-      keys.forEach(key => {
-        if (this.classTypeData[key]?.variablePythonType) {
-          this.columnTypes[key] = this.classTypeData[key].variablePythonType;
-        }
-      });
-    }
-    // FALLBACK: If classTypeData is empty but we have instanceData, derive columns from first instance
-    else if (this.instanceData && this.instanceData.length > 0) {
-      const firstInstance = this.instanceData[0];
-      keys = Object.keys(firstInstance);
-
-      // Infer types from values
-      keys.forEach(key => {
-        const value = firstInstance[key];
-        let inferredType = 'str';
-        if (typeof value === 'number') {
-          inferredType = Number.isInteger(value) ? 'int' : 'float';
-        } else if (typeof value === 'boolean') {
-          inferredType = 'bool';
-        } else if (Array.isArray(value)) {
-          inferredType = 'list';
-        } else if (value && typeof value === 'object') {
-          inferredType = 'dict';
-        }
-        this.columnTypes[key] = inferredType;
-      });
-    }
-
-    // Filter out removed columns
-    const removedColumns = this.tableConfig?.removedColumns || [];
-    const availableKeys = keys.filter(key => !removedColumns.includes(key));
-
-    // Set displayed columns based on config or default to all available
-    if (availableKeys.length > 0) {
-      if (this.tableConfig?.visibleColumns && this.tableConfig.visibleColumns.length > 0) {
-        // Use only visible columns that exist and aren't removed
-        const configuredColumns = this.tableConfig.visibleColumns.filter(col =>
-          availableKeys.includes(col)
-        );
-        // If filtering results in no columns, fall back to all available
-        if (configuredColumns.length > 0) {
-          this.displayedColumns = configuredColumns;
-        } else {
-          this.displayedColumns = [...availableKeys];
-        }
-      } else {
-        // Default to all available columns
-        this.displayedColumns = [...availableKeys];
+      // Apply CRUD permission overrides from the named config
+      const perms = this.namedTableConfig.crudPermissions;
+      if (perms) {
+        this.canCreate = this.canCreate && perms.allowCreate;
+        this.canEdit = this.canEdit && perms.allowEdit;
+        this.canDelete = this.canDelete && perms.allowDelete;
       }
-
-      // Apply sorting if configured
-      if (this.tableConfig?.sortOrder === 'alphabetical') {
-        this.displayedColumns.sort((a, b) => {
-          const comparison = a.localeCompare(b);
-          return this.tableConfig!.sortDirection === 'asc' ? comparison : -comparison;
-        });
-      }
+    } else {
+      this.initializeFromLegacyConfig();
     }
 
     // Add actions column at the end only if there are any actions available
@@ -159,7 +120,6 @@ export class ClassDataTableComponent implements OnInit, OnChanges {
     if (hasAnyActions && !this.displayedColumns.includes('_actions')) {
       this.displayedColumns.push('_actions');
     } else if (!hasAnyActions && this.displayedColumns.includes('_actions')) {
-      // Remove actions column if no actions are available
       const actionsIndex = this.displayedColumns.indexOf('_actions');
       if (actionsIndex >= 0) {
         this.displayedColumns.splice(actionsIndex, 1);
@@ -186,8 +146,110 @@ export class ClassDataTableComponent implements OnInit, OnChanges {
       }
       if (this.paginator) {
         this.dataSource.paginator = this.paginator;
+        if (this.namedTableConfig) {
+          this.paginator.pageSize = this.namedTableConfig.tableConfiguration.pagination.pageSize;
+        }
       }
     });
+  }
+
+  private initializeFromNamedConfig(): void {
+    const tc = this.namedTableConfig!.tableConfiguration;
+
+    // Build column types from classTypeData or existing columns
+    if (this.classTypeData && Object.keys(this.classTypeData).length > 0) {
+      Object.keys(this.classTypeData).forEach(key => {
+        if (this.classTypeData[key]?.variablePythonType) {
+          this.columnTypes[key] = this.classTypeData[key].variablePythonType;
+        }
+      });
+    }
+
+    // Get visible column names from the TableConfiguration
+    const visibleNames = tc.getVisibleColumnNames();
+    if (visibleNames.length > 0) {
+      this.displayedColumns = [...visibleNames];
+    } else {
+      // Fallback to all non-removed columns
+      const allKeys = Object.keys(this.columnTypes);
+      this.displayedColumns = allKeys.filter(k => !tc.removedColumns.includes(k));
+    }
+
+    // Wrapped mode
+    const rw = this.namedTableConfig!.rowWrapping;
+    this.wrappedMode = rw.enabled;
+    if (this.wrappedMode) {
+      this.buildWrappedColumnGroups(rw.fieldsPerRow);
+      this.separatorClass = 'separator-' + rw.separatorStyle;
+    } else {
+      this.wrappedColumnGroups = [];
+    }
+  }
+
+  private initializeFromLegacyConfig(): void {
+    let keys: string[] = [];
+
+    if (this.classTypeData && Object.keys(this.classTypeData).length > 0) {
+      keys = Object.keys(this.classTypeData);
+      keys.forEach(key => {
+        if (this.classTypeData[key]?.variablePythonType) {
+          this.columnTypes[key] = this.classTypeData[key].variablePythonType;
+        }
+      });
+    } else if (this.instanceData && this.instanceData.length > 0) {
+      const firstInstance = this.instanceData[0];
+      keys = Object.keys(firstInstance);
+      keys.forEach(key => {
+        const value = firstInstance[key];
+        let inferredType = 'str';
+        if (typeof value === 'number') {
+          inferredType = Number.isInteger(value) ? 'int' : 'float';
+        } else if (typeof value === 'boolean') {
+          inferredType = 'bool';
+        } else if (Array.isArray(value)) {
+          inferredType = 'list';
+        } else if (value && typeof value === 'object') {
+          inferredType = 'dict';
+        }
+        this.columnTypes[key] = inferredType;
+      });
+    }
+
+    const removedColumns = this.tableConfig?.removedColumns || [];
+    const availableKeys = keys.filter(key => !removedColumns.includes(key));
+
+    if (availableKeys.length > 0) {
+      if (this.tableConfig?.visibleColumns && this.tableConfig.visibleColumns.length > 0) {
+        const configuredColumns = this.tableConfig.visibleColumns.filter(col =>
+          availableKeys.includes(col)
+        );
+        if (configuredColumns.length > 0) {
+          this.displayedColumns = configuredColumns;
+        } else {
+          this.displayedColumns = [...availableKeys];
+        }
+      } else {
+        this.displayedColumns = [...availableKeys];
+      }
+
+      if (this.tableConfig?.sortOrder === 'alphabetical') {
+        this.displayedColumns.sort((a, b) => {
+          const comparison = a.localeCompare(b);
+          return this.tableConfig!.sortDirection === 'asc' ? comparison : -comparison;
+        });
+      }
+    }
+
+    this.wrappedMode = false;
+    this.wrappedColumnGroups = [];
+  }
+
+  private buildWrappedColumnGroups(fieldsPerRow: number): void {
+    const cols = this.displayedColumns.filter(c => c !== '_actions');
+    this.wrappedColumnGroups = [];
+    for (let i = 0; i < cols.length; i += fieldsPerRow) {
+      this.wrappedColumnGroups.push(cols.slice(i, i + fieldsPerRow));
+    }
   }
 
   /**
