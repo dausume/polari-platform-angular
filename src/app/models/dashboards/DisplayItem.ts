@@ -1,4 +1,5 @@
 import { PlotFigure } from "@models/graphs/plotFigure";
+import { DisplayRow } from "./DisplayRow";
 
 /**
  * Types of items that can be displayed in a dashboard
@@ -49,6 +50,13 @@ export class DisplayItem {
     /** Number of row segments this item occupies (for grid layout) */
     rowSegmentsUsed: number;
 
+    /** Explicit grid column start position (1-based). When set, the item is
+     *  placed at this column; unset items auto-flow left-to-right. */
+    gridColumnStart?: number;
+
+    /** For container types: nested rows enabling arbitrarily complex layouts */
+    nestedRows: DisplayRow[];
+
     /** Properties for custom component rendering */
     componentProps: ComponentProps;
 
@@ -76,6 +84,7 @@ export class DisplayItem {
         this.type = type;
         this.item = item;
         this.items = [];
+        this.nestedRows = [];
         this.rowSegmentsUsed = rowSegmentsUsed;
         this.componentProps = componentProps;
         this.visible = true;
@@ -146,6 +155,35 @@ export class DisplayItem {
     }
 
     /**
+     * Sets the explicit grid column start position (1-based)
+     */
+    setGridColumnStart(start: number): this {
+        this.gridColumnStart = start;
+        return this;
+    }
+
+    /**
+     * Adds a nested row (for container types)
+     */
+    addNestedRow(row: DisplayRow): this {
+        row.index = this.nestedRows.length;
+        this.nestedRows.push(row);
+        return this;
+    }
+
+    /**
+     * Removes a nested row at the specified index
+     */
+    removeNestedRow(index: number): DisplayRow | undefined {
+        if (index >= 0 && index < this.nestedRows.length) {
+            const removed = this.nestedRows.splice(index, 1)[0];
+            this.nestedRows.forEach((r, i) => r.index = i);
+            return removed;
+        }
+        return undefined;
+    }
+
+    /**
      * Sets component properties
      */
     setComponentProps(props: ComponentProps): this {
@@ -154,17 +192,17 @@ export class DisplayItem {
     }
 
     /**
-     * Checks if this item is a container with nested items
+     * Checks if this item is a container with nested items or nested rows
      */
     isContainer(): boolean {
-        return this.type === 'container' && this.items.length > 0;
+        return this.type === 'container' && (this.items.length > 0 || this.nestedRows.length > 0);
     }
 
     /**
      * Checks if this item has valid content
      */
     hasContent(): boolean {
-        return this.item !== null || this.items.length > 0;
+        return this.item !== null || this.items.length > 0 || this.nestedRows.length > 0;
     }
 
     // ============================================
@@ -261,5 +299,22 @@ export class DisplayItem {
      */
     static createContainerItem(segments: number = 12): DisplayItem {
         return new DisplayItem(0, 'container', null, segments);
+    }
+
+    /**
+     * Creates a row container — a container that holds nested DisplayRows,
+     * enabling arbitrarily complex grid-within-grid layouts.
+     * @param segments Grid segments to occupy in the parent row
+     * @param initialRowSegments Number of columns for the first nested row (default 12)
+     */
+    static createRowContainerItem(
+        segments: number = 12,
+        initialRowSegments: number = 12
+    ): DisplayItem {
+        const item = new DisplayItem(0, 'container', null, segments);
+        const row = new DisplayRow(0, initialRowSegments, 100);
+        row.autoHeight = true;
+        item.nestedRows.push(row);
+        return item;
     }
 }

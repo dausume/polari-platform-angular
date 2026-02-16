@@ -71,6 +71,16 @@ mat-slide-toggle {
   margin: 8px 0;
 }
 
+.aggregation-section {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.aggregation-strategy {
+  margin-top: 8px;
+}
+
 /* === Force dark text on light background === */
 ::ng-deep .sidebar-content .mat-mdc-text-field-wrapper,
 ::ng-deep .sidebar-content .mdc-text-field--outlined {

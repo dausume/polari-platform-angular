@@ -32,7 +32,7 @@ export interface PlotFigureOptions {
 /**
  * Plot render style definitions (wraps Observable Plot mark types)
  */
-export type PlotRenderStyle = 'lineY' | 'barY' | 'lineX' | 'barX' | 'dot' | 'area' | 'areaY';
+export type PlotRenderStyle = 'lineY' | 'barY' | 'lineX' | 'barX' | 'dot' | 'areaX' | 'areaY';
 
 /**
  * Represents a complete plot figure with data series, axes, and dimension renderers.
@@ -166,5 +166,43 @@ export class PlotFigure {
         return this.dimensionPlots
             .map(plot => plot.createDimensionPlot())
             .filter(mark => mark !== null);
+    }
+
+    /**
+     * Renders this plot figure to an SVG/HTML element using Observable Plot.
+     * This is the single standard rendering entry point — call this on any
+     * fully configured PlotFigure to get a mountable DOM element.
+     */
+    async render(): Promise<SVGSVGElement | HTMLElement | null> {
+        const loaded = await PlotDimensionRenderer.loadPlotLibrary();
+        if (!loaded) {
+            console.warn('[PlotFigure] Observable Plot library could not be loaded');
+            return null;
+        }
+
+        const Plot = PlotDimensionRenderer.getPlotLibrary();
+        if (!Plot) return null;
+
+        const marks = this.getAllPlotMarks();
+        if (marks.length === 0) {
+            console.warn('[PlotFigure] No valid marks to render');
+            return null;
+        }
+
+        try {
+            return Plot.plot({
+                marks,
+                width: this.options.width || 800,
+                height: this.options.height || 400,
+                marginTop: this.options.marginTop || 20,
+                marginRight: this.options.marginRight || 30,
+                marginBottom: this.options.marginBottom || 40,
+                marginLeft: this.options.marginLeft || 50,
+                grid: this.options.showGrid ?? true
+            });
+        } catch (e) {
+            console.error('[PlotFigure] Rendering failed:', e);
+            return null;
+        }
     }
 }

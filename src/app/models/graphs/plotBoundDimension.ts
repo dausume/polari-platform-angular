@@ -18,12 +18,12 @@ export class PlotBoundDimension {
     constructor(
         name: string = '',
         id: string = '',
-        dataSeriesDimension: DataSeriesDimension,
+        dataSeriesDimension?: DataSeriesDimension,
     )
     {
         this.name = name;
-        this.id = id;
-        this.dataSeriesDimension = dataSeriesDimension;
+        this.id = id || name;
+        this.dataSeriesDimension = dataSeriesDimension || new DataSeriesDimension(name, '', 'number');
         this.xAxis = false;
         this.yAxis = false;
         this.isColorDeterminant = false;

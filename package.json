@@ -28,9 +28,11 @@
     "@ngrx/entity": "^19.0.0",
     "@ngrx/store": "^19.0.0",
     "@ngrx/store-devtools": "^19.0.0",
+    "@observablehq/plot": "^0.6.17",
     "d3": "^7.8.5",
     "rxjs": "^7.8.2",
-    "tslib": "^2.3.0"
+    "tslib": "^2.3.0",
+    "zone.js": "~0.15.0"
   },
   "devDependencies": {
     "@angular-devkit/build-angular": "^19.2.0",

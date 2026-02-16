@@ -5,12 +5,13 @@ import { PlotFigure, PlotRenderStyle } from "./plotFigure";
  * The library will be loaded dynamically if available
  */
 interface PlotLibraryInterface {
+    plot(options: any): SVGSVGElement | HTMLElement;
     lineY(data: any, options?: any): any;
     lineX(data: any, options?: any): any;
     barY(data: any, options?: any): any;
     barX(data: any, options?: any): any;
     dot(data: any, options?: any): any;
-    area(data: any, options?: any): any;
+    areaX(data: any, options?: any): any;
     areaY(data: any, options?: any): any;
 }
 
@@ -31,7 +32,7 @@ export class PlotDimensionRenderer {
         "lineX",
         "barX",
         "dot",
-        "area",
+        "areaX",
         "areaY"
     ];
 
@@ -101,9 +102,7 @@ export class PlotDimensionRenderer {
         }
 
         try {
-            // Dynamic import for Observable Plot - using variable to prevent TypeScript resolution
-            const plotModuleName = "@observablehq/plot";
-            const module = await (Function('modulePath', 'return import(modulePath)')(plotModuleName));
+            const module = await import('@observablehq/plot');
             PlotDimensionRenderer.PlotLib = module as unknown as PlotLibraryInterface;
             PlotDimensionRenderer.plotLibLoaded = true;
             console.log("[PlotDimensionRenderer] Observable Plot library loaded successfully");
@@ -235,8 +234,8 @@ export class PlotDimensionRenderer {
                     r: 3
                 });
 
-            case "area":
-                return Plot.area(data, {
+            case "areaX":
+                return Plot.areaX(data, {
                     ...baseOptions,
                     fill: this.color,
                     fillOpacity: 0.3
@@ -299,5 +298,12 @@ export class PlotDimensionRenderer {
      */
     static isPlotLibraryAvailable(): boolean {
         return PlotDimensionRenderer.PlotLib !== null;
+    }
+
+    /**
+     * Returns the loaded Plot library reference for use by PlotFigure.render()
+     */
+    static getPlotLibrary(): PlotLibraryInterface | null {
+        return PlotDimensionRenderer.PlotLib;
     }
 }

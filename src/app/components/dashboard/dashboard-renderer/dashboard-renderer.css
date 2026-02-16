@@ -160,12 +160,38 @@
     font-size: 14px;
 }
 
-/* Nested Container */
+/* Nested Container (legacy simple items) */
 .nested-container {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
     padding: 8px;
+}
+
+/* Nested Row Container (recursive grid rows) */
+.nested-row-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 8px;
+    width: 100%;
+    box-sizing: border-box;   /* width: 100% must INCLUDE the 8px padding on each side */
+    overflow: hidden;          /* clip any residual sub-pixel overflow */
+}
+
+/* Container-type items must allow shrinking inside parent grid tracks */
+.dashboard-item-container {
+    min-width: 0;
+}
+
+.nested-row-container .dashboard-row {
+    gap: 12px;
+    min-width: 0;             /* allow nested grid to shrink to fit */
+    box-sizing: border-box;   /* ensure any padding (gridlines) stays within bounds */
+}
+
+.edit-mode .nested-row-container .dashboard-row {
+    gap: 6px;
 }
 
 .nested-item {
@@ -239,4 +265,161 @@
 /* Metric row specific styles */
 .dashboard-metric-row {
     min-height: auto !important;
+}
+
+/* ===== Gridlines Mode ===== */
+.dashboard-container.show-gridlines .dashboard-row {
+    border: 1px dashed rgba(63, 81, 181, 0.3);
+    border-radius: 4px;
+    padding: 4px;
+}
+
+.dashboard-container.show-gridlines .dashboard-item {
+    outline: 1px dashed rgba(63, 81, 181, 0.25);
+    outline-offset: -1px;
+}
+
+/* ===== Edit Mode ===== */
+.dashboard-container.edit-mode .dashboard-row {
+    min-height: 72px;
+    gap: 6px;
+}
+
+/* Edit mode item wrapper — position relative for delete button */
+.edit-mode-item {
+    position: relative;
+}
+
+/* Delete button overlay on occupied cells */
+.item-remove-btn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    z-index: 10;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(244, 67, 54, 0.85);
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.item-remove-btn mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+.edit-mode-item:hover .item-remove-btn {
+    opacity: 1;
+}
+
+/* ===== Empty Cell Placeholders (individual 1-segment cells) ===== */
+.empty-cell-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 72px;
+    border: 1.5px dashed #d0d0d0;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.015);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.empty-cell-placeholder .empty-cell-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    color: #c0c0c0;
+    transition: color 0.15s;
+}
+
+.empty-cell-placeholder:hover {
+    border-color: #90caf9;
+    background: rgba(33, 150, 243, 0.04);
+}
+
+.empty-cell-placeholder:hover .empty-cell-icon {
+    color: #1976d2;
+}
+
+/* --- Selected cells: base --- */
+.empty-cell-placeholder.selected {
+    border-color: #1976d2;
+    border-style: solid;
+    background: rgba(33, 150, 243, 0.08);
+}
+
+.empty-cell-placeholder.selected .empty-cell-icon {
+    color: #1976d2;
+}
+
+/* --- Single cell selection (start AND end) --- */
+.empty-cell-placeholder.selection-single {
+    border-width: 2px;
+    border-radius: 6px;
+    box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.15);
+}
+
+/* --- Multi-cell range: wrapper effect ---
+   Start cell  = left rounded + no right border
+   End cell    = right rounded + no left border
+   Middle cell = no rounding + no left/right border
+   This creates a single continuous box across the grid gap. */
+.empty-cell-placeholder.selected.selection-start:not(.selection-single) {
+    border-width: 2px;
+    border-right-width: 0;
+    border-radius: 6px 0 0 6px;
+}
+
+.empty-cell-placeholder.selected.selection-end:not(.selection-single) {
+    border-width: 2px;
+    border-left-width: 0;
+    border-radius: 0 6px 6px 0;
+}
+
+.empty-cell-placeholder.selected:not(.selection-start):not(.selection-end) {
+    border-width: 2px 0;
+    border-radius: 0;
+}
+
+/* Accent shadow on the full range (start + end only to avoid doubling) */
+.empty-cell-placeholder.selected.selection-start:not(.selection-single) {
+    box-shadow: -2px 0 0 0 rgba(25, 118, 210, 0.2),
+                0 -2px 0 0 rgba(25, 118, 210, 0.2),
+                0  2px 0 0 rgba(25, 118, 210, 0.2);
+}
+
+.empty-cell-placeholder.selected.selection-end:not(.selection-single) {
+    box-shadow: 2px 0 0 0 rgba(25, 118, 210, 0.2),
+                0 -2px 0 0 rgba(25, 118, 210, 0.2),
+                0  2px 0 0 rgba(25, 118, 210, 0.2);
+}
+
+.empty-cell-placeholder.selected:not(.selection-start):not(.selection-end) {
+    box-shadow: 0 -2px 0 0 rgba(25, 118, 210, 0.2),
+                0  2px 0 0 rgba(25, 118, 210, 0.2);
+}
+
+/* ===== Width Warning Overlay ===== */
+.width-warning {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: #fff3e0;
+    border: 1px solid #ffcc80;
+    border-radius: 6px;
+    color: #e65100;
+    font-size: 13px;
+    text-align: center;
 }

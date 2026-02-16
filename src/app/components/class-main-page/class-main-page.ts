@@ -1,6 +1,7 @@
-import { Component, OnDestroy } from '@angular/core';
+import { Component, OnDestroy, ViewChild } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
 import { MatDialog } from '@angular/material/dialog';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { PolariService } from '@services/polari-service';
 import { ClassTypingService } from '@services/class-typing-service';
 import { CRUDEservicesManager } from '@services/crude-services-manager';
@@ -10,6 +11,7 @@ import { DisplayConfigService } from '@services/dashboard/dashboard-config.servi
 import { DisplayManagerService } from '@services/dashboard/display-manager.service';
 import { Display } from '@models/dashboards/Display';
 import { DisplayRow } from '@models/dashboards/DisplayRow';
+import { DisplayItem } from '@models/dashboards/DisplayItem';
 import { DisplaySummary } from '@models/dashboards/DisplaySummary';
 import { CreateDisplayDialogComponent } from '@components/dashboard/create-display-dialog/create-display-dialog';
 import { TableDefinitionService } from '@services/table/table-definition.service';
@@ -18,6 +20,7 @@ import { CreateTableConfigDialogComponent } from '@components/table-config/creat
 import { GraphDefinitionService } from '@services/graph/graph-definition.service';
 import { NamedGraphConfig, GraphDefinitionSummary } from '@models/graphs/NamedGraphConfig';
 import { CreateGraphConfigDialogComponent } from '@components/graph-config/create-graph-config-dialog/create-graph-config-dialog';
+import { DisplayRendererComponent } from '@components/dashboard/dashboard-renderer/dashboard-renderer';
 import { Subscription } from 'rxjs';
 
 @Component({
@@ -62,6 +65,17 @@ export class ClassMainPageComponent implements OnDestroy {
   hasGraphDraftChanges: boolean = false;
   graphConfigPanelOpen: boolean = false;
   graphConfigsLoading: boolean = false;
+  graphPreviewData: any[] = [];
+
+  @ViewChild(DisplayRendererComponent) dashboardRenderer?: DisplayRendererComponent;
+
+  /** Display editor mode state */
+  displayEditMode: boolean = false;
+  displayShowGridlines: boolean = false;
+  selectedDisplayCell: {row: DisplayRow, startSegment: number, spanSegments: number, availableWidth: number} | null = null;
+
+  /** Measured width of the dashboard-renderer container */
+  rendererContainerWidth: number = 0;
 
   private componentId: string = 'ClassMainPageComponent';
   private previousClassName?: string;
@@ -71,6 +85,7 @@ export class ClassMainPageComponent implements OnDestroy {
     private route: ActivatedRoute,
     private router: Router,
     private dialog: MatDialog,
+    private snackBar: MatSnackBar,
     protected polariService: PolariService,
     protected typingService: ClassTypingService,
     private crudeManager: CRUDEservicesManager,
@@ -282,6 +297,9 @@ export class ClassMainPageComponent implements OnDestroy {
     this.selectedDisplay = null;
     this.hasDraftChanges = false;
     this.configPanelOpen = false;
+    this.displayEditMode = false;
+    this.displayShowGridlines = false;
+    this.selectedDisplayCell = null;
     this.displayManager.draftDisplay$.next(null);
     this.displayManager.hasDraftChanges$.next(false);
     // Refresh the list
@@ -590,9 +608,25 @@ export class ClassMainPageComponent implements OnDestroy {
       next: (config: NamedGraphConfig) => {
         this.selectedGraphConfig = config;
         this.graphConfigPanelOpen = true;
+        this.loadGraphPreviewData();
       },
       error: (err: any) => {
         console.error('[ClassMainPage] Failed to load graph config:', err);
+      }
+    });
+  }
+
+  /**
+   * Load preview instance data for graph rendering.
+   */
+  private loadGraphPreviewData(): void {
+    if (!this.crudeService) return;
+    this.crudeService.readAll().subscribe({
+      next: (data: any) => {
+        this.graphPreviewData = this.parseCrudeInstances(data);
+      },
+      error: () => {
+        this.graphPreviewData = [];
       }
     });
   }
@@ -604,6 +638,7 @@ export class ClassMainPageComponent implements OnDestroy {
     this.selectedGraphConfig = null;
     this.hasGraphDraftChanges = false;
     this.graphConfigPanelOpen = false;
+    this.graphPreviewData = [];
     this.graphDefService.draftConfig$.next(null);
     this.graphDefService.hasDraftChanges$.next(false);
     if (this.className) {
@@ -657,6 +692,166 @@ export class ClassMainPageComponent implements OnDestroy {
         console.error('[ClassMainPage] Delete graph config failed:', err);
       }
     });
+  }
+
+  // ==================== Display Editor Mode ====================
+
+  /**
+   * Toggle grid guidelines visibility
+   */
+  toggleDisplayGridlines(): void {
+    this.displayShowGridlines = !this.displayShowGridlines;
+  }
+
+  /**
+   * Toggle edit mode (also enables gridlines when entering edit mode)
+   */
+  toggleDisplayEditMode(): void {
+    this.displayEditMode = !this.displayEditMode;
+    if (this.displayEditMode) {
+      this.displayShowGridlines = true;
+      // Load table & graph configs for the palette
+      if (this.className) {
+        this.loadTableConfigsForClass();
+        this.loadGraphConfigsForClass();
+      }
+    } else {
+      this.selectedDisplayCell = null;
+    }
+  }
+
+  /**
+   * Handle cell selection from the dashboard renderer
+   */
+  onDisplayCellSelected(event: {row: DisplayRow, startSegment: number, spanSegments: number, availableWidth: number} | null): void {
+    this.selectedDisplayCell = event || null;
+  }
+
+  /**
+   * Handle container width measurement from the dashboard renderer
+   */
+  onRendererWidthMeasured(width: number): void {
+    this.rendererContainerWidth = width;
+  }
+
+  /**
+   * Handle item removal from the dashboard renderer
+   */
+  onDisplayItemRemoved(event: {row: DisplayRow, itemIndex: number}): void {
+    event.row.removeItem(event.itemIndex);
+    this.selectedDisplayCell = null;
+    if (this.dashboardRenderer) {
+      this.dashboardRenderer.clearSelection();
+    }
+    this.onDisplayPropertyChange();
+  }
+
+  /**
+   * Place a component into the currently selected cell.
+   * Sets gridColumnStart so the item appears at the exact grid position.
+   */
+  placeComponentInCell(type: 'table' | 'graph' | 'text' | 'metric' | 'container', configId?: string, configName?: string): void {
+    if (!this.selectedDisplayCell || !this.selectedDisplay) {
+      this.snackBar.open('Select an empty cell in the grid first', 'OK', { duration: 3000 });
+      return;
+    }
+
+    const { row, startSegment, spanSegments } = this.selectedDisplayCell;
+
+    let item: DisplayItem;
+    switch (type) {
+      case 'table':
+        item = DisplayItem.createComponentItem('embeddedTable', { tableConfigId: configId }, spanSegments);
+        if (configName) item.setTitle(configName);
+        break;
+      case 'graph':
+        item = DisplayItem.createComponentItem('embeddedGraph', { graphConfigId: configId }, spanSegments);
+        if (configName) item.setTitle(configName);
+        break;
+      case 'text':
+        item = DisplayItem.createTextItem('New text block', spanSegments);
+        break;
+      case 'metric':
+        item = DisplayItem.createMetricItem('Metric', 0, spanSegments);
+        break;
+      case 'container': {
+        const containerAvailableWidth = this.selectedDisplayCell.availableWidth;
+        const maxCols = this.calculateMaxColumnsForConfig(
+          this.calculateNestedWidthForConfig(containerAvailableWidth, spanSegments, row.rowSegments)
+        );
+        if (maxCols === 0) {
+          this.snackBar.open('Container too narrow to hold any grid columns', 'OK', { duration: 3000 });
+          return;
+        }
+        const initialSegments = Math.min(12, maxCols);
+        item = DisplayItem.createRowContainerItem(spanSegments, initialSegments);
+        item.setTitle('Row Container');
+        break;
+      }
+      default:
+        return;
+    }
+
+    // Pin the item to the selected grid position
+    item.gridColumnStart = startSegment;
+    row.addItem(item);
+    this.selectedDisplayCell = null;
+    if (this.dashboardRenderer) {
+      this.dashboardRenderer.clearSelection();
+    }
+    this.onDisplayPropertyChange();
+  }
+
+  /**
+   * Add a nested row to a container item
+   */
+  addNestedRow(containerItem: DisplayItem, parentAvailableWidth: number, parentRowSegments: number): void {
+    if (!containerItem || containerItem.type !== 'container') return;
+    const maxCols = this.calculateMaxColumnsForConfig(
+      this.calculateNestedWidthForConfig(parentAvailableWidth, containerItem.rowSegmentsUsed, parentRowSegments)
+    );
+    const segments = maxCols > 0 ? Math.min(12, maxCols) : 12;
+    const newRow = new DisplayRow(containerItem.nestedRows.length, segments, 150);
+    newRow.autoHeight = true;
+    containerItem.addNestedRow(newRow);
+    this.onDisplayPropertyChange();
+  }
+
+  /**
+   * Remove a nested row from a container item
+   */
+  removeNestedRow(containerItem: DisplayItem, rowIndex: number): void {
+    if (!containerItem || containerItem.type !== 'container') return;
+    containerItem.removeNestedRow(rowIndex);
+    this.onDisplayPropertyChange();
+  }
+
+  // ==================== Width Calculation (Config Panel) ====================
+
+  private static readonly EDIT_GAP = 6;
+  private static readonly NORMAL_GAP = 16;
+  private static readonly NESTED_PAD = 8;
+  private static readonly MIN_CELL = 40;
+
+  /**
+   * Calculate nested width for config panel hints.
+   * Mirrors DisplayRendererComponent.calculateNestedWidth.
+   */
+  calculateNestedWidthForConfig(parentWidthPx: number, itemSegments: number, parentSegments: number): number {
+    const gap = this.displayEditMode ? ClassMainPageComponent.EDIT_GAP : ClassMainPageComponent.NORMAL_GAP;
+    const colWidth = (parentWidthPx - gap * (parentSegments - 1)) / parentSegments;
+    const itemWidth = colWidth * itemSegments + gap * (itemSegments - 1);
+    return itemWidth - 2 * ClassMainPageComponent.NESTED_PAD;
+  }
+
+  /**
+   * Calculate max columns for config panel hints.
+   * Mirrors DisplayRendererComponent.calculateMaxColumns.
+   */
+  calculateMaxColumnsForConfig(availableWidthPx: number): number {
+    const gap = this.displayEditMode ? ClassMainPageComponent.EDIT_GAP : ClassMainPageComponent.NORMAL_GAP;
+    if (availableWidthPx < ClassMainPageComponent.MIN_CELL) return 0;
+    return Math.max(1, Math.floor((availableWidthPx + gap) / (ClassMainPageComponent.MIN_CELL + gap)));
   }
 
   /**

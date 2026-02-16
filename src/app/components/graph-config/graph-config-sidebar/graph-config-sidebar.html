@@ -44,7 +44,7 @@
       <p class="section-hint">Map class fields to chart axes.</p>
 
       <mat-form-field appearance="outline" class="full-width">
-        <mat-label>X Axis Dimension</mat-label>
+        <mat-label>{{ categoryAxisLabel }}</mat-label>
         <mat-select [ngModel]="config.graphConfig.xDimension" (ngModelChange)="onXDimensionChange($event)">
           <mat-option value="">-- None --</mat-option>
           <mat-option *ngFor="let field of availableFields" [value]="field">
@@ -53,8 +53,8 @@
         </mat-select>
       </mat-form-field>
 
-      <div class="subsection-label">Y Axis Dimensions</div>
-      <p class="section-hint">Toggle fields to include as Y series.</p>
+      <div class="subsection-label">{{ valueAxisLabel }}</div>
+      <p class="section-hint">Toggle fields to include as {{ isXType ? 'X' : 'Y' }} series.</p>
       <div class="field-toggle-list">
         <div *ngFor="let field of availableFields" class="field-toggle-row">
           <mat-slide-toggle
@@ -74,6 +74,27 @@
                  [value]="config.graphConfig.seriesColors[i] || '#4e79a7'"
                  (change)="onSeriesColorChange(i, $any($event.target).value)">
         </div>
+      </div>
+
+      <!-- Aggregation -->
+      <div class="aggregation-section">
+        <div class="subsection-label">Aggregation</div>
+        <p class="section-hint">When enabled, data points are grouped by the X dimension and Y values are aggregated. Common for bar charts.</p>
+        <mat-slide-toggle
+          [checked]="config.graphConfig.aggregation.enabled"
+          (change)="onAggregationToggle($event.checked)">
+          Enable aggregation
+        </mat-slide-toggle>
+        <mat-form-field *ngIf="config.graphConfig.aggregation.enabled"
+                        appearance="outline" class="full-width aggregation-strategy">
+          <mat-label>Strategy</mat-label>
+          <mat-select [ngModel]="config.graphConfig.aggregation.strategy"
+                      (ngModelChange)="onAggregationStrategyChange($event)">
+            <mat-option *ngFor="let s of aggregationStrategies" [value]="s.value">
+              {{ s.label }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
       </div>
     </mat-expansion-panel>
 

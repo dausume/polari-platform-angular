@@ -31,6 +31,7 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { MatSnackBarModule } from '@angular/material/snack-bar';
 //NgRx
 import { StoreModule } from '@ngrx/store';
 import { EffectsModule } from '@ngrx/effects';
@@ -105,6 +106,10 @@ import { ApiConfigDetailDialogComponent } from '@components/api-config/api-confi
 import { TableConfigSidebarComponent } from '@components/table-config/table-config-sidebar/table-config-sidebar';
 // Graph Config Components
 import { GraphConfigSidebarComponent } from '@components/graph-config/graph-config-sidebar/graph-config-sidebar';
+import { GraphRendererComponent } from '@components/graph-config/graph-renderer/graph-renderer';
+// Embedded Display Components
+import { EmbeddedTableComponent } from '@components/dashboard/embedded-table/embedded-table';
+import { EmbeddedGraphComponent } from '@components/dashboard/embedded-graph/embedded-graph';
 // (SystemDiagnosticsComponent and HomeComponent are lazy-loaded via router)
 //Services (Backend Access)
 import { PolariService } from '@services/polari-service';
@@ -169,7 +174,8 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     ApiConfigComponent,
     ApiConfigDetailDialogComponent,
     TableConfigSidebarComponent,
-    GraphConfigSidebarComponent
+    GraphConfigSidebarComponent,
+    EmbeddedTableComponent
   ],
   imports: [
     BrowserModule,
@@ -203,6 +209,7 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     MatSidenavModule,
     MatSlideToggleModule,
     MatButtonToggleModule,
+    MatSnackBarModule,
     // Shared CRUD Module
     SharedCrudModule,
     // Standalone Components (Phase 1)
@@ -217,7 +224,9 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     HeaderComponent,
     DisplayMetricCardComponent,
     DisplayRendererComponent,
+    GraphRendererComponent,
     CertificateTrustPromptComponent,
+    EmbeddedGraphComponent,
     // NgRx
     StoreModule.forRoot(rootReducers),
     EffectsModule.forRoot([PolariEffects, DynamicObjectsEffects]),
@@ -289,6 +298,18 @@ export class AppModule {
     registerDisplayComponent('dynamicDataTable', DynamicDataTableComponent, {
       displayName: 'Dynamic Data Table',
       description: 'Full CRUD table with inline editing, dialog editing, and row actions'
+    });
+
+    // Register embedded table wrapper (loads table config by ID at render time)
+    registerDisplayComponent('embeddedTable', EmbeddedTableComponent, {
+      displayName: 'Table Configuration',
+      description: 'Renders a saved table configuration'
+    });
+
+    // Register embedded graph wrapper (loads graph config by ID at render time)
+    registerDisplayComponent('embeddedGraph', EmbeddedGraphComponent, {
+      displayName: 'Graph Configuration',
+      description: 'Renders a saved graph configuration'
     });
 
     console.log('[AppModule] Display components registered');

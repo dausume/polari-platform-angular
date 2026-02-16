@@ -191,27 +191,13 @@
         </div>
 
         <div class="editor-body">
-          <!-- Preview area (placeholder for now) -->
+          <!-- Preview area -->
           <div class="editor-preview" [class.with-config-panel]="graphConfigPanelOpen">
-            <div class="graph-preview-placeholder">
-              <mat-icon class="preview-placeholder-icon">show_chart</mat-icon>
-              <h3>Graph Preview</h3>
-              <p>Graph rendering will appear here once chart rendering is implemented.</p>
-              <div class="preview-config-summary" *ngIf="selectedGraphConfig.graphConfig">
-                <div class="summary-row">
-                  <strong>Chart Type:</strong> {{ selectedGraphConfig.graphConfig.renderStyle }}
-                </div>
-                <div class="summary-row" *ngIf="selectedGraphConfig.graphConfig.xDimension">
-                  <strong>X Axis:</strong> {{ selectedGraphConfig.graphConfig.xDimension }}
-                </div>
-                <div class="summary-row" *ngIf="selectedGraphConfig.graphConfig.yDimensions.length > 0">
-                  <strong>Y Series:</strong> {{ selectedGraphConfig.graphConfig.yDimensions.join(', ') }}
-                </div>
-                <div class="summary-row">
-                  <strong>Size:</strong> {{ selectedGraphConfig.graphConfig.options.width }}x{{ selectedGraphConfig.graphConfig.options.height }}
-                </div>
-              </div>
-            </div>
+            <graph-renderer
+              [config]="selectedGraphConfig"
+              [instanceData]="graphPreviewData"
+              [classTypeData]="classTypeData">
+            </graph-renderer>
           </div>
 
           <!-- Config sidebar -->
@@ -287,6 +273,14 @@
             <span *ngIf="hasDraftChanges" class="unsaved-badge">Unsaved changes</span>
           </div>
           <div class="editor-toolbar-right">
+            <button mat-icon-button (click)="toggleDisplayGridlines()" title="Toggle gridlines"
+                    [color]="displayShowGridlines ? 'primary' : ''">
+              <mat-icon>grid_on</mat-icon>
+            </button>
+            <button mat-icon-button (click)="toggleDisplayEditMode()" title="Toggle edit mode"
+                    [color]="displayEditMode ? 'accent' : ''">
+              <mat-icon>edit</mat-icon>
+            </button>
             <button mat-flat-button color="primary" *ngIf="hasDraftChanges" (click)="saveDisplay()">
               <mat-icon>save</mat-icon> Save
             </button>
@@ -300,7 +294,15 @@
         <div class="editor-body">
           <!-- Preview area -->
           <div class="editor-preview" [class.with-config-panel]="configPanelOpen">
-            <dashboard-renderer [dashboard]="selectedDisplay"></dashboard-renderer>
+            <dashboard-renderer
+              [dashboard]="selectedDisplay"
+              [context]="dashboardContext"
+              [editMode]="displayEditMode"
+              [showGridlines]="displayShowGridlines || displayEditMode"
+              (cellSelected)="onDisplayCellSelected($event)"
+              (itemRemoved)="onDisplayItemRemoved($event)"
+              (containerWidthMeasured)="onRendererWidthMeasured($event)">
+            </dashboard-renderer>
           </div>
 
           <!-- Config panel -->
@@ -322,21 +324,12 @@
 
               <mat-divider></mat-divider>
 
-              <!-- Rows -->
-              <div class="config-section">
-                <div class="section-header">
-                  <h4>Rows</h4>
-                  <button mat-icon-button color="primary" (click)="addDisplayRow()" title="Add Row">
-                    <mat-icon>add</mat-icon>
-                  </button>
-                </div>
-
-                <div *ngIf="selectedDisplay.rows.length === 0" class="empty-rows">
-                  <p>No rows yet. Add a row to start building your display.</p>
-                </div>
-
+              <!-- Rows (recursive config template) -->
+              <ng-template #rowConfigTemplate
+                           let-rows="rows" let-parentItem="parentItem"
+                           let-depth="depth" let-availableWidth="availableWidth">
                 <mat-accordion>
-                  <mat-expansion-panel *ngFor="let row of selectedDisplay.rows; let i = index">
+                  <mat-expansion-panel *ngFor="let row of rows; let i = index">
                     <mat-expansion-panel-header>
                       <mat-panel-title>Row {{ i + 1 }}</mat-panel-title>
                       <mat-panel-description>
@@ -347,7 +340,10 @@
                     <div class="row-config">
                       <mat-form-field appearance="outline" class="half-width">
                         <mat-label>Segments</mat-label>
-                        <input matInput type="number" [(ngModel)]="row.rowSegments" (ngModelChange)="onDisplayPropertyChange()" min="1" max="24">
+                        <input matInput type="number" [(ngModel)]="row.rowSegments"
+                               (ngModelChange)="onDisplayPropertyChange()" min="1"
+                               [max]="availableWidth ? calculateMaxColumnsForConfig(availableWidth) : 24">
+                        <mat-hint *ngIf="availableWidth">Max {{ calculateMaxColumnsForConfig(availableWidth) }} cols</mat-hint>
                       </mat-form-field>
 
                       <mat-form-field appearance="outline" class="half-width">
@@ -369,26 +365,140 @@
                         <input matInput [(ngModel)]="row.cssClass" (ngModelChange)="onDisplayPropertyChange()">
                       </mat-form-field>
 
+                      <!-- Items list with nested container expansion -->
                       <div class="row-items-summary" *ngIf="row.dashboardItems.length > 0">
                         <h5>Items ({{ row.dashboardItems.length }})</h5>
-                        <mat-list dense>
-                          <mat-list-item *ngFor="let item of row.dashboardItems">
-                            <mat-icon matListItemIcon>{{ getItemIcon(item.type) }}</mat-icon>
-                            <span matListItemTitle>{{ item.title || item.type }} ({{ item.rowSegmentsUsed }} cols)</span>
-                          </mat-list-item>
-                        </mat-list>
+                        <div *ngFor="let item of row.dashboardItems" class="config-item-entry">
+                          <div class="config-item-header">
+                            <mat-icon>{{ getItemIcon(item.type) }}</mat-icon>
+                            <span>{{ item.title || item.type }} ({{ item.rowSegmentsUsed }} cols)</span>
+                          </div>
+                          <!-- Nested rows for container items -->
+                          <div *ngIf="item.type === 'container' && item.nestedRows"
+                               class="nested-row-config depth-{{ depth + 1 }}"
+                               [ngClass]="'depth-' + (depth + 1)">
+                            <div class="nested-config-header">
+                              <h5><mat-icon style="font-size:14px;width:14px;height:14px">view_agenda</mat-icon> Nested Rows</h5>
+                              <button mat-icon-button color="primary"
+                                      (click)="addNestedRow(item, availableWidth, row.rowSegments)"
+                                      title="Add nested row">
+                                <mat-icon>add</mat-icon>
+                              </button>
+                            </div>
+                            <div *ngIf="item.nestedRows.length === 0" style="font-size:12px;color:#999;padding:4px 0">
+                              No nested rows. Click + to add one.
+                            </div>
+                            <ng-container *ngTemplateOutlet="rowConfigTemplate; context: {
+                              rows: item.nestedRows,
+                              parentItem: item,
+                              depth: depth + 1,
+                              availableWidth: calculateNestedWidthForConfig(availableWidth, item.rowSegmentsUsed, row.rowSegments)
+                            }"></ng-container>
+                          </div>
+                        </div>
                       </div>
 
-                      <button mat-stroked-button color="warn" (click)="removeDisplayRow(i)">
+                      <button mat-stroked-button color="warn"
+                              (click)="parentItem ? removeNestedRow(parentItem, i) : removeDisplayRow(i)">
                         <mat-icon>delete</mat-icon> Remove Row
                       </button>
                     </div>
                   </mat-expansion-panel>
                 </mat-accordion>
+              </ng-template>
+
+              <div class="config-section">
+                <div class="section-header">
+                  <h4>Rows</h4>
+                  <button mat-icon-button color="primary" (click)="addDisplayRow()" title="Add Row">
+                    <mat-icon>add</mat-icon>
+                  </button>
+                </div>
+
+                <div *ngIf="selectedDisplay.rows.length === 0" class="empty-rows">
+                  <p>No rows yet. Add a row to start building your display.</p>
+                </div>
+
+                <ng-container *ngTemplateOutlet="rowConfigTemplate; context: {
+                  rows: selectedDisplay.rows,
+                  parentItem: null,
+                  depth: 0,
+                  availableWidth: rendererContainerWidth
+                }"></ng-container>
 
                 <button mat-stroked-button color="primary" (click)="addDisplayRow()" class="add-row-btn">
                   <mat-icon>add</mat-icon> Add Row
                 </button>
+              </div>
+
+              <mat-divider></mat-divider>
+
+              <!-- Component Palette (visible in edit mode) -->
+              <div class="config-section" *ngIf="displayEditMode">
+                <h4>Components</h4>
+                <p class="palette-hint">Select a grid cell, then click a component to place it.</p>
+
+                <!-- Tables -->
+                <div class="palette-group" *ngIf="tableConfigList.length > 0">
+                  <h5 class="palette-group-title">
+                    <mat-icon class="palette-group-icon table-icon">table_chart</mat-icon>
+                    Tables
+                  </h5>
+                  <div class="palette-items">
+                    <div class="palette-item" *ngFor="let tc of tableConfigList"
+                         (click)="placeComponentInCell('table', tc.id, tc.name)">
+                      <mat-icon class="table-icon">table_chart</mat-icon>
+                      <span class="palette-item-name">{{ tc.name || 'Untitled' }}</span>
+                      <mat-icon class="palette-add-icon">add_circle_outline</mat-icon>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Graphs -->
+                <div class="palette-group" *ngIf="graphConfigList.length > 0">
+                  <h5 class="palette-group-title">
+                    <mat-icon class="palette-group-icon graph-icon">show_chart</mat-icon>
+                    Graphs
+                  </h5>
+                  <div class="palette-items">
+                    <div class="palette-item" *ngFor="let gc of graphConfigList"
+                         (click)="placeComponentInCell('graph', gc.id, gc.name)">
+                      <mat-icon class="graph-icon">show_chart</mat-icon>
+                      <span class="palette-item-name">{{ gc.name || 'Untitled' }}</span>
+                      <mat-icon class="palette-add-icon">add_circle_outline</mat-icon>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Built-in -->
+                <div class="palette-group">
+                  <h5 class="palette-group-title">
+                    <mat-icon class="palette-group-icon">widgets</mat-icon>
+                    Built-in
+                  </h5>
+                  <div class="palette-items">
+                    <div class="palette-item" (click)="placeComponentInCell('text')">
+                      <mat-icon>text_fields</mat-icon>
+                      <span class="palette-item-name">Text Block</span>
+                      <mat-icon class="palette-add-icon">add_circle_outline</mat-icon>
+                    </div>
+                    <div class="palette-item" (click)="placeComponentInCell('metric')">
+                      <mat-icon>analytics</mat-icon>
+                      <span class="palette-item-name">Metric Card</span>
+                      <mat-icon class="palette-add-icon">add_circle_outline</mat-icon>
+                    </div>
+                    <div class="palette-item" (click)="placeComponentInCell('container')">
+                      <mat-icon>view_agenda</mat-icon>
+                      <span class="palette-item-name">Row Container</span>
+                      <mat-icon class="palette-add-icon">add_circle_outline</mat-icon>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Empty state for configs -->
+                <div *ngIf="tableConfigList.length === 0 && graphConfigList.length === 0" class="palette-empty">
+                  <p>No saved table or graph configs found for this class. Create them in the Tables or Graphs tabs.</p>
+                </div>
               </div>
 
             </div>

@@ -164,28 +164,38 @@ export class DisplayManagerService {
 
   serializeDisplay(display: Display): string {
     const data = {
-      rows: display.rows.map(row => ({
-        index: row.index,
-        rowSegments: row.rowSegments,
-        minRowHeight: row.minRowHeight,
-        maxRowHeight: row.maxRowHeight,
-        autoHeight: row.autoHeight,
-        cssClass: row.cssClass || '',
-        items: row.dashboardItems.map(item => ({
-          id: item.id,
-          index: item.index,
-          type: item.type,
-          rowSegmentsUsed: item.rowSegmentsUsed,
-          title: item.title || '',
-          visible: item.visible,
-          collapsed: item.collapsed,
-          cssClass: item.cssClass || '',
-          componentProps: item.componentProps || {},
-          item: item.type === 'metric' || item.type === 'text' ? item.item : null
-        }))
-      }))
+      rows: display.rows.map(row => this.serializeRow(row))
     };
     return JSON.stringify(data);
+  }
+
+  private serializeRow(row: DisplayRow): any {
+    return {
+      index: row.index,
+      rowSegments: row.rowSegments,
+      minRowHeight: row.minRowHeight,
+      maxRowHeight: row.maxRowHeight,
+      autoHeight: row.autoHeight,
+      cssClass: row.cssClass || '',
+      items: row.dashboardItems.map(item => this.serializeItem(item))
+    };
+  }
+
+  private serializeItem(item: DisplayItem): any {
+    return {
+      id: item.id,
+      index: item.index,
+      type: item.type,
+      rowSegmentsUsed: item.rowSegmentsUsed,
+      gridColumnStart: item.gridColumnStart ?? null,
+      title: item.title || '',
+      visible: item.visible,
+      collapsed: item.collapsed,
+      cssClass: item.cssClass || '',
+      componentProps: item.componentProps || {},
+      item: item.type === 'metric' || item.type === 'text' ? item.item : null,
+      nestedRows: (item.nestedRows || []).map(r => this.serializeRow(r))
+    };
   }
 
   deserializeDisplay(backendObj: any): Display {
@@ -204,40 +214,54 @@ export class DisplayManagerService {
 
     if (parsed.rows && Array.isArray(parsed.rows)) {
       parsed.rows.forEach((rowData: any) => {
-        const row = new DisplayRow(
-          rowData.index || 0,
-          rowData.rowSegments || 12,
-          rowData.minRowHeight || 250,
-          rowData.maxRowHeight
-        );
-        row.autoHeight = rowData.autoHeight || false;
-        row.cssClass = rowData.cssClass || undefined;
-
-        if (rowData.items && Array.isArray(rowData.items)) {
-          rowData.items.forEach((itemData: any) => {
-            const item = new DisplayItem(
-              itemData.index || 0,
-              itemData.type || 'text',
-              itemData.item || null,
-              itemData.rowSegmentsUsed || 1,
-              itemData.componentProps || {}
-            );
-            item.title = itemData.title || undefined;
-            item.visible = itemData.visible !== false;
-            item.collapsed = itemData.collapsed || false;
-            item.cssClass = itemData.cssClass || undefined;
-            if (itemData.id) {
-              (item as any).id = itemData.id;
-            }
-            row.addItem(item);
-          });
-        }
-
-        display.addRow(row);
+        display.addRow(this.deserializeRow(rowData));
       });
     }
 
     return display;
+  }
+
+  private deserializeRow(rowData: any): DisplayRow {
+    const row = new DisplayRow(
+      rowData.index || 0,
+      rowData.rowSegments || 12,
+      rowData.minRowHeight || 250,
+      rowData.maxRowHeight
+    );
+    row.autoHeight = rowData.autoHeight || false;
+    row.cssClass = rowData.cssClass || undefined;
+
+    if (rowData.items && Array.isArray(rowData.items)) {
+      rowData.items.forEach((itemData: any) => {
+        row.addItem(this.deserializeItem(itemData));
+      });
+    }
+
+    return row;
+  }
+
+  private deserializeItem(itemData: any): DisplayItem {
+    const item = new DisplayItem(
+      itemData.index || 0,
+      itemData.type || 'text',
+      itemData.item || null,
+      itemData.rowSegmentsUsed || 1,
+      itemData.componentProps || {}
+    );
+    item.title = itemData.title || undefined;
+    item.visible = itemData.visible !== false;
+    item.collapsed = itemData.collapsed || false;
+    item.cssClass = itemData.cssClass || undefined;
+    if (itemData.id) {
+      (item as any).id = itemData.id;
+    }
+    if (itemData.gridColumnStart != null) {
+      item.gridColumnStart = itemData.gridColumnStart;
+    }
+    if (itemData.nestedRows && Array.isArray(itemData.nestedRows) && itemData.nestedRows.length > 0) {
+      item.nestedRows = itemData.nestedRows.map((rd: any) => this.deserializeRow(rd));
+    }
+    return item;
   }
 
   private parseReadAllResponse(response: any): any[] {

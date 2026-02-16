@@ -14,4 +14,4 @@ export { PlotDimensionRenderer } from './plotDimensionRenderer';
 export { PlotDimensionGroup } from './plotDimensionGroup';
 
 // Named graph configuration (backend-persisted)
-export { NamedGraphConfig, GraphDefinitionSummary, GraphConfigData } from './NamedGraphConfig';
+export { NamedGraphConfig, GraphDefinitionSummary, GraphConfigData, AggregationConfig } from './NamedGraphConfig';

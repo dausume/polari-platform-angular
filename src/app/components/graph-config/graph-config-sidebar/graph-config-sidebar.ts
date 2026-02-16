@@ -1,6 +1,7 @@
 import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges } from '@angular/core';
-import { NamedGraphConfig, GraphConfigData } from '@models/graphs/NamedGraphConfig';
+import { NamedGraphConfig, GraphConfigData, AggregationConfig } from '@models/graphs/NamedGraphConfig';
 import { PlotRenderStyle } from '@models/graphs/plotFigure';
+import { CompressionStrategy } from '@models/dataseries/compressionStrategy';
 
 @Component({
   standalone: false,
@@ -18,8 +19,8 @@ export class GraphConfigSidebarComponent implements OnChanges {
     { value: 'lineY', label: 'Line (Y)' },
     { value: 'barY', label: 'Bar (Y)' },
     { value: 'dot', label: 'Scatter' },
-    { value: 'area', label: 'Area' },
     { value: 'areaY', label: 'Area (Y)' },
+    { value: 'areaX', label: 'Area (X)' },
     { value: 'lineX', label: 'Line (X)' },
     { value: 'barX', label: 'Bar (X)' }
   ];
@@ -28,6 +29,14 @@ export class GraphConfigSidebarComponent implements OnChanges {
     '#4e79a7', '#f28e2b', '#e15759', '#76b7b2',
     '#59a14f', '#edc948', '#b07aa1', '#ff9da7',
     '#9c755f', '#bab0ac'
+  ];
+
+  aggregationStrategies: { value: CompressionStrategy; label: string }[] = [
+    { value: 'average', label: 'Average' },
+    { value: 'sum', label: 'Sum' },
+    { value: 'count', label: 'Count' },
+    { value: 'start-of-time-step', label: 'First Value' },
+    { value: 'end-of-time-step', label: 'Last Value' }
   ];
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -111,6 +120,37 @@ export class GraphConfigSidebarComponent implements OnChanges {
   onGridToggle(value: boolean): void {
     this.config.graphConfig.options.showGrid = value;
     this.emitChange();
+  }
+
+  onAggregationToggle(enabled: boolean): void {
+    this.config.graphConfig.aggregation.enabled = enabled;
+    this.emitChange();
+  }
+
+  onAggregationStrategyChange(strategy: CompressionStrategy): void {
+    this.config.graphConfig.aggregation.strategy = strategy;
+    this.emitChange();
+  }
+
+  get isBarStyle(): boolean {
+    const style = this.config?.graphConfig?.renderStyle;
+    return style === 'barY' || style === 'barX';
+  }
+
+  /** Whether the current chart type is X-oriented (barX, lineX) */
+  get isXType(): boolean {
+    const style = this.config?.graphConfig?.renderStyle;
+    return style === 'barX' || style === 'lineX' || style === 'areaX';
+  }
+
+  /** Dynamic label for the single-select axis (category dimension) */
+  get categoryAxisLabel(): string {
+    return this.isXType ? 'Y Axis Dimension' : 'X Axis Dimension';
+  }
+
+  /** Dynamic label for the multi-select axis (value dimensions) */
+  get valueAxisLabel(): string {
+    return this.isXType ? 'X Axis Dimensions' : 'Y Axis Dimensions';
   }
 
   emitChange(): void {
