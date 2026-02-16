@@ -1,0 +1,230 @@
+<div class="sidebar-content">
+
+  <!-- Configuration Properties (always visible) -->
+  <div class="config-section">
+    <h4>Configuration Properties</h4>
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Name</mat-label>
+      <input matInput [ngModel]="config.name" (ngModelChange)="onNameChange($event)">
+    </mat-form-field>
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Description</mat-label>
+      <textarea matInput [ngModel]="config.description" (ngModelChange)="onDescriptionChange($event)" rows="2"></textarea>
+    </mat-form-field>
+  </div>
+
+  <mat-divider></mat-divider>
+
+  <mat-accordion multi>
+
+    <!-- Coordinate Mapping Section -->
+    <mat-expansion-panel [expanded]="true">
+      <mat-expansion-panel-header>
+        <mat-panel-title>Coordinate Mapping</mat-panel-title>
+      </mat-expansion-panel-header>
+
+      <p class="section-hint">Define how geographic coordinates are specified on instances.</p>
+
+      <div class="subsection-label">Coordinate Mode</div>
+      <mat-button-toggle-group
+        [value]="config.geoJsonConfig.coordinateMode"
+        (change)="onCoordinateModeChange($event.value)"
+        class="full-width mode-toggle">
+        <mat-button-toggle value="separate">Separate Lat/Lng</mat-button-toggle>
+        <mat-button-toggle value="tuple">Tuple Variable</mat-button-toggle>
+        <mat-button-toggle value="parent">Parent GeoObject</mat-button-toggle>
+      </mat-button-toggle-group>
+
+      <!-- Tuple mode fields -->
+      <div *ngIf="config.geoJsonConfig.coordinateMode === 'tuple'" class="coord-fields">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Tuple Variable</mat-label>
+          <mat-select [ngModel]="config.geoJsonConfig.tupleVariable" (ngModelChange)="onTupleVariableChange($event)">
+            <mat-option value="">-- None --</mat-option>
+            <mat-option *ngFor="let field of availableFields" [value]="field">
+              {{ field }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Tuple Order</mat-label>
+          <mat-select [ngModel]="config.geoJsonConfig.tupleOrder" (ngModelChange)="onTupleOrderChange($event)">
+            <mat-option value="lat-lng">[latitude, longitude]</mat-option>
+            <mat-option value="lng-lat">[longitude, latitude] (GeoJSON standard)</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <!-- Separate mode fields -->
+      <div *ngIf="config.geoJsonConfig.coordinateMode === 'separate'" class="coord-fields">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Latitude Variable</mat-label>
+          <mat-select [ngModel]="config.geoJsonConfig.latitudeVariable" (ngModelChange)="onLatitudeVariableChange($event)">
+            <mat-option value="">-- None --</mat-option>
+            <mat-option *ngFor="let field of availableFields" [value]="field">
+              {{ field }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Longitude Variable</mat-label>
+          <mat-select [ngModel]="config.geoJsonConfig.longitudeVariable" (ngModelChange)="onLongitudeVariableChange($event)">
+            <mat-option value="">-- None --</mat-option>
+            <mat-option *ngFor="let field of availableFields" [value]="field">
+              {{ field }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <!-- Parent mode fields -->
+      <div *ngIf="config.geoJsonConfig.coordinateMode === 'parent'" class="coord-fields">
+        <p class="section-hint">
+          This class references geographic coordinates from a parent GeoJSON-enabled class.
+          The map will not render points directly for this class.
+        </p>
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Parent GeoJSON Class Name</mat-label>
+          <input matInput [ngModel]="config.geoJsonConfig.parentGeoClass"
+                 (ngModelChange)="onParentGeoClassChange($event)"
+                 placeholder="e.g. Location, Site, GeoPoint">
+        </mat-form-field>
+      </div>
+    </mat-expansion-panel>
+
+    <!-- SVG Markers Section -->
+    <mat-expansion-panel>
+      <mat-expansion-panel-header>
+        <mat-panel-title>SVG Markers</mat-panel-title>
+      </mat-expansion-panel-header>
+
+      <p class="section-hint">Define named SVG markers with custom styling for map points.</p>
+
+      <!-- Default marker selector -->
+      <mat-form-field appearance="outline" class="full-width" *ngIf="config.geoJsonConfig.svgMarkers.length > 0">
+        <mat-label>Default Marker</mat-label>
+        <mat-select [ngModel]="config.geoJsonConfig.defaultMarkerName" (ngModelChange)="onDefaultMarkerChange($event)">
+          <mat-option *ngFor="let m of config.geoJsonConfig.svgMarkers" [value]="m.name">
+            {{ m.name }}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <!-- Marker list -->
+      <div class="marker-list">
+        <div *ngFor="let marker of config.geoJsonConfig.svgMarkers; let i = index" class="marker-entry">
+          <div class="marker-header">
+            <div class="svg-preview-small" [innerHTML]="getStyledSvg(marker)"></div>
+            <span class="marker-name">{{ marker.name }}</span>
+            <button mat-icon-button (click)="toggleEditMarker(i)" title="Edit marker">
+              <mat-icon>{{ editingMarkerIndex === i ? 'expand_less' : 'edit' }}</mat-icon>
+            </button>
+            <button mat-icon-button color="warn" (click)="removeMarker(i)" title="Remove marker"
+                    [disabled]="config.geoJsonConfig.svgMarkers.length <= 1">
+              <mat-icon>delete</mat-icon>
+            </button>
+          </div>
+
+          <!-- Inline editor -->
+          <div *ngIf="editingMarkerIndex === i" class="marker-editor">
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Marker Name</mat-label>
+              <input matInput [ngModel]="marker.name" (ngModelChange)="onMarkerNameChange(i, $event)">
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>SVG Markup</mat-label>
+              <textarea matInput [ngModel]="marker.svgString" (ngModelChange)="onMarkerSvgChange(i, $event)"
+                        rows="4" class="svg-textarea"></textarea>
+            </mat-form-field>
+
+            <div class="marker-dimensions">
+              <mat-form-field appearance="outline" class="half-width">
+                <mat-label>Width (px)</mat-label>
+                <input matInput type="number" [ngModel]="marker.width" (ngModelChange)="onMarkerWidthChange(i, $event)" min="1">
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="half-width">
+                <mat-label>Height (px)</mat-label>
+                <input matInput type="number" [ngModel]="marker.height" (ngModelChange)="onMarkerHeightChange(i, $event)" min="1">
+              </mat-form-field>
+            </div>
+
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Anchor</mat-label>
+              <mat-select [ngModel]="marker.anchor" (ngModelChange)="onMarkerAnchorChange(i, $event)">
+                <mat-option value="center">Center</mat-option>
+                <mat-option value="bottom">Bottom (pin-style)</mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <div class="color-controls">
+              <div class="color-row">
+                <span class="color-label">Fill Color</span>
+                <input type="color" [value]="marker.fillColor"
+                       (change)="onMarkerFillChange(i, $any($event.target).value)">
+              </div>
+              <div class="color-row">
+                <span class="color-label">Stroke Color</span>
+                <input type="color" [value]="marker.strokeColor"
+                       (change)="onMarkerStrokeChange(i, $any($event.target).value)">
+              </div>
+            </div>
+
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Stroke Width</mat-label>
+              <input matInput type="number" [ngModel]="marker.strokeWidth"
+                     (ngModelChange)="onMarkerStrokeWidthChange(i, $event)" min="0" step="0.5">
+            </mat-form-field>
+
+            <!-- Live SVG preview -->
+            <div class="svg-preview-section">
+              <div class="subsection-label">Preview</div>
+              <div class="svg-preview" [innerHTML]="getStyledSvg(marker)"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button mat-stroked-button color="primary" (click)="addMarker()" class="add-marker-btn">
+        <mat-icon>add</mat-icon> Add Marker
+      </button>
+    </mat-expansion-panel>
+
+    <!-- Map Settings Section -->
+    <mat-expansion-panel>
+      <mat-expansion-panel-header>
+        <mat-panel-title>Map Settings</mat-panel-title>
+      </mat-expansion-panel-header>
+
+      <p class="section-hint">Configure the initial map view.</p>
+
+      <div class="map-center-fields">
+        <mat-form-field appearance="outline" class="half-width">
+          <mat-label>Center Longitude</mat-label>
+          <input matInput type="number" [ngModel]="config.geoJsonConfig.mapOptions.center[0]"
+                 (ngModelChange)="onCenterLngChange($event)" step="0.001">
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="half-width">
+          <mat-label>Center Latitude</mat-label>
+          <input matInput type="number" [ngModel]="config.geoJsonConfig.mapOptions.center[1]"
+                 (ngModelChange)="onCenterLatChange($event)" step="0.001">
+        </mat-form-field>
+      </div>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Zoom Level</mat-label>
+        <input matInput type="number" [ngModel]="config.geoJsonConfig.mapOptions.zoom"
+               (ngModelChange)="onZoomChange($event)" min="0" max="22" step="0.5">
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Map Style URL</mat-label>
+        <input matInput [ngModel]="config.geoJsonConfig.mapOptions.style"
+               (ngModelChange)="onStyleChange($event)">
+      </mat-form-field>
+    </mat-expansion-panel>
+
+  </mat-accordion>
+</div>

@@ -1,0 +1,233 @@
+.sidebar-content {
+  padding: 16px;
+  color: #333;
+}
+
+.config-section {
+  margin-bottom: 16px;
+}
+
+.config-section h4 {
+  margin: 0 0 12px 0;
+  font-size: 15px;
+  color: #222;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.half-width {
+  width: 48%;
+  display: inline-block;
+  margin-right: 4%;
+}
+
+.half-width:last-child {
+  margin-right: 0;
+}
+
+.section-hint {
+  font-size: 12px;
+  color: #888;
+  margin: 0 0 12px 0;
+  line-height: 1.4;
+}
+
+.subsection-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #444;
+  margin: 12px 0 4px 0;
+}
+
+/* Coordinate mode toggle */
+.mode-toggle {
+  margin-bottom: 12px;
+}
+
+.coord-fields {
+  margin-top: 12px;
+}
+
+/* Marker list */
+.marker-list {
+  margin-bottom: 12px;
+}
+
+.marker-entry {
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+
+.marker-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: #f9f9f9;
+}
+
+.marker-name {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: #333;
+}
+
+.svg-preview-small {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.svg-preview-small ::ng-deep svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* Marker editor */
+.marker-editor {
+  padding: 12px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.marker-dimensions {
+  display: flex;
+  gap: 4%;
+}
+
+.color-controls {
+  margin: 8px 0;
+}
+
+.color-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+
+.color-label {
+  font-size: 13px;
+  color: #444;
+}
+
+.color-row input[type="color"] {
+  width: 32px;
+  height: 24px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 0;
+}
+
+/* SVG textarea */
+.svg-textarea {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 12px;
+}
+
+/* SVG preview */
+.svg-preview-section {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #eee;
+}
+
+.svg-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: #f5f5f5;
+  border-radius: 6px;
+  min-height: 60px;
+}
+
+.svg-preview ::ng-deep svg {
+  max-width: 64px;
+  max-height: 64px;
+}
+
+.add-marker-btn {
+  width: 100%;
+  margin-top: 4px;
+}
+
+/* Map center fields */
+.map-center-fields {
+  display: flex;
+  gap: 4%;
+}
+
+/* === Force dark text on light background === */
+::ng-deep .sidebar-content .mat-mdc-text-field-wrapper,
+::ng-deep .sidebar-content .mdc-text-field--outlined {
+  background: #fff;
+  color: #333;
+}
+
+::ng-deep .sidebar-content .mat-mdc-form-field-input-control,
+::ng-deep .sidebar-content .mdc-floating-label,
+::ng-deep .sidebar-content .mat-mdc-select-value-text {
+  color: #333 !important;
+}
+
+::ng-deep .sidebar-content .mdc-notched-outline__leading,
+::ng-deep .sidebar-content .mdc-notched-outline__notch,
+::ng-deep .sidebar-content .mdc-notched-outline__trailing {
+  border-color: rgba(0, 0, 0, 0.38) !important;
+}
+
+::ng-deep .sidebar-content .mat-expansion-panel {
+  background: #fff;
+  color: #333;
+}
+
+::ng-deep .sidebar-content .mat-expansion-panel-header {
+  background: #f5f5f5 !important;
+}
+
+::ng-deep .sidebar-content .mat-expansion-panel-header:hover {
+  background: #ebebeb !important;
+}
+
+::ng-deep .sidebar-content .mat-expansion-panel-header-title,
+::ng-deep .sidebar-content .mat-expansion-panel-header-description {
+  color: #333;
+}
+
+::ng-deep .sidebar-content .mat-expansion-panel-body {
+  color: #333;
+}
+
+::ng-deep .sidebar-content .mat-expansion-indicator svg {
+  fill: #666;
+}
+
+::ng-deep .sidebar-content .mdc-switch + label,
+::ng-deep .sidebar-content mat-slide-toggle {
+  color: #333;
+}
+
+::ng-deep .sidebar-content .mat-mdc-option .mdc-list-item__primary-text {
+  color: #333;
+}
+
+/* Button toggle group styling */
+::ng-deep .sidebar-content .mat-button-toggle-group {
+  width: 100%;
+}
+
+::ng-deep .sidebar-content .mat-button-toggle {
+  flex: 1;
+}
+
+::ng-deep .sidebar-content .mat-button-toggle-label-content {
+  font-size: 13px;
+}

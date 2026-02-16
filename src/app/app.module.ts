@@ -54,6 +54,7 @@ import { ClassMainPageComponent } from '@components/class-main-page/class-main-p
 import { classInstanceSearchComponent } from '@components/class-instance-search/class-instance-search';
 import { CreateNewClassComponent } from '@components/create-new-class/create-new-class';
 import { VariableModifierComponent } from '@components/create-new-class/variable-modifier/variable-modifier';
+import { EditClassDialogComponent } from '@components/class-main-page/edit-class-dialog/edit-class-dialog';
 // Dashboard/Display Components
 import { DisplayRendererComponent } from '@components/dashboard/dashboard-renderer/dashboard-renderer';
 import { DisplayMetricCardComponent } from '@components/dashboard/dashboard-metric-card/dashboard-metric-card';
@@ -107,6 +108,10 @@ import { TableConfigSidebarComponent } from '@components/table-config/table-conf
 // Graph Config Components
 import { GraphConfigSidebarComponent } from '@components/graph-config/graph-config-sidebar/graph-config-sidebar';
 import { GraphRendererComponent } from '@components/graph-config/graph-renderer/graph-renderer';
+// GeoJSON Config Components
+import { GeoJsonConfigSidebarComponent } from '@components/geojson-config/geojson-config-sidebar/geojson-config-sidebar';
+import { MapRendererComponent } from '@components/geojson-config/map-renderer/map-renderer';
+import { CreateGeoJsonConfigDialogComponent } from '@components/geojson-config/create-geojson-config-dialog/create-geojson-config-dialog';
 // Embedded Display Components
 import { EmbeddedTableComponent } from '@components/dashboard/embedded-table/embedded-table';
 import { EmbeddedGraphComponent } from '@components/dashboard/embedded-graph/embedded-graph';
@@ -143,6 +148,7 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     classInstanceSearchComponent,
     CreateNewClassComponent,
     VariableModifierComponent,
+    EditClassDialogComponent,
     // No-Code Components
     CustomNoCodeComponent,
     NoCodeInterfaceComponent,
@@ -175,6 +181,7 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     ApiConfigDetailDialogComponent,
     TableConfigSidebarComponent,
     GraphConfigSidebarComponent,
+    GeoJsonConfigSidebarComponent,
     EmbeddedTableComponent
   ],
   imports: [
@@ -227,6 +234,8 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     GraphRendererComponent,
     CertificateTrustPromptComponent,
     EmbeddedGraphComponent,
+    MapRendererComponent,
+    CreateGeoJsonConfigDialogComponent,
     // NgRx
     StoreModule.forRoot(rootReducers),
     EffectsModule.forRoot([PolariEffects, DynamicObjectsEffects]),

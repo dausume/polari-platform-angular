@@ -1,5 +1,6 @@
 import { Component, OnDestroy, ViewChild } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { PolariService } from '@services/polari-service';
@@ -20,7 +21,12 @@ import { CreateTableConfigDialogComponent } from '@components/table-config/creat
 import { GraphDefinitionService } from '@services/graph/graph-definition.service';
 import { NamedGraphConfig, GraphDefinitionSummary } from '@models/graphs/NamedGraphConfig';
 import { CreateGraphConfigDialogComponent } from '@components/graph-config/create-graph-config-dialog/create-graph-config-dialog';
+import { GeoJsonDefinitionService } from '@services/geojson/geojson-definition.service';
+import { NamedGeoJsonConfig, GeoJsonDefinitionSummary } from '@models/geojson/NamedGeoJsonConfig';
+import { CreateGeoJsonConfigDialogComponent } from '@components/geojson-config/create-geojson-config-dialog/create-geojson-config-dialog';
+import { classPolyTyping } from '@models/polyTyping/classPolyTyping';
 import { DisplayRendererComponent } from '@components/dashboard/dashboard-renderer/dashboard-renderer';
+import { EditClassDialogComponent } from '@components/class-main-page/edit-class-dialog/edit-class-dialog';
 import { Subscription } from 'rxjs';
 
 @Component({
@@ -67,6 +73,23 @@ export class ClassMainPageComponent implements OnDestroy {
   graphConfigsLoading: boolean = false;
   graphPreviewData: any[] = [];
 
+  /** GeoJSON config management state */
+  geoJsonConfigList: GeoJsonDefinitionSummary[] = [];
+  selectedGeoJsonConfig: NamedGeoJsonConfig | null = null;
+  hasGeoJsonDraftChanges: boolean = false;
+  geoJsonConfigPanelOpen: boolean = false;
+  geoJsonConfigsLoading: boolean = false;
+  geoJsonPreviewData: any[] = [];
+
+  /** Class poly typing for Configuration tab */
+  classPolyTypingObj: classPolyTyping | null = null;
+
+  /** Configuration tab toggle state */
+  stateSpaceUpdating: boolean = false;
+  geoJsonAutoCreating: boolean = false;
+  editClassLoading: boolean = false;
+  get isGeoJsonEnabled(): boolean { return this.geoJsonConfigList.length > 0; }
+
   @ViewChild(DisplayRendererComponent) dashboardRenderer?: DisplayRendererComponent;
 
   /** Display editor mode state */
@@ -84,6 +107,7 @@ export class ClassMainPageComponent implements OnDestroy {
   constructor(
     private route: ActivatedRoute,
     private router: Router,
+    private http: HttpClient,
     private dialog: MatDialog,
     private snackBar: MatSnackBar,
     protected polariService: PolariService,
@@ -93,7 +117,8 @@ export class ClassMainPageComponent implements OnDestroy {
     private dashboardConfig: DisplayConfigService,
     private displayManager: DisplayManagerService,
     private tableDefService: TableDefinitionService,
-    private graphDefService: GraphDefinitionService
+    private graphDefService: GraphDefinitionService,
+    private geoJsonDefService: GeoJsonDefinitionService
   ) {}
 
   ngOnInit() {
@@ -145,6 +170,22 @@ export class ClassMainPageComponent implements OnDestroy {
     });
     this.subscriptions.push(graphDraftSub);
 
+    // GeoJSON config subscriptions
+    const geoJsonListSub = this.geoJsonDefService.configList$.subscribe(list => {
+      this.geoJsonConfigList = list;
+    });
+    this.subscriptions.push(geoJsonListSub);
+
+    const geoJsonLoadingSub = this.geoJsonDefService.loading$.subscribe(l => {
+      this.geoJsonConfigsLoading = l;
+    });
+    this.subscriptions.push(geoJsonLoadingSub);
+
+    const geoJsonDraftSub = this.geoJsonDefService.hasDraftChanges$.subscribe(dirty => {
+      this.hasGeoJsonDraftChanges = dirty;
+    });
+    this.subscriptions.push(geoJsonDraftSub);
+
     const routeSub = this.route.paramMap.subscribe(paramsMap => {
       Object.keys(paramsMap['params']).forEach(param => {
         if (param == "class") {
@@ -168,6 +209,11 @@ export class ClassMainPageComponent implements OnDestroy {
             this.selectedGraphConfig = null;
             this.hasGraphDraftChanges = false;
             this.graphConfigPanelOpen = false;
+            this.selectedGeoJsonConfig = null;
+            this.hasGeoJsonDraftChanges = false;
+            this.geoJsonConfigPanelOpen = false;
+            this.geoJsonPreviewData = [];
+            this.classPolyTypingObj = null;
             this.selectedTabIndex = 0;
 
             // Clean up old service
@@ -209,6 +255,7 @@ export class ClassMainPageComponent implements OnDestroy {
           const typingData = polyTyping[this.className];
           if (typingData && Object.keys(typingData).length > 0) {
             this.classTypeData = typingData;
+            this.classPolyTypingObj = this.typingService.getClassPolyTyping(this.className!);
             console.log(`[ClassMainPage] Found typing data for ${this.className}`);
 
             // Generate dashboard when we have typing data
@@ -240,6 +287,14 @@ export class ClassMainPageComponent implements OnDestroy {
     // Load displays when switching to the Displays tab (index 3)
     if (index === 3 && this.className) {
       this.loadDisplaysForClass();
+    }
+    // Load GeoJSON configs on Configuration tab so toggle state is current
+    if (index === 4 && this.className) {
+      this.loadGeoJsonConfigsForClass();
+    }
+    // Load GeoJSON configs when switching to the GeoJSON tab (index 5)
+    if (index === 5 && this.className) {
+      this.loadGeoJsonConfigsForClass();
     }
   }
 
@@ -690,6 +745,260 @@ export class ClassMainPageComponent implements OnDestroy {
       },
       error: (err: any) => {
         console.error('[ClassMainPage] Delete graph config failed:', err);
+      }
+    });
+  }
+
+  // ==================== GeoJSON Config Management ====================
+
+  /**
+   * Load GeoJSON configs for the current class
+   */
+  loadGeoJsonConfigsForClass(): void {
+    if (!this.className) return;
+    this.geoJsonDefService.fetchConfigsForClass(this.className);
+  }
+
+  /**
+   * Open the create GeoJSON config dialog
+   */
+  openCreateGeoJsonConfigDialog(): void {
+    const dialogRef = this.dialog.open(CreateGeoJsonConfigDialogComponent, {
+      width: '480px',
+      data: {}
+    });
+
+    const dialogSub = dialogRef.afterClosed().subscribe((result: { name: string; description: string } | null) => {
+      if (result && this.className) {
+        this.geoJsonDefService.createConfig(result.name, result.description, this.className).subscribe({
+          next: () => {
+            console.log('[ClassMainPage] GeoJSON config created successfully');
+          },
+          error: (err: any) => {
+            console.error('[ClassMainPage] Create GeoJSON config failed:', err);
+          }
+        });
+      }
+    });
+    this.subscriptions.push(dialogSub);
+  }
+
+  /**
+   * Select a GeoJSON config to edit
+   */
+  selectGeoJsonConfig(summary: GeoJsonDefinitionSummary): void {
+    this.geoJsonDefService.loadConfig(summary.id).subscribe({
+      next: (config: NamedGeoJsonConfig) => {
+        this.selectedGeoJsonConfig = config;
+        this.geoJsonConfigPanelOpen = true;
+        this.loadGeoJsonPreviewData();
+      },
+      error: (err: any) => {
+        console.error('[ClassMainPage] Failed to load GeoJSON config:', err);
+      }
+    });
+  }
+
+  /**
+   * Load preview instance data for GeoJSON map rendering.
+   */
+  private loadGeoJsonPreviewData(): void {
+    if (!this.crudeService) return;
+    this.crudeService.readAll().subscribe({
+      next: (data: any) => {
+        this.geoJsonPreviewData = this.parseCrudeInstances(data);
+      },
+      error: () => {
+        this.geoJsonPreviewData = [];
+      }
+    });
+  }
+
+  /**
+   * Deselect GeoJSON config and go back to list
+   */
+  deselectGeoJsonConfig(): void {
+    this.selectedGeoJsonConfig = null;
+    this.hasGeoJsonDraftChanges = false;
+    this.geoJsonConfigPanelOpen = false;
+    this.geoJsonPreviewData = [];
+    this.geoJsonDefService.draftConfig$.next(null);
+    this.geoJsonDefService.hasDraftChanges$.next(false);
+    if (this.className) {
+      this.loadGeoJsonConfigsForClass();
+    }
+  }
+
+  /**
+   * Handle GeoJSON config changes from sidebar.
+   * Creates a new object reference so Angular change detection picks it up.
+   */
+  onGeoJsonConfigChange(config: NamedGeoJsonConfig): void {
+    const updated = Object.assign(
+      new NamedGeoJsonConfig(config.id, config.name, config.description, config.source_class),
+      config
+    );
+    this.selectedGeoJsonConfig = updated;
+    this.geoJsonDefService.updateDraft(updated);
+  }
+
+  /**
+   * Save the selected GeoJSON config
+   */
+  saveGeoJsonConfig(): void {
+    if (!this.selectedGeoJsonConfig) return;
+    this.geoJsonDefService.saveConfig(this.selectedGeoJsonConfig).subscribe({
+      next: () => {
+        console.log('[ClassMainPage] GeoJSON config saved successfully');
+      },
+      error: (err: any) => {
+        console.error('[ClassMainPage] Save GeoJSON config failed:', err);
+      }
+    });
+  }
+
+  /**
+   * Delete a GeoJSON config
+   */
+  deleteGeoJsonConfig(summary: GeoJsonDefinitionSummary, event: Event): void {
+    event.stopPropagation();
+    this.geoJsonDefService.deleteConfig(summary.id).subscribe({
+      next: () => {
+        if (this.selectedGeoJsonConfig && this.selectedGeoJsonConfig.id === summary.id) {
+          this.deselectGeoJsonConfig();
+        }
+        if (this.className) {
+          this.loadGeoJsonConfigsForClass();
+        }
+      },
+      error: (err: any) => {
+        console.error('[ClassMainPage] Delete GeoJSON config failed:', err);
+      }
+    });
+  }
+
+  // ==================== Configuration Tab Toggle Handlers ====================
+
+  onStateSpaceToggle(newValue: boolean): void {
+    if (!this.className || !this.classPolyTypingObj) return;
+    const previousValue = this.classPolyTypingObj.config.isStateSpaceObject;
+    // Optimistically update so the toggle reflects the new state
+    this.classPolyTypingObj.config.isStateSpaceObject = newValue;
+    this.stateSpaceUpdating = true;
+    const baseUrl = this.polariService.getBackendBaseUrl();
+    this.http.post(`${baseUrl}/updateClassConfig`, {
+      className: this.className,
+      config: { isStateSpaceObject: newValue }
+    }).subscribe({
+      next: () => {
+        this.stateSpaceUpdating = false;
+        this.snackBar.open(
+          `State-Space ${newValue ? 'enabled' : 'disabled'} for ${this.className}`,
+          'OK', { duration: 3000 }
+        );
+      },
+      error: (err: any) => {
+        // Revert on failure
+        this.classPolyTypingObj!.config.isStateSpaceObject = previousValue;
+        this.stateSpaceUpdating = false;
+        if (err.status === 404 || err.status === 0) {
+          this.snackBar.open(
+            'Could not update class config — backend may need to be updated to support this endpoint.',
+            'Dismiss', { duration: 6000 }
+          );
+        } else {
+          this.snackBar.open(
+            `Failed to update State-Space config: ${err.statusText || err.message || 'Unknown error'}`,
+            'Dismiss', { duration: 5000 }
+          );
+        }
+      }
+    });
+  }
+
+  onGeoJsonToggle(newValue: boolean): void {
+    if (!this.className) return;
+
+    if (newValue && this.geoJsonConfigList.length === 0) {
+      this.geoJsonAutoCreating = true;
+      this.geoJsonDefService.createConfig(
+        'Default Map Config',
+        'Auto-created GeoJSON configuration',
+        this.className
+      ).subscribe({
+        next: () => {
+          this.geoJsonAutoCreating = false;
+          this.snackBar.open(
+            'Default GeoJSON configuration created.',
+            'OK', { duration: 3000 }
+          );
+        },
+        error: (err: any) => {
+          this.geoJsonAutoCreating = false;
+          if (err.status === 404 || err.status === 0) {
+            this.snackBar.open(
+              'Could not create GeoJSON config — the GeoJsonDefinition backend class may not be available.',
+              'Dismiss', { duration: 6000 }
+            );
+          } else {
+            this.snackBar.open(
+              `Failed to create GeoJSON config: ${err.statusText || err.message || 'Unknown error'}`,
+              'Dismiss', { duration: 5000 }
+            );
+          }
+        }
+      });
+    } else if (!newValue) {
+      this.snackBar.open(
+        'Existing GeoJSON configurations are preserved. Remove them from the GeoJSON tab if needed.',
+        'OK', { duration: 4000 }
+      );
+    }
+  }
+
+  navigateToGeoJsonTab(): void {
+    this.selectedTabIndex = 5;
+  }
+
+  // ==================== Edit Class Definition ====================
+
+  openEditClassDialog(): void {
+    if (!this.className || !this.classPolyTypingObj) return;
+
+    this.editClassLoading = true;
+    const baseUrl = this.polariService.getBackendBaseUrl();
+
+    this.http.get<any>(`${baseUrl}/createClass`).subscribe({
+      next: (response) => {
+        this.editClassLoading = false;
+        const classInfo = response.dynamicClasses?.[this.className!];
+        if (!classInfo) {
+          this.snackBar.open('Could not load class definition for editing.', 'Dismiss', { duration: 5000 });
+          return;
+        }
+
+        const dialogRef = this.dialog.open(EditClassDialogComponent, {
+          width: '900px',
+          maxHeight: '80vh',
+          data: {
+            className: this.className,
+            displayName: classInfo.displayName,
+            variables: classInfo.variables
+          }
+        });
+
+        const dialogSub = dialogRef.afterClosed().subscribe(result => {
+          if (result) {
+            this.snackBar.open(`Class "${this.className}" updated successfully.`, 'OK', { duration: 3000 });
+            // Refresh typing data by re-fetching instance counts (triggers nav rebuild)
+            this.typingService.fetchClassInstanceCounts();
+          }
+        });
+        this.subscriptions.push(dialogSub);
+      },
+      error: (err) => {
+        this.editClassLoading = false;
+        this.snackBar.open('Failed to load class definition.', 'Dismiss', { duration: 5000 });
       }
     });
   }

@@ -509,4 +509,163 @@
     </div>
   </mat-tab>
 
+  <!-- ===== CONFIGURATION TAB ===== -->
+  <mat-tab label="Configuration">
+    <div class="tab-content">
+      <div class="config-tab-view">
+        <h3>Class Configuration</h3>
+        <p class="subtitle">Manage class-level feature toggles for {{ className }}.</p>
+
+        <!-- State-Space Toggle Section -->
+        <div class="config-toggle-section">
+          <h4>State-Space</h4>
+          <div class="config-toggle-row">
+            <mat-slide-toggle
+              [checked]="classPolyTypingObj?.config?.isStateSpaceObject || false"
+              [disabled]="stateSpaceUpdating"
+              (change)="onStateSpaceToggle($event.checked)">
+              State-Space Object
+            </mat-slide-toggle>
+            <mat-spinner *ngIf="stateSpaceUpdating" diameter="18" class="inline-spinner"></mat-spinner>
+          </div>
+          <span class="flag-hint">Enable to make this class available in No-Code State-Space environments.</span>
+        </div>
+
+        <!-- GeoJSON Toggle Section -->
+        <div class="config-toggle-section">
+          <h4>GeoJSON Map</h4>
+          <div class="config-toggle-row">
+            <mat-slide-toggle
+              [checked]="isGeoJsonEnabled"
+              [disabled]="geoJsonAutoCreating"
+              (change)="onGeoJsonToggle($event.checked)">
+              GeoJSON Enabled
+            </mat-slide-toggle>
+            <mat-spinner *ngIf="geoJsonAutoCreating" diameter="18" class="inline-spinner"></mat-spinner>
+          </div>
+          <span class="flag-hint">Enable to auto-create a default GeoJSON map configuration for this class.</span>
+
+          <!-- GeoJSON status bar when enabled -->
+          <div *ngIf="isGeoJsonEnabled" class="geojson-status-inline">
+            <div class="geojson-status-info">
+              <mat-icon class="geojson-status-icon">map</mat-icon>
+              <span>{{ geoJsonConfigList.length }} GeoJSON configuration(s) active</span>
+            </div>
+            <button mat-stroked-button color="primary" (click)="navigateToGeoJsonTab()">
+              <mat-icon>settings</mat-icon> Manage
+            </button>
+          </div>
+        </div>
+
+        <!-- Edit Class Definition Section -->
+        <div class="config-toggle-section" *ngIf="classPolyTypingObj?.canEditClassDefinition()">
+          <h4>Class Definition</h4>
+          <div class="config-toggle-row">
+            <button mat-raised-button color="primary"
+              [disabled]="editClassLoading"
+              (click)="openEditClassDialog()">
+              <mat-icon>edit</mat-icon> Edit Class Definition
+            </button>
+            <mat-spinner *ngIf="editClassLoading" diameter="18" class="inline-spinner"></mat-spinner>
+          </div>
+          <span class="flag-hint">Modify the variable definitions for this dynamically created class.</span>
+        </div>
+
+      </div>
+    </div>
+  </mat-tab>
+
+  <!-- ===== GEOJSON TAB ===== -->
+  <mat-tab label="GeoJSON">
+    <div class="tab-content">
+
+      <!-- GeoJSON Config List View (no config selected) -->
+      <div *ngIf="!selectedGeoJsonConfig" class="displays-list-view">
+        <div class="displays-header">
+          <div>
+            <h3>GeoJSON Map Configurations for {{ className }}</h3>
+            <p class="subtitle">Create and manage GeoJSON map configurations for this class.</p>
+          </div>
+          <button mat-fab color="primary" (click)="openCreateGeoJsonConfigDialog()" class="create-btn">
+            <mat-icon>add</mat-icon>
+          </button>
+        </div>
+
+        <mat-spinner *ngIf="geoJsonConfigsLoading" diameter="40"></mat-spinner>
+
+        <!-- Empty state -->
+        <div *ngIf="!geoJsonConfigsLoading && geoJsonConfigList.length === 0" class="empty-state">
+          <mat-icon class="empty-icon geojson-def-icon">map</mat-icon>
+          <h3>No GeoJSON Configurations Yet</h3>
+          <p>Get started by creating your first GeoJSON map configuration for this class.</p>
+          <button mat-flat-button color="primary" (click)="openCreateGeoJsonConfigDialog()">
+            <mat-icon>add</mat-icon> Create Your First GeoJSON Config
+          </button>
+        </div>
+
+        <!-- GeoJSON config cards grid -->
+        <div *ngIf="!geoJsonConfigsLoading && geoJsonConfigList.length > 0" class="displays-grid">
+          <mat-card *ngFor="let gjc of geoJsonConfigList" class="display-card geojson-def-card">
+            <mat-card-header>
+              <mat-icon mat-card-avatar class="display-icon geojson-def-icon">map</mat-icon>
+              <mat-card-title>{{ gjc.name || 'Untitled Config' }}</mat-card-title>
+              <mat-card-subtitle *ngIf="gjc.description">{{ gjc.description }}</mat-card-subtitle>
+            </mat-card-header>
+            <mat-card-actions align="end">
+              <button mat-stroked-button color="primary" (click)="selectGeoJsonConfig(gjc)" title="Edit GeoJSON config">
+                <mat-icon>edit</mat-icon> Edit
+              </button>
+              <button mat-icon-button color="warn" (click)="deleteGeoJsonConfig(gjc, $event)" title="Delete GeoJSON config">
+                <mat-icon>delete</mat-icon>
+              </button>
+            </mat-card-actions>
+          </mat-card>
+        </div>
+      </div>
+
+      <!-- GeoJSON Config Editor View (config selected) -->
+      <div *ngIf="selectedGeoJsonConfig" class="display-editor-view">
+        <div class="editor-toolbar">
+          <div class="editor-toolbar-left">
+            <button mat-icon-button (click)="deselectGeoJsonConfig()" title="Back to list">
+              <mat-icon>arrow_back</mat-icon>
+            </button>
+            <h3>{{ selectedGeoJsonConfig.name || 'Untitled Config' }}</h3>
+            <span *ngIf="hasGeoJsonDraftChanges" class="unsaved-badge">Unsaved changes</span>
+          </div>
+          <div class="editor-toolbar-right">
+            <button mat-flat-button color="primary" *ngIf="hasGeoJsonDraftChanges" (click)="saveGeoJsonConfig()">
+              <mat-icon>save</mat-icon> Save
+            </button>
+            <button mat-icon-button (click)="geoJsonConfigPanelOpen = !geoJsonConfigPanelOpen"
+                    [color]="geoJsonConfigPanelOpen ? 'primary' : ''">
+              <mat-icon>settings</mat-icon>
+            </button>
+          </div>
+        </div>
+
+        <div class="editor-body">
+          <!-- Preview area -->
+          <div class="editor-preview" [class.with-config-panel]="geoJsonConfigPanelOpen">
+            <map-renderer
+              [config]="selectedGeoJsonConfig"
+              [instanceData]="geoJsonPreviewData"
+              [classTypeData]="classTypeData">
+            </map-renderer>
+          </div>
+
+          <!-- Config sidebar -->
+          <div class="config-panel" *ngIf="geoJsonConfigPanelOpen">
+            <geojson-config-sidebar
+              [config]="selectedGeoJsonConfig"
+              [classTypeData]="classTypeData"
+              (configChange)="onGeoJsonConfigChange($event)">
+            </geojson-config-sidebar>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </mat-tab>
+
 </mat-tab-group>

@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, Input } from '@angular/core';
 import { FormControl } from '@angular/forms';
 import { variableConfigDef } from '@models/classEditor/variableDef';
 import { ChangeDetectorRef } from '@angular/core';
@@ -10,6 +10,8 @@ import { ChangeDetectorRef } from '@angular/core';
   styleUrls: ['./variable-modifier.css']
 })
 export class VariableModifierComponent {
+
+  @Input() editMode: boolean = false;
 
   variableConfigDefs : variableConfigDef[] = []
   typesAllowed = ["String", "Integer", "Decimal", "List", "Dictionary", "Reference","Unique Identifier - Alphanumeric", "Numeric Index"]
@@ -25,8 +27,29 @@ export class VariableModifierComponent {
 
   ngOnInit()
   {
-    this.variableConfigDefs.push({varIndex:1, varName: 'id', varDisplayName: 'Identifier', varType:'Unique Identifier - Alphanumeric', soleIdentifier:true, jointIdentifier:false, isUnique:true, varNameControl: new FormControl(), varDisplayNameControl: new FormControl() });
-    console.log("got past first push");
+    if (!this.editMode) {
+      this.variableConfigDefs.push({varIndex:1, varName: 'id', varDisplayName: 'Identifier', varType:'Unique Identifier - Alphanumeric', soleIdentifier:true, jointIdentifier:false, isUnique:true, varNameControl: new FormControl(), varDisplayNameControl: new FormControl() });
+      console.log("got past first push");
+    }
+  }
+
+  loadVariableDefinitions(variables: any[]): void {
+    const reverseTypeMap: Record<string, string> = {
+      'str': 'String', 'int': 'Integer', 'float': 'Decimal',
+      'list': 'List', 'dict': 'Dictionary', 'reference': 'Reference'
+    };
+    this.variableConfigDefs = variables.map((v: any, i: number) => ({
+      varIndex: i + 1,
+      varName: v.varName || '',
+      varDisplayName: v.varDisplayName || v.displayName || v.varName || '',
+      varType: reverseTypeMap[v.varType] || v.varType || 'String',
+      varRefClass: v.refClass || v.varRefClass,
+      soleIdentifier: v.isIdentifier || v.soleIdentifier || false,
+      jointIdentifier: v.jointIdentifier || false,
+      isUnique: v.isUnique || false,
+      varNameControl: new FormControl(),
+      varDisplayNameControl: new FormControl()
+    }));
   }
 
   addVariableDef() 

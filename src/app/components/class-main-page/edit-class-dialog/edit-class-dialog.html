@@ -1,0 +1,35 @@
+<h2 mat-dialog-title>Edit Class Definition: {{ className }}</h2>
+
+<mat-dialog-content>
+  <!-- Class Display Name -->
+  <mat-form-field appearance="outline" class="full-width">
+    <mat-label>Class Display Name</mat-label>
+    <input matInput [formControl]="classDisplayNameControl" [(ngModel)]="classDisplayName"
+           placeholder="e.g., My Class">
+  </mat-form-field>
+
+  <!-- Variable Definitions -->
+  <div class="variables-section">
+    <h4>Variable Definitions</h4>
+    <variable-modifier [editMode]="true"></variable-modifier>
+  </div>
+
+  <!-- Status Message -->
+  <div *ngIf="saveStatus !== 'idle'" class="status-message"
+       [ngClass]="{
+         'status-saving': saveStatus === 'saving',
+         'status-success': saveStatus === 'success',
+         'status-error': saveStatus === 'error'
+       }">
+    {{ saveMessage }}
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="cancel()" [disabled]="saveStatus === 'saving'">Cancel</button>
+  <button mat-flat-button color="primary" (click)="saveChanges()"
+          [disabled]="saveStatus === 'saving'">
+    <mat-icon *ngIf="saveStatus !== 'saving'">save</mat-icon>
+    {{ saveStatus === 'saving' ? 'Saving...' : 'Save Changes' }}
+  </button>
+</mat-dialog-actions>

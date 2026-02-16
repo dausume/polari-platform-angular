@@ -153,14 +153,23 @@ export class ClassTypingService {
                     //The typing object is not recorded yet so we simply set it to exist after having retrieved known variables.
                     // polyVarTyping[typeObj.className] is already initialized and populated above
                     // Extract config from backend response (if available) for UI behavior control
-                    const classConfig = typeObj.config ? {
-                        allowClassEdit: typeObj.config.allowClassEdit ?? false,
-                        isStateSpaceObject: typeObj.config.isStateSpaceObject ?? false,
-                        excludeFromCRUDE: typeObj.config.excludeFromCRUDE ?? true,
-                        isDynamicClass: typeObj.config.isDynamicClass ?? false,
-                        isBaseObject: typeObj.config.isBaseObject ?? false,
-                        serverAccessOnly: typeObj.config.serverAccessOnly ?? false,
-                        isUserCreated: typeObj.config.isUserCreated ?? false
+                    // Supports two formats:
+                    // 1. Nested config block from /typing-analysis: typeObj.config.allowClassEdit
+                    // 2. Flat attributes from CRUDE /polyTypedObject: typeObj.allowClassEdit
+                    const rawObj = typeObj as any;
+                    const configSource = rawObj.config || rawObj;
+                    const hasConfig = rawObj.config ||
+                        rawObj.allowClassEdit !== undefined ||
+                        rawObj.isStateSpaceObject !== undefined ||
+                        rawObj.excludeFromCRUDE !== undefined;
+                    const classConfig = hasConfig ? {
+                        allowClassEdit: configSource.allowClassEdit ?? false,
+                        isStateSpaceObject: configSource.isStateSpaceObject ?? false,
+                        excludeFromCRUDE: configSource.excludeFromCRUDE ?? true,
+                        isDynamicClass: configSource.isDynamicClass ?? false,
+                        isBaseObject: configSource.isBaseObject ?? false,
+                        serverAccessOnly: configSource.serverAccessOnly ?? false,
+                        isUserCreated: configSource.isUserCreated ?? false
                     } : undefined;
 
                     this.polyTyping[typeObj.className] = new classPolyTyping(
