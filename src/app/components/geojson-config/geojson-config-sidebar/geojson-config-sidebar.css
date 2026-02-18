@@ -231,3 +231,37 @@
 ::ng-deep .sidebar-content .mat-button-toggle-label-content {
   font-size: 13px;
 }
+
+/* Tile source actions */
+.tile-source-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.tile-source-action-btn {
+  flex: 1;
+  font-size: 12px;
+}
+
+.current-source-info {
+  margin-top: 8px;
+  padding: 8px;
+  background: #f5f5f5;
+  border-radius: 4px;
+}
+
+.source-info-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #333;
+}
+
+.source-info-row mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  color: #666;
+}

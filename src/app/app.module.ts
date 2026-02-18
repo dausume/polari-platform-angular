@@ -112,6 +112,13 @@ import { GraphRendererComponent } from '@components/graph-config/graph-renderer/
 import { GeoJsonConfigSidebarComponent } from '@components/geojson-config/geojson-config-sidebar/geojson-config-sidebar';
 import { MapRendererComponent } from '@components/geojson-config/map-renderer/map-renderer';
 import { CreateGeoJsonConfigDialogComponent } from '@components/geojson-config/create-geojson-config-dialog/create-geojson-config-dialog';
+import { GeolocationDialogComponent } from '@components/geojson-config/geolocation-dialog/geolocation-dialog';
+import { GeoJsonDataViewComponent } from '@components/geojson-config/geojson-data-view/geojson-data-view';
+import { CreateTileSourceDialogComponent } from '@components/geojson-config/create-tile-source-dialog/create-tile-source-dialog';
+import { TileSourceDetailDialogComponent } from '@components/geojson-config/tile-source-detail-dialog/tile-source-detail-dialog';
+import { CreateGeocoderDialogComponent } from '@components/geojson-config/create-geocoder-dialog/create-geocoder-dialog';
+import { GeocoderDetailDialogComponent } from '@components/geojson-config/geocoder-detail-dialog/geocoder-detail-dialog';
+import { AddressSearchComponent } from '@components/geojson-config/address-search/address-search';
 // Embedded Display Components
 import { EmbeddedTableComponent } from '@components/dashboard/embedded-table/embedded-table';
 import { EmbeddedGraphComponent } from '@components/dashboard/embedded-graph/embedded-graph';
@@ -236,6 +243,13 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     EmbeddedGraphComponent,
     MapRendererComponent,
     CreateGeoJsonConfigDialogComponent,
+    GeolocationDialogComponent,
+    GeoJsonDataViewComponent,
+    CreateTileSourceDialogComponent,
+    TileSourceDetailDialogComponent,
+    CreateGeocoderDialogComponent,
+    GeocoderDetailDialogComponent,
+    AddressSearchComponent,
     // NgRx
     StoreModule.forRoot(rootReducers),
     EffectsModule.forRoot([PolariEffects, DynamicObjectsEffects]),

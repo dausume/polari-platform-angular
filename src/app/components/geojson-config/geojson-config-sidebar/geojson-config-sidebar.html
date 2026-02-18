@@ -198,7 +198,7 @@
         <mat-panel-title>Map Settings</mat-panel-title>
       </mat-expansion-panel-header>
 
-      <p class="section-hint">Configure the initial map view.</p>
+      <p class="section-hint">Configure the initial map view and zoom limits.</p>
 
       <div class="map-center-fields">
         <mat-form-field appearance="outline" class="half-width">
@@ -214,16 +214,119 @@
       </div>
 
       <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Zoom Level</mat-label>
+        <mat-label>Initial Zoom Level</mat-label>
         <input matInput type="number" [ngModel]="config.geoJsonConfig.mapOptions.zoom"
-               (ngModelChange)="onZoomChange($event)" min="0" max="22" step="0.5">
+               (ngModelChange)="onZoomChange($event)" min="0" max="24" step="0.5">
       </mat-form-field>
 
+      <div class="subsection-label">Zoom Limits</div>
+      <p class="section-hint">Optional. Leave empty for no limit in that direction (MapLibre range: 0–24).</p>
+      <div class="map-center-fields">
+        <mat-form-field appearance="outline" class="half-width">
+          <mat-label>Min Zoom</mat-label>
+          <input matInput type="number" [ngModel]="config.geoJsonConfig.mapOptions.minZoom"
+                 (ngModelChange)="onMinZoomChange($event)" min="0" max="24" step="0.5"
+                 placeholder="0">
+          <button *ngIf="config.geoJsonConfig.mapOptions.minZoom != null" matSuffix mat-icon-button
+                  (click)="clearMinZoom()" title="Clear">
+            <mat-icon>close</mat-icon>
+          </button>
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="half-width">
+          <mat-label>Max Zoom</mat-label>
+          <input matInput type="number" [ngModel]="config.geoJsonConfig.mapOptions.maxZoom"
+                 (ngModelChange)="onMaxZoomChange($event)" min="0" max="24" step="0.5"
+                 placeholder="24">
+          <button *ngIf="config.geoJsonConfig.mapOptions.maxZoom != null" matSuffix mat-icon-button
+                  (click)="clearMaxZoom()" title="Clear">
+            <mat-icon>close</mat-icon>
+          </button>
+        </mat-form-field>
+      </div>
+    </mat-expansion-panel>
+
+    <!-- Tile Source Section -->
+    <mat-expansion-panel>
+      <mat-expansion-panel-header>
+        <mat-panel-title>Tile Source</mat-panel-title>
+      </mat-expansion-panel-header>
+
+      <p class="section-hint">Select a stored tile source for the map background.</p>
+
+      <div class="subsection-label">Filter by Type</div>
+      <mat-button-toggle-group
+        [value]="selectedTileSourceType"
+        (change)="onTileSourceTypeFilterChange($event.value)"
+        class="full-width mode-toggle">
+        <mat-button-toggle value="tileserver">TileServer - mbTiles</mat-button-toggle>
+        <mat-button-toggle value="s3-bucket">S3 Bucket - pmTiles</mat-button-toggle>
+      </mat-button-toggle-group>
+
       <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Map Style URL</mat-label>
-        <input matInput [ngModel]="config.geoJsonConfig.mapOptions.style"
-               (ngModelChange)="onStyleChange($event)">
+        <mat-label>Tile Source</mat-label>
+        <mat-select [value]="selectedTileSourceId" (selectionChange)="onTileSourceSelected($event.value)">
+          <mat-option value="">-- None --</mat-option>
+          <mat-option *ngFor="let source of filteredTileSources" [value]="source.id">
+            {{ source.name }}
+          </mat-option>
+        </mat-select>
       </mat-form-field>
+
+      <div class="tile-source-actions">
+        <button mat-stroked-button color="primary" (click)="openCreateTileSourceDialog()" class="tile-source-action-btn">
+          <mat-icon>add</mat-icon> New Source
+        </button>
+        <button mat-stroked-button (click)="openTileSourceDetailDialog()" class="tile-source-action-btn"
+                [disabled]="!selectedTileSourceId">
+          <mat-icon>info</mat-icon> View Details
+        </button>
+      </div>
+
+      <div *ngIf="config.geoJsonConfig.mapOptions.tileSource?.name" class="current-source-info">
+        <div class="subsection-label">Current Source</div>
+        <div class="source-info-row">
+          <mat-icon>{{ config.geoJsonConfig.mapOptions.tileSource?.type === 's3-bucket' ? 'cloud' : 'dns' }}</mat-icon>
+          <span>{{ config.geoJsonConfig.mapOptions.tileSource?.name }}</span>
+        </div>
+      </div>
+    </mat-expansion-panel>
+
+    <!-- Geocoder Section -->
+    <mat-expansion-panel>
+      <mat-expansion-panel-header>
+        <mat-panel-title>Geocoder</mat-panel-title>
+      </mat-expansion-panel-header>
+
+      <p class="section-hint">Configure geocoding services for address-based location search.</p>
+
+      <div class="subsection-label">Filter by Type</div>
+      <mat-button-toggle-group
+        [value]="selectedGeocoderType"
+        (change)="onGeocoderTypeFilterChange($event.value)"
+        class="full-width mode-toggle">
+        <mat-button-toggle value="self-hosted">Self-Hosted</mat-button-toggle>
+        <mat-button-toggle value="web-limited">Web API</mat-button-toggle>
+      </mat-button-toggle-group>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Geocoder</mat-label>
+        <mat-select [value]="selectedGeocoderId" (selectionChange)="onGeocoderSelected($event.value)">
+          <mat-option value="">-- None --</mat-option>
+          <mat-option *ngFor="let geocoder of filteredGeocoders" [value]="geocoder.id">
+            {{ geocoder.name }} ({{ geocoder.provider }})
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <div class="tile-source-actions">
+        <button mat-stroked-button color="primary" (click)="openCreateGeocoderDialog()" class="tile-source-action-btn">
+          <mat-icon>add</mat-icon> New Geocoder
+        </button>
+        <button mat-stroked-button (click)="openGeocoderDetailDialog()" class="tile-source-action-btn"
+                [disabled]="!selectedGeocoderId">
+          <mat-icon>info</mat-icon> View Details
+        </button>
+      </div>
     </mat-expansion-panel>
 
   </mat-accordion>

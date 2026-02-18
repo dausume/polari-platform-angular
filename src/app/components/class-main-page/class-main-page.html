@@ -634,17 +634,29 @@
             <span *ngIf="hasGeoJsonDraftChanges" class="unsaved-badge">Unsaved changes</span>
           </div>
           <div class="editor-toolbar-right">
-            <button mat-flat-button color="primary" *ngIf="hasGeoJsonDraftChanges" (click)="saveGeoJsonConfig()">
+            <mat-button-toggle-group [value]="geoJsonViewMode"
+                                     (change)="onGeoJsonViewModeChange($event.value)"
+                                     class="view-mode-toggle">
+              <mat-button-toggle value="config" title="Configuration editor">
+                <mat-icon>settings</mat-icon>
+              </mat-button-toggle>
+              <mat-button-toggle value="data" title="Interactive data view">
+                <mat-icon>place</mat-icon>
+              </mat-button-toggle>
+            </mat-button-toggle-group>
+            <button mat-flat-button color="primary" *ngIf="hasGeoJsonDraftChanges && geoJsonViewMode === 'config'" (click)="saveGeoJsonConfig()">
               <mat-icon>save</mat-icon> Save
             </button>
-            <button mat-icon-button (click)="geoJsonConfigPanelOpen = !geoJsonConfigPanelOpen"
+            <button mat-icon-button *ngIf="geoJsonViewMode === 'config'"
+                    (click)="geoJsonConfigPanelOpen = !geoJsonConfigPanelOpen"
                     [color]="geoJsonConfigPanelOpen ? 'primary' : ''">
               <mat-icon>settings</mat-icon>
             </button>
           </div>
         </div>
 
-        <div class="editor-body">
+        <!-- Config Editor View -->
+        <div class="editor-body" *ngIf="geoJsonViewMode === 'config'">
           <!-- Preview area -->
           <div class="editor-preview" [class.with-config-panel]="geoJsonConfigPanelOpen">
             <map-renderer
@@ -662,6 +674,17 @@
               (configChange)="onGeoJsonConfigChange($event)">
             </geojson-config-sidebar>
           </div>
+        </div>
+
+        <!-- Interactive Data View -->
+        <div class="editor-body" *ngIf="geoJsonViewMode === 'data'">
+          <geojson-data-view
+            [config]="selectedGeoJsonConfig"
+            [instanceData]="geoJsonPreviewData"
+            [classTypeData]="classTypeData"
+            [className]="className!"
+            (instanceDataChange)="onGeoJsonInstanceDataChange($event)">
+          </geojson-data-view>
         </div>
       </div>
 

@@ -1,17 +1,19 @@
 import {
-  Component, Input, OnChanges, SimpleChanges,
+  Component, Input, Output, EventEmitter, OnChanges, SimpleChanges,
   ElementRef, ViewChild, OnDestroy, NgZone
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { NamedGeoJsonConfig } from '@models/geojson/NamedGeoJsonConfig';
+import { buildStyleFromTileSource } from '@models/geojson/GeoJsonConfigData';
 
 @Component({
   standalone: true,
   selector: 'map-renderer',
   template: `
-    <div #mapContainer class="map-container">
+    <div #mapContainer class="map-container" [class.pick-mode]="pickModeActive">
       <div *ngIf="loading" class="map-loading">
         <mat-spinner diameter="32"></mat-spinner>
         <span>Loading map...</span>
@@ -24,15 +26,39 @@ import { NamedGeoJsonConfig } from '@models/geojson/NamedGeoJsonConfig';
         <mat-icon>map</mat-icon>
         <span>Configure coordinate variables to display points on the map</span>
       </div>
+
+      <!-- Pick mode banner -->
+      <div *ngIf="pickModeActive && !loading && !error" class="pick-mode-banner">
+        <mat-icon>pin_drop</mat-icon>
+        <span>Click on the map to set location</span>
+        <button mat-icon-button (click)="pickModeCancelled.emit()" class="pick-cancel-btn">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+
+      <!-- Locate Me button -->
+      <button *ngIf="showLocateMe && !loading && !error"
+              mat-mini-fab class="locate-me-btn" color="primary"
+              (click)="locateMeClicked.emit()" title="Find my location">
+        <mat-icon>my_location</mat-icon>
+      </button>
     </div>
   `,
   styleUrls: ['./map-renderer.css'],
-  imports: [CommonModule, MatIconModule, MatProgressSpinnerModule]
+  imports: [CommonModule, MatIconModule, MatButtonModule, MatProgressSpinnerModule]
 })
 export class MapRendererComponent implements OnChanges, OnDestroy {
   @Input() config!: NamedGeoJsonConfig;
   @Input() instanceData: any[] = [];
   @Input() classTypeData: any = {};
+  @Input() interactive: boolean = false;
+  @Input() pickModeActive: boolean = false;
+  @Input() showLocateMe: boolean = false;
+  @Input() styleOverride: any = null;
+
+  @Output() mapClicked = new EventEmitter<{ lng: number; lat: number }>();
+  @Output() locateMeClicked = new EventEmitter<void>();
+  @Output() pickModeCancelled = new EventEmitter<void>();
 
   @ViewChild('mapContainer', { static: true }) container!: ElementRef;
 
@@ -44,12 +70,27 @@ export class MapRendererComponent implements OnChanges, OnDestroy {
   private map: any = null;
   private markers: any[] = [];
   private resizeObserver: ResizeObserver | null = null;
+  private clickHandlerRegistered = false;
+  private currentStyleJson: string = '';
 
   constructor(private ngZone: NgZone) {}
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['config'] || changes['instanceData']) {
+    if (changes['config'] || changes['instanceData'] || changes['styleOverride']) {
       this.renderMap();
+    }
+    if (changes['pickModeActive'] && this.map) {
+      this.map.getCanvas().style.cursor = this.pickModeActive ? 'crosshair' : '';
+    }
+  }
+
+  flyTo(lng: number, lat: number, zoom?: number): void {
+    if (this.map) {
+      this.map.flyTo({
+        center: [lng, lat],
+        zoom: zoom || this.map.getZoom(),
+        duration: 1500
+      });
     }
   }
 
@@ -86,14 +127,35 @@ export class MapRendererComponent implements OnChanges, OnDestroy {
       const MarkerClass = ml.Marker || ml.default?.Marker;
       const NavControl = ml.NavigationControl || ml.default?.NavigationControl;
       const mapOptions = gc.mapOptions;
+      // Resolve style: explicit override > tileSource config > legacy style URL
+      let mapStyle: any = this.styleOverride;
+      if (!mapStyle && mapOptions.tileSource) {
+        mapStyle = buildStyleFromTileSource(mapOptions.tileSource);
+      }
+      if (!mapStyle) {
+        mapStyle = mapOptions.style;
+      }
+
+      // Resolve zoom limits (MapLibre defaults: 0-24)
+      const minZoom = mapOptions.minZoom != null ? mapOptions.minZoom : 0;
+      const maxZoom = mapOptions.maxZoom != null ? mapOptions.maxZoom : 24;
+
+      // Check if style changed — if so, destroy map so it rebuilds with new tiles
+      const styleJson = typeof mapStyle === 'string' ? mapStyle : JSON.stringify(mapStyle);
+      if (this.map && styleJson !== this.currentStyleJson) {
+        this.destroyMap();
+      }
+      this.currentStyleJson = styleJson;
 
       if (!this.map) {
         this.ngZone.runOutsideAngular(() => {
           this.map = new MapClass({
             container: this.container.nativeElement,
-            style: mapOptions.style,
+            style: mapStyle,
             center: mapOptions.center as [number, number],
-            zoom: mapOptions.zoom
+            zoom: mapOptions.zoom,
+            minZoom: minZoom,
+            maxZoom: maxZoom
           });
 
           if (NavControl) {
@@ -115,6 +177,23 @@ export class MapRendererComponent implements OnChanges, OnDestroy {
             });
           });
 
+          // Register click handler for interactive mode
+          if (this.interactive) {
+            this.map.on('click', (e: any) => {
+              if (this.pickModeActive) {
+                this.ngZone.run(() => {
+                  this.mapClicked.emit({ lng: e.lngLat.lng, lat: e.lngLat.lat });
+                });
+              }
+            });
+            this.clickHandlerRegistered = true;
+          }
+
+          // Apply cursor if already in pick mode
+          if (this.pickModeActive) {
+            this.map.getCanvas().style.cursor = 'crosshair';
+          }
+
           // Resize observer for container changes
           this.resizeObserver = new ResizeObserver(() => {
             if (this.map) {
@@ -124,9 +203,11 @@ export class MapRendererComponent implements OnChanges, OnDestroy {
           this.resizeObserver.observe(this.container.nativeElement);
         });
       } else {
-        // Map already exists — update center/zoom and re-add markers
+        // Map already exists — update center/zoom/limits and re-add markers
         this.map.setCenter(mapOptions.center as [number, number]);
         this.map.setZoom(mapOptions.zoom);
+        this.map.setMinZoom(minZoom);
+        this.map.setMaxZoom(maxZoom);
         this.loading = false;
         this.addMarkers(MarkerClass);
       }
@@ -199,6 +280,7 @@ export class MapRendererComponent implements OnChanges, OnDestroy {
       this.map.remove();
       this.map = null;
     }
+    this.clickHandlerRegistered = false;
   }
 
   ngOnDestroy(): void {

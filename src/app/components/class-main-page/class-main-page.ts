@@ -80,6 +80,7 @@ export class ClassMainPageComponent implements OnDestroy {
   geoJsonConfigPanelOpen: boolean = false;
   geoJsonConfigsLoading: boolean = false;
   geoJsonPreviewData: any[] = [];
+  geoJsonViewMode: 'config' | 'data' = 'config';
 
   /** Class poly typing for Configuration tab */
   classPolyTypingObj: classPolyTyping | null = null;
@@ -213,6 +214,7 @@ export class ClassMainPageComponent implements OnDestroy {
             this.hasGeoJsonDraftChanges = false;
             this.geoJsonConfigPanelOpen = false;
             this.geoJsonPreviewData = [];
+            this.geoJsonViewMode = 'config';
             this.classPolyTypingObj = null;
             this.selectedTabIndex = 0;
 
@@ -822,6 +824,7 @@ export class ClassMainPageComponent implements OnDestroy {
     this.hasGeoJsonDraftChanges = false;
     this.geoJsonConfigPanelOpen = false;
     this.geoJsonPreviewData = [];
+    this.geoJsonViewMode = 'config';
     this.geoJsonDefService.draftConfig$.next(null);
     this.geoJsonDefService.hasDraftChanges$.next(false);
     if (this.className) {
@@ -875,6 +878,23 @@ export class ClassMainPageComponent implements OnDestroy {
         console.error('[ClassMainPage] Delete GeoJSON config failed:', err);
       }
     });
+  }
+
+  /**
+   * Switch GeoJSON view mode, loading data if needed.
+   */
+  onGeoJsonViewModeChange(mode: 'config' | 'data'): void {
+    this.geoJsonViewMode = mode;
+    if (mode === 'data' && this.geoJsonPreviewData.length === 0) {
+      this.loadGeoJsonPreviewData();
+    }
+  }
+
+  /**
+   * Handle instance data changes from the data view (after location updates).
+   */
+  onGeoJsonInstanceDataChange(data: any[]): void {
+    this.geoJsonPreviewData = data;
   }
 
   // ==================== Configuration Tab Toggle Handlers ====================

@@ -60,3 +60,45 @@
 .map-svg-marker {
   cursor: pointer;
 }
+
+/* ===== Locate Me Button ===== */
+.locate-me-btn {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
+}
+
+/* ===== Pick Mode ===== */
+.map-container.pick-mode ::ng-deep .maplibregl-canvas {
+  cursor: crosshair !important;
+}
+
+.pick-mode-banner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(63, 81, 181, 0.92);
+  color: white;
+  font-size: 14px;
+  z-index: 3;
+}
+
+.pick-mode-banner mat-icon {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+}
+
+.pick-mode-banner span {
+  flex: 1;
+}
+
+.pick-cancel-btn {
+  color: white !important;
+}

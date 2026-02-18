@@ -1,0 +1,145 @@
+:host {
+  display: flex;
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+}
+
+.data-view-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+}
+
+/* ===== Pick Mode Banner ===== */
+.pick-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  background: #e8eaf6;
+  border-bottom: 2px solid #3f51b5;
+  color: #333;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.pick-banner mat-icon {
+  color: #3f51b5;
+}
+
+.pick-banner span {
+  flex: 1;
+}
+
+/* ===== Main Body (Map + Table) ===== */
+.data-view-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  min-height: 500px;
+}
+
+.map-panel {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+
+.table-panel {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid #e0e0e0;
+  background: #fff;
+}
+
+/* ===== Search Field ===== */
+.search-field {
+  width: calc(100% - 24px);
+  margin: 12px;
+}
+
+/* ===== Table ===== */
+.table-wrapper {
+  flex: 1;
+  overflow: auto;
+  padding: 0 12px;
+}
+
+.instance-table {
+  width: 100%;
+}
+
+/* Override parent dark-row styling from class-main-page */
+:host ::ng-deep .instance-table [class*="mat-column"] {
+  background-color: #fff;
+  color: #444;
+  border-color: #e0e0e0;
+}
+
+:host ::ng-deep .instance-table [class*="mat-header"] {
+  color: #333;
+  background-color: #fafafa;
+}
+
+:host ::ng-deep .instance-table .mat-mdc-row:nth-child(even) [class*="mat-column"] {
+  background-color: #f9f9f9;
+}
+
+:host ::ng-deep .instance-table .mat-mdc-row:hover [class*="mat-column"] {
+  background-color: #f0f4ff;
+}
+
+.instance-table th {
+  color: #333;
+  font-weight: 600;
+  font-size: 13px;
+  background: #fafafa;
+}
+
+.instance-table td {
+  color: #444;
+  font-size: 13px;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.location-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.set-location-btn {
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.set-location-btn mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  margin-right: 2px;
+}
+
+.highlighted-row {
+  background: #e3f2fd !important;
+}
+
+.no-data-cell {
+  text-align: center;
+  padding: 24px;
+  color: #888;
+}
+
+/* Paginator */
+:host ::ng-deep .mat-mdc-paginator {
+  border-top: 1px solid #e0e0e0;
+  flex-shrink: 0;
+}

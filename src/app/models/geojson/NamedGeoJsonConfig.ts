@@ -1,6 +1,6 @@
 import {
     GeoJsonConfigData, DEFAULT_GEOJSON_CONFIG, DEFAULT_MAP_VIEW,
-    DEFAULT_SVG_MARKER, SvgMarkerDefinition
+    DEFAULT_SVG_MARKER, DEFAULT_TILE_SOURCE, SvgMarkerDefinition
 } from './GeoJsonConfigData';
 
 export interface GeoJsonDefinitionSummary {
@@ -50,6 +50,7 @@ export class NamedGeoJsonConfig {
                     : backendObj.definition;
 
                 if (parsed.geoJsonConfig) {
+                    const savedMapOptions = parsed.geoJsonConfig.mapOptions || {};
                     config.geoJsonConfig = {
                         ...DEFAULT_GEOJSON_CONFIG,
                         ...parsed.geoJsonConfig,
@@ -60,7 +61,10 @@ export class NamedGeoJsonConfig {
                             : [{ ...DEFAULT_SVG_MARKER }],
                         mapOptions: {
                             ...DEFAULT_MAP_VIEW,
-                            ...(parsed.geoJsonConfig.mapOptions || {})
+                            ...savedMapOptions,
+                            tileSource: savedMapOptions.tileSource
+                                ? { ...DEFAULT_TILE_SOURCE, ...savedMapOptions.tileSource }
+                                : { ...DEFAULT_TILE_SOURCE }
                         }
                     };
                 }
