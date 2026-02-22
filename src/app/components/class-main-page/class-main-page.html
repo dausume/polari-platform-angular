@@ -531,25 +531,25 @@
           <span class="flag-hint">Enable to make this class available in No-Code State-Space environments.</span>
         </div>
 
-        <!-- GeoJSON Toggle Section -->
+        <!-- Mappable-Object Toggle Section -->
         <div class="config-toggle-section">
-          <h4>GeoJSON Map</h4>
+          <h4>Mappable-Object</h4>
           <div class="config-toggle-row">
             <mat-slide-toggle
               [checked]="isGeoJsonEnabled"
               [disabled]="geoJsonAutoCreating"
               (change)="onGeoJsonToggle($event.checked)">
-              GeoJSON Enabled
+              Mappable-Object
             </mat-slide-toggle>
             <mat-spinner *ngIf="geoJsonAutoCreating" diameter="18" class="inline-spinner"></mat-spinner>
           </div>
-          <span class="flag-hint">Enable to auto-create a default GeoJSON map configuration for this class.</span>
+          <span class="flag-hint">Enable to mark this class as mappable and auto-create a default map configuration.</span>
 
-          <!-- GeoJSON status bar when enabled -->
+          <!-- Map config status bar when enabled -->
           <div *ngIf="isGeoJsonEnabled" class="geojson-status-inline">
             <div class="geojson-status-info">
               <mat-icon class="geojson-status-icon">map</mat-icon>
-              <span>{{ geoJsonConfigList.length }} GeoJSON configuration(s) active</span>
+              <span>{{ geoJsonConfigList.length }} map configuration(s) active</span>
             </div>
             <button mat-stroked-button color="primary" (click)="navigateToGeoJsonTab()">
               <mat-icon>settings</mat-icon> Manage

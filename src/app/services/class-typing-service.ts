@@ -34,7 +34,8 @@ export class ClassTypingService {
         new navComponent("API Profiler","api-profiler","ApiProfilerComponent", {}, []),
         new navComponent("API Config","api-config","ApiConfigComponent", {}, []),
         new navComponent("System Diagnostics","system-diagnostics","SystemDiagnosticsComponent", {}, []),
-        new navComponent("Module Management","module-management","ModuleManagementComponent", {}, [])
+        new navComponent("Module Management","module-management","ModuleManagementComponent", {}, []),
+        new navComponent("Maps","maps","MapsComponent", {}, [])
     ]
 
     // Dynamic navigation items for object class pages WITH instances (shown in main dropdown)

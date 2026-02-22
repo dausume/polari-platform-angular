@@ -43,6 +43,10 @@ export interface TileSourceConfig {
     defaultCenter?: [number, number];
     /** Optional default zoom level for this tile source */
     defaultZoom?: number;
+    /** Tile data format: 'raster' for PNG/JPEG tiles, 'vector' for PBF/MVT tiles. Defaults to 'raster'. */
+    tileFormat?: 'raster' | 'vector';
+    /** For vector tiles: the source layer name inside the tileset (default: 'default') */
+    sourceLayer?: string;
 }
 
 /**
@@ -209,6 +213,98 @@ export function buildStyleFromTileSource(tileSource: TileSourceConfig): any {
             ]
         };
     }
+}
+
+/** Color palette for auto-coloring vector tile layers */
+const VECTOR_LAYER_COLORS = ['#e6194b', '#3cb44b', '#4363d8', '#f58231', '#911eb4', '#42d4f4', '#f032e6', '#bfef45'];
+
+/**
+ * Builds a single MapLibre style from multiple tile sources, compositing them as layers.
+ * Handles both raster tiles (PNG/JPEG) and vector tiles (PBF from tippecanoe).
+ */
+export function buildStyleFromMultipleSources(tileSources: TileSourceConfig[], backendBaseUrl?: string): any {
+    console.log('[buildStyleFromMultipleSources] Called with', tileSources.length, 'sources, backendBaseUrl=', backendBaseUrl);
+    const sources: any = {};
+    const layers: any[] = [];
+    for (let i = 0; i < tileSources.length; i++) {
+        const src = tileSources[i];
+        const slug = src.name.replace(/\s+/g, '-');
+        const sourceId = `source-${i}-${slug}`;
+        const isVector = src.tileFormat === 'vector';
+        console.log(`[buildStyleFromMultipleSources] [${i}] name="${src.name}" type="${src.type}" tileFormat="${src.tileFormat}" isVector=${isVector} url="${src.url}" sourceLayer="${src.sourceLayer}"`);
+
+        if (isVector) {
+            // Vector tiles from tippecanoe (.mbtiles served by backend)
+            let tileUrl = src.url;
+            // If the URL is relative (starts with /), prepend the backend base URL
+            if (tileUrl.startsWith('/') && backendBaseUrl) {
+                tileUrl = backendBaseUrl + tileUrl;
+            }
+            console.log(`[buildStyleFromMultipleSources] [${i}] VECTOR: resolved tileUrl="${tileUrl}"`);
+            sources[sourceId] = {
+                type: 'vector',
+                tiles: [tileUrl],
+                maxzoom: 14
+            };
+            const sourceLayer = src.sourceLayer || 'default';
+            const color = VECTOR_LAYER_COLORS[i % VECTOR_LAYER_COLORS.length];
+            // Add circle layer for point features
+            layers.push({
+                id: `${sourceId}-circles`,
+                type: 'circle',
+                source: sourceId,
+                'source-layer': sourceLayer,
+                paint: {
+                    'circle-radius': 6,
+                    'circle-color': color,
+                    'circle-stroke-color': '#ffffff',
+                    'circle-stroke-width': 1.5
+                },
+                minzoom: 0,
+                maxzoom: 22
+            });
+            // Add line layer for line features
+            layers.push({
+                id: `${sourceId}-lines`,
+                type: 'line',
+                source: sourceId,
+                'source-layer': sourceLayer,
+                filter: ['==', '$type', 'LineString'],
+                paint: {
+                    'line-color': color,
+                    'line-width': 2
+                },
+                minzoom: 0,
+                maxzoom: 22
+            });
+            // Add fill layer for polygon features
+            layers.push({
+                id: `${sourceId}-fills`,
+                type: 'fill',
+                source: sourceId,
+                'source-layer': sourceLayer,
+                filter: ['==', '$type', 'Polygon'],
+                paint: {
+                    'fill-color': color,
+                    'fill-opacity': 0.3
+                },
+                minzoom: 0,
+                maxzoom: 22
+            });
+        } else {
+            // Raster tiles (OSM, standard tile servers)
+            const layerId = `layer-${i}-${slug}`;
+            if (src.type === 'tileserver') {
+                sources[sourceId] = { type: 'raster', tiles: [src.url], tileSize: 256, attribution: src.attribution || '' };
+            } else {
+                sources[sourceId] = { type: 'raster', url: `pmtiles://${src.url}`, tileSize: 256, attribution: src.attribution || '' };
+            }
+            layers.push({ id: layerId, type: 'raster', source: sourceId, minzoom: 0, maxzoom: 22 });
+        }
+    }
+    const result = { version: 8, sources, layers };
+    console.log('[buildStyleFromMultipleSources] Final style:', JSON.stringify(result, null, 2));
+    return result;
 }
 
 export const DEFAULT_GEOJSON_CONFIG: GeoJsonConfigData = {

@@ -12,15 +12,6 @@
             <h3 class="section-title">Quick Actions</h3>
             <div class="actions-grid">
                 <div class="action-item">
-                    <mat-icon>cloud</mat-icon>
-                    <div class="action-content">
-                        <h4>Access a Node</h4>
-                        <p>Connect remotely to your existing Polari node and manage your projects.</p>
-                        <a mat-raised-button class="accent-button" href="/polari-config">Access Node</a>
-                    </div>
-                </div>
-
-                <div class="action-item">
                     <mat-icon>settings</mat-icon>
                     <div class="action-content">
                         <h4>Manager Info</h4>
@@ -40,43 +31,60 @@
             </div>
         </div>
 
-        <!-- Getting Started Section -->
+        <!-- Core Capabilities Section -->
         <div class="section">
-            <h3 class="section-title">Getting Started with Polari</h3>
-            <div class="steps-list">
-                <div class="step-item">
-                    <div class="step-number">1</div>
-                    <div class="step-content">
-                        <strong>Set Up Your Node</strong>
-                        <p>Create and configure a Polari node to connect to the backend engine.</p>
+            <h3 class="section-title">Core Capabilities</h3>
+            <div class="capabilities-grid">
+                <div class="capability-item">
+                    <mat-icon>data_object</mat-icon>
+                    <div class="capability-content">
+                        <h4>Create Classes</h4>
+                        <p>Define custom classes with typed attributes and relationships through an intuitive interface.</p>
+                        <a mat-raised-button class="accent-button" href="/create-class">Create a Class</a>
                     </div>
                 </div>
-                <div class="step-item">
-                    <div class="step-number">2</div>
-                    <div class="step-content">
-                        <strong>Define Your Classes</strong>
-                        <p>Use the interface to create custom classes and define their attributes and relationships.</p>
+
+                <div class="capability-item">
+                    <mat-icon>table_chart</mat-icon>
+                    <div class="capability-content">
+                        <h4>Tables & Views</h4>
+                        <p>Design tables and display views to organize, visualize, and interact with your object data.</p>
                     </div>
                 </div>
-                <div class="step-item">
-                    <div class="step-number">3</div>
-                    <div class="step-content">
-                        <strong>Design Tables & Views</strong>
-                        <p>Build tables and views to organize and visualize your objects and data.</p>
+
+                <div class="capability-item">
+                    <mat-icon>map</mat-icon>
+                    <div class="capability-content">
+                        <h4>Maps & Geospatial</h4>
+                        <p>Mark classes as mappable objects and configure geospatial visualizations with custom tile sources.</p>
+                        <a mat-raised-button class="secondary-button" href="/maps">View Maps</a>
                     </div>
                 </div>
-                <div class="step-item">
-                    <div class="step-number">4</div>
-                    <div class="step-content">
-                        <strong>Create State-Objects</strong>
-                        <p>Define state-objects that can be used as states in solutions for no-code programming.</p>
+
+                <div class="capability-item">
+                    <mat-icon>account_tree</mat-icon>
+                    <div class="capability-content">
+                        <h4>State-Space Programming</h4>
+                        <p>Enable classes as state-objects for no-code programming with dynamically defined states and transitions.</p>
+                        <a mat-raised-button class="secondary-button" href="/custom-no-code">State-Space</a>
                     </div>
                 </div>
-                <div class="step-item">
-                    <div class="step-number">5</div>
-                    <div class="step-content">
-                        <strong>Integrate Open Source</strong>
-                        <p>Leverage modularized Python libraries like PyTorch and FEniCS in your solutions.</p>
+
+                <div class="capability-item">
+                    <mat-icon>api</mat-icon>
+                    <div class="capability-content">
+                        <h4>API Profiler</h4>
+                        <p>Connect to external APIs, profile their structure, and map them to Polari classes automatically.</p>
+                        <a mat-raised-button class="secondary-button" href="/api-profiler">Profile APIs</a>
+                    </div>
+                </div>
+
+                <div class="capability-item">
+                    <mat-icon>extension</mat-icon>
+                    <div class="capability-content">
+                        <h4>Modules</h4>
+                        <p>Enable modularized Python frameworks like PyTorch, FEniCS, and other scientific libraries.</p>
+                        <a mat-raised-button class="secondary-button" href="/module-management">Manage Modules</a>
                     </div>
                 </div>
             </div>

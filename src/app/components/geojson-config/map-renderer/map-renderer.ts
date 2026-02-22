@@ -104,16 +104,21 @@ export class MapRendererComponent implements OnChanges, OnDestroy {
     this.error = '';
     this.noData = false;
 
-    if (!this.config) return;
+    console.log('[MapRenderer] renderMap called. config=', !!this.config, 'styleOverride=', !!this.styleOverride);
+    if (!this.config) { console.log('[MapRenderer] No config, returning'); return; }
 
     const gc = this.config.geoJsonConfig;
 
-    // Check if coordinate variables are configured
+    // Check if coordinate variables are configured.
+    // When a styleOverride is provided (e.g. tile-only preview), skip this
+    // check — we don't need data points to render tile layers.
     const hasCoordConfig = gc.coordinateMode === 'tuple'
       ? !!gc.tupleVariable
       : (!!gc.latitudeVariable && !!gc.longitudeVariable);
 
-    if (!hasCoordConfig) {
+    console.log(`[MapRenderer] hasCoordConfig=${hasCoordConfig} styleOverride=${!!this.styleOverride}`);
+    if (!hasCoordConfig && !this.styleOverride) {
+      console.log('[MapRenderer] No coord config and no styleOverride — showing noData');
       this.noData = true;
       this.destroyMap();
       return;
@@ -136,6 +141,15 @@ export class MapRendererComponent implements OnChanges, OnDestroy {
         mapStyle = mapOptions.style;
       }
 
+      console.log('[MapRenderer] Resolved mapStyle type:', typeof mapStyle);
+      if (typeof mapStyle === 'object') {
+        console.log('[MapRenderer] mapStyle sources:', Object.keys(mapStyle?.sources || {}));
+        console.log('[MapRenderer] mapStyle layers:', (mapStyle?.layers || []).map((l: any) => l.id));
+        console.log('[MapRenderer] Full mapStyle:', JSON.stringify(mapStyle, null, 2));
+      } else {
+        console.log('[MapRenderer] mapStyle (string):', mapStyle);
+      }
+
       // Resolve zoom limits (MapLibre defaults: 0-24)
       const minZoom = mapOptions.minZoom != null ? mapOptions.minZoom : 0;
       const maxZoom = mapOptions.maxZoom != null ? mapOptions.maxZoom : 24;
@@ -143,11 +157,16 @@ export class MapRendererComponent implements OnChanges, OnDestroy {
       // Check if style changed — if so, destroy map so it rebuilds with new tiles
       const styleJson = typeof mapStyle === 'string' ? mapStyle : JSON.stringify(mapStyle);
       if (this.map && styleJson !== this.currentStyleJson) {
+        console.log('[MapRenderer] Style changed, destroying old map');
         this.destroyMap();
       }
       this.currentStyleJson = styleJson;
 
+      const containerEl = this.container.nativeElement;
+      console.log(`[MapRenderer] Container dimensions: ${containerEl.offsetWidth}x${containerEl.offsetHeight}, clientHeight=${containerEl.clientHeight}`);
+
       if (!this.map) {
+        console.log('[MapRenderer] Creating new MapLibre map...');
         this.ngZone.runOutsideAngular(() => {
           this.map = new MapClass({
             container: this.container.nativeElement,
@@ -157,6 +176,7 @@ export class MapRendererComponent implements OnChanges, OnDestroy {
             minZoom: minZoom,
             maxZoom: maxZoom
           });
+          console.log('[MapRenderer] Map instance created');
 
           if (NavControl) {
             this.map.addControl(new NavControl(), 'top-right');

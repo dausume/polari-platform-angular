@@ -1,0 +1,311 @@
+<div class="maps-container">
+    <div class="maps-header">
+        <h1>Maps</h1>
+        <p class="subtitle">Browse geo-enabled objects and generate vector tile sets</p>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="tab-nav">
+        <button class="tab-btn" [class.active]="activeTab === 'mapped-objects'"
+                (click)="setActiveTab('mapped-objects')">
+            <mat-icon>map</mat-icon>
+            Mapped Objects
+        </button>
+        <button class="tab-btn" [class.active]="activeTab === 'tile-generator'"
+                (click)="setActiveTab('tile-generator')">
+            <mat-icon>grid_on</mat-icon>
+            Tile Generator
+        </button>
+        <button class="tab-btn" [class.active]="activeTab === 'tile-sources'"
+                (click)="setActiveTab('tile-sources')">
+            <mat-icon>layers</mat-icon>
+            Tile Sources
+        </button>
+    </div>
+
+    <!-- Tab: Mapped Objects -->
+    <div class="tab-content" *ngIf="activeTab === 'mapped-objects'">
+        <div class="section-header">
+            <h2>Classes with GeoJSON Configurations</h2>
+            <button mat-icon-button (click)="refreshMappedObjects()" matTooltip="Refresh">
+                <mat-icon>refresh</mat-icon>
+            </button>
+        </div>
+
+        <div *ngIf="loading" class="loading-container">
+            <mat-spinner diameter="40"></mat-spinner>
+            <span>Loading mapped objects...</span>
+        </div>
+
+        <div *ngIf="!loading && mappedObjects.length === 0" class="empty-state">
+            <mat-icon class="empty-icon">map</mat-icon>
+            <p>No GeoJSON-configured classes found.</p>
+            <p class="hint">Create a GeoJSON configuration from a class's detail page to see it here.</p>
+        </div>
+
+        <div class="objects-grid" *ngIf="!loading && mappedObjects.length > 0">
+            <div class="object-card" *ngFor="let obj of mappedObjects" (click)="navigateToClass(obj.className)">
+                <div class="card-header">
+                    <mat-icon class="class-icon">place</mat-icon>
+                    <div class="class-info">
+                        <h3>{{ obj.className }}</h3>
+                        <span class="config-name">{{ obj.configName }}</span>
+                    </div>
+                </div>
+
+                <p class="description" *ngIf="obj.description">{{ obj.description }}</p>
+
+                <div class="card-stats">
+                    <div class="stat">
+                        <mat-icon>storage</mat-icon>
+                        <span>{{ obj.instanceCount }} instances</span>
+                    </div>
+                </div>
+
+                <div class="card-actions" (click)="$event.stopPropagation()">
+                    <div class="endpoint-toggle">
+                        <span class="toggle-label">GeoJSON Endpoint</span>
+                        <mat-slide-toggle
+                            [checked]="obj.hasGeoJsonEndpoint"
+                            (change)="toggleGeoJsonEndpoint(obj)"
+                            color="primary">
+                        </mat-slide-toggle>
+                    </div>
+                    <span class="endpoint-status" *ngIf="obj.hasGeoJsonEndpoint">
+                        <mat-icon class="active-icon">check_circle</mat-icon>
+                        /geojson/{{ obj.className }}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab: Tile Generator -->
+    <div class="tab-content" *ngIf="activeTab === 'tile-generator'">
+        <div class="section-header">
+            <h2>Generate Vector Tiles</h2>
+        </div>
+
+        <!-- Sources -->
+        <div class="tile-section">
+            <h3>Available Sources</h3>
+            <div *ngIf="tileGeneratorSources.length === 0" class="empty-state small">
+                <p>No GeoJSON sources available. Configure GeoJSON on a class first.</p>
+            </div>
+            <div class="sources-list" *ngIf="tileGeneratorSources.length > 0">
+                <div class="source-item" *ngFor="let source of tileGeneratorSources; let i = index"
+                     [class.selected]="isSourceSelected(i)"
+                     (click)="toggleSourceSelection(i)">
+                    <mat-checkbox [checked]="isSourceSelected(i)" (click)="$event.stopPropagation()"
+                                  (change)="toggleSourceSelection(i)">
+                    </mat-checkbox>
+                    <mat-icon class="source-icon">{{ getSourceIcon(source.type) }}</mat-icon>
+                    <div class="source-info">
+                        <span class="source-label">{{ getSourceLabel(source) }}</span>
+                        <span class="source-type">{{ source.type }}</span>
+                        <span class="source-count" *ngIf="source.instanceCount != null">
+                            {{ source.instanceCount }} records
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Configuration -->
+        <div class="tile-section" *ngIf="getSelectedSourceCount() > 0">
+            <h3>Configuration</h3>
+            <div class="config-form">
+                <mat-form-field appearance="outline">
+                    <mat-label>Tileset Name</mat-label>
+                    <input matInput [(ngModel)]="tilesetName" placeholder="my-tileset">
+                </mat-form-field>
+
+                <div class="zoom-fields">
+                    <mat-form-field appearance="outline">
+                        <mat-label>Min Zoom</mat-label>
+                        <input matInput type="number" [(ngModel)]="minZoom" min="0" max="22">
+                    </mat-form-field>
+                    <mat-form-field appearance="outline">
+                        <mat-label>Max Zoom</mat-label>
+                        <input matInput type="number" [(ngModel)]="maxZoom" min="0" max="22">
+                    </mat-form-field>
+                </div>
+
+                <mat-form-field appearance="outline">
+                    <mat-label>Layer Name</mat-label>
+                    <input matInput [(ngModel)]="layerName" placeholder="default">
+                </mat-form-field>
+
+                <!-- Output Mode -->
+                <div class="output-mode">
+                    <span class="field-label">Output</span>
+                    <mat-button-toggle-group [(ngModel)]="outputMode">
+                        <mat-button-toggle value="download">
+                            <mat-icon>download</mat-icon> Download File
+                        </mat-button-toggle>
+                        <mat-button-toggle value="minio" [disabled]="!objectStorageConnected">
+                            <mat-icon>cloud_upload</mat-icon> Save to MinIO
+                        </mat-button-toggle>
+                    </mat-button-toggle-group>
+                    <span class="minio-status" *ngIf="!objectStorageConnected">
+                        MinIO not connected
+                    </span>
+                </div>
+
+                <!-- MinIO Bucket (only when minio mode selected) -->
+                <mat-form-field *ngIf="outputMode === 'minio'" appearance="outline">
+                    <mat-label>MinIO Bucket</mat-label>
+                    <input matInput [(ngModel)]="bucketName" placeholder="polari-tiles">
+                </mat-form-field>
+            </div>
+
+            <button mat-raised-button color="primary" class="generate-btn"
+                    (click)="generateTiles()"
+                    [disabled]="isGenerating || getSelectedSourceCount() === 0">
+                <mat-icon>build</mat-icon>
+                {{ isGenerating ? 'Generating...' : 'Generate Tiles' }}
+                <span class="source-badge">{{ getSelectedSourceCount() }} sources</span>
+            </button>
+        </div>
+
+        <!-- Generation Status -->
+        <div class="tile-section" *ngIf="generationJob">
+            <h3>Generation Status</h3>
+            <div class="job-status" [class.completed]="generationJob.status === 'completed'"
+                 [class.failed]="generationJob.status === 'failed'"
+                 [class.running]="generationJob.status === 'running' || generationJob.status === 'pending'">
+                <div class="job-header">
+                    <span class="job-name">{{ generationJob.name }}</span>
+                    <span class="job-status-badge">{{ generationJob.status }}</span>
+                </div>
+                <p class="job-progress">{{ generationJob.progress }}</p>
+                <mat-progress-bar *ngIf="generationJob.status === 'running' || generationJob.status === 'pending'"
+                                  mode="indeterminate">
+                </mat-progress-bar>
+                <p class="job-output" *ngIf="generationJob.outputPath">
+                    <mat-icon>cloud_done</mat-icon>
+                    Output: {{ generationJob.outputPath }}
+                </p>
+                <button mat-button *ngIf="generationJob.downloadUrl"
+                        class="download-btn"
+                        (click)="downloadTiles(generationJob.id)">
+                    <mat-icon>download</mat-icon> Download .mbtiles
+                </button>
+                <p class="job-error" *ngIf="generationJob.error">
+                    <mat-icon>error</mat-icon>
+                    {{ generationJob.error }}
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab: Tile Sources -->
+    <div class="tab-content" *ngIf="activeTab === 'tile-sources'">
+        <div class="section-header">
+            <h2>Configured Tile Sources</h2>
+            <div class="section-header-actions">
+                <button mat-raised-button color="primary" class="preview-toggle-btn"
+                        (click)="toggleMapPreview()"
+                        [disabled]="selectedTileSourceIds.size === 0">
+                    <mat-icon>{{ showMapPreview ? 'visibility_off' : 'visibility' }}</mat-icon>
+                    {{ showMapPreview ? 'Hide Preview' : 'Preview Map' }}
+                    <span class="source-badge" *ngIf="selectedTileSourceIds.size > 0">
+                        {{ selectedTileSourceIds.size }}
+                    </span>
+                </button>
+                <button mat-icon-button (click)="refreshTileSources()" matTooltip="Refresh">
+                    <mat-icon>refresh</mat-icon>
+                </button>
+            </div>
+        </div>
+
+        <div *ngIf="tileSourcesLoading" class="loading-container">
+            <mat-spinner diameter="40"></mat-spinner>
+            <span>Loading tile sources...</span>
+        </div>
+
+        <!-- Map Preview -->
+        <div class="map-preview-section" *ngIf="showMapPreview && previewStyle">
+            <div class="preview-header">
+                <h3>Layer Preview</h3>
+            </div>
+            <map-renderer
+                [config]="previewConfig"
+                [instanceData]="[]"
+                [interactive]="true"
+                [styleOverride]="previewStyle">
+            </map-renderer>
+            <div class="layer-controls" *ngIf="getSelectedTileSourceDefs().length > 0">
+                <h4>Layers</h4>
+                <div class="layer-item" *ngFor="let def of getSelectedTileSourceDefs()">
+                    <mat-slide-toggle
+                        [checked]="layerVisibility[def.id] !== false"
+                        (change)="toggleLayerVisibility(def.id)"
+                        color="primary">
+                    </mat-slide-toggle>
+                    <mat-icon class="layer-icon">{{ getTileSourceTypeIcon(def.type) }}</mat-icon>
+                    <span class="layer-name">{{ def.name }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Registered Tile Source Definitions -->
+        <div class="tile-section" *ngIf="!tileSourcesLoading">
+            <h3>Tile Source Definitions</h3>
+            <div *ngIf="tileSources.length === 0" class="empty-state small">
+                <mat-icon class="empty-icon">layers</mat-icon>
+                <p>No tile sources configured yet.</p>
+                <p class="hint">Generate tiles with MinIO output or create tile sources from the GeoJSON config sidebar.</p>
+            </div>
+            <div class="tile-sources-list" *ngIf="tileSources.length > 0">
+                <div class="tile-source-card" *ngFor="let src of tileSources"
+                     [class.selected]="isTileSourceSelected(src.id)"
+                     (click)="toggleTileSourceSelection(src.id)">
+                    <div class="tile-source-header">
+                        <mat-checkbox [checked]="isTileSourceSelected(src.id)"
+                                      (click)="$event.stopPropagation()"
+                                      (change)="toggleTileSourceSelection(src.id)">
+                        </mat-checkbox>
+                        <mat-icon class="tile-source-icon">{{ getTileSourceTypeIcon(src.type) }}</mat-icon>
+                        <div class="tile-source-info">
+                            <span class="tile-source-name">{{ src.name }}</span>
+                            <span class="tile-source-type">{{ src.type }}</span>
+                        </div>
+                        <button mat-icon-button class="tile-source-delete"
+                                *ngIf="src.id !== '__osm__'"
+                                (click)="deleteTileSource(src.id, $event)"
+                                matTooltip="Delete tile source">
+                            <mat-icon>delete_outline</mat-icon>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MBTiles Files in Object Storage -->
+        <div class="tile-section" *ngIf="!tileSourcesLoading">
+            <h3>MBTiles in Object Storage</h3>
+            <div *ngIf="mbtilesFiles.length === 0" class="empty-state small">
+                <mat-icon class="empty-icon">cloud_off</mat-icon>
+                <p>No .mbtiles files found in object storage.</p>
+                <p class="hint">Generate tiles with "Save to MinIO" output mode to populate this list.</p>
+            </div>
+            <div class="mbtiles-list" *ngIf="mbtilesFiles.length > 0">
+                <div class="mbtiles-card" *ngFor="let file of mbtilesFiles">
+                    <div class="mbtiles-header">
+                        <mat-icon class="mbtiles-icon">insert_drive_file</mat-icon>
+                        <div class="mbtiles-info">
+                            <span class="mbtiles-name">{{ file.name }}</span>
+                            <span class="mbtiles-meta">
+                                {{ file.bucket }} &middot; {{ formatFileSize(file.size) }}
+                            </span>
+                            <span class="mbtiles-date" *ngIf="file.lastModified">
+                                {{ file.lastModified }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

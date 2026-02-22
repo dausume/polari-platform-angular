@@ -103,6 +103,8 @@ import { ApiProfilerComponent } from '@components/api-profiler/api-profiler.comp
 // API Config Component
 import { ApiConfigComponent } from '@components/api-config/api-config';
 import { ApiConfigDetailDialogComponent } from '@components/api-config/api-config-detail-dialog';
+// Maps Component
+import { MapsComponent } from '@components/maps/maps.component';
 // Table Config Components
 import { TableConfigSidebarComponent } from '@components/table-config/table-config-sidebar/table-config-sidebar';
 // Graph Config Components
@@ -189,7 +191,8 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     TableConfigSidebarComponent,
     GraphConfigSidebarComponent,
     GeoJsonConfigSidebarComponent,
-    EmbeddedTableComponent
+    EmbeddedTableComponent,
+    MapsComponent
   ],
   imports: [
     BrowserModule,

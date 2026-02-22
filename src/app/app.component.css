@@ -14,6 +14,16 @@ mat-sidenav-container {
     min-width: 280px;
   }
   
+  .sidenav-toggle {
+    color: #3f51b5;
+  }
+
+  .sidenav-toggle mat-icon {
+    font-size: 28px;
+    width: 28px;
+    height: 28px;
+  }
+
   mat-sidenav {
     background-color: var(--nav-color);
     min-width: 350px;

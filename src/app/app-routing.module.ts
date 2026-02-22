@@ -8,6 +8,7 @@ import { CreateNewClassComponent } from '@components/create-new-class/create-new
 import { CustomNoCodeComponent } from '@components/custom-no-code/custom-no-code';
 import { ApiProfilerComponent } from '@components/api-profiler/api-profiler.component';
 import { ApiConfigComponent } from '@components/api-config/api-config';
+import { MapsComponent } from '@components/maps/maps.component';
 
 const routes: Routes = [
   { path: '', loadComponent: () => import('@components/home/home').then(m => m.HomeComponent) },
@@ -21,7 +22,8 @@ const routes: Routes = [
   { path: 'api-profiler', component: ApiProfilerComponent },
   { path: 'api-config', component: ApiConfigComponent },
   { path: 'system-diagnostics', loadComponent: () => import('@components/system-diagnostics/system-diagnostics').then(m => m.SystemDiagnosticsComponent) },
-  { path: 'module-management', loadComponent: () => import('@components/module-management/module-management.component').then(m => m.ModuleManagementComponent) }
+  { path: 'module-management', loadComponent: () => import('@components/module-management/module-management.component').then(m => m.ModuleManagementComponent) },
+  { path: 'maps', component: MapsComponent }
 ];
 
 @NgModule({
