@@ -1,0 +1,111 @@
+/* =================================================================
+   Layout Patterns
+   Page containers, grids, and flex layouts.
+   Verbose class names describe what each class does.
+   ================================================================= */
+
+/* Page Container - Centered Content with Side Padding */
+.page-container-centered-with-padding {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.page-container-centered-narrow {
+  padding: 20px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.page-container-centered-wide {
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Grid - Two Column Auto-Fill Cards */
+.grid-two-column-auto-fill {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--spacing-md);
+}
+
+.grid-two-column-equal {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+/* Grid - Property List Auto-Fit */
+.grid-property-list-auto-fit {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: var(--spacing-md);
+}
+
+/* Editor Toolbar - Flex Row with Space Between */
+.editor-toolbar-flex-space-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border-medium);
+  background: var(--surface-secondary);
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+
+.editor-toolbar-flex-space-between h3 {
+  margin: 0;
+}
+
+/* Editor Body - Flex Row with Overflow Hidden */
+.editor-body-flex-row {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Editor Preview Area */
+.editor-preview-area {
+  flex: 1;
+  overflow: auto;
+  padding: var(--spacing-md);
+}
+
+/* List View Header - Title with FAB */
+.list-header-with-action {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--spacing-lg);
+}
+
+/* Empty State with Action Button */
+.state-empty-centered-with-action {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-secondary);
+}
+
+.state-empty-centered-with-action mat-icon.empty-icon {
+  font-size: 64px;
+  width: 64px;
+  height: 64px;
+  color: #ccc;
+  margin-bottom: var(--spacing-md);
+}
+
+.state-empty-centered-with-action h3 {
+  margin-bottom: var(--spacing-sm);
+  color: var(--text-primary);
+}
+
+/* Responsive: collapse grids to single column on mobile */
+@media (max-width: 768px) {
+  .grid-two-column-auto-fill,
+  .grid-two-column-equal,
+  .grid-property-list-auto-fit {
+    grid-template-columns: 1fr;
+  }
+}

@@ -34,12 +34,12 @@
 }
 
 .object-separator {
-    color: #757575 !important;
+    color: var(--text-tertiary) !important;
     font-weight: 300;
 }
 
 .object-id {
     font-family: 'Courier New', monospace;
     font-size: 13px;
-    color: #424242 !important;
+    color: var(--text-secondary) !important;
 }

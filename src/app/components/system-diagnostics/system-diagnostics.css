@@ -1,8 +1,5 @@
-.system-diagnostics-container {
-  padding: 20px;
-  max-width: 1200px;
-  margin: 0 auto;
-}
+/* Component-specific styles only — container, state, property, banner,
+   and label patterns are now provided by centralized style files */
 
 mat-card {
   margin-bottom: 20px;
@@ -24,101 +21,17 @@ mat-card-header mat-icon[mat-card-avatar] {
   font-size: 32px;
   width: 32px;
   height: 32px;
-  color: rgba(0, 0, 0, 0.54);
+  color: var(--text-secondary);
 }
 
-.info-banner {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 16px;
-  background-color: #e3f2fd;
-  border-radius: 4px;
-  color: #1565c0;
-  margin: 0;
-}
-
-.info-banner mat-icon {
-  font-size: 20px;
-  width: 20px;
-  height: 20px;
-}
-
-/* Container Notice */
-.container-notice {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 12px 16px;
-  background-color: #fff3e0;
-  border-radius: 4px;
-  color: #e65100;
-  font-size: 13px;
-  margin-bottom: 4px;
-}
-
-.container-notice mat-icon {
-  font-size: 20px;
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
-  margin-top: 1px;
-}
-
-/* Loading State */
-.loading-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px;
-}
-
-.loading-container p {
+/* Property grid spacing override */
+.property-grid-spacing {
   margin-top: 16px;
-  color: rgba(0, 0, 0, 0.6);
-}
-
-/* Error State */
-.error-container {
-  display: flex;
-  align-items: center;
-  padding: 20px;
-  color: #d32f2f;
-}
-
-.error-container mat-icon {
-  margin-right: 12px;
-}
-
-/* Property Grid */
-.property-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px;
-  margin-top: 16px;
-}
-
-.property-item {
-  display: flex;
-  flex-direction: column;
-  padding: 12px;
-  background-color: #f5f5f5;
-  border-radius: 4px;
-}
-
-.property-label {
-  font-size: 12px;
-  font-weight: 500;
-  color: rgba(0, 0, 0, 0.6);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 4px;
 }
 
 .property-value {
   font-size: 16px;
-  color: rgba(0, 0, 0, 0.87);
+  color: var(--text-primary);
 }
 
 /* Progress Bar Section */
@@ -133,18 +46,18 @@ mat-card-header mat-icon[mat-card-avatar] {
   align-items: center;
   margin-bottom: 8px;
   font-size: 14px;
-  color: rgba(0, 0, 0, 0.6);
+  color: var(--text-secondary);
 }
 
 .percent-label {
   font-weight: 600;
   font-size: 16px;
-  color: rgba(0, 0, 0, 0.87);
+  color: var(--text-primary);
 }
 
 mat-progress-bar {
   height: 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .memory-details {
@@ -162,9 +75,9 @@ mat-progress-bar {
 
 .checkpoint {
   padding: 16px;
-  background-color: #fafafa;
-  border-left: 4px solid #1976d2;
-  border-radius: 0 4px 4px 0;
+  background-color: var(--surface-tertiary);
+  border-left: 4px solid var(--brand-blue);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   margin-bottom: 8px;
 }
 
@@ -172,7 +85,7 @@ mat-progress-bar {
   margin: 0 0 12px 0;
   font-size: 16px;
   font-weight: 500;
-  color: rgba(0, 0, 0, 0.87);
+  color: var(--text-primary);
 }
 
 .checkpoint-details {
@@ -183,18 +96,12 @@ mat-progress-bar {
 
 .detail-item {
   font-size: 14px;
-  color: rgba(0, 0, 0, 0.87);
-}
-
-.detail-label {
-  font-weight: 500;
-  color: rgba(0, 0, 0, 0.6);
-  margin-right: 4px;
+  color: var(--text-primary);
 }
 
 .timestamp {
   font-size: 12px;
-  color: rgba(0, 0, 0, 0.38);
+  color: var(--border-dark);
 }
 
 .checkpoint-arrow {
@@ -202,31 +109,22 @@ mat-progress-bar {
   align-items: center;
   gap: 8px;
   margin-bottom: 8px;
-  color: rgba(0, 0, 0, 0.38);
+  color: var(--border-dark);
 }
 
 .delta {
   font-size: 14px;
   font-weight: 600;
-  color: #e65100;
+  color: var(--brand-orange-dark);
 }
 
 .no-db-note {
-  padding: 12px 16px;
-  background-color: #fff3e0;
-  border-radius: 4px;
-  color: #e65100;
-  font-size: 13px;
   font-style: italic;
   margin-top: 8px;
 }
 
 /* Responsive Design */
 @media (max-width: 768px) {
-  .property-grid {
-    grid-template-columns: 1fr;
-  }
-
   .checkpoint-details {
     flex-direction: column;
     gap: 8px;

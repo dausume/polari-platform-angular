@@ -22,7 +22,7 @@
 
 .true-value {
   background-color: rgba(76, 175, 80, 0.12);
-  color: #2e7d32;
+  color: var(--brand-green-dark);
 }
 
 .true-value:hover {
@@ -31,7 +31,7 @@
 
 .false-value {
   background-color: rgba(244, 67, 54, 0.12);
-  color: #c62828;
+  color: var(--color-error);
 }
 
 .false-value:hover {

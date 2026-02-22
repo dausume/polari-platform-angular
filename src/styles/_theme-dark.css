@@ -1,0 +1,53 @@
+/* =================================================================
+   Dark Theme
+   Applied when <body> has the class "dark-theme".
+   Overrides ALL tokens that need dark equivalents.
+   ================================================================= */
+
+body.dark-theme {
+  /* === Surface Colors === */
+  --surface-primary: #1e1e1e;
+  --surface-secondary: #2d2d2d;
+  --surface-tertiary: #333333;
+  --surface-hover: #3a3a3a;
+  --surface-app-background: #121212;
+
+  /* === Text Colors === */
+  --text-primary: #e0e0e0;
+  --text-secondary: #b0b0b0;
+  --text-tertiary: #808080;
+  --text-disabled: rgba(255,255,255,0.3);
+
+  /* === Navigation === */
+  --nav-background: #1a1a1a;
+
+  /* === Brand Light Colors (card/section backgrounds) === */
+  --brand-blue-light: #1a2744;
+  --brand-green-light: #1a2e1a;
+  --brand-orange-light: #2e2416;
+  --brand-purple-light: #2a1a2e;
+  --brand-amber-light: #2e2a16;
+
+  /* === Semantic Background Colors === */
+  --color-error-bg: #2e1a1a;
+  --color-error-border: #6e3b3b;
+  --color-success-bg: #1a2e1a;
+  --color-success-border: #3b6e3b;
+  --color-info-bg: #1a2744;
+  --color-info-border: #3b5a8a;
+  --color-warn-bg: #2e2416;
+  --color-warn-border: #6e5a2a;
+
+  /* === Semantic Text Colors (on semantic backgrounds) === */
+  --color-success-text: #81c784;
+  --color-error-text: #ef9a9a;
+  --color-info-text: #90caf9;
+  --color-warn-text: #ffb74d;
+
+  /* === Borders & Shadows === */
+  --border-light: #444444;
+  --border-medium: #555555;
+  --border-dark: #666666;
+  --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --card-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.5);
+}

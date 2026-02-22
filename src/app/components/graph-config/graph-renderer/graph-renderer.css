@@ -5,6 +5,9 @@
   align-items: center;
   justify-content: center;
   position: relative;
+  background-color: var(--surface-primary);
+  border-radius: var(--radius-lg);
+  padding: 16px;
 }
 
 /* Observable Plot generates an SVG — let it fill the container */
@@ -13,12 +16,49 @@
   max-width: 100%;
 }
 
+/* Override Observable Plot SVG default colors for theme compatibility */
+.chart-container svg text {
+  fill: var(--text-primary);
+}
+
+.chart-container svg [aria-label="x-axis"] text,
+.chart-container svg [aria-label="y-axis"] text {
+  fill: var(--text-secondary);
+}
+
+.chart-container svg [aria-label="x-axis"] line,
+.chart-container svg [aria-label="y-axis"] line,
+.chart-container svg [aria-label="x-axis"] path,
+.chart-container svg [aria-label="y-axis"] path {
+  stroke: var(--border-medium);
+}
+
+/* Grid lines */
+.chart-container svg [aria-label*="grid"] line,
+.chart-container svg [aria-label*="grid"] path {
+  stroke: var(--border-light);
+}
+
+/* Tick marks */
+.chart-container svg .tick line {
+  stroke: var(--border-medium);
+}
+
+.chart-container svg .tick text {
+  fill: var(--text-secondary);
+}
+
+/* Axis domain line */
+.chart-container svg .domain {
+  stroke: var(--border-medium);
+}
+
 .chart-loading {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  color: #666;
+  color: var(--text-secondary);
   font-size: 13px;
 }
 
@@ -26,12 +66,12 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #e15759;
+  color: var(--color-error);
   font-size: 13px;
   padding: 16px;
-  background: #fff5f5;
-  border-radius: 6px;
-  border: 1px solid #fecaca;
+  background: var(--color-error-bg);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-error-border);
 }
 
 .chart-empty {
@@ -39,7 +79,7 @@
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  color: #888;
+  color: var(--text-tertiary);
   font-size: 13px;
   padding: 40px 20px;
 }
@@ -48,5 +88,5 @@
   font-size: 48px;
   width: 48px;
   height: 48px;
-  color: #ccc;
+  color: var(--border-medium);
 }

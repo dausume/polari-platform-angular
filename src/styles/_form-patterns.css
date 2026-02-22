@@ -1,0 +1,32 @@
+/* =================================================================
+   Form Patterns
+   Config panels, filter rows, and form field overrides.
+   ================================================================= */
+
+/* Config Panel - Right Sidebar */
+.panel-config-right-sidebar {
+  width: 340px;
+  border-left: 1px solid var(--border-medium);
+  background: var(--surface-tertiary);
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+/* Config Section - Grouped Fields */
+.config-section-grouped-fields {
+  margin: var(--spacing-md) 0;
+}
+
+.config-section-grouped-fields h4 {
+  margin: 0 0 12px 0;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+
+/* Filter Row - Horizontal Flex with Gap */
+.filter-row-horizontal-flex {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}

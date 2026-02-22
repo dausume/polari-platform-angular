@@ -3,5 +3,9 @@
         <img class="header-polari-icon" width=50 height=50 [src]="polariImgUrl">
         <span class="header-page-button" fxFlex="noshrink">{{currentComponentTitle}}</span>
         <span fxFlex="grow"></span>
+        <button mat-icon-button (click)="toggleTheme()" class="header-theme-toggle"
+                [attr.aria-label]="(isDark ? 'Switch to light mode' : 'Switch to dark mode')">
+            <mat-icon>{{ isDark ? 'light_mode' : 'dark_mode' }}</mat-icon>
+        </button>
     </mat-toolbar-row>
 </mat-toolbar>

@@ -1,27 +1,257 @@
-/* Define a custom theme by overriding the default theme's variables */
+/* =================================================================
+   Global Element-Level Rules
+   Pattern classes are in src/styles/. Only truly global element
+   rules and legacy variable aliases belong here.
+   ================================================================= */
+
+/* Legacy variable aliases — kept for backward compatibility with
+   components that haven't been migrated yet */
 :root {
-
-    --primary-hover-color: #4d4d6c;
-    --primary-color: #dde0f2;
-
-    --nav-color: #424242;
-
-    --accent-color: #80475E;
-    --accent-color-2: #A4A5AE;
-    --accent-color-3: #E6E49F;
-    --accent-color-4: #35CE8D;
-
-    --warn-color: #bb1f1f;
-
-    --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  --primary-hover-color: #4d4d6c;
+  --primary-color: var(--surface-app-background);
+  --nav-color: var(--nav-background);
+  --accent-color: #80475E;
+  --accent-color-2: #A4A5AE;
+  --accent-color-3: #E6E49F;
+  --accent-color-4: #35CE8D;
+  --warn-color: var(--color-error);
 }
 
-/* Standardized card styling */
-mat-card {
-    background-color: #ffffff;
-    border-radius: 8px;
-    box-shadow: var(--card-shadow);
-}
-
+/* Global element rules */
 html, body { height: 100%; }
-body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+body {
+  margin: 0;
+  font-family: Roboto, "Helvetica Neue", sans-serif;
+  background-color: var(--surface-app-background);
+  color: var(--text-primary);
+}
+
+/* Override Material typography heading colors (pink-bluegrey theme
+   sets headings to light/white text for its dark palette) */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text-primary) !important;
+}
+
+/* Standardized mat-card styling (uses design tokens) */
+mat-card,
+.mat-mdc-card {
+  background-color: var(--surface-primary) !important;
+  color: var(--text-primary) !important;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--card-shadow);
+}
+
+/* =================================================================
+   Angular Material Global Overrides
+   Forces Material components to respect CSS variable theme tokens
+   in BOTH light and dark modes. The prebuilt theme (pink-bluegrey)
+   is dark-palette, so we must override all surfaces/text globally.
+   ================================================================= */
+
+/* --- Mat Card --- */
+.mat-mdc-card-subtitle {
+  color: var(--text-secondary) !important;
+}
+
+/* --- Mat Expansion Panel --- */
+.mat-expansion-panel,
+.mat-expansion-panel-header {
+  background-color: var(--surface-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+.mat-expansion-panel-header-description,
+.mat-expansion-indicator::after {
+  color: var(--text-secondary) !important;
+}
+
+/* --- Mat Form Field --- */
+.mat-mdc-form-field .mdc-text-field--filled:not(.mdc-text-field--disabled) {
+  background-color: var(--surface-secondary) !important;
+}
+
+.mat-mdc-form-field .mdc-text-field--outlined:not(.mdc-text-field--disabled) .mdc-notched-outline__leading,
+.mat-mdc-form-field .mdc-text-field--outlined:not(.mdc-text-field--disabled) .mdc-notched-outline__notch,
+.mat-mdc-form-field .mdc-text-field--outlined:not(.mdc-text-field--disabled) .mdc-notched-outline__trailing {
+  border-color: var(--border-medium) !important;
+}
+
+.mat-mdc-form-field .mat-mdc-input-element,
+.mat-mdc-form-field .mat-mdc-select-value {
+  color: var(--text-primary) !important;
+}
+
+.mat-mdc-form-field .mat-mdc-floating-label {
+  color: var(--text-secondary) !important;
+}
+
+.mat-mdc-form-field .mat-mdc-select-arrow {
+  color: var(--text-secondary) !important;
+}
+
+/* --- Mat Select Panel --- */
+.mat-mdc-select-panel {
+  background-color: var(--surface-primary) !important;
+}
+
+.mat-mdc-select-panel .mat-mdc-option {
+  color: var(--text-primary) !important;
+}
+
+.mat-mdc-select-panel .mat-mdc-option:hover:not(.mdc-list-item--disabled),
+.mat-mdc-select-panel .mat-mdc-option.mdc-list-item--selected:not(.mdc-list-item--disabled) {
+  background-color: var(--surface-hover) !important;
+}
+
+/* --- Mat Menu --- */
+.mat-mdc-menu-panel {
+  background-color: var(--surface-primary) !important;
+}
+
+.mat-mdc-menu-panel .mat-mdc-menu-item {
+  color: var(--text-primary) !important;
+}
+
+.mat-mdc-menu-panel .mat-mdc-menu-item:hover:not([disabled]) {
+  background-color: var(--surface-hover) !important;
+}
+
+/* --- Mat Dialog --- */
+.mat-mdc-dialog-container .mdc-dialog__surface {
+  background-color: var(--surface-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+.mat-mdc-dialog-title {
+  color: var(--text-primary) !important;
+}
+
+/* --- Mat Chip --- */
+.mat-mdc-chip:not(.mat-mdc-chip-disabled) {
+  background-color: var(--surface-tertiary) !important;
+  color: var(--text-primary) !important;
+}
+
+.mat-mdc-chip:not(.mat-mdc-chip-disabled) .mat-mdc-chip-action-label {
+  color: var(--text-primary) !important;
+}
+
+/* --- Mat Tab --- */
+.mat-mdc-tab-header {
+  background-color: var(--surface-secondary) !important;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+
+.mat-mdc-tab .mdc-tab__text-label {
+  color: var(--text-primary) !important;
+  font-weight: 500;
+}
+
+.mat-mdc-tab:not(.mdc-tab--active) .mdc-tab__text-label {
+  color: var(--text-secondary) !important;
+}
+
+.mat-mdc-tab.mdc-tab--active .mdc-tab__text-label {
+  color: var(--brand-blue) !important;
+  font-weight: 600;
+}
+
+.mat-mdc-tab-body-content {
+  background-color: var(--surface-primary);
+  color: var(--text-primary);
+}
+
+/* --- Mat Table --- */
+.mat-mdc-table {
+  background-color: var(--surface-primary) !important;
+}
+
+.mat-mdc-table .mat-mdc-header-row {
+  background-color: var(--surface-secondary) !important;
+}
+
+.mat-mdc-table .mat-mdc-header-cell {
+  color: var(--text-primary) !important;
+  border-bottom-color: var(--border-medium) !important;
+}
+
+.mat-mdc-table .mat-mdc-row {
+  background-color: var(--surface-primary) !important;
+}
+
+.mat-mdc-table .mat-mdc-row:hover {
+  background-color: var(--surface-hover) !important;
+}
+
+.mat-mdc-table .mat-mdc-cell {
+  color: var(--text-primary) !important;
+  border-bottom-color: var(--border-light) !important;
+}
+
+.mat-mdc-paginator {
+  background-color: var(--surface-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+/* --- Mat List --- */
+.mat-mdc-list-item {
+  color: var(--text-primary) !important;
+}
+
+/* --- Mat Slide Toggle --- */
+.mat-mdc-slide-toggle .mdc-switch:not(.mdc-switch--disabled) .mdc-switch__track {
+  background-color: var(--border-medium);
+}
+
+/* --- Mat Divider --- */
+.mat-divider {
+  border-top-color: var(--border-light) !important;
+}
+
+/* --- Mat Tooltip --- */
+.mat-mdc-tooltip .mdc-tooltip__surface {
+  background-color: var(--surface-tertiary) !important;
+  color: var(--text-primary) !important;
+}
+
+/* --- Mat Checkbox --- */
+.mat-mdc-checkbox .mdc-form-field label {
+  color: var(--text-primary) !important;
+}
+
+/* --- Mat Button (stroked / flat / basic) --- */
+.mat-mdc-button:not(.mdc-button--unelevated) {
+  color: var(--text-primary) !important;
+}
+
+.mat-mdc-outlined-button:not(:disabled) {
+  border-color: var(--border-medium) !important;
+  color: var(--text-primary) !important;
+}
+
+.mat-mdc-icon-button {
+  color: var(--text-secondary) !important;
+}
+
+.mat-button-toggle-appearance-standard {
+  background-color: var(--surface-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+.mat-button-toggle-checked {
+  background-color: var(--surface-hover) !important;
+  color: var(--text-primary) !important;
+}
+
+/* --- Scrollbars --- */
+body.dark-theme ::-webkit-scrollbar-track {
+  background: var(--surface-secondary);
+}
+
+body.dark-theme ::-webkit-scrollbar-thumb {
+  background: var(--border-dark);
+}
+
+body.dark-theme ::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary);
+}

@@ -1,4 +1,4 @@
-<div class="system-diagnostics-container">
+<div class="page-container-centered-with-padding">
   <!-- Header -->
   <mat-card class="header-card">
     <mat-card-header>
@@ -8,7 +8,7 @@
       </button>
     </mat-card-header>
     <mat-card-content>
-      <p class="info-banner">
+      <p class="banner-info-compact-row">
         <mat-icon>info</mat-icon>
         System resource baseline for self-load-balancing diagnostics
       </p>
@@ -16,13 +16,13 @@
   </mat-card>
 
   <!-- Loading State -->
-  <div *ngIf="loading" class="loading-container">
+  <div *ngIf="loading" class="state-loading-centered-with-message">
     <mat-spinner diameter="50"></mat-spinner>
     <p>Loading system data...</p>
   </div>
 
   <!-- Error State -->
-  <div *ngIf="!loading && error" class="error-container">
+  <div *ngIf="!loading && error" class="state-error-icon-and-message">
     <mat-icon color="warn">error</mat-icon>
     <p>{{ error }}</p>
   </div>
@@ -37,25 +37,25 @@
         <mat-card-title>Platform Information</mat-card-title>
       </mat-card-header>
       <mat-card-content>
-        <div *ngIf="systemData.platform?.isContainerized" class="container-notice">
+        <div *ngIf="systemData.platform?.isContainerized" class="banner-warn-orange">
           <mat-icon>info</mat-icon>
           <span>Running inside a container. Hostname is the container ID. Resource values reflect the host system unless cgroup limits are applied.</span>
         </div>
-        <div class="property-grid">
-          <div class="property-item">
-            <span class="property-label">OS Type</span>
+        <div class="grid-property-list-auto-fit property-grid-spacing">
+          <div class="property-item-label-above-value-gray">
+            <span class="label-small-muted-uppercase">OS Type</span>
             <span class="property-value">{{ systemData.platform?.systemType }}</span>
           </div>
-          <div class="property-item">
-            <span class="property-label">{{ systemData.platform?.isContainerized ? 'Container ID' : 'Hostname' }}</span>
+          <div class="property-item-label-above-value-gray">
+            <span class="label-small-muted-uppercase">{{ systemData.platform?.isContainerized ? 'Container ID' : 'Hostname' }}</span>
             <span class="property-value">{{ systemData.platform?.networkName }}</span>
           </div>
-          <div class="property-item">
-            <span class="property-label">IP Address</span>
+          <div class="property-item-label-above-value-gray">
+            <span class="label-small-muted-uppercase">IP Address</span>
             <span class="property-value">{{ systemData.platform?.IPaddress }}</span>
           </div>
-          <div class="property-item">
-            <span class="property-label">Domain</span>
+          <div class="property-item-label-above-value-gray">
+            <span class="label-small-muted-uppercase">Domain</span>
             <span class="property-value">{{ systemData.platform?.domainName }}</span>
           </div>
         </div>
@@ -69,17 +69,17 @@
         <mat-card-title>CPU Resources</mat-card-title>
       </mat-card-header>
       <mat-card-content>
-        <div class="property-grid">
-          <div class="property-item">
-            <span class="property-label">Physical Cores</span>
+        <div class="grid-property-list-auto-fit property-grid-spacing">
+          <div class="property-item-label-above-value-gray">
+            <span class="label-small-muted-uppercase">Physical Cores</span>
             <span class="property-value">{{ systemData.cpu?.numPhysicalCPUs }}</span>
           </div>
-          <div class="property-item">
-            <span class="property-label">Logical Cores</span>
+          <div class="property-item-label-above-value-gray">
+            <span class="label-small-muted-uppercase">Logical Cores</span>
             <span class="property-value">{{ systemData.cpu?.numLogicalCPUs }}</span>
           </div>
-          <div class="property-item">
-            <span class="property-label">Current Usage</span>
+          <div class="property-item-label-above-value-gray">
+            <span class="label-small-muted-uppercase">Current Usage</span>
             <span class="property-value">{{ systemData.cpu?.currentUsagePercent }}%</span>
           </div>
         </div>
@@ -104,21 +104,21 @@
             [color]="getProgressColor(getMemoryPercent())">
           </mat-progress-bar>
         </div>
-        <div class="property-grid memory-details">
-          <div class="property-item">
-            <span class="property-label">Total</span>
+        <div class="grid-property-list-auto-fit property-grid-spacing memory-details">
+          <div class="property-item-label-above-value-gray">
+            <span class="label-small-muted-uppercase">Total</span>
             <span class="property-value">{{ formatBytes(systemData.memory?.total) }}</span>
           </div>
-          <div class="property-item">
-            <span class="property-label">Used</span>
+          <div class="property-item-label-above-value-gray">
+            <span class="label-small-muted-uppercase">Used</span>
             <span class="property-value">{{ formatBytes(systemData.memory?.used) }}</span>
           </div>
-          <div class="property-item">
-            <span class="property-label">Available</span>
+          <div class="property-item-label-above-value-gray">
+            <span class="label-small-muted-uppercase">Available</span>
             <span class="property-value">{{ formatBytes(systemData.memory?.available) }}</span>
           </div>
-          <div class="property-item">
-            <span class="property-label">Free</span>
+          <div class="property-item-label-above-value-gray">
+            <span class="label-small-muted-uppercase">Free</span>
             <span class="property-value">{{ formatBytes(systemData.memory?.free) }}</span>
           </div>
         </div>
@@ -143,17 +143,17 @@
             [color]="getProgressColor(getSwapPercent())">
           </mat-progress-bar>
         </div>
-        <div class="property-grid">
-          <div class="property-item">
-            <span class="property-label">Total</span>
+        <div class="grid-property-list-auto-fit property-grid-spacing">
+          <div class="property-item-label-above-value-gray">
+            <span class="label-small-muted-uppercase">Total</span>
             <span class="property-value">{{ formatBytes(systemData.swap?.total) }}</span>
           </div>
-          <div class="property-item">
-            <span class="property-label">Used</span>
+          <div class="property-item-label-above-value-gray">
+            <span class="label-small-muted-uppercase">Used</span>
             <span class="property-value">{{ formatBytes(systemData.swap?.used) }}</span>
           </div>
-          <div class="property-item">
-            <span class="property-label">Free</span>
+          <div class="property-item-label-above-value-gray">
+            <span class="label-small-muted-uppercase">Free</span>
             <span class="property-value">{{ formatBytes(systemData.swap?.free) }}</span>
           </div>
         </div>
@@ -181,11 +181,11 @@
             <h4>Baseline (Pre-Tree Build)</h4>
             <div class="checkpoint-details">
               <span class="detail-item">
-                <span class="detail-label">Used Memory:</span>
+                <span class="label-property-name-muted">Used Memory:</span>
                 {{ formatBytes(systemData.bootProfile.baseline.usedMemory) }}
               </span>
               <span class="detail-item">
-                <span class="detail-label">Available:</span>
+                <span class="label-property-name-muted">Available:</span>
                 {{ formatBytes(systemData.bootProfile.baseline.availableMemory) }}
               </span>
               <span class="detail-item timestamp">
@@ -205,11 +205,11 @@
             <h4>Post-Tree Build + Analysis</h4>
             <div class="checkpoint-details">
               <span class="detail-item">
-                <span class="detail-label">Used Memory:</span>
+                <span class="label-property-name-muted">Used Memory:</span>
                 {{ formatBytes(systemData.bootProfile.postTree.usedMemory) }}
               </span>
               <span class="detail-item">
-                <span class="detail-label">Available:</span>
+                <span class="label-property-name-muted">Available:</span>
                 {{ formatBytes(systemData.bootProfile.postTree.availableMemory) }}
               </span>
               <span class="detail-item timestamp">
@@ -229,11 +229,11 @@
             <h4>Post-Database Init</h4>
             <div class="checkpoint-details">
               <span class="detail-item">
-                <span class="detail-label">Used Memory:</span>
+                <span class="label-property-name-muted">Used Memory:</span>
                 {{ formatBytes(systemData.bootProfile.postDB.usedMemory) }}
               </span>
               <span class="detail-item">
-                <span class="detail-label">Available:</span>
+                <span class="label-property-name-muted">Available:</span>
                 {{ formatBytes(systemData.bootProfile.postDB.availableMemory) }}
               </span>
               <span class="detail-item timestamp">
@@ -242,7 +242,7 @@
             </div>
           </div>
 
-          <div *ngIf="!systemData.bootProfile.postDB && !systemData.bootProfile.isFreshBoot" class="no-db-note">
+          <div *ngIf="!systemData.bootProfile.postDB && !systemData.bootProfile.isFreshBoot" class="banner-warn-orange no-db-note">
             Post-DB checkpoint only available on fresh boot (not DB restore).
           </div>
         </div>

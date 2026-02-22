@@ -1,0 +1,107 @@
+/* =================================================================
+   State Patterns
+   Loading, error, empty, and placeholder states.
+   ================================================================= */
+
+/* Loading State - Centered Spinner with Message */
+.state-loading-centered-with-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  min-height: 200px;
+}
+
+.state-loading-centered-with-message p {
+  margin-top: var(--spacing-md);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+/* Error State - Icon and Message Row */
+.state-error-icon-and-message {
+  display: flex;
+  align-items: center;
+  padding: 20px;
+  color: var(--color-error);
+}
+
+.state-error-icon-and-message mat-icon {
+  margin-right: 12px;
+}
+
+/* Error State - Centered with Retry */
+.state-error-centered-with-retry {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.state-error-centered-with-retry p {
+  margin-top: 15px;
+  color: var(--text-secondary);
+}
+
+.state-error-centered-with-retry mat-icon {
+  font-size: 48px;
+  height: 48px;
+  width: 48px;
+}
+
+/* Empty State - Centered Icon with Large Text */
+.state-empty-centered-large-icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: var(--text-disabled);
+}
+
+.state-empty-centered-large-icon mat-icon {
+  font-size: 64px;
+  height: 64px;
+  width: 64px;
+  margin-bottom: var(--spacing-md);
+}
+
+.state-empty-centered-large-icon p {
+  font-size: 16px;
+}
+
+/* Placeholder Tab - Coming Soon Style */
+.state-placeholder-coming-soon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: var(--text-tertiary);
+}
+
+.state-placeholder-coming-soon mat-icon {
+  font-size: 64px;
+  width: 64px;
+  height: 64px;
+  color: var(--border-medium);
+  margin-bottom: var(--spacing-md);
+}
+
+/* No Data - Centered with Icon */
+.state-no-data-centered {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px;
+  color: var(--text-tertiary);
+}
+
+.state-no-data-centered mat-icon {
+  font-size: 48px;
+  height: 48px;
+  width: 48px;
+}

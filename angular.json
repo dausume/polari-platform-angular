@@ -29,6 +29,15 @@
             "styles": [
               "./node_modules/@angular/material/prebuilt-themes/pink-bluegrey.css",
               "./node_modules/maplibre-gl/dist/maplibre-gl.css",
+              "src/styles/_variables.css",
+              "src/styles/_theme-light.css",
+              "src/styles/_theme-dark.css",
+              "src/styles/_layout-patterns.css",
+              "src/styles/_state-patterns.css",
+              "src/styles/_card-patterns.css",
+              "src/styles/_button-patterns.css",
+              "src/styles/_typography-patterns.css",
+              "src/styles/_form-patterns.css",
               "src/styles.css"
             ],
             "scripts": [],
@@ -99,6 +108,15 @@
             "styles": [
               "./node_modules/@angular/material/prebuilt-themes/pink-bluegrey.css",
               "./node_modules/maplibre-gl/dist/maplibre-gl.css",
+              "src/styles/_variables.css",
+              "src/styles/_theme-light.css",
+              "src/styles/_theme-dark.css",
+              "src/styles/_layout-patterns.css",
+              "src/styles/_state-patterns.css",
+              "src/styles/_card-patterns.css",
+              "src/styles/_button-patterns.css",
+              "src/styles/_typography-patterns.css",
+              "src/styles/_form-patterns.css",
               "src/styles.css"
             ],
             "scripts": []

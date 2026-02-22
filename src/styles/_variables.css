@@ -1,0 +1,90 @@
+/* =================================================================
+   CSS Custom Properties (Design Tokens)
+   All color tokens, spacing, typography, and visual constants.
+   These replace 50+ hard-coded color values found across components.
+   ================================================================= */
+
+:root {
+  /* === Surface Colors === */
+  --surface-primary: #ffffff;
+  --surface-secondary: #f5f5f5;
+  --surface-tertiary: #fafafa;
+  --surface-hover: #eeeeee;
+  --surface-app-background: #dde0f2;
+
+  /* === Text Colors === */
+  --text-primary: #212529;           /* was: #222, #333, rgba(0,0,0,0.87) */
+  --text-secondary: #495057;         /* was: #555, #666, rgba(0,0,0,0.6) */
+  --text-tertiary: #6c757d;          /* was: #777, #888, #999 */
+  --text-disabled: rgba(0,0,0,0.4);  /* was: rgba(0,0,0,0.4) */
+  --text-on-primary: #ffffff;
+  --text-on-dark: #ffffff;
+
+  /* === Brand Colors === */
+  --brand-indigo: #3f51b5;
+  --brand-blue: #1976d2;
+  --brand-blue-light: #e3f2fd;
+  --brand-green: #4caf50;
+  --brand-green-dark: #2e7d32;
+  --brand-green-light: #e8f5e9;
+  --brand-orange: #ff9800;
+  --brand-orange-dark: #e65100;
+  --brand-orange-light: #fff3e0;
+  --brand-purple: #7b1fa2;
+  --brand-purple-light: #f3e5f5;
+  --brand-amber-light: #ffecb3;
+  --brand-teal: #009688;
+  --brand-coral: #ff7043;
+
+  /* === Semantic Colors === */
+  --color-error: #d32f2f;
+  --color-error-bg: #ffebee;
+  --color-error-border: #ef9a9a;
+  --color-success: #4caf50;
+  --color-success-bg: #e8f5e9;
+  --color-success-border: #c8e6c9;
+  --color-info: #2196f3;
+  --color-info-bg: #e3f2fd;
+  --color-info-border: #b8daff;
+  --color-warn: #ff9800;
+  --color-warn-bg: #fff3e0;
+  --color-warn-border: #ffcc80;
+
+  /* Semantic text colors (text on semantic backgrounds) */
+  --color-success-text: #2e7d32;
+  --color-error-text: #c62828;
+  --color-info-text: #1565c0;
+  --color-warn-text: #e65100;
+
+  /* === Navigation === */
+  --nav-background: #424242;
+  --nav-text: #ffffff;
+
+  /* === Borders & Shadows === */
+  --border-light: #e9ecef;
+  --border-medium: #e0e0e0;
+  --border-dark: rgba(0,0,0,0.38);
+  --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  --card-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.15);
+
+  /* === Spacing === */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+
+  /* === Typography === */
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.85rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.1rem;
+  --font-size-xl: 1.5rem;
+  --font-size-xxl: 1.8rem;
+
+  /* === Border Radius === */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-pill: 12px;
+}

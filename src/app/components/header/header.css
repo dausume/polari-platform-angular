@@ -13,5 +13,14 @@
 }
 
 .mat-toolbar {
-    background-color: var(--nav-color);
+    background-color: var(--nav-background);
+    color: var(--nav-text);
+}
+
+.header-theme-toggle {
+    color: #fdd835 !important;
+}
+
+.header-theme-toggle mat-icon {
+    color: #fdd835 !important;
 }

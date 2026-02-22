@@ -1,14 +1,10 @@
-/* Container Styling */
-.create-class-container {
-    max-width: 1200px;
-    margin: 20px auto;
-    padding: 24px;
-}
+/* Component-specific styles only — container, buttons, section titles,
+   and status banners are now provided by centralized style files */
 
 mat-card {
-    background-color: #ffffff;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    background-color: var(--surface-primary);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--card-shadow);
     min-height: 500px;
     padding: 32px !important;
 }
@@ -16,20 +12,20 @@ mat-card {
 /* Header Section */
 .class-header {
     padding: 16px 0 24px 0;
-    border-bottom: 2px solid #e9ecef;
+    border-bottom: 2px solid var(--border-light);
     margin-bottom: 24px;
 }
 
 .class-header h2 {
     margin: 0 0 8px 0;
-    color: #212529;
-    font-size: 1.5em;
+    color: var(--text-primary);
+    font-size: var(--font-size-xl);
     font-weight: 600;
 }
 
 .class-header p {
     margin: 0;
-    color: #6c757d;
+    color: var(--text-tertiary);
     font-size: 0.9em;
 }
 
@@ -41,24 +37,24 @@ mat-form-field {
 }
 
 mat-form-field input {
-    color: #212529 !important;
+    color: var(--text-primary) !important;
 }
 
 /* Fix for Material form field text colors */
 ::ng-deep .mat-mdc-form-field input.mat-mdc-input-element {
-    color: #212529 !important;
+    color: var(--text-primary) !important;
 }
 
 ::ng-deep .mat-mdc-form-field .mdc-text-field--outlined .mdc-floating-label {
-    color: #495057 !important;
+    color: var(--text-secondary) !important;
 }
 
 ::ng-deep .mat-mdc-form-field .mdc-text-field--outlined:not(.mdc-text-field--disabled) .mdc-floating-label {
-    color: #495057 !important;
+    color: var(--text-secondary) !important;
 }
 
 mat-form-field mat-label {
-    color: #495057;
+    color: var(--text-secondary);
     font-weight: 500;
 }
 
@@ -68,7 +64,7 @@ mat-grid-list {
 }
 
 mat-grid-tile {
-    color: #212529;
+    color: var(--text-primary);
     align-items: flex-start !important;
 }
 
@@ -76,67 +72,10 @@ mat-grid-tile {
     padding: 12px 16px;
 }
 
-/* Save Button */
-.save-button {
-    background-color: #28a745;
-    color: #ffffff !important;
-    font-weight: 600;
-    padding: 8px 24px;
-    border-radius: 4px;
-    min-width: 120px;
-    transition: all 0.2s ease;
-}
-
-.save-button:hover {
-    background-color: #218838;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 6px rgba(40, 167, 69, 0.3);
-}
-
-.save-button:disabled {
-    background-color: #6c757d;
-    color: rgba(255, 255, 255, 0.5) !important;
-    cursor: not-allowed;
-}
-
-/* Status Messages */
-.status-message {
-    padding: 12px 16px;
-    border-radius: 4px;
-    margin: 16px 0;
-    font-weight: 500;
-}
-
-.status-success {
-    background-color: #d4edda;
-    color: #155724;
-    border: 1px solid #c3e6cb;
-}
-
-.status-error {
-    background-color: #f8d7da;
-    color: #721c24;
-    border: 1px solid #f5c6cb;
-}
-
-.status-saving {
-    background-color: #cce5ff;
-    color: #004085;
-    border: 1px solid #b8daff;
-}
-
 /* State-Space Section */
 .state-space-section {
     padding: 16px 0;
     margin-bottom: 16px;
-    border-bottom: 1px solid #dee2e6;
-}
-
-.state-space-section .section-title {
-    font-size: 1.1em;
-    font-weight: 600;
-    color: #212529;
-    margin-bottom: 12px;
 }
 
 .state-space-options {
@@ -146,8 +85,8 @@ mat-grid-tile {
 }
 
 .state-space-hint {
-    font-size: 0.85em;
-    color: #6c757d;
+    font-size: var(--font-size-sm);
+    color: var(--text-tertiary);
     margin-left: 32px;
     margin-top: -8px;
 }
@@ -167,21 +106,8 @@ mat-grid-tile {
     padding-top: 16px;
 }
 
-.variables-section-title {
-    font-size: 1.2em;
-    font-weight: 600;
-    color: #212529;
-    margin-bottom: 16px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid #dee2e6;
-}
-
 /* Responsive Design */
 @media (max-width: 768px) {
-    .create-class-container {
-        padding: 16px;
-    }
-
     mat-card {
         min-height: auto;
     }

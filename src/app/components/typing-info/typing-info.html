@@ -1,4 +1,4 @@
-<div class="typing-info-container">
+<div class="page-container-centered-wide">
   <mat-card>
     <mat-card-header>
       <mat-card-title>PolyTyped Object Analysis</mat-card-title>
@@ -10,13 +10,13 @@
 
     <mat-card-content>
       <!-- Loading State -->
-      <div *ngIf="loading" class="loading-container">
+      <div *ngIf="loading" class="state-loading-centered-with-message">
         <mat-spinner diameter="50"></mat-spinner>
         <p>Loading typing data...</p>
       </div>
 
       <!-- Error State -->
-      <div *ngIf="!loading && error" class="error-container">
+      <div *ngIf="!loading && error" class="state-error-icon-and-message">
         <mat-icon color="warn">error</mat-icon>
         <p>{{ error }}</p>
       </div>
@@ -25,7 +25,7 @@
       <div *ngIf="!loading && !error && typingData" class="typing-content">
 
         <!-- Info Banner -->
-        <div class="info-banner">
+        <div class="banner-info-blue-left-border">
           <mat-icon>info</mat-icon>
           <div class="banner-text">
             <strong>About PolyTypedObjects:</strong> These objects detect and record data types flowing through variables dynamically,
@@ -66,19 +66,19 @@
 
                 <!-- Summary Stats -->
                 <div class="summary-stats">
-                  <div class="stat-item">
+                  <div class="stat-card-large-number-with-label">
                     <div class="stat-value">{{ classData.variables.length }}</div>
                     <div class="stat-label">Variables</div>
                   </div>
-                  <div class="stat-item">
+                  <div class="stat-card-large-number-with-label">
                     <div class="stat-value">{{ getTotalTypesRecorded(classData) }}</div>
                     <div class="stat-label">Unique Types</div>
                   </div>
-                  <div class="stat-item">
+                  <div class="stat-card-large-number-with-label">
                     <div class="stat-value">{{ getTotalFormatsRecorded(classData) }}</div>
                     <div class="stat-label">Formats</div>
                   </div>
-                  <div class="stat-item">
+                  <div class="stat-card-large-number-with-label">
                     <div class="stat-value">{{ classData.identifiers.length }}</div>
                     <div class="stat-label">Identifiers</div>
                   </div>
@@ -89,7 +89,7 @@
                   <h4>Parameters</h4>
                   <div class="params-grid">
                     <div class="param-group">
-                      <span class="param-label">Required:</span>
+                      <span class="label-property-name-muted">Required:</span>
                       <mat-chip-set *ngIf="classData.requiredParams.length > 0">
                         <mat-chip *ngFor="let param of classData.requiredParams" color="warn">
                           {{ param }}
@@ -98,7 +98,7 @@
                       <span *ngIf="classData.requiredParams.length === 0" class="no-data">None</span>
                     </div>
                     <div class="param-group">
-                      <span class="param-label">Optional:</span>
+                      <span class="label-property-name-muted">Optional:</span>
                       <mat-chip-set *ngIf="classData.defaultParams.length > 0">
                         <mat-chip *ngFor="let param of classData.defaultParams">
                           {{ param }}
@@ -226,7 +226,7 @@
         </div>
 
         <!-- Empty State -->
-        <div *ngIf="!selectedClass" class="empty-state">
+        <div *ngIf="!selectedClass" class="state-empty-centered-large-icon">
           <mat-icon>touch_app</mat-icon>
           <p>Select a class to view its typing information</p>
         </div>

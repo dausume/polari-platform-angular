@@ -1,6 +1,6 @@
 .sidebar-content {
   padding: 16px;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .config-section {
@@ -10,7 +10,7 @@
 .config-section h4 {
   margin: 0 0 12px 0;
   font-size: 15px;
-  color: #222;
+  color: var(--text-primary);
 }
 
 .full-width {
@@ -19,7 +19,7 @@
 
 .section-hint {
   font-size: 12px;
-  color: #888;
+  color: var(--text-tertiary);
   margin: 0 0 12px 0;
   line-height: 1.4;
 }
@@ -27,7 +27,7 @@
 .subsection-label {
   font-size: 13px;
   font-weight: 600;
-  color: #444;
+  color: var(--text-secondary);
   margin: 12px 0 4px 0;
 }
 
@@ -54,14 +54,14 @@
 
 .color-label {
   font-size: 13px;
-  color: #444;
+  color: var(--text-secondary);
 }
 
 .color-row input[type="color"] {
   width: 32px;
   height: 24px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
   cursor: pointer;
   padding: 0;
 }
@@ -74,7 +74,7 @@ mat-slide-toggle {
 .aggregation-section {
   margin-top: 16px;
   padding-top: 12px;
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid var(--border-medium);
 }
 
 .aggregation-strategy {
@@ -84,54 +84,54 @@ mat-slide-toggle {
 /* === Force dark text on light background === */
 ::ng-deep .sidebar-content .mat-mdc-text-field-wrapper,
 ::ng-deep .sidebar-content .mdc-text-field--outlined {
-  background: #fff;
-  color: #333;
+  background: var(--surface-primary);
+  color: var(--text-primary);
 }
 
 ::ng-deep .sidebar-content .mat-mdc-form-field-input-control,
 ::ng-deep .sidebar-content .mdc-floating-label,
 ::ng-deep .sidebar-content .mat-mdc-select-value-text {
-  color: #333 !important;
+  color: var(--text-primary) !important;
 }
 
 ::ng-deep .sidebar-content .mdc-notched-outline__leading,
 ::ng-deep .sidebar-content .mdc-notched-outline__notch,
 ::ng-deep .sidebar-content .mdc-notched-outline__trailing {
-  border-color: rgba(0, 0, 0, 0.38) !important;
+  border-color: var(--border-dark) !important;
 }
 
 ::ng-deep .sidebar-content .mat-expansion-panel {
-  background: #fff;
-  color: #333;
+  background: var(--surface-primary);
+  color: var(--text-primary);
 }
 
 ::ng-deep .sidebar-content .mat-expansion-panel-header {
-  background: #f5f5f5 !important;
+  background: var(--surface-secondary) !important;
 }
 
 ::ng-deep .sidebar-content .mat-expansion-panel-header:hover {
-  background: #ebebeb !important;
+  background: var(--surface-hover) !important;
 }
 
 ::ng-deep .sidebar-content .mat-expansion-panel-header-title,
 ::ng-deep .sidebar-content .mat-expansion-panel-header-description {
-  color: #333;
+  color: var(--text-primary);
 }
 
 ::ng-deep .sidebar-content .mat-expansion-panel-body {
-  color: #333;
+  color: var(--text-primary);
 }
 
 ::ng-deep .sidebar-content .mat-expansion-indicator svg {
-  fill: #666;
+  fill: var(--text-secondary);
 }
 
 ::ng-deep .sidebar-content .mdc-switch + label,
 ::ng-deep .sidebar-content mat-slide-toggle {
-  color: #333;
+  color: var(--text-primary);
 }
 
 /* mat-select dropdown option text */
 ::ng-deep .sidebar-content .mat-mdc-option .mdc-list-item__primary-text {
-  color: #333;
+  color: var(--text-primary);
 }

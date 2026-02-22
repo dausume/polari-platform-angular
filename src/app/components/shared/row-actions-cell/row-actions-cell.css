@@ -38,7 +38,7 @@
 }
 
 .edit-btn {
-  color: #1976d2;
+  color: var(--brand-blue);
 }
 
 .edit-btn:hover:not([disabled]) {
@@ -54,7 +54,7 @@
 }
 
 .cancel-btn {
-  color: #757575;
+  color: var(--text-tertiary);
 }
 
 .cancel-btn:hover:not([disabled]) {
@@ -66,8 +66,8 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  background-color: #fff3e0;
-  border-radius: 4px;
+  background-color: var(--color-warn-bg);
+  border-radius: var(--radius-sm);
   padding: 2px 8px;
   animation: fadeIn 0.2s ease;
 }
@@ -86,12 +86,12 @@
 .confirm-text {
   font-size: 12px;
   font-weight: 500;
-  color: #e65100;
+  color: var(--brand-orange-dark);
   margin-right: 4px;
 }
 
 .confirm-btn {
-  color: #d32f2f;
+  color: var(--color-error);
 }
 
 .confirm-btn:hover {
@@ -111,7 +111,7 @@
 
 /* Custom button colors */
 .custom-btn.mat-primary {
-  color: #1976d2;
+  color: var(--brand-blue);
 }
 
 .custom-btn.mat-accent {
@@ -119,5 +119,5 @@
 }
 
 .custom-btn.mat-warn {
-  color: #f44336;
+  color: var(--color-error);
 }

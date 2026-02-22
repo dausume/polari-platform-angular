@@ -1,4 +1,4 @@
-<div class="manager-info-container">
+<div class="page-container-centered-with-padding">
   <mat-card>
     <mat-card-header>
       <mat-card-title>Manager Object Information</mat-card-title>
@@ -9,13 +9,13 @@
 
     <mat-card-content>
       <!-- Loading State -->
-      <div *ngIf="loading" class="loading-container">
+      <div *ngIf="loading" class="state-loading-centered-with-message">
         <mat-spinner diameter="50"></mat-spinner>
         <p>Loading manager data...</p>
       </div>
 
       <!-- Error State -->
-      <div *ngIf="!loading && error" class="error-container">
+      <div *ngIf="!loading && error" class="state-error-icon-and-message">
         <mat-icon color="warn">error</mat-icon>
         <p>{{ error }}</p>
       </div>
@@ -25,9 +25,9 @@
         <!-- Basic Properties -->
         <div class="info-section">
           <h3>Basic Properties</h3>
-          <div class="property-grid">
-            <div class="property-item">
-              <span class="property-label">Database:</span>
+          <div class="grid-property-list-auto-fit">
+            <div class="property-item-label-value-gray">
+              <span class="label-property-name-muted">Database:</span>
               <span class="property-value database-mode">
                 <mat-icon>{{ getDatabaseModeIcon() }}</mat-icon>
                 {{ getDatabaseModeLabel() }}

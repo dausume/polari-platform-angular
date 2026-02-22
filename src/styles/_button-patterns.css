@@ -1,0 +1,68 @@
+/* =================================================================
+   Button Patterns
+   Primary, accent, secondary, and danger button styles.
+   ================================================================= */
+
+/* Button - Primary Blue Filled */
+.button-primary-blue-filled {
+  background-color: #007bff !important;
+  color: var(--text-on-primary) !important;
+  font-weight: 600;
+  padding: 8px 20px;
+  border-radius: var(--radius-sm);
+  transition: all 0.2s ease;
+}
+
+.button-primary-blue-filled:hover {
+  background-color: #0056b3 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 123, 255, 0.3);
+}
+
+/* Button - Accent Green Filled */
+.button-accent-green-filled {
+  background-color: var(--brand-green) !important;
+  color: var(--text-on-primary) !important;
+  font-weight: 600;
+  padding: 8px 20px;
+  border-radius: var(--radius-sm);
+  transition: all 0.2s ease;
+}
+
+.button-accent-green-filled:hover {
+  background-color: #218838 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(40, 167, 69, 0.3);
+}
+
+/* Button - Secondary Gray Filled */
+.button-secondary-gray-filled {
+  background-color: #6c757d !important;
+  color: var(--text-on-primary) !important;
+  font-weight: 600;
+  padding: 8px 20px;
+  border-radius: var(--radius-sm);
+  transition: all 0.2s ease;
+}
+
+.button-secondary-gray-filled:hover {
+  background-color: #5a6268 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(108, 117, 125, 0.3);
+}
+
+/* Button - Danger Red Filled */
+.button-danger-red-filled {
+  background-color: var(--color-error) !important;
+  color: var(--text-on-primary) !important;
+  font-weight: 600;
+  padding: 8px 20px;
+  border-radius: var(--radius-sm);
+  transition: all 0.2s ease;
+}
+
+.button-danger-red-filled:hover {
+  background-color: #c62828 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(211, 47, 47, 0.3);
+}

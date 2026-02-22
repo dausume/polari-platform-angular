@@ -1,8 +1,5 @@
-.typing-info-container {
-  padding: 20px;
-  max-width: 1400px;
-  margin: 0 auto;
-}
+/* Component-specific styles only — layout, state, banner, and stat patterns
+   are now provided by the centralized style files */
 
 mat-card {
   margin-bottom: 20px;
@@ -18,55 +15,13 @@ mat-card-header {
 mat-card-title {
   font-size: 28px;
   font-weight: 600;
-  color: #1976d2;
+  color: var(--brand-blue);
 }
 
 mat-card-subtitle {
   font-size: 14px;
-  color: rgba(0, 0, 0, 0.6);
+  color: var(--text-secondary);
   margin-top: 8px;
-}
-
-/* Loading State */
-.loading-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 60px;
-}
-
-.loading-container p {
-  margin-top: 16px;
-  color: rgba(0, 0, 0, 0.6);
-}
-
-/* Error State */
-.error-container {
-  display: flex;
-  align-items: center;
-  padding: 20px;
-  color: #d32f2f;
-}
-
-.error-container mat-icon {
-  margin-right: 12px;
-}
-
-/* Info Banner */
-.info-banner {
-  display: flex;
-  align-items: flex-start;
-  padding: 16px;
-  background-color: #e3f2fd;
-  border-left: 4px solid #2196f3;
-  border-radius: 4px;
-  margin-bottom: 24px;
-}
-
-.info-banner mat-icon {
-  margin-right: 12px;
-  color: #1976d2;
 }
 
 .banner-text {
@@ -84,7 +39,7 @@ mat-card-subtitle {
   font-size: 20px;
   font-weight: 500;
   margin-bottom: 16px;
-  color: rgba(0, 0, 0, 0.87);
+  color: var(--text-primary);
 }
 
 .filter-field {
@@ -105,11 +60,11 @@ mat-card-subtitle {
 }
 
 .class-chips mat-chip:hover {
-  background-color: #e3f2fd;
+  background-color: var(--brand-blue-light);
 }
 
 .class-chips mat-chip.selected {
-  background-color: #2196f3;
+  background-color: var(--color-info);
   color: white;
 }
 
@@ -119,12 +74,12 @@ mat-card-subtitle {
 }
 
 .detail-card {
-  background-color: #fafafa;
+  background-color: var(--surface-tertiary);
 }
 
 .detail-card mat-card-title {
   font-size: 24px;
-  color: #1976d2;
+  color: var(--brand-blue);
 }
 
 /* Summary Stats */
@@ -134,44 +89,24 @@ mat-card-subtitle {
   gap: 16px;
   margin-bottom: 32px;
   padding: 20px;
-  background-color: white;
-  border-radius: 8px;
-}
-
-.stat-item {
-  text-align: center;
-  padding: 12px;
-  border-radius: 4px;
-  background-color: #f5f5f5;
-}
-
-.stat-value {
-  font-size: 32px;
-  font-weight: 700;
-  color: #1976d2;
-}
-
-.stat-label {
-  font-size: 12px;
-  text-transform: uppercase;
-  color: rgba(0, 0, 0, 0.6);
-  margin-top: 4px;
+  background-color: var(--surface-primary);
+  border-radius: var(--radius-lg);
 }
 
 /* Sections */
 .section {
   margin-bottom: 32px;
   padding: 20px;
-  background-color: white;
-  border-radius: 8px;
+  background-color: var(--surface-primary);
+  border-radius: var(--radius-lg);
 }
 
 .section h4 {
   font-size: 18px;
   font-weight: 500;
   margin-bottom: 16px;
-  color: rgba(0, 0, 0, 0.87);
-  border-bottom: 2px solid #e0e0e0;
+  color: var(--text-primary);
+  border-bottom: 2px solid var(--border-medium);
   padding-bottom: 8px;
 }
 
@@ -188,14 +123,8 @@ mat-card-subtitle {
   gap: 8px;
 }
 
-.param-label {
-  font-weight: 500;
-  color: rgba(0, 0, 0, 0.6);
-  font-size: 14px;
-}
-
 .no-data {
-  color: rgba(0, 0, 0, 0.4);
+  color: var(--text-disabled);
   font-style: italic;
 }
 
@@ -214,12 +143,12 @@ mat-card-subtitle {
   height: 16px;
   width: 16px;
   margin-left: 8px;
-  color: #ff9800;
+  color: var(--brand-orange);
   vertical-align: middle;
 }
 
 .type-chip {
-  background-color: #4caf50 !important;
+  background-color: var(--brand-green) !important;
   color: white !important;
   font-size: 12px;
 }
@@ -239,16 +168,16 @@ mat-card-subtitle {
 
 .occupation-card {
   padding: 16px;
-  background-color: #f5f5f5;
-  border-radius: 8px;
-  border-left: 4px solid #1976d2;
+  background-color: var(--surface-secondary);
+  border-radius: var(--radius-lg);
+  border-left: 4px solid var(--brand-blue);
 }
 
 .occupation-card h5 {
   font-size: 16px;
   font-weight: 500;
   margin-bottom: 12px;
-  color: #1976d2;
+  color: var(--brand-blue);
 }
 
 .occupation-stats {
@@ -265,12 +194,12 @@ mat-card-subtitle {
 }
 
 .occupation-stat .label {
-  color: rgba(0, 0, 0, 0.6);
+  color: var(--text-secondary);
 }
 
 .occupation-stat .value {
   font-weight: 600;
-  color: rgba(0, 0, 0, 0.87);
+  color: var(--text-primary);
 }
 
 /* References */
@@ -285,39 +214,18 @@ mat-card-subtitle {
   align-items: center;
   gap: 12px;
   padding: 12px;
-  background-color: #f5f5f5;
-  border-radius: 4px;
-  border-left: 4px solid #ff9800;
+  background-color: var(--surface-secondary);
+  border-radius: var(--radius-sm);
+  border-left: 4px solid var(--brand-orange);
 }
 
 .reference-item mat-icon {
-  color: #ff9800;
+  color: var(--brand-orange);
 }
 
 .ref-class {
   font-weight: 500;
   min-width: 150px;
-}
-
-/* Empty State */
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 60px;
-  color: rgba(0, 0, 0, 0.4);
-}
-
-.empty-state mat-icon {
-  font-size: 64px;
-  height: 64px;
-  width: 64px;
-  margin-bottom: 16px;
-}
-
-.empty-state p {
-  font-size: 16px;
 }
 
 /* Responsive Design */

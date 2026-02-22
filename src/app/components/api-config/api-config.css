@@ -1,8 +1,5 @@
-.api-config-container {
-  padding: 20px;
-  max-width: 1400px;
-  margin: 0 auto;
-}
+/* Component-specific styles only — layout, state, banner, and typography
+   patterns are now provided by the centralized style files */
 
 /* Header */
 .page-header {
@@ -10,53 +7,26 @@
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 20px;
+  background-color: var(--surface-primary);
+  color: var(--text-primary);
+  padding: 16px 20px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--card-shadow);
 }
 
-.header-content h1 {
-  margin: 0;
-  font-size: 1.8rem;
-  color: #333;
+.page-header h1 {
+  color: var(--text-primary) !important;
 }
 
 .subtitle {
   margin: 5px 0 0;
-  color: #666;
+  color: var(--text-secondary) !important;
   font-size: 0.95rem;
-}
-
-/* Loading and Error States */
-.loading-container,
-.error-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 60px 20px;
-  text-align: center;
-}
-
-.loading-container p,
-.error-container p {
-  margin-top: 15px;
-  color: #666;
-}
-
-.error-container mat-icon {
-  font-size: 48px;
-  height: 48px;
-  width: 48px;
 }
 
 /* Filter Card */
 .filter-card {
   margin-bottom: 15px;
-}
-
-.filter-row {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  flex-wrap: wrap;
 }
 
 .filter-field {
@@ -72,7 +42,7 @@
 
 .stats {
   margin-left: auto;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 /* Legend */
@@ -81,8 +51,8 @@
   align-items: center;
   gap: 15px;
   padding: 10px 15px;
-  background: #f5f5f5;
-  border-radius: 4px;
+  background: var(--surface-secondary);
+  border-radius: var(--radius-sm);
   margin-bottom: 15px;
   flex-wrap: wrap;
 }
@@ -91,8 +61,8 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 0.85rem;
-  color: #555;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
 }
 
 .legend-icon {
@@ -108,16 +78,16 @@
 }
 
 .legend-divider {
-  color: #ccc;
+  color: var(--border-medium);
 }
 
 .legend-check {
-  color: #4caf50;
+  color: var(--brand-green);
   font-size: 18px;
 }
 
 .legend-close {
-  color: #f44336;
+  color: var(--color-error);
   font-size: 18px;
 }
 
@@ -132,9 +102,9 @@
 
 /* Table Styles */
 .permission-matrix th {
-  background: #f5f5f5 !important;
+  background: var(--surface-secondary) !important;
   font-weight: 600;
-  color: #333 !important;
+  color: var(--text-primary) !important;
 }
 
 .permission-matrix td,
@@ -143,7 +113,7 @@
 }
 
 .permission-matrix .mat-header-cell {
-  color: #333 !important;
+  color: var(--text-primary) !important;
   font-weight: 600;
 }
 
@@ -151,7 +121,7 @@
   text-align: center;
   width: 50px;
   font-weight: bold;
-  color: #333 !important;
+  color: var(--text-primary) !important;
 }
 
 .crud-cell {
@@ -164,65 +134,58 @@
   font-size: 0.95rem;
 }
 
-.endpoint {
-  display: block;
-  font-size: 0.8rem;
-  color: #888;
-  font-family: monospace;
-}
-
 /* Type Chips */
 .type-chip {
   display: inline-block;
   padding: 3px 8px;
-  border-radius: 12px;
-  font-size: 0.75rem;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-xs);
   font-weight: 500;
 }
 
 .type-framework {
-  background: #e3f2fd;
-  color: #1565c0;
+  background: var(--brand-blue-light);
+  color: var(--color-info-text);
 }
 
 .type-server {
-  background: #fff3e0;
-  color: #e65100;
+  background: var(--color-warn-bg);
+  color: var(--brand-orange-dark);
 }
 
 .type-user {
-  background: #e8f5e9;
-  color: #2e7d32;
+  background: var(--brand-green-light);
+  color: var(--brand-green-dark);
 }
 
 /* Permission Icons */
 .permission-allowed mat-icon {
-  color: #4caf50;
+  color: var(--brand-green);
 }
 
 .permission-denied mat-icon {
-  color: #f44336;
+  color: var(--color-error);
 }
 
 .permission-readonly mat-icon {
-  color: #9e9e9e;
+  color: var(--text-tertiary);
 }
 
 .permission-none mat-icon {
-  color: #e0e0e0;
+  color: var(--border-medium);
 }
 
 /* Row States */
 .mat-row.base-object {
-  background: #fafafa;
+  background: var(--surface-tertiary) !important;
 }
 
 .mat-row.user-created:hover {
-  background: #f5f5f5;
+  background: var(--surface-hover) !important;
 }
 
 .mat-row.editing {
-  background: #fff3e0;
+  background: var(--color-warn-bg) !important;
 }
 
 /* Actions */
@@ -231,24 +194,8 @@
 }
 
 .readonly-icon {
-  color: #9e9e9e;
+  color: var(--text-tertiary);
 }
-
-/* No Data */
-.no-data {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 40px;
-  color: #999;
-}
-
-.no-data mat-icon {
-  font-size: 48px;
-  height: 48px;
-  width: 48px;
-}
-
 
 /* ===== API Formats Tab ===== */
 
@@ -264,33 +211,15 @@
 }
 
 .format-icon.tree {
-  color: #1565c0;
+  color: var(--color-info-text);
 }
 
 .format-icon.flat {
-  color: #2e7d32;
+  color: var(--brand-green-dark);
 }
 
 .format-icon.d3 {
-  color: #e65100;
-}
-
-/* Error Banner */
-.error-banner {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 15px;
-  background: #ffebee;
-  border: 1px solid #ef9a9a;
-  border-radius: 4px;
-  margin-bottom: 15px;
-  color: #c62828;
-  font-size: 0.9rem;
-}
-
-.error-banner button {
-  margin-left: auto;
+  color: var(--brand-orange-dark);
 }
 
 /* Format Matrix Table */
@@ -299,9 +228,9 @@
 }
 
 .format-matrix th {
-  background: #f5f5f5 !important;
+  background: var(--surface-secondary) !important;
   font-weight: 600;
-  color: #333 !important;
+  color: var(--text-primary) !important;
 }
 
 .format-matrix td,
@@ -326,7 +255,7 @@
 }
 
 .format-always-on {
-  color: #1565c0;
+  color: var(--color-info-text);
   font-size: 22px;
 }
 
@@ -338,16 +267,6 @@
   margin-bottom: 2px;
 }
 
-.endpoint-label {
-  display: inline-block;
-  font-family: monospace;
-  font-size: 0.8rem;
-  color: #555;
-  background: #f5f5f5;
-  padding: 2px 6px;
-  border-radius: 3px;
-}
-
 /* Prefix Display and Editing */
 .format-prefix-row {
   margin-top: 4px;
@@ -355,18 +274,18 @@
 
 .prefix-label {
   font-size: 0.8rem;
-  color: #888;
+  color: var(--text-tertiary);
   font-family: monospace;
 }
 
 .prefix-label.clickable {
   cursor: pointer;
-  border-bottom: 1px dashed #aaa;
+  border-bottom: 1px dashed var(--border-dark);
 }
 
 .prefix-label.clickable:hover {
-  color: #1565c0;
-  border-bottom-color: #1565c0;
+  color: var(--color-info-text);
+  border-bottom-color: var(--color-info-text);
 }
 
 .prefix-edit {
@@ -377,14 +296,14 @@
 
 .prefix-input {
   font-family: monospace;
-  font-size: 0.85rem;
+  font-size: var(--font-size-sm);
   padding: 4px 8px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
   width: 120px;
 }
 
 .prefix-input:focus {
   outline: none;
-  border-color: #1565c0;
+  border-color: var(--color-info-text);
 }

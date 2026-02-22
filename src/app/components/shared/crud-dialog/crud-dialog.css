@@ -11,7 +11,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 16px 24px;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--border-medium);
   margin: 0;
 }
 
@@ -22,7 +22,7 @@
 }
 
 .header-icon {
-  color: #1976d2;
+  color: var(--brand-blue);
   font-size: 28px;
   width: 28px;
   height: 28px;
@@ -31,11 +31,11 @@
 .header-title {
   font-size: 20px;
   font-weight: 500;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .close-btn {
-  color: #757575;
+  color: var(--text-tertiary);
 }
 
 /* Content */
@@ -51,10 +51,10 @@
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  background-color: #ffebee;
-  border: 1px solid #ef9a9a;
-  border-radius: 4px;
-  color: #c62828;
+  background-color: var(--color-error-bg);
+  border: 1px solid var(--color-error-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-error);
   margin-bottom: 24px;
 }
 
@@ -68,7 +68,7 @@
 
 .error-banner button {
   margin: -8px -8px -8px 0;
-  color: #c62828;
+  color: var(--color-error);
 }
 
 /* Form Grid - Two Column Layout */
@@ -90,12 +90,12 @@
 .field-label {
   font-size: 13px;
   font-weight: 500;
-  color: #666;
+  color: var(--text-secondary);
   margin-bottom: 6px;
 }
 
 .required-indicator {
-  color: #f44336;
+  color: var(--color-error);
   margin-left: 2px;
 }
 
@@ -109,7 +109,7 @@
   display: flex;
   align-items: center;
   padding: 12px 24px;
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid var(--border-medium);
   gap: 8px;
 }
 
@@ -118,7 +118,7 @@
 }
 
 .delete-btn {
-  color: #f44336;
+  color: var(--color-error);
 }
 
 .delete-btn mat-icon {

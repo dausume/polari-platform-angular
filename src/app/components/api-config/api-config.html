@@ -1,8 +1,8 @@
-<div class="api-config-container">
+<div class="page-container-centered-wide">
   <!-- Header -->
   <div class="page-header">
     <div class="header-content">
-      <h1>API Configuration</h1>
+      <h1 class="page-title-large-bold">API Configuration</h1>
       <p class="subtitle">View and manage CRUDE permissions and API formats for registered objects</p>
     </div>
     <button mat-icon-button (click)="refresh()" [disabled]="loading" matTooltip="Refresh">
@@ -11,13 +11,13 @@
   </div>
 
   <!-- Loading State -->
-  <div *ngIf="loading" class="loading-container">
+  <div *ngIf="loading" class="state-loading-centered-with-message">
     <mat-spinner diameter="50"></mat-spinner>
     <p>Loading API configuration...</p>
   </div>
 
   <!-- Error State -->
-  <div *ngIf="!loading && error" class="error-container">
+  <div *ngIf="!loading && error" class="state-error-centered-with-retry">
     <mat-icon color="warn">error</mat-icon>
     <p>{{ error }}</p>
     <button mat-raised-button color="primary" (click)="refresh()">Retry</button>
@@ -28,7 +28,7 @@
 
     <!-- Filter Controls (shared across tabs) -->
     <mat-card class="filter-card">
-      <div class="filter-row">
+      <div class="filter-row-horizontal-flex">
         <mat-form-field appearance="outline" class="filter-field">
           <mat-label>Filter objects</mat-label>
           <input matInput [(ngModel)]="filterText" placeholder="Search by name...">
@@ -83,7 +83,7 @@
                 <th mat-header-cell *matHeaderCellDef>Object</th>
                 <td mat-cell *matCellDef="let obj">
                   <span class="class-name">{{ obj.className }}</span>
-                  <span class="endpoint" *ngIf="obj.crudeEndpoint">{{ obj.crudeEndpoint }}</span>
+                  <span class="text-monospace-endpoint" *ngIf="obj.crudeEndpoint">{{ obj.crudeEndpoint }}</span>
                 </td>
               </ng-container>
 
@@ -243,7 +243,7 @@
             </table>
 
             <!-- No Data Message -->
-            <div *ngIf="filteredObjects.length === 0" class="no-data">
+            <div *ngIf="filteredObjects.length === 0" class="state-no-data-centered">
               <mat-icon>inbox</mat-icon>
               <p>No objects match your filters</p>
             </div>
@@ -271,7 +271,7 @@
             </div>
 
             <!-- Format Error Banner -->
-            <div *ngIf="formatError" class="error-banner">
+            <div *ngIf="formatError" class="banner-error-red-with-dismiss">
               <mat-icon color="warn">error</mat-icon>
               <span>{{ formatError }}</span>
               <button mat-icon-button (click)="formatError = null">
@@ -308,7 +308,7 @@
                   </th>
                   <td mat-cell *matCellDef="let obj" class="format-cell">
                     <mat-icon class="format-always-on">check_circle</mat-icon>
-                    <span class="endpoint-label" *ngIf="getFormatEndpoint(obj, 'polariTree')">
+                    <span class="text-monospace-endpoint" *ngIf="getFormatEndpoint(obj, 'polariTree')">
                       {{ getFormatEndpoint(obj, 'polariTree') }}
                     </span>
                   </td>
@@ -329,7 +329,7 @@
                       </mat-slide-toggle>
                     </div>
                     <div class="format-endpoint-row" *ngIf="isFormatEnabled(obj, 'flatJson')">
-                      <span class="endpoint-label">{{ getFormatEndpoint(obj, 'flatJson') }}</span>
+                      <span class="text-monospace-endpoint">{{ getFormatEndpoint(obj, 'flatJson') }}</span>
                     </div>
                     <div class="format-prefix-row">
                       <ng-container *ngIf="!isEditingPrefix(obj, 'flatJson')">
@@ -373,7 +373,7 @@
                       </mat-slide-toggle>
                     </div>
                     <div class="format-endpoint-row" *ngIf="isFormatEnabled(obj, 'd3Column')">
-                      <span class="endpoint-label">{{ getFormatEndpoint(obj, 'd3Column') }}</span>
+                      <span class="text-monospace-endpoint">{{ getFormatEndpoint(obj, 'd3Column') }}</span>
                     </div>
                     <div class="format-prefix-row">
                       <ng-container *ngIf="!isEditingPrefix(obj, 'd3Column')">
@@ -409,7 +409,7 @@
               </table>
 
               <!-- No Data Message -->
-              <div *ngIf="filteredObjects.length === 0" class="no-data">
+              <div *ngIf="filteredObjects.length === 0" class="state-no-data-centered">
                 <mat-icon>inbox</mat-icon>
                 <p>No objects match your filters</p>
               </div>

@@ -1,34 +1,34 @@
-<div class="polari-config-container">
+<div class="page-container-centered-narrow">
     <mat-card>
         <mat-card-title>Polari Configuration</mat-card-title>
 
         <!-- Connection Status -->
-        <div class="connection-status pending" *ngIf="this.polariService.connectionPendingSubject | async">
+        <div class="connection-status-indicator pending" *ngIf="this.polariService.connectionPendingSubject | async">
             <mat-icon>autorenew</mat-icon>
             <span>Connection Pending</span>
         </div>
-        <div class="connection-status success" *ngIf="this.polariService.connectionSuccessSubject | async">
+        <div class="connection-status-indicator success" *ngIf="this.polariService.connectionSuccessSubject | async">
             <mat-icon>check</mat-icon>
             <span>Connected</span>
         </div>
-        <div class="connection-status failure" *ngIf="this.polariService.connectionFailureSubject | async">
+        <div class="connection-status-indicator failure" *ngIf="this.polariService.connectionFailureSubject | async">
             <mat-icon>error</mat-icon>
             <span>Connection Failed!</span>
         </div>
 
         <!-- Connection Buttons -->
         <div class="button-group">
-            <button mat-raised-button class="connect-button" (click)="attemptPolariConnection()">
+            <button mat-raised-button class="button-accent-green-filled" (click)="attemptPolariConnection()">
                 Connect
             </button>
-            <button mat-raised-button class="disconnect-button" (click)="disconnectFromPolari()">
+            <button mat-raised-button class="button-danger-red-filled" (click)="disconnectFromPolari()">
                 Disconnect
             </button>
         </div>
 
         <!-- Configuration Section -->
         <div class="config-section">
-            <h3 class="config-section-title">Connection Settings</h3>
+            <h3 class="section-title-bold-with-bottom-border">Connection Settings</h3>
 
             <!-- IP Address Field -->
             <mat-form-field appearance="outline" [formControl]="ipNumFormControl">
@@ -36,7 +36,7 @@
                 <input type="text" matInput [formControl]="ipNumFormControl" [(ngModel)]="ipNum" placeholder="000.000.0.00">
             </mat-form-field>
 
-            <div class="current-value" *ngIf="(this.polariService.userEntry_ipv4NumSubject | async) !== ''">
+            <div class="text-current-value-indicator" *ngIf="(this.polariService.userEntry_ipv4NumSubject | async) !== ''">
                 <strong>Current Value:</strong> {{this.polariService.userEntry_ipv4NumSubject | async}}
             </div>
 
@@ -46,13 +46,13 @@
                 <input type="text" matInput [formControl]="portNumFormControl" [(ngModel)]="portNum" placeholder="0000">
             </mat-form-field>
 
-            <div class="current-value" *ngIf="(this.polariService.userEntry_portNumSubject | async) !== ''">
+            <div class="text-current-value-indicator" *ngIf="(this.polariService.userEntry_portNumSubject | async) !== ''">
                 <strong>Current Value:</strong> {{this.polariService.userEntry_portNumSubject | async}}
             </div>
         </div>
 
         <!-- Note Section -->
-        <div class="note-section">
+        <div class="banner-note-blue-left-border note-spacing">
             <h4>Note: On connecting to a computer over wifi</h4>
             <p>
                 For connecting to another computer over wifi, such as if you hosted the Polari Angular Frontend on one computer
@@ -65,8 +65,8 @@
         </div>
 
         <!-- JSON Display -->
-        <div class="json-display">
-            <div class="json-display-title">Polari-Host's Base Server Data - JSON Format</div>
+        <div class="text-json-display-block">
+            <div class="json-title">Polari-Host's Base Server Data - JSON Format</div>
             <pre>{{this.polariService.connectionDataSubject | async | json}}</pre>
         </div>
     </mat-card>

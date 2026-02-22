@@ -1,4 +1,4 @@
-<div class="create-class-container">
+<div class="page-container-centered-with-padding">
     <mat-card>
         <!-- Header -->
         <div class="class-header">
@@ -24,14 +24,14 @@
                 </mat-form-field>
             </mat-grid-tile>
             <mat-grid-tile>
-                <button mat-raised-button class="save-button" (click)="saveClass()" [disabled]="classNameControl.invalid || saveStatus === 'saving'">
+                <button mat-raised-button class="button-accent-green-filled" (click)="saveClass()" [disabled]="classNameControl.invalid || saveStatus === 'saving'">
                     {{ saveStatus === 'saving' ? 'Saving...' : 'Save Class' }}
                 </button>
             </mat-grid-tile>
         </mat-grid-list>
 
         <!-- Status Message -->
-        <div *ngIf="saveMessage" class="status-message" [ngClass]="{
+        <div *ngIf="saveMessage" class="status-message-banner" [ngClass]="{
             'status-success': saveStatus === 'success',
             'status-error': saveStatus === 'error',
             'status-saving': saveStatus === 'saving'
@@ -41,7 +41,7 @@
 
         <!-- State-Space Configuration -->
         <div class="state-space-section">
-            <h3 class="section-title">State-Space Configuration</h3>
+            <h3 class="section-title-bold-with-bottom-border">State-Space Configuration</h3>
             <div class="state-space-options">
                 <mat-checkbox [(ngModel)]="isStateSpaceObject" color="primary">
                     Enable as State-Space Object
@@ -64,7 +64,7 @@
 
         <!-- Variables Section -->
         <div class="variables-section">
-            <h3 class="variables-section-title">Class Variables</h3>
+            <h3 class="section-title-bold-with-bottom-border">Class Variables</h3>
             <variable-modifier></variable-modifier>
         </div>
     </mat-card>

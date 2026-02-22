@@ -9,10 +9,9 @@
   }
 
   .cell-actions button mat-icon {
-    color: #212529 !important;
+    color: var(--text-primary) !important;
   }
 
   .cell-actions button:hover mat-icon {
-    color: #007bff !important;
+    color: var(--brand-blue) !important;
   }
-  

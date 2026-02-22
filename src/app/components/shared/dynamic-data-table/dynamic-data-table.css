@@ -1,9 +1,9 @@
 .dynamic-data-table {
   display: flex;
   flex-direction: column;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  background: var(--surface-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--card-shadow);
   overflow: hidden;
 }
 
@@ -13,8 +13,8 @@
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  border-bottom: 1px solid #e0e0e0;
-  background: #fafafa;
+  border-bottom: 1px solid var(--border-medium);
+  background: var(--surface-tertiary);
 }
 
 .header-left {
@@ -27,12 +27,12 @@
   margin: 0;
   font-size: 18px;
   font-weight: 500;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .record-count {
   font-size: 13px;
-  color: #888;
+  color: var(--text-tertiary);
 }
 
 .header-actions {
@@ -64,9 +64,9 @@
   align-items: center;
   gap: 12px;
   padding: 12px 20px;
-  background-color: #ffebee;
-  border-bottom: 1px solid #ef9a9a;
-  color: #c62828;
+  background-color: var(--color-error-bg);
+  border-bottom: 1px solid var(--color-error-border);
+  color: var(--color-error);
 }
 
 .error-banner mat-icon:first-child {
@@ -79,7 +79,7 @@
 
 .error-banner button {
   margin: -8px -8px -8px 0;
-  color: #c62828;
+  color: var(--color-error);
 }
 
 /* Loading */
@@ -90,7 +90,7 @@
   justify-content: center;
   padding: 40px;
   gap: 16px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .table-container.loading {
@@ -110,8 +110,8 @@
 
 .data-table th {
   font-weight: 600;
-  color: #333;
-  background: #f5f5f5;
+  color: var(--text-primary);
+  background: var(--surface-secondary);
 }
 
 .data-table td {
@@ -134,11 +134,11 @@
 }
 
 .mat-row:hover {
-  background-color: #f5f5f5;
+  background-color: var(--surface-secondary);
 }
 
 .mat-row.editing {
-  background-color: #e3f2fd;
+  background-color: var(--brand-blue-light);
 }
 
 .mat-row.editing:hover {
@@ -159,7 +159,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: #888;
+  color: var(--text-tertiary);
   gap: 8px;
 }
 
@@ -167,12 +167,12 @@
   font-size: 48px;
   width: 48px;
   height: 48px;
-  color: #ccc;
+  color: var(--border-medium);
 }
 
 /* Paginator */
 ::ng-deep .mat-mdc-paginator {
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid var(--border-medium);
 }
 
 /* Spin animation for refresh */

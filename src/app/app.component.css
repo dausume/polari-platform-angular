@@ -15,13 +15,32 @@ mat-sidenav-container {
   }
   
   .sidenav-toggle {
-    color: #3f51b5;
+    color: var(--text-primary) !important;
+    background-color: var(--surface-primary) !important;
+    box-shadow: var(--card-shadow);
+    border-radius: var(--radius-md);
+    min-width: 40px !important;
+    width: 40px;
+    height: 40px;
+    padding: 0 !important;
+    margin: 4px 0 0 4px;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .sidenav-toggle:hover {
+    background-color: var(--surface-hover) !important;
+    box-shadow: var(--card-shadow-hover);
   }
 
   .sidenav-toggle mat-icon {
-    font-size: 28px;
-    width: 28px;
-    height: 28px;
+    font-size: 24px;
+    width: 24px;
+    height: 24px;
+    color: var(--text-primary) !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
   mat-sidenav {
@@ -48,7 +67,7 @@ mat-sidenav-container {
   }
 
   form {
-      background-color: white;
+      background-color: var(--surface-primary);
   }
 
   /* Object Pages Dropdown Styles */
@@ -93,7 +112,7 @@ mat-sidenav-container {
   /* Unused Objects Dropdown Styles */
   .unused-header {
     background-color: rgba(128, 128, 128, 0.1);
-    color: #666;
+    color: var(--text-tertiary);
     font-style: italic;
   }
 
@@ -102,12 +121,12 @@ mat-sidenav-container {
   }
 
   .unused-items {
-    border-left-color: #999;
+    border-left-color: var(--text-tertiary);
     background-color: rgba(128, 128, 128, 0.05);
   }
 
   .unused-item {
-    color: #777;
+    color: var(--text-tertiary);
     opacity: 0.85;
   }
 
@@ -151,29 +170,29 @@ mat-sidenav-container {
   /* Framework Objects - blue theme */
   .sub-framework-header {
     background-color: rgba(63, 81, 181, 0.08);
-    color: #3f51b5;
+    color: var(--brand-indigo);
   }
 
   .sub-framework-items {
-    border-left-color: #3f51b5;
+    border-left-color: var(--brand-indigo);
     background-color: rgba(63, 81, 181, 0.03);
   }
 
   /* Custom Objects - green theme */
   .sub-custom-header {
     background-color: rgba(76, 175, 80, 0.08);
-    color: #2e7d32;
+    color: var(--brand-green-dark);
   }
 
   .sub-custom-items {
-    border-left-color: #4caf50;
+    border-left-color: var(--brand-green);
     background-color: rgba(76, 175, 80, 0.03);
   }
 
   /* Material Science Objects - orange/amber theme */
   .sub-materials-header {
     background-color: rgba(255, 152, 0, 0.08);
-    color: #e65100;
+    color: var(--brand-orange-dark);
   }
 
   .sub-materials-header:hover {
@@ -181,6 +200,6 @@ mat-sidenav-container {
   }
 
   .sub-materials-items {
-    border-left-color: #ff9800;
+    border-left-color: var(--brand-orange);
     background-color: rgba(255, 152, 0, 0.03);
   }
