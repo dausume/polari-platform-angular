@@ -3,4 +3,7 @@ export interface DisplaySummary {
     name: string;
     description: string;
     source_class: string;
+    linkedSolutions?: string[];
+    isPage?: boolean;
+    pageRoute?: string;
 }

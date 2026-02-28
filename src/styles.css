@@ -98,6 +98,10 @@ mat-card,
   color: var(--text-primary) !important;
 }
 
+.mat-mdc-option .mdc-list-item__primary-text {
+  color: var(--text-primary) !important;
+}
+
 .mat-mdc-select-panel .mat-mdc-option:hover:not(.mdc-list-item--disabled),
 .mat-mdc-select-panel .mat-mdc-option.mdc-list-item--selected:not(.mdc-list-item--disabled) {
   background-color: var(--surface-hover) !important;
@@ -214,9 +218,36 @@ mat-card,
   color: var(--text-primary) !important;
 }
 
+/* --- Mat Form Field Placeholder --- */
+/* Hidden by default — floating labels are sufficient.
+   Shown as subtle gray when the field is focused so the user
+   still gets the hint while typing. */
+.mat-mdc-form-field input::placeholder,
+.mat-mdc-form-field textarea::placeholder,
+.mat-mdc-form-field .mat-mdc-input-element::placeholder {
+  color: transparent !important;
+  transition: color 0.2s ease;
+}
+
+.mat-mdc-form-field.mat-focused input::placeholder,
+.mat-mdc-form-field.mat-focused textarea::placeholder,
+.mat-mdc-form-field.mat-focused .mat-mdc-input-element::placeholder {
+  color: var(--text-tertiary) !important;
+  opacity: 1 !important;
+}
+
 /* --- Mat Checkbox --- */
 .mat-mdc-checkbox .mdc-form-field label {
   color: var(--text-primary) !important;
+}
+
+.mat-mdc-checkbox .mdc-checkbox__background {
+  border-color: var(--border-dark) !important;
+}
+
+.mat-mdc-checkbox.mat-mdc-checkbox-checked .mdc-checkbox__background {
+  border-color: var(--brand-blue) !important;
+  background-color: var(--brand-blue) !important;
 }
 
 /* --- Mat Button (stroked / flat / basic) --- */

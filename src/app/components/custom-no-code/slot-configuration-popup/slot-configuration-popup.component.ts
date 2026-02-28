@@ -15,19 +15,12 @@ import {
 export type InputMappingMode = 'object_state' | 'function_input';
 
 /**
- * Output trigger type - when the output fires
- * - reactive: Fires when state changes at any point during execution
- * - functional: Fires when the state's operations complete
- */
-export type OutputTriggerType = 'reactive' | 'functional';
-
-/**
  * Slot mapping mode for outputs
  *
- * - proceed_only: Just proceed to next state without passing data (functional only)
- * - instance_state: Outputs from source instance property (reactive or functional based on triggerType)
- * - function_return: Return value from function call with selected context values (functional only)
- * - variable_passthrough: Named variable from input, potentially modified, passed to next state (functional only)
+ * - proceed_only: Just proceed to next state without passing data
+ * - instance_state: Outputs from source instance property
+ * - function_return: Return value from function call with selected context values
+ * - variable_passthrough: Named variable from input, potentially modified, passed to next state
  * - produced_variable: Output a variable created by this state (e.g., VariableAssignment, MathOperation)
  */
 export type OutputMappingMode = 'proceed_only' | 'instance_state' | 'function_return' | 'variable_passthrough' | 'produced_variable';
@@ -76,6 +69,19 @@ export const SLOT_COLORS = [
 ];
 
 /**
+ * Represents a connection on a slot (either outgoing from output or incoming to input)
+ */
+export interface SlotConnectionInfo {
+  connectorId: number;
+  /** The state that owns the output slot (source of the connector) */
+  sourceStateName: string;
+  sourceSlotIndex: number;
+  /** The state that owns the input slot (target of the connector) */
+  targetStateName: string;
+  targetSlotIndex: number;
+}
+
+/**
  * Configuration for a single slot
  */
 export interface SlotConfiguration {
@@ -84,6 +90,9 @@ export interface SlotConfiguration {
   isInput: boolean;
   color: string;
   mappingMode: InputMappingMode | OutputMappingMode;
+  /** Full name of the slot (unlimited length) */
+  name?: string;
+  /** Short abbreviation displayed on the visual marker (max 3 characters) */
   label?: string;
   parameterName?: string;
   parameterType?: string;
@@ -91,8 +100,6 @@ export interface SlotConfiguration {
   description?: string;
 
   // Output-specific configuration
-  /** For outputs: reactive (on change) vs functional (on completion) */
-  triggerType?: OutputTriggerType;
   /** For state-based outputs: which instance the output is sourced from */
   sourceInstance?: OutputSourceInstance;
   /** For state-based outputs: the specific property/field path to output */
@@ -138,9 +145,15 @@ export class SlotConfigurationPopupComponent implements OnInit, AfterViewInit, O
   @Input() stateClass: string = '';
   /** Variables produced by this state (e.g., new variable from VariableAssignment) */
   @Input() producedVariables: ProducedVariable[] = [];
+  /** Connections on this slot (outgoing for outputs, incoming for inputs) */
+  @Input() connections: SlotConnectionInfo[] = [];
 
   @Output() configurationChanged = new EventEmitter<SlotConfiguration>();
   @Output() closed = new EventEmitter<void>();
+  /** Emitted when the user requests to remove a connection */
+  @Output() connectionRemoved = new EventEmitter<SlotConnectionInfo>();
+  /** Emitted when the user requests to delete this slot entirely */
+  @Output() slotDeleted = new EventEmitter<SlotConfiguration>();
 
   @ViewChild('popupContainer') popupContainer!: ElementRef<HTMLDivElement>;
 
@@ -156,7 +169,7 @@ export class SlotConfigurationPopupComponent implements OnInit, AfterViewInit, O
     { value: 'function_input', label: 'Function Input Parameter', description: 'Map input to a function parameter' }
   ];
 
-  // Functional-only output modes (only available when triggerType is 'functional')
+  // Output modes
   functionalOnlyOutputModes = [
     { value: 'proceed_only', label: 'Proceed Only', description: 'Just proceed to next state without passing data' },
     { value: 'function_return', label: 'Function Return', description: 'Return selected values from context' },
@@ -205,23 +218,30 @@ export class SlotConfigurationPopupComponent implements OnInit, AfterViewInit, O
     this.editedConfig = { ...this.configuration };
     this.adjustedPosition = { ...this.position };
 
-    // Set default trigger type for outputs if not already set
-    if (!this.editedConfig.isInput && !this.editedConfig.triggerType) {
-      this.editedConfig.triggerType = 'functional';
-    }
-
     // Set default source instance for outputs if not set
     if (!this.editedConfig.isInput && !this.editedConfig.sourceInstance) {
       this.editedConfig.sourceInstance = 'solution_instance';
     }
 
-    // Set default mapping mode for outputs if using old mode values
+    // Auto-select correct output mode
     if (!this.editedConfig.isInput) {
       const mode = this.editedConfig.mappingMode as string;
-      if (mode === 'object_state_signal' || mode === 'object_state_output' || mode === 'function_return') {
-        // Migrate old modes to new instance_state mode
-        if (mode === 'object_state_signal' || mode === 'object_state_output') {
-          this.editedConfig.mappingMode = 'instance_state';
+
+      // Migrate legacy mode values
+      if (mode === 'object_state_signal' || mode === 'object_state_output') {
+        this.editedConfig.mappingMode = 'instance_state';
+      }
+
+      // For conditional states, force output mode to proceed_only since
+      // conditional outputs are strictly branching (true/false routing).
+      if (this.isConditionalState()) {
+        this.editedConfig.mappingMode = 'proceed_only';
+      } else {
+        // For other output slots, if the current mode isn't a valid output mode,
+        // default to proceed_only
+        const validOutputModes = ['proceed_only', 'instance_state', 'function_return', 'variable_passthrough', 'produced_variable'];
+        if (!validOutputModes.includes(this.editedConfig.mappingMode as string)) {
+          this.editedConfig.mappingMode = 'proceed_only';
         }
       }
     }
@@ -340,17 +360,6 @@ export class SlotConfigurationPopupComponent implements OnInit, AfterViewInit, O
   }
 
   /**
-   * Handle trigger type selection (reactive vs functional)
-   */
-  onTriggerTypeSelect(triggerType: OutputTriggerType): void {
-    this.editedConfig.triggerType = triggerType;
-    // When switching to reactive, instance_state is the only option
-    if (triggerType === 'reactive') {
-      this.editedConfig.mappingMode = 'instance_state';
-    }
-  }
-
-  /**
    * Handle source instance selection
    */
   onSourceInstanceSelect(source: string): void {
@@ -408,7 +417,21 @@ export class SlotConfigurationPopupComponent implements OnInit, AfterViewInit, O
    * Check if this is an InitialState
    */
   isInitialState(): boolean {
-    return this.stateClass === 'InitialState';
+    return this.stateClass === 'InitialState' || this.stateClass === 'DirectInvocation';
+  }
+
+  /**
+   * Check if this is a conditional state (ConditionalChain)
+   */
+  isConditionalState(): boolean {
+    return this.stateClass === 'ConditionalChain';
+  }
+
+  /**
+   * Check if this is a sub-solution / nested solution state
+   */
+  isSolutionState(): boolean {
+    return this.stateClass.startsWith('Solution_');
   }
 
   /**
@@ -436,20 +459,33 @@ export class SlotConfigurationPopupComponent implements OnInit, AfterViewInit, O
   }
 
   /**
-   * Get available output modes based on context
-   * For InitialState: only proceed_only and instance_state (solution object)
-   * For other control flow states: proceed_only, instance_state
-   * For regular states: all modes
+   * Get available output modes based on state type and context.
+   *
+   * Filtering rules:
+   * - Conditional states (ConditionalChain): outputs are strictly branching (true/false),
+   *   only proceed_only is available since they route flow, not data.
+   * - Sub-solution / nested solution states: function_return is available (returns from the sub-solution).
+   * - All other states: proceed_only, instance_state, variable_passthrough, produced_variable
+   *   based on context. function_return is NOT available for regular states.
    */
-  getAvailableFunctionalOutputModes(): { value: string; label: string; description: string }[] {
-    console.log('[SlotConfigPopup] getAvailableFunctionalOutputModes called');
-    console.log('[SlotConfigPopup] hasSolutionObject:', this.hasSolutionObject());
-    console.log('[SlotConfigPopup] hasFlowVariables:', this.hasFlowVariables());
-    console.log('[SlotConfigPopup] hasProducedVariables:', this.hasProducedVariables());
+  getAvailableOutputModes(): { value: string; label: string; description: string }[] {
+    console.log('[SlotConfigPopup] getAvailableOutputModes called');
+    console.log('[SlotConfigPopup] stateClass:', this.stateClass);
 
     const modes: { value: string; label: string; description: string }[] = [];
 
-    // Proceed only is always available for functional outputs
+    // Conditional states: outputs are strictly branching (true/false).
+    // Only proceed_only is meaningful — the output just routes to the next state.
+    if (this.isConditionalState()) {
+      modes.push({
+        value: 'proceed_only',
+        label: 'Proceed Only',
+        description: 'Branch to the next state based on condition result'
+      });
+      return modes;
+    }
+
+    // Proceed only is always available
     modes.push({
       value: 'proceed_only',
       label: 'Proceed Only',
@@ -465,12 +501,12 @@ export class SlotConfigurationPopupComponent implements OnInit, AfterViewInit, O
       });
     }
 
-    // Function return with context selection - available if we have any context or produced variables
-    if (this.hasSolutionObject() || this.hasFlowVariables() || this.hasProducedVariables()) {
+    // Function return — only available for sub-solution / nested solution states
+    if (this.isSolutionState()) {
       modes.push({
         value: 'function_return',
         label: 'Function Return',
-        description: 'Return selected values from available context'
+        description: 'Return selected values from the sub-solution'
       });
     }
 
@@ -691,5 +727,45 @@ export class SlotConfigurationPopupComponent implements OnInit, AfterViewInit, O
    */
   getConditionExpression(): string {
     return this.editedConfig.conditionExpression || '';
+  }
+
+  // ==================== Connection Methods ====================
+
+  /**
+   * Get the display label for a connection (the "other side" state name)
+   */
+  getConnectionLabel(conn: SlotConnectionInfo): string {
+    if (this.editedConfig.isInput) {
+      return conn.sourceStateName;
+    }
+    return conn.targetStateName;
+  }
+
+  /**
+   * Get the display detail for a connection (slot index on the other side)
+   */
+  getConnectionDetail(conn: SlotConnectionInfo): string {
+    if (this.editedConfig.isInput) {
+      return `Output slot #${conn.sourceSlotIndex}`;
+    }
+    return `Input slot #${conn.targetSlotIndex}`;
+  }
+
+  /**
+   * Remove a connection
+   */
+  onRemoveConnection(conn: SlotConnectionInfo, event: MouseEvent): void {
+    event.stopPropagation();
+    this.connectionRemoved.emit(conn);
+    // Remove from local list so the UI updates immediately
+    this.connections = this.connections.filter(c => c.connectorId !== conn.connectorId);
+  }
+
+  /**
+   * Delete this slot entirely
+   */
+  onDeleteSlot(): void {
+    this.slotDeleted.emit(this.configuration);
+    this.closed.emit();
   }
 }

@@ -40,15 +40,25 @@
   <!-- Scrollable content area -->
   <div class="popup-content">
 
-    <!-- Slot Label -->
+    <!-- Slot Name -->
     <div class="config-section">
-      <label class="section-label">Label</label>
+      <label class="section-label">Name</label>
+      <input type="text"
+             class="text-input"
+             [(ngModel)]="editedConfig.name"
+             placeholder="e.g., Order Input, Validation Result">
+      <p class="section-hint">Full name for this slot</p>
+    </div>
+
+    <!-- Slot Abbreviation -->
+    <div class="config-section">
+      <label class="section-label">Abbreviation</label>
       <input type="text"
              class="text-input"
              [(ngModel)]="editedConfig.label"
              maxlength="3"
              placeholder="e.g., I0, O1">
-      <p class="section-warning">Max 3 characters (displayed on slot marker)</p>
+      <p class="section-hint">Max 3 characters (displayed on slot marker)</p>
     </div>
 
     <!-- Color Selection -->
@@ -85,76 +95,11 @@
       </div>
     </div>
 
-    <!-- Output Trigger Type Selection -->
+    <!-- Output Mode Selection (Context-Aware) -->
     <div class="config-section" *ngIf="!editedConfig.isInput">
-      <label class="section-label">Output Trigger Type</label>
-      <div class="trigger-type-tabs">
-        <button class="trigger-tab"
-                [class.active]="editedConfig.triggerType === 'reactive'"
-                (click)="onTriggerTypeSelect('reactive')">
-          <mat-icon>sync</mat-icon>
-          <span>Reactive</span>
-        </button>
-        <button class="trigger-tab"
-                [class.active]="editedConfig.triggerType === 'functional'"
-                (click)="onTriggerTypeSelect('functional')">
-          <mat-icon>done_all</mat-icon>
-          <span>Functional</span>
-        </button>
-      </div>
-      <p class="section-hint" *ngIf="editedConfig.triggerType === 'reactive'">
-        Fires when state changes during execution
-      </p>
-      <p class="section-hint" *ngIf="editedConfig.triggerType === 'functional'">
-        Fires when operations complete
-      </p>
-    </div>
-
-    <!-- Source Instance Selection (for reactive outputs - always instance state) -->
-    <div class="config-section" *ngIf="!editedConfig.isInput && editedConfig.triggerType === 'reactive'">
-      <label class="section-label">Source Instance</label>
-      <div class="mapping-modes">
-        <div *ngFor="let source of sourceInstanceOptions"
-             class="mapping-option compact"
-             [class.selected]="editedConfig.sourceInstance === source.value"
-             (click)="onSourceInstanceSelect(source.value)">
-          <div class="option-header">
-            <mat-icon class="option-radio">
-              {{ editedConfig.sourceInstance === source.value ? 'radio_button_checked' : 'radio_button_unchecked' }}
-            </mat-icon>
-            <span class="option-label">{{ source.label }}</span>
-          </div>
-          <p class="option-description">{{ source.description }}</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- Property Path (for reactive outputs) -->
-    <div class="config-section" *ngIf="!editedConfig.isInput && editedConfig.triggerType === 'reactive'">
-      <label class="section-label">Property Path</label>
-      <!-- Show dropdown if we have solution object fields -->
-      <select *ngIf="getSolutionObjectFields().length > 0"
-              class="text-input"
-              [(ngModel)]="editedConfig.propertyPath">
-        <option value="">-- Select a field --</option>
-        <option *ngFor="let field of getSolutionObjectFields()" [value]="field.path">
-          {{ field.displayName }} ({{ field.type }})
-        </option>
-      </select>
-      <!-- Fallback to text input if no fields available -->
-      <input *ngIf="getSolutionObjectFields().length === 0"
-             type="text"
-             class="text-input"
-             [(ngModel)]="editedConfig.propertyPath"
-             placeholder="e.g., status, items.length, user.name">
-      <p class="section-hint">The property to monitor for changes</p>
-    </div>
-
-    <!-- Functional Output Mode Selection (Context-Aware) -->
-    <div class="config-section" *ngIf="!editedConfig.isInput && editedConfig.triggerType === 'functional'">
       <label class="section-label">Output Source</label>
       <div class="mapping-modes">
-        <div *ngFor="let mode of getAvailableFunctionalOutputModes()"
+        <div *ngFor="let mode of getAvailableOutputModes()"
              class="mapping-option compact"
              [class.selected]="editedConfig.mappingMode === mode.value"
              (click)="onMappingModeSelect(mode.value)">
@@ -177,8 +122,8 @@
       </div>
     </div>
 
-    <!-- Source Instance Selection (for functional instance_state) -->
-    <div class="config-section" *ngIf="!editedConfig.isInput && editedConfig.triggerType === 'functional' && editedConfig.mappingMode === 'instance_state'">
+    <!-- Source Instance Selection (for instance_state) -->
+    <div class="config-section" *ngIf="!editedConfig.isInput && editedConfig.mappingMode === 'instance_state'">
       <label class="section-label">Source Instance</label>
       <div class="mapping-modes">
         <div *ngFor="let source of sourceInstanceOptions"
@@ -196,8 +141,8 @@
       </div>
     </div>
 
-    <!-- Property Path (for functional instance_state) -->
-    <div class="config-section" *ngIf="!editedConfig.isInput && editedConfig.triggerType === 'functional' && editedConfig.mappingMode === 'instance_state'">
+    <!-- Property Path (for instance_state) -->
+    <div class="config-section" *ngIf="!editedConfig.isInput && editedConfig.mappingMode === 'instance_state'">
       <label class="section-label">Property Path</label>
       <!-- Show dropdown if we have solution object fields -->
       <select *ngIf="getSolutionObjectFields().length > 0"
@@ -328,10 +273,45 @@
                 rows="2"></textarea>
     </div>
 
+    <!-- Connections -->
+    <div class="config-section" *ngIf="connections && connections.length > 0">
+      <label class="section-label">
+        Connections
+        <span class="selection-count">({{ connections.length }})</span>
+      </label>
+      <div class="connections-list">
+        <div *ngFor="let conn of connections" class="connection-item">
+          <mat-icon class="connection-icon">{{ editedConfig.isInput ? 'arrow_back' : 'arrow_forward' }}</mat-icon>
+          <div class="connection-info">
+            <span class="connection-state-name">{{ getConnectionLabel(conn) }}</span>
+            <span class="connection-slot-detail">{{ getConnectionDetail(conn) }}</span>
+          </div>
+          <button class="connection-remove-btn"
+                  title="Remove connection"
+                  (click)="onRemoveConnection(conn, $event)">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- No Connections Info -->
+    <div class="config-section" *ngIf="!connections || connections.length === 0">
+      <label class="section-label">Connections</label>
+      <div class="info-box no-connections-info">
+        <mat-icon>link_off</mat-icon>
+        <p>No connections on this slot</p>
+      </div>
+    </div>
+
   </div>
 
   <!-- Actions (fixed at bottom) -->
   <div class="popup-actions">
+    <button class="action-btn delete-btn" (click)="onDeleteSlot()" title="Delete this slot">
+      <mat-icon>delete</mat-icon>
+    </button>
+    <div class="action-spacer"></div>
     <button class="action-btn cancel-btn" (click)="onCancel()">Cancel</button>
     <button class="action-btn save-btn" (click)="onSave()">Save</button>
   </div>

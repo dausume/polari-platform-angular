@@ -9,6 +9,8 @@ import { PolariService } from '@services/polari-service';
 import {ClassTypingService} from '@services/class-typing-service'
 import { polariNode } from '@models/polariNode';
 import { CRUDEservicesManager } from '@services/crude-services-manager';
+import { DisplayManagerService } from '@services/dashboard/display-manager.service';
+import { DisplaySummary } from '@models/dashboards/DisplaySummary';
 
 
 @Component({
@@ -43,6 +45,8 @@ export class AppComponent {
   unusedClassNavComponents: navComponent[] = [];   // Classes WITHOUT instances
   objectPagesExpanded: boolean = false;
   unusedPagesExpanded: boolean = false;
+  publishedDisplayPages: DisplaySummary[] = [];
+  displayPagesExpanded: boolean = false;
 
   // Sub-category expanded state for Object Pages
   objectPagesSubExpanded: { framework: boolean; custom: boolean; materials_science: boolean } = {
@@ -53,13 +57,16 @@ export class AppComponent {
     framework: false, custom: false, materials_science: false
   };
 
-  constructor(router: Router, polariService: PolariService, typingService: ClassTypingService, crudeServicesManager: CRUDEservicesManager)
+  private displayManager: DisplayManagerService;
+
+  constructor(router: Router, polariService: PolariService, typingService: ClassTypingService, crudeServicesManager: CRUDEservicesManager, displayManager: DisplayManagerService)
   {
     this.router = router
     this.polariService = polariService
     this.typingService = typingService;
     this.navComponentsFromPolari = [];
     this.crudeServicesManager = crudeServicesManager;
+    this.displayManager = displayManager;
     this.activeNavComponentsData = []
     this.setActiveNavComponentsData()
   }
@@ -90,6 +97,12 @@ export class AppComponent {
       this.unusedClassNavComponents = classList;
       console.log('[AppComponent] Unused class pages (no instances) updated:', classList.length);
     });
+
+    // Subscribe to published display pages
+    this.displayManager.publishedDisplays$.subscribe(pages => {
+      this.publishedDisplayPages = pages;
+    });
+    this.displayManager.fetchPublishedDisplays();
   }
 
   // Toggle the object pages dropdown
@@ -120,6 +133,17 @@ export class AppComponent {
   // Filter unused class nav components by object category
   getUnusedPagesByCategory(category: ObjectCategory): navComponent[] {
     return this.unusedClassNavComponents.filter(nav => nav.objectCategory === category);
+  }
+
+  // Toggle the display pages dropdown
+  toggleDisplayPages() {
+    this.displayPagesExpanded = !this.displayPagesExpanded;
+  }
+
+  // Navigate to a published display page
+  navigateToDisplayPage(display: DisplaySummary) {
+    this.currentComponentTitle = display.name || 'Display Page';
+    this.router.navigate(['/display', display.id]);
   }
 
   // Navigate to a dynamic class page

@@ -20,6 +20,15 @@ export class Display {
     /** Timestamp of last modification */
     lastModified?: number;
 
+    /** Solution names linked to this display */
+    linkedSolutions: string[] = [];
+
+    /** Whether this display is published as a standalone page */
+    isPage: boolean = false;
+
+    /** URL-friendly slug for the page route */
+    pageRoute?: string;
+
     constructor(id?: string, name?: string, description?: string) {
         this.id = id || this.generateId();
         this.name = name || '';
@@ -89,10 +98,61 @@ export class Display {
     }
 
     /**
+     * Links a solution to this display
+     */
+    linkSolution(name: string): void {
+        if (!this.linkedSolutions.includes(name)) {
+            this.linkedSolutions.push(name);
+            this.lastModified = Date.now();
+        }
+    }
+
+    /**
+     * Unlinks a solution from this display
+     */
+    unlinkSolution(name: string): void {
+        const idx = this.linkedSolutions.indexOf(name);
+        if (idx !== -1) {
+            this.linkedSolutions.splice(idx, 1);
+            this.lastModified = Date.now();
+        }
+    }
+
+    /**
+     * Publishes this display as a standalone page
+     */
+    publishAsPage(): void {
+        this.isPage = true;
+        this.pageRoute = this.generatePageRoute();
+        this.lastModified = Date.now();
+    }
+
+    /**
+     * Unpublishes this display as a standalone page
+     */
+    unpublishAsPage(): void {
+        this.isPage = false;
+        this.lastModified = Date.now();
+    }
+
+    /**
+     * Generates a URL-friendly slug from the display name
+     */
+    generatePageRoute(): string {
+        return (this.name || 'untitled')
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-|-$/g, '');
+    }
+
+    /**
      * Creates a deep clone of this dashboard
      */
     clone(): Display {
         const cloned = new Display(this.id + '-clone', this.name, this.description);
+        cloned.linkedSolutions = [...this.linkedSolutions];
+        cloned.isPage = this.isPage;
+        cloned.pageRoute = this.pageRoute;
         this.rows.forEach(row => {
             // Create new row with same configuration
             const clonedRow = new DisplayRow(

@@ -3,7 +3,8 @@
 // State management service for No-Code Solutions with localStorage caching
 
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable } from 'rxjs';
+import { BehaviorSubject, Observable, Subject } from 'rxjs';
+import { debounceTime } from 'rxjs/operators';
 import { NoCodeState } from '@models/noCode/NoCodeState';
 import { Slot } from '@models/noCode/Slot';
 import { Connector } from '@models/noCode/Connector';
@@ -13,7 +14,8 @@ import {
   SlotRawData,
   ConnectorRawData,
   MOCK_SOLUTIONS,
-  getAvailableSolutionNames
+  getAvailableSolutionNames,
+  TargetRuntime
 } from '@models/noCode/mock-NCS-data';
 import { StateDefinition } from '@models/noCode/StateDefinition';
 import {
@@ -24,6 +26,7 @@ import {
   BranchPoint,
   CONTROL_FLOW_STATE_TYPES
 } from '@models/stateSpace/solutionContext';
+import { SolutionManagerService } from './solution-manager.service';
 
 /**
  * Cache structure stored in localStorage
@@ -36,7 +39,7 @@ interface SolutionCache {
 }
 
 const CACHE_KEY = 'polari-no-code-solutions-cache';
-const CACHE_VERSION = 4; // Bump version when mock data changes to force cache invalidation
+const CACHE_VERSION = 9; // Bump version when mock data changes to force cache invalidation
 
 @Injectable({
   providedIn: 'root'
@@ -61,8 +64,140 @@ export class NoCodeSolutionStateService {
   private loadingSubject = new BehaviorSubject<boolean>(false);
   public loading$ = this.loadingSubject.asObservable();
 
-  constructor() {
+  // Backend save debouncer
+  private backendSaveSubject = new Subject<void>();
+
+  // Map of solutionName → backend ID for updates
+  private backendIdMap: Map<string, string> = new Map();
+
+  // Whether backend is available
+  private backendAvailable = false;
+
+  constructor(private solutionManager: SolutionManagerService) {
+    // Set up debounced backend saves (save 2 seconds after last mutation)
+    this.backendSaveSubject.pipe(
+      debounceTime(2000)
+    ).subscribe(() => {
+      this.saveAllToBackend();
+    });
+
     this.initializeFromCache();
+  }
+
+  /**
+   * Try to load solutions from backend, then initialize.
+   * Backend data is authoritative — it replaces the local cache entirely.
+   */
+  initializeFromBackend(): void {
+    console.log('[StateService] Attempting to load solutions from backend...');
+    this.loadingSubject.next(true);
+    this.solutionManager.loadAllSolutions().subscribe({
+      next: (solutions: NoCodeSolutionRawData[]) => {
+        console.log('[StateService] Backend returned', solutions.length, 'solutions');
+        this.loadingSubject.next(false);
+
+        if (solutions.length > 0) {
+          this.backendAvailable = true;
+          const previousSelection = this.selectedSolutionNameSubject.value;
+          this.solutionsCache.clear();
+
+          solutions.forEach(solution => {
+            this.solutionsCache.set(solution.solutionName, solution);
+            // Store backend ID mapping
+            if ((solution as any)._backendId) {
+              this.backendIdMap.set(solution.solutionName, (solution as any)._backendId);
+            }
+          });
+
+          this.updateAvailableSolutions();
+          this.saveToLocalStorage();
+
+          // Force re-select so component renders the backend version of the data.
+          // Reset the subject first so the subscription fires even for the same name.
+          const targetSolution = (previousSelection && this.solutionsCache.has(previousSelection))
+            ? previousSelection
+            : solutions[0].solutionName;
+
+          this.selectedSolutionNameSubject.next(null);
+          this.selectSolution(targetSolution);
+
+          console.log('[StateService] Backend data loaded. Selected:', targetSolution);
+        } else {
+          // Backend returned 0 solutions — seed with mock data
+          console.log('[StateService] Backend empty, seeding with mock data...');
+          this.backendAvailable = true;
+          this.seedBackendWithMockData();
+        }
+      },
+      error: (err: any) => {
+        console.warn('[StateService] Backend not available, using local data:', err);
+        this.loadingSubject.next(false);
+        this.backendAvailable = false;
+        // Fall back to local cache / mock data (already done in constructor)
+      }
+    });
+  }
+
+  /**
+   * Seed the backend with mock data when it has no solutions
+   */
+  private seedBackendWithMockData(): void {
+    MOCK_SOLUTIONS.forEach(solution => {
+      this.solutionsCache.set(solution.solutionName, solution);
+      this.solutionManager.createSolution(solution).subscribe({
+        next: (response: any) => {
+          const id = response?.id;
+          if (id) {
+            this.backendIdMap.set(solution.solutionName, id);
+          }
+          console.log('[StateService] Seeded backend with:', solution.solutionName);
+        },
+        error: (err: any) => console.warn('[StateService] Failed to seed:', solution.solutionName, err)
+      });
+    });
+
+    this.updateAvailableSolutions();
+    this.saveToLocalStorage();
+
+    if (MOCK_SOLUTIONS.length > 0) {
+      this.selectSolution(MOCK_SOLUTIONS[0].solutionName);
+    }
+  }
+
+  /**
+   * Save all current solutions to backend (debounced)
+   */
+  private saveAllToBackend(): void {
+    if (!this.backendAvailable) return;
+
+    this.solutionsCache.forEach((solution, name) => {
+      const backendId = this.backendIdMap.get(name);
+      if (backendId) {
+        this.solutionManager.saveSolution(backendId, solution).subscribe({
+          next: () => console.log('[StateService] Saved to backend:', name),
+          error: (err: any) => console.warn('[StateService] Backend save failed for:', name, err)
+        });
+      } else {
+        // No backend ID yet — create it
+        this.solutionManager.createSolution(solution).subscribe({
+          next: (response: any) => {
+            const id = response?.id;
+            if (id) {
+              this.backendIdMap.set(name, id);
+            }
+            console.log('[StateService] Created on backend:', name);
+          },
+          error: (err: any) => console.warn('[StateService] Backend create failed for:', name, err)
+        });
+      }
+    });
+  }
+
+  /**
+   * Trigger a debounced backend save
+   */
+  private scheduleBackendSave(): void {
+    this.backendSaveSubject.next();
   }
 
   /**
@@ -151,7 +286,7 @@ export class NoCodeSolutionStateService {
   }
 
   /**
-   * Save current state to localStorage
+   * Save current state to localStorage and schedule backend save
    */
   private saveToLocalStorage(): void {
     try {
@@ -170,6 +305,9 @@ export class NoCodeSolutionStateService {
     } catch (error) {
       console.warn('Failed to save solutions to localStorage:', error);
     }
+
+    // Also schedule a debounced save to backend
+    this.scheduleBackendSave();
   }
 
   /**
@@ -213,6 +351,29 @@ export class NoCodeSolutionStateService {
   }
 
   /**
+   * Get solutions whose boundClass matches the given className,
+   * optionally filtered by targetRuntime.
+   */
+  getSolutionsByBoundClass(className: string, runtime?: TargetRuntime): { name: string; data: NoCodeSolutionRawData }[] {
+    const results: { name: string; data: NoCodeSolutionRawData }[] = [];
+    this.solutionsCache.forEach((data, name) => {
+      if (data.boundClass && data.boundClass.className === className) {
+        if (!runtime || data.targetRuntime === runtime) {
+          results.push({ name, data });
+        }
+      }
+    });
+    return results;
+  }
+
+  /**
+   * Convenience wrapper: get frontend (TypeScript) solutions bound to a class.
+   */
+  getFrontendSolutionsForClass(className: string): { name: string; data: NoCodeSolutionRawData }[] {
+    return this.getSolutionsByBoundClass(className, 'typescript_frontend');
+  }
+
+  /**
    * Convert raw slot data to Slot instance
    */
   private convertRawSlotToSlot(raw: SlotRawData): Slot {
@@ -240,6 +401,9 @@ export class NoCodeSolutionStateService {
     if (raw.color !== undefined) {
       (slot as any).color = raw.color;
     }
+    if (raw.name !== undefined) {
+      (slot as any).name = raw.name;
+    }
     if (raw.label !== undefined) {
       (slot as any).label = raw.label;
     }
@@ -258,9 +422,6 @@ export class NoCodeSolutionStateService {
     if (raw.returnType !== undefined) {
       (slot as any).returnType = raw.returnType;
     }
-    if (raw.triggerType !== undefined) {
-      (slot as any).triggerType = raw.triggerType;
-    }
     if (raw.sourceInstance !== undefined) {
       (slot as any).sourceInstance = raw.sourceInstance;
     }
@@ -269,6 +430,18 @@ export class NoCodeSolutionStateService {
     }
     if (raw.passthroughVariableName !== undefined) {
       (slot as any).passthroughVariableName = raw.passthroughVariableName;
+    }
+    if (raw.isConditional !== undefined) {
+      (slot as any).isConditional = raw.isConditional;
+    }
+    if (raw.conditionExpression !== undefined) {
+      (slot as any).conditionExpression = raw.conditionExpression;
+    }
+    if (raw.conditionLabel !== undefined) {
+      (slot as any).conditionLabel = raw.conditionLabel;
+    }
+    if (raw.conditionalGroup !== undefined) {
+      (slot as any).conditionalGroup = raw.conditionalGroup;
     }
 
     return slot;
@@ -398,6 +571,59 @@ export class NoCodeSolutionStateService {
     }
 
     this.saveToLocalStorage();
+  }
+
+  /**
+   * Rename a state within a solution.
+   * Updates the state's own name, all connector references from other states,
+   * and slot stateName properties.
+   * Returns true if the rename succeeded.
+   */
+  renameState(solutionName: string, oldName: string, newName: string): boolean {
+    const solution = this.solutionsCache.get(solutionName);
+    if (!solution) return false;
+
+    // Validate: new name must be non-empty and not already taken
+    const trimmedName = newName.trim();
+    if (!trimmedName) return false;
+    if (trimmedName === oldName) return true; // No change needed
+    if (solution.stateInstances.some(s => s.stateName === trimmedName)) return false;
+
+    // 1. Update the state's own name
+    const state = solution.stateInstances.find(s => s.stateName === oldName);
+    if (!state) return false;
+    state.stateName = trimmedName;
+
+    // 2. Update slot stateName references on this state
+    if (state.slots) {
+      for (const slot of state.slots) {
+        if (slot.stateName === oldName) {
+          slot.stateName = trimmedName;
+        }
+      }
+    }
+
+    // 3. Update all connector targetStateName references across ALL states
+    for (const otherState of solution.stateInstances) {
+      if (!otherState.slots) continue;
+      for (const slot of otherState.slots) {
+        if (!slot.connectors) continue;
+        for (const conn of slot.connectors) {
+          if (conn.targetStateName === oldName) {
+            conn.targetStateName = trimmedName;
+          }
+        }
+      }
+    }
+
+    // Persist
+    this.solutionsCache.set(solutionName, solution);
+    if (this.selectedSolutionNameSubject.value === solutionName) {
+      this.selectedSolutionDataSubject.next({ ...solution });
+    }
+    this.saveToLocalStorage();
+
+    return true;
   }
 
   /**
@@ -535,6 +761,48 @@ export class NoCodeSolutionStateService {
   }
 
   /**
+   * Remove a slot from a state, including cleaning up all connectors referencing it.
+   */
+  removeSlotFromState(solutionName: string, stateName: string, slotIndex: number): void {
+    const solution = this.solutionsCache.get(solutionName);
+    if (!solution) return;
+
+    const state = solution.stateInstances.find(s => s.stateName === stateName);
+    if (!state || !state.slots) return;
+
+    // Remove connectors on OTHER states that target this slot
+    for (const otherState of solution.stateInstances) {
+      if (!otherState.slots) continue;
+      for (const slot of otherState.slots) {
+        if (!slot.connectors) continue;
+        slot.connectors = slot.connectors.filter(c => {
+          // Remove connectors that target the deleted slot
+          if (c.targetStateName === stateName && c.sinkSlot === slotIndex) return false;
+          // Remove connectors sourced from the deleted slot
+          if (otherState.stateName === stateName && c.sourceSlot === slotIndex) return false;
+          return true;
+        });
+      }
+    }
+
+    // Remove the slot itself
+    state.slots = state.slots.filter(s => s.index !== slotIndex);
+
+    // Re-index remaining slots to keep indices contiguous
+    state.slots.forEach((s, i) => {
+      s.index = i;
+    });
+
+    this.solutionsCache.set(solutionName, solution);
+
+    if (this.selectedSolutionNameSubject.value === solutionName) {
+      this.selectedSolutionDataSubject.next({ ...solution });
+    }
+
+    this.saveToLocalStorage();
+  }
+
+  /**
    * Update a slot's angular position (called after slot drag ends)
    */
   updateSlotAngularPosition(solutionName: string, stateName: string, slotIndex: number, angularPosition: number): void {
@@ -618,6 +886,9 @@ export class NoCodeSolutionStateService {
         this.solutionsCache.set(solutionName, solution);
         this.saveToLocalStorage();
         console.log('[StateService] addConnector - saved to localStorage');
+        if (this.selectedSolutionNameSubject.value === solutionName) {
+          this.selectedSolutionDataSubject.next({ ...solution });
+        }
         return connectorId;
       }
     }
@@ -639,6 +910,9 @@ export class NoCodeSolutionStateService {
         slot.connectors = slot.connectors.filter(c => c.id !== connectorId);
         this.solutionsCache.set(solutionName, solution);
         this.saveToLocalStorage();
+        if (this.selectedSolutionNameSubject.value === solutionName) {
+          this.selectedSolutionDataSubject.next({ ...solution });
+        }
       }
     }
   }
@@ -756,12 +1030,46 @@ export class NoCodeSolutionStateService {
   }
 
   /**
-   * Reset to default mock solutions (clears cache)
+   * Refresh solutions from backend (or fall back to mock data).
+   * Remembers the current selection and re-selects it after refresh.
    */
   resetToDefaults(): void {
+    const currentSelection = this.selectedSolutionNameSubject.value;
     this.solutionsCache.clear();
     localStorage.removeItem(CACHE_KEY);
-    this.loadMockSolutions();
+
+    if (this.backendAvailable) {
+      // Re-fetch from backend
+      this.solutionManager.loadAllSolutions().subscribe({
+        next: (solutions: NoCodeSolutionRawData[]) => {
+          if (solutions.length > 0) {
+            solutions.forEach(solution => {
+              this.solutionsCache.set(solution.solutionName, solution);
+              if ((solution as any)._backendId) {
+                this.backendIdMap.set(solution.solutionName, (solution as any)._backendId);
+              }
+            });
+
+            this.updateAvailableSolutions();
+            this.saveToLocalStorage();
+
+            // Re-select the same solution if it still exists
+            if (currentSelection && this.solutionsCache.has(currentSelection)) {
+              this.selectSolution(currentSelection);
+            } else if (solutions.length > 0) {
+              this.selectSolution(solutions[0].solutionName);
+            }
+          } else {
+            this.loadMockSolutions();
+          }
+        },
+        error: () => {
+          this.loadMockSolutions();
+        }
+      });
+    } else {
+      this.loadMockSolutions();
+    }
   }
 
   /**

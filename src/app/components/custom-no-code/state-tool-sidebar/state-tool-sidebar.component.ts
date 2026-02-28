@@ -11,7 +11,9 @@ import {
   StateSpaceClassMetadata,
   StateSpaceCategory
 } from '@models/stateSpace/stateSpaceClassRegistry';
+import { TargetRuntime } from '@models/noCode/mock-NCS-data';
 import { StateDefinitionService } from '@services/no-code-services/state-definition.service';
+import { StateBuildingBlock, getBuildingBlockRegistry } from '@models/noCode/StateBuildingBlock';
 
 export interface StateToolItem {
   id: string;
@@ -25,6 +27,8 @@ export interface StateToolItem {
   svgShape?: string;
   // Code generation template for Python
   pythonTemplate?: string;
+  // Associated building block (if available)
+  buildingBlock?: StateBuildingBlock;
 }
 
 // Represents a helper class that can be used in the solution
@@ -126,6 +130,12 @@ export class StateToolSidebarComponent implements OnInit, OnDestroy, OnChanges {
   // Generated Python code from the solution
   @Input() generatedPythonCode: string = '';
 
+  // Generated TypeScript code from the solution (frontend runtime)
+  @Input() generatedTypescriptCode: string = '';
+
+  // Target runtime for the current solution
+  @Input() targetRuntime: TargetRuntime = 'python_backend';
+
   // Current solution name
   @Input() solutionName: string = '';
 
@@ -146,8 +156,8 @@ export class StateToolSidebarComponent implements OnInit, OnDestroy, OnChanges {
   // Event for creating a state from a sub-solution
   @Output() createStateFromSubSolution = new EventEmitter<SubSolutionDefinition>();
 
-  // Current tab: 'blocks', 'solutionClass', 'helperClasses', 'subSolutions', or 'code'
-  activeTab: 'blocks' | 'solutionClass' | 'helperClasses' | 'subSolutions' | 'code' = 'blocks';
+  // Current tab: 'blocks', 'solutionClass', 'helperClasses', 'subSolutions', 'code', or 'tsCode'
+  activeTab: 'blocks' | 'solutionClass' | 'helperClasses' | 'subSolutions' | 'code' | 'tsCode' = 'blocks';
 
   // Built-in items grouped by category (base blocks)
   builtinItemsByCategory: Map<string, StateToolItem[]> = new Map();
@@ -186,8 +196,8 @@ export class StateToolSidebarComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    // Refresh builtin items when existingUniqueStates changes
-    if (changes['existingUniqueStates']) {
+    // Refresh builtin items when existingUniqueStates or targetRuntime changes
+    if (changes['existingUniqueStates'] || changes['targetRuntime']) {
       this.loadBuiltinItems();
     }
   }
@@ -204,12 +214,17 @@ export class StateToolSidebarComponent implements OnInit, OnDestroy, OnChanges {
   private loadBuiltinItems(): void {
     this.builtinItemsByCategory.clear();
 
-    const builtInClasses = this.registry.getAllClasses();
+    const builtInClasses = this.registry.getClassesForRuntime(this.targetRuntime);
+    const bbRegistry = getBuildingBlockRegistry();
+
     builtInClasses.forEach(metadata => {
       // Skip unique states that are already present in the solution
       if (this.isUniqueStateAlreadyPresent(metadata)) {
         return;
       }
+
+      // Look up the corresponding building block for code templates
+      const buildingBlock = bbRegistry.get(metadata.className);
 
       const item: StateToolItem = {
         id: `builtin_${metadata.className}`,
@@ -219,7 +234,9 @@ export class StateToolSidebarComponent implements OnInit, OnDestroy, OnChanges {
         color: metadata.color,
         category: metadata.category,
         type: 'builtin',
-        sourceClassName: metadata.className
+        sourceClassName: metadata.className,
+        buildingBlock: buildingBlock,
+        pythonTemplate: buildingBlock?.codeTemplates.find(t => t.runtime === 'python_backend')?.template
       };
 
       const category = metadata.category || 'Other';
@@ -238,12 +255,14 @@ export class StateToolSidebarComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   /**
-   * Check if a unique state (InitialState or ReturnStatement) is already present in the solution
+   * Check if a state type should be excluded from the sidebar.
+   * Initial state types are always hidden (managed via overlay dropdown).
+   * End state types are always shown — multiple end states per solution are allowed.
    */
   private isUniqueStateAlreadyPresent(metadata: StateSpaceClassMetadata): boolean {
-    // Only InitialState and ReturnStatement are unique per solution
-    if (metadata.specialStateType === 'initial' || metadata.specialStateType === 'end') {
-      return this.existingUniqueStates.has(metadata.className);
+    // All initial state types are excluded from sidebar — managed via overlay dropdown
+    if (metadata.specialStateType === 'initial') {
+      return true;
     }
     return false;
   }
@@ -371,7 +390,7 @@ export class StateToolSidebarComponent implements OnInit, OnDestroy, OnChanges {
   /**
    * Switch active tab
    */
-  setActiveTab(tab: 'blocks' | 'solutionClass' | 'helperClasses' | 'subSolutions' | 'code'): void {
+  setActiveTab(tab: 'blocks' | 'solutionClass' | 'helperClasses' | 'subSolutions' | 'code' | 'tsCode'): void {
     this.activeTab = tab;
     this.searchQuery = '';
     this.helperClassSearchQuery = '';
@@ -461,7 +480,9 @@ export class StateToolSidebarComponent implements OnInit, OnDestroy, OnChanges {
       'Loops': 'loop',
       'Data': 'filter_list',
       'Debug': 'bug_report',
-      'Custom': 'extension'
+      'Custom': 'extension',
+      'Frontend': 'sensors',
+      'Cross-Runtime': 'cloud_sync'
     };
     return iconMap[category] || 'widgets';
   }
@@ -476,7 +497,9 @@ export class StateToolSidebarComponent implements OnInit, OnDestroy, OnChanges {
       'Loops': '#2196F3',
       'Data': '#00BCD4',
       'Debug': '#607D8B',
-      'Custom': '#795548'
+      'Custom': '#795548',
+      'Frontend': '#E91E63',
+      'Cross-Runtime': '#FF5722'
     };
     return colorMap[category] || '#666';
   }
@@ -594,6 +617,91 @@ export class StateToolSidebarComponent implements OnInit, OnDestroy, OnChanges {
     });
 
     return lines.join('\n');
+  }
+
+  /**
+   * Generate TypeScript class preview from bound class definition
+   */
+  getTypescriptClassPreview(): string {
+    if (!this.boundClass) {
+      return '';
+    }
+
+    const lines: string[] = [];
+
+    // Imports
+    if ((this.boundClass as any).typescriptImports && (this.boundClass as any).typescriptImports.length > 0) {
+      (this.boundClass as any).typescriptImports.forEach((imp: string) => {
+        lines.push(imp);
+      });
+      lines.push('');
+    }
+
+    // Class definition
+    lines.push(`export class ${this.boundClass.className} {`);
+
+    // Fields
+    if (this.boundClass.fields.length > 0) {
+      this.boundClass.fields.forEach(field => {
+        const tsType = this.mapPyTypeToTs(field.type);
+        const defaultVal = field.defaultValue !== undefined
+          ? JSON.stringify(field.defaultValue)
+          : this.getTsDefaultForType(tsType);
+        lines.push(`    ${field.name}: ${tsType} = ${defaultVal};`);
+      });
+      lines.push('');
+    }
+
+    // Constructor
+    lines.push('    constructor() {}');
+    lines.push('');
+
+    // Methods
+    this.boundClass.methods.forEach(method => {
+      const params = method.parameters?.map(p =>
+        `${p.name}: ${this.mapPyTypeToTs(p.type)}`
+      ).join(', ') || '';
+      const returnType = this.mapPyTypeToTs(method.returnType);
+      lines.push(`    async ${method.name}(${params}): Promise<${returnType}> {`);
+      if (method.description) {
+        lines.push(`        // ${method.description}`);
+      }
+      lines.push('        // Implementation via no-code');
+      lines.push('    }');
+      lines.push('');
+    });
+
+    lines.push('}');
+
+    return lines.join('\n');
+  }
+
+  /**
+   * Map Python type to TypeScript type
+   */
+  private mapPyTypeToTs(pyType: string): string {
+    const map: { [key: string]: string } = {
+      'str': 'string', 'int': 'number', 'float': 'number',
+      'bool': 'boolean', 'list': 'any[]', 'dict': 'Record<string, any>',
+      'None': 'void', 'Decimal': 'number', 'datetime': 'Date'
+    };
+    const lower = pyType.toLowerCase();
+    for (const [py, ts] of Object.entries(map)) {
+      if (lower.includes(py.toLowerCase())) return ts;
+    }
+    return pyType;
+  }
+
+  /**
+   * Get TypeScript default value for a type
+   */
+  private getTsDefaultForType(tsType: string): string {
+    if (tsType === 'string') return "''";
+    if (tsType === 'number') return '0';
+    if (tsType === 'boolean') return 'false';
+    if (tsType.includes('[]')) return '[]';
+    if (tsType.includes('Record')) return '{}';
+    return 'null';
   }
 
   /**

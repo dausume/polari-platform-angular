@@ -1,0 +1,205 @@
+:host {
+  display: block;
+}
+
+.return-value-overlay {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 4px;
+  overflow: hidden;
+  font-size: 11px;
+  position: relative;
+}
+
+/* Header */
+.overlay-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: #F44336;
+  color: white;
+  min-height: 24px;
+}
+
+.header-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+}
+
+.title {
+  font-weight: 500;
+  font-size: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Value selector area */
+.value-area {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+}
+
+.value-label {
+  font-size: 10px;
+  font-weight: 500;
+  color: #666;
+  flex-shrink: 0;
+}
+
+/* Value display button */
+.value-display-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  padding: 4px 8px;
+  border: 1px solid #BDBDBD;
+  border-radius: 3px;
+  background: white;
+  color: #424242;
+  cursor: pointer;
+  font-size: 10px;
+  min-width: 60px;
+  transition: all 0.15s ease;
+}
+
+.value-display-btn:hover {
+  background: #FFEBEE;
+  border-color: #F44336;
+}
+
+.value-display-btn.active {
+  background: #FFEBEE;
+  border-color: #F44336;
+  box-shadow: 0 0 0 2px rgba(244, 67, 54, 0.2);
+}
+
+.value-display-btn .value-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.value-display-btn .edit-icon {
+  font-size: 12px;
+  width: 12px;
+  height: 12px;
+  color: #9E9E9E;
+  flex-shrink: 0;
+}
+
+.value-display-btn:hover .edit-icon {
+  color: #F44336;
+}
+
+.value-display-btn.active .edit-icon {
+  color: #F44336;
+}
+
+/* Value Popup */
+.value-popup {
+  position: fixed;
+  z-index: 10000;
+  min-width: 320px;
+  max-width: 500px;
+  background: #2D2D2D;
+  border: 1px solid #555;
+  border-radius: 6px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  overflow: visible;
+}
+
+.popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  background: #3D3D3D;
+  border-bottom: 1px solid #444;
+}
+
+.popup-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.popup-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #999;
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+.popup-close-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.popup-close-btn mat-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+}
+
+.popup-content {
+  padding: 4px;
+}
+
+/* Compact mode */
+.compact-summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 100%;
+  color: #F44336;
+  font-size: 10px;
+}
+
+.compact-summary mat-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+}
+
+/* Small mode adjustments */
+.return-value-overlay.small .overlay-header {
+  padding: 2px 6px;
+  min-height: 20px;
+}
+
+.return-value-overlay.small .title {
+  font-size: 9px;
+}
+
+.return-value-overlay.small .value-area {
+  padding: 4px 6px;
+}
+
+.return-value-overlay.small .value-display-btn {
+  padding: 3px 6px;
+  font-size: 9px;
+}
+
+.return-value-overlay.small .value-display-btn .edit-icon {
+  display: none;
+}

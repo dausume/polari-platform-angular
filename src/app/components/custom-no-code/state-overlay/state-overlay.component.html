@@ -27,6 +27,14 @@
         <span class="title-text">{{ getStateTitle() }}</span>
       </div>
 
+      <!-- Open State Page button (visible only in full mode) -->
+      <button class="state-page-btn"
+              *ngIf="!isCompact && !isSmall"
+              (click)="onOpenStatePage($event)"
+              title="Open State Page">
+        <mat-icon>open_in_full</mat-icon>
+      </button>
+
       <!-- Subtitle (function/variable name if applicable) - hide in compact mode -->
       <div class="state-subtitle"
            *ngIf="getStateSubtitle() && !isCompact"

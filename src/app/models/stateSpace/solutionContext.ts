@@ -15,9 +15,16 @@
  */
 export const CONTROL_FLOW_STATE_TYPES = [
   'InitialState',
+  'DirectInvocation',
+  'FormSubscription',
+  'LogicFlowEntry',
+  'BackendStateChange',
   'VariableAssignment',
   'ConditionalChain',
-  'ReturnStatement'
+  'ReturnStatement',
+  'ReturnValue',
+  'StateChangeCommit',
+  'EmitEvent'
 ];
 
 /**

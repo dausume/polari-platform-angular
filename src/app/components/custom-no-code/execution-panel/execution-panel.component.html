@@ -1,0 +1,153 @@
+<div class="execution-panel">
+  <!-- Controls Bar -->
+  <div class="execution-controls-bar">
+    <div class="controls-left">
+      <span class="panel-title">
+        <mat-icon>play_circle_outline</mat-icon>
+        Manual Process
+      </span>
+      <span class="status-badge" [ngClass]="'status-' + status">{{ status }}</span>
+    </div>
+    <div class="controls-center">
+      <button class="ctrl-btn" (click)="rewindToStart()" [disabled]="!canStep || currentStepIndex <= 0" title="Rewind to Start">
+        <mat-icon>first_page</mat-icon>
+      </button>
+      <button class="ctrl-btn" (click)="stepBackward()" [disabled]="!canStep || currentStepIndex <= 0" title="Step Back">
+        <mat-icon>skip_previous</mat-icon>
+      </button>
+      <button class="ctrl-btn play-btn" (click)="isPlaying ? pause() : play()"
+              [disabled]="!canPlay && !isPlaying" title="{{ isPlaying ? 'Pause' : 'Play' }}">
+        <mat-icon>{{ isPlaying ? 'pause' : 'play_arrow' }}</mat-icon>
+      </button>
+      <button class="ctrl-btn" (click)="stepForward()" [disabled]="!canStep || currentStepIndex >= totalSteps - 1" title="Step Forward">
+        <mat-icon>skip_next</mat-icon>
+      </button>
+      <button class="ctrl-btn stop-btn" (click)="stop()" [disabled]="status === 'idle'" title="Stop">
+        <mat-icon>stop</mat-icon>
+      </button>
+      <div class="speed-control">
+        <span class="speed-label">Speed:</span>
+        <input type="range" min="200" max="3000" step="100"
+               [value]="playbackSpeed" (input)="onSpeedChange($event)">
+        <span class="speed-value">{{ speedLabel }}</span>
+      </div>
+      <span class="step-counter" *ngIf="totalSteps > 0">
+        Step {{ currentStepIndex + 1 }} / {{ totalSteps }}
+      </span>
+    </div>
+    <div class="controls-right">
+      <button class="ctrl-btn close-btn" (click)="close()" title="Close Panel">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Content Area -->
+  <div class="execution-content">
+    <!-- Input Params Section -->
+    <div class="input-params-section">
+      <div class="section-header">Input Parameters</div>
+      <div class="input-params-form">
+        <div class="param-row" *ngFor="let param of inputParams">
+          <label class="param-label">{{ param.name }} <span class="param-type">({{ param.type }})</span></label>
+          <input class="param-input" [(ngModel)]="param.value"
+                 [placeholder]="param.type"
+                 (keydown.enter)="execute()">
+        </div>
+        <div class="param-row" *ngIf="inputParams.length === 0">
+          <span class="no-params">No input parameters</span>
+        </div>
+      </div>
+      <div class="input-actions">
+        <button class="action-btn execute-btn" (click)="execute()" [disabled]="!canExecute">
+          <mat-icon>play_arrow</mat-icon> Execute
+        </button>
+        <button class="action-btn discard-btn" (click)="discard()" [disabled]="status === 'idle'">
+          <mat-icon>delete_outline</mat-icon> Discard
+        </button>
+      </div>
+    </div>
+
+    <!-- Step Timeline Section -->
+    <div class="step-timeline-section">
+      <div class="section-header">Step Timeline</div>
+      <div class="timeline-list">
+        <div class="timeline-step"
+             *ngFor="let step of steps; let i = index"
+             [ngClass]="getStepStatusClass(step, i)"
+             (click)="navigateToStep(i)">
+          <mat-icon class="step-icon" [ngClass]="getStepStatusClass(step, i)">
+            {{ getStepStatusIcon(step, i) }}
+          </mat-icon>
+          <div class="step-info">
+            <span class="step-name">{{ step.stateName }}</span>
+            <span class="step-class">
+              <mat-icon class="class-icon">{{ getStateClassIcon(step.stateClassName) }}</mat-icon>
+              {{ step.stateClassName }}
+            </span>
+          </div>
+          <span class="step-duration" *ngIf="step.durationMs !== undefined">
+            {{ step.durationMs | number:'1.0-1' }}ms
+          </span>
+        </div>
+        <div class="timeline-empty" *ngIf="steps.length === 0">
+          <mat-icon>info_outline</mat-icon>
+          <span>Execute to see steps</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Context Section -->
+    <div class="context-section">
+      <div class="section-header">Context</div>
+      <div class="context-content" *ngIf="currentStep">
+        <!-- Variables -->
+        <div class="context-group">
+          <div class="context-group-header">Variables</div>
+          <div class="context-var"
+               *ngFor="let v of contextVariables"
+               [ngClass]="v.changeType ? getChangeTypeClass(v.changeType) : ''">
+            <span class="var-name">{{ v.name }}</span>
+            <span class="var-type">{{ v.type }}</span>
+            <span class="var-value">{{ formatValue(v.value) }}</span>
+            <span class="var-change-badge" *ngIf="v.changeType">{{ v.changeType }}</span>
+          </div>
+          <div class="context-empty" *ngIf="contextVariables.length === 0">
+            No variables
+          </div>
+        </div>
+
+        <!-- Execution Result -->
+        <div class="context-group" *ngIf="currentStep.executionResult !== null && currentStep.executionResult !== undefined">
+          <div class="context-group-header">Result</div>
+          <div class="result-value">{{ formatValue(currentStep.executionResult) }}</div>
+        </div>
+
+        <!-- Log Output -->
+        <div class="context-group" *ngIf="currentStep.logOutput && currentStep.logOutput.length > 0">
+          <div class="context-group-header">Log Output</div>
+          <div class="log-line" *ngFor="let line of currentStep.logOutput">{{ line }}</div>
+        </div>
+
+        <!-- Error -->
+        <div class="context-group error-group" *ngIf="currentStep.executionError">
+          <div class="context-group-header">Error</div>
+          <div class="error-value">{{ currentStep.executionError }}</div>
+        </div>
+
+        <!-- Branch Info -->
+        <div class="context-group" *ngIf="currentStep.branchLabel">
+          <div class="context-group-header">Branch</div>
+          <div class="branch-info">
+            <mat-icon>call_split</mat-icon>
+            <span>{{ currentStep.branchLabel }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="context-empty-state" *ngIf="!currentStep">
+        <mat-icon>info_outline</mat-icon>
+        <span>Select a step to view context</span>
+      </div>
+    </div>
+  </div>
+</div>

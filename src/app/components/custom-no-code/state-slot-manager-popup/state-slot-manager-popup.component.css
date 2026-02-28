@@ -197,6 +197,13 @@
   text-overflow: ellipsis;
 }
 
+.slot-abbrev {
+  font-size: 10px;
+  color: #999;
+  font-weight: 400;
+  margin-left: 4px;
+}
+
 .slot-mode {
   font-size: 10px;
   color: #666;

@@ -8,6 +8,7 @@ import { NoCodeStateRendererManager } from '@services/no-code-services/no-code-s
 import * as d3 from 'd3';
 import { Subscription } from "rxjs";
 import { InteractionStateService } from "@services/no-code-services/interaction-state-service";
+import { TargetRuntime } from './mock-NCS-data';
 
 // If we can it would be ideal to be able to get view dimensions relevant to the component and always use them
 // to calculate the position of the overlay component. This would allow us to avoid having to pass in the
@@ -18,6 +19,8 @@ export class NoCodeSolution {
     solutionName: string;
     //
     id?: number;
+    // Target runtime for this solution
+    targetRuntime: TargetRuntime = 'python_backend';
     // A list of No-Code State objects which are used to define the state of the No-Code Solution.
     stateInstances: NoCodeState[];
     // A map of D3ModelLayer objects used to render the No-Code State objects for this No-Code Solution.
@@ -243,10 +246,17 @@ export class NoCodeSolution {
         console.log("Step 12 : Rendering No-Code Solution from inside the NoCodeSolution object");
         console.log('Rendering layers from no-code solution: ', this.solutionName);
         console.log('Current Render Layers: ', this.renderLayers);
+        // Pass 1: Render all layers (creates DOM elements for all states)
         this.renderLayers.forEach((layer: D3ModelLayer, key: string) => {
             console.log('Rendering layer from no-code solution: ', key);
             console.log("layer: ", layer);
             layer.render();
+        });
+        // Pass 2: Render connectors (all target DOM elements now exist)
+        this.renderLayers.forEach((layer: D3ModelLayer, key: string) => {
+            if (typeof (layer as any).renderCachedConnectors === 'function') {
+                (layer as any).renderCachedConnectors();
+            }
         });
     }
 

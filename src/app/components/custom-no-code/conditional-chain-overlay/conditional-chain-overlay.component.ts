@@ -90,6 +90,8 @@ export class ConditionalChainOverlayComponent implements OnInit, OnDestroy {
   @Output() chainChanged = new EventEmitter<{ links: ConditionalChainLink[]; defaultOperator: LogicalOperator }>();
   @Output() syntaxChanged = new EventEmitter<string>();
   @Output() addInputSlot = new EventEmitter<void>();
+  @Output() fullViewRequested = new EventEmitter<{ x: number; y: number; stateName: string }>();
+  @Output() statePageRequested = new EventEmitter<{ stateName: string }>();
 
   // Current editor mode
   editorMode: ConditionalEditorMode = 'visual';
@@ -584,6 +586,28 @@ export class ConditionalChainOverlayComponent implements OnInit, OnDestroy {
    */
   toggleEditMode(): void {
     // Custom overlays are always interactive, no toggle needed
+  }
+
+  /**
+   * Handle right-click on the overlay to request full view popup.
+   */
+  onContextMenu(event: MouseEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.fullViewRequested.emit({
+      x: event.clientX,
+      y: event.clientY,
+      stateName: this.stateName
+    });
+  }
+
+  /**
+   * Handle click on the "open state page" button.
+   */
+  onOpenStatePage(event: MouseEvent): void {
+    event.stopPropagation();
+    event.preventDefault();
+    this.statePageRequested.emit({ stateName: this.stateName });
   }
 
   /**

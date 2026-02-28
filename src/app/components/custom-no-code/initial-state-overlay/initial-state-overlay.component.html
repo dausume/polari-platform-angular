@@ -5,88 +5,183 @@
      (mousedown)="onMouseDown($event)"
      (pointerdown)="onMouseDown($event)">
 
-  <!-- Header -->
+  <!-- Header with Trigger Type Selector -->
   <div class="overlay-header">
-    <mat-icon class="header-icon">play_circle</mat-icon>
-    <span class="title">Initial State</span>
+    <mat-icon class="header-icon" [style.color]="getCurrentTriggerOption()?.color || '#4CAF50'">
+      {{ getCurrentTriggerOption()?.icon || 'play_circle' }}
+    </mat-icon>
+    <span class="title" *ngIf="!isCompact">{{ getCurrentTriggerOption()?.label || 'Initial State' }}</span>
+    <button class="type-selector-btn"
+            *ngIf="!isCompact && triggerTypeOptions.length > 1"
+            (click)="toggleTypeSelector($event)"
+            title="Change trigger type">
+      <mat-icon>arrow_drop_down</mat-icon>
+    </button>
+  </div>
+
+  <!-- Trigger Type Dropdown -->
+  <div class="type-selector-dropdown" *ngIf="showTypeSelector">
+    <div *ngFor="let option of triggerTypeOptions"
+         class="type-option"
+         [class.active]="option.type === currentTriggerType"
+         (click)="onTriggerTypeChange(option.type); $event.stopPropagation()">
+      <mat-icon [style.color]="option.color">{{ option.icon }}</mat-icon>
+      <span class="type-option-label">{{ option.label }}</span>
+    </div>
   </div>
 
   <!-- Main content (non-compact mode) -->
   <div class="overlay-content" *ngIf="!isCompact">
 
-    <!-- Solution Object Info -->
-    <div class="solution-info" *ngIf="solutionClassName">
-      <div class="solution-class">
-        <mat-icon>apartment</mat-icon>
-        <span class="class-name">{{ solutionClassName }}</span>
-      </div>
-      <p class="solution-description" *ngIf="solutionDescription && !isSmall">
-        {{ solutionDescription }}
-      </p>
-    </div>
-
-    <!-- Solution Object Fields -->
-    <div class="fields-section" *ngIf="solutionFields.length > 0">
-      <div class="section-header">
-        <span class="section-label">Solution Object Fields</span>
-        <span class="field-count">{{ solutionFields.length }}</span>
+    <!-- DirectInvocation fields -->
+    <ng-container *ngIf="currentTriggerType === 'direct_invocation'">
+      <!-- Solution Object Info -->
+      <div class="solution-info" *ngIf="solutionClassName">
+        <div class="solution-class">
+          <mat-icon>apartment</mat-icon>
+          <span class="class-name">{{ solutionClassName }}</span>
+        </div>
+        <p class="solution-description" *ngIf="solutionDescription && !isSmall">
+          {{ solutionDescription }}
+        </p>
       </div>
 
-      <div class="fields-list">
-        <div *ngFor="let field of getVisibleFields()" class="field-item">
-          <div class="field-main">
-            <span class="field-name">{{ field.displayName || field.name }}</span>
-            <span class="field-type" [ngClass]="getTypeBadgeClass(field.type)">{{ field.type }}</span>
+      <!-- Solution Object Fields -->
+      <div class="fields-section" *ngIf="solutionFields.length > 0">
+        <div class="section-header">
+          <span class="section-label">Solution Object Fields</span>
+          <span class="field-count">{{ solutionFields.length }}</span>
+        </div>
+
+        <div class="fields-list">
+          <div *ngFor="let field of getVisibleFields()" class="field-item">
+            <div class="field-main">
+              <span class="field-name">{{ field.displayName || field.name }}</span>
+              <span class="field-type" [ngClass]="getTypeBadgeClass(field.type)">{{ field.type }}</span>
+            </div>
+            <p class="field-description" *ngIf="field.description && !isSmall">
+              {{ field.description }}
+            </p>
           </div>
-          <p class="field-description" *ngIf="field.description && !isSmall">
-            {{ field.description }}
-          </p>
-        </div>
 
-        <!-- Show more button -->
-        <button *ngIf="hasMoreFields()"
-                class="show-more-btn"
-                (click)="toggleShowAllFields()">
-          <mat-icon>expand_more</mat-icon>
-          <span>+{{ getHiddenFieldCount() }} more fields</span>
-        </button>
+          <button *ngIf="hasMoreFields()"
+                  class="show-more-btn"
+                  (click)="toggleShowAllFields()">
+            <mat-icon>expand_more</mat-icon>
+            <span>+{{ getHiddenFieldCount() }} more fields</span>
+          </button>
 
-        <!-- Show less button -->
-        <button *ngIf="showAllFields && solutionFields.length > maxVisibleFields"
-                class="show-more-btn"
-                (click)="toggleShowAllFields()">
-          <mat-icon>expand_less</mat-icon>
-          <span>Show less</span>
-        </button>
-      </div>
-    </div>
-
-    <!-- Input Parameters (if defined) -->
-    <div class="params-section" *ngIf="inputParams.length > 0 && !isSmall">
-      <div class="section-header">
-        <span class="section-label">Input Parameters</span>
-        <span class="field-count">{{ inputParams.length }}</span>
-      </div>
-
-      <div class="params-list">
-        <div *ngFor="let param of inputParams" class="param-item">
-          <mat-icon class="param-icon">input</mat-icon>
-          <span class="param-name">{{ param.name }}</span>
-          <span class="param-type" [ngClass]="getTypeBadgeClass(param.type)">{{ param.type }}</span>
+          <button *ngIf="showAllFields && solutionFields.length > maxVisibleFields"
+                  class="show-more-btn"
+                  (click)="toggleShowAllFields()">
+            <mat-icon>expand_less</mat-icon>
+            <span>Show less</span>
+          </button>
         </div>
       </div>
-    </div>
 
-    <!-- Empty state -->
-    <div class="empty-state" *ngIf="solutionFields.length === 0 && inputParams.length === 0">
-      <mat-icon>info_outline</mat-icon>
-      <span>No Solution Object defined</span>
-    </div>
+      <!-- Input Parameters -->
+      <div class="params-section" *ngIf="inputParams.length > 0 && !isSmall">
+        <div class="section-header">
+          <span class="section-label">Input Parameters</span>
+          <span class="field-count">{{ inputParams.length }}</span>
+        </div>
+        <div class="params-list">
+          <div *ngFor="let param of inputParams" class="param-item">
+            <mat-icon class="param-icon">input</mat-icon>
+            <span class="param-name">{{ param.name }}</span>
+            <span class="param-type" [ngClass]="getTypeBadgeClass(param.type)">{{ param.type }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty state -->
+      <div class="empty-state" *ngIf="solutionFields.length === 0 && inputParams.length === 0">
+        <mat-icon>info_outline</mat-icon>
+        <span>No Solution Object defined</span>
+      </div>
+    </ng-container>
+
+    <!-- FormSubscription fields -->
+    <ng-container *ngIf="currentTriggerType === 'form_subscription'">
+      <div class="trigger-field">
+        <label class="trigger-field-label">Source Name</label>
+        <input class="trigger-field-input"
+               type="text"
+               [value]="boundObjectFieldValues['sourceName'] || ''"
+               (change)="onFieldValueChange('sourceName', $any($event.target).value)"
+               placeholder="e.g., formState$"
+               (click)="$event.stopPropagation()"
+               (mousedown)="$event.stopPropagation()" />
+      </div>
+      <p class="trigger-description" *ngIf="!isSmall">
+        Subscribes to a form/page observable to trigger this solution.
+      </p>
+    </ng-container>
+
+    <!-- LogicFlowEntry fields -->
+    <ng-container *ngIf="currentTriggerType === 'logic_flow_entry'">
+      <div class="trigger-field">
+        <label class="trigger-field-label">Parent Solution</label>
+        <input class="trigger-field-input"
+               type="text"
+               [value]="boundObjectFieldValues['parentSolutionName'] || ''"
+               (change)="onFieldValueChange('parentSolutionName', $any($event.target).value)"
+               placeholder="e.g., ParentSolution"
+               (click)="$event.stopPropagation()"
+               (mousedown)="$event.stopPropagation()" />
+      </div>
+      <p class="trigger-description" *ngIf="!isSmall">
+        Invoked as a child solution by a parent solution.
+      </p>
+    </ng-container>
+
+    <!-- BackendStateChange fields -->
+    <ng-container *ngIf="currentTriggerType === 'backend_state_change'">
+      <div class="trigger-field">
+        <label class="trigger-field-label">Model Name</label>
+        <input class="trigger-field-input"
+               type="text"
+               [value]="boundObjectFieldValues['modelName'] || ''"
+               (change)="onFieldValueChange('modelName', $any($event.target).value)"
+               placeholder="e.g., Order"
+               (click)="$event.stopPropagation()"
+               (mousedown)="$event.stopPropagation()" />
+      </div>
+      <div class="trigger-field">
+        <label class="trigger-field-label">Field Name</label>
+        <input class="trigger-field-input"
+               type="text"
+               [value]="boundObjectFieldValues['fieldName'] || ''"
+               (change)="onFieldValueChange('fieldName', $any($event.target).value)"
+               placeholder="e.g., status"
+               (click)="$event.stopPropagation()"
+               (mousedown)="$event.stopPropagation()" />
+      </div>
+      <div class="trigger-field">
+        <label class="trigger-field-label">Change Type</label>
+        <select class="trigger-field-select"
+                [value]="boundObjectFieldValues['changeType'] || 'any'"
+                (change)="onFieldValueChange('changeType', $any($event.target).value)"
+                (click)="$event.stopPropagation()"
+                (mousedown)="$event.stopPropagation()">
+          <option value="any">Any</option>
+          <option value="create">Create</option>
+          <option value="update">Update</option>
+          <option value="delete">Delete</option>
+        </select>
+      </div>
+      <p class="trigger-description" *ngIf="!isSmall">
+        Triggered when database state changes are committed.
+      </p>
+    </ng-container>
   </div>
 
   <!-- Compact mode: just show summary -->
   <div class="compact-summary" *ngIf="isCompact">
-    <mat-icon>play_circle</mat-icon>
+    <mat-icon [style.color]="getCurrentTriggerOption()?.color || '#4CAF50'">
+      {{ getCurrentTriggerOption()?.icon || 'play_circle' }}
+    </mat-icon>
     <span class="compact-text">Start</span>
   </div>
 </div>

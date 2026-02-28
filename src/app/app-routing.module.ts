@@ -23,7 +23,8 @@ const routes: Routes = [
   { path: 'api-config', component: ApiConfigComponent },
   { path: 'system-diagnostics', loadComponent: () => import('@components/system-diagnostics/system-diagnostics').then(m => m.SystemDiagnosticsComponent) },
   { path: 'module-management', loadComponent: () => import('@components/module-management/module-management.component').then(m => m.ModuleManagementComponent) },
-  { path: 'maps', component: MapsComponent }
+  { path: 'maps', component: MapsComponent },
+  { path: 'display/:id', loadComponent: () => import('@components/dashboard/display-page/display-page').then(m => m.DisplayPageComponent) }
 ];
 
 @NgModule({

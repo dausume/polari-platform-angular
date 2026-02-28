@@ -1,0 +1,57 @@
+<div class="return-value-overlay"
+     [class.compact]="isCompact"
+     [class.small]="isSmall"
+     (click)="onOverlayClick($event)"
+     (mousedown)="onMouseDown($event)"
+     (pointerdown)="onMouseDown($event)">
+
+  <!-- Header -->
+  <div class="overlay-header" (contextmenu)="onContextMenu($event)">
+    <mat-icon class="header-icon">exit_to_app</mat-icon>
+    <span class="title">Return Value</span>
+  </div>
+
+  <!-- Value selector area -->
+  <div class="value-area" *ngIf="!isCompact">
+    <span class="value-label">Value:</span>
+    <button class="value-display-btn"
+            [class.active]="popupVisible"
+            (click)="openValuePopup($event)"
+            title="Click to select return value">
+      <span class="value-text">{{ getDisplayText() }}</span>
+      <mat-icon class="edit-icon">edit</mat-icon>
+    </button>
+  </div>
+
+  <!-- Compact mode: just show icon + summary -->
+  <div class="compact-summary" *ngIf="isCompact">
+    <mat-icon>exit_to_app</mat-icon>
+    <span>{{ getDisplayText() }}</span>
+  </div>
+
+  <!-- Value Source Popup (position: fixed, renders above everything) -->
+  <div class="value-popup"
+       *ngIf="popupVisible"
+       [style.top.px]="popupPosition.top"
+       [style.left.px]="popupPosition.left"
+       (click)="$event.stopPropagation()"
+       (mousedown)="$event.stopPropagation()"
+       (pointerdown)="$event.stopPropagation()">
+    <div class="popup-header">
+      <span class="popup-title">Return Value Source</span>
+      <button class="popup-close-btn" (click)="closeValuePopup()">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+    <div class="popup-content">
+      <app-value-source-selector
+        [config]="currentConfig"
+        [availableInputs]="availableInputs"
+        [sourceObjectFields]="sourceObjectFields"
+        [label]="''"
+        [compact]="false"
+        (configChange)="onConfigChange($event)">
+      </app-value-source-selector>
+    </div>
+  </div>
+</div>

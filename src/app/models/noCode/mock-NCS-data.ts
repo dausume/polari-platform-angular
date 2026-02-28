@@ -3,6 +3,11 @@
 // Mock data for No-Code Solutions - simulates API responses
 
 /**
+ * Target runtime for a no-code solution
+ */
+export type TargetRuntime = 'python_backend' | 'typescript_frontend';
+
+/**
  * Raw data interface for NoCodeState - matches what would come from an API
  */
 export interface NoCodeStateRawData {
@@ -53,6 +58,7 @@ export interface BoundClassRawData {
     description?: string;
   }[];
   pythonImports?: string[];
+  typescriptImports?: string[];
 }
 
 /**
@@ -68,6 +74,9 @@ export interface SlotRawData {
   allowManyToOne: boolean;
   // Slot configuration properties
   color?: string;
+  /** Full name of the slot (unlimited length) */
+  name?: string;
+  /** Short abbreviation displayed on the visual marker (max 3 characters) */
   label?: string;
   mappingMode?: string;
   description?: string;
@@ -75,10 +84,14 @@ export interface SlotRawData {
   parameterType?: string;
   returnType?: string;
   // Output-specific configuration
-  triggerType?: 'reactive' | 'functional';
   sourceInstance?: 'solution_instance' | 'helper_instance';
   propertyPath?: string;
   passthroughVariableName?: string;
+  // Conditional output configuration
+  isConditional?: boolean;
+  conditionExpression?: string;
+  conditionLabel?: string;
+  conditionalGroup?: string;
 }
 
 /**
@@ -104,10 +117,12 @@ export interface NoCodeSolutionRawData {
   boundClass?: BoundClassRawData;
   // Function name for code generation
   functionName?: string;
+  // Target runtime for this solution (defaults to 'python_backend' if undefined)
+  targetRuntime?: TargetRuntime;
 }
 
 /**
- * Sample Solution 1: "Addition Test" - Simple arithmetic with conditional check
+ * Sample Solution 1: "AdditionTester.test_addition" - Simple arithmetic with conditional check
  * Tests adding two numbers and checking if the result matches an expected value
  *
  * Flow (Parallel Branch & Merge Pattern):
@@ -123,8 +138,9 @@ export interface NoCodeSolutionRawData {
  */
 export const MOCK_SOLUTION_ADDITION_TEST: NoCodeSolutionRawData = {
   id: 1,
-  solutionName: "Addition Test",
+  solutionName: "AdditionTester.test_addition",
   functionName: "test_addition",
+  targetRuntime: 'python_backend',
   xBounds: 1000,
   yBounds: 600,
   boundClass: {
@@ -137,7 +153,6 @@ export const MOCK_SOLUTION_ADDITION_TEST: NoCodeSolutionRawData = {
       { name: "num_b", displayName: "Number B", type: "int", defaultValue: 0, description: "Second number to add" },
       { name: "expected_result", displayName: "Expected Result", type: "int", defaultValue: 0, description: "Expected sum for comparison" },
       { name: "sum_result", displayName: "Sum Result", type: "int", defaultValue: 0, description: "Calculated sum of num_a + num_b" },
-      { name: "comparison_value", displayName: "Comparison Value", type: "int", defaultValue: 0, description: "Expected value passed through for comparison" },
       { name: "test_passed", displayName: "Test Passed", type: "bool", defaultValue: false, description: "Whether the sum matches expected" }
     ],
     methods: [
@@ -155,13 +170,13 @@ export const MOCK_SOLUTION_ADDITION_TEST: NoCodeSolutionRawData = {
     ]
   },
   stateInstances: [
-    // Start State - Green Circle (2 output slots for parallel branches)
+    // Start State - Green Circle (1 output slot → Compute Sum)
     {
       stateName: "Start",
       id: "start-state",
       index: 0,
       shapeType: "circle",
-      solutionName: "Addition Test",
+      solutionName: "AdditionTester.test_addition",
       stateClass: "InitialState",
       boundObjectClass: "InitialState",
       boundObjectFieldValues: {
@@ -185,25 +200,12 @@ export const MOCK_SOLUTION_ADDITION_TEST: NoCodeSolutionRawData = {
         {
           index: 0,
           stateName: "Start",
-          slotAngularPosition: 30,
+          slotAngularPosition: 0,
           connectors: [{ id: 1, sourceSlot: 0, sinkSlot: 0, targetStateName: "Compute Sum" }],
           isInput: false,
           allowOneToMany: true,
           allowManyToOne: false,
-          label: "To Sum",
-          passthroughVariableName: "num_a,num_b"
-        },
-        // Output slot 1 → Get Expected
-        {
-          index: 1,
-          stateName: "Start",
-          slotAngularPosition: 330,
-          connectors: [{ id: 2, sourceSlot: 1, sinkSlot: 0, targetStateName: "Get Expected" }],
-          isInput: false,
-          allowOneToMany: true,
-          allowManyToOne: false,
-          label: "To Expected",
-          passthroughVariableName: "expected_result"
+          label: "Out"
         }
       ],
       slotRadius: 5,
@@ -215,7 +217,7 @@ export const MOCK_SOLUTION_ADDITION_TEST: NoCodeSolutionRawData = {
       id: "compute-sum",
       index: 1,
       shapeType: "circle",
-      solutionName: "Addition Test",
+      solutionName: "AdditionTester.test_addition",
       stateClass: "VariableAssignment",
       boundObjectClass: "VariableAssignment",
       boundObjectFieldValues: {
@@ -229,8 +231,8 @@ export const MOCK_SOLUTION_ADDITION_TEST: NoCodeSolutionRawData = {
       stateSvgSizeY: null,
       stateSvgRadius: 65,
       layerName: "assignment-layer",
-      stateLocationX: 280,
-      stateLocationY: 180,
+      stateLocationX: 300,
+      stateLocationY: 280,
       stateSvgName: "circle",
       slots: [
         // Input slot 0 - receives from Start
@@ -242,111 +244,53 @@ export const MOCK_SOLUTION_ADDITION_TEST: NoCodeSolutionRawData = {
           isInput: true,
           allowOneToMany: false,
           allowManyToOne: true,
-          label: "Input"
+          label: "In"
         },
-        // Output slot 1 → Check Result input 0
+        // Output slot 1 → Check Result
         {
           index: 1,
           stateName: "Compute Sum",
           slotAngularPosition: 0,
-          connectors: [{ id: 3, sourceSlot: 1, sinkSlot: 0, targetStateName: "Check Result" }],
+          connectors: [{ id: 2, sourceSlot: 1, sinkSlot: 0, targetStateName: "Check Result" }],
           isInput: false,
           allowOneToMany: true,
           allowManyToOne: false,
-          label: "sum_result",
-          passthroughVariableName: "sum_result"
+          label: "Out"
         }
       ],
       slotRadius: 5,
       backgroundColor: "#9C27B0"  // Purple for variable assignment
     },
-    // Get Expected - Variable Assignment (Purple) - passes through comparison_value = expected_result
-    {
-      stateName: "Get Expected",
-      id: "get-expected",
-      index: 2,
-      shapeType: "circle",
-      solutionName: "Addition Test",
-      stateClass: "VariableAssignment",
-      boundObjectClass: "VariableAssignment",
-      boundObjectFieldValues: {
-        displayName: "Get Expected",
-        variableName: "comparison_value",
-        value: "expected_result",
-        dataType: "int",
-        description: "Pass through the expected result for comparison"
-      },
-      stateSvgSizeX: null,
-      stateSvgSizeY: null,
-      stateSvgRadius: 65,
-      layerName: "assignment-layer",
-      stateLocationX: 280,
-      stateLocationY: 380,
-      stateSvgName: "circle",
-      slots: [
-        // Input slot 0 - receives from Start
-        {
-          index: 0,
-          stateName: "Get Expected",
-          slotAngularPosition: 180,
-          connectors: [],
-          isInput: true,
-          allowOneToMany: false,
-          allowManyToOne: true,
-          label: "Input"
-        },
-        // Output slot 1 → Check Result input 1
-        {
-          index: 1,
-          stateName: "Get Expected",
-          slotAngularPosition: 0,
-          connectors: [{ id: 4, sourceSlot: 1, sinkSlot: 1, targetStateName: "Check Result" }],
-          isInput: false,
-          allowOneToMany: true,
-          allowManyToOne: false,
-          label: "comparison_value",
-          passthroughVariableName: "comparison_value"
-        }
-      ],
-      slotRadius: 5,
-      backgroundColor: "#9C27B0"  // Purple for variable assignment
-    },
-    // Check Result - Conditional (Diamond shape) - 2 input slots for merge
+    // Check Result - Conditional (Diamond shape) - compares sum_result == expected_result
     {
       stateName: "Check Result",
       id: "check-result",
-      index: 3,
+      index: 2,
       shapeType: "diamond",
-      solutionName: "Addition Test",
+      solutionName: "AdditionTester.test_addition",
       stateClass: "ConditionalChain",
       boundObjectClass: "ConditionalChain",
       boundObjectFieldValues: {
         displayName: "Check Result",
         description: "Check if the calculated sum matches the expected result",
         defaultLogicalOperator: "AND",
-        // New: ValueSourceConfig-based condition
         links: [
           {
             id: "link_check_equality",
-            displayName: "sum_result == comparison_value",
+            displayName: "sum_result == expected_result",
             conditionType: "equals",
             logicalOperator: "AND",
             isStateSpaceObject: true,
-            // Left side: from input slot 0 (sum_result)
             leftSource: {
-              sourceType: "from_input",
-              inputSlotIndex: 0,
-              inputVariableName: "sum_result"
+              sourceType: "from_object",
+              objectFieldPath: "self.sum_result"
             },
-            // Right side: from input slot 1 (comparison_value)
             rightSource: {
-              sourceType: "from_input",
-              inputSlotIndex: 1,
-              inputVariableName: "comparison_value"
+              sourceType: "from_object",
+              objectFieldPath: "self.expected_result"
             },
-            // Legacy compatibility
             fieldName: "sum_result",
-            conditionValue: "comparison_value"
+            conditionValue: "expected_result"
           }
         ]
       },
@@ -358,55 +302,48 @@ export const MOCK_SOLUTION_ADDITION_TEST: NoCodeSolutionRawData = {
       stateLocationY: 280,
       stateSvgName: "diamond",
       slots: [
-        // Input slot 0 - receives sum_result from Compute Sum
+        // Input slot 0 - receives from Compute Sum
         {
           index: 0,
           stateName: "Check Result",
-          slotAngularPosition: 150,
+          slotAngularPosition: 180,
           connectors: [],
           isInput: true,
           allowOneToMany: false,
           allowManyToOne: true,
-          label: "sum_result",
-          parameterName: "sum_result",
-          parameterType: "int"
+          label: "In"
         },
-        // Input slot 1 - receives comparison_value from Get Expected
+        // Output slot 1 - True path
         {
           index: 1,
           stateName: "Check Result",
-          slotAngularPosition: 210,
-          connectors: [],
-          isInput: true,
-          allowOneToMany: false,
-          allowManyToOne: true,
-          label: "comparison_value",
-          parameterName: "comparison_value",
-          parameterType: "int"
+          slotAngularPosition: 30,
+          connectors: [{ id: 3, sourceSlot: 1, sinkSlot: 0, targetStateName: "Return True" }],
+          isInput: false,
+          allowOneToMany: true,
+          allowManyToOne: false,
+          label: "T",
+          color: "#4CAF50",
+          isConditional: true,
+          conditionExpression: "true",
+          conditionLabel: "If True",
+          conditionalGroup: "conditional_result"
         },
-        // Output slot 2 - True path
+        // Output slot 2 - False path
         {
           index: 2,
           stateName: "Check Result",
-          slotAngularPosition: 30,
-          connectors: [{ id: 5, sourceSlot: 2, sinkSlot: 0, targetStateName: "Return True" }],
-          isInput: false,
-          allowOneToMany: true,
-          allowManyToOne: false,
-          label: "True",
-          color: "#4CAF50"
-        },
-        // Output slot 3 - False path
-        {
-          index: 3,
-          stateName: "Check Result",
           slotAngularPosition: 330,
-          connectors: [{ id: 6, sourceSlot: 3, sinkSlot: 0, targetStateName: "Return False" }],
+          connectors: [{ id: 4, sourceSlot: 2, sinkSlot: 0, targetStateName: "Return False" }],
           isInput: false,
           allowOneToMany: true,
           allowManyToOne: false,
-          label: "False",
-          color: "#F44336"
+          label: "F",
+          color: "#F44336",
+          isConditional: true,
+          conditionExpression: "false",
+          conditionLabel: "If False",
+          conditionalGroup: "conditional_result"
         }
       ],
       slotRadius: 5,
@@ -416,9 +353,9 @@ export const MOCK_SOLUTION_ADDITION_TEST: NoCodeSolutionRawData = {
     {
       stateName: "Return True",
       id: "return-true",
-      index: 4,
+      index: 3,
       shapeType: "rectangle",
-      solutionName: "Addition Test",
+      solutionName: "AdditionTester.test_addition",
       stateClass: "ReturnStatement",
       boundObjectClass: "ReturnStatement",
       boundObjectFieldValues: {
@@ -446,9 +383,9 @@ export const MOCK_SOLUTION_ADDITION_TEST: NoCodeSolutionRawData = {
     {
       stateName: "Return False",
       id: "return-false",
-      index: 5,
+      index: 4,
       shapeType: "rectangle",
-      solutionName: "Addition Test",
+      solutionName: "AdditionTester.test_addition",
       stateClass: "ReturnStatement",
       boundObjectClass: "ReturnStatement",
       boundObjectFieldValues: {
@@ -476,294 +413,595 @@ export const MOCK_SOLUTION_ADDITION_TEST: NoCodeSolutionRawData = {
 };
 
 /**
- * Sample Solution 2: "Order.process_order" - Realistic class method
- * Demonstrates a no-code function on a custom Order class
+ * Sample Solution 2: "UserFormSolution.detectChanges" - Frontend TypeScript solution
+ * Detects changes on the user profile display and calls the backend to persist updates.
+ *
+ * Flow (with conditional gate):
+ *                                             ┌→ [Call User.backend_update (AwaitBackendCall)] → [Log Success] → [Done]
+ * [Start] → [Subscribe userForm$] → [Has Changes?] ─┤
+ *                                             └→ [Skip - No Changes] → [Done]
+ *
+ * Demonstrates: FormSubscription for reactive form watching, ConditionalChain
+ * to gate on actual changes, AwaitBackendCall to bridge to the backend solution,
+ * and standard VariableAssignment / ReturnStatement blocks.
  */
-export const MOCK_SOLUTION_ORDER_PROCESS: NoCodeSolutionRawData = {
+export const MOCK_SOLUTION_USER_FORM_DETECT: NoCodeSolutionRawData = {
   id: 2,
-  solutionName: "Order.process_order",
-  functionName: "process_order",
-  xBounds: 1200,
-  yBounds: 800,
+  solutionName: "UserFormSolution.detectChanges",
+  functionName: "detectChanges",
+  targetRuntime: 'typescript_frontend',
+  xBounds: 1400,
+  yBounds: 700,
   boundClass: {
-    className: "Order",
-    displayName: "Order",
-    description: "Represents a customer order in the e-commerce system",
-    pythonImports: [
-      "from typing import Optional, List",
-      "from datetime import datetime",
-      "from decimal import Decimal"
+    className: "UserFormSolution",
+    displayName: "User Form Solution",
+    description: "Reactive frontend solution that watches the user profile form for changes and pushes updates to the backend",
+    pythonImports: [],
+    typescriptImports: [
+      "import { Observable, Subscription } from 'rxjs';",
+      "import { distinctUntilChanged, debounceTime, filter } from 'rxjs/operators';",
+      "import { PolariService } from '@services/polari.service';"
     ],
     fields: [
-      { name: "order_id", displayName: "Order ID", type: "str", description: "Unique identifier for the order" },
-      { name: "customer_id", displayName: "Customer ID", type: "str", description: "ID of the customer who placed the order" },
-      { name: "items", displayName: "Order Items", type: "List[dict]", defaultValue: [], description: "List of items in the order" },
-      { name: "total_amount", displayName: "Total Amount", type: "Decimal", defaultValue: 0, description: "Total order amount" },
-      { name: "status", displayName: "Status", type: "str", defaultValue: "pending", description: "Current order status" },
-      { name: "created_at", displayName: "Created At", type: "datetime", description: "When the order was created" },
-      { name: "processed_at", displayName: "Processed At", type: "Optional[datetime]", description: "When the order was processed" }
+      { name: "userId", displayName: "User ID", type: "str", defaultValue: "", description: "ID of the currently authenticated user" },
+      { name: "originalData", displayName: "Original Data", type: "dict", defaultValue: {}, description: "Snapshot of the user data when the form loaded" },
+      { name: "formData", displayName: "Form Data", type: "dict", defaultValue: {}, description: "Current form field values (two-way bound)" },
+      { name: "hasChanges", displayName: "Has Changes", type: "bool", defaultValue: false, description: "Whether the form differs from the original data" },
+      { name: "isSaving", displayName: "Is Saving", type: "bool", defaultValue: false, description: "Whether a backend save is in progress" },
+      { name: "lastSaveResult", displayName: "Last Save Result", type: "bool", defaultValue: false, description: "Result of the most recent backend save" }
     ],
     methods: [
       {
-        name: "process_order",
-        displayName: "Process Order",
-        parameters: [
-          { name: "validate_inventory", type: "bool", default: true },
-          { name: "send_notification", type: "bool", default: true }
-        ],
-        returnType: "bool",
-        description: "Process the order: validate inventory, calculate totals, and update status"
-      },
-      {
-        name: "cancel_order",
-        displayName: "Cancel Order",
-        parameters: [
-          { name: "reason", type: "str" }
-        ],
-        returnType: "bool",
-        description: "Cancel the order and refund if applicable"
-      },
-      {
-        name: "get_total",
-        displayName: "Get Total",
+        name: "detectChanges",
+        displayName: "Detect Changes",
         parameters: [],
-        returnType: "Decimal",
-        description: "Calculate and return the total order amount"
+        returnType: "None",
+        description: "Subscribe to user form changes and push updates to the backend when the form is dirty"
       }
     ]
   },
   stateInstances: [
-    // Initial State - Green Circle (Start)
+    // ── Start ──
     {
       stateName: "Start",
       id: "start-state",
       index: 0,
       shapeType: "circle",
-      solutionName: "Order.process_order",
+      solutionName: "UserFormSolution.detectChanges",
       stateClass: "InitialState",
       boundObjectClass: "InitialState",
       boundObjectFieldValues: {
         displayName: "Start",
-        description: "Begin order processing",
-        inputParams: [
-          { name: "validate_inventory", type: "bool" },
-          { name: "send_notification", type: "bool" }
-        ]
+        description: "Begin watching the user profile form for changes",
+        inputParams: []
       },
-      stateSvgSizeX: null,
-      stateSvgSizeY: null,
-      stateSvgRadius: 60,
+      stateSvgSizeX: null, stateSvgSizeY: null, stateSvgRadius: 60,
       layerName: "start-layer",
-      stateLocationX: 100,
-      stateLocationY: 350,
+      stateLocationX: 80, stateLocationY: 320,
       stateSvgName: "circle",
       slots: [
-        { index: 0, stateName: "Start", slotAngularPosition: 0, connectors: [], isInput: false, allowOneToMany: true, allowManyToOne: false }
-      ],
-      slotRadius: 5,
-      backgroundColor: "#4CAF50"  // Green
-    },
-    // Validate Inventory - Conditional
-    {
-      stateName: "Check Inventory",
-      id: "check-inventory",
-      index: 1,
-      shapeType: "circle",
-      solutionName: "Order.process_order",
-      stateClass: "ConditionalChain",
-      boundObjectClass: "ConditionalChain",
-      boundObjectFieldValues: {
-        displayName: "Check Inventory",
-        condition: "validate_inventory and self._check_stock()",
-        defaultLogicalOperator: "AND"
-      },
-      stateSvgSizeX: null,
-      stateSvgSizeY: null,
-      stateSvgRadius: 70,
-      layerName: "conditional-layer",
-      stateLocationX: 280,
-      stateLocationY: 350,
-      stateSvgName: "circle",
-      slots: [
-        { index: 0, stateName: "Check Inventory", slotAngularPosition: 180, connectors: [], isInput: true, allowOneToMany: false, allowManyToOne: true },
-        { index: 1, stateName: "Check Inventory", slotAngularPosition: 0, connectors: [], isInput: false, allowOneToMany: true, allowManyToOne: false },
-        { index: 2, stateName: "Check Inventory", slotAngularPosition: 270, connectors: [], isInput: false, allowOneToMany: true, allowManyToOne: false }
-      ],
-      slotRadius: 5,
-      backgroundColor: "#4CAF50"  // Green for conditional
-    },
-    // Calculate Total - Variable Assignment
-    {
-      stateName: "Calculate Total",
-      id: "calc-total",
-      index: 2,
-      shapeType: "circle",
-      solutionName: "Order.process_order",
-      stateClass: "VariableAssignment",
-      boundObjectClass: "VariableAssignment",
-      boundObjectFieldValues: {
-        displayName: "Calculate Total",
-        variableName: "self.total_amount",
-        value: "sum(item['price'] * item['quantity'] for item in self.items)",
-        dataType: "Decimal"
-      },
-      stateSvgSizeX: null,
-      stateSvgSizeY: null,
-      stateSvgRadius: 65,
-      layerName: "assignment-layer",
-      stateLocationX: 460,
-      stateLocationY: 250,
-      stateSvgName: "circle",
-      slots: [
-        { index: 0, stateName: "Calculate Total", slotAngularPosition: 180, connectors: [], isInput: true, allowOneToMany: false, allowManyToOne: true },
-        { index: 1, stateName: "Calculate Total", slotAngularPosition: 0, connectors: [], isInput: false, allowOneToMany: true, allowManyToOne: false }
-      ],
-      slotRadius: 5,
-      backgroundColor: "#9C27B0"  // Purple for variable
-    },
-    // Update Status - Variable Assignment
-    {
-      stateName: "Update Status",
-      id: "update-status",
-      index: 3,
-      shapeType: "circle",
-      solutionName: "Order.process_order",
-      stateClass: "VariableAssignment",
-      boundObjectClass: "VariableAssignment",
-      boundObjectFieldValues: {
-        displayName: "Update Status",
-        variableName: "self.status",
-        value: "processing",
-        dataType: "str"
-      },
-      stateSvgSizeX: null,
-      stateSvgSizeY: null,
-      stateSvgRadius: 65,
-      layerName: "assignment-layer",
-      stateLocationX: 640,
-      stateLocationY: 250,
-      stateSvgName: "circle",
-      slots: [
-        { index: 0, stateName: "Update Status", slotAngularPosition: 180, connectors: [], isInput: true, allowOneToMany: false, allowManyToOne: true },
-        { index: 1, stateName: "Update Status", slotAngularPosition: 0, connectors: [], isInput: false, allowOneToMany: true, allowManyToOne: false }
-      ],
-      slotRadius: 5,
-      backgroundColor: "#9C27B0"  // Purple for variable
-    },
-    // Send Notification - Conditional Function Call
-    {
-      stateName: "Send Notification",
-      id: "send-notification",
-      index: 4,
-      shapeType: "circle",
-      solutionName: "Order.process_order",
-      stateClass: "ConditionalChain",
-      boundObjectClass: "ConditionalChain",
-      boundObjectFieldValues: {
-        displayName: "Send Notification?",
-        condition: "send_notification"
-      },
-      stateSvgSizeX: null,
-      stateSvgSizeY: null,
-      stateSvgRadius: 60,
-      layerName: "conditional-layer",
-      stateLocationX: 820,
-      stateLocationY: 250,
-      stateSvgName: "circle",
-      slots: [
-        { index: 0, stateName: "Send Notification", slotAngularPosition: 180, connectors: [], isInput: true, allowOneToMany: false, allowManyToOne: true },
-        { index: 1, stateName: "Send Notification", slotAngularPosition: 0, connectors: [], isInput: false, allowOneToMany: true, allowManyToOne: false }
+        {
+          index: 0, stateName: "Start", slotAngularPosition: 0,
+          connectors: [{ id: 201, sourceSlot: 0, sinkSlot: 0, targetStateName: "Subscribe Form" }],
+          isInput: false, allowOneToMany: true, allowManyToOne: false,
+          label: "To Subscribe"
+        }
       ],
       slotRadius: 5,
       backgroundColor: "#4CAF50"
     },
-    // Log Output - Debug
+    // ── Subscribe to userForm$ ──
     {
-      stateName: "Log Processing",
-      id: "log-processing",
+      stateName: "Subscribe Form",
+      id: "subscribe-form",
+      index: 1,
+      shapeType: "circle",
+      solutionName: "UserFormSolution.detectChanges",
+      stateClass: "FormSubscription",
+      boundObjectClass: "FormSubscription",
+      boundObjectFieldValues: {
+        displayName: "Watch User Form",
+        sourceName: "userForm$",
+        triggerType: "form_subscription",
+        description: "Subscribe to the reactive user-profile form value stream (debounced & deduplicated)"
+      },
+      stateSvgSizeX: null, stateSvgSizeY: null, stateSvgRadius: 70,
+      layerName: "frontend-layer",
+      stateLocationX: 300, stateLocationY: 320,
+      stateSvgName: "circle",
+      slots: [
+        { index: 0, stateName: "Subscribe Form", slotAngularPosition: 180, connectors: [], isInput: true, allowOneToMany: false, allowManyToOne: true, label: "Input" },
+        {
+          index: 1, stateName: "Subscribe Form", slotAngularPosition: 0,
+          connectors: [{ id: 202, sourceSlot: 1, sinkSlot: 0, targetStateName: "Has Changes?" }],
+          isInput: false, allowOneToMany: true, allowManyToOne: false,
+          label: "formData", passthroughVariableName: "formData"
+        }
+      ],
+      slotRadius: 5,
+      backgroundColor: "#E91E63"
+    },
+    // ── Conditional: Has Changes? ──
+    {
+      stateName: "Has Changes?",
+      id: "has-changes",
+      index: 2,
+      shapeType: "diamond",
+      solutionName: "UserFormSolution.detectChanges",
+      stateClass: "ConditionalChain",
+      boundObjectClass: "ConditionalChain",
+      boundObjectFieldValues: {
+        displayName: "Has Changes?",
+        description: "Check whether form data differs from the original snapshot",
+        condition: "JSON.stringify(formData) !== JSON.stringify(this.originalData)",
+        defaultLogicalOperator: "AND",
+        links: [
+          {
+            id: "link_has_changes",
+            displayName: "formData !== originalData",
+            conditionType: "not_equals",
+            logicalOperator: "AND",
+            isStateSpaceObject: true,
+            leftSource: { sourceType: "from_input", inputSlotIndex: 0, inputVariableName: "formData" },
+            rightSource: { sourceType: "from_field", fieldPath: "self.originalData" },
+            fieldName: "formData",
+            conditionValue: "self.originalData"
+          }
+        ]
+      },
+      stateSvgSizeX: null, stateSvgSizeY: null, stateSvgRadius: 70,
+      layerName: "conditional-layer",
+      stateLocationX: 540, stateLocationY: 320,
+      stateSvgName: "diamond",
+      slots: [
+        { index: 0, stateName: "Has Changes?", slotAngularPosition: 180, connectors: [], isInput: true, allowOneToMany: false, allowManyToOne: true, label: "formData", parameterName: "formData", parameterType: "object" },
+        {
+          index: 1, stateName: "Has Changes?", slotAngularPosition: 30,
+          connectors: [{ id: 203, sourceSlot: 1, sinkSlot: 0, targetStateName: "Call Backend Update" }],
+          isInput: false, allowOneToMany: true, allowManyToOne: false,
+          label: "True", color: "#4CAF50", passthroughVariableName: "formData"
+        },
+        {
+          index: 2, stateName: "Has Changes?", slotAngularPosition: 330,
+          connectors: [{ id: 204, sourceSlot: 2, sinkSlot: 0, targetStateName: "No Changes" }],
+          isInput: false, allowOneToMany: true, allowManyToOne: false,
+          label: "False", color: "#F44336"
+        }
+      ],
+      slotRadius: 5,
+      backgroundColor: "#4CAF50"
+    },
+    // ── True path: Call User.backend_update via AwaitBackendCall ──
+    {
+      stateName: "Call Backend Update",
+      id: "call-backend-update",
+      index: 3,
+      shapeType: "circle",
+      solutionName: "UserFormSolution.detectChanges",
+      stateClass: "AwaitBackendCall",
+      boundObjectClass: "AwaitBackendCall",
+      boundObjectFieldValues: {
+        displayName: "Save to Backend",
+        targetSolutionName: "User.backend_update",
+        resultVariable: "saveResult",
+        description: "Call User.backend_update with the changed form data and await success/failure"
+      },
+      stateSvgSizeX: null, stateSvgSizeY: null, stateSvgRadius: 70,
+      layerName: "cross-runtime-layer",
+      stateLocationX: 780, stateLocationY: 220,
+      stateSvgName: "circle",
+      slots: [
+        { index: 0, stateName: "Call Backend Update", slotAngularPosition: 180, connectors: [], isInput: true, allowOneToMany: false, allowManyToOne: true, label: "formData" },
+        {
+          index: 1, stateName: "Call Backend Update", slotAngularPosition: 0,
+          connectors: [{ id: 205, sourceSlot: 1, sinkSlot: 0, targetStateName: "Update Snapshot" }],
+          isInput: false, allowOneToMany: true, allowManyToOne: false,
+          label: "saveResult", passthroughVariableName: "saveResult"
+        }
+      ],
+      slotRadius: 5,
+      backgroundColor: "#FF5722"
+    },
+    // ── Update original snapshot so we don't re-trigger ──
+    {
+      stateName: "Update Snapshot",
+      id: "update-snapshot",
+      index: 4,
+      shapeType: "circle",
+      solutionName: "UserFormSolution.detectChanges",
+      stateClass: "VariableAssignment",
+      boundObjectClass: "VariableAssignment",
+      boundObjectFieldValues: {
+        displayName: "Update Snapshot",
+        variableName: "this.originalData",
+        value: "{ ...this.formData }",
+        dataType: "object",
+        description: "Sync the original-data snapshot with the saved form so subsequent comparisons are clean"
+      },
+      stateSvgSizeX: null, stateSvgSizeY: null, stateSvgRadius: 60,
+      layerName: "assignment-layer",
+      stateLocationX: 1020, stateLocationY: 220,
+      stateSvgName: "circle",
+      slots: [
+        { index: 0, stateName: "Update Snapshot", slotAngularPosition: 180, connectors: [], isInput: true, allowOneToMany: false, allowManyToOne: true, label: "Input" },
+        {
+          index: 1, stateName: "Update Snapshot", slotAngularPosition: 0,
+          connectors: [{ id: 206, sourceSlot: 1, sinkSlot: 0, targetStateName: "Done" }],
+          isInput: false, allowOneToMany: true, allowManyToOne: false,
+          label: "Output"
+        }
+      ],
+      slotRadius: 5,
+      backgroundColor: "#9C27B0"
+    },
+    // ── False path: No Changes (skip) ──
+    {
+      stateName: "No Changes",
+      id: "no-changes",
       index: 5,
       shapeType: "circle",
-      solutionName: "Order.process_order",
+      solutionName: "UserFormSolution.detectChanges",
       stateClass: "LogOutput",
       boundObjectClass: "LogOutput",
       boundObjectFieldValues: {
-        displayName: "Log Processing",
-        messageTemplate: "Order {self.order_id} processed successfully",
-        logLevel: "info"
+        displayName: "No Changes",
+        messageTemplate: "Form unchanged — skipping backend call",
+        logLevel: "debug"
       },
-      stateSvgSizeX: null,
-      stateSvgSizeY: null,
-      stateSvgRadius: 55,
+      stateSvgSizeX: null, stateSvgSizeY: null, stateSvgRadius: 55,
       layerName: "debug-layer",
-      stateLocationX: 460,
-      stateLocationY: 450,
+      stateLocationX: 780, stateLocationY: 440,
       stateSvgName: "circle",
       slots: [
-        { index: 0, stateName: "Log Processing", slotAngularPosition: 90, connectors: [], isInput: true, allowOneToMany: false, allowManyToOne: true },
-        { index: 1, stateName: "Log Processing", slotAngularPosition: 0, connectors: [], isInput: false, allowOneToMany: true, allowManyToOne: false }
+        { index: 0, stateName: "No Changes", slotAngularPosition: 180, connectors: [], isInput: true, allowOneToMany: false, allowManyToOne: true, label: "Input" },
+        {
+          index: 1, stateName: "No Changes", slotAngularPosition: 0,
+          connectors: [{ id: 207, sourceSlot: 1, sinkSlot: 0, targetStateName: "Done" }],
+          isInput: false, allowOneToMany: true, allowManyToOne: false,
+          label: "Output"
+        }
       ],
       slotRadius: 5,
-      backgroundColor: "#607D8B"  // Gray for debug
+      backgroundColor: "#607D8B"
     },
-    // Return Statement - Red Rectangle (Success path)
+    // ── Done (merge point) ──
     {
-      stateName: "Success",
-      id: "return-success",
+      stateName: "Done",
+      id: "done-state",
       index: 6,
       shapeType: "rectangle",
-      solutionName: "Order.process_order",
+      solutionName: "UserFormSolution.detectChanges",
       stateClass: "ReturnStatement",
       boundObjectClass: "ReturnStatement",
       boundObjectFieldValues: {
-        displayName: "Success",
-        description: "Order processed successfully",
-        value: "True"
+        displayName: "Done",
+        description: "Change-detection cycle complete",
+        returnValue: "void"
       },
-      stateSvgSizeX: null,
-      stateSvgSizeY: null,
-      stateSvgRadius: null,
-      stateSvgWidth: 120,
-      stateSvgHeight: 120,
-      cornerRadius: 8,
+      stateSvgSizeX: null, stateSvgSizeY: null, stateSvgRadius: null,
+      stateSvgWidth: 120, stateSvgHeight: 80, cornerRadius: 8,
       layerName: "end-layer",
-      stateLocationX: 1000,
-      stateLocationY: 250,
+      stateLocationX: 1240, stateLocationY: 320,
       stateSvgName: "rectangle",
       slots: [
-        { index: 0, stateName: "Success", slotAngularPosition: 180, connectors: [], isInput: true, allowOneToMany: false, allowManyToOne: true }
+        { index: 0, stateName: "Done", slotAngularPosition: 180, connectors: [], isInput: true, allowOneToMany: false, allowManyToOne: true }
       ],
       slotRadius: 5,
-      backgroundColor: "#F44336"  // Red for end state
-    },
-    // Return Statement - Red Rectangle (Failure path)
+      backgroundColor: "#F44336"
+    }
+  ]
+};
+
+/**
+ * Sample Solution 3: "User.backend_update" - Backend Python solution
+ * Called by UserFormSolution.detectChanges to persist user profile changes.
+ *
+ * Flow:
+ *                              ┌→ [Update Fields] → [Log Success] → [Return True]
+ * [Start] → [Validate Data] ──┤
+ *                              └→ [Log Failure] → [Return False]
+ *
+ * Bound to the User class with fields typical of a user profile.
+ */
+export const MOCK_SOLUTION_USER_BACKEND_UPDATE: NoCodeSolutionRawData = {
+  id: 3,
+  solutionName: "User.backend_update",
+  functionName: "backend_update",
+  targetRuntime: 'python_backend',
+  xBounds: 1200,
+  yBounds: 700,
+  boundClass: {
+    className: "User",
+    displayName: "User",
+    description: "Represents an authenticated user in the system — the owner of the profile being edited",
+    pythonImports: [
+      "from typing import Optional",
+      "from datetime import datetime"
+    ],
+    fields: [
+      { name: "user_id", displayName: "User ID", type: "str", description: "Unique user identifier" },
+      { name: "username", displayName: "Username", type: "str", defaultValue: "", description: "Login name" },
+      { name: "email", displayName: "Email", type: "str", defaultValue: "", description: "Primary email address" },
+      { name: "display_name", displayName: "Display Name", type: "str", defaultValue: "", description: "Name shown in the UI" },
+      { name: "bio", displayName: "Bio", type: "str", defaultValue: "", description: "Short user biography" },
+      { name: "avatar_url", displayName: "Avatar URL", type: "Optional[str]", description: "URL to the profile picture" },
+      { name: "updated_at", displayName: "Updated At", type: "Optional[datetime]", description: "Timestamp of the last profile update" }
+    ],
+    methods: [
+      {
+        name: "backend_update",
+        displayName: "Backend Update",
+        parameters: [
+          { name: "update_data", type: "dict" }
+        ],
+        returnType: "bool",
+        description: "Validate and persist user profile changes — only the owning user may call this"
+      },
+      {
+        name: "get_profile",
+        displayName: "Get Profile",
+        parameters: [],
+        returnType: "dict",
+        description: "Return a sanitised dict of the user profile for the frontend"
+      }
+    ]
+  },
+  stateInstances: [
+    // ── Start ──
     {
-      stateName: "Failed",
-      id: "return-failure",
+      stateName: "Start",
+      id: "start-state",
+      index: 0,
+      shapeType: "circle",
+      solutionName: "User.backend_update",
+      stateClass: "InitialState",
+      boundObjectClass: "InitialState",
+      boundObjectFieldValues: {
+        displayName: "Start",
+        description: "Receive update_data dict from the frontend",
+        inputParams: [
+          { name: "update_data", type: "dict", description: "Dictionary of changed profile fields" }
+        ]
+      },
+      stateSvgSizeX: null, stateSvgSizeY: null, stateSvgRadius: 60,
+      layerName: "start-layer",
+      stateLocationX: 80, stateLocationY: 320,
+      stateSvgName: "circle",
+      slots: [
+        {
+          index: 0, stateName: "Start", slotAngularPosition: 0,
+          connectors: [{ id: 301, sourceSlot: 0, sinkSlot: 0, targetStateName: "Validate Data" }],
+          isInput: false, allowOneToMany: true, allowManyToOne: false,
+          label: "To Validate", passthroughVariableName: "update_data"
+        }
+      ],
+      slotRadius: 5,
+      backgroundColor: "#4CAF50"
+    },
+    // ── Validate incoming data ──
+    {
+      stateName: "Validate Data",
+      id: "validate-data",
+      index: 1,
+      shapeType: "diamond",
+      solutionName: "User.backend_update",
+      stateClass: "ConditionalChain",
+      boundObjectClass: "ConditionalChain",
+      boundObjectFieldValues: {
+        displayName: "Validate Data",
+        description: "Ensure the update payload is non-empty and contains only allowed fields",
+        condition: "update_data and all(k in allowed_fields for k in update_data)",
+        defaultLogicalOperator: "AND",
+        links: [
+          {
+            id: "link_validate",
+            displayName: "update_data is valid",
+            conditionType: "custom",
+            logicalOperator: "AND",
+            isStateSpaceObject: true,
+            leftSource: { sourceType: "from_input", inputSlotIndex: 0, inputVariableName: "update_data" },
+            rightSource: { sourceType: "literal", literalValue: "True" },
+            fieldName: "update_data",
+            conditionValue: "True"
+          }
+        ]
+      },
+      stateSvgSizeX: null, stateSvgSizeY: null, stateSvgRadius: 70,
+      layerName: "conditional-layer",
+      stateLocationX: 300, stateLocationY: 320,
+      stateSvgName: "diamond",
+      slots: [
+        { index: 0, stateName: "Validate Data", slotAngularPosition: 180, connectors: [], isInput: true, allowOneToMany: false, allowManyToOne: true, label: "update_data", parameterName: "update_data", parameterType: "dict" },
+        {
+          index: 1, stateName: "Validate Data", slotAngularPosition: 30,
+          connectors: [{ id: 302, sourceSlot: 1, sinkSlot: 0, targetStateName: "Update Fields" }],
+          isInput: false, allowOneToMany: true, allowManyToOne: false,
+          label: "Valid", color: "#4CAF50", passthroughVariableName: "update_data"
+        },
+        {
+          index: 2, stateName: "Validate Data", slotAngularPosition: 330,
+          connectors: [{ id: 303, sourceSlot: 2, sinkSlot: 0, targetStateName: "Log Failure" }],
+          isInput: false, allowOneToMany: true, allowManyToOne: false,
+          label: "Invalid", color: "#F44336"
+        }
+      ],
+      slotRadius: 5,
+      backgroundColor: "#4CAF50"
+    },
+    // ── Update User Fields (ForEach over update_data keys) ──
+    {
+      stateName: "Update Fields",
+      id: "update-fields",
+      index: 2,
+      shapeType: "circle",
+      solutionName: "User.backend_update",
+      stateClass: "ForEachLoop",
+      boundObjectClass: "ForEachLoop",
+      boundObjectFieldValues: {
+        displayName: "Apply Updates",
+        itemVariable: "field_name",
+        indexVariable: "idx",
+        collectionVariable: "update_data.keys()",
+        description: "Iterate over each changed field and set it on the User object"
+      },
+      stateSvgSizeX: null, stateSvgSizeY: null, stateSvgRadius: 65,
+      layerName: "loop-layer",
+      stateLocationX: 540, stateLocationY: 220,
+      stateSvgName: "circle",
+      slots: [
+        { index: 0, stateName: "Update Fields", slotAngularPosition: 180, connectors: [], isInput: true, allowOneToMany: false, allowManyToOne: true, label: "update_data" },
+        {
+          index: 1, stateName: "Update Fields", slotAngularPosition: 0,
+          connectors: [{ id: 304, sourceSlot: 1, sinkSlot: 0, targetStateName: "Set Timestamp" }],
+          isInput: false, allowOneToMany: true, allowManyToOne: false,
+          label: "Loop Done"
+        }
+      ],
+      slotRadius: 5,
+      backgroundColor: "#2196F3"
+    },
+    // ── Set updated_at timestamp ──
+    {
+      stateName: "Set Timestamp",
+      id: "set-timestamp",
+      index: 3,
+      shapeType: "circle",
+      solutionName: "User.backend_update",
+      stateClass: "VariableAssignment",
+      boundObjectClass: "VariableAssignment",
+      boundObjectFieldValues: {
+        displayName: "Set Timestamp",
+        variableName: "self.updated_at",
+        value: "datetime.utcnow()",
+        dataType: "datetime",
+        description: "Record the timestamp of this profile update"
+      },
+      stateSvgSizeX: null, stateSvgSizeY: null, stateSvgRadius: 60,
+      layerName: "assignment-layer",
+      stateLocationX: 740, stateLocationY: 220,
+      stateSvgName: "circle",
+      slots: [
+        { index: 0, stateName: "Set Timestamp", slotAngularPosition: 180, connectors: [], isInput: true, allowOneToMany: false, allowManyToOne: true, label: "Input" },
+        {
+          index: 1, stateName: "Set Timestamp", slotAngularPosition: 0,
+          connectors: [{ id: 305, sourceSlot: 1, sinkSlot: 0, targetStateName: "Log Success" }],
+          isInput: false, allowOneToMany: true, allowManyToOne: false,
+          label: "Output"
+        }
+      ],
+      slotRadius: 5,
+      backgroundColor: "#9C27B0"
+    },
+    // ── Log Success ──
+    {
+      stateName: "Log Success",
+      id: "log-success",
+      index: 4,
+      shapeType: "circle",
+      solutionName: "User.backend_update",
+      stateClass: "LogOutput",
+      boundObjectClass: "LogOutput",
+      boundObjectFieldValues: {
+        displayName: "Log Success",
+        messageTemplate: "User {self.user_id} profile updated successfully",
+        logLevel: "info"
+      },
+      stateSvgSizeX: null, stateSvgSizeY: null, stateSvgRadius: 55,
+      layerName: "debug-layer",
+      stateLocationX: 940, stateLocationY: 220,
+      stateSvgName: "circle",
+      slots: [
+        { index: 0, stateName: "Log Success", slotAngularPosition: 180, connectors: [], isInput: true, allowOneToMany: false, allowManyToOne: true, label: "Input" },
+        {
+          index: 1, stateName: "Log Success", slotAngularPosition: 0,
+          connectors: [{ id: 306, sourceSlot: 1, sinkSlot: 0, targetStateName: "Commit Changes" }],
+          isInput: false, allowOneToMany: true, allowManyToOne: false,
+          label: "Output"
+        }
+      ],
+      slotRadius: 5,
+      backgroundColor: "#607D8B"
+    },
+    // ── Commit Changes (success — StateChangeCommit end state) ──
+    {
+      stateName: "Commit Changes",
+      id: "commit-changes",
+      index: 5,
+      shapeType: "rectangle",
+      solutionName: "User.backend_update",
+      stateClass: "StateChangeCommit",
+      boundObjectClass: "StateChangeCommit",
+      boundObjectFieldValues: {
+        displayName: "Commit Changes",
+        description: "Profile update succeeded — commit to backend",
+        targetFieldName: "user_profile",
+        changeType: "update"
+      },
+      stateSvgSizeX: null, stateSvgSizeY: null, stateSvgRadius: null,
+      stateSvgWidth: 120, stateSvgHeight: 80, cornerRadius: 8,
+      layerName: "end-layer",
+      stateLocationX: 1100, stateLocationY: 220,
+      stateSvgName: "rectangle",
+      slots: [
+        { index: 0, stateName: "Commit Changes", slotAngularPosition: 180, connectors: [], isInput: true, allowOneToMany: false, allowManyToOne: true }
+      ],
+      slotRadius: 5,
+      backgroundColor: "#4CAF50"
+    },
+    // ── Log Failure (invalid data path) ──
+    {
+      stateName: "Log Failure",
+      id: "log-failure",
+      index: 6,
+      shapeType: "circle",
+      solutionName: "User.backend_update",
+      stateClass: "LogOutput",
+      boundObjectClass: "LogOutput",
+      boundObjectFieldValues: {
+        displayName: "Log Failure",
+        messageTemplate: "User {self.user_id} update rejected — invalid payload",
+        logLevel: "warning"
+      },
+      stateSvgSizeX: null, stateSvgSizeY: null, stateSvgRadius: 55,
+      layerName: "debug-layer",
+      stateLocationX: 540, stateLocationY: 440,
+      stateSvgName: "circle",
+      slots: [
+        { index: 0, stateName: "Log Failure", slotAngularPosition: 180, connectors: [], isInput: true, allowOneToMany: false, allowManyToOne: true, label: "Input" },
+        {
+          index: 1, stateName: "Log Failure", slotAngularPosition: 0,
+          connectors: [{ id: 307, sourceSlot: 1, sinkSlot: 0, targetStateName: "Return False" }],
+          isInput: false, allowOneToMany: true, allowManyToOne: false,
+          label: "Output"
+        }
+      ],
+      slotRadius: 5,
+      backgroundColor: "#607D8B"
+    },
+    // ── Return False (failure) ──
+    {
+      stateName: "Return False",
+      id: "return-false",
       index: 7,
       shapeType: "rectangle",
-      solutionName: "Order.process_order",
+      solutionName: "User.backend_update",
       stateClass: "ReturnStatement",
       boundObjectClass: "ReturnStatement",
       boundObjectFieldValues: {
-        displayName: "Failed",
-        description: "Return failure result",
+        displayName: "Return False",
+        description: "Profile update failed — invalid data",
         returnValue: "False"
       },
-      stateSvgSizeX: null,
-      stateSvgSizeY: null,
-      stateSvgRadius: null,
-      stateSvgWidth: 120,
-      stateSvgHeight: 120,
-      cornerRadius: 8,
+      stateSvgSizeX: null, stateSvgSizeY: null, stateSvgRadius: null,
+      stateSvgWidth: 120, stateSvgHeight: 80, cornerRadius: 8,
       layerName: "end-layer",
-      stateLocationX: 460,
-      stateLocationY: 550,
+      stateLocationX: 780, stateLocationY: 440,
       stateSvgName: "rectangle",
       slots: [
-        { index: 0, stateName: "Failed", slotAngularPosition: 90, connectors: [], isInput: true, allowOneToMany: false, allowManyToOne: true }
+        { index: 0, stateName: "Return False", slotAngularPosition: 180, connectors: [], isInput: true, allowOneToMany: false, allowManyToOne: true }
       ],
       slotRadius: 5,
-      backgroundColor: "#F44336"  // Red for end state
+      backgroundColor: "#F44336"
     }
   ]
 };
@@ -773,7 +1011,8 @@ export const MOCK_SOLUTION_ORDER_PROCESS: NoCodeSolutionRawData = {
  */
 export const MOCK_SOLUTIONS: NoCodeSolutionRawData[] = [
   MOCK_SOLUTION_ADDITION_TEST,
-  MOCK_SOLUTION_ORDER_PROCESS
+  MOCK_SOLUTION_USER_FORM_DETECT,
+  MOCK_SOLUTION_USER_BACKEND_UPDATE
 ];
 
 /**

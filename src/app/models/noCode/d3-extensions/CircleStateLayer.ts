@@ -133,6 +133,57 @@ export class CircleStateLayer extends D3ModelLayer {
     this.onSlotContextMenu = callback;
   }
 
+  // --- Execution Highlighting ---
+
+  /**
+   * Highlight a state group with a pulsing glow effect for execution visualization.
+   */
+  highlightState(stateName: string, color: string): void {
+    const group = this.getLayerGroup()
+      .select(`g.state-group[state-name="${stateName}"]`);
+    if (group.empty()) return;
+
+    // Remove any existing highlight
+    group.select('.execution-highlight').remove();
+
+    // Get the main shape element
+    const shape = group.select('.draggable-shape');
+    if (shape.empty()) return;
+
+    const r = parseFloat(shape.attr('r') || '50');
+
+    // Add a highlight ring behind the shape
+    group.insert('circle', '.draggable-shape')
+      .attr('class', 'execution-highlight')
+      .attr('cx', 0)
+      .attr('cy', 0)
+      .attr('r', r + 6)
+      .attr('fill', 'none')
+      .attr('stroke', color)
+      .attr('stroke-width', 3)
+      .attr('stroke-opacity', 0.8)
+      .style('filter', `drop-shadow(0 0 6px ${color})`)
+      .style('animation', 'execution-pulse 1.5s ease-in-out infinite');
+  }
+
+  /**
+   * Remove highlight from a specific state.
+   */
+  unhighlightState(stateName: string): void {
+    this.getLayerGroup()
+      .select(`g.state-group[state-name="${stateName}"] .execution-highlight`)
+      .remove();
+  }
+
+  /**
+   * Remove all execution highlights.
+   */
+  unhighlightAllStates(): void {
+    this.getLayerGroup()
+      .selectAll('.execution-highlight')
+      .remove();
+  }
+
   /**
    * Get a state group element by state name.
    */
@@ -160,7 +211,7 @@ export class CircleStateLayer extends D3ModelLayer {
   // This is used to determine if we should append the slot layer to the svg.
   getSolutionLayer():  d3.Selection<SVGGElement, unknown, null, undefined>{
     return this.d3SvgBaseLayer
-      .selectAll(`g.solution-layer-${this.getSanitizedSolutionName()}`);
+      .select(`g.solution-layer-${this.getSanitizedSolutionName()}`);
   }
 
   // Retrieves the circle state objects from the no-code solution and converts them into data-points.
@@ -191,6 +242,16 @@ export class CircleStateLayer extends D3ModelLayer {
         ));
   }
 
+  private calculateDefaultSlotAngle(slot: Slot, state: NoCodeState): number {
+    const slots = state.slots || [];
+    const sameType = slots.filter(s => s.isInput === slot.isInput);
+    const idx = sameType.indexOf(slot);
+    const count = sameType.length;
+    const base = slot.isInput ? 180 : 0;
+    const spread = Math.min(30, 120 / Math.max(count, 1));
+    return (base + (idx - (count - 1) / 2) * spread + 360) % 360;
+  }
+
   private getCircleSlotDataPointsFromSolution(noCodeSolution: NoCodeSolution): CircleSlotDataPoint[] {
     if (!noCodeSolution) {
       console.error("NoCodeSolution is undefined. Cannot retrieve slot data points.");
@@ -219,7 +280,7 @@ export class CircleStateLayer extends D3ModelLayer {
                   state.stateLocationY ?? 0,
                   state.stateSvgRadius ?? 10,
                   slot.index,
-                  slot.slotAngularPosition ?? 0,
+                  slot.slotAngularPosition ?? this.calculateDefaultSlotAngle(slot, state),
                   slot.isInput,
                   slot.isOutput,
                   state.stateName ?? "unknown",
@@ -241,14 +302,13 @@ export class CircleStateLayer extends D3ModelLayer {
     this.initializeConnectorLayer();
     this.initializeStateGroups();
     this.initializeSlotLayer();
-    this.renderCachedConnectors();
   }
 
   /**
    * Renders connectors from cached data when the solution loads.
    * This restores connector lines that were previously created and saved.
    */
-  private renderCachedConnectors(): void {
+  public renderCachedConnectors(): void {
     console.log('[renderCachedConnectors] Starting...');
     console.log('[renderCachedConnectors] noCodeSolution:', this.noCodeSolution?.solutionName);
     console.log('[renderCachedConnectors] connectorLayer:', this.connectorLayer);
@@ -551,7 +611,7 @@ export class CircleStateLayer extends D3ModelLayer {
         state.stateLocationY ?? 0,
         state.stateSvgRadius ?? 10,
         slot.index,
-        slot.slotAngularPosition ?? 0,
+        slot.slotAngularPosition ?? this.calculateDefaultSlotAngle(slot, state),
         slot.isInput,
         slot.isOutput,
         stateName,
@@ -580,8 +640,9 @@ export class CircleStateLayer extends D3ModelLayer {
     console.log('[initializeLayerGroup] Starting for layer:', this.layerName);
     console.log('[initializeLayerGroup] d3SvgBaseLayer:', this.d3SvgBaseLayer?.node());
 
-    // Ensure a specific <g> wrapper exists for this Layer
-    let layerGroup = this.d3SvgBaseLayer
+    // Nest layer group inside the solution layer so cross-layer lookups work
+    const solutionLayer = this.getSolutionLayer();
+    let layerGroup = solutionLayer
       .selectAll(`g.${this.layerName}`)
       .data([null]);
 
@@ -596,15 +657,15 @@ export class CircleStateLayer extends D3ModelLayer {
     entered.merge(layerGroup);
 
     // Verify the layer group was created
-    const verifyLayerGroup = this.d3SvgBaseLayer.selectAll(`g.${this.layerName}`);
+    const verifyLayerGroup = solutionLayer.selectAll(`g.${this.layerName}`);
     console.log('[initializeLayerGroup] After creation, layer groups found:', verifyLayerGroup.size());
     console.log('[initializeLayerGroup] Layer group node:', verifyLayerGroup.node());
   }
 
   // Gets the baseline group for this layer.
   getLayerGroup(): d3.Selection<SVGGElement, unknown, null, undefined> {
-    return this.d3SvgBaseLayer
-      .selectAll(`g.${this.layerName}`)
+    return this.getSolutionLayer()
+      .select(`g.${this.layerName}`);
   }
 
   // Clears the layer group of all elements
@@ -2126,6 +2187,20 @@ export class CircleStateLayer extends D3ModelLayer {
               resolvedAngle
             );
           }
+
+          // Update live Slot object so re-renders preserve the dragged position
+          const liveState = this.noCodeSolution?.stateInstances.find(
+            s => s.stateName === slotInfo.stateName
+          );
+          if (liveState?.slots) {
+            const liveSlot = liveState.slots.find(s => s.index === slotInfo.slotIndex);
+            if (liveSlot) liveSlot.slotAngularPosition = resolvedAngle;
+          }
+          // Update slotDataPoints so initializeSlotLayer uses correct position
+          const dp = this.slotDataPoints.find(
+            s => s.stateName === slotInfo.stateName && s.index === slotInfo.slotIndex
+          );
+          if (dp) dp.angularPosition = resolvedAngle;
 
           // Re-render the slot label at the new position
           const finalLocalX = parseFloat(slotMarker.attr('cx') || '0');

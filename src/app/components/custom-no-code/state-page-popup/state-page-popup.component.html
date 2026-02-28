@@ -1,0 +1,233 @@
+<!-- State Page Popup - Near full-screen overlay for detailed state view -->
+<div class="state-page-backdrop" (click)="onBackdropClick()">
+  <div class="state-page-container" (click)="onContainerClick($event)">
+
+    <!-- Header Bar -->
+    <div class="state-page-header">
+      <div class="header-content">
+        <mat-icon class="state-icon">{{ getStateIcon() }}</mat-icon>
+        <div class="header-text">
+          <h2 class="state-page-title">{{ getStateTitle() }}</h2>
+          <span class="state-page-subtitle" *ngIf="getStateSubtitle()">{{ getStateSubtitle() }}</span>
+        </div>
+        <div class="runtime-badge"
+             [class.frontend]="targetRuntime === 'typescript_frontend'"
+             [class.backend]="targetRuntime === 'python_backend'">
+          <mat-icon>{{ getRuntimeIcon() }}</mat-icon>
+          <span>{{ getRuntimeLabel() }}</span>
+        </div>
+      </div>
+      <button class="close-btn" (click)="close()" title="Close (Esc)">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+
+    <!-- Three-column body -->
+    <div class="state-page-body">
+
+      <!-- LEFT COLUMN: Inputs -->
+      <div class="state-page-panel inputs-panel">
+        <div class="panel-header">
+          <mat-icon class="panel-icon input-icon">arrow_forward</mat-icon>
+          <h3 class="panel-title">Inputs</h3>
+          <span class="panel-count">{{ inputConnections.length }}</span>
+        </div>
+
+        <div class="panel-content">
+          <div *ngIf="!hasInputConnections()" class="empty-state">
+            <mat-icon class="empty-icon">link_off</mat-icon>
+            <span class="empty-text">No input connections</span>
+          </div>
+
+          <div *ngFor="let conn of inputConnections; trackBy: trackBySlotIndex"
+               class="connection-card"
+               [class.connected]="conn.connectedStateName">
+            <div class="connection-header">
+              <span class="slot-name">{{ conn.slotName || 'Slot ' + conn.slotIndex }}</span>
+              <span class="data-type-badge">{{ conn.dataType || 'any' }}</span>
+            </div>
+            <div class="connection-detail" *ngIf="conn.connectedStateName">
+              <mat-icon class="connection-arrow">subdirectory_arrow_right</mat-icon>
+              <span class="connected-state">{{ conn.connectedStateName }}</span>
+              <span class="connected-slot">(slot {{ conn.connectedSlotIndex }})</span>
+            </div>
+            <div class="connection-detail unconnected" *ngIf="!conn.connectedStateName">
+              <mat-icon class="connection-arrow">remove</mat-icon>
+              <span class="connected-state">Not connected</span>
+            </div>
+            <div class="required-badge" *ngIf="conn.isRequired">
+              <span>Required</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CENTER COLUMN: State Detail -->
+      <div class="state-page-panel center-panel">
+        <div class="center-content">
+
+          <!-- State Name Badge -->
+          <div class="state-name-badge">
+            <span class="badge-label">State:</span>
+            <span class="badge-value">{{ getStateName() }}</span>
+          </div>
+
+          <!-- Description -->
+          <div class="description-section" *ngIf="getStateDescription()">
+            <p class="state-description">{{ getStateDescription() }}</p>
+          </div>
+
+          <!-- Cross-Runtime Bridge Info -->
+          <div class="detail-section cross-runtime-section" *ngIf="isCrossRuntimeBlock()">
+            <div class="section-header">
+              <span class="section-label">Cross-Runtime Bridge</span>
+              <mat-icon class="cross-runtime-icon">cloud_sync</mat-icon>
+            </div>
+            <div class="cross-runtime-info">
+              <div class="state-info-row">
+                <span class="info-label">Direction</span>
+                <span class="info-value cross-runtime-direction">{{ getCrossRuntimeDirection() }}</span>
+              </div>
+              <div class="state-info-row">
+                <span class="info-label">Target Solution</span>
+                <span class="info-value">{{ getCrossRuntimeTargetSolution() }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bound Class Section -->
+          <div class="detail-section">
+            <div class="section-header" (click)="toggleEditMode()">
+              <span class="section-label">Bound Class</span>
+              <mat-icon class="edit-icon">{{ isEditing ? 'close' : 'edit' }}</mat-icon>
+            </div>
+
+            <div class="current-class" *ngIf="!isEditing">
+              <mat-icon class="class-icon">{{ getStateIcon() }}</mat-icon>
+              <span class="class-name">{{ stateInstance?.boundObjectClass || stateInstance?.stateClass || 'None selected' }}</span>
+            </div>
+
+            <div class="class-search-container" *ngIf="isEditing">
+              <mat-form-field class="class-search" appearance="outline">
+                <mat-icon matPrefix>search</mat-icon>
+                <input
+                  matInput
+                  [formControl]="classSearchControl"
+                  [matAutocomplete]="classAuto"
+                  placeholder="Search classes...">
+                <mat-autocomplete
+                  #classAuto="matAutocomplete"
+                  (optionSelected)="onClassSelected($event)"
+                  class="class-autocomplete">
+                  <mat-optgroup *ngFor="let category of getCategories()" [label]="category">
+                    <mat-option
+                      *ngFor="let opt of getClassesForCategory(category); trackBy: trackByClassName"
+                      [value]="opt.className">
+                      <div class="class-option">
+                        <mat-icon class="option-icon" [style.color]="opt.color">{{ opt.icon || 'code' }}</mat-icon>
+                        <span class="option-name">{{ opt.displayName }}</span>
+                      </div>
+                    </mat-option>
+                  </mat-optgroup>
+                </mat-autocomplete>
+              </mat-form-field>
+            </div>
+          </div>
+
+          <!-- Fields Section -->
+          <div class="detail-section" *ngIf="hasFields()">
+            <div class="section-header">
+              <span class="section-label">Fields</span>
+            </div>
+            <div class="fields-list">
+              <div *ngFor="let field of displayFields" class="field-item">
+                <label class="field-label">{{ field.displayName || field.name }}</label>
+                <input
+                  class="field-input"
+                  [type]="field.type === 'number' ? 'number' : 'text'"
+                  [value]="field.value"
+                  [readonly]="!field.isEditable"
+                  [class.readonly]="!field.isEditable"
+                  (change)="onFieldChange(field.name, $event)">
+              </div>
+            </div>
+          </div>
+
+          <!-- Internal State Section -->
+          <div class="detail-section">
+            <div class="section-header">
+              <span class="section-label">Internal State</span>
+            </div>
+            <div class="internal-state-info">
+              <div class="state-info-row">
+                <span class="info-label">Shape</span>
+                <span class="info-value">{{ getShapeType() }}</span>
+              </div>
+              <div class="state-info-row">
+                <span class="info-label">Input Slots</span>
+                <span class="info-value">{{ getInputSlotCount() }}</span>
+              </div>
+              <div class="state-info-row">
+                <span class="info-label">Output Slots</span>
+                <span class="info-value">{{ getOutputSlotCount() }}</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN: Outputs -->
+      <div class="state-page-panel outputs-panel">
+        <div class="panel-header">
+          <mat-icon class="panel-icon output-icon">arrow_back</mat-icon>
+          <h3 class="panel-title">Outputs</h3>
+          <span class="panel-count">{{ outputConnections.length }}</span>
+        </div>
+
+        <div class="panel-content">
+          <div *ngIf="!hasOutputConnections()" class="empty-state">
+            <mat-icon class="empty-icon">link_off</mat-icon>
+            <span class="empty-text">No output connections</span>
+          </div>
+
+          <div *ngFor="let conn of outputConnections; trackBy: trackBySlotIndex"
+               class="connection-card"
+               [class.connected]="conn.connectedStateName">
+            <div class="connection-header">
+              <span class="slot-name">{{ conn.slotName || 'Slot ' + conn.slotIndex }}</span>
+              <span class="data-type-badge">{{ conn.dataType || 'any' }}</span>
+            </div>
+            <div class="connection-detail" *ngIf="conn.connectedStateName">
+              <mat-icon class="connection-arrow">subdirectory_arrow_right</mat-icon>
+              <span class="connected-state">{{ conn.connectedStateName }}</span>
+              <span class="connected-slot">(slot {{ conn.connectedSlotIndex }})</span>
+            </div>
+            <div class="connection-detail unconnected" *ngIf="!conn.connectedStateName">
+              <mat-icon class="connection-arrow">remove</mat-icon>
+              <span class="connected-state">Not connected</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Footer -->
+    <div class="state-page-footer">
+      <div class="footer-item">
+        <span class="footer-label">State:</span>
+        <span class="footer-value">{{ getStateName() }}</span>
+      </div>
+      <div class="footer-item">
+        <span class="footer-label">Shape:</span>
+        <span class="footer-value">{{ getShapeType() }}</span>
+      </div>
+      <div class="footer-item" *ngIf="getSolutionName()">
+        <span class="footer-label">Solution:</span>
+        <span class="footer-value">{{ getSolutionName() }}</span>
+      </div>
+    </div>
+
+  </div>
+</div>

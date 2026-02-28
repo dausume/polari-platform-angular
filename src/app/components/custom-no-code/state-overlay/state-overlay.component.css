@@ -29,6 +29,7 @@
 /* ==================== Header Section ==================== */
 
 .overlay-header {
+  position: relative;
   padding: 4px 6px;
   background-color: transparent;
   display: flex;
@@ -94,6 +95,38 @@
   overflow: hidden;
   text-overflow: ellipsis;
   font-style: italic;
+}
+
+/* ==================== State Page Button ==================== */
+
+.state-page-btn {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+  cursor: pointer;
+  padding: 1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  opacity: 0.6;
+  transition: opacity 0.2s, background-color 0.2s;
+  z-index: auto !important;
+}
+
+.state-page-btn:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 1);
+}
+
+.state-page-btn mat-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+  color: #3f51b5;
 }
 
 /* ==================== Class Search (Editing Mode) ==================== */

@@ -1,8 +1,11 @@
-// Author: Claude
-// Custom overlay component for InitialState
-// Displays the Solution Object information and its fields
+// Author: Dustin Etts
+// Custom overlay component for InitialState types
+// Displays the Solution Object information and provides trigger type selector
 
-import { Component, Input, Output, EventEmitter, OnInit, OnDestroy } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, OnChanges, SimpleChanges } from '@angular/core';
+import { InitialStateTriggerType, getAvailableInitialStateTypes } from '@models/stateSpace/initialStates';
+import { TargetRuntime } from '@models/noCode/mock-NCS-data';
+import { StateSpaceClassRegistry } from '@models/stateSpace/stateSpaceClassRegistry';
 
 /**
  * Solution Object field definition
@@ -16,8 +19,18 @@ export interface SolutionField {
 }
 
 /**
+ * Trigger type option for dropdown display
+ */
+export interface TriggerTypeOption {
+  type: InitialStateTriggerType;
+  label: string;
+  icon: string;
+  color: string;
+}
+
+/**
  * InitialStateOverlayComponent displays the Solution Object context
- * that is available at the start of the solution flow.
+ * and provides a trigger type selector for changing initial state type.
  */
 @Component({
   standalone: false,
@@ -25,7 +38,7 @@ export interface SolutionField {
   templateUrl: './initial-state-overlay.component.html',
   styleUrls: ['./initial-state-overlay.component.css']
 })
-export class InitialStateOverlayComponent implements OnInit, OnDestroy {
+export class InitialStateOverlayComponent implements OnInit, OnDestroy, OnChanges {
 
   // Position and size (from StateOverlayManager)
   @Input() x: number = 0;
@@ -35,7 +48,7 @@ export class InitialStateOverlayComponent implements OnInit, OnDestroy {
 
   // State identification
   @Input() stateName: string = '';
-  @Input() boundClassName: string = 'InitialState';
+  @Input() boundClassName: string = 'DirectInvocation';
 
   // Solution information
   @Input() solutionName: string = '';
@@ -48,6 +61,21 @@ export class InitialStateOverlayComponent implements OnInit, OnDestroy {
   // Input parameters defined for this initial state
   @Input() inputParams: { name: string; type: string; description?: string }[] = [];
 
+  // Trigger type management
+  @Input() currentTriggerType: InitialStateTriggerType = 'direct_invocation';
+  @Input() targetRuntime: TargetRuntime = 'python_backend';
+  @Output() triggerTypeChanged = new EventEmitter<InitialStateTriggerType>();
+
+  // Bound field values for type-specific fields
+  @Input() boundObjectFieldValues: { [key: string]: any } = {};
+  @Output() fieldValueChanged = new EventEmitter<{ fieldName: string; value: any }>();
+
+  // Available trigger type options (computed from runtime)
+  triggerTypeOptions: TriggerTypeOption[] = [];
+
+  // Whether the trigger type dropdown is open
+  showTypeSelector: boolean = false;
+
   // Size mode flags
   isCompact: boolean = false;
   isSmall: boolean = false;
@@ -56,11 +84,99 @@ export class InitialStateOverlayComponent implements OnInit, OnDestroy {
   showAllFields: boolean = false;
   maxVisibleFields: number = 4;
 
+  private registry = StateSpaceClassRegistry.getInstance();
+
   ngOnInit(): void {
     this.updateSizeMode();
+    this.updateTriggerTypeOptions();
   }
 
   ngOnDestroy(): void {}
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['targetRuntime']) {
+      this.updateTriggerTypeOptions();
+    }
+    if (changes['width'] || changes['height']) {
+      this.updateSizeMode();
+    }
+  }
+
+  /**
+   * Build the list of available trigger type options from the runtime
+   */
+  private updateTriggerTypeOptions(): void {
+    const availableTypes = getAvailableInitialStateTypes(this.targetRuntime);
+    this.triggerTypeOptions = availableTypes.map(type => {
+      const metadata = this.getMetadataForTriggerType(type);
+      return {
+        type,
+        label: metadata?.displayName || this.getTriggerTypeLabel(type),
+        icon: metadata?.icon || 'play_circle',
+        color: metadata?.color || '#4CAF50'
+      };
+    });
+  }
+
+  /**
+   * Get registry metadata for a trigger type
+   */
+  private getMetadataForTriggerType(type: InitialStateTriggerType) {
+    const classNameMap: { [key in InitialStateTriggerType]: string } = {
+      'direct_invocation': 'DirectInvocation',
+      'form_subscription': 'FormSubscription',
+      'logic_flow_entry': 'LogicFlowEntry',
+      'backend_state_change': 'BackendStateChange'
+    };
+    return this.registry.getClass(classNameMap[type]);
+  }
+
+  /**
+   * Fallback labels for trigger types
+   */
+  private getTriggerTypeLabel(type: InitialStateTriggerType): string {
+    const labels: { [key in InitialStateTriggerType]: string } = {
+      'direct_invocation': 'Direct Invocation',
+      'form_subscription': 'Form Subscription',
+      'logic_flow_entry': 'Logic Flow Entry',
+      'backend_state_change': 'Backend State Change'
+    };
+    return labels[type];
+  }
+
+  /**
+   * Get the current trigger type option
+   */
+  getCurrentTriggerOption(): TriggerTypeOption | undefined {
+    return this.triggerTypeOptions.find(opt => opt.type === this.currentTriggerType);
+  }
+
+  /**
+   * Handle trigger type selection from dropdown
+   */
+  onTriggerTypeChange(newType: InitialStateTriggerType): void {
+    if (newType !== this.currentTriggerType) {
+      this.currentTriggerType = newType;
+      this.triggerTypeChanged.emit(newType);
+    }
+    this.showTypeSelector = false;
+  }
+
+  /**
+   * Toggle the trigger type selector dropdown
+   */
+  toggleTypeSelector(event: MouseEvent): void {
+    event.stopPropagation();
+    event.preventDefault();
+    this.showTypeSelector = !this.showTypeSelector;
+  }
+
+  /**
+   * Handle field value change for type-specific fields
+   */
+  onFieldValueChange(fieldName: string, value: any): void {
+    this.fieldValueChanged.emit({ fieldName, value });
+  }
 
   /**
    * Update size mode based on dimensions
@@ -137,6 +253,8 @@ export class InitialStateOverlayComponent implements OnInit, OnDestroy {
   onOverlayClick(event: MouseEvent): void {
     event.stopPropagation();
     event.preventDefault();
+    // Close the type selector if clicking outside it
+    this.showTypeSelector = false;
   }
 
   onMouseDown(event: MouseEvent): void {
@@ -147,7 +265,7 @@ export class InitialStateOverlayComponent implements OnInit, OnDestroy {
    * Toggle edit mode (for compatibility)
    */
   toggleEditMode(): void {
-    // InitialState overlay is read-only display
+    // Handled via trigger type selector
   }
 
   /**

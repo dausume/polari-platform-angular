@@ -17,13 +17,32 @@
               {{ solution.name }}
             </option>
           </select>
-          <button class="reset-btn" (click)="resetToDefaults()" title="Reset to default solutions">Reset Data</button>
+          <button class="reset-btn" (click)="resetToDefaults()" title="Refresh solutions from backend">Refresh</button>
+        </div>
+        <div class="runtime-selector">
+          <label for="runtime-select">Runtime:</label>
+          <select
+            id="runtime-select"
+            (change)="onRuntimeChange($any($event.target).value)">
+            <option value="python_backend" [selected]="solutionTargetRuntime === 'python_backend'">Python (Backend)</option>
+            <option value="typescript_frontend" [selected]="solutionTargetRuntime === 'typescript_frontend'">TypeScript (Frontend)</option>
+          </select>
         </div>
         <div class="zoom-controls">
           <button (click)="zoomOut()" title="Zoom Out">-</button>
           <span class="zoom-level">{{ zoomPercent }}%</span>
           <button (click)="zoomIn()" title="Zoom In">+</button>
           <button (click)="resetZoom()" title="Reset View">Reset</button>
+        </div>
+
+        <!-- Manual Process Button -->
+        <div class="execution-toggle">
+          <button class="exec-toggle-btn"
+                  [class.active]="showExecutionPanel"
+                  (click)="toggleExecutionPanel()"
+                  title="Manual Process">
+            <mat-icon>play_circle_outline</mat-icon>
+          </button>
         </div>
 
         <!-- Solution Options Menu -->
@@ -69,6 +88,8 @@
         [enabledHelperClasses]="enabledHelperClasses"
         [availableSubSolutions]="availableSubSolutions"
         [generatedPythonCode]="generatedPythonCode"
+        [generatedTypescriptCode]="generatedTypescriptCode"
+        [targetRuntime]="solutionTargetRuntime"
         [solutionName]="noCodeSolution?.solutionName || ''"
         [existingUniqueStates]="existingUniqueStates"
         (createStateFromDefinition)="onCreateStateFromDefinition($event)"
@@ -113,6 +134,42 @@
       (menuClosed)="closeContextMenu()">
     </app-state-context-menu>
 
+    <!-- State Properties Popup -->
+    <div class="state-props-popup"
+         *ngIf="statePropsVisible"
+         [style.left.px]="statePropsPosition.x"
+         [style.top.px]="statePropsPosition.y"
+         (click)="$event.stopPropagation()">
+      <div class="state-props-header">
+        <h3 class="state-props-title">Edit State Properties</h3>
+        <button class="state-props-close" (click)="closeStatePropertiesPopup()">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+      <div class="state-props-type" *ngIf="statePropsStateClass">
+        <mat-icon>category</mat-icon>
+        <span>{{ statePropsStateClass }}</span>
+      </div>
+      <div class="state-props-content">
+        <label class="state-props-label">State Name</label>
+        <input type="text"
+               class="state-props-input"
+               [(ngModel)]="statePropsEditName"
+               (keydown.enter)="saveStateProperties()"
+               (keydown.escape)="closeStatePropertiesPopup()"
+               #stateNameInput>
+      </div>
+      <div class="state-props-actions">
+        <button class="state-props-btn cancel" (click)="closeStatePropertiesPopup()">Cancel</button>
+        <button class="state-props-btn save"
+                [disabled]="!statePropsEditName.trim() || statePropsEditName.trim() === statePropsOriginalName"
+                (click)="saveStateProperties()">
+          Rename
+        </button>
+      </div>
+    </div>
+    <div class="popup-backdrop" *ngIf="statePropsVisible" (click)="closeStatePropertiesPopup()"></div>
+
     <!-- Slot Manager Popup -->
     <state-slot-manager-popup
       *ngIf="slotManagerVisible"
@@ -134,7 +191,10 @@
       [stateContext]="slotConfigStateContext"
       [stateClass]="slotConfigStateClass"
       [producedVariables]="slotConfigProducedVariables"
+      [connections]="slotConfigConnections"
       (configurationChanged)="onSlotConfigChanged($event)"
+      (connectionRemoved)="onSlotConnectionRemoved($event)"
+      (slotDeleted)="onSlotDeleted($event)"
       (closed)="closeSlotConfigPopup()">
     </slot-configuration-popup>
 
@@ -162,6 +222,21 @@
     <!-- Backdrop for full view popup -->
     <div class="popup-backdrop" *ngIf="fullViewPopupVisible" (click)="closeFullViewPopup()"></div>
 
+    <!-- State Page Popup -->
+    <state-page-popup
+      *ngIf="statePageVisible && statePageState"
+      [stateInstance]="statePageState"
+      [targetRuntime]="solutionTargetRuntime"
+      [boundClassMetadata]="statePageClassMetadata"
+      [inputConnections]="statePageInputConnections"
+      [outputConnections]="statePageOutputConnections"
+      [displayFields]="statePageDisplayFields"
+      [availableClasses]="statePageAvailableClasses"
+      (classSelected)="onStatePageClassSelected($event)"
+      (fieldChanged)="onStatePageFieldChanged($event)"
+      (closed)="closeStatePage()">
+    </state-page-popup>
+
     <!-- View Context Overlay (Debug) -->
     <view-context-overlay
       *ngIf="viewContextOverlayVisible"
@@ -171,4 +246,14 @@
       [position]="viewContextOverlayPosition"
       (closed)="closeViewContextOverlay()">
     </view-context-overlay>
+
+    <!-- Execution Panel (Bottom Panel) -->
+    <execution-panel
+      *ngIf="showExecutionPanel"
+      [solutionName]="selectedSolutionName || noCodeSolution?.solutionName || ''"
+      [targetRuntime]="solutionTargetRuntime"
+      [inputParamDefinitions]="executionInputParams"
+      (closed)="onExecutionPanelClosed()"
+      (activeStateChanged)="onExecutionActiveStateChanged($event)">
+    </execution-panel>
 </mat-card>

@@ -6,7 +6,7 @@ import { NoCodeSolution } from '@models/noCode/NoCodeSolution';
 import { Slot } from '@models/noCode/Slot';
 import { CdkDragStart, CdkDragEnd } from '@angular/cdk/drag-drop';
 import { BehaviorSubject, Subject } from "rxjs";
-import { debounceTime, takeUntil } from 'rxjs/operators';
+import { debounceTime, filter, takeUntil } from 'rxjs/operators';
 import { OverlayComponentService } from '../../services/no-code-services/overlay-component-service';
 import * as d3 from 'd3';
 import { NoCodeStateInstanceComponent } from './no-code-state-instance/no-code-state-instance';
@@ -14,22 +14,29 @@ import { NoCodeStateRendererManager } from '@services/no-code-services/no-code-s
 import { InteractionStateService } from '@services/no-code-services/interaction-state-service';
 import { NoCodeSolutionStateService } from '@services/no-code-services/no-code-solution-state.service';
 import { StateOverlayManager } from '@services/no-code-services/state-overlay-manager.service';
-import { StateOverlayComponent } from './state-overlay/state-overlay.component';
+import { StateOverlayComponent, DisplayField, ClassOption } from './state-overlay/state-overlay.component';
 import { ConditionalChainOverlayComponent } from './conditional-chain-overlay/conditional-chain-overlay.component';
 import { FilterListOverlayComponent } from './filter-list-overlay/filter-list-overlay.component';
 import { VariableAssignmentOverlayComponent } from './variable-assignment-overlay/variable-assignment-overlay.component';
 import { InitialStateOverlayComponent } from './initial-state-overlay/initial-state-overlay.component';
 import { MathOperationOverlayComponent } from './math-operation-overlay/math-operation-overlay.component';
+import { ReturnValueOverlayComponent } from './return-value-overlay/return-value-overlay.component';
 import { CircleStateLayer } from '@models/noCode/d3-extensions/CircleStateLayer';
 import { RectangleStateLayer } from '@models/noCode/d3-extensions/RectangleStateLayer';
 import { DiamondStateLayer } from '@models/noCode/d3-extensions/DiamondStateLayer';
 import { StateDefinition } from '@models/noCode/StateDefinition';
 import { StateDefinitionService } from '@services/no-code-services/state-definition.service';
 import { StateToolItem, BoundClassDefinition, ClassMemberStateRequest, HelperClassDefinition, SubSolutionDefinition } from './state-tool-sidebar/state-tool-sidebar.component';
-import { StateSpaceClassRegistry } from '@models/stateSpace/stateSpaceClassRegistry';
+import { StateSpaceClassRegistry, StateSpaceClassMetadata, InitialStateTriggerType } from '@models/stateSpace/stateSpaceClassRegistry';
 import { PythonCodeGeneratorService } from '@services/no-code-services/python-code-generator.service';
+import { TypescriptCodeGeneratorService } from '@services/no-code-services/typescript-code-generator.service';
+import { SolutionManagerService } from '@services/no-code-services/solution-manager.service';
+import { SolutionExecutionService } from '@services/no-code-services/solution-execution.service';
+import { InputParamField } from './execution-panel/execution-panel.component';
+import { TargetRuntime } from '@models/noCode/mock-NCS-data';
 import { StateContextMenuAction, SIZE_PRESETS } from './state-context-menu/state-context-menu.component';
-import { SlotConfiguration, InputMappingMode, OutputMappingMode, ProducedVariable } from './slot-configuration-popup/slot-configuration-popup.component';
+import { StateConnectionInfo } from './state-page-popup/state-page-popup.component';
+import { SlotConfiguration, SlotConnectionInfo, InputMappingMode, OutputMappingMode, ProducedVariable } from './slot-configuration-popup/slot-configuration-popup.component';
 import { StateSlotManagerConfig, SolutionSlotDefaults } from './state-slot-manager-popup/state-slot-manager-popup.component';
 import { PotentialContext } from '@models/stateSpace/solutionContext';
 
@@ -73,6 +80,9 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
   // For cleanup
   private destroy$ = new Subject<void>();
   private resizeSubject = new Subject<void>();
+  private canvasResizeObserver: ResizeObserver | null = null;
+  private scrollHandler: (() => void) | null = null;
+  private scrollableAncestor: Element | null = null;
 
   // Default viewBox dimensions (logical coordinate space)
   private viewBoxWidth = 1200;
@@ -116,6 +126,7 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
   slotConfigStateContext: PotentialContext | null = null;
   slotConfigStateClass: string = '';
   slotConfigProducedVariables: ProducedVariable[] = [];
+  slotConfigConnections: SlotConnectionInfo[] = [];
   solutionSlotDefaults: SolutionSlotDefaults = {
     inputColor: '#2196f3',
     outputColor: '#4caf50',
@@ -123,10 +134,26 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
     outputMappingMode: 'function_return'
   };
 
+  // State properties popup
+  statePropsVisible = false;
+  statePropsPosition = { x: 0, y: 0 };
+  statePropsOriginalName = '';
+  statePropsEditName = '';
+  statePropsStateClass = '';
+
   // Full view popup state
   fullViewPopupVisible = false;
   fullViewPopupPosition = { x: 0, y: 0 };
   fullViewPopupState: NoCodeState | null = null;
+
+  // State page popup state
+  statePageVisible = false;
+  statePageState: NoCodeState | null = null;
+  statePageInputConnections: StateConnectionInfo[] = [];
+  statePageOutputConnections: StateConnectionInfo[] = [];
+  statePageDisplayFields: DisplayField[] = [];
+  statePageClassMetadata: StateSpaceClassMetadata | null = null;
+  statePageAvailableClasses: ClassOption[] = [];
 
   // View context overlay state (for debugging)
   viewContextOverlayVisible = false;
@@ -143,6 +170,10 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
   // Definition creator panel state
   showDefinitionCreator = false;
   editingDefinition: StateDefinition | undefined;
+
+  // Execution panel state
+  showExecutionPanel = false;
+  executionInputParams: InputParamField[] = [];
 
   // State-space class registry
   private stateSpaceRegistry = StateSpaceClassRegistry.getInstance();
@@ -162,6 +193,12 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
   // Generated Python code for the current solution
   generatedPythonCode: string = '';
 
+  // Generated TypeScript code for the current solution (frontend runtime)
+  generatedTypescriptCode: string = '';
+
+  // Target runtime for the current solution
+  solutionTargetRuntime: TargetRuntime = 'python_backend';
+
   // Track unique states (InitialState, ReturnStatement) that already exist in the solution
   // Used to filter these from the sidebar when they're already present
   existingUniqueStates: Set<string> = new Set();
@@ -177,7 +214,10 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
       private solutionStateService: NoCodeSolutionStateService,
       private stateOverlayManager: StateOverlayManager,
       private stateDefinitionService: StateDefinitionService,
-      private pythonCodeGenerator: PythonCodeGeneratorService
+      private pythonCodeGenerator: PythonCodeGeneratorService,
+      private typescriptCodeGenerator: TypescriptCodeGeneratorService,
+      private solutionManagerService: SolutionManagerService,
+      private solutionExecutionService: SolutionExecutionService
   )
   {
     // Debounce resize events to avoid excessive updates
@@ -219,6 +259,9 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
           this.loadSelectedSolution();
         }
       });
+
+    // Try to load solutions from backend (will update the cache asynchronously)
+    this.solutionStateService.initializeFromBackend();
   }
 
   // Track the last loaded solution to prevent unnecessary reloads
@@ -318,9 +361,12 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   /**
-   * Update bound class and generate Python code from solution data
+   * Update bound class and generate code from solution data (Python or TypeScript based on runtime)
    */
   private updateBoundClassAndCode(solutionData: any): void {
+    // Load target runtime from solution data
+    this.solutionTargetRuntime = solutionData.targetRuntime || 'python_backend';
+
     // Extract bound class from solution data
     if (solutionData.boundClass) {
       this.boundClass = {
@@ -331,22 +377,81 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
         methods: solutionData.boundClass.methods || [],
         pythonImports: solutionData.boundClass.pythonImports
       };
+      // Attach typescriptImports if present
+      if (solutionData.boundClass.typescriptImports) {
+        (this.boundClass as any).typescriptImports = solutionData.boundClass.typescriptImports;
+      }
     } else {
       this.boundClass = null;
     }
 
-    // Generate Python code
+    // Generate code based on runtime (client-side first for instant feedback)
     const functionName = solutionData.functionName ||
       solutionData.solutionName.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
 
-    this.generatedPythonCode = this.pythonCodeGenerator.generateFromSolution(
-      this.noCodeSolution || null,
-      this.boundClass,
-      functionName
-    );
+    if (this.solutionTargetRuntime === 'typescript_frontend') {
+      this.generatedTypescriptCode = this.typescriptCodeGenerator.generateFromSolution(
+        this.noCodeSolution || null,
+        this.boundClass,
+        functionName
+      );
+      this.generatedPythonCode = '';
+    } else {
+      this.generatedPythonCode = this.pythonCodeGenerator.generateFromSolution(
+        this.noCodeSolution || null,
+        this.boundClass,
+        functionName
+      );
+      this.generatedTypescriptCode = '';
+    }
+
+    // Try backend code generation as well (overwrites client-side result on success)
+    const solutionName = solutionData.solutionName;
+    if (solutionName) {
+      this.solutionManagerService.generateCode(solutionName, this.solutionTargetRuntime)
+        .subscribe({
+          next: (backendCode: string) => {
+            if (backendCode) {
+              if (this.solutionTargetRuntime === 'typescript_frontend') {
+                this.generatedTypescriptCode = backendCode;
+              } else {
+                this.generatedPythonCode = backendCode;
+              }
+              this.changeDetectorRef.markForCheck();
+              console.log('[updateBoundClassAndCode] Backend code generation succeeded');
+            }
+          },
+          error: () => {
+            // Client-side code already set above — no action needed
+            console.log('[updateBoundClassAndCode] Backend code gen unavailable, using client-side');
+          }
+        });
+    }
 
     console.log('[updateBoundClassAndCode] Bound class:', this.boundClass?.className);
-    console.log('[updateBoundClassAndCode] Generated code length:', this.generatedPythonCode.length);
+    console.log('[updateBoundClassAndCode] Runtime:', this.solutionTargetRuntime);
+    console.log('[updateBoundClassAndCode] Python code length:', this.generatedPythonCode.length);
+    console.log('[updateBoundClassAndCode] TypeScript code length:', this.generatedTypescriptCode.length);
+  }
+
+  /**
+   * Handle runtime change from the toolbar selector
+   */
+  onRuntimeChange(runtime: string): void {
+    this.solutionTargetRuntime = runtime as TargetRuntime;
+
+    // Persist to solution data
+    const solutionData = this.solutionStateService.getSelectedSolutionData();
+    if (solutionData) {
+      (solutionData as any).targetRuntime = this.solutionTargetRuntime;
+    }
+
+    // Regenerate code for the new runtime
+    if (solutionData) {
+      this.updateBoundClassAndCode(solutionData);
+    }
+
+    this.changeDetectorRef.markForCheck();
   }
 
   /**
@@ -620,10 +725,12 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
       return this.createFilterListOverlay(stateName, stateGroup, stateInstance);
     } else if (stateClass === 'VariableAssignment') {
       return this.createVariableAssignmentOverlay(stateName, stateGroup, stateInstance);
-    } else if (stateClass === 'InitialState') {
+    } else if (this.isInitialStateClass(stateClass)) {
       return this.createInitialStateOverlay(stateName, stateGroup, stateInstance);
     } else if (stateClass === 'MathOperation') {
       return this.createMathOperationOverlay(stateName, stateGroup, stateInstance);
+    } else if (stateClass === 'ReturnValue') {
+      return this.createReturnValueOverlay(stateName, stateGroup, stateInstance);
     } else {
       return this.createDefaultOverlay(stateName, stateGroup, stateInstance);
     }
@@ -668,6 +775,10 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
 
       componentRef.instance.fullViewRequested.subscribe((event: { x: number; y: number; stateName: string }) => {
         this.showFullViewPopup(event.x, event.y, stateInstance);
+      });
+
+      componentRef.instance.statePageRequested.subscribe((event: { stateName: string }) => {
+        this.showStatePage(stateInstance);
       });
 
       return true;
@@ -731,6 +842,15 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
       // Subscribe to add input slot events
       componentRef.instance.addInputSlot.subscribe(() => {
         this.addInputSlotToState(stateInstance, stateGroup, componentRef);
+      });
+
+      // Subscribe to full view and state page events
+      componentRef.instance.fullViewRequested.subscribe((event: { x: number; y: number; stateName: string }) => {
+        this.showFullViewPopup(event.x, event.y, stateInstance);
+      });
+
+      componentRef.instance.statePageRequested.subscribe((event: { stateName: string }) => {
+        this.showStatePage(stateInstance);
       });
 
       return true;
@@ -928,13 +1048,39 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
         console.log('[VariableAssignment] Configured output slot:', outputSlot);
       });
 
+      // Subscribe to full view and state page events
+      componentRef.instance.fullViewRequested.subscribe((event: { x: number; y: number; stateName: string }) => {
+        this.showFullViewPopup(event.x, event.y, stateInstance);
+      });
+
+      componentRef.instance.statePageRequested.subscribe((event: { stateName: string }) => {
+        this.showStatePage(stateInstance);
+      });
+
       return true;
     }
     return false;
   }
 
   /**
-   * Create an InitialStateOverlayComponent for InitialState states
+   * Check if a class name is an initial state type
+   */
+  private isInitialStateClass(className: string): boolean {
+    const metadata = this.stateSpaceRegistry.getClass(className);
+    return metadata?.specialStateType === 'initial';
+  }
+
+  /**
+   * Get the trigger type for a state instance based on its class name
+   */
+  private getTriggerTypeForState(stateInstance: NoCodeState): InitialStateTriggerType {
+    const className = stateInstance.stateClass || stateInstance.boundObjectClass || '';
+    const metadata = this.stateSpaceRegistry.getClass(className);
+    return (metadata?.initialStateSubtype as InitialStateTriggerType) || 'direct_invocation';
+  }
+
+  /**
+   * Create an InitialStateOverlayComponent for initial state types
    */
   private createInitialStateOverlay(stateName: string, stateGroup: SVGGElement, stateInstance: NoCodeState): boolean {
     const fieldValues = stateInstance.boundObjectFieldValues || {};
@@ -952,26 +1098,123 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
     // Get input params from bound field values
     const inputParams = fieldValues.inputParams || [];
 
+    // Determine the current trigger type
+    const currentTriggerType = this.getTriggerTypeForState(stateInstance);
+
     const componentRef = this.stateOverlayManager.createOverlayForState(
       stateName,
       stateGroup,
       InitialStateOverlayComponent,
       {
         stateName: stateName,
-        boundClassName: 'InitialState',
+        boundClassName: stateInstance.stateClass || stateInstance.boundObjectClass || 'DirectInvocation',
         solutionName: this.selectedSolutionName || '',
         solutionClassName: boundClass?.className || boundClass?.displayName || '',
         solutionDescription: boundClass?.description || '',
         solutionFields: solutionFields,
-        inputParams: inputParams
+        inputParams: inputParams,
+        currentTriggerType: currentTriggerType,
+        targetRuntime: this.solutionTargetRuntime,
+        boundObjectFieldValues: fieldValues
       }
     );
 
     if (componentRef) {
-      // InitialState overlay is read-only, no events to subscribe to
+      // Enable pointer events for interactive trigger type selector
+      this.stateOverlayManager.setOverlayPointerEvents(stateName, true);
+
+      // Subscribe to trigger type changes
+      componentRef.instance.triggerTypeChanged.subscribe((newType: InitialStateTriggerType) => {
+        this.handleInitialStateTriggerTypeChange(stateInstance, stateName, newType);
+      });
+
+      // Subscribe to field value changes
+      componentRef.instance.fieldValueChanged.subscribe((event: { fieldName: string; value: any }) => {
+        if (!stateInstance.boundObjectFieldValues) {
+          stateInstance.boundObjectFieldValues = {};
+        }
+        stateInstance.boundObjectFieldValues[event.fieldName] = event.value;
+        this.regenerateCode();
+      });
+
       return true;
     }
     return false;
+  }
+
+  /**
+   * Regenerate code previews after state changes
+   */
+  private regenerateCode(): void {
+    if (!this.selectedSolutionName) return;
+    const solutionData = this.solutionStateService.getSolutionData(this.selectedSolutionName);
+    if (solutionData) {
+      this.updateBoundClassAndCode(solutionData);
+    }
+  }
+
+  /**
+   * Get the SVG group element for a state by name
+   */
+  private getStateGroupElement(stateName: string): SVGGElement | null {
+    const svg = document.getElementById('d3-graph');
+    if (!svg) return null;
+    const group = svg.querySelector(`g[data-state-name="${stateName}"]`) as SVGGElement;
+    return group || null;
+  }
+
+  /**
+   * Handle trigger type change from the initial state overlay dropdown.
+   * Swaps the node's class, fields, icon, and color in-place.
+   */
+  private handleInitialStateTriggerTypeChange(
+    stateInstance: NoCodeState,
+    stateName: string,
+    newType: InitialStateTriggerType
+  ): void {
+    // Map trigger type to class name
+    const classNameMap: { [key in InitialStateTriggerType]: string } = {
+      'direct_invocation': 'DirectInvocation',
+      'form_subscription': 'FormSubscription',
+      'logic_flow_entry': 'LogicFlowEntry',
+      'backend_state_change': 'BackendStateChange'
+    };
+
+    const newClassName = classNameMap[newType];
+    const metadata = this.stateSpaceRegistry.getClass(newClassName);
+    if (!metadata) return;
+
+    // Preserve displayName across type changes
+    const oldDisplayName = stateInstance.boundObjectFieldValues?.['displayName'];
+
+    // Update the state instance class
+    stateInstance.stateClass = newClassName;
+    stateInstance.boundObjectClass = newClassName;
+
+    // Build new field values from the new type's variables, preserving displayName
+    const newFieldValues: { [key: string]: any } = {};
+    for (const variable of metadata.variables) {
+      newFieldValues[variable.name] = variable.defaultValue;
+    }
+    if (oldDisplayName) {
+      newFieldValues['displayName'] = oldDisplayName;
+    }
+    stateInstance.boundObjectFieldValues = newFieldValues;
+
+    // Refresh unique state tracking
+    this.updateExistingUniqueStates();
+
+    // Regenerate code previews
+    this.regenerateCode();
+
+    // Update the existing overlay in-place rather than destroying/recreating
+    const overlayRef = this.stateOverlayManager.getOverlayComponent(stateName);
+    if (overlayRef) {
+      overlayRef.setInput('boundClassName', newClassName);
+      overlayRef.setInput('currentTriggerType', newType);
+      overlayRef.setInput('boundObjectFieldValues', { ...newFieldValues });
+      overlayRef.changeDetectorRef.detectChanges();
+    }
   }
 
   /**
@@ -1017,6 +1260,50 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
           stateInstance.boundObjectFieldValues = {};
         }
         Object.assign(stateInstance.boundObjectFieldValues, fieldValues);
+      });
+
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Create a ReturnValueOverlayComponent for ReturnValue states
+   */
+  private createReturnValueOverlay(stateName: string, stateGroup: SVGGElement, stateInstance: NoCodeState): boolean {
+    const fieldValues = stateInstance.boundObjectFieldValues || {};
+
+    const componentRef = this.stateOverlayManager.createOverlayForState(
+      stateName,
+      stateGroup,
+      ReturnValueOverlayComponent,
+      {
+        stateName: stateName,
+        boundClassName: 'ReturnValue',
+        availableInputs: this.getAvailableInputsForState(stateInstance),
+        sourceObjectFields: this.getSourceObjectFieldsForState(stateInstance),
+        returnValueSource: fieldValues.returnValueSource || null,
+        returnValue: fieldValues.returnValue || ''
+      }
+    );
+
+    if (componentRef) {
+      this.stateOverlayManager.setOverlayPointerEvents(stateName, true);
+
+      componentRef.instance.returnValueChanged.subscribe((event: { returnValueSource: any; returnValue: string }) => {
+        if (!stateInstance.boundObjectFieldValues) {
+          stateInstance.boundObjectFieldValues = {};
+        }
+        stateInstance.boundObjectFieldValues.returnValueSource = event.returnValueSource;
+        stateInstance.boundObjectFieldValues.returnValue = event.returnValue;
+      });
+
+      componentRef.instance.fullViewRequested.subscribe((event: { x: number; y: number; stateName: string }) => {
+        this.showFullViewPopup(event.x, event.y, stateInstance);
+      });
+
+      componentRef.instance.statePageRequested.subscribe((event: { stateName: string }) => {
+        this.showStatePage(stateInstance);
       });
 
       return true;
@@ -1332,6 +1619,22 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
     // Initial size calculation after view is ready
     setTimeout(() => this.updateSvgSize(), 0);
 
+    // Watch for canvas container resizes (sidebar toggle, panel open/close, window resize, etc.)
+    if (canvasElement) {
+      this.canvasResizeObserver = new ResizeObserver(() => {
+        this.resizeSubject.next();
+      });
+      this.canvasResizeObserver.observe(canvasElement);
+    }
+
+    // Watch for scroll events on the nearest scrollable ancestor (mat-sidenav-content)
+    // The overlays use position:fixed so any ancestor scrolling causes misalignment
+    this.scrollableAncestor = this.findScrollableAncestor(this.elementRef.nativeElement);
+    if (this.scrollableAncestor) {
+      this.scrollHandler = () => this.updateAllOverlayPositions();
+      this.scrollableAncestor.addEventListener('scroll', this.scrollHandler, { passive: true });
+    }
+
     // Log state instance positions (only if noCodeSolution is initialized)
     if (this.noCodeSolution && this.noCodeSolution.stateInstances.length > 0) {
       this.noCodeSolution.stateInstances[0].stateLocationX = 0;
@@ -1341,6 +1644,20 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
     this.polariAccessNodeSubject.subscribe(stateInstance => {
       // Handle new state instance
     });
+
+    // Subscribe to solution data mutations for live code updates
+    this.solutionStateService.selectedSolutionData$
+      .pipe(
+        takeUntil(this.destroy$),
+        filter(data => data !== null),
+        debounceTime(300)
+      )
+      .subscribe(solutionData => {
+        if (solutionData && this.selectedSolutionName) {
+          this.updateBoundClassAndCode(solutionData);
+          this.changeDetectorRef.markForCheck();
+        }
+      });
 
     this.changeDetectorRef.markForCheck();
   }
@@ -1352,6 +1669,19 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
     this.currentRectangleStateLayer = null;
     this.currentDiamondStateLayer = null;
 
+    // Clean up ResizeObserver
+    if (this.canvasResizeObserver) {
+      this.canvasResizeObserver.disconnect();
+      this.canvasResizeObserver = null;
+    }
+
+    // Clean up scroll listener on ancestor
+    if (this.scrollableAncestor && this.scrollHandler) {
+      this.scrollableAncestor.removeEventListener('scroll', this.scrollHandler);
+      this.scrollableAncestor = null;
+      this.scrollHandler = null;
+    }
+
     this.destroy$.next();
     this.destroy$.complete();
   }
@@ -1359,6 +1689,24 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
   @HostListener('window:resize')
   onWindowResize(): void {
     this.resizeSubject.next();
+  }
+
+  @HostListener('window:scroll')
+  onWindowScroll(): void {
+    this.updateAllOverlayPositions();
+  }
+
+  private findScrollableAncestor(element: HTMLElement): Element | null {
+    let current = element.parentElement;
+    while (current) {
+      const style = getComputedStyle(current);
+      const overflowY = style.overflowY;
+      if (overflowY === 'auto' || overflowY === 'scroll') {
+        return current;
+      }
+      current = current.parentElement;
+    }
+    return null;
   }
 
   private onResize(): void {
@@ -1646,6 +1994,92 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
 
     URL.revokeObjectURL(url);
     console.log('[exportSolution] Exported solution:', this.noCodeSolution.solutionName);
+  }
+
+  // ===== Execution Panel =====
+
+  toggleExecutionPanel(): void {
+    this.showExecutionPanel = !this.showExecutionPanel;
+    if (this.showExecutionPanel) {
+      this.buildExecutionInputParams();
+    } else {
+      this.solutionExecutionService.stop();
+      this.clearExecutionHighlight();
+    }
+    // Update overlays after layout shift
+    setTimeout(() => this.updateAllOverlayPositions(), 50);
+  }
+
+  onExecutionPanelClosed(): void {
+    this.showExecutionPanel = false;
+    this.clearExecutionHighlight();
+    // Update overlays after layout shift
+    setTimeout(() => this.updateAllOverlayPositions(), 50);
+  }
+
+  onExecutionActiveStateChanged(stateName: string | null): void {
+    this.clearExecutionHighlight();
+    if (stateName) {
+      this.highlightExecutionState(stateName);
+    }
+  }
+
+  private buildExecutionInputParams(): void {
+    this.executionInputParams = [];
+    if (!this.noCodeSolution) return;
+
+    const registry = this.stateSpaceRegistry;
+    for (const state of this.stateInstances) {
+      const className = state.boundObjectClass || state.stateClass || '';
+      const metadata = registry.getClass(className);
+      if (metadata?.specialStateType === 'initial') {
+        const fv = state.boundObjectFieldValues || {};
+        const params = fv['inputParams'] || [];
+        for (const p of params) {
+          if (p.name && p.type) {
+            this.executionInputParams.push({
+              name: p.name,
+              type: p.type,
+              value: this.getDefaultParamValue(p.type)
+            });
+          }
+        }
+        break;
+      }
+    }
+  }
+
+  private getDefaultParamValue(type: string): any {
+    switch (type) {
+      case 'int': case 'float': case 'number': return 0;
+      case 'str': case 'string': return '';
+      case 'bool': case 'boolean': return false;
+      default: return '';
+    }
+  }
+
+  private highlightExecutionState(stateName: string): void {
+    if (this.currentCircleStateLayer) {
+      this.currentCircleStateLayer.highlightState(stateName, '#cba6f7');
+    }
+    if (this.currentRectangleStateLayer) {
+      this.currentRectangleStateLayer.highlightState(stateName, '#cba6f7');
+    }
+    if (this.currentDiamondStateLayer) {
+      this.currentDiamondStateLayer.highlightState(stateName, '#cba6f7');
+    }
+  }
+
+  private clearExecutionHighlight(): void {
+    if (this.currentCircleStateLayer) {
+      this.currentCircleStateLayer.unhighlightAllStates();
+    }
+    if (this.currentRectangleStateLayer) {
+      this.currentRectangleStateLayer.unhighlightAllStates();
+    }
+    if (this.currentDiamondStateLayer) {
+      this.currentDiamondStateLayer.unhighlightAllStates();
+    }
   }
 
   private createRectangles()
@@ -2059,6 +2493,8 @@ private dragRectangle(): any {
   onSidebarToggle(expanded: boolean): void {
     this.sidebarExpanded = expanded;
     this.changeDetectorRef.markForCheck();
+    // Update overlays after sidebar CSS transition completes (300ms)
+    setTimeout(() => this.updateAllOverlayPositions(), 350);
   }
 
   // ==================== Context Menu Methods ====================
@@ -2132,13 +2568,13 @@ private dragRectangle(): any {
       isInput: slot.isInput,
       color: (slot as any).color || (slot.isInput ? '#2196f3' : '#4caf50'),
       mappingMode: (slot as any).mappingMode || (slot.isInput ? 'object_state' : 'function_return'),
+      name: (slot as any).name || '',
       label: (slot as any).label || (slot.isInput ? `I${slot.index}` : `O${slot.index}`),
       parameterName: (slot as any).parameterName,
       parameterType: (slot as any).parameterType,
       returnType: (slot as any).returnType,
       description: (slot as any).description,
       // Output-specific configuration
-      triggerType: (slot as any).triggerType,
       sourceInstance: (slot as any).sourceInstance,
       propertyPath: (slot as any).propertyPath,
       passthroughVariableName: (slot as any).passthroughVariableName,
@@ -2176,6 +2612,9 @@ private dragRectangle(): any {
       this.slotConfigStateClass = '';
       this.slotConfigProducedVariables = [];
     }
+
+    // Gather connections for this slot
+    this.slotConfigConnections = this.getConnectionsForSlot(stateName, slotIndex, isInput);
 
     this.slotConfigPopupVisible = true;
     this.changeDetectorRef.markForCheck();
@@ -2260,8 +2699,7 @@ private dragRectangle(): any {
         this.handleDuplicateAction(action);
         break;
       case 'editProperties':
-        // TODO: Open properties panel
-        console.log('[onContextMenuAction] Edit properties for:', action.stateName);
+        this.handleEditPropertiesAction(action);
         break;
       case 'manageSlots':
         this.handleManageSlotsAction(action);
@@ -2312,6 +2750,66 @@ private dragRectangle(): any {
 
     // Reload the solution to reflect changes
     this.loadSelectedSolution();
+  }
+
+  /**
+   * Handle edit properties action from context menu
+   */
+  private handleEditPropertiesAction(action: StateContextMenuAction): void {
+    const stateInstance = this.stateInstances.find(s => s.stateName === action.stateName);
+    if (!stateInstance) return;
+
+    this.statePropsOriginalName = action.stateName;
+    this.statePropsEditName = action.stateName;
+    this.statePropsStateClass = stateInstance.boundObjectClass || stateInstance.stateClass || '';
+    this.statePropsPosition = { ...this.contextMenuPosition };
+    this.statePropsVisible = true;
+    this.changeDetectorRef.markForCheck();
+
+    // Auto-focus the name input after the popup renders
+    setTimeout(() => {
+      const input = this.elementRef.nativeElement.ownerDocument.querySelector('.state-props-input') as HTMLInputElement;
+      if (input) {
+        input.focus();
+        input.select();
+      }
+    }, 50);
+  }
+
+  /**
+   * Save state properties (rename)
+   */
+  saveStateProperties(): void {
+    if (!this.selectedSolutionName) return;
+
+    const newName = this.statePropsEditName.trim();
+    if (!newName) return;
+
+    if (newName !== this.statePropsOriginalName) {
+      const success = this.solutionStateService.renameState(
+        this.selectedSolutionName,
+        this.statePropsOriginalName,
+        newName
+      );
+
+      if (success) {
+        // Reload solution to refresh all D3 visuals and overlays with new name
+        this.loadSelectedSolution();
+      }
+    }
+
+    this.closeStatePropertiesPopup();
+  }
+
+  /**
+   * Close state properties popup
+   */
+  closeStatePropertiesPopup(): void {
+    this.statePropsVisible = false;
+    this.statePropsOriginalName = '';
+    this.statePropsEditName = '';
+    this.statePropsStateClass = '';
+    this.changeDetectorRef.markForCheck();
   }
 
   /**
@@ -2549,6 +3047,164 @@ private dragRectangle(): any {
     return this.fullViewPopupState.slots.filter(s => !s.isInput).length;
   }
 
+  // ==================== State Page Popup ====================
+
+  /**
+   * Show the state page popup for a state, resolving all connection data
+   */
+  showStatePage(stateInstance: NoCodeState): void {
+    const targetStateName = stateInstance.stateName || '';
+
+    // Resolve input connections: scan all other states' output slots for connectors targeting this state
+    const inputConnections: StateConnectionInfo[] = [];
+    for (const otherState of this.stateInstances) {
+      if (otherState.stateName === targetStateName) continue;
+      if (!otherState.slots) continue;
+
+      for (const slot of otherState.slots) {
+        if (slot.isInput || !slot.connectors) continue;
+
+        for (const connector of slot.connectors) {
+          if (connector.targetStateName === targetStateName) {
+            inputConnections.push({
+              slotIndex: slot.index,
+              slotName: (slot as any).label || (slot as any).parameterName || `Slot ${slot.index}`,
+              dataType: (slot as any).parameterType || (slot as any).returnType || 'any',
+              connectedStateName: otherState.stateName || '',
+              connectedSlotIndex: connector.sinkSlot
+            });
+          }
+        }
+      }
+    }
+
+    // Also include unconnected input slots on the target state
+    if (stateInstance.slots) {
+      for (const slot of stateInstance.slots) {
+        if (!slot.isInput) continue;
+        // Check if this input slot already appears via a connector
+        const alreadyConnected = inputConnections.some(c => c.connectedSlotIndex === slot.index);
+        if (!alreadyConnected) {
+          inputConnections.push({
+            slotIndex: slot.index,
+            slotName: (slot as any).label || (slot as any).parameterName || `Input ${slot.index}`,
+            dataType: (slot as any).parameterType || 'any',
+            connectedStateName: '',
+            connectedSlotIndex: slot.index
+          });
+        }
+      }
+    }
+
+    // Resolve output connections: scan this state's output slots for connectors
+    const outputConnections: StateConnectionInfo[] = [];
+    if (stateInstance.slots) {
+      for (const slot of stateInstance.slots) {
+        if (slot.isInput) continue;
+
+        if (slot.connectors && slot.connectors.length > 0) {
+          for (const connector of slot.connectors) {
+            outputConnections.push({
+              slotIndex: slot.index,
+              slotName: (slot as any).label || (slot as any).parameterName || `Slot ${slot.index}`,
+              dataType: (slot as any).parameterType || (slot as any).returnType || 'any',
+              connectedStateName: connector.targetStateName || '',
+              connectedSlotIndex: connector.sinkSlot
+            });
+          }
+        } else {
+          // Unconnected output slot
+          outputConnections.push({
+            slotIndex: slot.index,
+            slotName: (slot as any).label || (slot as any).parameterName || `Output ${slot.index}`,
+            dataType: (slot as any).parameterType || (slot as any).returnType || 'any',
+            connectedStateName: '',
+            connectedSlotIndex: slot.index
+          });
+        }
+      }
+    }
+
+    // Get class metadata
+    const className = stateInstance.boundObjectClass || stateInstance.stateClass || '';
+    const classMetadata = className ? this.stateSpaceRegistry.getClass(className) : null;
+
+    // Get display fields from class metadata
+    let displayFields: DisplayField[] = [];
+    if (classMetadata) {
+      displayFields = classMetadata.variables
+        .filter(v => classMetadata.stateSpaceDisplayFields.includes(v.name))
+        .map(v => ({
+          name: v.name,
+          displayName: v.displayName,
+          value: stateInstance.boundObjectFieldValues?.[v.name] ?? v.defaultValue ?? '',
+          type: v.type,
+          isEditable: v.isEditable
+        }));
+    }
+
+    // Get available classes for the class selector
+    const allClasses = this.stateSpaceRegistry.getAllClasses();
+    const availableClasses: ClassOption[] = allClasses.map(cls => ({
+      className: cls.className,
+      displayName: cls.displayName || cls.className,
+      category: cls.category || 'General',
+      icon: cls.icon,
+      color: cls.color
+    }));
+
+    // Set state page data
+    this.statePageState = stateInstance;
+    this.statePageInputConnections = inputConnections;
+    this.statePageOutputConnections = outputConnections;
+    this.statePageDisplayFields = displayFields;
+    this.statePageClassMetadata = classMetadata || null;
+    this.statePageAvailableClasses = availableClasses;
+    this.statePageVisible = true;
+    this.changeDetectorRef.markForCheck();
+  }
+
+  /**
+   * Close the state page popup
+   */
+  closeStatePage(): void {
+    this.statePageVisible = false;
+    this.statePageState = null;
+    this.statePageInputConnections = [];
+    this.statePageOutputConnections = [];
+    this.statePageDisplayFields = [];
+    this.statePageClassMetadata = null;
+    this.statePageAvailableClasses = [];
+    this.changeDetectorRef.markForCheck();
+  }
+
+  /**
+   * Handle class selection from state page popup
+   */
+  onStatePageClassSelected(event: { className: string; metadata: StateSpaceClassMetadata | undefined }): void {
+    if (this.statePageState && this.statePageState.stateName) {
+      this.statePageState.boundObjectClass = event.className;
+      // Update the overlay if it exists
+      const overlay = this.stateOverlayManager.getOverlayComponent(this.statePageState.stateName);
+      if (overlay) {
+        overlay.instance.boundClassName = event.className;
+        overlay.changeDetectorRef.detectChanges();
+      }
+    }
+  }
+
+  /**
+   * Handle field change from state page popup
+   */
+  onStatePageFieldChanged(event: { fieldName: string; value: any }): void {
+    if (this.statePageState) {
+      if (!this.statePageState.boundObjectFieldValues) {
+        this.statePageState.boundObjectFieldValues = {};
+      }
+      this.statePageState.boundObjectFieldValues[event.fieldName] = event.value;
+    }
+  }
+
   /**
    * Handle slot manager configuration changes
    */
@@ -2562,15 +3218,20 @@ private dragRectangle(): any {
     if (!stateInstance) return;
 
     // Convert SlotConfiguration back to Slot format
+    const currentSlots = stateInstance.slots;
     const newSlots: any[] = [];
     let slotIndex = 0;
 
     // Add input slots (left side, around 180 degrees)
+    // Preserve existing angular positions for slots that were already placed
     config.inputSlots.forEach((slotConfig, i) => {
+      const existingSlot = currentSlots?.find(s => s.isInput && s.index === slotConfig.index);
+      const angularPosition = existingSlot?.slotAngularPosition
+        ?? (180 - (i * 30) + ((config.inputSlots.length - 1) * 15));
       newSlots.push({
         index: slotIndex++,
         stateName: config.stateName,
-        slotAngularPosition: 180 - (i * 30) + ((config.inputSlots.length - 1) * 15),
+        slotAngularPosition: angularPosition,
         connectors: [],
         isInput: true,
         isOutput: false,
@@ -2583,11 +3244,15 @@ private dragRectangle(): any {
     });
 
     // Add output slots (right side, around 0 degrees)
+    // Preserve existing angular positions for slots that were already placed
     config.outputSlots.forEach((slotConfig, i) => {
+      const existingSlot = currentSlots?.find(s => !s.isInput && s.index === slotConfig.index);
+      const angularPosition = existingSlot?.slotAngularPosition
+        ?? ((i * 30) - ((config.outputSlots.length - 1) * 15));
       newSlots.push({
         index: slotIndex++,
         stateName: config.stateName,
-        slotAngularPosition: (i * 30) - ((config.outputSlots.length - 1) * 15),
+        slotAngularPosition: angularPosition,
         connectors: [],
         isInput: false,
         isOutput: true,
@@ -2664,6 +3329,11 @@ private dragRectangle(): any {
       this.slotConfigProducedVariables = [];
     }
 
+    // Gather connections for this slot
+    this.slotConfigConnections = this.getConnectionsForSlot(
+      slotConfig.stateName, slotConfig.index, slotConfig.isInput
+    );
+
     this.slotConfigPopupVisible = true;
     this.changeDetectorRef.markForCheck();
   }
@@ -2677,7 +3347,137 @@ private dragRectangle(): any {
     this.slotConfigStateContext = null;
     this.slotConfigStateClass = '';
     this.slotConfigProducedVariables = [];
+    this.slotConfigConnections = [];
     this.changeDetectorRef.markForCheck();
+  }
+
+  /**
+   * Gather connections for a given slot.
+   * For output slots: connectors are stored directly on the slot.
+   * For input slots: search all other states' output slots for connectors targeting this state+slot.
+   */
+  private getConnectionsForSlot(stateName: string, slotIndex: number, isInput: boolean): SlotConnectionInfo[] {
+    const connections: SlotConnectionInfo[] = [];
+
+    if (isInput) {
+      // For input slots, find all connectors across the solution that target this state+slot
+      for (const state of this.stateInstances) {
+        if (!state.slots || !state.stateName) continue;
+        for (const slot of state.slots) {
+          if (!slot.connectors || slot.isInput) continue;
+          for (const conn of slot.connectors) {
+            if (conn.targetStateName === stateName && conn.sinkSlot === slotIndex) {
+              connections.push({
+                connectorId: conn.id,
+                sourceStateName: state.stateName,
+                sourceSlotIndex: slot.index,
+                targetStateName: stateName,
+                targetSlotIndex: slotIndex
+              });
+            }
+          }
+        }
+      }
+    } else {
+      // For output slots, connectors are stored directly on this slot
+      const stateInstance = this.stateInstances.find(s => s.stateName === stateName);
+      if (stateInstance && stateInstance.slots) {
+        const slot = stateInstance.slots.find(s => s.index === slotIndex);
+        if (slot && slot.connectors) {
+          for (const conn of slot.connectors) {
+            connections.push({
+              connectorId: conn.id,
+              sourceStateName: stateName,
+              sourceSlotIndex: slotIndex,
+              targetStateName: conn.targetStateName || '',
+              targetSlotIndex: conn.sinkSlot
+            });
+          }
+        }
+      }
+    }
+
+    return connections;
+  }
+
+  /**
+   * Handle removal of a connection from the slot config popup
+   */
+  onSlotConnectionRemoved(conn: SlotConnectionInfo): void {
+    console.log('[onSlotConnectionRemoved] Removing connection:', conn);
+
+    if (!this.selectedSolutionName) return;
+
+    // Remove from service (connectors are stored on the source/output slot)
+    this.solutionStateService.removeConnector(
+      this.selectedSolutionName,
+      conn.sourceStateName,
+      conn.sourceSlotIndex,
+      conn.connectorId
+    );
+
+    // Remove the visual D3 connector path
+    const svg = this.noCodeSolution?.d3SvgBaseLayer;
+    if (svg) {
+      svg.selectAll(`path.permanent-connector[data-connector-id="${conn.connectorId}"]`).remove();
+    }
+
+    // Update local state instance slot data
+    const sourceState = this.stateInstances.find(s => s.stateName === conn.sourceStateName);
+    if (sourceState && sourceState.slots) {
+      const sourceSlot = sourceState.slots.find(s => s.index === conn.sourceSlotIndex);
+      if (sourceSlot && sourceSlot.connectors) {
+        sourceSlot.connectors = sourceSlot.connectors.filter(c => c.id !== conn.connectorId);
+      }
+    }
+
+    this.changeDetectorRef.markForCheck();
+  }
+
+  /**
+   * Handle slot deletion from the slot configuration popup
+   */
+  onSlotDeleted(config: SlotConfiguration): void {
+    console.log('[onSlotDeleted] Deleting slot:', config.stateName, 'index:', config.index);
+
+    if (!this.selectedSolutionName || !config.stateName) return;
+
+    // Remove any visual D3 connector paths associated with this slot
+    const svg = this.noCodeSolution?.d3SvgBaseLayer;
+    if (svg) {
+      svg.selectAll<SVGPathElement, unknown>(`path.permanent-connector`).each(function(this: SVGPathElement) {
+        const path = d3.select(this);
+        const sourceState = path.attr('data-source-state');
+        const sourceSlot = path.attr('data-source-slot');
+        const targetState = path.attr('data-target-state');
+        const targetSlot = path.attr('data-target-slot');
+        if (
+          (sourceState === config.stateName && sourceSlot === String(config.index)) ||
+          (targetState === config.stateName && targetSlot === String(config.index))
+        ) {
+          path.remove();
+        }
+      });
+    }
+
+    // Remove from service (handles connector cleanup and re-indexing)
+    this.solutionStateService.removeSlotFromState(
+      this.selectedSolutionName,
+      config.stateName,
+      config.index
+    );
+
+    // Refresh local state from the service
+    const solution = this.solutionStateService.getSolutionData(this.selectedSolutionName);
+    if (solution) {
+      this.stateInstances = solution.stateInstances as any[];
+    }
+
+    // Re-render the affected state's slots in D3
+    this.rerenderStateSlots(config.stateName);
+
+    // Close the popup
+    this.closeSlotConfigPopup();
   }
 
   /**
@@ -2712,13 +3512,13 @@ private dragRectangle(): any {
         if (slot) {
           // Update slot properties
           (slot as any).color = config.color;
+          (slot as any).name = config.name;
           (slot as any).label = config.label;
           (slot as any).mappingMode = config.mappingMode;
           (slot as any).description = config.description;
           (slot as any).parameterName = config.parameterName;
           (slot as any).parameterType = config.parameterType;
           (slot as any).returnType = config.returnType;
-          (slot as any).triggerType = config.triggerType;
           (slot as any).sourceInstance = config.sourceInstance;
           (slot as any).propertyPath = config.propertyPath;
           (slot as any).passthroughVariableName = config.passthroughVariableName;
@@ -2731,7 +3531,7 @@ private dragRectangle(): any {
           const slotRawDataArray = stateInstance.slots.map(s => ({
             index: s.index,
             stateName: s.stateName || config.stateName,
-            slotAngularPosition: s.slotAngularPosition || 0,
+            slotAngularPosition: s.slotAngularPosition ?? 0,
             connectors: (s.connectors || []).map(c => ({
               id: c.id,
               sourceSlot: c.sourceSlot,
@@ -2742,13 +3542,13 @@ private dragRectangle(): any {
             allowOneToMany: s.allowOneToMany,
             allowManyToOne: s.allowManyToOne,
             color: (s as any).color,
+            name: (s as any).name,
             label: (s as any).label,
             mappingMode: (s as any).mappingMode,
             description: (s as any).description,
             parameterName: (s as any).parameterName,
             parameterType: (s as any).parameterType,
             returnType: (s as any).returnType,
-            triggerType: (s as any).triggerType,
             sourceInstance: (s as any).sourceInstance,
             propertyPath: (s as any).propertyPath,
             passthroughVariableName: (s as any).passthroughVariableName,

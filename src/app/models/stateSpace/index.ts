@@ -71,6 +71,32 @@ export {
   parseOperationFromJSON
 } from './operationStates';
 
+// Frontend States
+export {
+  ReactiveTransform,
+  AwaitBackendCall
+} from './frontendStates';
+
+// Initial States (Typed Entry Points)
+export {
+  InitialStateTriggerType,
+  DirectInvocation,
+  FormSubscription,
+  LogicFlowEntry,
+  BackendStateChange,
+  BackendChangeType,
+  getAvailableInitialStateTypes
+} from './initialStates';
+
+// End States (Typed Exit Points)
+export {
+  EndStateCompletionType,
+  ReturnValue,
+  StateChangeCommit,
+  EmitEvent,
+  getAvailableEndStateTypes
+} from './endStates';
+
 // State-Space Class Registry
 export {
   StateSpaceCategory,

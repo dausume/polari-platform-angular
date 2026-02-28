@@ -146,6 +146,40 @@
     color: var(--brand-indigo);
 }
 
+/* ===== Display Card Badges ===== */
+.display-card-badges {
+    display: flex;
+    gap: 8px;
+    padding: 0 16px 8px 16px;
+    flex-wrap: wrap;
+}
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: var(--radius-pill, 12px);
+    font-weight: 500;
+}
+
+.badge mat-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+}
+
+.badge-page {
+    background: rgba(76, 175, 80, 0.12);
+    color: #2e7d32;
+}
+
+.badge-solutions {
+    background: rgba(33, 150, 243, 0.12);
+    color: #1565c0;
+}
+
 /* ===== Displays Tab - Editor View ===== */
 .display-editor-view {
     display: flex;
@@ -515,6 +549,11 @@
 
 .palette-item:hover {
     background: rgba(0, 0, 0, 0.06);
+}
+
+.palette-item.linked {
+    background: rgba(76, 175, 80, 0.08);
+    border-left: 3px solid #4caf50;
 }
 
 .palette-item mat-icon {

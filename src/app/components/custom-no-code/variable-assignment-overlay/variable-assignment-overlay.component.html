@@ -6,7 +6,7 @@
      (pointerdown)="onMouseDown($event)">
 
   <!-- Header -->
-  <div class="overlay-header">
+  <div class="overlay-header" (contextmenu)="onContextMenu($event)">
     <mat-icon class="header-icon">assignment</mat-icon>
     <span class="title">Variable Assignment</span>
   </div>

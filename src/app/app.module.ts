@@ -73,13 +73,16 @@ import { StateContextMenuComponent } from '@components/custom-no-code/state-cont
 import { SlotConfigurationPopupComponent } from '@components/custom-no-code/slot-configuration-popup/slot-configuration-popup.component';
 import { StateSlotManagerPopupComponent } from '@components/custom-no-code/state-slot-manager-popup/state-slot-manager-popup.component';
 import { StateFullViewPopupComponent } from '@components/custom-no-code/state-full-view-popup/state-full-view-popup.component';
+import { StatePagePopupComponent } from '@components/custom-no-code/state-page-popup/state-page-popup.component';
 import { ConditionalChainOverlayComponent } from '@components/custom-no-code/conditional-chain-overlay/conditional-chain-overlay.component';
 import { FilterListOverlayComponent } from '@components/custom-no-code/filter-list-overlay/filter-list-overlay.component';
 import { VariableAssignmentOverlayComponent } from '@components/custom-no-code/variable-assignment-overlay/variable-assignment-overlay.component';
 import { InitialStateOverlayComponent } from '@components/custom-no-code/initial-state-overlay/initial-state-overlay.component';
 import { MathOperationOverlayComponent } from '@components/custom-no-code/math-operation-overlay/math-operation-overlay.component';
+import { ReturnValueOverlayComponent } from '@components/custom-no-code/return-value-overlay/return-value-overlay.component';
 import { ValueSourceSelectorComponent } from '@components/custom-no-code/value-source-selector/value-source-selector.component';
 import { ViewContextOverlayComponent } from '@components/custom-no-code/view-context-overlay/view-context-overlay.component';
+import { ExecutionPanelComponent } from '@components/custom-no-code/execution-panel/execution-panel.component';
 // Class Configuration Components
 import { DefaultCellComponent } from './components/templateClassTable/type-cells/default-cell/default-cell';
 import { ConfigCellActions } from '@components/templateClassTable/type-cells/config-cell-actions/config-cell-actions';
@@ -124,6 +127,8 @@ import { AddressSearchComponent } from '@components/geojson-config/address-searc
 // Embedded Display Components
 import { EmbeddedTableComponent } from '@components/dashboard/embedded-table/embedded-table';
 import { EmbeddedGraphComponent } from '@components/dashboard/embedded-graph/embedded-graph';
+// Solution Invoke Button Component
+import { SolutionInvokeButtonComponent } from '@components/dashboard/solution-invoke-button/solution-invoke-button.component';
 // (SystemDiagnosticsComponent and HomeComponent are lazy-loaded via router)
 //Services (Backend Access)
 import { PolariService } from '@services/polari-service';
@@ -173,13 +178,16 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     SlotConfigurationPopupComponent,
     StateSlotManagerPopupComponent,
     StateFullViewPopupComponent,
+    StatePagePopupComponent,
     ConditionalChainOverlayComponent,
     FilterListOverlayComponent,
     VariableAssignmentOverlayComponent,
     InitialStateOverlayComponent,
     MathOperationOverlayComponent,
+    ReturnValueOverlayComponent,
     ValueSourceSelectorComponent,
     ViewContextOverlayComponent,
+    ExecutionPanelComponent,
     ClassDataTableComponent,
     ListCellComponent,
     DictCellComponent,
@@ -192,6 +200,7 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     GraphConfigSidebarComponent,
     GeoJsonConfigSidebarComponent,
     EmbeddedTableComponent,
+    SolutionInvokeButtonComponent,
     MapsComponent
   ],
   imports: [
@@ -336,6 +345,19 @@ export class AppModule {
     registerDisplayComponent('embeddedGraph', EmbeddedGraphComponent, {
       displayName: 'Graph Configuration',
       description: 'Renders a saved graph configuration'
+    });
+
+    // Register solution invoke button for use in displays
+    registerDisplayComponent('solutionInvokeButton', SolutionInvokeButtonComponent, {
+      displayName: 'Solution Invoke Button',
+      description: 'Executes a no-code solution when clicked',
+      defaultInputs: {
+        solutionName: '',
+        buttonLabel: 'Run Solution',
+        buttonColor: '#1976d2',
+        icon: 'play_arrow',
+        targetRuntime: 'python_backend'
+      }
     });
 
     console.log('[AppModule] Display components registered');

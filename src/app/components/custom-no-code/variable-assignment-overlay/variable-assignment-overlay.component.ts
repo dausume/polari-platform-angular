@@ -94,6 +94,8 @@ export class VariableAssignmentOverlayComponent implements OnInit, OnDestroy {
   @Output() assignmentChanged = new EventEmitter<AssignmentConfig>();
   @Output() fieldValuesChanged = new EventEmitter<{ [key: string]: any }>();
   @Output() newVariableCreated = new EventEmitter<{ name: string; type: string }>();
+  @Output() fullViewRequested = new EventEmitter<{ x: number; y: number; stateName: string }>();
+  @Output() statePageRequested = new EventEmitter<{ stateName: string }>();
 
   // Current assignment configuration
   config: AssignmentConfig = {
@@ -537,6 +539,28 @@ export class VariableAssignmentOverlayComponent implements OnInit, OnDestroy {
       type: f.type,
       displayName: f.displayName
     }));
+  }
+
+  /**
+   * Handle right-click on the overlay to request full view popup.
+   */
+  onContextMenu(event: MouseEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.fullViewRequested.emit({
+      x: event.clientX,
+      y: event.clientY,
+      stateName: this.stateName
+    });
+  }
+
+  /**
+   * Handle click on the "open state page" button.
+   */
+  onOpenStatePage(event: MouseEvent): void {
+    event.stopPropagation();
+    event.preventDefault();
+    this.statePageRequested.emit({ stateName: this.stateName });
   }
 
   /**

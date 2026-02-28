@@ -250,6 +250,14 @@
               <mat-card-title>{{ display.name || 'Untitled Display' }}</mat-card-title>
               <mat-card-subtitle *ngIf="display.description">{{ display.description }}</mat-card-subtitle>
             </mat-card-header>
+            <div class="display-card-badges">
+              <span class="badge badge-page" *ngIf="display.isPage">
+                <mat-icon>public</mat-icon> Published Page
+              </span>
+              <span class="badge badge-solutions" *ngIf="display.linkedSolutions && display.linkedSolutions.length > 0">
+                <mat-icon>code</mat-icon> {{ display.linkedSolutions!.length }} Solution{{ display.linkedSolutions!.length > 1 ? 's' : '' }}
+              </span>
+            </div>
             <mat-card-actions align="end">
               <button mat-stroked-button color="primary" (click)="selectDisplay(display)" title="Edit display">
                 <mat-icon>edit</mat-icon> Edit
@@ -320,6 +328,46 @@
                   <mat-label>Description</mat-label>
                   <textarea matInput [(ngModel)]="selectedDisplay.description" (ngModelChange)="onDisplayPropertyChange()" rows="2"></textarea>
                 </mat-form-field>
+              </div>
+
+              <mat-divider></mat-divider>
+
+              <!-- Page Publishing -->
+              <div class="config-section">
+                <h4>Page Publishing</h4>
+                <mat-slide-toggle [checked]="selectedDisplay.isPage"
+                  (change)="togglePublishAsPage($event.checked)">
+                  Publish as standalone page
+                </mat-slide-toggle>
+                <div *ngIf="selectedDisplay.isPage" style="margin-top: 8px">
+                  <mat-form-field appearance="outline" class="full-width">
+                    <mat-label>Page Route</mat-label>
+                    <input matInput [(ngModel)]="selectedDisplay.pageRoute" (ngModelChange)="onDisplayPropertyChange()">
+                    <mat-hint>URL: /display/{{ selectedDisplay.id }}</mat-hint>
+                  </mat-form-field>
+                  <a mat-stroked-button color="primary" [routerLink]="['/display', selectedDisplay.id]" target="_blank">
+                    <mat-icon>open_in_new</mat-icon> Open Page
+                  </a>
+                </div>
+              </div>
+
+              <mat-divider></mat-divider>
+
+              <!-- Linked Frontend Solutions -->
+              <div class="config-section">
+                <h4>Linked Frontend Solutions</h4>
+                <p class="palette-hint" *ngIf="availableFrontendSolutions.length === 0">
+                  No frontend solutions bound to "{{ className }}".
+                </p>
+                <div class="palette-items" *ngIf="availableFrontendSolutions.length > 0">
+                  <div class="palette-item" *ngFor="let sol of availableFrontendSolutions"
+                       (click)="toggleSolutionLink(sol.name)"
+                       [class.linked]="isSolutionLinked(sol.name)">
+                    <mat-icon>{{ isSolutionLinked(sol.name) ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
+                    <span class="palette-item-name">{{ sol.name }}</span>
+                    <mat-icon class="palette-add-icon">{{ isSolutionLinked(sol.name) ? 'link_off' : 'link' }}</mat-icon>
+                  </div>
+                </div>
               </div>
 
               <mat-divider></mat-divider>

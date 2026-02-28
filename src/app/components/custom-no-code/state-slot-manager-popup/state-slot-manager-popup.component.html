@@ -42,7 +42,8 @@
         <div class="slot-color-indicator" [style.background-color]="slot.color"></div>
 
         <div class="slot-info">
-          <span class="slot-label">{{ slot.label || 'Input ' + (i + 1) }}</span>
+          <span class="slot-label">{{ slot.name || slot.label || 'Input ' + (i + 1) }}</span>
+          <span class="slot-abbrev" *ngIf="slot.name && slot.label">[{{ slot.label }}]</span>
           <span class="slot-mode">{{ getMappingModeLabel(slot.mappingMode, true) }}</span>
         </div>
 
@@ -91,7 +92,8 @@
         <div class="slot-color-indicator" [style.background-color]="slot.color"></div>
 
         <div class="slot-info">
-          <span class="slot-label">{{ slot.label || 'Output ' + (i + 1) }}</span>
+          <span class="slot-label">{{ slot.name || slot.label || 'Output ' + (i + 1) }}</span>
+          <span class="slot-abbrev" *ngIf="slot.name && slot.label">[{{ slot.label }}]</span>
           <span class="slot-mode">{{ getMappingModeLabel(slot.mappingMode, false) }}</span>
         </div>
 

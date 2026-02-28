@@ -15,6 +15,23 @@ import { ConditionalChain, ConditionalChainLink, createConditionLink, createNest
 import { ConditionType, CONDITION_TYPE_OPTIONS, CONDITION_OPTIONS_BY_CATEGORY, getConditionOptionsForType } from './conditionTypeOptions';
 import { ForLoop, WhileLoop, ForEachLoop, createSimpleForLoop, createRangeForLoop, createSimpleWhileLoop, createForEachLoop } from './loopStates';
 import { VariableAssignment, FunctionCall, ReturnStatement, LogOutput, BreakStatement, ContinueStatement, createAssignment, createDeclaration, createFunctionCall, createReturn, createLog } from './operationStates';
+import { TargetRuntime } from '../noCode/mock-NCS-data';
+import { ReactiveTransform, AwaitBackendCall } from './frontendStates';
+import {
+  InitialStateTriggerType,
+  DirectInvocation,
+  FormSubscription,
+  LogicFlowEntry,
+  BackendStateChange,
+  getAvailableInitialStateTypes
+} from './initialStates';
+import {
+  EndStateCompletionType,
+  ReturnValue,
+  StateChangeCommit,
+  EmitEvent,
+  getAvailableEndStateTypes
+} from './endStates';
 
 /**
  * State-space class category for UI organization
@@ -25,7 +42,9 @@ export type StateSpaceCategory =
   | 'Loops'
   | 'Data'
   | 'Debug'
-  | 'Custom';
+  | 'Custom'
+  | 'Frontend'
+  | 'Cross-Runtime';
 
 /**
  * State-space event method definition
@@ -114,8 +133,17 @@ export interface StateSpaceClassMetadata {
   // Special state type - for InitialState and ReturnStatement
   specialStateType?: 'initial' | 'end' | 'solution';
 
+  // For initial states: identifies the trigger type subclass
+  initialStateSubtype?: InitialStateTriggerType;
+
+  // For end states: identifies the completion type subclass
+  endStateSubtype?: EndStateCompletionType;
+
   // For solution-based definitions, the source solution name
   sourceSolutionName?: string;
+
+  // Supported runtimes - omitted means universal (available in both runtimes)
+  supportedRuntimes?: TargetRuntime[];
 
   // Default slot configuration for this class
   slotConfiguration?: SlotConfigurationTemplate;
@@ -160,11 +188,13 @@ export class StateSpaceClassRegistry {
    * Register all built-in state-space classes
    */
   private registerBuiltInClasses(): void {
-    // === Special State Types (Required for every solution) ===
+    // === Typed Initial States ===
+    // Each defines HOW a solution is triggered. They are exclusively entry points.
+
     this.registerClass({
-      className: 'InitialState',
-      displayName: 'Initial State',
-      description: 'The starting point of a solution - defines input parameters and entry point',
+      className: 'DirectInvocation',
+      displayName: 'Direct Invocation',
+      description: 'Generic function-call entry point - defines input parameters',
       category: 'Control Flow',
       icon: 'play_circle',
       color: '#4CAF50',
@@ -173,6 +203,7 @@ export class StateSpaceClassRegistry {
       stateSpaceFieldsPerRow: 1,
       isBuiltIn: true,
       specialStateType: 'initial',
+      initialStateSubtype: 'direct_invocation',
       eventMethods: [
         {
           methodName: 'start',
@@ -187,9 +218,147 @@ export class StateSpaceClassRegistry {
       ],
       variables: [
         { name: 'displayName', displayName: 'Display Name', type: 'string', isEditable: true, defaultValue: 'Start' },
-        { name: 'description', displayName: 'Description', type: 'string', isEditable: true, defaultValue: 'Solution entry point' }
+        { name: 'description', displayName: 'Description', type: 'string', isEditable: true, defaultValue: 'Solution entry point' },
+        { name: 'inputParams', displayName: 'Input Parameters', type: 'array', isEditable: true, defaultValue: [] }
       ],
-      factory: () => ({ type: 'InitialState', displayName: 'Start', description: 'Solution entry point' })
+      factory: () => new DirectInvocation()
+    });
+
+    this.registerClass({
+      className: 'FormSubscription',
+      displayName: 'Form Subscription',
+      description: 'Triggered by a form/page observable - reactive frontend entry point',
+      category: 'Control Flow',
+      icon: 'sensors',
+      color: '#E91E63',
+      isStateSpaceObject: true,
+      stateSpaceDisplayFields: ['displayName', 'sourceName'],
+      stateSpaceFieldsPerRow: 1,
+      isBuiltIn: true,
+      specialStateType: 'initial',
+      initialStateSubtype: 'form_subscription',
+      supportedRuntimes: ['typescript_frontend'],
+      eventMethods: [
+        {
+          methodName: 'subscribe',
+          displayName: 'Subscribe',
+          description: 'Subscribe to the form/page observable',
+          category: 'Control Flow',
+          inputParams: [
+            { name: 'source', displayName: 'Source Observable', type: 'Observable', isRequired: true }
+          ],
+          output: { type: 'Subscription', displayName: 'Subscription' }
+        }
+      ],
+      variables: [
+        { name: 'displayName', displayName: 'Display Name', type: 'string', isEditable: true, defaultValue: 'Form Subscription' },
+        { name: 'sourceName', displayName: 'Source Name', type: 'string', isEditable: true, defaultValue: '' },
+        { name: 'description', displayName: 'Description', type: 'string', isEditable: true, defaultValue: '' }
+      ],
+      factory: () => new FormSubscription()
+    });
+
+    this.registerClass({
+      className: 'LogicFlowEntry',
+      displayName: 'Logic Flow Entry',
+      description: 'Invoked by a parent solution - child solution entry point',
+      category: 'Control Flow',
+      icon: 'account_tree',
+      color: '#673AB7',
+      isStateSpaceObject: true,
+      stateSpaceDisplayFields: ['displayName', 'parentSolutionName'],
+      stateSpaceFieldsPerRow: 1,
+      isBuiltIn: true,
+      specialStateType: 'initial',
+      initialStateSubtype: 'logic_flow_entry',
+      eventMethods: [
+        {
+          methodName: 'start',
+          displayName: 'Start Execution',
+          description: 'Begin execution from parent solution invocation',
+          category: 'Control Flow',
+          inputParams: [
+            { name: 'parentContext', displayName: 'Parent Context', type: 'object', isRequired: false }
+          ],
+          output: { type: 'object', displayName: 'Initial Context' }
+        }
+      ],
+      variables: [
+        { name: 'displayName', displayName: 'Display Name', type: 'string', isEditable: true, defaultValue: 'Logic Flow Entry' },
+        { name: 'parentSolutionName', displayName: 'Parent Solution', type: 'string', isEditable: true, defaultValue: '' },
+        { name: 'description', displayName: 'Description', type: 'string', isEditable: true, defaultValue: '' }
+      ],
+      factory: () => new LogicFlowEntry()
+    });
+
+    this.registerClass({
+      className: 'BackendStateChange',
+      displayName: 'Backend State Change',
+      description: 'Triggered by database state changes being committed',
+      category: 'Control Flow',
+      icon: 'storage',
+      color: '#FF9800',
+      isStateSpaceObject: true,
+      stateSpaceDisplayFields: ['displayName', 'modelName', 'changeType'],
+      stateSpaceFieldsPerRow: 2,
+      isBuiltIn: true,
+      specialStateType: 'initial',
+      initialStateSubtype: 'backend_state_change',
+      supportedRuntimes: ['python_backend'],
+      eventMethods: [
+        {
+          methodName: 'onStateChange',
+          displayName: 'On State Change',
+          description: 'Triggered when database state changes are committed',
+          category: 'Control Flow',
+          inputParams: [
+            { name: 'changeData', displayName: 'Change Data', type: 'object', isRequired: true }
+          ],
+          output: { type: 'object', displayName: 'Change Context' }
+        }
+      ],
+      variables: [
+        { name: 'displayName', displayName: 'Display Name', type: 'string', isEditable: true, defaultValue: 'Backend State Change' },
+        { name: 'modelName', displayName: 'Model Name', type: 'string', isEditable: true, defaultValue: '' },
+        { name: 'fieldName', displayName: 'Field Name', type: 'string', isEditable: true, defaultValue: '' },
+        { name: 'changeType', displayName: 'Change Type', type: 'string', isEditable: true, defaultValue: 'any' },
+        { name: 'description', displayName: 'Description', type: 'string', isEditable: true, defaultValue: '' }
+      ],
+      factory: () => new BackendStateChange()
+    });
+
+    // Legacy alias: old solutions with stateClass='InitialState' deserialize as DirectInvocation
+    this.registerClass({
+      className: 'InitialState',
+      displayName: 'Initial State',
+      description: 'Legacy initial state - maps to DirectInvocation',
+      category: 'Control Flow',
+      icon: 'play_circle',
+      color: '#4CAF50',
+      isStateSpaceObject: true,
+      stateSpaceDisplayFields: ['displayName', 'description'],
+      stateSpaceFieldsPerRow: 1,
+      isBuiltIn: true,
+      specialStateType: 'initial',
+      initialStateSubtype: 'direct_invocation',
+      eventMethods: [
+        {
+          methodName: 'start',
+          displayName: 'Start Execution',
+          description: 'Begin solution execution with input parameters',
+          category: 'Control Flow',
+          inputParams: [
+            { name: 'inputData', displayName: 'Input Data', type: 'object', isRequired: false }
+          ],
+          output: { type: 'object', displayName: 'Initial Context' }
+        }
+      ],
+      variables: [
+        { name: 'displayName', displayName: 'Display Name', type: 'string', isEditable: true, defaultValue: 'Start' },
+        { name: 'description', displayName: 'Description', type: 'string', isEditable: true, defaultValue: 'Solution entry point' },
+        { name: 'inputParams', displayName: 'Input Parameters', type: 'array', isEditable: true, defaultValue: [] }
+      ],
+      factory: () => new DirectInvocation()
     });
 
     // Note: EndState has been deprecated in favor of ReturnStatement
@@ -524,6 +693,97 @@ export class StateSpaceClassRegistry {
       factory: () => ({ type: 'MathOperation', displayName: 'Math', operationType: 'add' })
     });
 
+    // === Data Operations (Variable & Function) ===
+    this.registerClass({
+      className: 'VariableAssignment',
+      displayName: 'Variable Assignment',
+      description: 'Assign a value to a variable (declare or update)',
+      category: 'Data',
+      icon: 'edit',
+      color: '#9C27B0',
+      isStateSpaceObject: true,
+      stateSpaceDisplayFields: ['displayName', 'variableName', 'dataType'],
+      stateSpaceFieldsPerRow: 2,
+      isBuiltIn: true,
+      slotConfiguration: {
+        defaultInputCount: 1,
+        defaultOutputCount: 1,
+        allowDynamicInputs: false,
+        allowDynamicOutputs: false,
+        maxInputSlots: 1,
+        maxOutputSlots: 1,
+        inputType: 'any',
+        outputType: 'any',
+        inputLabels: ['Input'],
+        outputLabels: ['Output']
+      },
+      eventMethods: [
+        {
+          methodName: 'execute',
+          displayName: 'Execute Assignment',
+          description: 'Assign value to variable',
+          category: 'Data',
+          inputParams: [
+            { name: 'context', displayName: 'Context', type: 'object', isRequired: true }
+          ],
+          output: { type: 'object', displayName: 'Updated Context' }
+        }
+      ],
+      variables: [
+        { name: 'displayName', displayName: 'Display Name', type: 'string', isEditable: true, defaultValue: 'Assign' },
+        { name: 'variableName', displayName: 'Variable Name', type: 'string', isEditable: true, defaultValue: 'variable' },
+        { name: 'dataType', displayName: 'Data Type', type: 'string', isEditable: true, defaultValue: 'any' },
+        { name: 'isDeclare', displayName: 'Is Declaration', type: 'boolean', isEditable: true, defaultValue: true },
+        { name: 'isConst', displayName: 'Is Const', type: 'boolean', isEditable: true, defaultValue: true }
+      ],
+      factory: () => new VariableAssignment()
+    });
+
+    this.registerClass({
+      className: 'FunctionCall',
+      displayName: 'Function Call',
+      description: 'Call a function and optionally store the result',
+      category: 'Data',
+      icon: 'functions',
+      color: '#9C27B0',
+      isStateSpaceObject: true,
+      stateSpaceDisplayFields: ['displayName', 'functionName', 'resultVariableName'],
+      stateSpaceFieldsPerRow: 2,
+      isBuiltIn: true,
+      slotConfiguration: {
+        defaultInputCount: 1,
+        defaultOutputCount: 1,
+        allowDynamicInputs: true,
+        allowDynamicOutputs: false,
+        maxInputSlots: 0, // unlimited (for function arguments)
+        maxOutputSlots: 1,
+        inputType: 'any',
+        outputType: 'any',
+        inputLabels: ['Input'],
+        outputLabels: ['Result']
+      },
+      eventMethods: [
+        {
+          methodName: 'execute',
+          displayName: 'Execute Function Call',
+          description: 'Call function and return result',
+          category: 'Data',
+          inputParams: [
+            { name: 'context', displayName: 'Context', type: 'object', isRequired: true },
+            { name: 'functions', displayName: 'Available Functions', type: 'object', isRequired: false }
+          ],
+          output: { type: 'any', displayName: 'Function Result' }
+        }
+      ],
+      variables: [
+        { name: 'displayName', displayName: 'Display Name', type: 'string', isEditable: true, defaultValue: 'Call' },
+        { name: 'functionName', displayName: 'Function Name', type: 'string', isEditable: true, defaultValue: 'func' },
+        { name: 'objectPath', displayName: 'Object Path', type: 'string', isEditable: true, defaultValue: '' },
+        { name: 'resultVariableName', displayName: 'Result Variable', type: 'string', isEditable: true, defaultValue: 'result' }
+      ],
+      factory: () => new FunctionCall()
+    });
+
     this.registerClass({
       className: 'ReturnStatement',
       displayName: 'Return',
@@ -536,6 +796,7 @@ export class StateSpaceClassRegistry {
       stateSpaceFieldsPerRow: 1,
       isBuiltIn: true,
       specialStateType: 'end',  // Marks solution termination point (replaces deprecated EndState)
+      endStateSubtype: 'return_value',  // Legacy alias for ReturnValue
       eventMethods: [
         {
           methodName: 'execute',
@@ -552,6 +813,108 @@ export class StateSpaceClassRegistry {
         { name: 'displayName', displayName: 'Display Name', type: 'string', isEditable: true, defaultValue: 'Return' }
       ],
       factory: () => new ReturnStatement()
+    });
+
+    // === End State Types ===
+    this.registerClass({
+      className: 'ReturnValue',
+      displayName: 'Return Value',
+      description: 'Return a value to the caller and exit the solution',
+      category: 'Control Flow',
+      icon: 'exit_to_app',
+      color: '#F44336',
+      isStateSpaceObject: true,
+      stateSpaceDisplayFields: ['displayName', 'returnValue'],
+      stateSpaceFieldsPerRow: 1,
+      isBuiltIn: true,
+      specialStateType: 'end',
+      endStateSubtype: 'return_value',
+      eventMethods: [
+        {
+          methodName: 'execute',
+          displayName: 'Return Value',
+          description: 'Return value and exit flow',
+          category: 'Control Flow',
+          inputParams: [
+            { name: 'context', displayName: 'Context', type: 'object', isRequired: true }
+          ],
+          output: { type: 'any', displayName: 'Return Value' }
+        }
+      ],
+      variables: [
+        { name: 'displayName', displayName: 'Display Name', type: 'string', isEditable: true, defaultValue: 'Return Value' },
+        { name: 'returnValue', displayName: 'Return Value', type: 'string', isEditable: true, defaultValue: '' },
+        { name: 'returnValueSource', displayName: 'Return Value Source', type: 'object', isEditable: true, defaultValue: null }
+      ],
+      factory: () => new ReturnValue()
+    });
+
+    this.registerClass({
+      className: 'StateChangeCommit',
+      displayName: 'Commit State Change',
+      description: 'Commit object state changes to the backend and exit',
+      category: 'Control Flow',
+      icon: 'save',
+      color: '#4CAF50',
+      isStateSpaceObject: true,
+      stateSpaceDisplayFields: ['displayName', 'targetFieldName', 'changeType'],
+      stateSpaceFieldsPerRow: 2,
+      isBuiltIn: true,
+      specialStateType: 'end',
+      endStateSubtype: 'state_change',
+      supportedRuntimes: ['python_backend'],
+      eventMethods: [
+        {
+          methodName: 'execute',
+          displayName: 'Commit State',
+          description: 'Commit state changes and exit flow',
+          category: 'Control Flow',
+          inputParams: [
+            { name: 'context', displayName: 'Context', type: 'object', isRequired: true }
+          ],
+          output: { type: 'void', displayName: 'Committed' }
+        }
+      ],
+      variables: [
+        { name: 'displayName', displayName: 'Display Name', type: 'string', isEditable: true, defaultValue: 'Commit State Change' },
+        { name: 'targetFieldName', displayName: 'Target Field', type: 'string', isEditable: true, defaultValue: '' },
+        { name: 'changeType', displayName: 'Change Type', type: 'string', isEditable: true, defaultValue: 'update' }
+      ],
+      factory: () => new StateChangeCommit()
+    });
+
+    this.registerClass({
+      className: 'EmitEvent',
+      displayName: 'Emit Event',
+      description: 'Emit an event for cross-solution signaling and exit',
+      category: 'Control Flow',
+      icon: 'send',
+      color: '#E91E63',
+      isStateSpaceObject: true,
+      stateSpaceDisplayFields: ['displayName', 'eventName'],
+      stateSpaceFieldsPerRow: 1,
+      isBuiltIn: true,
+      specialStateType: 'end',
+      endStateSubtype: 'emit_event',
+      supportedRuntimes: ['typescript_frontend'],
+      eventMethods: [
+        {
+          methodName: 'execute',
+          displayName: 'Emit Event',
+          description: 'Emit event and exit flow',
+          category: 'Control Flow',
+          inputParams: [
+            { name: 'context', displayName: 'Context', type: 'object', isRequired: true }
+          ],
+          output: { type: 'void', displayName: 'Event Emitted' }
+        }
+      ],
+      variables: [
+        { name: 'displayName', displayName: 'Display Name', type: 'string', isEditable: true, defaultValue: 'Emit Event' },
+        { name: 'eventName', displayName: 'Event Name', type: 'string', isEditable: true, defaultValue: '' },
+        { name: 'eventPayload', displayName: 'Event Payload', type: 'string', isEditable: true, defaultValue: '{}' }
+      ],
+      factory: () => new EmitEvent()
     });
 
     // === Debug ===
@@ -640,6 +1003,106 @@ export class StateSpaceClassRegistry {
       ],
       factory: () => new ContinueStatement()
     });
+
+    // === Frontend Blocks (TypeScript/Reactive) ===
+    // Note: StateSubscription removed - absorbed into FormSubscription initial state type
+
+    this.registerClass({
+      className: 'ReactiveTransform',
+      displayName: 'Reactive Transform',
+      description: 'Apply RxJS pipe operators (map, filter, switchMap, etc.)',
+      category: 'Frontend',
+      icon: 'transform',
+      color: '#E91E63',
+      isStateSpaceObject: true,
+      stateSpaceDisplayFields: ['displayName', 'operator'],
+      stateSpaceFieldsPerRow: 1,
+      isBuiltIn: true,
+      supportedRuntimes: ['typescript_frontend'],
+      eventMethods: [
+        {
+          methodName: 'transform',
+          displayName: 'Transform',
+          description: 'Apply pipe operator to the stream',
+          category: 'Frontend',
+          inputParams: [
+            { name: 'source$', displayName: 'Source Stream', type: 'Observable', isRequired: true }
+          ],
+          output: { type: 'Observable', displayName: 'Transformed Stream' }
+        }
+      ],
+      variables: [
+        { name: 'displayName', displayName: 'Display Name', type: 'string', isEditable: true, defaultValue: 'Transform' },
+        { name: 'operator', displayName: 'Operator', type: 'string', isEditable: true, defaultValue: 'map' },
+        { name: 'expression', displayName: 'Expression', type: 'string', isEditable: true, defaultValue: '' }
+      ],
+      factory: () => new ReactiveTransform()
+    });
+
+    // === Cross-Runtime Blocks ===
+    this.registerClass({
+      className: 'AwaitBackendCall',
+      displayName: 'Await Backend Call',
+      description: 'Call a backend Python solution and await response',
+      category: 'Cross-Runtime',
+      icon: 'cloud_download',
+      color: '#FF5722',
+      isStateSpaceObject: true,
+      stateSpaceDisplayFields: ['displayName', 'targetSolutionName'],
+      stateSpaceFieldsPerRow: 1,
+      isBuiltIn: true,
+      supportedRuntimes: ['typescript_frontend'],
+      eventMethods: [
+        {
+          methodName: 'execute',
+          displayName: 'Execute Backend Call',
+          description: 'Call backend solution and await result',
+          category: 'Cross-Runtime',
+          inputParams: [
+            { name: 'params', displayName: 'Parameters', type: 'object', isRequired: false }
+          ],
+          output: { type: 'any', displayName: 'Backend Response' }
+        }
+      ],
+      variables: [
+        { name: 'displayName', displayName: 'Display Name', type: 'string', isEditable: true, defaultValue: 'Await Backend' },
+        { name: 'targetSolutionName', displayName: 'Target Solution', type: 'string', isEditable: true, defaultValue: '' },
+        { name: 'resultVariable', displayName: 'Result Variable', type: 'string', isEditable: true, defaultValue: 'result' }
+      ],
+      factory: () => new AwaitBackendCall()
+    });
+
+    this.registerClass({
+      className: 'EmitFrontendEvent',
+      displayName: 'Emit Frontend Event',
+      description: 'Emit an event from backend to trigger a frontend solution',
+      category: 'Cross-Runtime',
+      icon: 'cloud_upload',
+      color: '#FF5722',
+      isStateSpaceObject: true,
+      stateSpaceDisplayFields: ['displayName', 'targetSolutionName'],
+      stateSpaceFieldsPerRow: 1,
+      isBuiltIn: true,
+      supportedRuntimes: ['python_backend'],
+      eventMethods: [
+        {
+          methodName: 'emit',
+          displayName: 'Emit Event',
+          description: 'Emit event to trigger frontend solution',
+          category: 'Cross-Runtime',
+          inputParams: [
+            { name: 'eventData', displayName: 'Event Data', type: 'object', isRequired: false }
+          ],
+          output: { type: 'void', displayName: 'Event Sent' }
+        }
+      ],
+      variables: [
+        { name: 'displayName', displayName: 'Display Name', type: 'string', isEditable: true, defaultValue: 'Emit Event' },
+        { name: 'targetSolutionName', displayName: 'Target Solution', type: 'string', isEditable: true, defaultValue: '' },
+        { name: 'eventPayload', displayName: 'Event Payload', type: 'string', isEditable: true, defaultValue: '' }
+      ],
+      factory: () => ({ type: 'EmitFrontendEvent', displayName: 'Emit Event', targetSolutionName: '', eventPayload: '' })
+    });
   }
 
   /**
@@ -701,6 +1164,16 @@ export class StateSpaceClassRegistry {
   }
 
   /**
+   * Get classes available for a specific runtime.
+   * Classes with no supportedRuntimes set are considered universal (available in both).
+   */
+  getClassesForRuntime(runtime: TargetRuntime): StateSpaceClassMetadata[] {
+    return this.getAllClasses().filter(c =>
+      !c.supportedRuntimes || c.supportedRuntimes.includes(runtime)
+    );
+  }
+
+  /**
    * Create a new instance of a class
    */
   createInstance(className: string): any {
@@ -756,6 +1229,42 @@ export class StateSpaceClassRegistry {
    */
   getSolutionDefinitions(): StateSpaceClassMetadata[] {
     return this.getAllClasses().filter(c => c.specialStateType === 'solution');
+  }
+
+  /**
+   * Get all initial state type classes (excludes legacy 'InitialState' alias)
+   */
+  getInitialStateTypes(): StateSpaceClassMetadata[] {
+    return this.getAllClasses().filter(c =>
+      c.specialStateType === 'initial' && c.className !== 'InitialState'
+    );
+  }
+
+  /**
+   * Get initial state types available for a specific runtime
+   */
+  getInitialStateTypesForRuntime(runtime: TargetRuntime): StateSpaceClassMetadata[] {
+    return this.getInitialStateTypes().filter(c =>
+      !c.supportedRuntimes || c.supportedRuntimes.includes(runtime)
+    );
+  }
+
+  /**
+   * Get all end state type classes (excludes legacy 'ReturnStatement' alias)
+   */
+  getEndStateTypes(): StateSpaceClassMetadata[] {
+    return this.getAllClasses().filter(c =>
+      c.specialStateType === 'end' && c.className !== 'ReturnStatement'
+    );
+  }
+
+  /**
+   * Get end state types available for a specific runtime
+   */
+  getEndStateTypesForRuntime(runtime: TargetRuntime): StateSpaceClassMetadata[] {
+    return this.getEndStateTypes().filter(c =>
+      !c.supportedRuntimes || c.supportedRuntimes.includes(runtime)
+    );
   }
 
   /**
@@ -888,3 +1397,13 @@ export {
   createReturn,
   createLog
 };
+
+// Re-export initial state types
+export {
+  InitialStateTriggerType,
+  DirectInvocation,
+  FormSubscription,
+  LogicFlowEntry,
+  BackendStateChange,
+  getAvailableInitialStateTypes
+} from './initialStates';

@@ -111,6 +111,19 @@
                 </div>
 
             </div>
+
+            <!-- Display Pages Dropdown -->
+            <mat-list-item *ngIf="publishedDisplayPages.length > 0" (click)="toggleDisplayPages()" class="dropdown-header">
+                <mat-icon>{{ displayPagesExpanded ? 'expand_less' : 'expand_more' }}</mat-icon>
+                <span>Display Pages ({{ publishedDisplayPages.length }})</span>
+            </mat-list-item>
+            <div *ngIf="displayPagesExpanded" class="dropdown-items">
+                <mat-list-item *ngFor="let dp of publishedDisplayPages"
+                    (click)="navigateToDisplayPage(dp)" class="dropdown-item">
+                    <mat-icon>dashboard</mat-icon>
+                    <span class="dropdown-item-text">{{ dp.name || 'Untitled Page' }}</span>
+                </mat-list-item>
+            </div>
           </mat-nav-list>
     </mat-sidenav>
     <button mat-icon-button class="sidenav-toggle" (click)="toggleSideNav()" ><mat-icon>menu</mat-icon></button>

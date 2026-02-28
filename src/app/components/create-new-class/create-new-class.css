@@ -69,7 +69,12 @@ mat-grid-tile {
 }
 
 .form-grid mat-grid-tile {
-    padding: 12px 16px;
+    overflow: visible;
+}
+
+.form-grid .mat-grid-tile-content {
+    padding: 0 4px;
+    box-sizing: border-box;
 }
 
 /* State-Space Section */

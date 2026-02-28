@@ -101,6 +101,7 @@ export class StateOverlayComponent implements OnInit, OnDestroy, OnChanges {
   @Output() fieldChanged = new EventEmitter<{ fieldName: string; value: any }>();
   @Output() overlayClicked = new EventEmitter<void>();
   @Output() fullViewRequested = new EventEmitter<{ x: number; y: number; stateName: string }>();
+  @Output() statePageRequested = new EventEmitter<{ stateName: string }>();
 
   // Form controls
   classSearchControl = new FormControl('');
@@ -343,11 +344,17 @@ export class StateOverlayComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   /**
-   * Check if a unique state (InitialState or ReturnStatement) is already present in the solution
+   * Check if a state type should be excluded from the class selector dropdown.
+   * Initial state types are always excluded (managed via the dedicated initial-state-overlay).
+   * End state types are excluded only when already present.
    */
   private isUniqueStateAlreadyPresent(metadata: StateSpaceClassMetadata): boolean {
-    // Only InitialState and ReturnStatement are unique per solution
-    if (metadata.specialStateType === 'initial' || metadata.specialStateType === 'end') {
+    // All initial state types excluded from class selector — handled by initial-state-overlay
+    if (metadata.specialStateType === 'initial') {
+      return true;
+    }
+    // End state types are unique per solution
+    if (metadata.specialStateType === 'end') {
       return this.existingUniqueStates.has(metadata.className);
     }
     return false;
@@ -403,6 +410,16 @@ export class StateOverlayComponent implements OnInit, OnDestroy, OnChanges {
       y: event.clientY,
       stateName: this.stateName
     });
+  }
+
+  /**
+   * Handle click on the "open state page" button.
+   * Emits the statePageRequested event and stops propagation.
+   */
+  onOpenStatePage(event: MouseEvent): void {
+    event.stopPropagation();
+    event.preventDefault();
+    this.statePageRequested.emit({ stateName: this.stateName });
   }
 
   onClassSelected(event: MatAutocompleteSelectedEvent): void {

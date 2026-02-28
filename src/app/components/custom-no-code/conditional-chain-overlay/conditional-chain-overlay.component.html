@@ -6,7 +6,7 @@
      (pointerdown)="onMouseDown($event)">
 
   <!-- Header with mode tabs -->
-  <div class="overlay-header">
+  <div class="overlay-header" (contextmenu)="onContextMenu($event)">
     <span class="title">Conditional Chain</span>
     <div class="mode-tabs" *ngIf="!isCompact">
       <button class="tab-btn"

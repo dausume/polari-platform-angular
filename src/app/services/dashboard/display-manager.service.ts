@@ -12,6 +12,7 @@ import { DisplaySummary } from '@models/dashboards/DisplaySummary';
 export class DisplayManagerService {
 
   displayList$ = new BehaviorSubject<DisplaySummary[]>([]);
+  publishedDisplays$ = new BehaviorSubject<DisplaySummary[]>([]);
   activeDisplayId$ = new BehaviorSubject<string | null>(null);
   draftDisplay$ = new BehaviorSubject<Display | null>(null);
   hasDraftChanges$ = new BehaviorSubject<boolean>(false);
@@ -34,7 +35,10 @@ export class DisplayManagerService {
           id: item.id,
           name: item.name || '',
           description: item.description || '',
-          source_class: item.source_class || ''
+          source_class: item.source_class || '',
+          linkedSolutions: this.parseLinkedSolutions(item.linkedSolutions),
+          isPage: item.isPage === true || item.isPage === 'true',
+          pageRoute: item.pageRoute || ''
         }));
         this.displayList$.next(summaries);
         this.loading$.next(false);
@@ -65,7 +69,10 @@ export class DisplayManagerService {
             id: item.id,
             name: item.name || '',
             description: item.description || '',
-            source_class: item.source_class || ''
+            source_class: item.source_class || '',
+            linkedSolutions: this.parseLinkedSolutions(item.linkedSolutions),
+            isPage: item.isPage === true || item.isPage === 'true',
+            pageRoute: item.pageRoute || ''
           }));
         console.log('[DisplayManager] Filtered summaries for', sourceClass, ':', summaries.length);
         this.displayList$.next(summaries);
@@ -102,9 +109,9 @@ export class DisplayManagerService {
     );
   }
 
-  createDisplay(name: string, description: string, source_class: string = ''): Observable<any> {
+  createDisplay(name: string, description: string, source_class: string = '', linkedSolutions: string[] = [], isPage: boolean = false, pageRoute: string = ''): Observable<any> {
     const formData = new FormData();
-    formData.append('initParamSets', JSON.stringify([{ name, description, source_class, definition: '{}' }]));
+    formData.append('initParamSets', JSON.stringify([{ name, description, source_class, definition: '{}', linkedSolutions: JSON.stringify(linkedSolutions), isPage, pageRoute }]));
     return this.http.post(this.baseUrl, formData).pipe(
       tap(() => {
         if (source_class) {
@@ -138,7 +145,10 @@ export class DisplayManagerService {
     formData.append('updateData', JSON.stringify({
       name: display.name,
       description: display.description,
-      definition: definition
+      definition: definition,
+      linkedSolutions: JSON.stringify(display.linkedSolutions),
+      isPage: display.isPage,
+      pageRoute: display.pageRoute || ''
     }));
     return this.http.put(this.baseUrl, formData).pipe(
       tap(() => {
@@ -200,6 +210,9 @@ export class DisplayManagerService {
 
   deserializeDisplay(backendObj: any): Display {
     const display = new Display(backendObj.id, backendObj.name || '', backendObj.description || '');
+    display.linkedSolutions = this.parseLinkedSolutions(backendObj.linkedSolutions);
+    display.isPage = backendObj.isPage === true || backendObj.isPage === 'true';
+    display.pageRoute = backendObj.pageRoute || '';
 
     let parsed: any = {};
     if (backendObj.definition && backendObj.definition !== '{}') {
@@ -262,6 +275,43 @@ export class DisplayManagerService {
       item.nestedRows = itemData.nestedRows.map((rd: any) => this.deserializeRow(rd));
     }
     return item;
+  }
+
+  fetchPublishedDisplays(): void {
+    this.http.get<any>(this.baseUrl, this.polariService.backendRequestOptions).subscribe({
+      next: (response: any) => {
+        const items = this.parseReadAllResponse(response);
+        const published: DisplaySummary[] = items
+          .filter((item: any) => item.isPage === true || item.isPage === 'true')
+          .map((item: any) => ({
+            id: item.id,
+            name: item.name || '',
+            description: item.description || '',
+            source_class: item.source_class || '',
+            linkedSolutions: this.parseLinkedSolutions(item.linkedSolutions),
+            isPage: true,
+            pageRoute: item.pageRoute || ''
+          }));
+        this.publishedDisplays$.next(published);
+      },
+      error: (err: any) => {
+        console.error('[DisplayManager] Failed to fetch published displays:', err);
+      }
+    });
+  }
+
+  private parseLinkedSolutions(raw: any): string[] {
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw;
+    if (typeof raw === 'string') {
+      try {
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
   }
 
   private parseReadAllResponse(response: any): any[] {

@@ -94,6 +94,50 @@ export class RectangleStateLayer extends D3ModelLayer {
     this.onSlotContextMenu = callback;
   }
 
+  // --- Execution Highlighting ---
+
+  highlightState(stateName: string, color: string): void {
+    const group = this.getLayerGroup()
+      .select(`g.state-group[state-name="${stateName}"]`);
+    if (group.empty()) return;
+
+    group.select('.execution-highlight').remove();
+
+    const shape = group.select('.draggable-shape');
+    if (shape.empty()) return;
+
+    const w = parseFloat(shape.attr('width') || '120');
+    const h = parseFloat(shape.attr('height') || '60');
+    const x = parseFloat(shape.attr('x') || '0');
+    const y = parseFloat(shape.attr('y') || '0');
+
+    group.insert('rect', '.draggable-shape')
+      .attr('class', 'execution-highlight')
+      .attr('x', x - 4)
+      .attr('y', y - 4)
+      .attr('width', w + 8)
+      .attr('height', h + 8)
+      .attr('rx', 6)
+      .attr('ry', 6)
+      .attr('fill', 'none')
+      .attr('stroke', color)
+      .attr('stroke-width', 3)
+      .attr('stroke-opacity', 0.8)
+      .style('filter', `drop-shadow(0 0 6px ${color})`);
+  }
+
+  unhighlightState(stateName: string): void {
+    this.getLayerGroup()
+      .select(`g.state-group[state-name="${stateName}"] .execution-highlight`)
+      .remove();
+  }
+
+  unhighlightAllStates(): void {
+    this.getLayerGroup()
+      .selectAll('.execution-highlight')
+      .remove();
+  }
+
   getStateGroupByName(stateName: string): SVGGElement | null {
     const selection = this.getLayerGroup()
       .select(`g.state-group[state-name="${stateName}"]`);
@@ -111,7 +155,7 @@ export class RectangleStateLayer extends D3ModelLayer {
 
   getSolutionLayer(): d3.Selection<SVGGElement, unknown, null, undefined> {
     return this.d3SvgBaseLayer
-      .selectAll(`g.solution-layer-${this.getSanitizedSolutionName()}`);
+      .select(`g.solution-layer-${this.getSanitizedSolutionName()}`);
   }
 
   private getRectangleStateDataPointsFromSolution(noCodeSolution: NoCodeSolution): RectangleStateDataPoint[] {
@@ -131,6 +175,16 @@ export class RectangleStateLayer extends D3ModelLayer {
         state.stateName ?? "unknown",
         state.cornerRadius ?? 0
       ));
+  }
+
+  private calculateDefaultSlotAngle(slot: Slot, state: NoCodeState): number {
+    const slots = state.slots || [];
+    const sameType = slots.filter(s => s.isInput === slot.isInput);
+    const idx = sameType.indexOf(slot);
+    const count = sameType.length;
+    const base = slot.isInput ? 180 : 0;
+    const spread = Math.min(30, 120 / Math.max(count, 1));
+    return (base + (idx - (count - 1) / 2) * spread + 360) % 360;
   }
 
   private getRectangleSlotDataPointsFromSolution(noCodeSolution: NoCodeSolution): RectangleSlotDataPoint[] {
@@ -162,7 +216,7 @@ export class RectangleStateLayer extends D3ModelLayer {
             state.stateSvgWidth ?? state.stateSvgRadius ?? 20,
             state.stateSvgHeight ?? state.stateSvgWidth ?? state.stateSvgRadius ?? 20,
             slot.index,
-            slot.slotAngularPosition ?? 0,
+            slot.slotAngularPosition ?? this.calculateDefaultSlotAngle(slot, state),
             slot.isInput,
             slot.isOutput,
             state.stateName ?? "unknown",
@@ -183,10 +237,9 @@ export class RectangleStateLayer extends D3ModelLayer {
     this.initializeConnectorLayer();
     this.initializeStateGroups();
     this.initializeSlotLayer();
-    this.renderCachedConnectors();
   }
 
-  private renderCachedConnectors(): void {
+  public renderCachedConnectors(): void {
     if (!this.noCodeSolution || !this.connectorLayer) {
       return;
     }
@@ -395,7 +448,7 @@ export class RectangleStateLayer extends D3ModelLayer {
         state.stateSvgWidth ?? state.stateSvgRadius ?? 20,
         state.stateSvgHeight ?? state.stateSvgWidth ?? state.stateSvgRadius ?? 20,
         slot.index,
-        slot.slotAngularPosition ?? 0,
+        slot.slotAngularPosition ?? this.calculateDefaultSlotAngle(slot, state),
         slot.isInput,
         slot.isOutput,
         stateName,
@@ -416,7 +469,9 @@ export class RectangleStateLayer extends D3ModelLayer {
   initializeLayerGroup(): void {
     console.log('[RectangleStateLayer.initializeLayerGroup] Starting for layer:', this.layerName);
 
-    let layerGroup = this.d3SvgBaseLayer
+    // Nest layer group inside the solution layer so cross-layer lookups work
+    const solutionLayer = this.getSolutionLayer();
+    let layerGroup = solutionLayer
       .selectAll(`g.${this.layerName}`)
       .data([null]);
 
@@ -428,8 +483,8 @@ export class RectangleStateLayer extends D3ModelLayer {
   }
 
   getLayerGroup(): d3.Selection<SVGGElement, unknown, null, undefined> {
-    return this.d3SvgBaseLayer
-      .selectAll(`g.${this.layerName}`);
+    return this.getSolutionLayer()
+      .select(`g.${this.layerName}`);
   }
 
   protected clearLayerGroup(): void {
@@ -1350,6 +1405,20 @@ export class RectangleStateLayer extends D3ModelLayer {
               currentAngle
             );
           }
+
+          // Update live Slot object so re-renders preserve the dragged position
+          const liveState = this.noCodeSolution?.stateInstances.find(
+            s => s.stateName === slotInfo.stateName
+          );
+          if (liveState?.slots) {
+            const liveSlot = liveState.slots.find(s => s.index === slotInfo.slotIndex);
+            if (liveSlot) liveSlot.slotAngularPosition = currentAngle;
+          }
+          // Update slotDataPoints so initializeSlotLayer uses correct position
+          const dp = this.slotDataPoints.find(
+            s => s.stateName === slotInfo.stateName && s.index === slotInfo.slotIndex
+          );
+          if (dp) dp.angularPosition = currentAngle;
 
           // Re-render the slot label at the new position
           const finalLocalX = parseFloat(slotMarker.attr('cx') || '0');

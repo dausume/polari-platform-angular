@@ -27,6 +27,8 @@ import { CreateGeoJsonConfigDialogComponent } from '@components/geojson-config/c
 import { classPolyTyping } from '@models/polyTyping/classPolyTyping';
 import { DisplayRendererComponent } from '@components/dashboard/dashboard-renderer/dashboard-renderer';
 import { EditClassDialogComponent } from '@components/class-main-page/edit-class-dialog/edit-class-dialog';
+import { NoCodeSolutionStateService } from '@services/no-code-services/no-code-solution-state.service';
+import { NoCodeSolutionRawData } from '@models/noCode/mock-NCS-data';
 import { Subscription } from 'rxjs';
 
 @Component({
@@ -91,6 +93,9 @@ export class ClassMainPageComponent implements OnDestroy {
   editClassLoading: boolean = false;
   get isGeoJsonEnabled(): boolean { return this.geoJsonConfigList.length > 0; }
 
+  /** Available frontend solutions for the current class */
+  availableFrontendSolutions: { name: string; data: NoCodeSolutionRawData }[] = [];
+
   @ViewChild(DisplayRendererComponent) dashboardRenderer?: DisplayRendererComponent;
 
   /** Display editor mode state */
@@ -119,7 +124,8 @@ export class ClassMainPageComponent implements OnDestroy {
     private displayManager: DisplayManagerService,
     private tableDefService: TableDefinitionService,
     private graphDefService: GraphDefinitionService,
-    private geoJsonDefService: GeoJsonDefinitionService
+    private geoJsonDefService: GeoJsonDefinitionService,
+    private noCodeSolutionService: NoCodeSolutionStateService
   ) {}
 
   ngOnInit() {
@@ -340,6 +346,7 @@ export class ClassMainPageComponent implements OnDestroy {
       next: (display: Display) => {
         this.selectedDisplay = display;
         this.configPanelOpen = true;
+        this.loadAvailableFrontendSolutions();
       },
       error: (err: any) => {
         console.error('[ClassMainPage] Failed to load display:', err);
@@ -402,11 +409,56 @@ export class ClassMainPageComponent implements OnDestroy {
     this.displayManager.saveDisplay(this.selectedDisplay).subscribe({
       next: () => {
         console.log('[ClassMainPage] Display saved successfully');
+        this.displayManager.fetchPublishedDisplays();
       },
       error: (err: any) => {
         console.error('[ClassMainPage] Save display failed:', err);
       }
     });
+  }
+
+  /**
+   * Load frontend solutions bound to the current class
+   */
+  loadAvailableFrontendSolutions(): void {
+    if (!this.className) {
+      this.availableFrontendSolutions = [];
+      return;
+    }
+    this.availableFrontendSolutions = this.noCodeSolutionService.getFrontendSolutionsForClass(this.className);
+  }
+
+  /**
+   * Toggle linking a solution to the selected display
+   */
+  toggleSolutionLink(solutionName: string): void {
+    if (!this.selectedDisplay) return;
+    if (this.selectedDisplay.linkedSolutions.includes(solutionName)) {
+      this.selectedDisplay.unlinkSolution(solutionName);
+    } else {
+      this.selectedDisplay.linkSolution(solutionName);
+    }
+    this.onDisplayPropertyChange();
+  }
+
+  /**
+   * Check if a solution is linked to the selected display
+   */
+  isSolutionLinked(solutionName: string): boolean {
+    return this.selectedDisplay?.linkedSolutions.includes(solutionName) || false;
+  }
+
+  /**
+   * Toggle publish/unpublish display as standalone page
+   */
+  togglePublishAsPage(publish: boolean): void {
+    if (!this.selectedDisplay) return;
+    if (publish) {
+      this.selectedDisplay.publishAsPage();
+    } else {
+      this.selectedDisplay.unpublishAsPage();
+    }
+    this.onDisplayPropertyChange();
   }
 
   /**

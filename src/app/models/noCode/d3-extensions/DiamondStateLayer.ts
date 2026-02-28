@@ -94,6 +94,47 @@ export class DiamondStateLayer extends D3ModelLayer {
     this.onSlotContextMenu = callback;
   }
 
+  // --- Execution Highlighting ---
+
+  highlightState(stateName: string, color: string): void {
+    const group = this.getLayerGroup()
+      .select(`g.state-group[state-name="${stateName}"]`);
+    if (group.empty()) return;
+
+    group.select('.execution-highlight').remove();
+
+    const shape = group.select('.draggable-shape');
+    if (shape.empty()) return;
+
+    // Diamond is a rotated square - get the size
+    const size = parseFloat(shape.attr('width') || shape.attr('d')?.match(/\d+/)?.[0] || '80');
+
+    group.insert('rect', '.draggable-shape')
+      .attr('class', 'execution-highlight')
+      .attr('x', -(size / 2) - 4)
+      .attr('y', -(size / 2) - 4)
+      .attr('width', size + 8)
+      .attr('height', size + 8)
+      .attr('fill', 'none')
+      .attr('stroke', color)
+      .attr('stroke-width', 3)
+      .attr('stroke-opacity', 0.8)
+      .attr('transform', 'rotate(45)')
+      .style('filter', `drop-shadow(0 0 6px ${color})`);
+  }
+
+  unhighlightState(stateName: string): void {
+    this.getLayerGroup()
+      .select(`g.state-group[state-name="${stateName}"] .execution-highlight`)
+      .remove();
+  }
+
+  unhighlightAllStates(): void {
+    this.getLayerGroup()
+      .selectAll('.execution-highlight')
+      .remove();
+  }
+
   getStateGroupByName(stateName: string): SVGGElement | null {
     const selection = this.getLayerGroup()
       .select(`g.state-group[state-name="${stateName}"]`);
@@ -111,7 +152,7 @@ export class DiamondStateLayer extends D3ModelLayer {
 
   getSolutionLayer(): d3.Selection<SVGGElement, unknown, null, undefined> {
     return this.d3SvgBaseLayer
-      .selectAll(`g.solution-layer-${this.getSanitizedSolutionName()}`);
+      .select(`g.solution-layer-${this.getSanitizedSolutionName()}`);
   }
 
   private getDiamondStateDataPointsFromSolution(noCodeSolution: NoCodeSolution): DiamondStateDataPoint[] {
@@ -131,6 +172,16 @@ export class DiamondStateLayer extends D3ModelLayer {
         state.stateClass,
         state.backgroundColor
       ));
+  }
+
+  private calculateDefaultSlotAngle(slot: Slot, state: NoCodeState): number {
+    const slots = state.slots || [];
+    const sameType = slots.filter(s => s.isInput === slot.isInput);
+    const idx = sameType.indexOf(slot);
+    const count = sameType.length;
+    const base = slot.isInput ? 180 : 0;
+    const spread = Math.min(30, 120 / Math.max(count, 1));
+    return (base + (idx - (count - 1) / 2) * spread + 360) % 360;
   }
 
   private getDiamondSlotDataPointsFromSolution(noCodeSolution: NoCodeSolution): DiamondSlotDataPoint[] {
@@ -158,7 +209,7 @@ export class DiamondStateLayer extends D3ModelLayer {
             state.stateLocationY ?? 0,
             state.stateSvgRadius ?? 50,
             slot.index,
-            slot.slotAngularPosition ?? 0,
+            slot.slotAngularPosition ?? this.calculateDefaultSlotAngle(slot, state),
             slot.isInput,
             slot.isOutput,
             state.stateName ?? "unknown",
@@ -179,10 +230,9 @@ export class DiamondStateLayer extends D3ModelLayer {
     this.initializeConnectorLayer();
     this.initializeStateGroups();
     this.initializeSlotLayer();
-    this.renderCachedConnectors();
   }
 
-  private renderCachedConnectors(): void {
+  public renderCachedConnectors(): void {
     if (!this.noCodeSolution || !this.connectorLayer) {
       return;
     }
@@ -396,7 +446,7 @@ export class DiamondStateLayer extends D3ModelLayer {
         state.stateLocationY ?? 0,
         state.stateSvgRadius ?? 50,
         slot.index,
-        slot.slotAngularPosition ?? 0,
+        slot.slotAngularPosition ?? this.calculateDefaultSlotAngle(slot, state),
         slot.isInput,
         slot.isOutput,
         stateName,
@@ -415,7 +465,9 @@ export class DiamondStateLayer extends D3ModelLayer {
   initializeLayerGroup(): void {
     console.log('[DiamondStateLayer.initializeLayerGroup] Starting for layer:', this.layerName);
 
-    let layerGroup = this.d3SvgBaseLayer
+    // Nest layer group inside the solution layer so cross-layer lookups work
+    const solutionLayer = this.getSolutionLayer();
+    let layerGroup = solutionLayer
       .selectAll(`g.${this.layerName}`)
       .data([null]);
 
@@ -427,8 +479,8 @@ export class DiamondStateLayer extends D3ModelLayer {
   }
 
   getLayerGroup(): d3.Selection<SVGGElement, unknown, null, undefined> {
-    return this.d3SvgBaseLayer
-      .selectAll(`g.${this.layerName}`);
+    return this.getSolutionLayer()
+      .select(`g.${this.layerName}`);
   }
 
   protected clearLayerGroup(): void {
@@ -1247,6 +1299,20 @@ export class DiamondStateLayer extends D3ModelLayer {
               currentAngle
             );
           }
+
+          // Update live Slot object so re-renders preserve the dragged position
+          const liveState = this.noCodeSolution?.stateInstances.find(
+            s => s.stateName === slotInfo.stateName
+          );
+          if (liveState?.slots) {
+            const liveSlot = liveState.slots.find(s => s.index === slotInfo.slotIndex);
+            if (liveSlot) liveSlot.slotAngularPosition = currentAngle;
+          }
+          // Update slotDataPoints so initializeSlotLayer uses correct position
+          const dp = this.slotDataPoints.find(
+            s => s.stateName === slotInfo.stateName && s.index === slotInfo.slotIndex
+          );
+          if (dp) dp.angularPosition = currentAngle;
 
           const finalLocalX = parseFloat(slotMarker.attr('cx') || '0');
           const finalLocalY = parseFloat(slotMarker.attr('cy') || '0');

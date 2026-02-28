@@ -37,9 +37,15 @@
           Sub-Solutions
           <span class="count-badge" *ngIf="availableSubSolutions.length > 0">{{ availableSubSolutions.length }}</span>
         </button>
-        <button class="tab-btn small" [class.active]="activeTab === 'code'" (click)="setActiveTab('code')">
+        <button class="tab-btn small" [class.active]="activeTab === 'code'" (click)="setActiveTab('code')"
+                *ngIf="targetRuntime === 'python_backend'">
           <mat-icon>code</mat-icon>
           Python
+        </button>
+        <button class="tab-btn small" [class.active]="activeTab === 'tsCode'" (click)="setActiveTab('tsCode')"
+                *ngIf="targetRuntime === 'typescript_frontend'">
+          <mat-icon>code</mat-icon>
+          TypeScript
         </button>
       </div>
     </div>
@@ -174,10 +180,18 @@
         </div>
 
         <!-- Python Class Preview -->
-        <div class="class-section" *ngIf="boundClass">
+        <div class="class-section" *ngIf="boundClass && targetRuntime === 'python_backend'">
           <h4><mat-icon>code</mat-icon> Python Class</h4>
           <div class="code-block">
             <pre><code>{{ getPythonClassPreview() }}</code></pre>
+          </div>
+        </div>
+
+        <!-- TypeScript Class Preview -->
+        <div class="class-section" *ngIf="boundClass && targetRuntime === 'typescript_frontend'">
+          <h4><mat-icon>code</mat-icon> TypeScript Class</h4>
+          <div class="code-block">
+            <pre><code>{{ getTypescriptClassPreview() }}</code></pre>
           </div>
         </div>
 
@@ -390,6 +404,28 @@
         </div>
       </div>
     </div>
+
+    <!-- TypeScript Code View Tab Content -->
+    <div class="tab-content" *ngIf="activeTab === 'tsCode'">
+      <div class="code-view-container">
+        <div class="code-header">
+          <mat-icon>code</mat-icon>
+          <span>Generated TypeScript Code</span>
+        </div>
+        <div class="code-info" *ngIf="solutionName">
+          <span class="solution-label">Function:</span>
+          <span class="solution-name">{{ getFunctionName() }}</span>
+        </div>
+        <div class="code-block" *ngIf="generatedTypescriptCode">
+          <pre><code>{{ generatedTypescriptCode }}</code></pre>
+        </div>
+        <div class="empty-state" *ngIf="!generatedTypescriptCode">
+          <mat-icon>code_off</mat-icon>
+          <p>No code generated yet</p>
+          <span>Add blocks to your solution to see the generated TypeScript code</span>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Collapsed Content -->
@@ -423,7 +459,15 @@
     <button mat-icon-button
             [class.active]="activeTab === 'code'"
             (click)="setActiveTab('code'); onToggleExpanded()"
-            title="Python Code">
+            title="Python Code"
+            *ngIf="targetRuntime === 'python_backend'">
+      <mat-icon>code</mat-icon>
+    </button>
+    <button mat-icon-button
+            [class.active]="activeTab === 'tsCode'"
+            (click)="setActiveTab('tsCode'); onToggleExpanded()"
+            title="TypeScript Code"
+            *ngIf="targetRuntime === 'typescript_frontend'">
       <mat-icon>code</mat-icon>
     </button>
   </div>
