@@ -20,8 +20,8 @@ export class objectIdentifiersSpec {
     {
         if(referenceInstance.length != 2)
         {
-            console.log("invalid reference json passed into objectIdentifiersSpec constructor, should be an array with the first element "
-            +"indicating class referenced and the second being json with Id data for the specific object referenced.");
+            // console.log("invalid reference json passed into objectIdentifiersSpec constructor, should be an array with the first element "
+            // +"indicating class referenced and the second being json with Id data for the specific object referenced.");
         }
         this.referenceInstance = referenceInstance;
         this.identifiers = {};

@@ -538,7 +538,7 @@ export class StateBuildingBlockRegistry {
       supportedRuntimes: [],
       codeTemplates: [
         { runtime: 'python_backend', template: 'print({message})' },
-        { runtime: 'typescript_frontend', template: 'console.log({message});' }
+        // { runtime: 'typescript_frontend', template: 'console.log({message});' }
       ],
       defaultInputSlots: [
         { name: 'input', displayName: 'Input', slotType: 'input', dataType: 'any', isRequired: true }

@@ -6,7 +6,7 @@
      (pointerdown)="onMouseDown($event)">
 
   <!-- Header -->
-  <div class="overlay-header">
+  <div class="overlay-header" (contextmenu)="onContextMenu($event)">
     <mat-icon class="header-icon">calculate</mat-icon>
     <span class="title">Math Operation</span>
   </div>
@@ -72,17 +72,34 @@
         </button>
       </div>
 
-      <!-- Solution Field Selector -->
-      <select *ngIf="config.resultTarget === 'solution_field'"
-              class="result-select"
-              [value]="config.resultFieldPath"
-              (change)="onResultFieldChange($any($event.target).value)">
-        <option value="">-- Select field --</option>
-        <option *ngFor="let field of solutionObjectFields"
-                [value]="field.path">
-          {{ field.displayName || field.path }} ({{ field.type }})
-        </option>
-      </select>
+      <!--
+        Solution Field Selector - TWO-STEP dropdown matching the operand "From Object" pattern:
+        Step 1: Select the object (e.g., "self") from unique object prefixes in sourceObjectFields.
+        Step 2: Select a specific field from that object (e.g., "sum_result").
+        Do NOT replace this with a single flat dropdown or text input.
+      -->
+      <div class="result-field-flow" *ngIf="config.resultTarget === 'solution_field'">
+        <!-- Step 1: Object selector (e.g., "self") -->
+        <select class="result-select result-object-select"
+                [value]="resultObjectName"
+                (change)="onResultObjectChange($any($event.target).value)">
+          <option value="" disabled>Object...</option>
+          <option *ngFor="let name of getUniqueResultObjectNames()" [value]="name">
+            {{ name }}
+          </option>
+        </select>
+        <!-- Step 2: Field selector (e.g., "sum_result") -->
+        <select class="result-select result-field-select"
+                *ngIf="resultObjectName"
+                [value]="config.resultFieldPath"
+                (change)="onResultFieldChange($any($event.target).value)">
+          <option value="" disabled>Field...</option>
+          <option *ngFor="let field of getFieldsForResultObject()"
+                  [value]="field.path">
+            {{ getFieldDisplayName(field) }} ({{ field.type }})
+          </option>
+        </select>
+      </div>
 
       <!-- Variable Name Input -->
       <input *ngIf="config.resultTarget === 'new_variable'"
@@ -117,7 +134,7 @@
       <app-value-source-selector
         [config]="getPopupConfig()"
         [availableInputs]="availableInputs"
-        [sourceObjectFields]="getSourceObjectFieldsForSelector()"
+        [sourceObjectFields]="sourceObjectFields"
         [label]="''"
         [compact]="false"
         (configChange)="onPopupConfigChange($event)">

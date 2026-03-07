@@ -3,7 +3,7 @@
       <div class="canvas-wrapper">
       <div class="canvas-toolbar">
         <div class="toolbar-left">
-          <span class="toolbar-title">{{ noCodeSolution?.solutionName || 'No-Code Solution' }}</span>
+          <span class="toolbar-title">{{ noCodeSolution?.solutionName || 'No-Code Solution' }}<span *ngIf="isModified" style="color: #ff9800; font-size: 0.75em; margin-left: 6px;" title="Unsaved changes">(modified)</span></span>
         </div>
         <div class="solution-selector">
           <label for="solution-select">Solution:</label>
@@ -53,6 +53,15 @@
             <mat-icon>settings</mat-icon>
           </button>
           <mat-menu #solutionOptionsMenu="matMenu" class="solution-options-menu">
+            <button mat-menu-item [matMenuTriggerFor]="saveVersionMenu" [disabled]="versionSaving">
+              <mat-icon>save</mat-icon>
+              <span>{{ versionSaving ? 'Saving...' : 'Save Version' }}</span>
+            </button>
+            <button mat-menu-item [matMenuTriggerFor]="versionHistoryMenu" (menuOpened)="loadVersionList()">
+              <mat-icon>history</mat-icon>
+              <span>Version History</span>
+            </button>
+            <mat-divider></mat-divider>
             <button mat-menu-item (click)="toggleRenderingDebug()">
               <mat-icon>{{ showRenderingDebug ? 'visibility' : 'visibility_off' }}</mat-icon>
               <span>{{ showRenderingDebug ? 'Hide' : 'Show' }} Rendering Debug</span>
@@ -71,6 +80,37 @@
               <mat-icon>download</mat-icon>
               <span>Export Solution</span>
             </button>
+          </mat-menu>
+          <!-- Save Version submenu -->
+          <mat-menu #saveVersionMenu="matMenu">
+            <button mat-menu-item (click)="saveVersion('new')">
+              <mat-icon>add_circle_outline</mat-icon>
+              <span>Save as New Version</span>
+            </button>
+            <button mat-menu-item (click)="saveVersion('overwrite')"
+                    [disabled]="versionList.length === 0">
+              <mat-icon>update</mat-icon>
+              <span>Update Current Version</span>
+            </button>
+          </mat-menu>
+          <!-- Version History submenu -->
+          <mat-menu #versionHistoryMenu="matMenu" class="version-history-menu">
+            <div *ngIf="versionList.length === 0" mat-menu-item disabled>
+              <span>No saved versions</span>
+            </div>
+            <div *ngFor="let version of versionList" class="version-history-item">
+              <button mat-menu-item (click)="revertToVersion(version)" style="flex: 1;">
+                <mat-icon>{{ version.is_current ? 'star' : 'restore' }}</mat-icon>
+                <span>{{ version.label || 'v' + version.version_number }}
+                  <small style="opacity: 0.6; margin-left: 4px;">{{ version.created_at | date:'short' }}</small>
+                </span>
+              </button>
+              <button mat-menu-item (click)="deleteVersion(version, $event)"
+                      style="min-width: 40px; max-width: 40px; padding: 0; display: flex; justify-content: center;"
+                      title="Delete this version">
+                <mat-icon style="color: #f44336; font-size: 18px;">delete</mat-icon>
+              </button>
+            </div>
           </mat-menu>
         </div>
       </div>
@@ -253,6 +293,8 @@
       [solutionName]="selectedSolutionName || noCodeSolution?.solutionName || ''"
       [targetRuntime]="solutionTargetRuntime"
       [inputParamDefinitions]="executionInputParams"
+      [instanceFieldDefinitions]="executionInstanceFields"
+      [boundClassName]="executionBoundClassName"
       (closed)="onExecutionPanelClosed()"
       (activeStateChanged)="onExecutionActiveStateChanged($event)">
     </execution-panel>

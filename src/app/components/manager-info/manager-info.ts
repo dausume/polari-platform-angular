@@ -41,7 +41,7 @@ export class ManagerInfoComponent implements OnInit, OnDestroy {
 
     this.subscription = service.readAll().subscribe({
       next: (response: any) => {
-        console.log('[ManagerInfo] Received response:', response);
+        // console.log('[ManagerInfo] Received response:', response);
 
         // API returns array format: [{ "managerObject": { "manager": {...} } }]
         if (response && response.length > 0) {

@@ -47,9 +47,9 @@ export class NoCodeSolution {
         solutionName: string, stateInstances: NoCodeState[]=[],
         id?: number)
     {
-        console.log('[NoCodeSolution] Constructor called for:', solutionName);
-        console.log('[NoCodeSolution] Received stateInstances count:', stateInstances.length);
-        console.log('[NoCodeSolution] State names:', stateInstances.map(s => s.stateName));
+        // console.log('[NoCodeSolution] Constructor called for:', solutionName);
+        // console.log('[NoCodeSolution] Received stateInstances count:', stateInstances.length);
+        // console.log('[NoCodeSolution] State names:', stateInstances.map(s => s.stateName));
 
         this.xBounds = xBounds;
         this.yBounds = yBounds;
@@ -58,7 +58,7 @@ export class NoCodeSolution {
         this.id = id;
         // If no states are provided, generate initial states
         this.stateInstances = stateInstances.length ? stateInstances : this.generateInitialStates();
-        console.log('[NoCodeSolution] Final stateInstances count:', this.stateInstances.length);
+        // console.log('[NoCodeSolution] Final stateInstances count:', this.stateInstances.length);
         // Subscribe to the BehaviorSubject for the d3SvgBaseLayer in the renderer manager
         // Rendering will be triggered when the base layer becomes available
         this.subscribeToBaseLayer();
@@ -178,14 +178,14 @@ export class NoCodeSolution {
     private subscribeToBaseLayer(): void {
         this.baseLayerSubscription = this.rendererManager.subscribeToD3SvgBaseLayer((baseLayer:d3.Selection<SVGSVGElement, unknown, null, undefined> | undefined) => {
             if (baseLayer) {
-                console.log("Subscription triggered to update D3 Svg Base Layer on NoCodeSolution");
+                // console.log("Subscription triggered to update D3 Svg Base Layer on NoCodeSolution");
                 this.setD3SvgBaseLayer(baseLayer);
-                console.log("D3 Svg Base Layer updated on NoCodeSolution:", this.d3SvgBaseLayer);
+                // console.log("D3 Svg Base Layer updated on NoCodeSolution:", this.d3SvgBaseLayer);
 
                 // Initialize rendering only once when base layer becomes available
                 if (!this.hasInitialized) {
                     this.hasInitialized = true;
-                    console.log("First time base layer available - initializing solution rendering");
+                    // console.log("First time base layer available - initializing solution rendering");
                     this.createSolutionLayer();
                     this.loadAllNoCodeStates();
                 }
@@ -195,14 +195,14 @@ export class NoCodeSolution {
 
     setD3SvgBaseLayer(d3SvgBaseLayer: d3.Selection<SVGSVGElement, unknown, null, undefined>)
     {
-        console.log("Setting D3 Svg Base Layer on No-Code Solution");
+        // console.log("Setting D3 Svg Base Layer on No-Code Solution");
         this.d3SvgBaseLayer = d3SvgBaseLayer;
-        console.log("Update D3 Svg Base Layer on NoCodeSolution : ", this.d3SvgBaseLayer);
+        // console.log("Update D3 Svg Base Layer on NoCodeSolution : ", this.d3SvgBaseLayer);
     }
 
     setRendererManager(rendererManager: NoCodeStateRendererManager) {
         this.d3SvgBaseLayer = rendererManager.getD3SvgBaseLayer();
-        console.log("No-Code Solution Synced with Renderer Manager Base Layer: ", this.d3SvgBaseLayer);
+        // console.log("No-Code Solution Synced with Renderer Manager Base Layer: ", this.d3SvgBaseLayer);
     }
 
     getNoCodeStatesByShapeType(shapeType: string): Array<NoCodeState> | undefined
@@ -212,16 +212,16 @@ export class NoCodeSolution {
 
     addRenderLayer(shapeType: string | undefined, svgName: string | undefined): void
     {
-        console.log("Adding Render Layer to No-Code Solution");
+        // console.log("Adding Render Layer to No-Code Solution");
         // Confirm the No-Code State shape type is valid and supported with a corresponding D3ModelLayer object
         // that can handle the logic for rendering the No-Code State object.
         // If the shape type is not supported, then we should throw an error.
         // Validate the shape type
         const d3ModelLayerDefinition : Type<D3ModelLayer> | undefined = this.rendererManager.stateShapeTypeToD3ModelLayerTypeMap.get(shapeType || '');
-        console.log("D3 Model Layer Definition being pulled from Renderer Manager to No Code Solution : ", d3ModelLayerDefinition);
+        // console.log("D3 Model Layer Definition being pulled from Renderer Manager to No Code Solution : ", d3ModelLayerDefinition);
         if(d3ModelLayerDefinition && shapeType)
         {       
-            console.log("Creating a new d3ModelLayer instance from the d3ModelLayerDefinition"); 
+            // console.log("Creating a new d3ModelLayer instance from the d3ModelLayerDefinition"); 
             let noCodeStatesForLayer = this.getNoCodeStatesByShapeType(shapeType);
             const d3ModelLayerInstance = new d3ModelLayerDefinition(
                 this.rendererManager, // Required to pass the renderer manager to any implementation of the D3ModelLayer despite it not existing on the abstract D3ModelLayer definition.
@@ -230,26 +230,26 @@ export class NoCodeSolution {
                 this, // Required to pass the No-Code Solution object to the D3ModelLayer object.
                 svgName || '', // Optional SVG string to make a variant D3ModelLayer for the shapeType that uses a different svg to render.
             );
-            console.log("D3 Model Layer Instance : ", d3ModelLayerInstance);
+            // console.log("D3 Model Layer Instance : ", d3ModelLayerInstance);
             if (!d3ModelLayerInstance) {
                 throw new Error(`Shape type '${shapeType}' is not supported.`);
             }
             // Add the new layer to the Active No-Code Solution object.
             this.renderLayers.set(shapeType, d3ModelLayerInstance);
-            console.log("Added new render layer instance to No-Code-Solution : ", d3ModelLayerInstance);
-            console.log("Updated Render Layers : ", this.renderLayers);
+            // console.log("Added new render layer instance to No-Code-Solution : ", d3ModelLayerInstance);
+            // console.log("Updated Render Layers : ", this.renderLayers);
         }
     }
 
     renderSolution(): void
     {
-        console.log("Step 12 : Rendering No-Code Solution from inside the NoCodeSolution object");
-        console.log('Rendering layers from no-code solution: ', this.solutionName);
-        console.log('Current Render Layers: ', this.renderLayers);
+        // console.log("Step 12 : Rendering No-Code Solution from inside the NoCodeSolution object");
+        // console.log('Rendering layers from no-code solution: ', this.solutionName);
+        // console.log('Current Render Layers: ', this.renderLayers);
         // Pass 1: Render all layers (creates DOM elements for all states)
         this.renderLayers.forEach((layer: D3ModelLayer, key: string) => {
-            console.log('Rendering layer from no-code solution: ', key);
-            console.log("layer: ", layer);
+            // console.log('Rendering layer from no-code solution: ', key);
+            // console.log("layer: ", layer);
             layer.render();
         });
         // Pass 2: Render connectors (all target DOM elements now exist)
@@ -262,38 +262,38 @@ export class NoCodeSolution {
 
     loadAllNoCodeStates()
     {
-        console.log("Step 8 : Loading all No-Code State Layers from Renderer Manager");
-        console.log("Loading all No-Code States: ", this.stateInstances);
+        // console.log("Step 8 : Loading all No-Code State Layers from Renderer Manager");
+        // console.log("Loading all No-Code States: ", this.stateInstances);
         this.stateInstances.forEach((state: NoCodeState) => {
-            console.log("Loading No-Code State : ", state);
+            // console.log("Loading No-Code State : ", state);
             this.loadNewNoCodeState(state, this, false); // Don't render after each state
         });
         // Render once after ALL states are loaded
-        console.log("All states loaded, rendering solution once...");
+        // console.log("All states loaded, rendering solution once...");
         this.renderSolution();
     }
 
     // We need to figure out a way to access a app-level service from the model defintion here (rendererManager)
     loadNewNoCodeState(newState: NoCodeState, noCodeSolution: NoCodeSolution, renderAfterLoad: boolean = true) {
-        console.log("Inside Load New No-Code State");
-        console.log("No-Code State : ", newState);
+        // console.log("Inside Load New No-Code State");
+        // console.log("No-Code State : ", newState);
 
             // Check if the D3ModelLayer exists within the No-Code Solution object.
             let existingRenderLayer = noCodeSolution.renderLayers.get(newState.shapeType || '');
-            console.log("Existing Render Layer : ", existingRenderLayer);
+            // console.log("Existing Render Layer : ", existingRenderLayer);
             // If the Render Layer is already being used for the given No-Code-Solution, then
             // we simply tie our noCodeState to that existing layer.
             // If the Render Layer is not being used in that No-Code-Solution, we map it to the No-Code-Solution
             // so we can ensure that when we load the NoCodeSolution later we are tracking what layers are needed.
             if(!existingRenderLayer) // Render layer does not exist on the No-Code-Solution
             {
-                console.log("Render Layer does not exist on the No-Code-Solution, creating a new render layer");
+                // console.log("Render Layer does not exist on the No-Code-Solution, creating a new render layer");
                 this.addRenderLayer(newState.shapeType, undefined); // Pass the shape type name and the svg name, the svg instance can be retrieved via the svg service.
             }
             else // Render Layer exists on the No-Code-Solution
             {
-                console.log("Render Layer exists on the No-Code-Solution");
-                console.log("Attempting to render NoCodeState using an existing d3ModelLayer instance on NoCodeStateRendererManager using shapeType : ", newState.shapeType);
+                // console.log("Render Layer exists on the No-Code-Solution");
+                // console.log("Attempting to render NoCodeState using an existing d3ModelLayer instance on NoCodeStateRendererManager using shapeType : ", newState.shapeType);
                 // Load the No-Code State object into the D3ModelLayer object.
                 existingRenderLayer.addNoCodeState(newState);
             }

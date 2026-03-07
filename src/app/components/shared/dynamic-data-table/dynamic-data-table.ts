@@ -115,7 +115,7 @@ export class DynamicDataTableComponent implements OnInit, OnDestroy, OnChanges {
       this.canEdit = this.classTypingService.canEditInstances(this.className);
       this.canDelete = this.classTypingService.canDeleteInstances(this.className);
 
-      console.log(`[DynamicDataTable] Permissions for ${this.className}: create=${this.canCreate}, edit=${this.canEdit}, delete=${this.canDelete}`);
+      // console.log(`[DynamicDataTable] Permissions for ${this.className}: create=${this.canCreate}, edit=${this.canEdit}, delete=${this.canDelete}`);
     }
 
     // Load or create table configuration

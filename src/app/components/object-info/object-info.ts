@@ -29,7 +29,7 @@ export class ObjectInfoComponent {
         //console.log(paramsString)
       },
       err => {
-        console.log(err);
+        // console.log(err);
       }
       )
       .unsubscribe()

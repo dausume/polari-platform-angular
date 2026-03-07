@@ -52,16 +52,16 @@ export class DisplayManagerService {
 
   fetchDisplaysForClass(sourceClass: string): void {
     this.loading$.next(true);
-    console.log('[DisplayManager] fetchDisplaysForClass called for:', sourceClass);
+    // console.log('[DisplayManager] fetchDisplaysForClass called for:', sourceClass);
     this.http.get<any>(this.baseUrl, this.polariService.backendRequestOptions).subscribe({
       next: (response: any) => {
-        console.log('[DisplayManager] Raw GET response:', JSON.stringify(response));
+        // console.log('[DisplayManager] Raw GET response:', JSON.stringify(response));
         const items = this.parseReadAllResponse(response);
-        console.log('[DisplayManager] Parsed items:', JSON.stringify(items));
-        console.log('[DisplayManager] Item count:', items.length);
+        // console.log('[DisplayManager] Parsed items:', JSON.stringify(items));
+        // console.log('[DisplayManager] Item count:', items.length);
         if (items.length > 0) {
-          console.log('[DisplayManager] First item keys:', Object.keys(items[0]));
-          console.log('[DisplayManager] First item source_class:', items[0].source_class);
+          // console.log('[DisplayManager] First item keys:', Object.keys(items[0]));
+          // console.log('[DisplayManager] First item source_class:', items[0].source_class);
         }
         const summaries: DisplaySummary[] = items
           .filter((item: any) => (item.source_class || '') === sourceClass)
@@ -74,7 +74,7 @@ export class DisplayManagerService {
             isPage: item.isPage === true || item.isPage === 'true',
             pageRoute: item.pageRoute || ''
           }));
-        console.log('[DisplayManager] Filtered summaries for', sourceClass, ':', summaries.length);
+        // console.log('[DisplayManager] Filtered summaries for', sourceClass, ':', summaries.length);
         this.displayList$.next(summaries);
         this.loading$.next(false);
       },
@@ -320,45 +320,45 @@ export class DisplayManagerService {
     // Step 1: Unwrap outer array → get the class-keyed object
     let unwrapped = response;
     if (Array.isArray(response) && response.length === 1 && response[0] && response[0][this.className]) {
-      console.log('[DisplayManager] parseReadAll: unwrapping outer array');
+      // console.log('[DisplayManager] parseReadAll: unwrapping outer array');
       unwrapped = response[0];
     }
     // Step 2: Extract instances from the class data
     if (unwrapped && unwrapped[this.className]) {
       const classData = unwrapped[this.className];
-      console.log('[DisplayManager] parseReadAll: classData type:', typeof classData, 'isArray:', Array.isArray(classData));
+      // console.log('[DisplayManager] parseReadAll: classData type:', typeof classData, 'isArray:', Array.isArray(classData));
       if (Array.isArray(classData)) {
         // DataSet format: [{"class":"...","varsLimited":[...],"data":[instances...]}]
         const instances: any[] = [];
         classData.forEach((dataSet: any, idx: number) => {
-          console.log('[DisplayManager] parseReadAll: dataSet[' + idx + '] keys:', Object.keys(dataSet));
+          // console.log('[DisplayManager] parseReadAll: dataSet[' + idx + '] keys:', Object.keys(dataSet));
           if (dataSet.data && Array.isArray(dataSet.data)) {
-            console.log('[DisplayManager] parseReadAll: extracting', dataSet.data.length, 'instances from dataSet.data');
+            // console.log('[DisplayManager] parseReadAll: extracting', dataSet.data.length, 'instances from dataSet.data');
             instances.push(...dataSet.data);
           } else if (dataSet.id !== undefined) {
-            console.log('[DisplayManager] parseReadAll: dataSet is plain instance with id:', dataSet.id);
+            // console.log('[DisplayManager] parseReadAll: dataSet is plain instance with id:', dataSet.id);
             instances.push(dataSet);
           } else {
-            console.log('[DisplayManager] parseReadAll: dataSet has no .data and no .id, skipping. Full dataSet:', JSON.stringify(dataSet));
+            // console.log('[DisplayManager] parseReadAll: dataSet has no .data and no .id, skipping. Full dataSet:', JSON.stringify(dataSet));
           }
         });
-        console.log('[DisplayManager] parseReadAll: total extracted instances:', instances.length);
+        // console.log('[DisplayManager] parseReadAll: total extracted instances:', instances.length);
         return instances;
       }
       // Object format: { id: { ...data } }
       const keys = Object.keys(classData);
-      console.log('[DisplayManager] parseReadAll: object format, keys:', keys);
+      // console.log('[DisplayManager] parseReadAll: object format, keys:', keys);
       return keys.map(key => ({ id: key, ...classData[key] }));
     }
     if (Array.isArray(response)) {
-      console.log('[DisplayManager] parseReadAll: fallback - returning raw array, length:', response.length);
+      // console.log('[DisplayManager] parseReadAll: fallback - returning raw array, length:', response.length);
       return response;
     }
     if (response && response.data && Array.isArray(response.data)) {
-      console.log('[DisplayManager] parseReadAll: fallback - returning response.data');
+      // console.log('[DisplayManager] parseReadAll: fallback - returning response.data');
       return response.data;
     }
-    console.log('[DisplayManager] parseReadAll: no matching format, returning []');
+    // console.log('[DisplayManager] parseReadAll: no matching format, returning []');
     return [];
   }
 }

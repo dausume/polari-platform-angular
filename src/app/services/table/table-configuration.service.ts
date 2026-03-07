@@ -131,7 +131,7 @@ export class TableConfigurationService implements OnDestroy {
     private destroy$ = new Subject<void>();
 
     constructor() {
-        console.log('[TableConfigurationService] Initialized');
+        // console.log('[TableConfigurationService] Initialized');
     }
 
     ngOnDestroy(): void {
@@ -168,7 +168,7 @@ export class TableConfigurationService implements OnDestroy {
 
             this.configStates.set(className, state);
 
-            console.log(`[TableConfigurationService] Created state for "${className}"`);
+            // console.log(`[TableConfigurationService] Created state for "${className}"`);
         }
 
         return this.configStates.get(className)!;
@@ -306,7 +306,7 @@ export class TableConfigurationService implements OnDestroy {
         };
         this.changeEvents$.next(event);
 
-        console.log(`[TableConfigurationService] Configuration updated: ${className} (${changeType})`);
+        // console.log(`[TableConfigurationService] Configuration updated: ${className} (${changeType})`);
     }
 
     /**
@@ -333,7 +333,7 @@ export class TableConfigurationService implements OnDestroy {
         // Update state
         state.viewState$.next(viewState);
 
-        console.log(`[TableConfigurationService] View state updated: ${className}`);
+        // console.log(`[TableConfigurationService] View state updated: ${className}`);
     }
 
     /**
@@ -351,7 +351,7 @@ export class TableConfigurationService implements OnDestroy {
         // Update state
         state.personalization$.next(personalization);
 
-        console.log(`[TableConfigurationService] Personalization updated: ${className}`);
+        // console.log(`[TableConfigurationService] Personalization updated: ${className}`);
     }
 
     // ==================== Convenience Methods ====================
@@ -493,7 +493,7 @@ export class TableConfigurationService implements OnDestroy {
             state.viewState$.complete();
             state.personalization$.complete();
             this.configStates.delete(className);
-            console.log(`[TableConfigurationService] Cleared state for "${className}"`);
+            // console.log(`[TableConfigurationService] Cleared state for "${className}"`);
         }
     }
 }

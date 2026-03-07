@@ -154,13 +154,13 @@ export class CrudDialogComponent implements OnInit, OnDestroy {
     const formData = this.form.getRawValue();
     const backendUrl = this.runtimeConfig.getBackendBaseUrl();
 
-    console.log('[CrudDialog] Submitting form:', {
-      mode: this.data.mode,
-      className: this.data.className,
-      formData: formData,
-      formDataStringified: JSON.stringify(formData),
-      url: `${backendUrl}/${this.data.className}`
-    });
+    // console.log('[CrudDialog] Submitting form:', {
+      // mode: this.data.mode,
+      // className: this.data.className,
+      // formData: formData,
+      // formDataStringified: JSON.stringify(formData),
+      // url: `${backendUrl}/${this.data.className}`
+    // });
 
     if (this.data.mode === 'create') {
       // Backend expects multipart form data with initParamSets field
@@ -168,15 +168,15 @@ export class CrudDialogComponent implements OnInit, OnDestroy {
       const multipartData = new FormData();
       multipartData.append('initParamSets', JSON.stringify([formData]));
 
-      console.log('[CrudDialog] Sending multipart data with initParamSets:', [formData]);
-      console.log('[CrudDialog] initParamSets JSON:', JSON.stringify([formData]));
+      // console.log('[CrudDialog] Sending multipart data with initParamSets:', [formData]);
+      // console.log('[CrudDialog] initParamSets JSON:', JSON.stringify([formData]));
 
       // POST to create new instance
       this.http.post(`${backendUrl}/${this.data.className}`, multipartData)
         .pipe(takeUntil(this.destroy$))
         .subscribe({
           next: (response: any) => {
-            console.log('[CrudDialog] Create success - raw response:', response);
+            // console.log('[CrudDialog] Create success - raw response:', response);
             this.isSubmitting = false;
 
             // IMPORTANT: Multiple backend response data formats co-exist and are used
@@ -189,23 +189,23 @@ export class CrudDialogComponent implements OnInit, OnDestroy {
 
             if (response && this.data.className && response[this.data.className]) {
               const classData = response[this.data.className];
-              console.log('[CrudDialog] classData:', classData);
-              console.log('[CrudDialog] classData type:', typeof classData, 'isArray:', Array.isArray(classData));
+              // console.log('[CrudDialog] classData:', classData);
+              // console.log('[CrudDialog] classData type:', typeof classData, 'isArray:', Array.isArray(classData));
 
               // Format B & C: Array-based formats
               if (Array.isArray(classData) && classData.length > 0) {
                 const firstItem = classData[0];
-                console.log('[CrudDialog] firstItem:', firstItem);
+                // console.log('[CrudDialog] firstItem:', firstItem);
 
                 // Format B: Nested structure with { class, varsLimited, data: [...] }
                 if (firstItem.data && Array.isArray(firstItem.data) && firstItem.data.length > 0) {
                   createdInstance = firstItem.data[0];
-                  console.log('[CrudDialog] Format B - Extracted from data array:', createdInstance);
+                  // console.log('[CrudDialog] Format B - Extracted from data array:', createdInstance);
                 }
                 // Format C: Direct array of instance objects (fallback)
                 else if (typeof firstItem === 'object' && !firstItem.data) {
                   createdInstance = firstItem;
-                  console.log('[CrudDialog] Format C - Direct instance in array:', createdInstance);
+                  // console.log('[CrudDialog] Format C - Direct instance in array:', createdInstance);
                 }
               }
               // Format A: Dictionary keyed by instance ID (non-array object)
@@ -213,13 +213,13 @@ export class CrudDialogComponent implements OnInit, OnDestroy {
                 const instanceIds = Object.keys(classData);
                 if (instanceIds.length > 0) {
                   createdInstance = classData[instanceIds[0]];
-                  console.log('[CrudDialog] Format A - Extracted by instance ID:', createdInstance);
+                  // console.log('[CrudDialog] Format A - Extracted by instance ID:', createdInstance);
                 }
               }
             }
 
-            console.log('[CrudDialog] Final instance data:', createdInstance);
-            console.log('[CrudDialog] Final instance keys:', Object.keys(createdInstance || {}));
+            // console.log('[CrudDialog] Final instance data:', createdInstance);
+            // console.log('[CrudDialog] Final instance keys:', Object.keys(createdInstance || {}));
 
             this.dialogRef.close({
               action: 'save',
@@ -255,7 +255,7 @@ export class CrudDialogComponent implements OnInit, OnDestroy {
       multipartData.append('polariId', instanceId);
       multipartData.append('updateData', JSON.stringify(formData));
 
-      console.log('[CrudDialog] Sending update with polariId:', instanceId, 'updateData:', formData);
+      // console.log('[CrudDialog] Sending update with polariId:', instanceId, 'updateData:', formData);
 
       this.http.put(`${backendUrl}/${this.data.className}`, multipartData)
         .pipe(takeUntil(this.destroy$))
@@ -347,7 +347,7 @@ export class CrudDialogComponent implements OnInit, OnDestroy {
     const multipartData = new FormData();
     multipartData.append('targetInstance', JSON.stringify({ id: instanceId }));
 
-    console.log('[CrudDialog] Sending delete with targetInstance:', { id: instanceId });
+    // console.log('[CrudDialog] Sending delete with targetInstance:', { id: instanceId });
 
     // Note: HttpClient doesn't support body with DELETE by default,
     // so we use POST with a custom header or use the request method

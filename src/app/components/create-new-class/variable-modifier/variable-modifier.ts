@@ -29,7 +29,7 @@ export class VariableModifierComponent {
   {
     if (!this.editMode) {
       this.variableConfigDefs.push({varIndex:1, varName: 'id', varDisplayName: 'Identifier', varType:'Unique Identifier - Alphanumeric', soleIdentifier:true, jointIdentifier:false, isUnique:true, varNameControl: new FormControl(), varDisplayNameControl: new FormControl() });
-      console.log("got past first push");
+      // console.log("got past first push");
     }
   }
 

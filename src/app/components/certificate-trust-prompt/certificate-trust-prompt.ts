@@ -34,12 +34,12 @@ export class CertificateTrustPromptComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    console.log('[CertificateTrustPrompt] Initializing...');
+    // console.log('[CertificateTrustPrompt] Initializing...');
 
     // Subscribe to showPrompt changes
     this.subscriptions.push(
       this.certService.showPrompt$.subscribe(show => {
-        console.log('[CertificateTrustPrompt] showPrompt changed:', show);
+        // console.log('[CertificateTrustPrompt] showPrompt changed:', show);
         this.showPrompt = show;
       })
     );
@@ -47,13 +47,13 @@ export class CertificateTrustPromptComponent implements OnInit, OnDestroy {
     // Subscribe to endpoint status changes
     this.subscriptions.push(
       this.certService.endpointStatuses$.subscribe(endpoints => {
-        console.log('[CertificateTrustPrompt] endpoints changed:', endpoints);
+        // console.log('[CertificateTrustPrompt] endpoints changed:', endpoints);
         this.untrustedEndpoints = endpoints.filter(e => !e.trusted);
       })
     );
 
     // Check endpoints on component initialization
-    console.log('[CertificateTrustPrompt] Calling checkAllEndpoints...');
+    // console.log('[CertificateTrustPrompt] Calling checkAllEndpoints...');
     this.certService.checkAllEndpoints();
   }
 

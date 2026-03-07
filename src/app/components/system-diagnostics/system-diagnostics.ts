@@ -45,7 +45,7 @@ export class SystemDiagnosticsComponent implements OnInit, OnDestroy {
 
     this.subscription = service.readAll().subscribe({
       next: (response: any) => {
-        console.log('[SystemDiagnostics] Received response:', response);
+        // console.log('[SystemDiagnostics] Received response:', response);
 
         // API returns array format: [{ "system-info": {...} }]
         if (response && response.length > 0) {

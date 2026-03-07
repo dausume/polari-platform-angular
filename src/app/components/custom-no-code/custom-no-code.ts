@@ -32,6 +32,9 @@ import { PythonCodeGeneratorService } from '@services/no-code-services/python-co
 import { TypescriptCodeGeneratorService } from '@services/no-code-services/typescript-code-generator.service';
 import { SolutionManagerService } from '@services/no-code-services/solution-manager.service';
 import { SolutionExecutionService } from '@services/no-code-services/solution-execution.service';
+import { SolutionVersionService } from '@services/no-code-services/solution-version.service';
+import { SolutionVersionData } from '@models/noCode/SolutionVersioning';
+import { StompService } from '@services/stomp.service';
 import { InputParamField } from './execution-panel/execution-panel.component';
 import { TargetRuntime } from '@models/noCode/mock-NCS-data';
 import { StateContextMenuAction, SIZE_PRESETS } from './state-context-menu/state-context-menu.component';
@@ -100,6 +103,12 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
   showRenderingDebug = false;  // Toggle visibility of bounding boxes and paths
   showSlotLabels = true;       // Toggle visibility of slot labels
   showConnectorLabels = false; // Toggle visibility of connector labels
+
+  // Version management state
+  versionList: SolutionVersionData[] = [];
+  showVersionList = false;
+  versionSaving = false;
+  isModified = false; // Tracks if solution has unsaved version changes
 
   // Current state layers for overlay callbacks
   private currentCircleStateLayer: CircleStateLayer | null = null;
@@ -174,6 +183,8 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
   // Execution panel state
   showExecutionPanel = false;
   executionInputParams: InputParamField[] = [];
+  executionInstanceFields: InputParamField[] = [];
+  executionBoundClassName: string = '';
 
   // State-space class registry
   private stateSpaceRegistry = StateSpaceClassRegistry.getInstance();
@@ -217,7 +228,9 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
       private pythonCodeGenerator: PythonCodeGeneratorService,
       private typescriptCodeGenerator: TypescriptCodeGeneratorService,
       private solutionManagerService: SolutionManagerService,
-      private solutionExecutionService: SolutionExecutionService
+      private solutionExecutionService: SolutionExecutionService,
+      private solutionVersionService: SolutionVersionService,
+      private stompService: StompService
   )
   {
     // Debounce resize events to avoid excessive updates
@@ -250,8 +263,8 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
     this.solutionStateService.selectedSolutionName$
       .pipe(takeUntil(this.destroy$))
       .subscribe(solutionName => {
-        console.log('[DEBUG] selectedSolutionName$ subscription fired with:', solutionName);
-        console.log('[DEBUG] Current selectedSolutionName:', this.selectedSolutionName);
+        // console.log('[DEBUG] selectedSolutionName$ subscription fired with:', solutionName);
+        // console.log('[DEBUG] Current selectedSolutionName:', this.selectedSolutionName);
         if (solutionName && solutionName !== this.selectedSolutionName) {
           this.selectedSolutionName = solutionName;
           // Trigger change detection immediately so dropdown updates
@@ -262,6 +275,42 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
 
     // Try to load solutions from backend (will update the cache asynchronously)
     this.solutionStateService.initializeFromBackend();
+
+    // Connect STOMP and subscribe to SolutionVersion changes for real-time updates
+    this.stompService.connect();
+    this.stompService.watchChanges('SolutionVersion')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(notification => {
+        // console.log('[STOMP] SolutionVersion change:', notification.operation, notification.instanceIds);
+        // Refresh the version list if the submenu is open
+        if (this.showVersionList) {
+          this.loadVersionList();
+        }
+      });
+
+    // Subscribe to ALL SolutionDefinition changes — any create/update/delete
+    // on the backend triggers a full resync so the frontend always reflects reality.
+    this.stompService.watchChanges('SolutionDefinition')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(notification => {
+        // console.log('[STOMP] SolutionDefinition change:', notification.operation, notification.instanceIds);
+
+        // Always regenerate code so the code view stays in sync
+        this.regenerateCode();
+
+        // Refresh the solution list so new/deleted solutions appear
+        this.solutionStateService.initializeFromBackend();
+
+        // If the active solution was affected, flag it
+        if (this.selectedSolutionName) {
+          const backendId = this.solutionStateService.getBackendId(this.selectedSolutionName);
+          if (backendId && notification.instanceIds.includes(backendId)) {
+            this.isModified = true;
+          }
+        }
+
+        this.changeDetectorRef.markForCheck();
+      });
   }
 
   // Track the last loaded solution to prevent unnecessary reloads
@@ -272,16 +321,16 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
    * Load and render the currently selected solution from the state service
    */
   private loadSelectedSolution(): void {
-    console.log('[loadSelectedSolution] ========== STARTING ==========');
+    // console.log('[loadSelectedSolution] ========== STARTING ==========');
 
     // Get state instances from the state service
     this.stateInstances = this.solutionStateService.getSelectedSolutionStateInstances();
     const solutionData = this.solutionStateService.getSelectedSolutionData();
     const solutionName = solutionData?.solutionName || null;
 
-    console.log('[loadSelectedSolution] solutionData:', solutionData?.solutionName);
-    console.log('[loadSelectedSolution] stateInstances count:', this.stateInstances.length);
-    console.log('[loadSelectedSolution] stateInstances:', this.stateInstances.map(s => s.stateName));
+    // console.log('[loadSelectedSolution] solutionData:', solutionData?.solutionName);
+    // console.log('[loadSelectedSolution] stateInstances count:', this.stateInstances.length);
+    // console.log('[loadSelectedSolution] stateInstances:', this.stateInstances.map(s => s.stateName));
 
     if (!solutionData) {
       console.warn('[loadSelectedSolution] No solution data available - aborting');
@@ -292,7 +341,7 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
     // This avoids destroying overlays that were just created
     const now = Date.now();
     if (this.lastLoadedSolutionName === solutionName && (now - this.lastLoadedTimestamp) < 1000) {
-      console.log('[loadSelectedSolution] Skipping - same solution loaded recently');
+      // console.log('[loadSelectedSolution] Skipping - same solution loaded recently');
       return;
     }
     this.lastLoadedSolutionName = solutionName;
@@ -306,21 +355,21 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
     this.currentDiamondStateLayer = null;
 
     // Clear the existing SVG content (except the zoom container itself)
-    console.log('[loadSelectedSolution] Clearing zoom container...');
-    console.log('[loadSelectedSolution] zoomContainer before clear:', this.zoomContainer?.node());
-    console.log('[loadSelectedSolution] zoomContainer children before clear:', this.zoomContainer?.selectAll('*').size());
+    // console.log('[loadSelectedSolution] Clearing zoom container...');
+    // console.log('[loadSelectedSolution] zoomContainer before clear:', this.zoomContainer?.node());
+    // console.log('[loadSelectedSolution] zoomContainer children before clear:', this.zoomContainer?.selectAll('*').size());
 
     if (this.zoomContainer) {
       this.zoomContainer.selectAll('*').remove();
     }
 
-    console.log('[loadSelectedSolution] zoomContainer children after clear:', this.zoomContainer?.selectAll('*').size());
+    // console.log('[loadSelectedSolution] zoomContainer children after clear:', this.zoomContainer?.selectAll('*').size());
 
     // Clear the renderer manager's solution cache
-    console.log('[loadSelectedSolution] Clearing solutions from renderer manager...');
+    // console.log('[loadSelectedSolution] Clearing solutions from renderer manager...');
     this.noCodeStateRendererManager.clearSolutions();
 
-    console.log('[loadSelectedSolution] Creating new NoCodeSolution:', solutionData.solutionName);
+    // console.log('[loadSelectedSolution] Creating new NoCodeSolution:', solutionData.solutionName);
     // Create new NoCodeSolution with state instances from the service
     this.noCodeSolution = new NoCodeSolution(
       this.noCodeStateRendererManager,
@@ -331,16 +380,16 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
       this.stateInstances
     );
 
-    console.log('[loadSelectedSolution] NoCodeSolution created');
-    console.log('[loadSelectedSolution] noCodeSolution.stateInstances:', this.noCodeSolution.stateInstances.length);
+    // console.log('[loadSelectedSolution] NoCodeSolution created');
+    // console.log('[loadSelectedSolution] noCodeSolution.stateInstances:', this.noCodeSolution.stateInstances.length);
 
     // Register the solution with the renderer manager
-    console.log('[loadSelectedSolution] Registering solution with renderer manager...');
+    // console.log('[loadSelectedSolution] Registering solution with renderer manager...');
     this.noCodeStateRendererManager.addNoCodeSolution(this.noCodeSolution);
 
     // Verify SVG content was created
-    console.log('[loadSelectedSolution] zoomContainer children after creation:', this.zoomContainer?.selectAll('*').size());
-    console.log('[loadSelectedSolution] state-group elements in DOM:', this.zoomContainer?.selectAll('g.state-group').size());
+    // console.log('[loadSelectedSolution] zoomContainer children after creation:', this.zoomContainer?.selectAll('*').size());
+    // console.log('[loadSelectedSolution] state-group elements in DOM:', this.zoomContainer?.selectAll('g.state-group').size());
 
     // Update tracking of unique states (InitialState, ReturnStatement) for sidebar filtering
     // This must happen BEFORE overlays are created so they receive the correct unique states set
@@ -352,22 +401,24 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
     // Reset zoom to default view
     this.resetZoom();
 
-    // Extract bound class and generate Python code
-    this.updateBoundClassAndCode(solutionData);
+    // Extract bound class and generate code (Python or TypeScript based on runtime).
+    // Uses regenerateCode() which builds a temporary NoCodeSolution from the raw cache
+    // to ensure connectors and field values are up-to-date.
+    this.regenerateCode();
 
     this.changeDetectorRef.markForCheck();
 
-    console.log('[loadSelectedSolution] ========== COMPLETE ==========');
+    // console.log('[loadSelectedSolution] ========== COMPLETE ==========');
   }
 
   /**
-   * Update bound class and generate code from solution data (Python or TypeScript based on runtime)
+   * Generate code using a fresh set of state instances (from raw cache).
+   * Used by regenerateCode() to get up-to-date connectors without replacing
+   * the live this.stateInstances that overlays reference.
    */
-  private updateBoundClassAndCode(solutionData: any): void {
-    // Load target runtime from solution data
+  private updateBoundClassAndCodeWithInstances(solutionData: any, freshInstances: NoCodeState[]): void {
     this.solutionTargetRuntime = solutionData.targetRuntime || 'python_backend';
 
-    // Extract bound class from solution data
     if (solutionData.boundClass) {
       this.boundClass = {
         className: solutionData.boundClass.className,
@@ -377,7 +428,6 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
         methods: solutionData.boundClass.methods || [],
         pythonImports: solutionData.boundClass.pythonImports
       };
-      // Attach typescriptImports if present
       if (solutionData.boundClass.typescriptImports) {
         (this.boundClass as any).typescriptImports = solutionData.boundClass.typescriptImports;
       }
@@ -385,53 +435,46 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
       this.boundClass = null;
     }
 
-    // Generate code based on runtime (client-side first for instant feedback)
     const functionName = solutionData.functionName ||
       solutionData.solutionName.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
 
+    // Build a temporary NoCodeSolution with fresh instances for code generation
+    const tempSolution = new NoCodeSolution(
+      this.noCodeStateRendererManager,
+      this.interactionStateManager,
+      solutionData.xBounds || this.viewBoxWidth,
+      solutionData.yBounds || this.viewBoxHeight,
+      solutionData.solutionName,
+      freshInstances
+    );
+
+    const stateNames = freshInstances.map(s => s.stateName).filter((s): s is string => Boolean(s));
+
     if (this.solutionTargetRuntime === 'typescript_frontend') {
       this.generatedTypescriptCode = this.typescriptCodeGenerator.generateFromSolution(
-        this.noCodeSolution || null,
-        this.boundClass,
-        functionName
+        tempSolution, this.boundClass, functionName
       );
       this.generatedPythonCode = '';
+      this.solutionExecutionService.setGeneratedCode(this.generatedTypescriptCode, stateNames);
     } else {
       this.generatedPythonCode = this.pythonCodeGenerator.generateFromSolution(
-        this.noCodeSolution || null,
-        this.boundClass,
-        functionName
+        tempSolution, this.boundClass, functionName
       );
       this.generatedTypescriptCode = '';
+      this.solutionExecutionService.setGeneratedCode(this.generatedPythonCode, stateNames);
     }
 
-    // Try backend code generation as well (overwrites client-side result on success)
-    const solutionName = solutionData.solutionName;
-    if (solutionName) {
-      this.solutionManagerService.generateCode(solutionName, this.solutionTargetRuntime)
-        .subscribe({
-          next: (backendCode: string) => {
-            if (backendCode) {
-              if (this.solutionTargetRuntime === 'typescript_frontend') {
-                this.generatedTypescriptCode = backendCode;
-              } else {
-                this.generatedPythonCode = backendCode;
-              }
-              this.changeDetectorRef.markForCheck();
-              console.log('[updateBoundClassAndCode] Backend code generation succeeded');
-            }
-          },
-          error: () => {
-            // Client-side code already set above — no action needed
-            console.log('[updateBoundClassAndCode] Backend code gen unavailable, using client-side');
-          }
-        });
-    }
-
-    console.log('[updateBoundClassAndCode] Bound class:', this.boundClass?.className);
-    console.log('[updateBoundClassAndCode] Runtime:', this.solutionTargetRuntime);
-    console.log('[updateBoundClassAndCode] Python code length:', this.generatedPythonCode.length);
-    console.log('[updateBoundClassAndCode] TypeScript code length:', this.generatedTypescriptCode.length);
+    // NOTE: We do NOT call backend code generation here. The backend's stored
+    // SolutionDefinition lags behind the frontend by 2+ seconds (debounced save),
+    // so asking the backend to generate code now would return stale results that
+    // overwrite the correct client-side code above.
+    //
+    // Backend code generation happens via:
+    // 1. STOMP notification after the backend PUT completes → triggers regenerateCode()
+    // 2. Explicit user action (e.g., "Generate Code" button)
+    //
+    // The client-side code generators (pythonCodeGenerator / typescriptCodeGenerator)
+    // are the source of truth for the code display until the backend catches up.
   }
 
   /**
@@ -446,10 +489,8 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
       (solutionData as any).targetRuntime = this.solutionTargetRuntime;
     }
 
-    // Regenerate code for the new runtime
-    if (solutionData) {
-      this.updateBoundClassAndCode(solutionData);
-    }
+    // Regenerate code for the new runtime using fresh instances from raw cache
+    this.regenerateCode();
 
     this.changeDetectorRef.markForCheck();
   }
@@ -491,19 +532,19 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
 
       // Set up click callback to toggle overlay visibility/editing
       circleLayer.setOnStateOverlayClick((stateName: string, stateGroup: SVGGElement) => {
-        console.log('[overlay callback] State clicked for overlay:', stateName);
+        // console.log('[overlay callback] State clicked for overlay:', stateName);
         this.handleStateOverlayClick(stateName, stateGroup);
       });
 
       // Set up drag start callback to hide overlay during drag
       circleLayer.setOnStateDragStart((stateName: string) => {
-        console.log('[overlay callback] State drag started, hiding overlay:', stateName);
+        // console.log('[overlay callback] State drag started, hiding overlay:', stateName);
         this.stateOverlayManager.hideOverlayForState(stateName);
       });
 
       // Set up drag end callback to show/reposition overlay after drag
       circleLayer.setOnStateDragEnd((stateName: string, stateGroup: SVGGElement) => {
-        console.log('[overlay callback] State drag ended, updating overlay:', stateName);
+        // console.log('[overlay callback] State drag ended, updating overlay:', stateName);
         if (this.stateOverlayManager.hasOverlay(stateName)) {
           this.stateOverlayManager.updateOverlayPosition(stateName, stateGroup);
           this.stateOverlayManager.showOverlayForState(stateName);
@@ -520,7 +561,7 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
         this.handleSlotContextMenu(event, stateName, slotIndex, isInput);
       });
 
-      console.log('[setupOverlayCallbacks] Overlay callbacks configured for CircleStateLayer');
+      // console.log('[setupOverlayCallbacks] Overlay callbacks configured for CircleStateLayer');
     }
 
     // Get the RectangleStateLayer from the solution's render layers
@@ -530,7 +571,7 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
 
       // Set up click callback
       rectangleLayer.setOnStateOverlayClick((stateName: string, stateGroup: SVGGElement) => {
-        console.log('[overlay callback] Rectangle state clicked for overlay:', stateName);
+        // console.log('[overlay callback] Rectangle state clicked for overlay:', stateName);
         this.handleStateOverlayClick(stateName, stateGroup);
       });
 
@@ -556,7 +597,7 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
         this.handleSlotContextMenu(event, stateName, slotIndex, isInput);
       });
 
-      console.log('[setupOverlayCallbacks] Overlay callbacks configured for RectangleStateLayer');
+      // console.log('[setupOverlayCallbacks] Overlay callbacks configured for RectangleStateLayer');
     }
 
     // Get the DiamondStateLayer from the solution's render layers
@@ -566,7 +607,7 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
 
       // Set up click callback
       diamondLayer.setOnStateOverlayClick((stateName: string, stateGroup: SVGGElement) => {
-        console.log('[overlay callback] Diamond state clicked for overlay:', stateName);
+        // console.log('[overlay callback] Diamond state clicked for overlay:', stateName);
         this.handleStateOverlayClick(stateName, stateGroup);
       });
 
@@ -592,7 +633,7 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
         this.handleSlotContextMenu(event, stateName, slotIndex, isInput);
       });
 
-      console.log('[setupOverlayCallbacks] Overlay callbacks configured for DiamondStateLayer');
+      // console.log('[setupOverlayCallbacks] Overlay callbacks configured for DiamondStateLayer');
     }
 
     // Auto-create overlays for all states after D3 rendering is complete
@@ -611,20 +652,20 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
     setTimeout(() => {
       // Check if the solution was reloaded while we were waiting
       if (this.overlayCreationToken !== currentToken) {
-        console.log('[scheduleOverlayCreation] Cancelled - solution was reloaded');
+        // console.log('[scheduleOverlayCreation] Cancelled - solution was reloaded');
         return;
       }
 
       requestAnimationFrame(() => {
         // Double-check after animation frame
         if (this.overlayCreationToken !== currentToken) {
-          console.log('[scheduleOverlayCreation] Cancelled - solution was reloaded');
+          // console.log('[scheduleOverlayCreation] Cancelled - solution was reloaded');
           return;
         }
 
         const success = this.createOverlaysForAllStates();
         if (!success && attempt < maxAttempts) {
-          console.log(`[scheduleOverlayCreation] Retrying overlay creation, attempt ${attempt + 1}/${maxAttempts}`);
+          // console.log(`[scheduleOverlayCreation] Retrying overlay creation, attempt ${attempt + 1}/${maxAttempts}`);
           this.scheduleOverlayCreation(attempt + 1);
         }
       });
@@ -641,10 +682,10 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
       return false;
     }
 
-    console.log('[createOverlaysForAllStates] Creating overlays for', this.stateInstances.length, 'states');
-    console.log('[createOverlaysForAllStates] Circle layer:', !!this.currentCircleStateLayer);
-    console.log('[createOverlaysForAllStates] Rectangle layer:', !!this.currentRectangleStateLayer);
-    console.log('[createOverlaysForAllStates] Diamond layer:', !!this.currentDiamondStateLayer);
+    // console.log('[createOverlaysForAllStates] Creating overlays for', this.stateInstances.length, 'states');
+    // console.log('[createOverlaysForAllStates] Circle layer:', !!this.currentCircleStateLayer);
+    // console.log('[createOverlaysForAllStates] Rectangle layer:', !!this.currentRectangleStateLayer);
+    // console.log('[createOverlaysForAllStates] Diamond layer:', !!this.currentDiamondStateLayer);
 
     let createdCount = 0;
     let foundCount = 0;
@@ -666,7 +707,7 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
       if (this.currentCircleStateLayer) {
         stateGroup = this.currentCircleStateLayer.getStateGroupByName(stateName);
         if (stateGroup) {
-          console.log('[createOverlaysForAllStates] Found', stateName, 'in circle layer');
+          // console.log('[createOverlaysForAllStates] Found', stateName, 'in circle layer');
         }
       }
 
@@ -674,7 +715,7 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
       if (!stateGroup && this.currentRectangleStateLayer) {
         stateGroup = this.currentRectangleStateLayer.getStateGroupByName(stateName);
         if (stateGroup) {
-          console.log('[createOverlaysForAllStates] Found', stateName, 'in rectangle layer');
+          // console.log('[createOverlaysForAllStates] Found', stateName, 'in rectangle layer');
         }
       }
 
@@ -682,7 +723,7 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
       if (!stateGroup && this.currentDiamondStateLayer) {
         stateGroup = this.currentDiamondStateLayer.getStateGroupByName(stateName);
         if (stateGroup) {
-          console.log('[createOverlaysForAllStates] Found', stateName, 'in diamond layer');
+          // console.log('[createOverlaysForAllStates] Found', stateName, 'in diamond layer');
         }
       }
 
@@ -694,7 +735,7 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
           continue;
         }
 
-        console.log('[createOverlaysForAllStates] Creating overlay for:', stateName);
+        // console.log('[createOverlaysForAllStates] Creating overlay for:', stateName);
         const result = this.createOverlayForState(stateName, stateGroup, stateInstance);
         if (result) {
           createdCount++;
@@ -704,7 +745,7 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
       }
     }
 
-    console.log(`[createOverlaysForAllStates] Created ${createdCount} overlays, ${foundCount} already existed`);
+    // console.log(`[createOverlaysForAllStates] Created ${createdCount} overlays, ${foundCount} already existed`);
     return createdCount > 0 || foundCount === this.stateInstances.length;
   }
 
@@ -716,7 +757,7 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
   private createOverlayForState(stateName: string, stateGroup: SVGGElement, stateInstance: NoCodeState): boolean {
     const stateClass = stateInstance.stateClass || stateInstance.boundObjectClass || '';
 
-    console.log('[createOverlayForState] Creating overlay for:', stateName, 'stateClass:', stateClass);
+    // console.log('[createOverlayForState] Creating overlay for:', stateName, 'stateClass:', stateClass);
 
     // Determine which overlay component to use based on state class
     if (stateClass === 'ConditionalChain') {
@@ -993,17 +1034,17 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
 
       // Subscribe to new variable created events
       componentRef.instance.newVariableCreated.subscribe((variable: { name: string; type: string }) => {
-        console.log('[VariableAssignment] ===== NEW VARIABLE EVENT RECEIVED =====');
-        console.log('[VariableAssignment] Variable:', variable);
-        console.log('[VariableAssignment] State Name:', stateName);
-        console.log('[VariableAssignment] State Instance:', stateInstance);
+        // console.log('[VariableAssignment] ===== NEW VARIABLE EVENT RECEIVED =====');
+        // console.log('[VariableAssignment] Variable:', variable);
+        // console.log('[VariableAssignment] State Name:', stateName);
+        // console.log('[VariableAssignment] State Instance:', stateInstance);
 
         // Store the output variable info
         if (!stateInstance.boundObjectFieldValues) {
           stateInstance.boundObjectFieldValues = {};
         }
         stateInstance.boundObjectFieldValues.outputVariable = variable;
-        console.log('[VariableAssignment] Stored outputVariable in boundObjectFieldValues:', stateInstance.boundObjectFieldValues);
+        // console.log('[VariableAssignment] Stored outputVariable in boundObjectFieldValues:', stateInstance.boundObjectFieldValues);
 
         // IMPORTANT: Also update the service cache so context resolution can see the variable
         if (this.selectedSolutionName) {
@@ -1012,7 +1053,7 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
             stateName,
             { outputVariable: variable }
           );
-          console.log('[VariableAssignment] Updated service cache with outputVariable');
+          // console.log('[VariableAssignment] Updated service cache with outputVariable');
         }
 
         // Ensure an output slot exists
@@ -1036,7 +1077,7 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
             allowManyToOne: false
           };
           stateInstance.slots.push(outputSlot);
-          console.log('[VariableAssignment] Created output slot for variable:', variable.name);
+          // console.log('[VariableAssignment] Created output slot for variable:', variable.name);
         }
 
         // Configure the output slot with the variable info
@@ -1045,7 +1086,7 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
         (outputSlot as any).returnType = variable.type;
         (outputSlot as any).label = variable.name;
 
-        console.log('[VariableAssignment] Configured output slot:', outputSlot);
+        // console.log('[VariableAssignment] Configured output slot:', outputSlot);
       });
 
       // Subscribe to full view and state page events
@@ -1143,13 +1184,18 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   /**
-   * Regenerate code previews after state changes
+   * Regenerate code previews after state changes.
+   * Builds a fresh snapshot of state instances from the raw cache for code generation,
+   * without replacing this.stateInstances (which overlays reference via closures).
    */
   private regenerateCode(): void {
     if (!this.selectedSolutionName) return;
     const solutionData = this.solutionStateService.getSolutionData(this.selectedSolutionName);
     if (solutionData) {
-      this.updateBoundClassAndCode(solutionData);
+      // Build a fresh NoCodeSolution snapshot from raw cache for code generation
+      // without replacing this.stateInstances (which overlays hold references to)
+      const freshInstances = this.solutionStateService.getSelectedSolutionStateInstances();
+      this.updateBoundClassAndCodeWithInstances(solutionData, freshInstances);
     }
   }
 
@@ -1226,8 +1272,10 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
     // Get available inputs from connected states
     const availableInputs = this.getAvailableInputsForSelector(stateInstance);
 
-    // Get Solution Object fields
-    const solutionObjectFields = this.getSolutionObjectFieldsForState(stateInstance);
+    // Get source object fields (e.g., self.num_a, self.num_b) from solution's boundClass.
+    // These are passed to the overlay so ValueSourceSelector renders dropdown menus for
+    // "From Object" selection (select "self" → pick field). Do NOT remove or skip this.
+    const sourceObjectFields = this.getSourceObjectFieldsForState(stateInstance);
 
     const componentRef = this.stateOverlayManager.createOverlayForState(
       stateName,
@@ -1237,7 +1285,7 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
         stateName: stateName,
         boundClassName: 'MathOperation',
         availableInputs: availableInputs,
-        solutionObjectFields: solutionObjectFields,
+        sourceObjectFields: sourceObjectFields,
         boundObjectFieldValues: fieldValues
       }
     );
@@ -1252,6 +1300,15 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
           stateInstance.boundObjectFieldValues = {};
         }
         stateInstance.boundObjectFieldValues.operationConfig = config;
+
+        // Persist to service cache so data survives D3 refreshes
+        if (this.selectedSolutionName) {
+          this.solutionStateService.updateStateFieldValues(
+            this.selectedSolutionName,
+            stateName,
+            { operationConfig: config }
+          );
+        }
       });
 
       // Subscribe to field values change events
@@ -1260,6 +1317,23 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
           stateInstance.boundObjectFieldValues = {};
         }
         Object.assign(stateInstance.boundObjectFieldValues, fieldValues);
+
+        // Persist to service cache so data survives D3 refreshes
+        if (this.selectedSolutionName) {
+          this.solutionStateService.updateStateFieldValues(
+            this.selectedSolutionName,
+            stateName,
+            fieldValues
+          );
+        }
+      });
+
+      componentRef.instance.fullViewRequested.subscribe((event: { x: number; y: number; stateName: string }) => {
+        this.showFullViewPopup(event.x, event.y, stateInstance);
+      });
+
+      componentRef.instance.statePageRequested.subscribe((event: { stateName: string }) => {
+        this.showStatePage(stateInstance);
       });
 
       return true;
@@ -1439,6 +1513,16 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
    * Get source object fields formatted for ValueSourceSelector
    * Converts from PotentialContext to the SourceObjectField format
    */
+  /**
+   * Get source object fields (e.g., self.num_a, self.num_b) for a state.
+   * These fields come from the solution's boundClass.fields and are used by
+   * ValueSourceSelector to render dropdown menus for "From Object" selection.
+   *
+   * IMPORTANT: If this returns empty, the ValueSourceSelector will show a text input
+   * fallback instead of dropdowns, which is NOT the intended UX. If that happens,
+   * check that the solution in solutionsCache has boundClass.fields populated.
+   * The boundClass comes from the solution-level data (NoCodeSolutionRawData.boundClass).
+   */
   private getSourceObjectFieldsForState(stateInstance: NoCodeState): {
     path: string;
     type: string;
@@ -1453,11 +1537,18 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
       stateInstance.stateName
     );
 
-    return context.getAllObjectFields().map(f => ({
+    const fields = context.getAllObjectFields().map(f => ({
       path: f.path,
       type: f.type,
       displayName: f.displayName
     }));
+
+    if (fields.length === 0) {
+      console.warn('[NoCode] getSourceObjectFieldsForState returned empty for state:', stateInstance.stateName,
+        '- check that solution boundClass.fields is populated');
+    }
+
+    return fields;
   }
 
   /**
@@ -1508,7 +1599,7 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
       this.rerenderStateSlots(stateInstance.stateName);
     }
 
-    console.log(`[addInputSlotToState] Added input slot ${newSlotIndex} to ${stateInstance.stateName}, total inputs: ${newInputSlotCount}`);
+    // console.log(`[addInputSlotToState] Added input slot ${newSlotIndex} to ${stateInstance.stateName}, total inputs: ${newInputSlotCount}`);
   }
 
   /**
@@ -1590,7 +1681,7 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
    * Handle solution selection change from the dropdown
    */
   onSolutionChange(solutionName: string): void {
-    console.log('[DEBUG] onSolutionChange called with:', solutionName);
+    // console.log('[DEBUG] onSolutionChange called with:', solutionName);
     if (solutionName !== this.selectedSolutionName) {
       this.solutionStateService.selectSolution(solutionName);
     }
@@ -1600,7 +1691,7 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
    * Reset to default mock solutions (clears localStorage cache)
    */
   resetToDefaults(): void {
-    console.log('[DEBUG] resetToDefaults called');
+    // console.log('[DEBUG] resetToDefaults called');
     // Clear the current selection so it will reload even if same name
     this.selectedSolutionName = null;
     this.solutionStateService.resetToDefaults();
@@ -1645,7 +1736,10 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
       // Handle new state instance
     });
 
-    // Subscribe to solution data mutations for live code updates
+    // Subscribe to solution data mutations for live code updates.
+    // Uses regenerateCode() which builds a fresh NoCodeSolution from the raw cache,
+    // NOT this.noCodeSolution (which is a stale snapshot from initial load and doesn't
+    // have connectors/field values added after load).
     this.solutionStateService.selectedSolutionData$
       .pipe(
         takeUntil(this.destroy$),
@@ -1654,7 +1748,7 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
       )
       .subscribe(solutionData => {
         if (solutionData && this.selectedSolutionName) {
-          this.updateBoundClassAndCode(solutionData);
+          this.regenerateCode();
           this.changeDetectorRef.markForCheck();
         }
       });
@@ -1681,6 +1775,9 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
       this.scrollableAncestor = null;
       this.scrollHandler = null;
     }
+
+    // Clean up execution service state
+    this.solutionExecutionService.stop();
 
     this.destroy$.next();
     this.destroy$.complete();
@@ -1778,19 +1875,19 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
     this.zoomBehavior = d3.zoom<SVGSVGElement, unknown>()
       .scaleExtent([this.minZoom, this.maxZoom])
       .filter((event: any) => {
-        console.log('[ZoomFilter] Event received:', event.type, 'target:', event.target);
+        // console.log('[ZoomFilter] Event received:', event.type, 'target:', event.target);
 
         // If there's already an active interaction (state-drag, slot-drag, connector-drag), block zoom
         const currentState = this.interactionStateManager.getCurrentState();
         if (currentState && currentState !== 'none') {
-          console.log('[ZoomFilter] Blocking zoom - active interaction:', currentState);
+          // console.log('[ZoomFilter] Blocking zoom - active interaction:', currentState);
           return false;
         }
 
         // Get the target element
         const target = event.target as Element;
         if (!target) {
-          console.log('[ZoomFilter] No target, allowing zoom');
+          // console.log('[ZoomFilter] No target, allowing zoom');
           return true; // Allow if no target (shouldn't happen)
         }
 
@@ -1798,7 +1895,7 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
         // This prevents the zoom behavior from interfering with state/slot dragging
         const stateGroup = target.closest('g.state-group');
         if (stateGroup) {
-          console.log('[ZoomFilter] Blocking zoom - clicked on state group:', stateGroup.getAttribute('state-name'));
+          // console.log('[ZoomFilter] Blocking zoom - clicked on state group:', stateGroup.getAttribute('state-name'));
           return false;
         }
 
@@ -1811,14 +1908,14 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
             targetClassList?.contains('overlay-component') ||
             targetClassList?.contains('permanent-connector') ||
             targetClassList?.contains('tentative-connector')) {
-          console.log('[ZoomFilter] Blocking zoom - clicked on draggable element:', target.className);
+          // console.log('[ZoomFilter] Blocking zoom - clicked on draggable element:', target.className);
           return false;
         }
 
         // Allow default zoom behavior for other elements (background, etc.)
         // Also respect the default filter (no zoom on ctrl+wheel for scrolling, no middle button)
         const allowZoom = !event.ctrlKey && event.button === 0;
-        console.log('[ZoomFilter] Allowing zoom:', allowZoom);
+        // console.log('[ZoomFilter] Allowing zoom:', allowZoom);
         return allowZoom;
       })
       .on('zoom', (event: d3.D3ZoomEvent<SVGSVGElement, unknown>) => {
@@ -1901,7 +1998,7 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
   toggleRenderingDebug(): void {
     this.showRenderingDebug = !this.showRenderingDebug;
     this.applyRenderingDebugVisibility();
-    console.log('[toggleRenderingDebug] Rendering debug:', this.showRenderingDebug ? 'visible' : 'hidden');
+    // console.log('[toggleRenderingDebug] Rendering debug:', this.showRenderingDebug ? 'visible' : 'hidden');
   }
 
   /**
@@ -1936,7 +2033,7 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
   toggleSlotLabels(): void {
     this.showSlotLabels = !this.showSlotLabels;
     this.applySlotLabelsVisibility();
-    console.log('[toggleSlotLabels] Slot labels:', this.showSlotLabels ? 'visible' : 'hidden');
+    // console.log('[toggleSlotLabels] Slot labels:', this.showSlotLabels ? 'visible' : 'hidden');
   }
 
   /**
@@ -1955,7 +2052,7 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
   toggleConnectorLabels(): void {
     this.showConnectorLabels = !this.showConnectorLabels;
     this.applyConnectorLabelsVisibility();
-    console.log('[toggleConnectorLabels] Connector labels:', this.showConnectorLabels ? 'visible' : 'hidden');
+    // console.log('[toggleConnectorLabels] Connector labels:', this.showConnectorLabels ? 'visible' : 'hidden');
   }
 
   /**
@@ -1993,7 +2090,140 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
     a.click();
 
     URL.revokeObjectURL(url);
-    console.log('[exportSolution] Exported solution:', this.noCodeSolution.solutionName);
+    // console.log('[exportSolution] Exported solution:', this.noCodeSolution.solutionName);
+  }
+
+  // ==================== Version Management Methods ====================
+
+  /**
+   * Save a version snapshot of the current solution.
+   * @param mode 'new' to create a new version, 'overwrite' to update the current version
+   */
+  saveVersion(mode: 'new' | 'overwrite' = 'new'): void {
+    if (!this.selectedSolutionName || this.versionSaving) return;
+
+    const backendId = this.solutionStateService.getBackendId(this.selectedSolutionName);
+    if (!backendId) {
+      console.warn('[saveVersion] No backend ID for solution:', this.selectedSolutionName);
+      return;
+    }
+
+    this.versionSaving = true;
+
+    if (mode === 'overwrite' && this.versionList.length > 0) {
+      // Update the current version: delete it then create a replacement with same label
+      const current = this.versionList.find(v => v.is_current) || this.versionList[0];
+      const label = current.label || `v${current.version_number}`;
+      this.solutionVersionService.deleteVersion(current.id).subscribe({
+        next: () => {
+          this.solutionVersionService.createVersion(backendId, label, 'Updated in place').subscribe({
+            next: (resp: any) => {
+              // console.log('[saveVersion] Version overwritten:', resp);
+              this.versionSaving = false;
+              this.isModified = false;
+              this.loadVersionList();
+              this.changeDetectorRef.markForCheck();
+            },
+            error: (err: any) => {
+              console.error('[saveVersion] Failed to create replacement:', err);
+              this.versionSaving = false;
+              this.changeDetectorRef.markForCheck();
+            }
+          });
+        },
+        error: (err: any) => {
+          console.error('[saveVersion] Failed to delete old version:', err);
+          this.versionSaving = false;
+          this.changeDetectorRef.markForCheck();
+        }
+      });
+    } else {
+      // Create a brand new version
+      const versionNum = this.versionList.length > 0
+        ? Math.max(...this.versionList.map(v => v.version_number)) + 1
+        : 1;
+      const label = `v${versionNum}`;
+      this.solutionVersionService.createVersion(backendId, label, '').subscribe({
+        next: (resp: any) => {
+          // console.log('[saveVersion] New version created:', resp);
+          this.versionSaving = false;
+          this.isModified = false;
+          this.loadVersionList();
+          this.changeDetectorRef.markForCheck();
+        },
+        error: (err: any) => {
+          console.error('[saveVersion] Failed:', err);
+          this.versionSaving = false;
+          this.changeDetectorRef.markForCheck();
+        }
+      });
+    }
+  }
+
+  /**
+   * Load the version list for the current solution (triggered on submenu open)
+   */
+  loadVersionList(): void {
+    if (!this.selectedSolutionName) return;
+
+    const backendId = this.solutionStateService.getBackendId(this.selectedSolutionName);
+    if (!backendId) {
+      this.versionList = [];
+      return;
+    }
+
+    this.solutionVersionService.fetchVersions(backendId).subscribe({
+      next: (versions: SolutionVersionData[]) => {
+        this.versionList = versions;
+        this.changeDetectorRef.markForCheck();
+      },
+      error: () => { this.versionList = []; }
+    });
+  }
+
+  /**
+   * Revert the current solution to a previous version
+   */
+  revertToVersion(version: SolutionVersionData): void {
+    if (!this.selectedSolutionName || !version.definition) return;
+
+    try {
+      const solutionData = JSON.parse(version.definition);
+
+      // Update the solution in the state service cache
+      this.solutionStateService.updateSolutionData(this.selectedSolutionName, solutionData);
+
+      // Re-select to trigger a full reload
+      this.solutionStateService.selectSolution(this.selectedSolutionName);
+      this.isModified = false;
+
+      // console.log('[revertToVersion] Reverted to version:', version.label || version.version_number);
+    } catch (e) {
+      console.error('[revertToVersion] Failed to parse version definition:', e);
+    }
+  }
+
+  /**
+   * Delete a specific version
+   */
+  deleteVersion(version: SolutionVersionData, event: MouseEvent): void {
+    event.stopPropagation();
+
+    if (version.is_current && this.versionList.length === 1) {
+      console.warn('[deleteVersion] Cannot delete the only version');
+      return;
+    }
+
+    this.solutionVersionService.deleteVersion(version.id).subscribe({
+      next: () => {
+        // console.log('[deleteVersion] Deleted version:', version.label || version.version_number);
+        this.versionList = this.versionList.filter(v => v.id !== version.id);
+        this.changeDetectorRef.markForCheck();
+      },
+      error: (err: any) => {
+        console.error('[deleteVersion] Failed:', err);
+      }
+    });
   }
 
   // ===== Execution Panel =====
@@ -2026,6 +2256,8 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
 
   private buildExecutionInputParams(): void {
     this.executionInputParams = [];
+    this.executionInstanceFields = [];
+    this.executionBoundClassName = this.boundClass?.displayName || this.boundClass?.className || '';
     if (!this.noCodeSolution) return;
 
     const registry = this.stateSpaceRegistry;
@@ -2045,6 +2277,21 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
           }
         }
         break;
+      }
+    }
+
+    // Build instance fields from bound class fields (excluding input param names)
+    if (this.boundClass && this.boundClass.fields) {
+      const inputParamNames = new Set(this.executionInputParams.map(p => p.name));
+      for (const field of this.boundClass.fields) {
+        if (field.name && field.type && !inputParamNames.has(field.name)) {
+          this.executionInstanceFields.push({
+            name: field.name,
+            type: field.type,
+            value: field.defaultValue !== undefined ? field.defaultValue : this.getDefaultParamValue(field.type),
+            displayName: field.displayName || field.name
+          });
+        }
       }
     }
   }
@@ -2136,10 +2383,10 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
 
     var dragHandler = d3.drag()
       .on("start", function(d, i, n){
-        console.log("logging start conditions for drag");
-        console.log("d3ElementNodes : ", n);
-        console.log("draggedElementIndex : ", i);
-        console.log("d3ElementNodes[draggedElementIndex] : ", n[i]);
+        // console.log("logging start conditions for drag");
+        // console.log("d3ElementNodes : ", n);
+        // console.log("draggedElementIndex : ", i);
+        // console.log("d3ElementNodes[draggedElementIndex] : ", n[i]);
       })
       .on("drag", (event) => {
           d3.select(event.sourceEvent.target)
@@ -2147,10 +2394,10 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
               .attr("y", event.y);
       })
       .on("end", function(d, i, n) {
-        console.log("logging end conditions for drag");
-        console.log("d3ElementNodes : ", n);
-        console.log("draggedElementIndex : ", i);
-        console.log("d3ElementNodes[draggedElementIndex] : ", n[i]);
+        // console.log("logging end conditions for drag");
+        // console.log("d3ElementNodes : ", n);
+        // console.log("draggedElementIndex : ", i);
+        // console.log("d3ElementNodes[draggedElementIndex] : ", n[i]);
     });
     
     dragHandler(d3GraphRenderingSVG.selectAll("use"));
@@ -2170,7 +2417,7 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
       // Creates an onEvent functions that occurs for every pixel dragged after click and drag begins occurring.
       .call(d3.drag()
         .on("start", (event) => {
-          console.log("Handling drag Start, start location : (", event.x, ", ", event.y, ")", " and stateInstance location : ", stateInstance.stateLocationX, ", ", stateInstance.stateComponentSizeY, ")");
+          // console.log("Handling drag Start, start location : (", event.x, ", ", event.y, ")", " and stateInstance location : ", stateInstance.stateLocationX, ", ", stateInstance.stateComponentSizeY, ")");
           this.handleSingleStateObjectDragStart(stateInstance.id);
         })
         .on("drag", (event) => { // Takes the new x and y values sent by event after drag event occurs and assigns them.
@@ -2189,9 +2436,9 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
           // This is a single 'layer' of the overlay, where each 'state' object has a layer that binds a component to a box.
           /*
           let overlayStateSegment = document.getElementById(`overlay-${stateInstance.id}`);
-          console.log("overlayStateSegment : ", overlayStateSegment);
+          // console.log("overlayStateSegment : ", overlayStateSegment);
           if (overlayStateSegment) {
-            console.log("overlay style before change: (", overlayStateSegment.style.left, " , ", overlayStateSegment.style.right, ")");
+            // console.log("overlay style before change: (", overlayStateSegment.style.left, " , ", overlayStateSegment.style.right, ")");
             overlayStateSegment.style.left = `${x}px`;
             overlayStateSegment.style.top = `${y}px`;
           }
@@ -2270,17 +2517,17 @@ private dragRectangle(): any {
   // TODO? Find a way to transform the UI into an image quickly to imprint on the d3 object so it looks like
   // the UI is still there the whole time instead of being replaced by another object.
   handleSingleStateObjectDragStart(id: number){
-    console.log("drag start");
+    // console.log("drag start");
     this.overlayStateSegments[id] = document.getElementById(`overlay-${id}`);
     if (this.overlayStateSegments[id]) { //For some reason typescript cannot detect that we are detecting if it is null or not, so have to use ts-ignore here.
       //@ts-ignore
       this.overlayStateSegments[id].style.display = 'none';
     }
     else{
-      console.log("Failed to manipulate overlay in handleSingleStateObjectDragStart");
+      // console.log("Failed to manipulate overlay in handleSingleStateObjectDragStart");
       //console.log("Somehow dragging a state object which does not have a corresponding element with element id 'overlay-${id}', the state Object id is : ", id);
     }
-    console.log("completed drag start handler");
+    // console.log("completed drag start handler");
   }
 
   // Handles showing the overlay/UI when the drag ends, since the UI portion is not optimized to get dragged.
@@ -2291,10 +2538,10 @@ private dragRectangle(): any {
       overlayStateSegment.style.display = 'none';
     }
     else{
-      console.log("Failed to manipulate overlay in handleSingleStateObjectDragEnd");
+      // console.log("Failed to manipulate overlay in handleSingleStateObjectDragEnd");
       //console.log("Somehow dragged a state object which does not have a corresponding element with element id 'overlay-${id}', the state Object id is : ", id);
     }
-    console.log("completed drag end handler");
+    // console.log("completed drag end handler");
   }
 
   // Used to perform height, width, and location transforms on state objects UI overlays, based on d3 transforms of their
@@ -2329,7 +2576,7 @@ private dragRectangle(): any {
     // Prepare data for ngx-graph
     // Load all states and map them to nodes.
     let nodes = this.stateInstances.map(state => {
-      console.log("Iterating state: ", state);
+      // console.log("Iterating state: ", state);
       return {
         //id: state.id.toString(), // Assuming you have a unique identifier for each state instance
         label: state.stateName, // Assuming you have a 'name' property in noCodeState to display as node label
@@ -2338,7 +2585,7 @@ private dragRectangle(): any {
       };
 
       }); 
-      console.log("after nodes");
+      // console.log("after nodes");
       let edges: { source: string; target: string; label: string; data: { linkText: string } }[] = [];
       
       this.stateInstances.forEach(state=>{
@@ -2356,7 +2603,7 @@ private dragRectangle(): any {
         });
       });
       
-      console.log("after stateInstances");
+      // console.log("after stateInstances");
       // Set ngx-graph options
       const graphOptions = {
         nodeWidth: 150, // Customize node width
@@ -2369,20 +2616,20 @@ private dragRectangle(): any {
       //let edges = [];
       // Create the ngx-graph model
       let graphData = { nodes, edges };
-      console.log("before draw");
+      // console.log("before draw");
       // Draw the graph using ngx-graph
       this.draw(graphData, graphOptions);
-      console.log("after draw")
+      // console.log("after draw")
   }
 
   draw(data: any, options: any) {
     // Clear the container in case it already has content
-    console.log("before clear")
+    // console.log("before clear")
     //this.graphContainerRef.clear();
-    console.log("before factory")
+    // console.log("before factory")
     // Create the ngx-graph component and attach it to the container
     //const graphComponentFactory = this.componentFactoryResolver.resolveComponentFactory(GraphComponent);
-    console.log("before ref")
+    // console.log("before ref")
     //const graphComponentRef = this.graphContainerRef.createComponent(graphComponentFactory);
     // Set the data input properties of the ngx-graph component
     //graphComponentRef.instance.nodes = data.nodes;
@@ -2476,13 +2723,13 @@ private dragRectangle(): any {
   }
 
   onDragStarted(event: CdkDragStart, stateInstance){
-    console.log("Drag started");
-    console.log(event);
-    console.log(stateInstance);
+    // console.log("Drag started");
+    // console.log(event);
+    // console.log(stateInstance);
   }
 
   onDragEnded(event: CdkDragEnd, stateInstance){
-    console.log("Drag ended");
+    // console.log("Drag ended");
   }
 
   // ==================== Sidebar Methods ====================
@@ -2503,7 +2750,7 @@ private dragRectangle(): any {
    * Handle right-click on a state to show context menu
    */
   private handleStateContextMenu(event: MouseEvent, stateName: string, stateGroup: SVGGElement, shapeType: string): void {
-    console.log('[handleStateContextMenu] State:', stateName, 'Shape:', shapeType);
+    // console.log('[handleStateContextMenu] State:', stateName, 'Shape:', shapeType);
 
     // Get the current state size
     const stateInstance = this.stateInstances.find(s => s.stateName === stateName);
@@ -2540,8 +2787,8 @@ private dragRectangle(): any {
    * Handle right-click on a slot to open slot configuration popup directly
    */
   private handleSlotContextMenu(event: MouseEvent, stateName: string, slotIndex: number, isInput: boolean): void {
-    console.log('[handleSlotContextMenu] ===== SLOT CONTEXT MENU =====');
-    console.log('[handleSlotContextMenu] State:', stateName, 'Slot:', slotIndex, 'isInput:', isInput);
+    // console.log('[handleSlotContextMenu] ===== SLOT CONTEXT MENU =====');
+    // console.log('[handleSlotContextMenu] State:', stateName, 'Slot:', slotIndex, 'isInput:', isInput);
 
     // Find the state instance
     const stateInstance = this.stateInstances.find(s => s.stateName === stateName);
@@ -2557,9 +2804,9 @@ private dragRectangle(): any {
       return;
     }
 
-    console.log('[handleSlotContextMenu] Found slot:', slot);
-    console.log('[handleSlotContextMenu] Slot color from data:', (slot as any).color);
-    console.log('[handleSlotContextMenu] Slot label from data:', (slot as any).label);
+    // console.log('[handleSlotContextMenu] Found slot:', slot);
+    // console.log('[handleSlotContextMenu] Slot color from data:', (slot as any).color);
+    // console.log('[handleSlotContextMenu] Slot label from data:', (slot as any).label);
 
     // Create slot configuration from the slot data
     const slotConfig: SlotConfiguration = {
@@ -2594,19 +2841,19 @@ private dragRectangle(): any {
 
     // Get context and state class for the slot's state
     if (this.selectedSolutionName) {
-      console.log('[handleSlotContextMenu] Getting context for state:', stateName);
+      // console.log('[handleSlotContextMenu] Getting context for state:', stateName);
       this.slotConfigStateContext = this.solutionStateService.getPotentialContextForState(
         this.selectedSolutionName,
         stateName
       );
-      console.log('[handleSlotContextMenu] State context:', this.slotConfigStateContext);
+      // console.log('[handleSlotContextMenu] State context:', this.slotConfigStateContext);
       this.slotConfigStateClass = stateInstance.stateClass || '';
-      console.log('[handleSlotContextMenu] State class:', this.slotConfigStateClass);
+      // console.log('[handleSlotContextMenu] State class:', this.slotConfigStateClass);
 
       // Get produced variables from the state (for VariableAssignment, MathOperation, etc.)
-      console.log('[handleSlotContextMenu] Getting produced variables from state instance:', stateInstance);
+      // console.log('[handleSlotContextMenu] Getting produced variables from state instance:', stateInstance);
       this.slotConfigProducedVariables = this.getProducedVariablesForState(stateInstance);
-      console.log('[handleSlotContextMenu] Produced variables:', this.slotConfigProducedVariables);
+      // console.log('[handleSlotContextMenu] Produced variables:', this.slotConfigProducedVariables);
     } else {
       this.slotConfigStateContext = null;
       this.slotConfigStateClass = '';
@@ -2624,14 +2871,14 @@ private dragRectangle(): any {
    * Get produced variables from a state's boundObjectFieldValues
    */
   private getProducedVariablesForState(stateInstance: NoCodeState | { boundObjectFieldValues?: { [key: string]: any } }): ProducedVariable[] {
-    console.log('[getProducedVariablesForState] ===== GETTING PRODUCED VARIABLES =====');
-    console.log('[getProducedVariablesForState] State Instance:', stateInstance);
-    console.log('[getProducedVariablesForState] boundObjectFieldValues:', stateInstance.boundObjectFieldValues);
+    // console.log('[getProducedVariablesForState] ===== GETTING PRODUCED VARIABLES =====');
+    // console.log('[getProducedVariablesForState] State Instance:', stateInstance);
+    // console.log('[getProducedVariablesForState] boundObjectFieldValues:', stateInstance.boundObjectFieldValues);
 
     const produced: ProducedVariable[] = [];
 
     if (!stateInstance.boundObjectFieldValues) {
-      console.log('[getProducedVariablesForState] No boundObjectFieldValues, returning empty');
+      // console.log('[getProducedVariablesForState] No boundObjectFieldValues, returning empty');
       return produced;
     }
 
@@ -2671,7 +2918,7 @@ private dragRectangle(): any {
       }
     }
 
-    console.log('[getProducedVariablesForState] Returning produced variables:', produced);
+    // console.log('[getProducedVariablesForState] Returning produced variables:', produced);
     return produced;
   }
 
@@ -2679,7 +2926,7 @@ private dragRectangle(): any {
    * Handle context menu actions
    */
   onContextMenuAction(action: StateContextMenuAction): void {
-    console.log('[onContextMenuAction]', action);
+    // console.log('[onContextMenuAction]', action);
 
     if (!this.selectedSolutionName) {
       return;
@@ -2930,7 +3177,7 @@ private dragRectangle(): any {
       action.stateName
     );
 
-    console.log('[handleViewContextAction] Context for state:', action.stateName, context);
+    // console.log('[handleViewContextAction] Context for state:', action.stateName, context);
 
     // Position the overlay near the context menu position
     this.viewContextOverlayStateName = action.stateName;
@@ -3209,7 +3456,7 @@ private dragRectangle(): any {
    * Handle slot manager configuration changes
    */
   onSlotManagerChanged(config: StateSlotManagerConfig): void {
-    console.log('[onSlotManagerChanged]', config);
+    // console.log('[onSlotManagerChanged]', config);
 
     if (!this.selectedSolutionName) return;
 
@@ -3285,8 +3532,8 @@ private dragRectangle(): any {
    * Handle request to open individual slot configuration
    */
   onSlotConfigRequested(slotConfig: SlotConfiguration): void {
-    console.log('[onSlotConfigRequested] ===== SLOT CONFIG REQUESTED =====');
-    console.log('[onSlotConfigRequested] SlotConfig:', slotConfig);
+    // console.log('[onSlotConfigRequested] ===== SLOT CONFIG REQUESTED =====');
+    // console.log('[onSlotConfigRequested] SlotConfig:', slotConfig);
 
     this.currentSlotConfig = slotConfig;
     this.slotConfigPosition = {
@@ -3300,17 +3547,17 @@ private dragRectangle(): any {
         this.selectedSolutionName,
         slotConfig.stateName
       );
-      console.log('[onSlotConfigRequested] State context:', this.slotConfigStateContext);
+      // console.log('[onSlotConfigRequested] State context:', this.slotConfigStateContext);
 
       // Get state class from the solution - NOTE: this gets from service, not this.stateInstances
       const solution = this.solutionStateService.getSolutionData(this.selectedSolutionName);
       const stateFromService = solution?.stateInstances.find(s => s.stateName === slotConfig.stateName);
-      console.log('[onSlotConfigRequested] State from service:', stateFromService);
+      // console.log('[onSlotConfigRequested] State from service:', stateFromService);
 
       // Also check this.stateInstances for comparison
       const stateFromLocal = this.stateInstances.find(s => s.stateName === slotConfig.stateName);
-      console.log('[onSlotConfigRequested] State from local stateInstances:', stateFromLocal);
-      console.log('[onSlotConfigRequested] Local state boundObjectFieldValues:', stateFromLocal?.boundObjectFieldValues);
+      // console.log('[onSlotConfigRequested] State from local stateInstances:', stateFromLocal);
+      // console.log('[onSlotConfigRequested] Local state boundObjectFieldValues:', stateFromLocal?.boundObjectFieldValues);
 
       this.slotConfigStateClass = stateFromService?.stateClass || '';
 
@@ -3322,7 +3569,7 @@ private dragRectangle(): any {
       } else {
         this.slotConfigProducedVariables = [];
       }
-      console.log('[onSlotConfigRequested] Produced variables:', this.slotConfigProducedVariables);
+      // console.log('[onSlotConfigRequested] Produced variables:', this.slotConfigProducedVariables);
     } else {
       this.slotConfigStateContext = null;
       this.slotConfigStateClass = '';
@@ -3404,7 +3651,7 @@ private dragRectangle(): any {
    * Handle removal of a connection from the slot config popup
    */
   onSlotConnectionRemoved(conn: SlotConnectionInfo): void {
-    console.log('[onSlotConnectionRemoved] Removing connection:', conn);
+    // console.log('[onSlotConnectionRemoved] Removing connection:', conn);
 
     if (!this.selectedSolutionName) return;
 
@@ -3438,7 +3685,7 @@ private dragRectangle(): any {
    * Handle slot deletion from the slot configuration popup
    */
   onSlotDeleted(config: SlotConfiguration): void {
-    console.log('[onSlotDeleted] Deleting slot:', config.stateName, 'index:', config.index);
+    // console.log('[onSlotDeleted] Deleting slot:', config.stateName, 'index:', config.index);
 
     if (!this.selectedSolutionName || !config.stateName) return;
 
@@ -3467,6 +3714,18 @@ private dragRectangle(): any {
       config.index
     );
 
+    // Sync the NoCodeSolution's in-memory state to match the service.
+    // The D3 layers read slots from noCodeSolution.stateInstances (NoCodeState objects),
+    // but the service only updates its own raw cache. Without this sync,
+    // rerenderState() reads stale slot data and the render breaks.
+    const ncsState = this.noCodeSolution?.stateInstances.find(
+      s => s.stateName === config.stateName
+    );
+    if (ncsState && ncsState.slots) {
+      ncsState.slots = ncsState.slots.filter(s => s.index !== config.index);
+      ncsState.slots.forEach((s, i) => s.index = i);
+    }
+
     // Refresh local state from the service
     const solution = this.solutionStateService.getSolutionData(this.selectedSolutionName);
     if (solution) {
@@ -3484,10 +3743,10 @@ private dragRectangle(): any {
    * Handle slot configuration changes
    */
   onSlotConfigChanged(config: SlotConfiguration): void {
-    console.log('[onSlotConfigChanged] ===== SLOT CONFIG CHANGE =====');
-    console.log('[onSlotConfigChanged] Config:', config);
-    console.log('[onSlotConfigChanged] StateName:', config.stateName, 'SlotIndex:', config.index);
-    console.log('[onSlotConfigChanged] Color:', config.color, 'Label:', config.label);
+    // console.log('[onSlotConfigChanged] ===== SLOT CONFIG CHANGE =====');
+    // console.log('[onSlotConfigChanged] Config:', config);
+    // console.log('[onSlotConfigChanged] StateName:', config.stateName, 'SlotIndex:', config.index);
+    // console.log('[onSlotConfigChanged] Color:', config.color, 'Label:', config.label);
 
     // Update the slot manager arrays (for slot manager modal)
     if (config.isInput) {
@@ -3523,9 +3782,9 @@ private dragRectangle(): any {
           (slot as any).propertyPath = config.propertyPath;
           (slot as any).passthroughVariableName = config.passthroughVariableName;
 
-          console.log('[onSlotConfigChanged] Updated slot:', slot);
-          console.log('[onSlotConfigChanged] Updated slot color:', (slot as any).color);
-          console.log('[onSlotConfigChanged] Updated slot label:', (slot as any).label);
+          // console.log('[onSlotConfigChanged] Updated slot:', slot);
+          // console.log('[onSlotConfigChanged] Updated slot color:', (slot as any).color);
+          // console.log('[onSlotConfigChanged] Updated slot label:', (slot as any).label);
 
           // Persist to service
           const slotRawDataArray = stateInstance.slots.map(s => ({
@@ -3578,39 +3837,39 @@ private dragRectangle(): any {
    * Re-render slots for a specific state to reflect configuration changes
    */
   private rerenderStateSlots(stateName: string): void {
-    console.log('[rerenderStateSlots] ===== RE-RENDERING SLOTS =====');
-    console.log('[rerenderStateSlots] StateName:', stateName);
+    // console.log('[rerenderStateSlots] ===== RE-RENDERING SLOTS =====');
+    // console.log('[rerenderStateSlots] StateName:', stateName);
 
     // Find the state instance
     const stateInstance = this.stateInstances.find(s => s.stateName === stateName);
     if (!stateInstance) {
-      console.log('[rerenderStateSlots] State not found!');
+      // console.log('[rerenderStateSlots] State not found!');
       return;
     }
 
-    console.log('[rerenderStateSlots] State found, slots count:', stateInstance.slots?.length);
+    // console.log('[rerenderStateSlots] State found, slots count:', stateInstance.slots?.length);
     stateInstance.slots?.forEach((s, i) => {
-      console.log(`[rerenderStateSlots] Slot ${i}: color=${(s as any).color}, label=${(s as any).label}`);
+      // console.log(`[rerenderStateSlots] Slot ${i}: color=${(s as any).color}, label=${(s as any).label}`);
     });
 
     // Determine which layer to update based on shape type
     const shapeType = stateInstance.shapeType || 'circle';
-    console.log('[rerenderStateSlots] ShapeType:', shapeType);
+    // console.log('[rerenderStateSlots] ShapeType:', shapeType);
 
     if (shapeType === 'circle' && this.currentCircleStateLayer) {
-      console.log('[rerenderStateSlots] Calling CircleStateLayer.rerenderState');
+      // console.log('[rerenderStateSlots] Calling CircleStateLayer.rerenderState');
       // Re-render the circle state layer
       this.currentCircleStateLayer.rerenderState(stateName);
     } else if (shapeType === 'rectangle' && this.currentRectangleStateLayer) {
-      console.log('[rerenderStateSlots] Calling RectangleStateLayer.rerenderState');
+      // console.log('[rerenderStateSlots] Calling RectangleStateLayer.rerenderState');
       // Re-render the rectangle state layer
       this.currentRectangleStateLayer.rerenderState(stateName);
     } else if (shapeType === 'diamond' && this.currentDiamondStateLayer) {
-      console.log('[rerenderStateSlots] Calling DiamondStateLayer.rerenderState');
+      // console.log('[rerenderStateSlots] Calling DiamondStateLayer.rerenderState');
       // Re-render the diamond state layer
       this.currentDiamondStateLayer.rerenderState(stateName);
     } else {
-      console.log('[rerenderStateSlots] No layer found for shape type:', shapeType);
+      // console.log('[rerenderStateSlots] No layer found for shape type:', shapeType);
     }
   }
 
@@ -3623,7 +3882,7 @@ private dragRectangle(): any {
       return;
     }
 
-    console.log('[CustomNoCode] Creating state from:', item);
+    // console.log('[CustomNoCode] Creating state from:', item);
 
     // Generate unique state name
     const existingNames = this.noCodeSolution.stateInstances.map(s => s.stateName);
@@ -3748,7 +4007,7 @@ private dragRectangle(): any {
     // Re-render the solution to show the new state
     this.loadSelectedSolution();
 
-    console.log('[CustomNoCode] Created new state:', stateName, 'with', slots.length, 'slots');
+    // console.log('[CustomNoCode] Created new state:', stateName, 'with', slots.length, 'slots');
   }
 
   /**
@@ -3760,7 +4019,7 @@ private dragRectangle(): any {
       return;
     }
 
-    console.log('[CustomNoCode] Creating state from class member:', request);
+    // console.log('[CustomNoCode] Creating state from class member:', request);
 
     // Generate unique state name based on member type
     let baseName: string;
@@ -3911,7 +4170,7 @@ private dragRectangle(): any {
     // Re-render the solution to show the new state
     this.loadSelectedSolution();
 
-    console.log('[CustomNoCode] Created class member state:', stateName, 'with', slots.length, 'slots');
+    // console.log('[CustomNoCode] Created class member state:', stateName, 'with', slots.length, 'slots');
   }
 
   // ==================== Helper Classes Methods ====================
@@ -3924,11 +4183,11 @@ private dragRectangle(): any {
     if (index >= 0) {
       // Remove from enabled list
       this.enabledHelperClasses.splice(index, 1);
-      console.log('[CustomNoCode] Disabled helper class:', cls.className);
+      // console.log('[CustomNoCode] Disabled helper class:', cls.className);
     } else {
       // Add to enabled list
       this.enabledHelperClasses.push({ ...cls, isEnabled: true });
-      console.log('[CustomNoCode] Enabled helper class:', cls.className);
+      // console.log('[CustomNoCode] Enabled helper class:', cls.className);
     }
     this.changeDetectorRef.markForCheck();
   }
@@ -4035,7 +4294,7 @@ private dragRectangle(): any {
 
     // Re-render
     this.loadSelectedSolution();
-    console.log('[CustomNoCode] Created sub-solution state:', stateName);
+    // console.log('[CustomNoCode] Created sub-solution state:', stateName);
   }
 
   // ==================== Definition Creator Methods ====================
@@ -4062,7 +4321,7 @@ private dragRectangle(): any {
    * Handle when a definition is saved
    */
   onDefinitionSaved(definition: StateDefinition): void {
-    console.log('[CustomNoCode] Definition saved:', definition);
+    // console.log('[CustomNoCode] Definition saved:', definition);
     this.closeDefinitionCreator();
     // The sidebar will automatically update via the stateDefinitions$ subscription
   }

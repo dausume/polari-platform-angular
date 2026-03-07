@@ -19,6 +19,15 @@ import {
 
 export type ExecutionStatus = 'idle' | 'loading' | 'ready' | 'playing' | 'paused' | 'completed' | 'errored';
 
+/**
+ * Describes which line range in generated code corresponds to the current execution step.
+ */
+export interface CodeStepMapping {
+  stateName: string;
+  lineStart: number;  // 1-based
+  lineEnd: number;    // 1-based
+}
+
 @Injectable({ providedIn: 'root' })
 export class SolutionExecutionService {
 
@@ -33,9 +42,49 @@ export class SolutionExecutionService {
   currentStepIndex$ = new BehaviorSubject<number>(-1);
   totalSteps$ = new BehaviorSubject<number>(0);
 
+  // Code synchronization: tracks generated code and which line maps to the active step
+  generatedCode$ = new BehaviorSubject<string>('');
+  activeCodeMapping$ = new BehaviorSubject<CodeStepMapping | null>(null);
+  private codeLineMappings: Map<string, CodeStepMapping> = new Map();
+
   private playbackSubscription: Subscription | null = null;
 
-  constructor(private http: HttpClient, private polariService: PolariService) {}
+  constructor(private http: HttpClient, private polariService: PolariService) {
+    // When the active state name changes, update the code mapping
+    this.activeStateName$.subscribe(stateName => {
+      if (stateName && this.codeLineMappings.has(stateName)) {
+        this.activeCodeMapping$.next(this.codeLineMappings.get(stateName)!);
+      } else {
+        this.activeCodeMapping$.next(null);
+      }
+    });
+  }
+
+  /**
+   * Set the generated code and build state-to-line mappings.
+   * Call this when code is regenerated so the execution stepping can highlight code lines.
+   */
+  setGeneratedCode(code: string, stateNames: string[]): void {
+    this.generatedCode$.next(code);
+    this.codeLineMappings.clear();
+
+    if (!code || stateNames.length === 0) return;
+
+    const lines = code.split('\n');
+    for (const stateName of stateNames) {
+      let lineStart = 0;
+      let lineEnd = 0;
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i].includes(stateName)) {
+          if (lineStart === 0) lineStart = i + 1;
+          lineEnd = i + 1;
+        }
+      }
+      if (lineStart > 0) {
+        this.codeLineMappings.set(stateName, { stateName, lineStart, lineEnd });
+      }
+    }
+  }
 
   /**
    * Start execution: calls the backend /executeSolutionStepped endpoint,
@@ -45,18 +94,22 @@ export class SolutionExecutionService {
     solutionName: string,
     inputParams: Record<string, any>,
     targetRuntime: string,
-    stepConfig?: any
+    stepConfig?: any,
+    instanceFields?: Record<string, any>
   ): Observable<ExecutionTrace> {
-    this.executionStatus$.next('loading');
     this.stop(); // Clean up any previous session
+    this.executionStatus$.next('loading');
 
     const execUrl = `${this.polariService.getBackendBaseUrl()}/executeSolutionStepped`;
-    const body = {
+    const body: Record<string, any> = {
       solutionName,
       inputParams: inputParams || {},
       targetRuntime,
       ...(stepConfig ? { stepConfig } : {})
     };
+    if (instanceFields) {
+      body['instanceFields'] = instanceFields;
+    }
 
     return this.http.post<any>(execUrl, body).pipe(
       map((response: any) => {

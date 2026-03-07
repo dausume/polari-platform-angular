@@ -204,6 +204,22 @@ export class TypescriptCodeGeneratorService {
           .replace('{else_body}', '// Else branch');
         break;
 
+      case 'MathOperation': {
+        const mathOps: { [key: string]: string } = {
+          'add': '+', 'subtract': '-', 'multiply': '*', 'divide': '/', 'modulo': '%'
+        };
+        const leftExpr = this.resolveValueSource(values['leftOperand'], '0');
+        const rightExpr = this.resolveValueSource(values['rightOperand'], '0');
+        const mathOp = mathOps[values['operationType'] || 'add'] || '+';
+        const resultTarget = values['resultTarget'] || 'new_variable';
+        const resultName = resultTarget === 'solution_field'
+          ? (values['resultFieldPath'] ? `this.${values['resultFieldPath']}` : 'result')
+          : (values['resultVariableName'] || 'result');
+        return resultTarget === 'new_variable'
+          ? `const ${resultName} = ${leftExpr} ${mathOp} ${rightExpr};`
+          : `${resultName} = ${leftExpr} ${mathOp} ${rightExpr};`;
+      }
+
       case 'VariableAssignment':
         result = result
           .replace('{variable}', values['variableName'] || 'variable')
@@ -218,7 +234,7 @@ export class TypescriptCodeGeneratorService {
 
       case 'LogOutput':
         const message = values['messageTemplate'] || state.stateName || '';
-        result = `console.log(\`${message}\`);`;
+        // result = `console.log(\`${message}\`);`;
         break;
 
       case 'ReactiveTransform':
@@ -657,27 +673,38 @@ export class TypescriptCodeGeneratorService {
 
     const CONDITION_OPS: { [key: string]: string } = {
       'equals': '===',
+      'notEquals': '!==',
       'not_equals': '!==',
+      'greaterThan': '>',
       'greater_than': '>',
+      'lessThan': '<',
       'less_than': '<',
+      'greaterThanOrEqual': '>=',
       'greater_than_or_equal': '>=',
+      'lessThanOrEqual': '<=',
       'less_than_or_equal': '<=',
       'contains': '.includes',
-      'not_contains': '!.includes'
+      'notContains': '!.includes',
+      'not_contains': '!.includes',
     };
 
     const parts = links.map((link: any) => {
-      const op = CONDITION_OPS[link.conditionType] || '===';
+      const condType = link.conditionType || 'equals';
+      const op = CONDITION_OPS[condType] || '===';
       const left = this.resolveValueSource(link.leftSource, link.fieldName);
       const right = this.resolveValueSource(link.rightSource, link.conditionValue);
 
-      // Handle contains/not_contains with method call syntax
-      if (link.conditionType === 'contains') {
-        return `${left}.includes(${right})`;
+      // Handle special operators
+      if (condType === 'contains' || condType === 'notContains' || condType === 'not_contains') {
+        const neg = condType.startsWith('not') ? '!' : '';
+        return `${neg}String(${left}).includes(String(${right}))`;
       }
-      if (link.conditionType === 'not_contains') {
-        return `!${left}.includes(${right})`;
-      }
+      if (condType === 'startsWith') return `String(${left}).startsWith(String(${right}))`;
+      if (condType === 'endsWith') return `String(${left}).endsWith(String(${right}))`;
+      if (condType === 'isNull') return `${left} == null`;
+      if (condType === 'isNotNull') return `${left} != null`;
+      if (condType === 'isTrue') return `Boolean(${left})`;
+      if (condType === 'isFalse') return `!Boolean(${left})`;
 
       return `${left} ${op} ${right}`;
     });
@@ -693,14 +720,22 @@ export class TypescriptCodeGeneratorService {
     if (!source) return fallback || '...';
 
     switch (source.sourceType) {
-      case 'from_object':
+      case 'from_source_object': {
         // e.g., "this.sum_result" — convert self. to this. for TypeScript
-        const path = source.objectFieldPath || fallback || '...';
+        const path = source.sourceObjectPath || fallback || '...';
         return path.replace(/^self\./, 'this.');
+      }
       case 'from_input':
         return source.inputVariableName || fallback || '...';
-      case 'literal':
-        return source.literalValue != null ? String(source.literalValue) : fallback || '...';
+      case 'direct_assignment': {
+        // Literal value with proper TypeScript formatting
+        const val = source.directValue;
+        if (val == null) return fallback || 'null';
+        const valType = source.directValueType || 'str';
+        if (valType === 'str') return `'${val}'`;
+        if (valType === 'bool') return val ? 'true' : 'false';
+        return String(val);
+      }
       default:
         return fallback || '...';
     }

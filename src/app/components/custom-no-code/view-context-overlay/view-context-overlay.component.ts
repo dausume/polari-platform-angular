@@ -290,7 +290,7 @@ export class ViewContextOverlayComponent implements OnInit, OnDestroy {
   copyToClipboard(text: string): void {
     navigator.clipboard.writeText(text).then(() => {
       // Could show a toast notification here
-      console.log('[ViewContextOverlay] Copied to clipboard:', text);
+      // console.log('[ViewContextOverlay] Copied to clipboard:', text);
     });
   }
 

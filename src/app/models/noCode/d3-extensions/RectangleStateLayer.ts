@@ -231,7 +231,7 @@ export class RectangleStateLayer extends D3ModelLayer {
   // --- Rendering Functions ---
 
   render(): void {
-    console.log('=== RectangleStateLayer.render() called ===');
+    // console.log('=== RectangleStateLayer.render() called ===');
     this.initializeLayerGroup();
     this.initializeArrowheadMarker();
     this.initializeConnectorLayer();
@@ -467,7 +467,7 @@ export class RectangleStateLayer extends D3ModelLayer {
   // --- Layer Level Functions ---
 
   initializeLayerGroup(): void {
-    console.log('[RectangleStateLayer.initializeLayerGroup] Starting for layer:', this.layerName);
+    // console.log('[RectangleStateLayer.initializeLayerGroup] Starting for layer:', this.layerName);
 
     // Nest layer group inside the solution layer so cross-layer lookups work
     const solutionLayer = this.getSolutionLayer();
@@ -495,17 +495,17 @@ export class RectangleStateLayer extends D3ModelLayer {
   // --- State-Group Functions ---
 
   initializeStateGroups(): void {
-    console.log('[RectangleStateLayer.initializeStateGroups] Starting...');
+    // console.log('[RectangleStateLayer.initializeStateGroups] Starting...');
 
     if (!this.d3SvgBaseLayer) {
-      console.log('[RectangleStateLayer.initializeStateGroups] ABORT - no d3SvgBaseLayer!');
+      // console.log('[RectangleStateLayer.initializeStateGroups] ABORT - no d3SvgBaseLayer!');
       return;
     }
 
     let layerGroup = this.getLayerGroup();
 
     if (layerGroup.size() === 0) {
-      console.log('[RectangleStateLayer.initializeStateGroups] WARNING: layerGroup is empty!');
+      // console.log('[RectangleStateLayer.initializeStateGroups] WARNING: layerGroup is empty!');
       return;
     }
 
@@ -567,7 +567,7 @@ export class RectangleStateLayer extends D3ModelLayer {
             event.stopPropagation();
             const groupElement = elements[index] as SVGGElement;
             const stateName = datapoint.stateName || 'unknown';
-            console.log('[draggable-shape contextmenu] State:', stateName);
+            // console.log('[draggable-shape contextmenu] State:', stateName);
             if (self.onStateContextMenu) {
               self.onStateContextMenu(event, stateName, groupElement);
             }
@@ -598,7 +598,7 @@ export class RectangleStateLayer extends D3ModelLayer {
             event.stopPropagation();
             const groupElement = elements[index] as SVGGElement;
             const stateName = datapoint.stateName || 'unknown';
-            console.log('[overlay-component contextmenu] State:', stateName);
+            // console.log('[overlay-component contextmenu] State:', stateName);
             if (self.onStateContextMenu) {
               self.onStateContextMenu(event, stateName, groupElement);
             }
@@ -748,7 +748,7 @@ export class RectangleStateLayer extends D3ModelLayer {
             const stateName = datapoint.stateName || 'unknown';
             const slotIndex = slotData.index;
             const isInput = slotData.isInput;
-            console.log('[slot-marker contextmenu] State:', stateName, 'Slot:', slotIndex, 'isInput:', isInput);
+            // console.log('[slot-marker contextmenu] State:', stateName, 'Slot:', slotIndex, 'isInput:', isInput);
             // Trigger the slot context menu callback if set
             if (self.onSlotContextMenu) {
               self.onSlotContextMenu(event, stateName, slotIndex, isInput);

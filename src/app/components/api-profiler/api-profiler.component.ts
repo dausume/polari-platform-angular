@@ -363,7 +363,7 @@ export class ApiProfilerComponent implements OnInit, OnDestroy {
 
     copyToClipboard(text: string): void {
         navigator.clipboard.writeText(text).then(() => {
-            console.log('Copied to clipboard');
+            // console.log('Copied to clipboard');
         });
     }
 
@@ -706,7 +706,7 @@ export class ApiProfilerComponent implements OnInit, OnDestroy {
     selectFormatTemplate(templateType: string): void {
         this.selectedFormatProfile = templateType;
         this.responseRootPath = this.getFormatProfileRootPath(templateType);
-        console.log(`[ApiProfiler] Selected ${templateType} format. Root path: ${this.responseRootPath || '(root)'}`);
+        // console.log(`[ApiProfiler] Selected ${templateType} format. Root path: ${this.responseRootPath || '(root)'}`);
     }
 
     /**

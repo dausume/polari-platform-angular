@@ -152,8 +152,7 @@ export const MOCK_SOLUTION_ADDITION_TEST: NoCodeSolutionRawData = {
       { name: "num_a", displayName: "Number A", type: "int", defaultValue: 0, description: "First number to add" },
       { name: "num_b", displayName: "Number B", type: "int", defaultValue: 0, description: "Second number to add" },
       { name: "expected_result", displayName: "Expected Result", type: "int", defaultValue: 0, description: "Expected sum for comparison" },
-      { name: "sum_result", displayName: "Sum Result", type: "int", defaultValue: 0, description: "Calculated sum of num_a + num_b" },
-      { name: "test_passed", displayName: "Test Passed", type: "bool", defaultValue: false, description: "Whether the sum matches expected" }
+      { name: "sum_result", displayName: "Sum Result", type: "int", defaultValue: 0, description: "Calculated sum of num_a + num_b" }
     ],
     methods: [
       {
@@ -211,26 +210,33 @@ export const MOCK_SOLUTION_ADDITION_TEST: NoCodeSolutionRawData = {
       slotRadius: 5,
       backgroundColor: "#4CAF50"  // Green for start
     },
-    // Compute Sum - Variable Assignment (Purple) - computes sum_result = num_a + num_b
+    // Compute Sum - MathOperation (Blue) - computes self.sum_result = self.num_a + self.num_b
     {
       stateName: "Compute Sum",
       id: "compute-sum",
       index: 1,
       shapeType: "circle",
       solutionName: "AdditionTester.test_addition",
-      stateClass: "VariableAssignment",
-      boundObjectClass: "VariableAssignment",
+      stateClass: "MathOperation",
+      boundObjectClass: "MathOperation",
       boundObjectFieldValues: {
         displayName: "Compute Sum",
-        variableName: "sum_result",
-        value: "num_a + num_b",
-        dataType: "int",
-        description: "Calculate the sum of the two input numbers"
+        description: "Calculate the sum of the two input numbers",
+        operationType: "add",
+        leftOperand: {
+          sourceType: "from_source_object",
+          sourceObjectPath: "self.num_a"
+        },
+        rightOperand: {
+          sourceType: "from_source_object",
+          sourceObjectPath: "self.num_b"
+        },
+        resultFieldPath: "self.sum_result"
       },
       stateSvgSizeX: null,
       stateSvgSizeY: null,
       stateSvgRadius: 65,
-      layerName: "assignment-layer",
+      layerName: "math-layer",
       stateLocationX: 300,
       stateLocationY: 280,
       stateSvgName: "circle",
@@ -259,7 +265,7 @@ export const MOCK_SOLUTION_ADDITION_TEST: NoCodeSolutionRawData = {
         }
       ],
       slotRadius: 5,
-      backgroundColor: "#9C27B0"  // Purple for variable assignment
+      backgroundColor: "#2196F3"  // Blue for math operation
     },
     // Check Result - Conditional (Diamond shape) - compares sum_result == expected_result
     {

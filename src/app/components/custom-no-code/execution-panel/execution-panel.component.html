@@ -19,7 +19,7 @@
               [disabled]="!canPlay && !isPlaying" title="{{ isPlaying ? 'Pause' : 'Play' }}">
         <mat-icon>{{ isPlaying ? 'pause' : 'play_arrow' }}</mat-icon>
       </button>
-      <button class="ctrl-btn" (click)="stepForward()" [disabled]="!canStep || currentStepIndex >= totalSteps - 1" title="Step Forward">
+      <button class="ctrl-btn" (click)="stepForward()" [disabled]="!canStep || (totalSteps > 0 && currentStepIndex >= totalSteps - 1)" title="Step Forward">
         <mat-icon>skip_next</mat-icon>
       </button>
       <button class="ctrl-btn stop-btn" (click)="stop()" [disabled]="status === 'idle'" title="Stop">
@@ -44,20 +44,45 @@
 
   <!-- Main Content Area -->
   <div class="execution-content">
-    <!-- Input Params Section -->
+    <!-- Input Params / Instance Fields Section -->
     <div class="input-params-section">
-      <div class="section-header">Input Parameters</div>
-      <div class="input-params-form">
-        <div class="param-row" *ngFor="let param of inputParams">
-          <label class="param-label">{{ param.name }} <span class="param-type">({{ param.type }})</span></label>
-          <input class="param-input" [(ngModel)]="param.value"
-                 [placeholder]="param.type"
-                 (keydown.enter)="execute()">
-        </div>
-        <div class="param-row" *ngIf="inputParams.length === 0">
-          <span class="no-params">No input parameters</span>
-        </div>
+      <!-- Tab bar (only when instance fields exist) -->
+      <div class="param-tabs" *ngIf="instanceFields.length > 0">
+        <button class="param-tab" [class.active]="activeTab === 'params'" (click)="switchTab('params')">
+          Input Parameters
+        </button>
+        <button class="param-tab" [class.active]="activeTab === 'fields'" (click)="switchTab('fields')">
+          {{ boundClassName || 'Instance Fields' }}
+        </button>
       </div>
+      <!-- Section header when no instance fields (no tabs needed) -->
+      <div class="section-header" *ngIf="instanceFields.length === 0">Input Parameters</div>
+
+      <!-- Scrollable form area -->
+      <div class="input-params-form">
+        <!-- Input Parameters tab content -->
+        <ng-container *ngIf="activeTab === 'params' || instanceFields.length === 0">
+          <div class="param-row" *ngFor="let param of inputParams">
+            <label class="param-label">{{ param.name }} <span class="param-type">({{ param.type }})</span></label>
+            <input class="param-input" [(ngModel)]="param.value"
+                   [placeholder]="param.type"
+                   (keydown.enter)="execute()">
+          </div>
+          <div class="param-row" *ngIf="inputParams.length === 0">
+            <span class="no-params">No input parameters</span>
+          </div>
+        </ng-container>
+        <!-- Instance Fields tab content -->
+        <ng-container *ngIf="activeTab === 'fields' && instanceFields.length > 0">
+          <div class="param-row" *ngFor="let field of instanceFields">
+            <label class="param-label">{{ field.displayName || field.name }} <span class="param-type">({{ field.type }})</span></label>
+            <input class="param-input" [(ngModel)]="field.value"
+                   [placeholder]="field.type"
+                   (keydown.enter)="execute()">
+          </div>
+        </ng-container>
+      </div>
+
       <div class="input-actions">
         <button class="action-btn execute-btn" (click)="execute()" [disabled]="!canExecute">
           <mat-icon>play_arrow</mat-icon> Execute

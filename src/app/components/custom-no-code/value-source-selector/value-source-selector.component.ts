@@ -50,7 +50,11 @@ export class ValueSourceSelectorComponent implements OnInit, OnChanges {
   // Available inputs from connected states
   @Input() availableInputs: AvailableInput[] = [];
 
-  // Available fields from the source object
+  // Available fields from the source object (e.g., self.num_a, self.num_b).
+  // IMPORTANT: This MUST be populated by the parent component for the "From Object" source type
+  // to render as dropdown selectors. When populated, the user selects an object (e.g., "self")
+  // then picks a field from that object. If empty, a text input fallback is shown which is NOT
+  // the intended UX. If you see a text input, debug why the parent isn't passing sourceObjectFields.
   @Input() sourceObjectFields: SourceObjectField[] = [];
 
   // Label for this selector (e.g., "Left Side", "Right Side")
@@ -85,6 +89,7 @@ export class ValueSourceSelectorComponent implements OnInit, OnChanges {
   selectedSourceType: ValueSourceType | '' = '';
   selectedInputIndex: number = 0;
   selectedInputVariable: string = '';
+  selectedObjectName: string = '';
   selectedObjectPath: string = '';
   directValue: string = '';
   directValueType: 'int' | 'str' | 'bool' | 'float' = 'str';
@@ -114,6 +119,12 @@ export class ValueSourceSelectorComponent implements OnInit, OnChanges {
         break;
       case 'from_source_object':
         this.selectedObjectPath = this.config.sourceObjectPath || '';
+        // Extract object name from path (e.g., "self.num_a" → "self")
+        if (this.selectedObjectPath && this.selectedObjectPath.includes('.')) {
+          this.selectedObjectName = this.selectedObjectPath.split('.')[0];
+        } else {
+          this.selectedObjectName = '';
+        }
         break;
       case 'direct_assignment':
         this.directValue = this.config.directValue !== undefined ? String(this.config.directValue) : '';
@@ -146,7 +157,45 @@ export class ValueSourceSelectorComponent implements OnInit, OnChanges {
   }
 
   /**
-   * Handle source object path selection change
+   * Get unique object names from source object field paths
+   * e.g., ["self.num_a", "self.num_b", "order.total"] → ["self", "order"]
+   */
+  getUniqueObjectNames(): string[] {
+    const names = new Set<string>();
+    for (const field of this.sourceObjectFields) {
+      const dotIndex = field.path.indexOf('.');
+      if (dotIndex > 0) {
+        names.add(field.path.substring(0, dotIndex));
+      }
+    }
+    return Array.from(names);
+  }
+
+  /**
+   * Get fields belonging to a specific object
+   */
+  getFieldsForObject(objectName: string): SourceObjectField[] {
+    const prefix = objectName + '.';
+    return this.sourceObjectFields.filter(f => f.path.startsWith(prefix));
+  }
+
+  /**
+   * Get display name for a field (strip object prefix)
+   */
+  getFieldDisplayName(field: SourceObjectField): string {
+    return field.displayName || field.path.split('.').slice(1).join('.');
+  }
+
+  /**
+   * Handle object name selection change (step 2 of 3-step flow)
+   */
+  onObjectNameChange(name: string): void {
+    this.selectedObjectName = name;
+    this.selectedObjectPath = '';
+  }
+
+  /**
+   * Handle source object field selection change (step 3 of 3-step flow)
    */
   onObjectPathChange(path: string): void {
     this.selectedObjectPath = path;

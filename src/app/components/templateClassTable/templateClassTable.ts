@@ -140,9 +140,9 @@ export class templateClassTableComponent implements OnInit, OnDestroy {
       this.tableConfig = TableConfig.load(this.className);
     }
 
-    console.log("-- PolyTypedVar References --");
-    console.log(this.polyVarRefs);
-    console.log("Reached end of class table ngOnInit");
+    // console.log("-- PolyTypedVar References --");
+    // console.log(this.polyVarRefs);
+    // console.log("Reached end of class table ngOnInit");
     this.getTypingData();
     this.loadInstanceData();
   }
@@ -150,13 +150,13 @@ export class templateClassTableComponent implements OnInit, OnDestroy {
   
   ngOnChanges(changes: SimpleChanges)
   {
-    console.log("Logging a change in an input value.");
-    console.log(changes);
+    // console.log("Logging a change in an input value.");
+    // console.log(changes);
 
     // Handle className changes - clear old data and reload for new class
     if(changes.className && !changes.className.firstChange)
     {
-      console.log("ClassName changed from", changes.className.previousValue, "to", changes.className.currentValue);
+      // console.log("ClassName changed from", changes.className.previousValue, "to", changes.className.currentValue);
 
       // Clear old instance data
       this.instanceList = [];
@@ -181,16 +181,16 @@ export class templateClassTableComponent implements OnInit, OnDestroy {
 
     if(changes.classTypeData && !changes.classTypeData.firstChange)
     {
-      console.log("Previous classTypeData : ", changes.classTypeData.previousValue);
-      console.log("New classTypeData : ", changes.classTypeData.currentValue);
+      // console.log("Previous classTypeData : ", changes.classTypeData.previousValue);
+      // console.log("New classTypeData : ", changes.classTypeData.currentValue);
       this.getTypingData();
     }
   }
 
   getTypingData()
   {
-    console.log("[TemplateClassTable] getTypingData() for:", this.className);
-    console.log("[TemplateClassTable] classTypeData:", this.classTypeData);
+    // console.log("[TemplateClassTable] getTypingData() for:", this.className);
+    // console.log("[TemplateClassTable] classTypeData:", this.classTypeData);
 
     // Guard against undefined/null classTypeData
     if (!this.classTypeData) {
@@ -201,7 +201,7 @@ export class templateClassTableComponent implements OnInit, OnDestroy {
 
     //Get all of the keys (Variable Names) and use them to establish the headers.
     let keys = Object.keys(this.classTypeData);
-    console.log("[TemplateClassTable] classTypeData keys:", keys);
+    // console.log("[TemplateClassTable] classTypeData keys:", keys);
     this.shownVars = [];
 
     // Clean up removed columns - remove any that no longer exist in classTypeData
@@ -219,17 +219,17 @@ export class templateClassTableComponent implements OnInit, OnDestroy {
           this.shownVars.push(key);
         }
       }
-      console.log("keys were defined.")
+      // console.log("keys were defined.")
     }
 
     // Apply sorting based on configuration
     this.sortShownVars();
 
-    console.log("shownVars")
-    console.log(this.shownVars);
-    console.log("this.classTypeData : ", this.classTypeData)
+    // console.log("shownVars")
+    // console.log(this.shownVars);
+    // console.log("this.classTypeData : ", this.classTypeData)
     this.polyVarRefs = this.classTypeData;
-    console.log("this.polyVarRefs : ", this.polyVarRefs["completeVariableTypingData"])
+    // console.log("this.polyVarRefs : ", this.polyVarRefs["completeVariableTypingData"])
   }
 
   /**
@@ -310,9 +310,9 @@ export class templateClassTableComponent implements OnInit, OnDestroy {
         this.tableConfig.sortOrder = 'custom';
         this.saveConfiguration();
 
-        console.log(`Moved ${variable.variableName} up.`);
+        // console.log(`Moved ${variable.variableName} up.`);
       } else {
-        console.log(`${variable.variableName} is already at the top.`);
+        // console.log(`${variable.variableName} is already at the top.`);
       }
     } else {
       console.error(`${variable.variableName} not found in shownVars.`);
@@ -337,9 +337,9 @@ export class templateClassTableComponent implements OnInit, OnDestroy {
         this.tableConfig.sortOrder = 'custom';
         this.saveConfiguration();
 
-        console.log(`Moved ${variable.variableName} down.`);
+        // console.log(`Moved ${variable.variableName} down.`);
       } else {
-        console.log(`${variable.variableName} is already at the bottom.`);
+        // console.log(`${variable.variableName} is already at the bottom.`);
       }
     } else {
       console.error(`${variable.variableName} not found in shownVars.`);
@@ -372,7 +372,7 @@ export class templateClassTableComponent implements OnInit, OnDestroy {
       }
 
       this.saveConfiguration();
-      console.log(`Removed ${variable.variableName} from table configuration.`);
+      // console.log(`Removed ${variable.variableName} from table configuration.`);
     } else {
       console.error(`${variable.variableName} not found in shownVars.`);
     }
@@ -392,7 +392,7 @@ export class templateClassTableComponent implements OnInit, OnDestroy {
       }
 
       this.saveConfiguration();
-      console.log(`Added ${variableName} back to table configuration.`);
+      // console.log(`Added ${variableName} back to table configuration.`);
     }
   }
 
@@ -477,9 +477,9 @@ export class templateClassTableComponent implements OnInit, OnDestroy {
       return;
     }
 
-    console.log(`[TemplateClassTable] ========== Loading instance data for: ${this.className} ==========`);
-    console.log(`[TemplateClassTable] Current classTypeData:`, this.classTypeData);
-    console.log(`[TemplateClassTable] classTypeData keys:`, Object.keys(this.classTypeData || {}));
+    // console.log(`[TemplateClassTable] ========== Loading instance data for: ${this.className} ==========`);
+    // console.log(`[TemplateClassTable] Current classTypeData:`, this.classTypeData);
+    // console.log(`[TemplateClassTable] classTypeData keys:`, Object.keys(this.classTypeData || {}));
 
     // Get the CRUDE service for this class
     this.crudeService = this.crudeManager.getCRUDEclassService(this.className);
@@ -488,23 +488,23 @@ export class templateClassTableComponent implements OnInit, OnDestroy {
     this.crudeService.addUtilizer(this.componentId);
     this.crudeManager.incrementUtilizerCounter(this.className);
 
-    console.log(`[TemplateClassTable] Service utilizers for ${this.className}:`, this.crudeService.serviceUtilizers);
+    // console.log(`[TemplateClassTable] Service utilizers for ${this.className}:`, this.crudeService.serviceUtilizers);
 
     // Fetch all instances
     this.crudeService.readAll().subscribe(
       (data: any) => {
-        console.log(`[TemplateClassTable] ===== Raw Response for ${this.className} =====`);
-        console.log(`[TemplateClassTable] Response type:`, typeof data);
-        console.log(`[TemplateClassTable] Is Array:`, Array.isArray(data));
-        console.log(`[TemplateClassTable] Raw data:`, data);
-        console.log(`[TemplateClassTable] JSON.stringify:`, JSON.stringify(data).substring(0, 500));
+        // console.log(`[TemplateClassTable] ===== Raw Response for ${this.className} =====`);
+        // console.log(`[TemplateClassTable] Response type:`, typeof data);
+        // console.log(`[TemplateClassTable] Is Array:`, Array.isArray(data));
+        // console.log(`[TemplateClassTable] Raw data:`, data);
+        // console.log(`[TemplateClassTable] JSON.stringify:`, JSON.stringify(data).substring(0, 500));
 
         if (data) {
-          console.log(`[TemplateClassTable] data keys:`, Object.keys(data));
-          console.log(`[TemplateClassTable] Has "class" property:`, data.hasOwnProperty('class'), 'value:', data.class);
-          console.log(`[TemplateClassTable] Has "data" property:`, data.hasOwnProperty('data'), 'type:', typeof data.data);
+          // console.log(`[TemplateClassTable] data keys:`, Object.keys(data));
+          // console.log(`[TemplateClassTable] Has "class" property:`, data.hasOwnProperty('class'), 'value:', data.class);
+          // console.log(`[TemplateClassTable] Has "data" property:`, data.hasOwnProperty('data'), 'type:', typeof data.data);
           if (data.data) {
-            console.log(`[TemplateClassTable] data.data isArray:`, Array.isArray(data.data), 'length:', data.data?.length);
+            // console.log(`[TemplateClassTable] data.data isArray:`, Array.isArray(data.data), 'length:', data.data?.length);
           }
         }
 
@@ -513,15 +513,15 @@ export class templateClassTableComponent implements OnInit, OnDestroy {
           // Format 1: { class: "className", varsLimited: [], data: [...instances...] }
           // This is the format returned by CRUDE endpoints
           if (data && typeof data === 'object' && !Array.isArray(data) && data.hasOwnProperty('data') && data.hasOwnProperty('class')) {
-            console.log(`[TemplateClassTable] *** Detected Format 1: { class, data } structure ***`);
-            console.log(`[TemplateClassTable] Response class:`, data.class);
-            console.log(`[TemplateClassTable] data.data type:`, typeof data.data);
-            console.log(`[TemplateClassTable] data.data isArray:`, Array.isArray(data.data));
-            console.log(`[TemplateClassTable] data.data length:`, data.data?.length);
+            // console.log(`[TemplateClassTable] *** Detected Format 1: { class, data } structure ***`);
+            // console.log(`[TemplateClassTable] Response class:`, data.class);
+            // console.log(`[TemplateClassTable] data.data type:`, typeof data.data);
+            // console.log(`[TemplateClassTable] data.data isArray:`, Array.isArray(data.data));
+            // console.log(`[TemplateClassTable] data.data length:`, data.data?.length);
 
             if (Array.isArray(data.data)) {
               this.instanceList = data.data;
-              console.log(`[TemplateClassTable] *** SUCCESS: Extracted ${this.instanceList.length} instances from data.data ***`);
+              // console.log(`[TemplateClassTable] *** SUCCESS: Extracted ${this.instanceList.length} instances from data.data ***`);
             } else {
               console.warn(`[TemplateClassTable] data.data is not an array:`, typeof data.data);
               this.instanceList = [];
@@ -529,54 +529,54 @@ export class templateClassTableComponent implements OnInit, OnDestroy {
           }
           // Format 2: [{ className: [...] }] - Legacy format
           else if (Array.isArray(data) && data.length > 0) {
-            console.log(`[TemplateClassTable] Detected Format 2: Array format`);
-            console.log(`[TemplateClassTable] Data[0] keys:`, Object.keys(data[0]));
-            console.log(`[TemplateClassTable] Looking for key: "${this.className}"`);
-            console.log(`[TemplateClassTable] Key exists:`, this.className! in data[0]);
+            // console.log(`[TemplateClassTable] Detected Format 2: Array format`);
+            // console.log(`[TemplateClassTable] Data[0] keys:`, Object.keys(data[0]));
+            // console.log(`[TemplateClassTable] Looking for key: "${this.className}"`);
+            // console.log(`[TemplateClassTable] Key exists:`, this.className! in data[0]);
 
             // Check if this is actually Format 1 wrapped in an array
             if (data.length === 1 && data[0].hasOwnProperty('class') && data[0].hasOwnProperty('data')) {
-              console.log(`[TemplateClassTable] *** Format 1 wrapped in array - unwrapping ***`);
+              // console.log(`[TemplateClassTable] *** Format 1 wrapped in array - unwrapping ***`);
               const unwrapped = data[0];
               if (Array.isArray(unwrapped.data)) {
                 this.instanceList = unwrapped.data;
-                console.log(`[TemplateClassTable] *** SUCCESS: Extracted ${this.instanceList.length} instances from wrapped data ***`);
+                // console.log(`[TemplateClassTable] *** SUCCESS: Extracted ${this.instanceList.length} instances from wrapped data ***`);
               }
             }
             else if (data[0][this.className!]) {
               const classData = data[0][this.className!];
-              console.log(`[TemplateClassTable] classData type:`, typeof classData);
-              console.log(`[TemplateClassTable] classData isArray:`, Array.isArray(classData));
+              // console.log(`[TemplateClassTable] classData type:`, typeof classData);
+              // console.log(`[TemplateClassTable] classData isArray:`, Array.isArray(classData));
 
               // Check if it's an empty object (no data case)
               if (typeof classData === 'object' && !Array.isArray(classData) && Object.keys(classData).length === 0) {
-                console.log(`[TemplateClassTable] Empty object returned for ${this.className}`);
+                // console.log(`[TemplateClassTable] Empty object returned for ${this.className}`);
                 this.instanceList = [];
               } else if (Array.isArray(classData)) {
                 // Check if this is an array of dataSets (each with class, varsLimited, data properties)
                 // Format: [{class: "className", varsLimited: [], data: [...instances...]}]
                 if (classData.length > 0 && classData[0].hasOwnProperty('data') && classData[0].hasOwnProperty('class')) {
-                  console.log(`[TemplateClassTable] Detected array of dataSets`);
+                  // console.log(`[TemplateClassTable] Detected array of dataSets`);
                   // Extract instances from all dataSets
                   this.instanceList = [];
                   classData.forEach((dataSet: any) => {
                     if (Array.isArray(dataSet.data)) {
-                      console.log(`[TemplateClassTable] Extracting ${dataSet.data.length} instances from dataSet`);
+                      // console.log(`[TemplateClassTable] Extracting ${dataSet.data.length} instances from dataSet`);
                       this.instanceList = this.instanceList.concat(dataSet.data);
                     }
                   });
-                  console.log(`[TemplateClassTable] Total extracted instances: ${this.instanceList.length}`);
+                  // console.log(`[TemplateClassTable] Total extracted instances: ${this.instanceList.length}`);
                 } else {
                   // Direct array of instances
-                  console.log(`[TemplateClassTable] Direct array with ${classData.length} items`);
+                  // console.log(`[TemplateClassTable] Direct array with ${classData.length} items`);
                   this.instanceList = classData;
                 }
               } else {
                 // Use dataSetCollection for complex case
-                console.log(`[TemplateClassTable] Using dataSetCollection to parse`);
+                // console.log(`[TemplateClassTable] Using dataSetCollection to parse`);
                 const interpretedData = new DataSetCollection(data);
                 this.instanceList = interpretedData.getClassInstanceList(this.className!);
-                console.log(`[TemplateClassTable] dataSetCollection returned:`, this.instanceList);
+                // console.log(`[TemplateClassTable] dataSetCollection returned:`, this.instanceList);
               }
             } else {
               console.warn(`[TemplateClassTable] Key "${this.className}" not found in data[0]`);
@@ -585,7 +585,7 @@ export class templateClassTableComponent implements OnInit, OnDestroy {
           }
           // Format 3: Direct array of instances
           else if (Array.isArray(data)) {
-            console.log(`[TemplateClassTable] Detected Format 3: Direct array of instances`);
+            // console.log(`[TemplateClassTable] Detected Format 3: Direct array of instances`);
             this.instanceList = data;
           }
           else {
@@ -620,12 +620,12 @@ export class templateClassTableComponent implements OnInit, OnDestroy {
           }
         }
 
-        console.log(`[TemplateClassTable] ===== Final Result =====`);
-        console.log(`[TemplateClassTable] instanceList length:`, this.instanceList.length);
-        console.log(`[TemplateClassTable] instanceList:`, this.instanceList);
+        // console.log(`[TemplateClassTable] ===== Final Result =====`);
+        // console.log(`[TemplateClassTable] instanceList length:`, this.instanceList.length);
+        // console.log(`[TemplateClassTable] instanceList:`, this.instanceList);
         if (this.instanceList.length > 0) {
-          console.log(`[TemplateClassTable] First instance:`, this.instanceList[0]);
-          console.log(`[TemplateClassTable] First instance keys:`, Object.keys(this.instanceList[0] || {}));
+          // console.log(`[TemplateClassTable] First instance:`, this.instanceList[0]);
+          // console.log(`[TemplateClassTable] First instance keys:`, Object.keys(this.instanceList[0] || {}));
         }
       },
       (error: any) => {
@@ -644,7 +644,7 @@ export class templateClassTableComponent implements OnInit, OnDestroy {
   ngOnDestroy() {
     // Clean up service utilizer tracking
     if (this.crudeService && this.className) {
-      console.log(`[TemplateClassTable] Cleaning up service for ${this.className}`);
+      // console.log(`[TemplateClassTable] Cleaning up service for ${this.className}`);
       this.crudeService.removeUtilizer(this.componentId);
       this.crudeManager.decrementUtilizerCounter(this.className);
       this.crudeManager.cleanupUnusedService(this.className);

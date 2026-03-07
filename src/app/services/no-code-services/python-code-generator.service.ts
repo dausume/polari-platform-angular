@@ -207,6 +207,20 @@ export class PythonCodeGeneratorService {
           .replace('{else_body}', 'pass  # Else branch');
         break;
 
+      case 'MathOperation': {
+        const mathOps: { [key: string]: string } = {
+          'add': '+', 'subtract': '-', 'multiply': '*', 'divide': '/', 'modulo': '%'
+        };
+        const leftExpr = this.resolveValueSource(values['leftOperand'], '0');
+        const rightExpr = this.resolveValueSource(values['rightOperand'], '0');
+        const mathOp = mathOps[values['operationType'] || 'add'] || '+';
+        const resultTarget = values['resultTarget'] || 'new_variable';
+        const resultName = resultTarget === 'solution_field'
+          ? (values['resultFieldPath'] ? `self.${values['resultFieldPath']}` : 'result')
+          : (values['resultVariableName'] || 'result');
+        return `${resultName} = ${leftExpr} ${mathOp} ${rightExpr}`;
+      }
+
       case 'VariableAssignment':
         result = result
           .replace('{variable}', values['variableName'] || 'variable')
@@ -530,19 +544,41 @@ export class PythonCodeGeneratorService {
 
     const CONDITION_OPS: { [key: string]: string } = {
       'equals': '==',
+      'notEquals': '!=',
       'not_equals': '!=',
+      'greaterThan': '>',
       'greater_than': '>',
+      'lessThan': '<',
       'less_than': '<',
+      'greaterThanOrEqual': '>=',
       'greater_than_or_equal': '>=',
+      'lessThanOrEqual': '<=',
       'less_than_or_equal': '<=',
       'contains': 'in',
-      'not_contains': 'not in'
+      'notContains': 'not in',
+      'not_contains': 'not in',
+      'startsWith': '.startswith',
+      'endsWith': '.endswith',
+      'isNull': 'is None',
+      'isNotNull': 'is not None',
+      'isTrue': '',
+      'isFalse': 'not',
     };
 
     const parts = links.map((link: any) => {
-      const op = CONDITION_OPS[link.conditionType] || '==';
+      const condType = link.conditionType || 'equals';
+      const op = CONDITION_OPS[condType] || '==';
       const left = this.resolveValueSource(link.leftSource, link.fieldName);
       const right = this.resolveValueSource(link.rightSource, link.conditionValue);
+
+      // Handle special unary/method operators
+      if (condType === 'isNull') return `${left} is None`;
+      if (condType === 'isNotNull') return `${left} is not None`;
+      if (condType === 'isTrue') return `bool(${left})`;
+      if (condType === 'isFalse') return `not bool(${left})`;
+      if (condType === 'startsWith') return `str(${left}).startswith(str(${right}))`;
+      if (condType === 'endsWith') return `str(${left}).endswith(str(${right}))`;
+
       return `${left} ${op} ${right}`;
     });
 
@@ -557,14 +593,21 @@ export class PythonCodeGeneratorService {
     if (!source) return fallback || '...';
 
     switch (source.sourceType) {
-      case 'from_object':
+      case 'from_source_object':
         // e.g., "self.sum_result"
-        return source.objectFieldPath || fallback || '...';
+        return source.sourceObjectPath || fallback || '...';
       case 'from_input':
         // e.g., variable name from input slot
         return source.inputVariableName || fallback || '...';
-      case 'literal':
-        return source.literalValue != null ? String(source.literalValue) : fallback || '...';
+      case 'direct_assignment': {
+        // Literal value with proper Python formatting
+        const val = source.directValue;
+        if (val == null) return fallback || 'None';
+        const valType = source.directValueType || 'str';
+        if (valType === 'str') return `'${val}'`;
+        if (valType === 'bool') return val ? 'True' : 'False';
+        return String(val);
+      }
       default:
         return fallback || '...';
     }

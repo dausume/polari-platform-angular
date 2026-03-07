@@ -784,7 +784,7 @@ export class LogOutput implements OperationStateBase {
 
       // Actual log output
       switch (this.logLevel) {
-        case 'debug': console.debug(message, ...resolvedValues); break;
+        // case 'debug': console.debug(message, ...resolvedValues); break;
         case 'info': console.info(message, ...resolvedValues); break;
         case 'warn': console.warn(message, ...resolvedValues); break;
         case 'error': console.error(message, ...resolvedValues); break;

@@ -71,7 +71,7 @@ export class EditClassDialogComponent implements AfterViewInit {
 
     this.http.put<any>(`${backendUrl}/createClass`, payload).subscribe({
       next: (response) => {
-        console.log('Class updated successfully:', response);
+        // console.log('Class updated successfully:', response);
         this.saveStatus = 'success';
         this.saveMessage = `Class "${this.className}" updated successfully!`;
         // Close dialog after short delay to show success message

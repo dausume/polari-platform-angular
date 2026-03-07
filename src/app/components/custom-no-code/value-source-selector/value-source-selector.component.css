@@ -37,7 +37,8 @@
 }
 
 .flow-step.input-step,
-.flow-step.object-step {
+.flow-step.object-step,
+.flow-step.field-step {
   min-width: 140px;
 }
 

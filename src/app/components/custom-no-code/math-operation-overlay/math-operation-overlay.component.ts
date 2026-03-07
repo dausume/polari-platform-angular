@@ -27,16 +27,6 @@ export interface MathOperationConfig {
   resultVariableName: string;
 }
 
-/**
- * Solution Object field with extended info
- */
-export interface SolutionFieldInfo {
-  name: string;
-  displayName: string;
-  type: string;
-  path: string;
-  description?: string;
-}
 
 /**
  * MathOperationOverlayComponent provides an interface for configuring
@@ -63,8 +53,8 @@ export class MathOperationOverlayComponent implements OnInit, OnDestroy {
   // Available inputs from connected states
   @Input() availableInputs: AvailableInput[] = [];
 
-  // Solution Object fields
-  @Input() solutionObjectFields: SolutionFieldInfo[] = [];
+  // Source Object fields (with "self." prefix paths)
+  @Input() sourceObjectFields: SourceObjectField[] = [];
 
   // Bound field values from the state instance
   @Input() boundObjectFieldValues: { [key: string]: any } | null = null;
@@ -72,6 +62,8 @@ export class MathOperationOverlayComponent implements OnInit, OnDestroy {
   // Events
   @Output() operationChanged = new EventEmitter<MathOperationConfig>();
   @Output() fieldValuesChanged = new EventEmitter<{ [key: string]: any }>();
+  @Output() fullViewRequested = new EventEmitter<{ x: number; y: number; stateName: string }>();
+  @Output() statePageRequested = new EventEmitter<{ stateName: string }>();
 
   // Current operation configuration
   config: MathOperationConfig = {
@@ -99,6 +91,10 @@ export class MathOperationOverlayComponent implements OnInit, OnDestroy {
   // Popup state for value source editing
   activePopup: 'left' | 'right' | null = null;
   popupPosition: { top: number; left: number } = { top: 0, left: 0 };
+
+  // Two-step result field selection state (matches operand "From Object" pattern:
+  // Step 1: select object like "self", Step 2: select field from that object)
+  resultObjectName: string = '';
 
   constructor(private elementRef: ElementRef) {}
 
@@ -149,11 +145,26 @@ export class MathOperationOverlayComponent implements OnInit, OnDestroy {
         };
       }
 
+      if (bofv['resultTarget']) {
+        this.config.resultTarget = bofv['resultTarget'];
+      }
+
       if (bofv['resultFieldPath']) {
-        this.config.resultTarget = 'solution_field';
+        if (!this.config.resultTarget) {
+          this.config.resultTarget = 'solution_field';
+        }
         this.config.resultFieldPath = bofv['resultFieldPath'];
-      } else if (bofv['resultVariableName']) {
-        this.config.resultTarget = 'new_variable';
+        // Extract object name from path (e.g., "self.sum_result" → "self")
+        const dotIdx = this.config.resultFieldPath.indexOf('.');
+        if (dotIdx > 0) {
+          this.resultObjectName = this.config.resultFieldPath.substring(0, dotIdx);
+        }
+      }
+
+      if (bofv['resultVariableName']) {
+        if (!bofv['resultFieldPath'] && !bofv['resultTarget']) {
+          this.config.resultTarget = 'new_variable';
+        }
         this.config.resultVariableName = bofv['resultVariableName'];
       }
     }
@@ -197,7 +208,48 @@ export class MathOperationOverlayComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Handle result field path change
+   * Get unique object names from sourceObjectFields for the result target selector.
+   * e.g., ["self.num_a", "self.num_b"] → ["self"]
+   * Matches the "From Object" pattern in ValueSourceSelector.
+   */
+  getUniqueResultObjectNames(): string[] {
+    const names = new Set<string>();
+    for (const field of this.sourceObjectFields) {
+      const dotIndex = field.path.indexOf('.');
+      if (dotIndex > 0) {
+        names.add(field.path.substring(0, dotIndex));
+      }
+    }
+    return Array.from(names);
+  }
+
+  /**
+   * Get fields belonging to the selected result object (e.g., all "self.*" fields)
+   */
+  getFieldsForResultObject(): SourceObjectField[] {
+    if (!this.resultObjectName) return [];
+    const prefix = this.resultObjectName + '.';
+    return this.sourceObjectFields.filter(f => f.path.startsWith(prefix));
+  }
+
+  /**
+   * Get display name for a field (strip object prefix, e.g., "self.sum_result" → "sum_result")
+   */
+  getFieldDisplayName(field: SourceObjectField): string {
+    return field.displayName || field.path.split('.').slice(1).join('.');
+  }
+
+  /**
+   * Handle result object selection change (Step 1 of two-step result field selection)
+   */
+  onResultObjectChange(objectName: string): void {
+    this.resultObjectName = objectName;
+    // Clear field path when object changes
+    this.config.resultFieldPath = '';
+  }
+
+  /**
+   * Handle result field path change (Step 2 of two-step result field selection)
    */
   onResultFieldChange(fieldPath: string): void {
     this.config.resultFieldPath = fieldPath;
@@ -292,7 +344,7 @@ export class MathOperationOverlayComponent implements OnInit, OnDestroy {
    */
   getResultTargetName(): string {
     if (this.config.resultTarget === 'solution_field') {
-      const field = this.solutionObjectFields.find(f => f.path === this.config.resultFieldPath);
+      const field = this.sourceObjectFields.find(f => f.path === this.config.resultFieldPath);
       return field?.displayName || this.config.resultFieldPath || '(select)';
     }
     return this.config.resultVariableName || '(enter name)';
@@ -307,17 +359,6 @@ export class MathOperationOverlayComponent implements OnInit, OnDestroy {
     const symbol = this.getOperationSymbol();
     const result = this.getResultTargetName();
     return `${result} = ${left} ${symbol} ${right}`;
-  }
-
-  /**
-   * Convert solution fields for value-source-selector
-   */
-  getSourceObjectFieldsForSelector(): SourceObjectField[] {
-    return this.solutionObjectFields.map(f => ({
-      path: f.path,
-      type: f.type,
-      displayName: f.displayName
-    }));
   }
 
   /**
@@ -356,6 +397,16 @@ export class MathOperationOverlayComponent implements OnInit, OnDestroy {
 
   onMouseDown(event: MouseEvent): void {
     event.stopPropagation();
+  }
+
+  onContextMenu(event: MouseEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.fullViewRequested.emit({
+      x: event.clientX,
+      y: event.clientY,
+      stateName: this.stateName
+    });
   }
 
   toggleEditMode(): void {}

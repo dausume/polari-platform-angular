@@ -88,7 +88,7 @@ export class MapsComponent implements OnInit, OnDestroy {
                 }
             }),
             this.tileSourceDefService.allSources$.subscribe(sources => {
-                console.log('[MapsComponent] allSources$ fired, count:', sources.length, sources);
+                // console.log('[MapsComponent] allSources$ fired, count:', sources.length, sources);
                 // Prepend built-in OSM tile source
                 const osmSummary: TileSourceSummary = {
                     id: MapsComponent.OSM_BUILTIN.id,
@@ -99,17 +99,17 @@ export class MapsComponent implements OnInit, OnDestroy {
                 // Load full definitions for map preview
                 this.tileSourceDefinitions = [MapsComponent.OSM_BUILTIN];
                 for (const s of sources) {
-                    console.log('[MapsComponent] Loading full definition for:', s.id, s.name);
+                    // console.log('[MapsComponent] Loading full definition for:', s.id, s.name);
                     this.tileSourceDefService.loadDefinition(s.id).subscribe({
                         next: (def) => {
-                            console.log(`[MapsComponent] Loaded def: id="${def.id}" name="${def.name}" type="${def.type}" tileFormat="${def.tileFormat}" url="${def.url}" sourceLayer="${def.sourceLayer}"`);
+                            // console.log(`[MapsComponent] Loaded def: id="${def.id}" name="${def.name}" type="${def.type}" tileFormat="${def.tileFormat}" url="${def.url}" sourceLayer="${def.sourceLayer}"`);
                             const idx = this.tileSourceDefinitions.findIndex(d => d.id === def.id);
                             if (idx >= 0) {
                                 this.tileSourceDefinitions[idx] = def;
                             } else {
                                 this.tileSourceDefinitions.push(def);
                             }
-                            console.log('[MapsComponent] tileSourceDefinitions now:', this.tileSourceDefinitions.map(d => ({ id: d.id, name: d.name, type: d.type, tileFormat: d.tileFormat, url: d.url })));
+                            // console.log('[MapsComponent] tileSourceDefinitions now:', this.tileSourceDefinitions.map(d => ({ id: d.id, name: d.name, type: d.type, tileFormat: d.tileFormat, url: d.url })));
                         }
                     });
                 }
@@ -316,9 +316,9 @@ export class MapsComponent implements OnInit, OnDestroy {
 
     getSelectedTileSourceConfigs(): TileSourceConfig[] {
         const selectedIds = Array.from(this.selectedTileSourceIds);
-        console.log('[MapsComponent] getSelectedTileSourceConfigs: selectedIds=', selectedIds);
-        console.log('[MapsComponent] layerVisibility=', this.layerVisibility);
-        console.log('[MapsComponent] available definitions:', this.tileSourceDefinitions.map(d => ({ id: d.id, name: d.name })));
+        // console.log('[MapsComponent] getSelectedTileSourceConfigs: selectedIds=', selectedIds);
+        // console.log('[MapsComponent] layerVisibility=', this.layerVisibility);
+        // console.log('[MapsComponent] available definitions:', this.tileSourceDefinitions.map(d => ({ id: d.id, name: d.name })));
 
         const configs = selectedIds
             .filter(id => this.layerVisibility[id] !== false)
@@ -330,20 +330,20 @@ export class MapsComponent implements OnInit, OnDestroy {
             .filter((d): d is TileSourceDefinition => d != null)
             .map(d => {
                 const cfg = d.toTileSourceConfig();
-                console.log(`[MapsComponent] toTileSourceConfig for "${d.name}":`, JSON.stringify(cfg));
+                // console.log(`[MapsComponent] toTileSourceConfig for "${d.name}":`, JSON.stringify(cfg));
                 return cfg;
             });
 
-        console.log('[MapsComponent] Final configs count:', configs.length);
+        // console.log('[MapsComponent] Final configs count:', configs.length);
         return configs;
     }
 
     updateMapPreview(): void {
         const configs = this.getSelectedTileSourceConfigs();
         const backendUrl = this.polariService.getBackendBaseUrl();
-        console.log('[MapsComponent] updateMapPreview: backendUrl=', backendUrl, 'configs count=', configs.length);
+        // console.log('[MapsComponent] updateMapPreview: backendUrl=', backendUrl, 'configs count=', configs.length);
         this.previewStyle = configs.length > 0 ? buildStyleFromMultipleSources(configs, backendUrl) : null;
-        console.log('[MapsComponent] previewStyle=', JSON.stringify(this.previewStyle, null, 2));
+        // console.log('[MapsComponent] previewStyle=', JSON.stringify(this.previewStyle, null, 2));
     }
 
     toggleMapPreview(): void {

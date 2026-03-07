@@ -7,7 +7,8 @@ import {
   PermissionUpdateRequest,
   PermissionUpdateResponse,
   FormatUpdateRequest,
-  FormatUpdateResponse
+  FormatUpdateResponse,
+  WsStatusResponse
 } from '@models/apiConfig';
 
 /**
@@ -54,5 +55,13 @@ export class ApiConfigService {
   updateFormats(request: FormatUpdateRequest): Observable<FormatUpdateResponse> {
     const baseUrl = this.runtimeConfig.getBackendBaseUrl();
     return this.http.put<FormatUpdateResponse>(`${baseUrl}/api-config/formats`, request);
+  }
+
+  /**
+   * Get WebSocket/STOMP server status and per-class WS configuration.
+   */
+  getWsStatus(): Observable<WsStatusResponse> {
+    const baseUrl = this.runtimeConfig.getBackendBaseUrl();
+    return this.http.get<WsStatusResponse>(`${baseUrl}/wsStatus`);
   }
 }

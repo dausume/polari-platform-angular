@@ -14,6 +14,7 @@ export interface InputParamField {
   name: string;
   type: string;
   value: any;
+  displayName?: string;
 }
 
 @Component({
@@ -27,8 +28,13 @@ export class ExecutionPanelComponent implements OnInit, OnDestroy {
   @Input() solutionName: string = '';
   @Input() targetRuntime: TargetRuntime = 'python_backend';
   @Input() inputParamDefinitions: InputParamField[] = [];
+  @Input() instanceFieldDefinitions: InputParamField[] = [];
+  @Input() boundClassName: string = '';
   @Output() closed = new EventEmitter<void>();
   @Output() activeStateChanged = new EventEmitter<string | null>();
+
+  // Tab state
+  activeTab: 'params' | 'fields' = 'params';
 
   // Execution state
   status: ExecutionStatus = 'idle';
@@ -41,6 +47,9 @@ export class ExecutionPanelComponent implements OnInit, OnDestroy {
 
   // Input params form
   inputParams: InputParamField[] = [];
+
+  // Instance fields form
+  instanceFields: InputParamField[] = [];
 
   // Context display
   contextVariables: { name: string; type: string; value: any; changeType?: string }[] = [];
@@ -56,6 +65,14 @@ export class ExecutionPanelComponent implements OnInit, OnDestroy {
       name: p.name,
       type: p.type,
       value: this.getDefaultValue(p.type)
+    }));
+
+    // Initialize instance fields from definitions
+    this.instanceFields = (this.instanceFieldDefinitions || []).map(f => ({
+      name: f.name,
+      type: f.type,
+      value: f.value !== undefined ? f.value : this.getDefaultValue(f.type),
+      displayName: f.displayName
     }));
 
     // Subscribe to execution service state
@@ -110,17 +127,28 @@ export class ExecutionPanelComponent implements OnInit, OnDestroy {
       params[p.name] = this.coerceValue(p.value, p.type);
     }
 
+    const instanceFieldValues: Record<string, any> = {};
+    for (const f of this.instanceFields) {
+      instanceFieldValues[f.name] = this.coerceValue(f.value, f.type);
+    }
+
     this.executionService.startExecution(
       this.solutionName,
       params,
       this.targetRuntime,
-      { mode: 'step', recordContext: true }
+      { mode: 'step', recordContext: true },
+      Object.keys(instanceFieldValues).length > 0 ? instanceFieldValues : undefined
     ).subscribe({
       error: (err: any) => console.error('[ExecutionPanel] Execution failed:', err)
     });
   }
 
   stepForward(): void {
+    if (this.status === 'idle' || this.status === 'completed' || this.status === 'errored') {
+      // Execute first, then pause at step 0 (ready state)
+      this.execute();
+      return;
+    }
     this.executionService.stepForward();
   }
 
@@ -133,6 +161,20 @@ export class ExecutionPanelComponent implements OnInit, OnDestroy {
   }
 
   play(): void {
+    // If idle, execute first then auto-play once trace loads
+    if (this.status === 'idle' || this.status === 'completed' || this.status === 'errored') {
+      this.execute();
+      // Auto-play once the trace loads
+      const sub = this.executionService.executionStatus$.subscribe(s => {
+        if (s === 'ready') {
+          sub.unsubscribe();
+          this.executionService.play();
+        } else if (s === 'errored') {
+          sub.unsubscribe();
+        }
+      });
+      return;
+    }
     this.executionService.play();
   }
 
@@ -156,6 +198,10 @@ export class ExecutionPanelComponent implements OnInit, OnDestroy {
   close(): void {
     this.executionService.stop();
     this.closed.emit();
+  }
+
+  switchTab(tab: 'params' | 'fields'): void {
+    this.activeTab = tab;
   }
 
   discard(): void {
@@ -217,10 +263,13 @@ export class ExecutionPanelComponent implements OnInit, OnDestroy {
   }
 
   get canStep(): boolean {
-    return this.status === 'ready' || this.status === 'paused' || this.status === 'completed';
+    return this.status === 'idle' || this.status === 'ready' || this.status === 'paused'
+      || this.status === 'completed' || this.status === 'errored';
   }
 
   get canPlay(): boolean {
+    // Allow play in idle/errored (will auto-execute first)
+    if (this.status === 'idle' || this.status === 'errored') return true;
     return (this.status === 'ready' || this.status === 'paused' || this.status === 'completed')
       && this.currentStepIndex < this.totalSteps - 1;
   }

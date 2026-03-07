@@ -224,7 +224,7 @@ export class DiamondStateLayer extends D3ModelLayer {
   // --- Rendering Functions ---
 
   render(): void {
-    console.log('=== DiamondStateLayer.render() called ===');
+    // console.log('=== DiamondStateLayer.render() called ===');
     this.initializeLayerGroup();
     this.initializeArrowheadMarker();
     this.initializeConnectorLayer();
@@ -463,7 +463,7 @@ export class DiamondStateLayer extends D3ModelLayer {
   // --- Layer Level Functions ---
 
   initializeLayerGroup(): void {
-    console.log('[DiamondStateLayer.initializeLayerGroup] Starting for layer:', this.layerName);
+    // console.log('[DiamondStateLayer.initializeLayerGroup] Starting for layer:', this.layerName);
 
     // Nest layer group inside the solution layer so cross-layer lookups work
     const solutionLayer = this.getSolutionLayer();
@@ -491,17 +491,17 @@ export class DiamondStateLayer extends D3ModelLayer {
   // --- State-Group Functions ---
 
   initializeStateGroups(): void {
-    console.log('[DiamondStateLayer.initializeStateGroups] Starting...');
+    // console.log('[DiamondStateLayer.initializeStateGroups] Starting...');
 
     if (!this.d3SvgBaseLayer) {
-      console.log('[DiamondStateLayer.initializeStateGroups] ABORT - no d3SvgBaseLayer!');
+      // console.log('[DiamondStateLayer.initializeStateGroups] ABORT - no d3SvgBaseLayer!');
       return;
     }
 
     let layerGroup = this.getLayerGroup();
 
     if (layerGroup.size() === 0) {
-      console.log('[DiamondStateLayer.initializeStateGroups] WARNING: layerGroup is empty!');
+      // console.log('[DiamondStateLayer.initializeStateGroups] WARNING: layerGroup is empty!');
       return;
     }
 

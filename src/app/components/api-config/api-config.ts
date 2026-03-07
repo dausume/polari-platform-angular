@@ -2,6 +2,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { MatDialog } from '@angular/material/dialog';
 import { ApiConfigService } from '@services/api-config.service';
+import { StompService, StompConnectionStatus, StompChangeNotification } from '@services/stomp.service';
 import {
   ApiConfigResponse,
   ApiConfigObject,
@@ -12,7 +13,10 @@ import {
   AccessLevel,
   PermissionUpdateRequest,
   ApiFormatType,
-  FormatUpdateRequest
+  FormatUpdateRequest,
+  WsServerStatus,
+  WsClassConfig,
+  WsStatusResponse
 } from '@models/apiConfig';
 import { ApiConfigDetailDialogComponent, ApiConfigDetailDialogData } from './api-config-detail-dialog';
 
@@ -65,15 +69,36 @@ export class ApiConfigComponent implements OnInit, OnDestroy {
   editingPrefix: { className: string; format: ApiFormatType } | null = null;
   editingPrefixValue: string = '';
 
+  // WebSocket tab state
+  wsServerStatus: WsServerStatus | null = null;
+  wsClassConfigs: { [className: string]: WsClassConfig } = {};
+  wsLoading: boolean = false;
+  wsError: string | null = null;
+  savingWs: boolean = false;
+  stompConnectionStatus: StompConnectionStatus = 'disconnected';
+  wsTestLog: string[] = [];
+  wsTestSubscription: Subscription | null = null;
+  wsTestTopic: string = '';
+
   private subscriptions: Subscription[] = [];
 
-  constructor(private apiConfigService: ApiConfigService, private dialog: MatDialog) {}
+  constructor(
+    private apiConfigService: ApiConfigService,
+    private stompService: StompService,
+    private dialog: MatDialog
+  ) {}
 
   ngOnInit(): void {
     this.loadData();
+    // Track STOMP connection status
+    const stompSub = this.stompService.connectionStatus$.subscribe(status => {
+      this.stompConnectionStatus = status;
+    });
+    this.subscriptions.push(stompSub);
   }
 
   ngOnDestroy(): void {
+    this.stopWsTest();
     this.subscriptions.forEach(sub => sub.unsubscribe());
   }
 
@@ -356,10 +381,6 @@ export class ApiConfigComponent implements OnInit, OnDestroy {
 
   // ===== API Formats Tab Methods =====
 
-  onTabChange(event: any): void {
-    this.activeTab = event.index;
-  }
-
   isFormatEnabled(obj: ApiConfigObject, format: ApiFormatType): boolean {
     return obj.apiFormats?.[format]?.enabled ?? false;
   }
@@ -377,6 +398,7 @@ export class ApiConfigComponent implements OnInit, OnDestroy {
       case 'polariTree': return 'Polari Tree (CRUDE)';
       case 'flatJson': return 'Flat JSON (REST)';
       case 'd3Column': return 'D3 Column Series';
+      case 'geoJson': return 'GeoJSON';
     }
   }
 
@@ -385,6 +407,7 @@ export class ApiConfigComponent implements OnInit, OnDestroy {
       case 'polariTree': return 'account_tree';
       case 'flatJson': return 'data_object';
       case 'd3Column': return 'bar_chart';
+      case 'geoJson': return 'public';
     }
   }
 
@@ -478,5 +501,174 @@ export class ApiConfigComponent implements OnInit, OnDestroy {
       }
     });
     this.subscriptions.push(sub);
+  }
+
+  // ===== WebSocket Notifications Tab Methods =====
+
+  /**
+   * Load WebSocket status from /wsStatus endpoint
+   */
+  loadWsStatus(): void {
+    this.wsLoading = true;
+    this.wsError = null;
+
+    const sub = this.apiConfigService.getWsStatus().subscribe({
+      next: (response: WsStatusResponse) => {
+        this.wsServerStatus = response.server;
+        this.wsClassConfigs = response.classes;
+        this.wsLoading = false;
+      },
+      error: (err) => {
+        console.error('[ApiConfig] Error loading WS status:', err);
+        this.wsError = err.message || 'Failed to load WebSocket status';
+        this.wsLoading = false;
+      }
+    });
+    this.subscriptions.push(sub);
+  }
+
+  /**
+   * Refresh WS status
+   */
+  refreshWsStatus(): void {
+    this.loadWsStatus();
+  }
+
+  /**
+   * Check if a class has WS enabled for a specific format
+   */
+  isWsEnabled(obj: ApiConfigObject, format: ApiFormatType): boolean {
+    return obj.apiFormats?.[format]?.wsEnabled ?? false;
+  }
+
+  /**
+   * Toggle WebSocket notification for a class + format
+   */
+  toggleWsFormat(obj: ApiConfigObject, format: ApiFormatType): void {
+    this.savingWs = true;
+    this.wsError = null;
+
+    const currentEnabled = this.isWsEnabled(obj, format);
+    const request: FormatUpdateRequest = {
+      className: obj.className,
+    };
+
+    // Map format to WS toggle key
+    switch (format) {
+      case 'polariTree': request.polariTreeWs = !currentEnabled; break;
+      case 'flatJson': request.flatJsonWs = !currentEnabled; break;
+      case 'd3Column': request.d3ColumnWs = !currentEnabled; break;
+      case 'geoJson': request.geoJsonWs = !currentEnabled; break;
+    }
+
+    const sub = this.apiConfigService.updateFormats(request).subscribe({
+      next: (response) => {
+        if (response.success) {
+          this.loadData();
+          this.loadWsStatus();
+        } else {
+          this.wsError = response.error || 'Failed to update WS setting';
+        }
+        this.savingWs = false;
+      },
+      error: (err) => {
+        console.error('[ApiConfig] Error toggling WS format:', err);
+        this.wsError = err.error?.error || err.message || 'Failed to update WS setting';
+        this.savingWs = false;
+      }
+    });
+    this.subscriptions.push(sub);
+  }
+
+  /**
+   * Get WS config for a class from the /wsStatus response
+   */
+  getWsClassConfig(className: string): WsClassConfig | null {
+    return this.wsClassConfigs[className] || null;
+  }
+
+  /**
+   * Get active topic count for a class
+   */
+  getActiveTopicCount(className: string): number {
+    const config = this.wsClassConfigs[className];
+    return config?.activeTopics?.length ?? 0;
+  }
+
+  /**
+   * Connect STOMP client
+   */
+  connectStomp(): void {
+    this.stompService.connect();
+  }
+
+  /**
+   * Disconnect STOMP client
+   */
+  disconnectStomp(): void {
+    this.stopWsTest();
+    this.stompService.disconnect();
+  }
+
+  /**
+   * Start a live test subscription on a topic
+   */
+  startWsTest(className: string, formatType?: string): void {
+    this.stopWsTest();
+
+    this.wsTestTopic = formatType
+      ? `/topic/${className}/${formatType}`
+      : `/topic/${className}`;
+    this.wsTestLog = [`Subscribing to ${this.wsTestTopic}...`];
+
+    this.wsTestSubscription = this.stompService.watchChanges(className, formatType).subscribe({
+      next: (notification: StompChangeNotification) => {
+        const timestamp = new Date(notification.timestamp).toLocaleTimeString();
+        const msg = `[${timestamp}] ${notification.operation.toUpperCase()} on ${notification.className}` +
+          (notification.formatType ? ` (${notification.formatType})` : '') +
+          ` - ${notification.instanceIds.length} instance(s)`;
+        this.wsTestLog = [...this.wsTestLog, msg];
+      },
+      error: (err) => {
+        this.wsTestLog = [...this.wsTestLog, `ERROR: ${err.message || err}`];
+      }
+    });
+  }
+
+  /**
+   * Stop the live test subscription
+   */
+  stopWsTest(): void {
+    if (this.wsTestSubscription) {
+      this.wsTestSubscription.unsubscribe();
+      this.wsTestSubscription = null;
+      if (this.wsTestTopic) {
+        this.wsTestLog = [...this.wsTestLog, `Unsubscribed from ${this.wsTestTopic}`];
+      }
+    }
+  }
+
+  /**
+   * Clear the test log
+   */
+  clearWsTestLog(): void {
+    this.wsTestLog = [];
+  }
+
+  /**
+   * Handle tab change — load WS status when switching to WS tab
+   */
+  onTabChange(event: any): void {
+    this.activeTab = event.index;
+    if (event.index === 2) {
+      this.loadWsStatus();
+    }
+  }
+
+  /**
+   * Get classes that have CRUDE registered (candidates for WS notifications)
+   */
+  get wsEligibleObjects(): ApiConfigObject[] {
+    return this.filteredObjects.filter(obj => obj.crudeRegistered);
   }
 }

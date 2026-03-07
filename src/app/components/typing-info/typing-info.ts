@@ -77,7 +77,7 @@ export class TypingInfoComponent implements OnInit, OnDestroy {
 
     this.subscription = service.readAll().subscribe({
       next: (response: any) => {
-        console.log('[TypingInfo] Received response:', response);
+        // console.log('[TypingInfo] Received response:', response);
 
         // API returns array format: [{ "polyTypedObject": { classData } }]
         if (response && response.length > 0) {
