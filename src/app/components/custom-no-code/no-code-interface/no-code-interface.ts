@@ -24,7 +24,7 @@ export class NoCodeInterfaceComponent {
   @Input() //solution: noCodeSolution|undefined;
   set solution(value: NoCodeSolution | undefined) {
     // Log the changes before updating the solution
-    console.log("Solution is being updated:", value);
+    // console.log("Solution is being updated:", value);
 
     // Update the solution
     this._solution = value;
@@ -45,7 +45,7 @@ export class NoCodeInterfaceComponent {
       this.solution = new NoCodeSolution(this.noCodeStateRendererManager, this.interactionStateManager, 500,500,"Sample Solution",[firstState],0);
     } else {
       // Edit mode: Fetch the existing noCodeSolution using this.noCodeSolutionId
-      console.log("Edit mode has not yet been implemented.")
+      // console.log("Edit mode has not yet been implemented.")
       /*
       this.noCodeSolutionService.getSolutionById(this.solutionId).subscribe((solution) => {
         this.noCodeSolution = solution;
@@ -56,13 +56,13 @@ export class NoCodeInterfaceComponent {
 
   ngOnChanges(changes:SimpleChanges) {
     if (changes['solution'] && changes['solution'].currentValue) {
-      console.log('Solution object has changed:', changes['solution'].currentValue);
+      // console.log('Solution object has changed:', changes['solution'].currentValue);
     }
   }
 
   onSaveChanges(updatedSolution: NoCodeSolution) {
     // Log the updated solution to the console
-    console.log('Updated Solution:', updatedSolution);
+    // console.log('Updated Solution:', updatedSolution);
 
     // If you want to update the solution object in your component, uncomment the following line
     this.solution = updatedSolution;

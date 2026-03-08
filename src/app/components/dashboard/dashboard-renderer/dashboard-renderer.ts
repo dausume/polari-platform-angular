@@ -81,7 +81,7 @@ export class DisplayRendererComponent implements OnInit, OnChanges, AfterViewIni
 
     ngOnChanges(changes: SimpleChanges): void {
         if (changes['dashboard']) {
-            console.log('[DisplayRenderer] Display changed:', this.dashboard?.name);
+            // console.log('[DisplayRenderer] Display changed:', this.dashboard?.name);
             this.clearSelection();
         }
         if (changes['editMode'] && !this.editMode) {

@@ -97,7 +97,7 @@ export class PolariConfigComponent implements OnInit, OnDestroy {
     if (!this.backendChangeAllowed) {
       this.ipNumFormControl.disable();
       this.portNumFormControl.disable();
-      console.log('[PolariConfig] Backend changes are disabled by security settings');
+      // console.log('[PolariConfig] Backend changes are disabled by security settings');
     }
 
     // Subscribe to BehaviorSubjects to keep form controls updated

@@ -105,7 +105,7 @@ export class PlotDimensionRenderer {
             const module = await import('@observablehq/plot');
             PlotDimensionRenderer.PlotLib = module as unknown as PlotLibraryInterface;
             PlotDimensionRenderer.plotLibLoaded = true;
-            console.log("[PlotDimensionRenderer] Observable Plot library loaded successfully");
+            // console.log("[PlotDimensionRenderer] Observable Plot library loaded successfully");
             return true;
         } catch (e) {
             console.warn("[PlotDimensionRenderer] Observable Plot library not available:", e);

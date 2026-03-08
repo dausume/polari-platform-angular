@@ -223,7 +223,7 @@ const VECTOR_LAYER_COLORS = ['#e6194b', '#3cb44b', '#4363d8', '#f58231', '#911eb
  * Handles both raster tiles (PNG/JPEG) and vector tiles (PBF from tippecanoe).
  */
 export function buildStyleFromMultipleSources(tileSources: TileSourceConfig[], backendBaseUrl?: string): any {
-    console.log('[buildStyleFromMultipleSources] Called with', tileSources.length, 'sources, backendBaseUrl=', backendBaseUrl);
+    // console.log('[buildStyleFromMultipleSources] Called with', tileSources.length, 'sources, backendBaseUrl=', backendBaseUrl);
     const sources: any = {};
     const layers: any[] = [];
     for (let i = 0; i < tileSources.length; i++) {
@@ -231,7 +231,7 @@ export function buildStyleFromMultipleSources(tileSources: TileSourceConfig[], b
         const slug = src.name.replace(/\s+/g, '-');
         const sourceId = `source-${i}-${slug}`;
         const isVector = src.tileFormat === 'vector';
-        console.log(`[buildStyleFromMultipleSources] [${i}] name="${src.name}" type="${src.type}" tileFormat="${src.tileFormat}" isVector=${isVector} url="${src.url}" sourceLayer="${src.sourceLayer}"`);
+        // console.log(`[buildStyleFromMultipleSources] [${i}] name="${src.name}" type="${src.type}" tileFormat="${src.tileFormat}" isVector=${isVector} url="${src.url}" sourceLayer="${src.sourceLayer}"`);
 
         if (isVector) {
             // Vector tiles from tippecanoe (.mbtiles served by backend)
@@ -240,7 +240,7 @@ export function buildStyleFromMultipleSources(tileSources: TileSourceConfig[], b
             if (tileUrl.startsWith('/') && backendBaseUrl) {
                 tileUrl = backendBaseUrl + tileUrl;
             }
-            console.log(`[buildStyleFromMultipleSources] [${i}] VECTOR: resolved tileUrl="${tileUrl}"`);
+            // console.log(`[buildStyleFromMultipleSources] [${i}] VECTOR: resolved tileUrl="${tileUrl}"`);
             sources[sourceId] = {
                 type: 'vector',
                 tiles: [tileUrl],
@@ -303,7 +303,7 @@ export function buildStyleFromMultipleSources(tileSources: TileSourceConfig[], b
         }
     }
     const result = { version: 8, sources, layers };
-    console.log('[buildStyleFromMultipleSources] Final style:', JSON.stringify(result, null, 2));
+    // console.log('[buildStyleFromMultipleSources] Final style:', JSON.stringify(result, null, 2));
     return result;
 }
 

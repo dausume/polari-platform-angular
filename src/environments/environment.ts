@@ -127,5 +127,5 @@ export const environment = isSuiteMode ? suiteConfig : bareMetalConfig;
 
 // Log the detected mode for debugging
 if (typeof window !== 'undefined') {
-    console.log(`PRF Environment: ${isSuiteMode ? 'Suite (Docker proxy)' : 'Bare metal'} mode detected`);
+    // console.log(`PRF Environment: ${isSuiteMode ? 'Suite (Docker proxy)' : 'Bare metal'} mode detected`);
 } 

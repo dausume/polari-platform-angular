@@ -89,11 +89,11 @@ export class NoCodeSolutionStateService {
    * Backend data is authoritative — it replaces the local cache entirely.
    */
   initializeFromBackend(): void {
-    console.log('[StateService] Attempting to load solutions from backend...');
+    // console.log('[StateService] Attempting to load solutions from backend...');
     this.loadingSubject.next(true);
     this.solutionManager.loadAllSolutions().subscribe({
       next: (solutions: NoCodeSolutionRawData[]) => {
-        console.log('[StateService] Backend returned', solutions.length, 'solutions');
+        // console.log('[StateService] Backend returned', solutions.length, 'solutions');
         this.loadingSubject.next(false);
 
         if (solutions.length > 0) {
@@ -121,10 +121,10 @@ export class NoCodeSolutionStateService {
           this.selectedSolutionNameSubject.next(null);
           this.selectSolution(targetSolution);
 
-          console.log('[StateService] Backend data loaded. Selected:', targetSolution);
+          // console.log('[StateService] Backend data loaded. Selected:', targetSolution);
         } else {
           // Backend returned 0 solutions — seed with mock data
-          console.log('[StateService] Backend empty, seeding with mock data...');
+          // console.log('[StateService] Backend empty, seeding with mock data...');
           this.backendAvailable = true;
           this.seedBackendWithMockData();
         }
@@ -150,7 +150,7 @@ export class NoCodeSolutionStateService {
           if (id) {
             this.backendIdMap.set(solution.solutionName, id);
           }
-          console.log('[StateService] Seeded backend with:', solution.solutionName);
+          // console.log('[StateService] Seeded backend with:', solution.solutionName);
         },
         error: (err: any) => console.warn('[StateService] Failed to seed:', solution.solutionName, err)
       });
@@ -174,7 +174,7 @@ export class NoCodeSolutionStateService {
       const backendId = this.backendIdMap.get(name);
       if (backendId) {
         this.solutionManager.saveSolution(backendId, solution).subscribe({
-          next: () => console.log('[StateService] Saved to backend:', name),
+          // next: () => console.log('[StateService] Saved to backend:', name),
           error: (err: any) => console.warn('[StateService] Backend save failed for:', name, err)
         });
       } else {
@@ -185,7 +185,7 @@ export class NoCodeSolutionStateService {
             if (id) {
               this.backendIdMap.set(name, id);
             }
-            console.log('[StateService] Created on backend:', name);
+            // console.log('[StateService] Created on backend:', name);
           },
           error: (err: any) => console.warn('[StateService] Backend create failed for:', name, err)
         });
@@ -205,7 +205,7 @@ export class NoCodeSolutionStateService {
    */
   private initializeFromCache(): void {
     const cached = this.loadFromLocalStorage();
-    console.log('[StateService] initializeFromCache - cached:', cached);
+    // console.log('[StateService] initializeFromCache - cached:', cached);
 
     // Check cache validity: version must match AND solution names must match exactly
     const expectedSolutionNames = MOCK_SOLUTIONS.map(s => s.solutionName).sort();
@@ -215,10 +215,10 @@ export class NoCodeSolutionStateService {
       expectedSolutionNames.every((name, i) => name === cachedSolutionNames[i]);
 
     if (cached && versionMatch && namesMatch) {
-      console.log('[StateService] Restoring from cache (version', cached.version, ')');
+      // console.log('[StateService] Restoring from cache (version', cached.version, ')');
       // Restore from cache
       Object.entries(cached.solutions).forEach(([name, data]) => {
-        console.log('[StateService] Restoring solution:', name, 'with', data.stateInstances?.length, 'states');
+        // console.log('[StateService] Restoring solution:', name, 'with', data.stateInstances?.length, 'states');
         this.solutionsCache.set(name, data);
       });
 
@@ -227,14 +227,14 @@ export class NoCodeSolutionStateService {
 
       // Restore selected solution
       if (cached.selectedSolutionName && this.solutionsCache.has(cached.selectedSolutionName)) {
-        console.log('[StateService] Restoring selected solution:', cached.selectedSolutionName);
+        // console.log('[StateService] Restoring selected solution:', cached.selectedSolutionName);
         this.selectSolution(cached.selectedSolutionName);
       }
     } else {
-      console.log('[StateService] Cache invalid - version match:', versionMatch,
-        ', names match:', namesMatch,
-        ', expected:', expectedSolutionNames,
-        ', cached:', cachedSolutionNames);
+      // console.log('[StateService] Cache invalid - version match:', versionMatch,
+      //   ', names match:', namesMatch,
+      //   ', expected:', expectedSolutionNames,
+      //   ', cached:', cachedSolutionNames);
       // Initialize with mock data (cache is stale or missing)
       this.loadMockSolutions();
     }
@@ -314,10 +314,10 @@ export class NoCodeSolutionStateService {
    * Select a solution by name
    */
   selectSolution(solutionName: string): void {
-    console.log('[StateService] selectSolution called with:', solutionName);
+    // console.log('[StateService] selectSolution called with:', solutionName);
     const solution = this.solutionsCache.get(solutionName);
-    console.log('[StateService] Found solution:', solution);
-    console.log('[StateService] Solution stateInstances count:', solution?.stateInstances?.length);
+    // console.log('[StateService] Found solution:', solution);
+    // console.log('[StateService] Solution stateInstances count:', solution?.stateInstances?.length);
     if (solution) {
       // IMPORTANT: Update data BEFORE name, because the name subscription
       // triggers component to read the data immediately
@@ -337,6 +337,13 @@ export class NoCodeSolutionStateService {
   }
 
   /**
+   * Get the backend ID for a solution by name
+   */
+  getBackendId(solutionName: string): string | undefined {
+    return this.backendIdMap.get(solutionName);
+  }
+
+  /**
    * Get a solution's raw data by name
    */
   getSolutionData(solutionName: string): NoCodeSolutionRawData | undefined {
@@ -348,6 +355,20 @@ export class NoCodeSolutionStateService {
    */
   getSelectedSolutionData(): NoCodeSolutionRawData | null {
     return this.selectedSolutionDataSubject.value;
+  }
+
+  /**
+   * Replace the full raw data for a solution in the cache and trigger a backend save.
+   * Used by version revert to restore a previous snapshot.
+   */
+  updateSolutionData(solutionName: string, data: NoCodeSolutionRawData): void {
+    this.solutionsCache.set(solutionName, data);
+    this.saveToLocalStorage();
+    this.scheduleBackendSave();
+
+    if (this.selectedSolutionNameSubject.value === solutionName) {
+      this.selectedSolutionDataSubject.next({ ...data });
+    }
   }
 
   /**
@@ -377,15 +398,15 @@ export class NoCodeSolutionStateService {
    * Convert raw slot data to Slot instance
    */
   private convertRawSlotToSlot(raw: SlotRawData): Slot {
-    console.log('[StateService] convertRawSlotToSlot - raw:', raw);
-    console.log('[StateService] convertRawSlotToSlot - raw.connectors:', raw.connectors);
+    // console.log('[StateService] convertRawSlotToSlot - raw:', raw);
+    // console.log('[StateService] convertRawSlotToSlot - raw.connectors:', raw.connectors);
 
     const connectors = raw.connectors?.map(c => {
-      console.log('[StateService] Converting connector:', c);
+      // console.log('[StateService] Converting connector:', c);
       return new Connector(c.id, c.sourceSlot, c.sinkSlot, c.targetStateName);
     }) || [];
 
-    console.log('[StateService] convertRawSlotToSlot - converted connectors:', connectors);
+    // console.log('[StateService] convertRawSlotToSlot - converted connectors:', connectors);
 
     const slot = new Slot(
       raw.index,
@@ -498,30 +519,30 @@ export class NoCodeSolutionStateService {
    */
   getSelectedSolutionStateInstances(): NoCodeState[] {
     const selectedData = this.selectedSolutionDataSubject.value;
-    console.log('[StateService] getSelectedSolutionStateInstances - selectedData:', selectedData?.solutionName);
-    console.log('[StateService] Raw stateInstances count:', selectedData?.stateInstances?.length);
+    // console.log('[StateService] getSelectedSolutionStateInstances - selectedData:', selectedData?.solutionName);
+    // console.log('[StateService] Raw stateInstances count:', selectedData?.stateInstances?.length);
 
     // Debug: Log raw slot connectors
     selectedData?.stateInstances?.forEach(state => {
-      console.log('[StateService] Raw state:', state.stateName, 'slots:', state.slots?.length);
+      // console.log('[StateService] Raw state:', state.stateName, 'slots:', state.slots?.length);
       state.slots?.forEach(slot => {
-        console.log('[StateService] Raw slot:', slot.index, 'connectors:', slot.connectors);
+        // console.log('[StateService] Raw slot:', slot.index, 'connectors:', slot.connectors);
       });
     });
 
     if (!selectedData) {
-      console.log('[StateService] No selected data, returning empty array');
+      // console.log('[StateService] No selected data, returning empty array');
       return [];
     }
     const converted = selectedData.stateInstances.map(raw => this.convertRawStateToNoCodeState(raw));
-    console.log('[StateService] Converted stateInstances count:', converted.length);
-    console.log('[StateService] Converted state names:', converted.map(s => s.stateName));
+    // console.log('[StateService] Converted stateInstances count:', converted.length);
+    // console.log('[StateService] Converted state names:', converted.map(s => s.stateName));
 
     // Debug: Log converted slot connectors
     converted.forEach(state => {
-      console.log('[StateService] Converted state:', state.stateName, 'slots:', state.slots?.length);
+      // console.log('[StateService] Converted state:', state.stateName, 'slots:', state.slots?.length);
       state.slots?.forEach(slot => {
-        console.log('[StateService] Converted slot:', slot.index, 'connectors:', slot.connectors);
+        // console.log('[StateService] Converted slot:', slot.index, 'connectors:', slot.connectors);
       });
     });
 
@@ -852,26 +873,26 @@ export class NoCodeSolutionStateService {
     targetStateName: string,
     targetSlotIndex: number
   ): number | null {
-    console.log('[StateService] addConnector called:', {
-      solutionName,
-      sourceStateName,
-      sourceSlotIndex,
-      targetStateName,
-      targetSlotIndex
-    });
+    // console.log('[StateService] addConnector called:', {
+    //   solutionName,
+    //   sourceStateName,
+    //   sourceSlotIndex,
+    //   targetStateName,
+    //   targetSlotIndex
+    // });
 
     const solution = this.solutionsCache.get(solutionName);
     if (!solution) {
-      console.log('[StateService] addConnector - solution not found');
+      // console.log('[StateService] addConnector - solution not found');
       return null;
     }
 
     const sourceState = solution.stateInstances.find(s => s.stateName === sourceStateName);
-    console.log('[StateService] addConnector - sourceState:', sourceState?.stateName);
+    // console.log('[StateService] addConnector - sourceState:', sourceState?.stateName);
 
     if (sourceState && sourceState.slots) {
       const sourceSlot = sourceState.slots.find(s => s.index === sourceSlotIndex);
-      console.log('[StateService] addConnector - sourceSlot:', sourceSlot);
+      // console.log('[StateService] addConnector - sourceSlot:', sourceSlot);
 
       if (sourceSlot) {
         // Generate a unique connector ID
@@ -882,17 +903,17 @@ export class NoCodeSolutionStateService {
           sinkSlot: targetSlotIndex,
           targetStateName: targetStateName
         });
-        console.log('[StateService] addConnector - connector added:', sourceSlot.connectors);
+        // console.log('[StateService] addConnector - connector added:', sourceSlot.connectors);
         this.solutionsCache.set(solutionName, solution);
         this.saveToLocalStorage();
-        console.log('[StateService] addConnector - saved to localStorage');
+        // console.log('[StateService] addConnector - saved to localStorage');
         if (this.selectedSolutionNameSubject.value === solutionName) {
           this.selectedSolutionDataSubject.next({ ...solution });
         }
         return connectorId;
       }
     }
-    console.log('[StateService] addConnector - failed to add connector');
+    // console.log('[StateService] addConnector - failed to add connector');
     return null;
   }
 

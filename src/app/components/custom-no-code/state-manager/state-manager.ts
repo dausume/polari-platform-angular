@@ -73,7 +73,7 @@ export class StateManagerComponent implements OnInit, AfterViewInit
 
   @HostListener('click', ['$event'])
   onClick(event: MouseEvent) {
-    console.log("Clicked on state-manager page");
+    // console.log("Clicked on state-manager page");
   }
 
   ngOnInit()
@@ -84,7 +84,7 @@ export class StateManagerComponent implements OnInit, AfterViewInit
   }
 
   private createSvgPlot(): void {
-    console.log("Inside createSvg")
+    // console.log("Inside createSvg")
     this.svgPlot = d3.select('#d3-graph')
       .append('svg')
       .attr('viewBox', `0 0 1000 1000`)
@@ -97,12 +97,12 @@ export class StateManagerComponent implements OnInit, AfterViewInit
   }
 
   ngAfterViewInit() {
-    console.log("before drawgraph ngAfterViewInit")
+    // console.log("before drawgraph ngAfterViewInit")
     //this.drawGraph();
     //Old code below
-    console.log("After view init")
+    // console.log("After view init")
     this.changeDetectorRef.markForCheck();
-    console.log("After view init end");
+    // console.log("After view init end");
   }
 
 }

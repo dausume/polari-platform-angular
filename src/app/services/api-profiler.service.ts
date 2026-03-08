@@ -487,7 +487,7 @@ export class ApiProfilerService {
                 this.isLoading$.next(false);
                 if (result.success) {
                     // Refresh polari connection to pick up new class
-                    console.log('[ApiProfilerService] Class created, refreshing connection...');
+                    // console.log('[ApiProfilerService] Class created, refreshing connection...');
                     this.polariService.establishPolariConnection();
                 }
             }),

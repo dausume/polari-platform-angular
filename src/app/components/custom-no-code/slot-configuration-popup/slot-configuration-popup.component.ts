@@ -206,11 +206,11 @@ export class SlotConfigurationPopupComponent implements OnInit, AfterViewInit, O
   }
 
   ngOnInit(): void {
-    console.log('[SlotConfigPopup] ===== INIT =====');
-    console.log('[SlotConfigPopup] configuration:', this.configuration);
-    console.log('[SlotConfigPopup] stateContext:', this.stateContext);
-    console.log('[SlotConfigPopup] stateClass:', this.stateClass);
-    console.log('[SlotConfigPopup] producedVariables:', this.producedVariables);
+    // console.log('[SlotConfigPopup] ===== INIT =====');
+    // console.log('[SlotConfigPopup] configuration:', this.configuration);
+    // console.log('[SlotConfigPopup] stateContext:', this.stateContext);
+    // console.log('[SlotConfigPopup] stateClass:', this.stateClass);
+    // console.log('[SlotConfigPopup] producedVariables:', this.producedVariables);
 
     // Move to document.body to escape any parent stacking contexts
     document.body.appendChild(this.hostElement);
@@ -447,7 +447,7 @@ export class SlotConfigurationPopupComponent implements OnInit, AfterViewInit, O
    */
   hasProducedVariables(): boolean {
     const result = this.producedVariables && this.producedVariables.length > 0;
-    console.log('[SlotConfigPopup] hasProducedVariables:', result, 'producedVariables:', this.producedVariables);
+    // console.log('[SlotConfigPopup] hasProducedVariables:', result, 'producedVariables:', this.producedVariables);
     return result;
   }
 
@@ -469,8 +469,8 @@ export class SlotConfigurationPopupComponent implements OnInit, AfterViewInit, O
    *   based on context. function_return is NOT available for regular states.
    */
   getAvailableOutputModes(): { value: string; label: string; description: string }[] {
-    console.log('[SlotConfigPopup] getAvailableOutputModes called');
-    console.log('[SlotConfigPopup] stateClass:', this.stateClass);
+    // console.log('[SlotConfigPopup] getAvailableOutputModes called');
+    // console.log('[SlotConfigPopup] stateClass:', this.stateClass);
 
     const modes: { value: string; label: string; description: string }[] = [];
 
@@ -528,7 +528,7 @@ export class SlotConfigurationPopupComponent implements OnInit, AfterViewInit, O
       });
     }
 
-    console.log('[SlotConfigPopup] Available modes:', modes.map(m => m.value));
+    // console.log('[SlotConfigPopup] Available modes:', modes.map(m => m.value));
     return modes;
   }
 

@@ -57,7 +57,7 @@ export interface GeneralAccess {
 /**
  * API format types available in the system
  */
-export type ApiFormatType = 'polariTree' | 'flatJson' | 'd3Column';
+export type ApiFormatType = 'polariTree' | 'flatJson' | 'd3Column' | 'geoJson';
 
 /**
  * Configuration for a single API format on an object
@@ -66,6 +66,7 @@ export interface ApiFormatConfigEntry {
   enabled: boolean;
   endpoint: string | null;
   prefix: string | null;
+  wsEnabled: boolean;
   description: string;
 }
 
@@ -76,6 +77,7 @@ export interface ApiFormats {
   polariTree: ApiFormatConfigEntry;
   flatJson: ApiFormatConfigEntry;
   d3Column: ApiFormatConfigEntry;
+  geoJson: ApiFormatConfigEntry;
 }
 
 /**
@@ -188,6 +190,10 @@ export interface FormatUpdateRequest {
   d3Column?: boolean;
   flatJsonPrefix?: string;
   d3ColumnPrefix?: string;
+  polariTreeWs?: boolean;
+  flatJsonWs?: boolean;
+  d3ColumnWs?: boolean;
+  geoJsonWs?: boolean;
 }
 
 /**
@@ -213,4 +219,33 @@ export interface PermissionMatrixRow {
     roles: { groupName: string; crude: CRUDEPermissions }[];
     users: { userId: string; username: string; crude: CRUDEPermissions }[];
   };
+}
+
+/**
+ * Per-class WebSocket configuration from /wsStatus
+ */
+export interface WsClassConfig {
+  polariTreeWs: boolean;
+  flatJsonWs: boolean;
+  d3ColumnWs: boolean;
+  geoJsonWs: boolean;
+  activeTopics: string[];
+}
+
+/**
+ * STOMP server runtime status
+ */
+export interface WsServerStatus {
+  running: boolean;
+  port: number | null;
+  topics: string[];
+  subscribers: number;
+}
+
+/**
+ * Response from GET /wsStatus
+ */
+export interface WsStatusResponse {
+  server: WsServerStatus;
+  classes: { [className: string]: WsClassConfig };
 }

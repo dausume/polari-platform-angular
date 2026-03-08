@@ -61,7 +61,7 @@ export abstract class D3ModelLayer
     componentLayer?: d3.Selection<SVGGElement, unknown, null, undefined>,
   ) 
   {
-    console.log('D3ModelLayer constructor');
+    // console.log('D3ModelLayer constructor');
     this.shapeType = shapeType;
     this.iconSvgName = iconSvgName;
     // the following sections will almost always be loaded through an automated process and are allowed to be undefined
@@ -83,9 +83,9 @@ export abstract class D3ModelLayer
   // Connects the base layer used by the rendering service to perform the rendering
   setD3SvgBaseLayer(d3SvgBaseLayer: d3.Selection<SVGSVGElement, unknown, null, undefined>)
   {
-    console.log("Setting D3 Svg Base Layer on D3ModelLayer");
+    // console.log("Setting D3 Svg Base Layer on D3ModelLayer");
     this.d3SvgBaseLayer = d3SvgBaseLayer;
-    console.log("Update D3 Svg Base Layer on D3ModelLayer : ", this.d3SvgBaseLayer);
+    // console.log("Update D3 Svg Base Layer on D3ModelLayer : ", this.d3SvgBaseLayer);
   }
 
   // Layer names are set only automatically using a combination of the shape type, the no-code-solution name,

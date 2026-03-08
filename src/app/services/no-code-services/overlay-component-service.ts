@@ -22,16 +22,16 @@ export class OverlayComponentService {
   ) {}
 
   addDynamicComponent<T>(component: Type<T>, rect: any, borderPixels: number, hostViewContainerRef: ViewContainerRef) {
-    console.log("Inside Add Dynamic Component");
-    console.log("appRef: ", this.appRef);
-    console.log("View Container Ref : ", hostViewContainerRef);
-    console.log("", component)
+    // console.log("Inside Add Dynamic Component");
+    // console.log("appRef: ", this.appRef);
+    // console.log("View Container Ref : ", hostViewContainerRef);
+    // console.log("", component)
     const { x, y, width, height } = rect;
-    console.log("x, y, width, height : ", x, y, width, height);
+    // console.log("x, y, width, height : ", x, y, width, height);
     const componentRef = hostViewContainerRef.createComponent(component, {
       injector: this.injector
     });
-    console.log("Component Reference : ", componentRef);
+    // console.log("Component Reference : ", componentRef);
 
     // Assuming the component has the inputs width, height, x, y
     // Where x and y correspond to the top left corner of the svg element of this new component
@@ -44,7 +44,7 @@ export class OverlayComponentService {
     this.appRef.attachView(componentRef.hostView);
 
     const domElem = (componentRef.hostView as any).rootNodes[0] as HTMLElement;
-    console.log("domElem: ", domElem);
+    // console.log("domElem: ", domElem);
     document.body.appendChild(domElem);
   }
 }

@@ -93,7 +93,7 @@ export class ClassTypingService {
                 let varTypingDict = {};
                 if(typeObj.className in Object.keys(this.polyTyping))
                 {
-                    console.log("Skipping ", typeObj.className, " typing because it is already recorded.")
+                    // console.log("Skipping ", typeObj.className, " typing because it is already recorded.")
                     //The typing already exists so we check to see if there is any new data to update, and only update if there is.
                     //(For now, only variable data is being retrieved, so nothing to do here yet)
                 }
@@ -102,8 +102,8 @@ export class ClassTypingService {
                     // Initialize the class's variable typing from current polyTypedVarsData
                     // This is now synchronous - we use the current value of the BehaviorSubject
                     const currentVarTypingList = this.polariService.polyTypedVarsData.getValue();
-                    console.log("[ClassTypingService] Processing new class:", typeObj.className);
-                    console.log("[ClassTypingService] Current polyTypedVarsData has", currentVarTypingList?.length || 0, "variables");
+                    // console.log("[ClassTypingService] Processing new class:", typeObj.className);
+                    // console.log("[ClassTypingService] Current polyTypedVarsData has", currentVarTypingList?.length || 0, "variables");
 
                     // Initialize the class's variable typing dict
                     if(!(this.polyVarTyping.hasOwnProperty(typeObj.className))) {
@@ -121,8 +121,8 @@ export class ClassTypingService {
                                 }
                             }
                         });
-                        console.log("[ClassTypingService] Populated", Object.keys(this.polyVarTyping[typeObj.className]).length,
-                                    "variables for", typeObj.className);
+                        // console.log("[ClassTypingService] Populated", Object.keys(this.polyVarTyping[typeObj.className]).length,
+                        //             "variables for", typeObj.className);
                     }
 
                     // Convert camelCase class name to readable display name
@@ -225,7 +225,7 @@ export class ClassTypingService {
                                 this.editableUsedClassNavComponents.sort((a, b) => a.title.localeCompare(b.title));
                                 this.editableUsedClassNavSubject.next([...this.editableUsedClassNavComponents]);
                             }
-                            console.log('[ClassTypingService] Added to USED nav for:', className, 'editable:', isEditable);
+                            // console.log('[ClassTypingService] Added to USED nav for:', className, 'editable:', isEditable);
                         } else {
                             this.unusedClassNavComponents.push(navComp);
                             this.unusedClassNavComponents.sort((a, b) => a.title.localeCompare(b.title));
@@ -237,7 +237,7 @@ export class ClassTypingService {
                                 this.editableUnusedClassNavComponents.sort((a, b) => a.title.localeCompare(b.title));
                                 this.editableUnusedClassNavSubject.next([...this.editableUnusedClassNavComponents]);
                             }
-                            console.log('[ClassTypingService] Added to UNUSED nav for:', className, 'editable:', isEditable);
+                            // console.log('[ClassTypingService] Added to UNUSED nav for:', className, 'editable:', isEditable);
                         }
                     }
 
@@ -252,9 +252,9 @@ export class ClassTypingService {
         //version (regardless if there was an update to that variable or not)
         
         this.varTypingSubscription = this.polariService.polyTypedVarsData.subscribe((varTypingList:any[])=>{
-            console.log("making changes in accordance with new polyTypedVars data");
-            console.log("In varTypingSubscription")
-            console.log(varTypingList);
+            // console.log("making changes in accordance with new polyTypedVars data");
+            // console.log("In varTypingSubscription")
+            // console.log(varTypingList);
             let varObjectName = "";
             let formattedVar : variablePolyTyping;
             let objectHolder : any = {};
@@ -270,14 +270,14 @@ export class ClassTypingService {
                     if(varObjectName == className)
                     {
                         formattedVar = new variablePolyTyping(varObjectName, varTyping.name, varTyping.pythonTypeDefault)
-                        console.log("Existing object keys: ", Object.keys(this.polyVarTyping))
-                        console.log(this.polyVarTyping.hasOwnProperty(varObjectName))
+                        // console.log("Existing object keys: ", Object.keys(this.polyVarTyping))
+                        // console.log(this.polyVarTyping.hasOwnProperty(varObjectName))
                         if(!(this.polyVarTyping.hasOwnProperty(varObjectName)))
                         {
-                            console.log("Initializing Object typing vars for : ", varObjectName)
+                            // console.log("Initializing Object typing vars for : ", varObjectName)
                             this.polyVarTyping[varObjectName] = {}
                         }
-                        console.log("var name: ", varTyping.name, ", class name: ", varObjectName);
+                        // console.log("var name: ", varTyping.name, ", class name: ", varObjectName);
                         objectHolder[varTyping.name] = formattedVar;
                         //console.log("Trying new version")
                         //console.log("current var typing for object ", varObjectName,": ", this.polyVarTyping[varObjectName])
@@ -292,7 +292,7 @@ export class ClassTypingService {
                 });
             });
             this.polyTypingBehaviorSubject.next(this.polyVarTyping);
-            console.log("polyVarTyping at end of: ", this.polyVarTyping);
+            // console.log("polyVarTyping at end of: ", this.polyVarTyping);
         });
     }
 
@@ -373,12 +373,12 @@ export class ClassTypingService {
         this.polariService.connectionSuccessSubject.subscribe(isConnected => {
             if (isConnected) {
                 const url = this.polariService.getBackendBaseUrl() + '/classInstanceCounts';
-                console.log('[ClassTypingService] Fetching class instance counts from:', url);
+                // console.log('[ClassTypingService] Fetching class instance counts from:', url);
 
                 this.http.get<any>(url, this.polariService.backendRequestOptions)
                     .subscribe({
                         next: (response: any) => {
-                            console.log('[ClassTypingService] Class instance counts response:', response);
+                            // console.log('[ClassTypingService] Class instance counts response:', response);
 
                             // Parse response - format: [{"classInstanceCounts": {...}}]
                             let data: any = null;
@@ -392,8 +392,8 @@ export class ClassTypingService {
                                 this.classesWithInstances = data.classesWithInstances || [];
                                 this.classesWithoutInstances = data.classesWithoutInstances || [];
 
-                                console.log('[ClassTypingService] Classes WITH instances:', this.classesWithInstances);
-                                console.log('[ClassTypingService] Classes WITHOUT instances:', this.classesWithoutInstances);
+                                // console.log('[ClassTypingService] Classes WITH instances:', this.classesWithInstances);
+                                // console.log('[ClassTypingService] Classes WITHOUT instances:', this.classesWithoutInstances);
 
                                 // Re-categorize existing nav components based on new data
                                 this.recategorizeNavComponents();
@@ -415,7 +415,7 @@ export class ClassTypingService {
     fetchApiConfigCategories() {
         this.polariService.connectionSuccessSubject.subscribe(isConnected => {
             if (isConnected) {
-                console.log('[ClassTypingService] Fetching API config for object categories...');
+                // console.log('[ClassTypingService] Fetching API config for object categories...');
                 this.apiConfigService.getApiConfig().subscribe({
                     next: (response) => {
                         if (response.success && response.objects) {
@@ -431,8 +431,8 @@ export class ClassTypingService {
                                 }
                                 this.apiConfigCategoryMap.set(obj.className, category);
                             });
-                            console.log('[ClassTypingService] API config categories loaded:',
-                                this.apiConfigCategoryMap.size, 'objects');
+                            // console.log('[ClassTypingService] API config categories loaded:',
+                            //     this.apiConfigCategoryMap.size, 'objects');
 
                             // Re-categorize nav components with the correct categories
                             this.recategorizeNavComponents();
@@ -506,7 +506,7 @@ export class ClassTypingService {
         });
 
         if (removedClasses.length > 0) {
-            console.log('[ClassTypingService] Removed nav components for purged classes:', removedClasses);
+            // console.log('[ClassTypingService] Removed nav components for purged classes:', removedClasses);
             this.polyTypingBehaviorSubject.next(this.polyVarTyping);
         }
 
@@ -522,10 +522,10 @@ export class ClassTypingService {
         this.editableUsedClassNavSubject.next([...this.editableUsedClassNavComponents]);
         this.editableUnusedClassNavSubject.next([...this.editableUnusedClassNavComponents]);
 
-        console.log('[ClassTypingService] Recategorized - Used:', this.dynamicClassNavComponents.length,
-                    'Unused:', this.unusedClassNavComponents.length,
-                    'Editable Used:', this.editableUsedClassNavComponents.length,
-                    'Editable Unused:', this.editableUnusedClassNavComponents.length);
+        // console.log('[ClassTypingService] Recategorized - Used:', this.dynamicClassNavComponents.length,
+        //             'Unused:', this.unusedClassNavComponents.length,
+        //             'Editable Used:', this.editableUsedClassNavComponents.length,
+        //             'Editable Unused:', this.editableUnusedClassNavComponents.length);
     }
 
     /**
@@ -534,7 +534,7 @@ export class ClassTypingService {
      * and class instance counts from the backend.
      */
     refreshAfterModuleChange() {
-        console.log('[ClassTypingService] Refreshing after module change...');
+        // console.log('[ClassTypingService] Refreshing after module change...');
         // Re-fetch object typing and variable typing from the backend
         this.polariService.getObjectTyping();
         // Re-fetch api-config categories and class instance counts

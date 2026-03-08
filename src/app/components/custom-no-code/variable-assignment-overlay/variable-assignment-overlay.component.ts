@@ -367,21 +367,21 @@ export class VariableAssignmentOverlayComponent implements OnInit, OnDestroy {
     if (this.config.targetType === 'new_variable' &&
         this.isVariableNameUnique &&
         this.config.variableName.trim()) {
-      console.log('[VariableAssignment] Emitting newVariableCreated:', {
-        name: this.config.variableName,
-        type: this.config.dataType,
-        stateName: this.stateName
-      });
+      // console.log('[VariableAssignment] Emitting newVariableCreated:', {
+        // name: this.config.variableName,
+        // type: this.config.dataType,
+        // stateName: this.stateName
+      // });
       this.newVariableCreated.emit({
         name: this.config.variableName,
         type: this.config.dataType
       });
     } else {
-      console.log('[VariableAssignment] NOT emitting - conditions not met:', {
-        targetType: this.config.targetType,
-        isVariableNameUnique: this.isVariableNameUnique,
-        variableName: this.config.variableName
-      });
+      // console.log('[VariableAssignment] NOT emitting - conditions not met:', {
+        // targetType: this.config.targetType,
+        // isVariableNameUnique: this.isVariableNameUnique,
+        // variableName: this.config.variableName
+      // });
     }
   }
 

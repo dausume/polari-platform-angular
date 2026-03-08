@@ -77,13 +77,13 @@ export class NoCodeStateRendererManager {
   private d3svgBaseLayerBehaviorSubject: BehaviorSubject<d3.Selection<SVGSVGElement, unknown, null, undefined>|undefined> = new BehaviorSubject<d3.Selection<SVGSVGElement, unknown, null, undefined> | undefined>(undefined);
 
   setD3SvgBaseLayer(d3SvgLayer: any) {
-    console.log("Step 2 - Set the d3 svg base layer in the renderer manager : ", d3SvgLayer);
-    console.log("Setting D3 SVG Layer : ", d3SvgLayer);
+    // console.log("Step 2 - Set the d3 svg base layer in the renderer manager : ", d3SvgLayer);
+    // console.log("Setting D3 SVG Layer : ", d3SvgLayer);
     // Define layer types BEFORE notifying subscribers, so they can look up types
     this.defineDefaultLayerTypes();
     // Now notify subscribers - they can now access the layer type map
     this.d3svgBaseLayerBehaviorSubject.next(d3SvgLayer);
-    console.log("Setting D3 SVG Layer complete");
+    // console.log("Setting D3 SVG Layer complete");
   }
 
   getD3SvgBaseLayer(): d3.Selection<SVGSVGElement, unknown, null, undefined> | undefined {
@@ -96,7 +96,7 @@ export class NoCodeStateRendererManager {
    * @returns A Subscription object to allow unsubscribing when necessary.
    */
    subscribeToD3SvgBaseLayer(callback: (baseLayer: d3.Selection<SVGSVGElement, unknown, null, undefined> | undefined) => void): Subscription {
-    console.log("Current D3 SVG Base Layer : ", this.d3svgBaseLayerBehaviorSubject);
+    // console.log("Current D3 SVG Base Layer : ", this.d3svgBaseLayerBehaviorSubject);
     return this.d3svgBaseLayerBehaviorSubject.subscribe(callback);
   }
 
@@ -105,7 +105,7 @@ export class NoCodeStateRendererManager {
   // match to different shape types so a No-Code-Solution can render its own Layers.
   defineDefaultLayerTypes()
   {
-    console.log("Step 3 - Define Default Layer Types");
+    // console.log("Step 3 - Define Default Layer Types");
     // Define the default D3ModelLayer object for rendering circles.
     this.stateShapeTypeToD3ModelLayerTypeMap.set(
       "circle",
@@ -130,7 +130,7 @@ export class NoCodeStateRendererManager {
   addNoCodeSolution(newNoCodeSolution: NoCodeSolution)
   {
     this.NoCodeSolutionsMap.set(newNoCodeSolution.solutionName, newNoCodeSolution);
-    console.log("Step 5 : No-Code Solution Added on Renderer Manager : ", newNoCodeSolution);
+    // console.log("Step 5 : No-Code Solution Added on Renderer Manager : ", newNoCodeSolution);
   }
 
   /**
@@ -186,7 +186,7 @@ export class NoCodeStateRendererManager {
    */
   renderAllNoCodeSolutions() {
     this.NoCodeSolutionsMap.forEach((noCodeSolution, noCodeSolutionName) => {
-      console.log("Rendering No-Code Solution : ", noCodeSolution);
+      // console.log("Rendering No-Code Solution : ", noCodeSolution);
       noCodeSolution.renderSolution();
     });
   }

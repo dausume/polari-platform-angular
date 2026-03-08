@@ -50,7 +50,7 @@ export class CertificateTrustService {
   }
 
   constructor(private runtimeConfig: RuntimeConfigService) {
-    console.log('[CertificateTrustService] Initialized');
+    // console.log('[CertificateTrustService] Initialized');
   }
 
   /**
@@ -60,7 +60,7 @@ export class CertificateTrustService {
     const shouldShow = this._checkComplete.value &&
                        this._hasUntrustedCerts.value &&
                        !this._dismissed.value;
-    console.log('[CertificateTrustService] updateShowPrompt:', shouldShow);
+    // console.log('[CertificateTrustService] updateShowPrompt:', shouldShow);
     this._showPrompt.next(shouldShow);
   }
 
@@ -69,20 +69,20 @@ export class CertificateTrustService {
    * Call this on app startup
    */
   async checkAllEndpoints(): Promise<void> {
-    console.log('[CertificateTrustService] checkAllEndpoints called');
+    // console.log('[CertificateTrustService] checkAllEndpoints called');
 
     // Get the current backend URL from RuntimeConfigService
     const backendUrl = this.runtimeConfig.getBackendBaseUrl();
     const isUsingHttps = this.runtimeConfig.useHttps$.value;
     const protocol = this.runtimeConfig.backendProtocol$.value;
 
-    console.log('[CertificateTrustService] Backend URL:', backendUrl);
-    console.log('[CertificateTrustService] Using HTTPS:', isUsingHttps);
-    console.log('[CertificateTrustService] Protocol:', protocol);
+    // console.log('[CertificateTrustService] Backend URL:', backendUrl);
+    // console.log('[CertificateTrustService] Using HTTPS:', isUsingHttps);
+    // console.log('[CertificateTrustService] Protocol:', protocol);
 
     // Skip check if not using HTTPS
     if (!isUsingHttps || protocol !== 'https') {
-      console.log('[CertificateTrustService] Skipping - not using HTTPS');
+      // console.log('[CertificateTrustService] Skipping - not using HTTPS');
       this._checkComplete.next(true);
       this.updateShowPrompt();
       return;
@@ -98,13 +98,13 @@ export class CertificateTrustService {
       }
     ];
 
-    console.log('[CertificateTrustService] Checking endpoints:', endpoints.map(e => e.url));
+    // console.log('[CertificateTrustService] Checking endpoints:', endpoints.map(e => e.url));
 
     const results = await Promise.all(
       endpoints.map(endpoint => this.checkEndpoint(endpoint))
     );
 
-    console.log('[CertificateTrustService] Check results:', results);
+    // console.log('[CertificateTrustService] Check results:', results);
 
     this._endpointStatuses.next(results);
     this._checkComplete.next(true);
@@ -117,7 +117,7 @@ export class CertificateTrustService {
         console.warn(`  - ${e.name}: ${e.url} (${e.error})`);
       });
     } else {
-      console.log('[CertificateTrustService] All certificates are trusted.');
+      // console.log('[CertificateTrustService] All certificates are trusted.');
     }
   }
 
@@ -125,7 +125,7 @@ export class CertificateTrustService {
    * Check a single endpoint for certificate trust
    */
   private async checkEndpoint(endpoint: EndpointStatus): Promise<EndpointStatus> {
-    console.log('[CertificateTrustService] Checking endpoint:', endpoint.url);
+    // console.log('[CertificateTrustService] Checking endpoint:', endpoint.url);
 
     try {
       const controller = new AbortController();
@@ -140,14 +140,14 @@ export class CertificateTrustService {
 
       clearTimeout(timeoutId);
 
-      console.log('[CertificateTrustService] Endpoint trusted:', endpoint.url);
+      // console.log('[CertificateTrustService] Endpoint trusted:', endpoint.url);
       return {
         ...endpoint,
         trusted: true,
         checked: true
       };
     } catch (error: any) {
-      console.log('[CertificateTrustService] Endpoint check failed:', endpoint.url, error.message);
+      // console.log('[CertificateTrustService] Endpoint check failed:', endpoint.url, error.message);
       return {
         ...endpoint,
         trusted: false,
@@ -161,7 +161,7 @@ export class CertificateTrustService {
    * Dismiss the certificate trust prompt
    */
   dismiss(): void {
-    console.log('[CertificateTrustService] Dismissed');
+    // console.log('[CertificateTrustService] Dismissed');
     this._dismissed.next(true);
     this.updateShowPrompt();
   }

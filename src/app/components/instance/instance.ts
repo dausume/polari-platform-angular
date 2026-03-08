@@ -35,7 +35,7 @@ export class InstanceComponent {
         //console.log(paramsString)
       },
       err => {
-        console.log(err);
+        // console.log(err);
       }
       )
       .unsubscribe()

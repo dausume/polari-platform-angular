@@ -41,21 +41,30 @@
       </span>
     </div>
 
-    <!-- From Source Object: Property dropdown -->
+    <!--
+      "From Source Object" flow: This is a TWO-STEP DROPDOWN selection, NOT a text input.
+      Step 1: User selects the object name (e.g., "self") from a dropdown of unique object prefixes.
+      Step 2: User selects a specific field (e.g., "num_a") from the fields belonging to that object.
+
+      IMPORTANT: sourceObjectFields MUST be populated by the parent component (via getSourceObjectFieldsForState)
+      for this to render dropdowns. If sourceObjectFields is empty, a text input fallback is shown which is
+      NOT the intended UX for normal use. If you see a text input here, debug why sourceObjectFields is empty
+      rather than treating the text input as correct behavior.
+    -->
+    <!-- From Source Object: Object dropdown (Step 1 - select "self" or other object prefix) -->
     <div class="flow-step object-step" *ngIf="selectedSourceType === 'from_source_object'">
-      <label class="step-label">Property</label>
+      <label class="step-label">Object</label>
       <select class="flow-dropdown object-dropdown"
               *ngIf="sourceObjectFields.length > 0"
-              [disabled]="disabled"
-              [(ngModel)]="selectedObjectPath"
-              (change)="onObjectPathChange(selectedObjectPath)">
+              [disabled]="disabled || getUniqueObjectNames().length === 0"
+              [(ngModel)]="selectedObjectName"
+              (change)="onObjectNameChange(selectedObjectName)">
         <option value="" disabled>Choose...</option>
-        <option *ngFor="let field of sourceObjectFields"
-                [value]="field.path">
-          {{ field.displayName || field.path }} ({{ field.type }})
+        <option *ngFor="let name of getUniqueObjectNames()" [value]="name">
+          {{ name }}
         </option>
       </select>
-      <!-- Manual path input if no predefined fields -->
+      <!-- Fallback text input — only shown when sourceObjectFields is empty (likely a bug if seen in normal use) -->
       <input *ngIf="sourceObjectFields.length === 0"
              type="text"
              class="flow-input object-path-input"
@@ -63,6 +72,21 @@
              [disabled]="disabled"
              [(ngModel)]="selectedObjectPath"
              (input)="onObjectPathChange(selectedObjectPath)">
+    </div>
+
+    <!-- From Source Object: Field dropdown (Step 2 - select specific field from chosen object) -->
+    <div class="flow-step field-step" *ngIf="selectedSourceType === 'from_source_object' && selectedObjectName">
+      <label class="step-label">Field</label>
+      <select class="flow-dropdown field-dropdown"
+              [disabled]="disabled"
+              [(ngModel)]="selectedObjectPath"
+              (change)="onObjectPathChange(selectedObjectPath)">
+        <option value="" disabled>Choose...</option>
+        <option *ngFor="let field of getFieldsForObject(selectedObjectName)"
+                [value]="field.path">
+          {{ getFieldDisplayName(field) }} ({{ field.type }})
+        </option>
+      </select>
     </div>
 
     <!-- Direct Assignment: Type dropdown + Value input -->

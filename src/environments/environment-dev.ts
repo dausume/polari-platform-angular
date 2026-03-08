@@ -32,6 +32,11 @@ export const environment = {
             url: 'localhost',
             port: '2096'  // Cloudflare-compatible HTTPS port
         },
+        ws: {
+            protocol: 'ws',
+            url: 'localhost',
+            port: '3001'
+        },
         // Which protocol to use by default
         preferHttps: false
     },

@@ -32,6 +32,7 @@ import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatTooltipModule } from '@angular/material/tooltip';
 //NgRx
 import { StoreModule } from '@ngrx/store';
 import { EffectsModule } from '@ngrx/effects';
@@ -236,6 +237,7 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     MatSlideToggleModule,
     MatButtonToggleModule,
     MatSnackBarModule,
+    MatTooltipModule,
     // Shared CRUD Module
     SharedCrudModule,
     // Standalone Components (Phase 1)
@@ -360,11 +362,11 @@ export class AppModule {
       }
     });
 
-    console.log('[AppModule] Display components registered');
+    // console.log('[AppModule] Display components registered');
   }
 
   ngOnInit() {
-    console.log("In AppModule ngOnInit");
+    // console.log("In AppModule ngOnInit");
   }
 
   initializeApp() {

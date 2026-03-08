@@ -100,7 +100,7 @@ export class PolariService {
         private http: HttpClient,
         private runtimeConfig: RuntimeConfigService
     ) {
-        console.log("Starting PolariService with tiered configuration");
+        // console.log("Starting PolariService with tiered configuration");
         this.http = http;
 
         // Subscribe to Tier 2/3 configuration from RuntimeConfigService
@@ -110,7 +110,7 @@ export class PolariService {
         // This ensures runtime-config.json values are available
         this.runtimeConfig.isConfigLoaded$.subscribe(loaded => {
             if (loaded) {
-                console.log('[PolariService] RuntimeConfig loaded, initializing...');
+                // console.log('[PolariService] RuntimeConfig loaded, initializing...');
                 // Initialize with current config values
                 this.initializeFromConfig();
 
@@ -181,7 +181,7 @@ export class PolariService {
             "polariAPIs": []
         });
 
-        console.log(`[PolariService] Initialized with backend: ${this.getBackendBaseUrl()}`);
+        // console.log(`[PolariService] Initialized with backend: ${this.getBackendBaseUrl()}`);
     }
 
     /**
@@ -189,6 +189,13 @@ export class PolariService {
      */
     getBackendBaseUrl(): string {
         return this.runtimeConfig.getBackendBaseUrl();
+    }
+
+    /**
+     * Get the WebSocket URL for the STOMP notification server.
+     */
+    getWebSocketUrl(): string {
+        return this.runtimeConfig.getWebSocketUrl();
     }
 
     /**
@@ -245,7 +252,7 @@ export class PolariService {
     //or enabling any components that require data from the server.
     establishPolariConnection(){
         const baseUrl = this.getBackendBaseUrl();
-        console.log("Starting Polari Connection in Polari Service with url: " + baseUrl);
+        // console.log("Starting Polari Connection in Polari Service with url: " + baseUrl);
         this.connectionPendingSubject.next(true);
         this.connectionSuccessSubject.next(false);
         this.connectionFailureSubject.next(false);
@@ -307,14 +314,14 @@ export class PolariService {
         .pipe(
             retryWhen(errors => errors.pipe(
                 tap(err => {
-                    console.log("--Threw Error--");
-                    console.log(err);
+                    // console.log("--Threw Error--");
+                    // console.log(err);
                     //let tempSwitchBoard = this.classDataRetrievedSwitchboard.value;
                     //tempSwitchBoard["polyTypedObject"] = false;
                     //this.classDataRetrievedSwitchboard.next(tempSwitchBoard);
                 }),
                 delayWhen(() => timer(retryInterval)),  // Delay before retrying
-                tap(() => console.log("Retrying getObjectTyping...")),
+                // tap(() => console.log("Retrying getObjectTyping...")),
                 takeUntil(stopRetriesTimer) // Stop retrying after 1 minute
             )),
             catchError(error => {
@@ -335,16 +342,16 @@ export class PolariService {
                 }
                 catch (error)
                 {
-                    console.log("--Caught Error--");
-                    console.log(error);
+                    // console.log("--Caught Error--");
+                    // console.log(error);
                     let tempSwitchBoard = this.classDataRetrievedSwitchboard.value;
                     tempSwitchBoard["polyTypedObject"] = false;
                     this.classDataRetrievedSwitchboard.next(tempSwitchBoard);   
                 }
             },
             error: err =>{
-                console.log("--Threw Error--");
-                console.log(err);
+                // console.log("--Threw Error--");
+                // console.log(err);
                 let tempSwitchBoard = this.classDataRetrievedSwitchboard.value;
                 tempSwitchBoard["polyTypedObject"] = false;
                 this.classDataRetrievedSwitchboard.next(tempSwitchBoard);                  
@@ -368,11 +375,11 @@ export class PolariService {
         .pipe(
             retryWhen(errors => errors.pipe(
                 tap(err => {
-                    console.log("-- Error getting Typing Variables --");
-                    console.log(err);
+                    // console.log("-- Error getting Typing Variables --");
+                    // console.log(err);
                 }),
                 delayWhen(() => timer(retryInterval)),  // Delay before retrying
-                tap(() => console.log("Retrying getTypingVars...")),
+                // tap(() => console.log("Retrying getTypingVars...")),
                 takeUntil(stopRetriesTimer) // Stop retrying
             )),
             catchError(error => {
@@ -382,10 +389,10 @@ export class PolariService {
         )
         .subscribe({
             next: response =>{
-                console.log("vars response: ", response);
+                // console.log("vars response: ", response);
                 let interpretedData = new DataSetCollection(response);
                 let instanceSet = interpretedData.getClassInstanceList("polyTypedVariable");
-                console.log("instance set: ", response);
+                // console.log("instance set: ", response);
                 try {
                     this.polyTypedVarsData.next(instanceSet);
                     let tempSwitchBoard = this.classDataRetrievedSwitchboard.value;
@@ -394,16 +401,16 @@ export class PolariService {
                 }
                 catch (error)
                 {
-                    console.log("--Caught Error--");
-                    console.log(error);
+                    // console.log("--Caught Error--");
+                    // console.log(error);
                     let tempSwitchBoard = this.classDataRetrievedSwitchboard.value;
                     tempSwitchBoard["polyTypedVariable"] = false;
                     this.classDataRetrievedSwitchboard.next(tempSwitchBoard);   
                 }
             },
             error: err =>{
-                console.log("--Threw Error--");
-                console.log(err);
+                // console.log("--Threw Error--");
+                // console.log(err);
                 let tempSwitchBoard = this.classDataRetrievedSwitchboard.value;
                 tempSwitchBoard["polyTypedVariable"] = false;
                 this.classDataRetrievedSwitchboard.next(tempSwitchBoard);                
@@ -426,11 +433,11 @@ export class PolariService {
         .pipe(
             retryWhen(errors => errors.pipe(
                 tap(err => {
-                    console.log("-- Error getting server data--");
-                    console.log(err);
+                    // console.log("-- Error getting server data--");
+                    // console.log(err);
                 }),
                 delayWhen(() => timer(retryInterval)),  // Delay before retrying
-                tap(() => console.log("Retrying getServerData...")),
+                // tap(() => console.log("Retrying getServerData...")),
                 takeUntil(stopRetriesTimer) // Stop retrying
             )),
             catchError(error => {
@@ -450,13 +457,13 @@ export class PolariService {
                 }
                 catch (error)
                 {
-                    console.log("--Caught Error--");
-                    console.log(error);
+                    // console.log("--Caught Error--");
+                    // console.log(error);
                 }
             },
             error: err =>{
-                console.log("--Threw Error--");
-                console.log(err);
+                // console.log("--Threw Error--");
+                // console.log(err);
                 let tempSwitchBoard = this.classDataRetrievedSwitchboard.value;
                 tempSwitchBoard["polariServer"] = false;
                 this.classDataRetrievedSwitchboard.next(tempSwitchBoard);                       
@@ -479,11 +486,11 @@ export class PolariService {
         .pipe(
             retryWhen(errors => errors.pipe(
                 tap(err => {
-                    console.log("--Threw Error--");
-                    console.log(err);
+                    // console.log("--Threw Error--");
+                    // console.log(err);
                 }),
                 delayWhen(() => timer(retryInterval)),  // Delay before retrying
-                tap(() => console.log("Retrying getServerAPIendpoints...")),
+                // tap(() => console.log("Retrying getServerAPIendpoints...")),
                 takeUntil(stopRetriesTimer) // Stop retrying
             )),
             catchError(error => {
@@ -503,13 +510,13 @@ export class PolariService {
                 }
                 catch (error)
                 {
-                    console.log("--Caught Error--");
-                    console.log(error);
+                    // console.log("--Caught Error--");
+                    // console.log(error);
                 }
             },
             error: err =>{
-                console.log("--Threw Error--");
-                console.log(err);
+                // console.log("--Threw Error--");
+                // console.log(err);
                 let tempSwitchBoard = this.classDataRetrievedSwitchboard.value;
                 tempSwitchBoard["polariAPI"] = false;
                 this.classDataRetrievedSwitchboard.next(tempSwitchBoard);              
@@ -532,11 +539,11 @@ export class PolariService {
         .pipe(
             retryWhen(errors => errors.pipe(
                 tap(err => {
-                    console.log("--Threw Error--");
-                    console.log(err);
+                    // console.log("--Threw Error--");
+                    // console.log(err);
                 }),
                 delayWhen(() => timer(retryInterval)),  // Delay before retrying
-                tap(() => console.log("Retrying getServerCRUDEendpoints...")),
+                // tap(() => console.log("Retrying getServerCRUDEendpoints...")),
                 takeUntil(stopRetriesTimer) // Stop retrying
             )),
             catchError(error => {
@@ -556,13 +563,13 @@ export class PolariService {
                 }
                 catch (error)
                 {
-                    console.log("--Caught Error--");
-                    console.log(error);
+                    // console.log("--Caught Error--");
+                    // console.log(error);
                 }
             },
             error: err =>{
-                console.log("--Threw Error--");
-                console.log(err);
+                // console.log("--Threw Error--");
+                // console.log(err);
                 let tempSwitchBoard = this.classDataRetrievedSwitchboard.value;
                 tempSwitchBoard["polariCRUDE"] = false;
                 this.classDataRetrievedSwitchboard.next(tempSwitchBoard);

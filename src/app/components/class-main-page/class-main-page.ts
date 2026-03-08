@@ -200,7 +200,7 @@ export class ClassMainPageComponent implements OnDestroy {
 
           // If className is changing, clean up old service first
           if (this.previousClassName && this.previousClassName !== newClassName) {
-            console.log(`[ClassMainPage] ClassName changing from ${this.previousClassName} to ${newClassName}`);
+            // console.log(`[ClassMainPage] ClassName changing from ${this.previousClassName} to ${newClassName}`);
 
             // Clear old data
             this.classTypeData = undefined;
@@ -238,7 +238,7 @@ export class ClassMainPageComponent implements OnDestroy {
 
           // Initialize CRUDE service for this class
           if (this.className) {
-            console.log(`[ClassMainPage] Getting CRUDE service for: ${this.className}`);
+            // console.log(`[ClassMainPage] Getting CRUDE service for: ${this.className}`);
 
             // Get or create the CRUDE service for this class
             this.crudeService = this.crudeManager.getCRUDEclassService(this.className);
@@ -247,7 +247,7 @@ export class ClassMainPageComponent implements OnDestroy {
             this.crudeService.addUtilizer(this.componentId);
             this.crudeManager.incrementUtilizerCounter(this.className);
 
-            console.log(`[ClassMainPage] Service registered for ${this.className}`);
+            // console.log(`[ClassMainPage] Service registered for ${this.className}`);
 
             // Fetch instance count for metrics
             this.fetchInstanceCount();
@@ -257,20 +257,20 @@ export class ClassMainPageComponent implements OnDestroy {
 
       // Subscribe to typing data
       const typingSub = this.typingService.polyTypingBehaviorSubject.subscribe(polyTyping => {
-        console.log("[ClassMainPage] Typing dict update received");
+        // console.log("[ClassMainPage] Typing dict update received");
 
         if (this.className != undefined) {
           const typingData = polyTyping[this.className];
           if (typingData && Object.keys(typingData).length > 0) {
             this.classTypeData = typingData;
             this.classPolyTypingObj = this.typingService.getClassPolyTyping(this.className!);
-            console.log(`[ClassMainPage] Found typing data for ${this.className}`);
+            // console.log(`[ClassMainPage] Found typing data for ${this.className}`);
 
             // Generate dashboard when we have typing data
             this.generateDisplay();
           } else {
             this.classTypeData = this.classTypeData || {};
-            console.log(`[ClassMainPage] No typing data yet for ${this.className}`);
+            // console.log(`[ClassMainPage] No typing data yet for ${this.className}`);
           }
         }
       });
@@ -327,7 +327,7 @@ export class ClassMainPageComponent implements OnDestroy {
       if (result && this.className) {
         this.displayManager.createDisplay(result.name, result.description, this.className).subscribe({
           next: () => {
-            console.log('[ClassMainPage] Display created successfully');
+            // console.log('[ClassMainPage] Display created successfully');
           },
           error: (err: any) => {
             console.error('[ClassMainPage] Create display failed:', err);
@@ -408,7 +408,7 @@ export class ClassMainPageComponent implements OnDestroy {
     if (!this.selectedDisplay) return;
     this.displayManager.saveDisplay(this.selectedDisplay).subscribe({
       next: () => {
-        console.log('[ClassMainPage] Display saved successfully');
+        // console.log('[ClassMainPage] Display saved successfully');
         this.displayManager.fetchPublishedDisplays();
       },
       error: (err: any) => {
@@ -504,7 +504,7 @@ export class ClassMainPageComponent implements OnDestroy {
       if (result && this.className) {
         this.tableDefService.createConfig(result.name, result.description, this.className).subscribe({
           next: () => {
-            console.log('[ClassMainPage] Table config created successfully');
+            // console.log('[ClassMainPage] Table config created successfully');
           },
           error: (err: any) => {
             console.error('[ClassMainPage] Create table config failed:', err);
@@ -647,7 +647,7 @@ export class ClassMainPageComponent implements OnDestroy {
     if (!this.selectedTableConfig) return;
     this.tableDefService.saveConfig(this.selectedTableConfig).subscribe({
       next: () => {
-        console.log('[ClassMainPage] Table config saved successfully');
+        // console.log('[ClassMainPage] Table config saved successfully');
       },
       error: (err: any) => {
         console.error('[ClassMainPage] Save table config failed:', err);
@@ -698,7 +698,7 @@ export class ClassMainPageComponent implements OnDestroy {
       if (result && this.className) {
         this.graphDefService.createConfig(result.name, result.description, this.className).subscribe({
           next: () => {
-            console.log('[ClassMainPage] Graph config created successfully');
+            // console.log('[ClassMainPage] Graph config created successfully');
           },
           error: (err: any) => {
             console.error('[ClassMainPage] Create graph config failed:', err);
@@ -775,7 +775,7 @@ export class ClassMainPageComponent implements OnDestroy {
     if (!this.selectedGraphConfig) return;
     this.graphDefService.saveConfig(this.selectedGraphConfig).subscribe({
       next: () => {
-        console.log('[ClassMainPage] Graph config saved successfully');
+        // console.log('[ClassMainPage] Graph config saved successfully');
       },
       error: (err: any) => {
         console.error('[ClassMainPage] Save graph config failed:', err);
@@ -826,7 +826,7 @@ export class ClassMainPageComponent implements OnDestroy {
       if (result && this.className) {
         this.geoJsonDefService.createConfig(result.name, result.description, this.className).subscribe({
           next: () => {
-            console.log('[ClassMainPage] GeoJSON config created successfully');
+            // console.log('[ClassMainPage] GeoJSON config created successfully');
           },
           error: (err: any) => {
             console.error('[ClassMainPage] Create GeoJSON config failed:', err);
@@ -904,7 +904,7 @@ export class ClassMainPageComponent implements OnDestroy {
     if (!this.selectedGeoJsonConfig) return;
     this.geoJsonDefService.saveConfig(this.selectedGeoJsonConfig).subscribe({
       next: () => {
-        console.log('[ClassMainPage] GeoJSON config saved successfully');
+        // console.log('[ClassMainPage] GeoJSON config saved successfully');
       },
       error: (err: any) => {
         console.error('[ClassMainPage] Save GeoJSON config failed:', err);
@@ -1256,7 +1256,7 @@ export class ClassMainPageComponent implements OnDestroy {
   private generateDisplay(): void {
     if (!this.className) return;
 
-    console.log(`[ClassMainPage] Generating dashboard for ${this.className}`);
+    // console.log(`[ClassMainPage] Generating dashboard for ${this.className}`);
 
     // Create default dashboard using factory
     this.dashboard = this.dashboardFactory.createDefaultClassDisplay(
@@ -1268,7 +1268,7 @@ export class ClassMainPageComponent implements OnDestroy {
     // Apply any saved configuration
     const config = this.dashboardConfig.loadDisplayConfig(this.dashboard.id);
     if (config) {
-      console.log(`[ClassMainPage] Applying saved dashboard config`);
+      // console.log(`[ClassMainPage] Applying saved dashboard config`);
       this.dashboard = this.dashboardConfig.applyConfig(this.dashboard, config);
     }
   }
@@ -1293,7 +1293,7 @@ export class ClassMainPageComponent implements OnDestroy {
         }
 
         this.instanceCount = count;
-        console.log(`[ClassMainPage] Instance count for ${this.className}: ${count}`);
+        // console.log(`[ClassMainPage] Instance count for ${this.className}: ${count}`);
 
         // Regenerate dashboard with updated count
         if (this.dashboard) {
@@ -1323,7 +1323,7 @@ export class ClassMainPageComponent implements OnDestroy {
 
     // Unregister this component as a utilizer when destroyed
     if (this.crudeService && this.className) {
-      console.log(`[ClassMainPage] Cleaning up service for ${this.className}`);
+      // console.log(`[ClassMainPage] Cleaning up service for ${this.className}`);
       this.crudeService.removeUtilizer(this.componentId);
       this.crudeManager.decrementUtilizerCounter(this.className);
       this.crudeManager.cleanupUnusedService(this.className);

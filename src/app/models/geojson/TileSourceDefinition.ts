@@ -60,7 +60,7 @@ export class TileSourceDefinition {
     }
 
     static fromBackend(backendObj: any): TileSourceDefinition {
-        console.log('[TileSourceDef.fromBackend] raw backendObj:', JSON.stringify(backendObj));
+        // console.log('[TileSourceDef.fromBackend] raw backendObj:', JSON.stringify(backendObj));
         const def = new TileSourceDefinition(
             backendObj.id || '',
             backendObj.name || '',
@@ -73,7 +73,7 @@ export class TileSourceDefinition {
                     ? JSON.parse(backendObj.definition)
                     : backendObj.definition;
 
-                console.log('[TileSourceDef.fromBackend] parsed definition:', JSON.stringify(parsed));
+                // console.log('[TileSourceDef.fromBackend] parsed definition:', JSON.stringify(parsed));
 
                 // The definition's 'type' field may be 'vector'/'raster' (tile format)
                 // while the top-level type is 'tileserver'/'s3-bucket' (source type).
@@ -99,7 +99,7 @@ export class TileSourceDefinition {
             }
         }
 
-        console.log(`[TileSourceDef.fromBackend] result: name="${def.name}" type="${def.type}" tileFormat="${def.tileFormat}" url="${def.url}" sourceLayer="${def.sourceLayer}"`);
+        // console.log(`[TileSourceDef.fromBackend] result: name="${def.name}" type="${def.type}" tileFormat="${def.tileFormat}" url="${def.url}" sourceLayer="${def.sourceLayer}"`);
         return def;
     }
 }

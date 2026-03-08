@@ -97,7 +97,7 @@ export class ClassDataTableComponent implements OnInit, OnChanges {
       this.canEdit = this.classTypingService.canEditInstances(this.className);
       this.canDelete = this.classTypingService.canDeleteInstances(this.className);
 
-      console.log(`[ClassDataTable] Permissions for ${this.className}: create=${this.canCreate}, edit=${this.canEdit}, delete=${this.canDelete}`);
+      // console.log(`[ClassDataTable] Permissions for ${this.className}: create=${this.canCreate}, edit=${this.canEdit}, delete=${this.canDelete}`);
     }
 
     // Named table config takes precedence over legacy tableConfig
@@ -458,15 +458,15 @@ export class ClassDataTableComponent implements OnInit, OnChanges {
     });
 
     dialogRef.afterClosed().subscribe((result: CrudDialogResult) => {
-      console.log('[ClassDataTable] Dialog closed with result:', result);
+      // console.log('[ClassDataTable] Dialog closed with result:', result);
       if (result?.action === 'save' && result.data) {
-        console.log('[ClassDataTable] Adding new instance to table:', result.data);
-        console.log('[ClassDataTable] Instance keys:', Object.keys(result.data));
-        console.log('[ClassDataTable] Current dataSource.data length:', this.dataSource.data.length);
+        // console.log('[ClassDataTable] Adding new instance to table:', result.data);
+        // console.log('[ClassDataTable] Instance keys:', Object.keys(result.data));
+        // console.log('[ClassDataTable] Current dataSource.data length:', this.dataSource.data.length);
         // Add to data source
         this.dataSource.data = [...this.dataSource.data, result.data];
-        console.log('[ClassDataTable] New dataSource.data length:', this.dataSource.data.length);
-        console.log('[ClassDataTable] New dataSource.data:', this.dataSource.data);
+        // console.log('[ClassDataTable] New dataSource.data length:', this.dataSource.data.length);
+        // console.log('[ClassDataTable] New dataSource.data:', this.dataSource.data);
         this.instanceCreated.emit(result.data);
       }
     });

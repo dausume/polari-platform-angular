@@ -97,29 +97,29 @@ export class StateOverlayManager {
     }
 
     // Log the SVG rect's attributes for debugging
-    console.log('[StateOverlayManager] overlay-component rect SVG attributes for', stateName, ':', {
-      x: overlayRect.getAttribute('x'),
-      y: overlayRect.getAttribute('y'),
-      width: overlayRect.getAttribute('width'),
-      height: overlayRect.getAttribute('height'),
-      fill: overlayRect.getAttribute('fill')
-    });
+    // console.log('[StateOverlayManager] overlay-component rect SVG attributes for', stateName, ':', {
+    //   x: overlayRect.getAttribute('x'),
+    //   y: overlayRect.getAttribute('y'),
+    //   width: overlayRect.getAttribute('width'),
+    //   height: overlayRect.getAttribute('height'),
+    //   fill: overlayRect.getAttribute('fill')
+    // });
 
     // Log the state group's transform
     const groupTransform = stateGroup.getAttribute('transform');
-    console.log('[StateOverlayManager] State group transform for', stateName, ':', groupTransform);
+    // console.log('[StateOverlayManager] State group transform for', stateName, ':', groupTransform);
 
     const bounds = overlayRect.getBoundingClientRect();
-    console.log('[StateOverlayManager] getBoundingClientRect for', stateName, ':', {
-      x: bounds.x,
-      y: bounds.y,
-      width: bounds.width,
-      height: bounds.height,
-      left: bounds.left,
-      top: bounds.top,
-      right: bounds.right,
-      bottom: bounds.bottom
-    });
+    // console.log('[StateOverlayManager] getBoundingClientRect for', stateName, ':', {
+    //   x: bounds.x,
+    //   y: bounds.y,
+    //   width: bounds.width,
+    //   height: bounds.height,
+    //   left: bounds.left,
+    //   top: bounds.top,
+    //   right: bounds.right,
+    //   bottom: bounds.bottom
+    // });
 
     // Check for invalid dimensions (can happen if element is hidden or not rendered)
     if (bounds.width === 0 || bounds.height === 0) {
@@ -130,7 +130,7 @@ export class StateOverlayManager {
     // Verify the position is within a reasonable viewport range
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
-    console.log('[StateOverlayManager] Viewport size:', { viewportWidth, viewportHeight });
+    // console.log('[StateOverlayManager] Viewport size:', { viewportWidth, viewportHeight });
 
     if (bounds.x < -1000 || bounds.x > viewportWidth + 1000 ||
         bounds.y < -1000 || bounds.y > viewportHeight + 1000) {
@@ -172,7 +172,7 @@ export class StateOverlayManager {
       return null;
     }
 
-    console.log(`[StateOverlayManager] Creating overlay for ${stateName} at position:`, position);
+    // console.log(`[StateOverlayManager] Creating overlay for ${stateName} at position:`, position);
 
     // Create the component using ViewContainerRef
     const componentRef = this.viewContainerRef.createComponent(component, {
@@ -226,18 +226,18 @@ export class StateOverlayManager {
 
     // Log the final computed styles for debugging
     const computedStyle = window.getComputedStyle(hostElement);
-    console.log(`[StateOverlayManager] Overlay ${stateName} final styles:`, {
-      position: computedStyle.position,
-      left: computedStyle.left,
-      top: computedStyle.top,
-      width: computedStyle.width,
-      height: computedStyle.height,
-      zIndex: computedStyle.zIndex,
-      display: computedStyle.display,
-      visibility: computedStyle.visibility,
-      opacity: computedStyle.opacity,
-      inDOM: document.body.contains(hostElement)
-    });
+    // console.log(`[StateOverlayManager] Overlay ${stateName} final styles:`, {
+    //   position: computedStyle.position,
+    //   left: computedStyle.left,
+    //   top: computedStyle.top,
+    //   width: computedStyle.width,
+    //   height: computedStyle.height,
+    //   zIndex: computedStyle.zIndex,
+    //   display: computedStyle.display,
+    //   visibility: computedStyle.visibility,
+    //   opacity: computedStyle.opacity,
+    //   inDOM: document.body.contains(hostElement)
+    // });
 
     // Track the overlay
     this.activeOverlays.set(stateName, {
@@ -247,7 +247,7 @@ export class StateOverlayManager {
     });
 
     this.overlayCreated$.next(stateName);
-    console.log(`[StateOverlayManager] Created overlay for state: ${stateName}`);
+    // console.log(`[StateOverlayManager] Created overlay for state: ${stateName}`);
 
     return componentRef;
   }
@@ -272,7 +272,7 @@ export class StateOverlayManager {
 
     this.activeOverlays.delete(stateName);
     this.overlayDestroyed$.next(stateName);
-    console.log(`[StateOverlayManager] Destroyed overlay for state: ${stateName}`);
+    // console.log(`[StateOverlayManager] Destroyed overlay for state: ${stateName}`);
   }
 
   /**
@@ -284,7 +284,7 @@ export class StateOverlayManager {
     for (const stateName of stateNames) {
       this.destroyOverlayForState(stateName);
     }
-    console.log('[StateOverlayManager] Destroyed all overlays');
+    // console.log('[StateOverlayManager] Destroyed all overlays');
   }
 
   /**
@@ -479,7 +479,7 @@ export class StateOverlayManager {
     const overlay = this.activeOverlays.get(stateName);
     if (overlay?.hostElement) {
       overlay.hostElement.style.pointerEvents = enabled ? 'auto' : 'none';
-      console.log(`[StateOverlayManager] Set pointer-events to '${enabled ? 'auto' : 'none'}' for: ${stateName}`);
+      // console.log(`[StateOverlayManager] Set pointer-events to '${enabled ? 'auto' : 'none'}' for: ${stateName}`);
     }
   }
 }

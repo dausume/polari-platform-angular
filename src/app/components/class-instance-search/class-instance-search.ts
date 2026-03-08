@@ -29,7 +29,7 @@ export class classInstanceSearchComponent {
         //console.log(paramsString)
       },
       err => {
-        console.log(err);
+        // console.log(err);
       }
       )
       .unsubscribe()

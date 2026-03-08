@@ -418,6 +418,223 @@
         </ng-template>
       </mat-tab>
 
+      <!-- Tab 3: WebSocket Notifications -->
+      <mat-tab label="WebSocket Notifications">
+        <ng-template matTabContent>
+          <div class="ws-tab-content">
+
+            <!-- STOMP Server Status Panel -->
+            <mat-card class="ws-status-card">
+              <div class="ws-status-header">
+                <h3>STOMP Server Status</h3>
+                <button mat-icon-button (click)="refreshWsStatus()" [disabled]="wsLoading" matTooltip="Refresh Status">
+                  <mat-icon>refresh</mat-icon>
+                </button>
+              </div>
+
+              <div *ngIf="wsLoading" class="ws-loading">
+                <mat-spinner diameter="24"></mat-spinner>
+                <span>Loading status...</span>
+              </div>
+
+              <div *ngIf="wsError" class="banner-error-red-with-dismiss">
+                <mat-icon color="warn">error</mat-icon>
+                <span>{{ wsError }}</span>
+                <button mat-icon-button (click)="wsError = null">
+                  <mat-icon>close</mat-icon>
+                </button>
+              </div>
+
+              <div *ngIf="!wsLoading && wsServerStatus" class="ws-status-grid">
+                <div class="ws-status-item">
+                  <span class="ws-status-label">Server</span>
+                  <span class="ws-status-value">
+                    <span class="ws-indicator" [class.ws-running]="wsServerStatus.running" [class.ws-stopped]="!wsServerStatus.running"></span>
+                    {{ wsServerStatus.running ? 'Running' : 'Stopped' }}
+                  </span>
+                </div>
+                <div class="ws-status-item">
+                  <span class="ws-status-label">Port</span>
+                  <span class="ws-status-value">{{ wsServerStatus.port || 'N/A' }}</span>
+                </div>
+                <div class="ws-status-item">
+                  <span class="ws-status-label">Active Topics</span>
+                  <span class="ws-status-value">{{ wsServerStatus.topics.length }}</span>
+                </div>
+                <div class="ws-status-item">
+                  <span class="ws-status-label">Subscribers</span>
+                  <span class="ws-status-value">{{ wsServerStatus.subscribers }}</span>
+                </div>
+              </div>
+
+              <!-- Topic List -->
+              <div *ngIf="!wsLoading && wsServerStatus && wsServerStatus.topics.length > 0" class="ws-topics-list">
+                <h4>Registered Topics</h4>
+                <div class="ws-topic-chips">
+                  <span class="ws-topic-chip" *ngFor="let topic of wsServerStatus.topics">{{ topic }}</span>
+                </div>
+              </div>
+            </mat-card>
+
+            <!-- Per-Class WS Configuration Matrix -->
+            <mat-card class="matrix-card">
+              <h3 class="ws-section-title">Per-Class WebSocket Notifications</h3>
+              <p class="ws-section-desc">Enable real-time change notifications per API format. When a CRUDE operation modifies data, subscribed frontends receive a STOMP message.</p>
+
+              <table mat-table [dataSource]="wsEligibleObjects" class="ws-matrix">
+
+                <!-- Class Name Column -->
+                <ng-container matColumnDef="className">
+                  <th mat-header-cell *matHeaderCellDef>Object</th>
+                  <td mat-cell *matCellDef="let obj">
+                    <span class="class-name">{{ obj.className }}</span>
+                    <div class="ws-topic-count" *ngIf="getActiveTopicCount(obj.className) > 0">
+                      {{ getActiveTopicCount(obj.className) }} active topic(s)
+                    </div>
+                  </td>
+                </ng-container>
+
+                <!-- Polari Tree WS Column -->
+                <ng-container matColumnDef="polariTreeWs">
+                  <th mat-header-cell *matHeaderCellDef class="ws-header">
+                    <mat-icon>account_tree</mat-icon> CRUDE
+                  </th>
+                  <td mat-cell *matCellDef="let obj" class="ws-cell">
+                    <mat-slide-toggle
+                      [checked]="isWsEnabled(obj, 'polariTree')"
+                      [disabled]="savingWs"
+                      (change)="toggleWsFormat(obj, 'polariTree')"
+                      color="accent">
+                    </mat-slide-toggle>
+                  </td>
+                </ng-container>
+
+                <!-- Flat JSON WS Column -->
+                <ng-container matColumnDef="flatJsonWs">
+                  <th mat-header-cell *matHeaderCellDef class="ws-header">
+                    <mat-icon>data_object</mat-icon> Flat JSON
+                  </th>
+                  <td mat-cell *matCellDef="let obj" class="ws-cell">
+                    <mat-slide-toggle
+                      [checked]="isWsEnabled(obj, 'flatJson')"
+                      [disabled]="savingWs || !isFormatEnabled(obj, 'flatJson')"
+                      (change)="toggleWsFormat(obj, 'flatJson')"
+                      color="accent"
+                      [matTooltip]="!isFormatEnabled(obj, 'flatJson') ? 'Enable Flat JSON format first' : ''">
+                    </mat-slide-toggle>
+                  </td>
+                </ng-container>
+
+                <!-- D3 Column WS Column -->
+                <ng-container matColumnDef="d3ColumnWs">
+                  <th mat-header-cell *matHeaderCellDef class="ws-header">
+                    <mat-icon>bar_chart</mat-icon> D3 Column
+                  </th>
+                  <td mat-cell *matCellDef="let obj" class="ws-cell">
+                    <mat-slide-toggle
+                      [checked]="isWsEnabled(obj, 'd3Column')"
+                      [disabled]="savingWs || !isFormatEnabled(obj, 'd3Column')"
+                      (change)="toggleWsFormat(obj, 'd3Column')"
+                      color="accent"
+                      [matTooltip]="!isFormatEnabled(obj, 'd3Column') ? 'Enable D3 Column format first' : ''">
+                    </mat-slide-toggle>
+                  </td>
+                </ng-container>
+
+                <!-- GeoJSON WS Column -->
+                <ng-container matColumnDef="geoJsonWs">
+                  <th mat-header-cell *matHeaderCellDef class="ws-header">
+                    <mat-icon>public</mat-icon> GeoJSON
+                  </th>
+                  <td mat-cell *matCellDef="let obj" class="ws-cell">
+                    <mat-slide-toggle
+                      [checked]="isWsEnabled(obj, 'geoJson')"
+                      [disabled]="savingWs || !isFormatEnabled(obj, 'geoJson')"
+                      (change)="toggleWsFormat(obj, 'geoJson')"
+                      color="accent"
+                      [matTooltip]="!isFormatEnabled(obj, 'geoJson') ? 'Enable GeoJSON format first' : ''">
+                    </mat-slide-toggle>
+                  </td>
+                </ng-container>
+
+                <!-- Test Action Column -->
+                <ng-container matColumnDef="wsActions">
+                  <th mat-header-cell *matHeaderCellDef>Test</th>
+                  <td mat-cell *matCellDef="let obj" class="ws-actions-cell">
+                    <button mat-icon-button
+                            (click)="startWsTest(obj.className)"
+                            [disabled]="stompConnectionStatus !== 'connected'"
+                            [matTooltip]="'Subscribe to /topic/' + obj.className">
+                      <mat-icon>hearing</mat-icon>
+                    </button>
+                  </td>
+                </ng-container>
+
+                <tr mat-header-row *matHeaderRowDef="['className', 'polariTreeWs', 'flatJsonWs', 'd3ColumnWs', 'geoJsonWs', 'wsActions']"></tr>
+                <tr mat-row *matRowDef="let row; columns: ['className', 'polariTreeWs', 'flatJsonWs', 'd3ColumnWs', 'geoJsonWs', 'wsActions'];"></tr>
+              </table>
+
+              <div *ngIf="wsEligibleObjects.length === 0" class="state-no-data-centered">
+                <mat-icon>inbox</mat-icon>
+                <p>No CRUDE-registered objects found</p>
+              </div>
+            </mat-card>
+
+            <!-- Live Connection Test Panel -->
+            <mat-card class="ws-test-card">
+              <div class="ws-test-header">
+                <h3>Live Connection Test</h3>
+                <div class="ws-connection-controls">
+                  <span class="ws-conn-status">
+                    <span class="ws-indicator"
+                          [class.ws-running]="stompConnectionStatus === 'connected'"
+                          [class.ws-connecting]="stompConnectionStatus === 'connecting'"
+                          [class.ws-stopped]="stompConnectionStatus === 'disconnected' || stompConnectionStatus === 'error'">
+                    </span>
+                    {{ stompConnectionStatus | titlecase }}
+                  </span>
+                  <button mat-stroked-button
+                          *ngIf="stompConnectionStatus === 'disconnected' || stompConnectionStatus === 'error'"
+                          (click)="connectStomp()"
+                          color="primary">
+                    <mat-icon>power</mat-icon> Connect
+                  </button>
+                  <button mat-stroked-button
+                          *ngIf="stompConnectionStatus === 'connected' || stompConnectionStatus === 'connecting'"
+                          (click)="disconnectStomp()"
+                          color="warn">
+                    <mat-icon>power_off</mat-icon> Disconnect
+                  </button>
+                </div>
+              </div>
+
+              <div class="ws-test-info" *ngIf="wsTestTopic">
+                Listening on: <span class="text-monospace-endpoint">{{ wsTestTopic }}</span>
+                <button mat-icon-button (click)="stopWsTest()" matTooltip="Stop listening" color="warn">
+                  <mat-icon>stop</mat-icon>
+                </button>
+              </div>
+
+              <div class="ws-test-log">
+                <div class="ws-log-toolbar">
+                  <span class="ws-log-title">Message Log</span>
+                  <button mat-icon-button (click)="clearWsTestLog()" matTooltip="Clear log">
+                    <mat-icon>delete_sweep</mat-icon>
+                  </button>
+                </div>
+                <div class="ws-log-entries">
+                  <div *ngIf="wsTestLog.length === 0" class="ws-log-empty">
+                    No messages yet. Enable WS for a class, connect STOMP, then perform a CRUDE operation.
+                  </div>
+                  <div *ngFor="let entry of wsTestLog" class="ws-log-entry">{{ entry }}</div>
+                </div>
+              </div>
+            </mat-card>
+
+          </div>
+        </ng-template>
+      </mat-tab>
+
     </mat-tab-group>
   </div>
 </div>

@@ -296,7 +296,7 @@ export class CircleStateLayer extends D3ModelLayer {
 
   // Renders the CircleStateLayer by creating a circle for each data point in the dataPoints array.
   render(): void {
-    console.log('=== CircleStateLayer.render() called ===');
+    // console.log('=== CircleStateLayer.render() called ===');
     this.initializeLayerGroup();
     this.initializeArrowheadMarker();
     this.initializeConnectorLayer();
@@ -309,28 +309,28 @@ export class CircleStateLayer extends D3ModelLayer {
    * This restores connector lines that were previously created and saved.
    */
   public renderCachedConnectors(): void {
-    console.log('[renderCachedConnectors] Starting...');
-    console.log('[renderCachedConnectors] noCodeSolution:', this.noCodeSolution?.solutionName);
-    console.log('[renderCachedConnectors] connectorLayer:', this.connectorLayer);
+    // console.log('[renderCachedConnectors] Starting...');
+    // console.log('[renderCachedConnectors] noCodeSolution:', this.noCodeSolution?.solutionName);
+    // console.log('[renderCachedConnectors] connectorLayer:', this.connectorLayer);
 
     if (!this.noCodeSolution || !this.connectorLayer) {
-      console.log('[renderCachedConnectors] Early return - missing noCodeSolution or connectorLayer');
+      // console.log('[renderCachedConnectors] Early return - missing noCodeSolution or connectorLayer');
       return;
     }
 
     // Iterate through all states and their slots to find connectors
     this.noCodeSolution.stateInstances.forEach(sourceState => {
-      console.log('[renderCachedConnectors] Checking state:', sourceState.stateName);
-      console.log('[renderCachedConnectors] State slots:', sourceState.slots);
+      // console.log('[renderCachedConnectors] Checking state:', sourceState.stateName);
+      // console.log('[renderCachedConnectors] State slots:', sourceState.slots);
 
       sourceState.slots?.forEach(slot => {
-        console.log('[renderCachedConnectors] Checking slot:', slot.index, 'connectors:', slot.connectors);
+        // console.log('[renderCachedConnectors] Checking slot:', slot.index, 'connectors:', slot.connectors);
 
         slot.connectors?.forEach(connector => {
-          console.log('[renderCachedConnectors] Found connector:', connector);
+          // console.log('[renderCachedConnectors] Found connector:', connector);
 
           if (!connector.targetStateName) {
-            console.log('[renderCachedConnectors] Skipping connector - no targetStateName');
+            // console.log('[renderCachedConnectors] Skipping connector - no targetStateName');
             return;
           }
 
@@ -568,25 +568,25 @@ export class CircleStateLayer extends D3ModelLayer {
    * Updates the internal slot data from the solution and re-renders the slot markers.
    */
   rerenderState(stateName: string): void {
-    console.log('[CircleStateLayer.rerenderState] ===== CIRCLE RERENDER =====');
-    console.log('[CircleStateLayer.rerenderState] StateName:', stateName);
+    // console.log('[CircleStateLayer.rerenderState] ===== CIRCLE RERENDER =====');
+    // console.log('[CircleStateLayer.rerenderState] StateName:', stateName);
 
     if (!this.noCodeSolution) {
-      console.log('[CircleStateLayer.rerenderState] No solution!');
+      // console.log('[CircleStateLayer.rerenderState] No solution!');
       return;
     }
 
     // Find the state in the solution
     const state = this.noCodeSolution.stateInstances.find(s => s.stateName === stateName);
-    console.log('[CircleStateLayer.rerenderState] Found state:', !!state, 'shapeType:', state?.shapeType);
+    // console.log('[CircleStateLayer.rerenderState] Found state:', !!state, 'shapeType:', state?.shapeType);
     if (!state || state.shapeType !== 'circle') {
-      console.log('[CircleStateLayer.rerenderState] State not found or wrong shape type');
+      // console.log('[CircleStateLayer.rerenderState] State not found or wrong shape type');
       return;
     }
 
-    console.log('[CircleStateLayer.rerenderState] State slots:', state.slots?.length);
+    // console.log('[CircleStateLayer.rerenderState] State slots:', state.slots?.length);
     state.slots?.forEach((s, i) => {
-      console.log(`[CircleStateLayer.rerenderState] Slot ${i}: color=${(s as any).color}, label=${(s as any).label}`);
+      // console.log(`[CircleStateLayer.rerenderState] Slot ${i}: color=${(s as any).color}, label=${(s as any).label}`);
     });
 
     // Update slotDataPoints for this state
@@ -623,22 +623,22 @@ export class CircleStateLayer extends D3ModelLayer {
 
     this.slotDataPoints.push(...newSlotDataPoints);
 
-    console.log('[CircleStateLayer.rerenderState] New slot data points created:', newSlotDataPoints.length);
+    // console.log('[CircleStateLayer.rerenderState] New slot data points created:', newSlotDataPoints.length);
     newSlotDataPoints.forEach((sdp, i) => {
-      console.log(`[CircleStateLayer.rerenderState] New SDP ${i}: color=${sdp.color}, label=${sdp.label}`);
+      // console.log(`[CircleStateLayer.rerenderState] New SDP ${i}: color=${sdp.color}, label=${sdp.label}`);
     });
 
     // Re-render the slot layer (it clears and redraws all slots)
-    console.log('[CircleStateLayer.rerenderState] Calling initializeSlotLayer');
+    // console.log('[CircleStateLayer.rerenderState] Calling initializeSlotLayer');
     this.initializeSlotLayer();
-    console.log('[CircleStateLayer.rerenderState] Done');
+    // console.log('[CircleStateLayer.rerenderState] Done');
   }
 
   // -- Layer Level Functions --
 
   initializeLayerGroup(): void {
-    console.log('[initializeLayerGroup] Starting for layer:', this.layerName);
-    console.log('[initializeLayerGroup] d3SvgBaseLayer:', this.d3SvgBaseLayer?.node());
+    // console.log('[initializeLayerGroup] Starting for layer:', this.layerName);
+    // console.log('[initializeLayerGroup] d3SvgBaseLayer:', this.d3SvgBaseLayer?.node());
 
     // Nest layer group inside the solution layer so cross-layer lookups work
     const solutionLayer = this.getSolutionLayer();
@@ -646,20 +646,20 @@ export class CircleStateLayer extends D3ModelLayer {
       .selectAll(`g.${this.layerName}`)
       .data([null]);
 
-    console.log('[initializeLayerGroup] Existing layer groups found:', layerGroup.size());
+    // console.log('[initializeLayerGroup] Existing layer groups found:', layerGroup.size());
 
     const entered = layerGroup.enter()
       .append('g')
       .classed(`${this.layerName}`, true);
 
-    console.log('[initializeLayerGroup] Entered (newly created) layer groups:', entered.size());
+    // console.log('[initializeLayerGroup] Entered (newly created) layer groups:', entered.size());
 
     entered.merge(layerGroup);
 
     // Verify the layer group was created
     const verifyLayerGroup = solutionLayer.selectAll(`g.${this.layerName}`);
-    console.log('[initializeLayerGroup] After creation, layer groups found:', verifyLayerGroup.size());
-    console.log('[initializeLayerGroup] Layer group node:', verifyLayerGroup.node());
+    // console.log('[initializeLayerGroup] After creation, layer groups found:', verifyLayerGroup.size());
+    // console.log('[initializeLayerGroup] Layer group node:', verifyLayerGroup.node());
   }
 
   // Gets the baseline group for this layer.
@@ -677,38 +677,38 @@ export class CircleStateLayer extends D3ModelLayer {
   // -- State-Group Functions --
 
   initializeStateGroups(): void {
-    console.log('[initializeStateGroups] ========== STARTING ==========');
-    console.log('[initializeStateGroups] d3SvgBaseLayer exists:', !!this.d3SvgBaseLayer);
+    // console.log('[initializeStateGroups] ========== STARTING ==========');
+    // console.log('[initializeStateGroups] d3SvgBaseLayer exists:', !!this.d3SvgBaseLayer);
 
     if (!this.d3SvgBaseLayer) {
-      console.log('[initializeStateGroups] ABORT - no d3SvgBaseLayer!');
+      // console.log('[initializeStateGroups] ABORT - no d3SvgBaseLayer!');
       return;
     }
 
     let layerGroup = this.getLayerGroup();
-    console.log('[initializeStateGroups] layerGroup node:', layerGroup.node());
-    console.log('[initializeStateGroups] layerGroup size:', layerGroup.size());
-    console.log('[initializeStateGroups] stateDataPoints count:', this.stateDataPoints.length);
-    console.log('[initializeStateGroups] stateDataPoints:', this.stateDataPoints.map((d: any) => d.stateName));
+    // console.log('[initializeStateGroups] layerGroup node:', layerGroup.node());
+    // console.log('[initializeStateGroups] layerGroup size:', layerGroup.size());
+    // console.log('[initializeStateGroups] stateDataPoints count:', this.stateDataPoints.length);
+    // console.log('[initializeStateGroups] stateDataPoints:', this.stateDataPoints.map((d: any) => d.stateName));
 
     if (layerGroup.size() === 0) {
-      console.log('[initializeStateGroups] WARNING: layerGroup is empty! State groups cannot be created.');
+      // console.log('[initializeStateGroups] WARNING: layerGroup is empty! State groups cannot be created.');
       return;
     }
 
     // Filter out any null/undefined data points and use defensive key function
     const validDataPoints = this.stateDataPoints.filter((d: any) => d != null);
-    console.log('[initializeStateGroups] Valid data points:', validDataPoints.length);
+    // console.log('[initializeStateGroups] Valid data points:', validDataPoints.length);
 
     let stateGroups = layerGroup
       .selectAll('g.state-group')
       .data(validDataPoints, (datapoint: any) => datapoint?.stateName || "unknown");
 
-    console.log('[initializeStateGroups] Existing stateGroups (update selection) size:', stateGroups.size());
+    // console.log('[initializeStateGroups] Existing stateGroups (update selection) size:', stateGroups.size());
 
     // ENTER: Append new state groups
     const enterSelection = stateGroups.enter();
-    console.log('[initializeStateGroups] Enter selection size (new groups to create):', enterSelection.size());
+    // console.log('[initializeStateGroups] Enter selection size (new groups to create):', enterSelection.size());
 
     const newGroups = enterSelection
       .append('g')
@@ -718,7 +718,7 @@ export class CircleStateLayer extends D3ModelLayer {
       .attr('transform', (datapoint) => `translate(${datapoint.cx}, ${datapoint.cy})`)
       .each((datapoint, index, elements) => {
         let group = d3.select(elements[index]);
-        console.log('[initializeStateGroups] Creating state group for:', datapoint.stateName);
+        // console.log('[initializeStateGroups] Creating state group for:', datapoint.stateName);
 
         // Append the bounding box rectangle
         // Hidden by default - only shown in debug mode, no pointer events
@@ -748,7 +748,7 @@ export class CircleStateLayer extends D3ModelLayer {
               event.stopPropagation();
               const groupElement = elements[index] as SVGGElement;
               const stateName = datapoint.stateName || 'unknown';
-              console.log('[draggable-shape contextmenu] State:', stateName);
+              // console.log('[draggable-shape contextmenu] State:', stateName);
               if (self.onStateContextMenu) {
                 self.onStateContextMenu(event, stateName, groupElement);
               }
@@ -821,7 +821,7 @@ export class CircleStateLayer extends D3ModelLayer {
               event.stopPropagation();
               const groupElement = elements[index] as SVGGElement;
               const stateName = datapoint.stateName || 'unknown';
-              console.log('[overlay-component contextmenu] State:', stateName);
+              // console.log('[overlay-component contextmenu] State:', stateName);
               if (self.onStateContextMenu) {
                 self.onStateContextMenu(event, stateName, groupElement);
               }
@@ -840,8 +840,8 @@ export class CircleStateLayer extends D3ModelLayer {
             .style('opacity', 0);
       });
 
-    console.log('[initializeStateGroups] New groups created:', newGroups.size());
-    console.log('[initializeStateGroups] Attaching drag behavior to new groups...');
+    // console.log('[initializeStateGroups] New groups created:', newGroups.size());
+    // console.log('[initializeStateGroups] Attaching drag behavior to new groups...');
 
     // Add mousedown listener to stop propagation BEFORE zoom behavior intercepts it
     // This ensures drag events reach the drag handler instead of being blocked by zoom filter
@@ -849,32 +849,32 @@ export class CircleStateLayer extends D3ModelLayer {
       const stateName = this.getAttribute('state-name');
       const target = event.target as Element;
       const datum = d3.select(this).datum();
-      console.log('[preventZoom] State group:', stateName, '| Target:', target?.tagName, target?.getAttribute('class'), '| Datum:', datum);
+      // console.log('[preventZoom] State group:', stateName, '| Target:', target?.tagName, target?.getAttribute('class'), '| Datum:', datum);
       event.stopPropagation();
     });
 
     // Attach drag behavior to new groups
     newGroups.call(this.createDragStateBehavior());
-    console.log('[initializeStateGroups] Drag behavior attached to new groups!');
+    // console.log('[initializeStateGroups] Drag behavior attached to new groups!');
 
     // Merge enter and update selections
     const allGroups = newGroups.merge(stateGroups);
-    console.log('[initializeStateGroups] allGroups size:', allGroups.size());
+    // console.log('[initializeStateGroups] allGroups size:', allGroups.size());
 
     // CRITICAL: Ensure data is properly bound to ALL groups (fixes data loss issue on navigation)
     // The D3 data join can fail when existing elements have null data, causing key function issues
     allGroups.each((d: CircleStateDataPoint | null, i: number, nodes: ArrayLike<SVGGElement>) => {
       const element = nodes[i];
       const stateName = element.getAttribute('state-name');
-      console.log('[initializeStateGroups] Rebind check:', stateName, '| d:', d, '| d type:', typeof d);
+      // console.log('[initializeStateGroups] Rebind check:', stateName, '| d:', d, '| d type:', typeof d);
 
       // If datum is missing or null, rebind it from the data points array
       if (!d) {
         const dataPoint = validDataPoints.find((dp: CircleStateDataPoint) => dp.stateName === stateName);
-        console.log('[initializeStateGroups] Found dataPoint for', stateName, ':', dataPoint?.stateName);
+        // console.log('[initializeStateGroups] Found dataPoint for', stateName, ':', dataPoint?.stateName);
         if (dataPoint) {
           d3.select(element).datum(dataPoint);
-          console.log('[initializeStateGroups] Rebound data for:', stateName);
+          // console.log('[initializeStateGroups] Rebound data for:', stateName);
         } else {
           console.warn('[initializeStateGroups] WARNING: No data found for:', stateName);
         }
@@ -883,17 +883,17 @@ export class CircleStateLayer extends D3ModelLayer {
 
     // Ensure drag behavior is attached to ALL groups (including update selection)
     allGroups.call(this.createDragStateBehavior());
-    console.log('[initializeStateGroups] Drag behavior attached to all groups!');
+    // console.log('[initializeStateGroups] Drag behavior attached to all groups!');
 
     // EXIT: Remove state groups that no longer exist in data
     const exitSelection = stateGroups.exit();
-    console.log('[initializeStateGroups] Exit selection size (groups to remove):', exitSelection.size());
+    // console.log('[initializeStateGroups] Exit selection size (groups to remove):', exitSelection.size());
     exitSelection.remove();
 
     // Verify final state
     const finalGroups = layerGroup.selectAll('g.state-group');
-    console.log('[initializeStateGroups] Final state groups in DOM:', finalGroups.size());
-    console.log('[initializeStateGroups] ========== COMPLETE ==========');
+    // console.log('[initializeStateGroups] Final state groups in DOM:', finalGroups.size());
+    // console.log('[initializeStateGroups] ========== COMPLETE ==========');
   }
 
   getStateGroups(): d3.Selection<SVGGElement, unknown, null, undefined> {
@@ -927,7 +927,7 @@ export class CircleStateLayer extends D3ModelLayer {
             update => update // No additional updates for now
         );
     
-        console.log("Circle selection before enter():", circles);
+        // console.log("Circle selection before enter():", circles);
     
         // ENTER: Append new circles **inside the group**
         
@@ -935,26 +935,26 @@ export class CircleStateLayer extends D3ModelLayer {
         .append('g')
         .classed('state-group', true)
         .attr('cx', (datapoint) => {
-          console.log(`Creating state-group in '${this.noCodeSolution?.solutionName}' at X:`, datapoint.cx);
+          // console.log(`Creating state-group in '${this.noCodeSolution?.solutionName}' at X:`, datapoint.cx);
           return datapoint.cx;
         })
         .attr('cy', (datapoint) => {
-          console.log(`Creating state-group in '${this.noCodeSolution?.solutionName}' at Y:`, datapoint.cy);
+          // console.log(`Creating state-group in '${this.noCodeSolution?.solutionName}' at Y:`, datapoint.cy);
           return datapoint.cy;
         })
         .attr('r', (datapoint) => {
-          console.log("State-group radius:", datapoint.radius);
+          // console.log("State-group radius:", datapoint.radius);
           return datapoint.radius || 10;
         })
         .attr('state-name', (datapoint) => {
-          console.log("State-group color:", datapoint.stateName);
+          // console.log("State-group color:", datapoint.stateName);
           return datapoint.color || "blue";
         })
         .call(this.createDragStateBehavior()) // Apply drag behavior
         .merge(circles); // Merge enter and update selections
         
     
-        console.log("New circles added:", newCircles.size());
+        // console.log("New circles added:", newCircles.size());
     
         // UPDATE: Modify existing circles in the correct group
         newCircles
@@ -963,11 +963,11 @@ export class CircleStateLayer extends D3ModelLayer {
         .attr('r', (datapoint) => datapoint.radius)
         .attr('fill', (datapoint) => datapoint.color);
         
-        console.log("created circles:", circles);
+        // console.log("created circles:", circles);
     
         // EXIT: Remove circles that no longer exist in data
         circles.exit().remove();
-        console.log("CircleStateLayer render complete.");
+        // console.log("CircleStateLayer render complete.");
     
       }
   }*/
@@ -1067,7 +1067,7 @@ export class CircleStateLayer extends D3ModelLayer {
             const stateName = datapoint.stateName || 'unknown';
             const slotIndex = slotData.index;
             const isInput = slotData.isInput;
-            console.log('[slot-marker contextmenu] State:', stateName, 'Slot:', slotIndex, 'isInput:', isInput);
+            // console.log('[slot-marker contextmenu] State:', stateName, 'Slot:', slotIndex, 'isInput:', isInput);
             // Trigger the slot context menu callback if set
             if (self.onSlotContextMenu) {
               self.onSlotContextMenu(event, stateName, slotIndex, isInput);
@@ -1141,7 +1141,7 @@ export class CircleStateLayer extends D3ModelLayer {
     // Query ALL state groups in the solution layer (not just this layer's groups)
     // This enables cross-shape collision detection between circles and rectangles
     const solutionLayer = this.getSolutionLayer();
-    console.log('[getAllStateBoundingBoxes] Solution layer:', solutionLayer.node(), 'State groups found:', solutionLayer.selectAll('g.state-group').size());
+    // console.log('[getAllStateBoundingBoxes] Solution layer:', solutionLayer.node(), 'State groups found:', solutionLayer.selectAll('g.state-group').size());
     solutionLayer.selectAll('g.state-group').each(function(this: Element, d: any) {
       const group = d3.select(this as SVGGElement);
       const stateName = group.attr('state-name') || 'unknown';
@@ -1176,7 +1176,7 @@ export class CircleStateLayer extends D3ModelLayer {
       });
     });
 
-    console.log('[getAllStateBoundingBoxes] Found bounding boxes:', boundingBoxes);
+    // console.log('[getAllStateBoundingBoxes] Found bounding boxes:', boundingBoxes);
     return boundingBoxes;
   }
 
@@ -1793,7 +1793,7 @@ export class CircleStateLayer extends D3ModelLayer {
           if (groupElement) {
             const stateName = groupElement.getAttribute('state-name');
             const dataPoint = self.stateDataPoints.find((dp: CircleStateDataPoint) => dp.stateName === stateName);
-            console.log('[drag subject] Datum missing, looked up:', stateName, '| Found:', !!dataPoint);
+            // console.log('[drag subject] Datum missing, looked up:', stateName, '| Found:', !!dataPoint);
             if (dataPoint) {
               // Rebind the datum for future use
               d3.select(groupElement).datum(dataPoint);
@@ -1801,7 +1801,7 @@ export class CircleStateLayer extends D3ModelLayer {
             }
           }
         }
-        console.log('[drag subject] d:', d, '| stateName:', d?.stateName);
+        // console.log('[drag subject] d:', d, '| stateName:', d?.stateName);
         return d;
       })
       .on('start', (event, d) => this.onDragStateStart(event, d))
@@ -1818,23 +1818,23 @@ export class CircleStateLayer extends D3ModelLayer {
     const groupElement: SVGGElement | null = targetElement?.closest('g.state-group');
     const group = d3.select(groupElement);
 
-    console.log('[onDragStateStart] d3SvgBaseLayer:', this.d3SvgBaseLayer?.node());
-    console.log('[onDragStateStart] d3SvgBaseLayer tagName:', this.d3SvgBaseLayer?.node()?.tagName);
-    console.log('[onDragStateStart] targetElement:', targetElement);
-    console.log('[onDragStateStart] targetElement tagName:', targetElement?.tagName);
-    console.log('[onDragStateStart] targetElement class:', targetElement?.getAttribute('class'));
-    console.log('[onDragStateStart] groupElement found:', groupElement);
-    console.log('[onDragStateStart] groupElement class:', groupElement?.getAttribute('class'));
-    console.log('[onDragStateStart] groupElement state-name:', groupElement?.getAttribute('state-name'));
-    console.log('[onDragStateStart] groupElement parent:', groupElement?.parentElement);
-    console.log('[onDragStateStart] groupElement parent class:', groupElement?.parentElement?.getAttribute('class'));
+    // console.log('[onDragStateStart] d3SvgBaseLayer:', this.d3SvgBaseLayer?.node());
+    // console.log('[onDragStateStart] d3SvgBaseLayer tagName:', this.d3SvgBaseLayer?.node()?.tagName);
+    // console.log('[onDragStateStart] targetElement:', targetElement);
+    // console.log('[onDragStateStart] targetElement tagName:', targetElement?.tagName);
+    // console.log('[onDragStateStart] targetElement class:', targetElement?.getAttribute('class'));
+    // console.log('[onDragStateStart] groupElement found:', groupElement);
+    // console.log('[onDragStateStart] groupElement class:', groupElement?.getAttribute('class'));
+    // console.log('[onDragStateStart] groupElement state-name:', groupElement?.getAttribute('state-name'));
+    // console.log('[onDragStateStart] groupElement parent:', groupElement?.parentElement);
+    // console.log('[onDragStateStart] groupElement parent class:', groupElement?.parentElement?.getAttribute('class'));
 
     // Log all state groups in the layer to verify structure
     const allStateGroups = this.getStateGroups();
-    console.log('[onDragStateStart] Total state groups found:', allStateGroups.size());
+    // console.log('[onDragStateStart] Total state groups found:', allStateGroups.size());
     allStateGroups.each(function(this: Element, d: any, i: number) {
       const el = this as SVGGElement;
-      console.log(`[onDragStateStart] State group ${i}:`, el.getAttribute('state-name'), 'class:', el.getAttribute('class'), 'transform:', el.getAttribute('transform'));
+      // console.log(`[onDragStateStart] State group ${i}:`, el.getAttribute('state-name'), 'class:', el.getAttribute('class'), 'transform:', el.getAttribute('transform'));
     });
 
     this.currentDragElement = targetElement;
@@ -1928,15 +1928,15 @@ export class CircleStateLayer extends D3ModelLayer {
     const group = d3.select(groupElement);
     const interactionState = this.interactionStateService.getCurrentState();
 
-    console.log('[onDragState] interactionState:', interactionState);
-    console.log('[onDragState] groupElement:', groupElement);
-    console.log('[onDragState] groupElement tagName:', groupElement?.tagName);
-    console.log('[onDragState] groupElement className:', groupElement?.getAttribute('class'));
-    console.log('[onDragState] groupElement parent:', groupElement?.parentElement);
-    console.log('[onDragState] groupElement parent class:', groupElement?.parentElement?.getAttribute('class'));
-    console.log('[onDragState] group.node() === groupElement:', group.node() === groupElement);
-    console.log('[onDragState] group.size():', group.size());
-    console.log('[onDragState] group state-name:', group.attr('state-name'));
+    // console.log('[onDragState] interactionState:', interactionState);
+    // console.log('[onDragState] groupElement:', groupElement);
+    // console.log('[onDragState] groupElement tagName:', groupElement?.tagName);
+    // console.log('[onDragState] groupElement className:', groupElement?.getAttribute('class'));
+    // console.log('[onDragState] groupElement parent:', groupElement?.parentElement);
+    // console.log('[onDragState] groupElement parent class:', groupElement?.parentElement?.getAttribute('class'));
+    // console.log('[onDragState] group.node() === groupElement:', group.node() === groupElement);
+    // console.log('[onDragState] group.size():', group.size());
+    // console.log('[onDragState] group state-name:', group.attr('state-name'));
 
     if (interactionState === 'slot-drag') {
       event.sourceEvent.stopPropagation();
@@ -1994,10 +1994,10 @@ export class CircleStateLayer extends D3ModelLayer {
       const currentGroupY = matchGroup ? parseFloat(matchGroup[2]) : 0;
 
       const newTransform = `translate(${currentGroupX + event.dx}, ${currentGroupY + event.dy})`;
-      console.log('[onDragState:state-drag] current transform:', currentGroupTransform);
-      console.log('[onDragState:state-drag] event.dx:', event.dx, 'event.dy:', event.dy);
-      console.log('[onDragState:state-drag] new transform:', newTransform);
-      console.log('[onDragState:state-drag] applying to element:', group.node());
+      // console.log('[onDragState:state-drag] current transform:', currentGroupTransform);
+      // console.log('[onDragState:state-drag] event.dx:', event.dx, 'event.dy:', event.dy);
+      // console.log('[onDragState:state-drag] new transform:', newTransform);
+      // console.log('[onDragState:state-drag] applying to element:', group.node());
 
       group.attr('transform', newTransform);
     }
@@ -2221,7 +2221,7 @@ export class CircleStateLayer extends D3ModelLayer {
 
     if (interactionState === 'state-drag') {
       const draggedGroupElement = this.currentGroupElement;
-      console.log('[CircleStateLayer drag end] draggedGroupElement:', !!draggedGroupElement, 'originalStatePosition:', this.originalStatePosition);
+      // console.log('[CircleStateLayer drag end] draggedGroupElement:', !!draggedGroupElement, 'originalStatePosition:', this.originalStatePosition);
       if (draggedGroupElement && this.originalStatePosition) {
         const group = d3.select(draggedGroupElement);
         const stateName = group.attr('state-name') || 'unknown';
@@ -2236,7 +2236,7 @@ export class CircleStateLayer extends D3ModelLayer {
         const boundingRect = group.select('rect.bounding-box');
         const boxWidth = parseFloat(boundingRect.attr('width') || '0');
         const boxHeight = parseFloat(boundingRect.attr('height') || '0');
-        console.log('[CircleStateLayer drag end] State:', stateName, 'Position:', currentX, currentY, 'BoxSize:', boxWidth, boxHeight);
+        // console.log('[CircleStateLayer drag end] State:', stateName, 'Position:', currentX, currentY, 'BoxSize:', boxWidth, boxHeight);
 
         // Resolve any collisions
         const resolvedPosition = this.resolveCollision(
@@ -2246,7 +2246,7 @@ export class CircleStateLayer extends D3ModelLayer {
           stateName,
           this.originalStatePosition
         );
-        console.log('[CircleStateLayer drag end] Resolved position:', resolvedPosition);
+        // console.log('[CircleStateLayer drag end] Resolved position:', resolvedPosition);
 
         // Apply the resolved position
         group.attr('transform', `translate(${resolvedPosition.x}, ${resolvedPosition.y})`);
@@ -2297,15 +2297,15 @@ export class CircleStateLayer extends D3ModelLayer {
     const sourceSelector = `path.permanent-connector[data-source-state="${stateName}"][data-source-slot="${slotIndex}"]`;
     const targetSelector = `path.permanent-connector[data-target-state="${stateName}"][data-target-slot="${slotIndex}"]`;
 
-    console.log('[setConnectorsVisibilityForSlot] stateName:', stateName, 'slotIndex:', slotIndex, 'visible:', visible);
-    console.log('[setConnectorsVisibilityForSlot] sourceSelector:', sourceSelector);
-    console.log('[setConnectorsVisibilityForSlot] targetSelector:', targetSelector);
+    // console.log('[setConnectorsVisibilityForSlot] stateName:', stateName, 'slotIndex:', slotIndex, 'visible:', visible);
+    // console.log('[setConnectorsVisibilityForSlot] sourceSelector:', sourceSelector);
+    // console.log('[setConnectorsVisibilityForSlot] targetSelector:', targetSelector);
 
     const sourceConnectors = d3.selectAll(sourceSelector);
     const targetConnectors = d3.selectAll(targetSelector);
 
-    console.log('[setConnectorsVisibilityForSlot] sourceConnectors found:', sourceConnectors.size());
-    console.log('[setConnectorsVisibilityForSlot] targetConnectors found:', targetConnectors.size());
+    // console.log('[setConnectorsVisibilityForSlot] sourceConnectors found:', sourceConnectors.size());
+    // console.log('[setConnectorsVisibilityForSlot] targetConnectors found:', targetConnectors.size());
 
     sourceConnectors.style('display', displayValue);
     targetConnectors.style('display', displayValue);

@@ -35,7 +35,7 @@ export class CreateNewClassComponent {
 
   ngOnInit()
   {
-    console.log("In create new class ngOnInit");
+    // console.log("In create new class ngOnInit");
   }
 
   saveClass()
@@ -84,13 +84,13 @@ export class CreateNewClassComponent {
       stateSpaceDisplayFields: this.isStateSpaceObject ? variables.map(v => v.varName) : []
     };
 
-    console.log('Creating class with payload:', payload);
+    // console.log('Creating class with payload:', payload);
 
     const backendUrl = this.runtimeConfig.getBackendBaseUrl();
 
     this.http.post<any>(`${backendUrl}/createClass`, payload).subscribe({
       next: (response) => {
-        console.log('Class created successfully:', response);
+        // console.log('Class created successfully:', response);
         this.saveStatus = 'success';
         this.saveMessage = `Class "${response.className}" created successfully! API endpoint: ${response.apiEndpoint}`;
       },
@@ -104,7 +104,7 @@ export class CreateNewClassComponent {
 
   addVar()
   {
-    console.log("adding variable");
+    // console.log("adding variable");
   }
 
 }

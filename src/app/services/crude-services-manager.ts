@@ -1,8 +1,10 @@
 // crude-services-manager.ts
 import { Injectable, EventEmitter } from "@angular/core";
 import { HttpClient, HttpHeaders } from '@angular/common/http'
+import { BehaviorSubject } from "rxjs";
 import { PolariService } from "./polari-service"
 import { CRUDEclassService } from "./crude-class-service"
+import { StompService, StompConnectionStatus } from "./stomp.service";
 
 // Generates and Manages the CRUDE class services for all class types.
 // Allows for application level state management of all class services.
@@ -16,20 +18,29 @@ export class CRUDEservicesManager {
     // Maintains accountability of all components utilizing the CRUDE services via a dictionary of component names.
     // If a given component type drops to 0, we check the services to see if they are still being utilized.
     componentUtilizerCounter: Record<string, number> = {}; //Dictionary with format: {"componentName0":2, "componentName1":4}
-    
-    constructor(private http: HttpClient, private polariService: PolariService)
-    {
-        console.log("Starting General Class Access Services");
+
+    // STOMP connection status for UI binding
+    stompConnectionStatus$: BehaviorSubject<StompConnectionStatus>;
+
+    constructor(
+        private http: HttpClient,
+        private polariService: PolariService,
+        private stompService: StompService
+    ) {
+        // console.log("Starting General Class Access Services");
         this.http = http;
         this.polariService = polariService;
+        this.stompConnectionStatus$ = this.stompService.connectionStatus$;
+
         this.polariService.serverCRUDEendpoints.subscribe(
           value => {
-            console.log("Successfully received CRUDE endpoints:", value)
+            // console.log("Successfully received CRUDE endpoints:", value)
             this.classCrudeEndpoints = value;
           },
           error => console.error("Error fetching CRUDE endpoints:", error),
-          () => console.log('Completed CRUDE API fetch.')
+          // () => console.log('Completed CRUDE API fetch.')
         );
+
     }
 
     // Create a new CRUDE class service for a given class name.
@@ -79,7 +90,7 @@ export class CRUDEservicesManager {
     cleanupUnusedService(className: string): void {
       if (this.componentUtilizerCounter[className] === 0) {
         delete this.crudeServices[className];
-        console.log(`Service for ${className} deleted.`);
+        // console.log(`Service for ${className} deleted.`);
       }
     }
 }

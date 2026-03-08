@@ -31,6 +31,7 @@ export interface EndpointConfig {
 export interface BackendConfig {
     http: EndpointConfig;
     https: EndpointConfig;
+    ws?: EndpointConfig;
     preferHttps: boolean;
 }
 
@@ -83,6 +84,9 @@ export class RuntimeConfigService {
     public backendPort$: BehaviorSubject<string>;
     public useHttps$: BehaviorSubject<boolean>;
 
+    // WebSocket settings
+    public wsPort$: BehaviorSubject<string>;
+
     // Connection settings
     public retryInterval$: BehaviorSubject<number>;
     public maxRetryTime$: BehaviorSubject<number>;
@@ -114,6 +118,11 @@ export class RuntimeConfigService {
         );
         this.useHttps$ = new BehaviorSubject<boolean>(shouldUseHttps);
 
+        // WebSocket port from environment
+        this.wsPort$ = new BehaviorSubject<string>(
+            (environment.backend as any)?.ws?.port || '3001'
+        );
+
         // Connection settings from environment
         this.retryInterval$ = new BehaviorSubject<number>(
             environment.connection?.retryInterval ?? 3000
@@ -125,8 +134,8 @@ export class RuntimeConfigService {
             environment.connection?.timeout ?? 30000
         );
 
-        console.log(`[RuntimeConfig] Initialized - localhost: ${this.isLocalhost}, HTTPS: ${this.isServedOverHttps}`);
-        console.log(`[RuntimeConfig] Initial backend: ${this.getBackendBaseUrl()}`);
+        // console.log(`[RuntimeConfig] Initialized - localhost: ${this.isLocalhost}, HTTPS: ${this.isServedOverHttps}`);
+        // console.log(`[RuntimeConfig] Initial backend: ${this.getBackendBaseUrl()}`);
     }
 
     /**
@@ -161,13 +170,13 @@ export class RuntimeConfigService {
     private loadRuntimeConfig(): Observable<RuntimeConfig | null> {
         return this.http.get<RuntimeConfig>('/assets/runtime-config.json').pipe(
             tap(config => {
-                console.log('[RuntimeConfig] Loaded startup-time configuration:', config);
+                // console.log('[RuntimeConfig] Loaded startup-time configuration:', config);
                 this.startupConfig = config;
                 this.applyStartupConfig(config);
                 this.configLoaded.next(true);
             }),
             catchError(error => {
-                console.log('[RuntimeConfig] No runtime-config.json found, using build-time defaults');
+                // console.log('[RuntimeConfig] No runtime-config.json found, using build-time defaults');
                 this.applyBuildTimeDefaults();
                 this.configLoaded.next(true);
                 return of(null);
@@ -190,6 +199,11 @@ export class RuntimeConfigService {
             this.backendProtocol$.next(endpoint.protocol);
             this.backendUrl$.next(endpoint.url);
             this.backendPort$.next(endpoint.port);
+        }
+
+        // Apply WebSocket port from startup config
+        if ((config.backend as any)?.ws?.port) {
+            this.wsPort$.next((config.backend as any).ws.port);
         }
 
         // Apply connection settings
@@ -264,7 +278,7 @@ export class RuntimeConfigService {
             // URL typically stays the same
         }
 
-        console.log(`[RuntimeConfig] Switched to ${useHttps ? 'HTTPS' : 'HTTP'}`);
+        // console.log(`[RuntimeConfig] Switched to ${useHttps ? 'HTTPS' : 'HTTP'}`);
     }
 
     /**
@@ -296,7 +310,7 @@ export class RuntimeConfigService {
             this.backendProtocol$.next(protocol);
             this.useHttps$.next(protocol === 'https');
         }
-        console.log(`[RuntimeConfig] Updated backend: ${this.getBackendBaseUrl()}`);
+        // console.log(`[RuntimeConfig] Updated backend: ${this.getBackendBaseUrl()}`);
         return true;
     }
 
@@ -331,6 +345,26 @@ export class RuntimeConfigService {
             return `${protocol}://${url}`;
         }
         return `${protocol}://${url}:${port}`;
+    }
+
+    /**
+     * Get the WebSocket URL for the STOMP server.
+     * Uses wss:// when HTTPS is active (suite/proxy mode), ws:// for bare-metal dev.
+     */
+    getWebSocketUrl(): string {
+        const useHttps = this.useHttps$.value;
+
+        if (useHttps) {
+            // In proxy mode, connect to the same host:port as the API.
+            // nginx detects the WebSocket upgrade header and routes to the
+            // STOMP server automatically — no special path needed.
+            const baseUrl = this.getBackendBaseUrl();
+            return baseUrl.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:') + '/';
+        }
+        // Bare-metal dev: connect directly to STOMP server port
+        const url = this.backendUrl$.value;
+        const wsPort = this.wsPort$.value;
+        return `ws://${url}:${wsPort}/`;
     }
 
     /**

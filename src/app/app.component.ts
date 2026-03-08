@@ -73,7 +73,7 @@ export class AppComponent {
 
   ngOnInit()
   {
-    console.log("In app.component.ts ngOnInit");
+    // console.log("In app.component.ts ngOnInit");
     //Attempt to get connection value from polariService
     this.polariService.connectionSuccessSubject.subscribe(connectionVal => {
       this.isConnected = connectionVal
@@ -89,13 +89,13 @@ export class AppComponent {
     // Subscribe to dynamic class pages WITH instances (for main dropdown)
     this.typingService.dynamicClassNavSubject.subscribe(classList => {
       this.dynamicClassNavComponents = classList;
-      console.log('[AppComponent] Dynamic class pages (with instances) updated:', classList.length);
+      // console.log('[AppComponent] Dynamic class pages (with instances) updated:', classList.length);
     });
 
     // Subscribe to unused class pages WITHOUT instances (for nested dropdown)
     this.typingService.unusedClassNavSubject.subscribe(classList => {
       this.unusedClassNavComponents = classList;
-      console.log('[AppComponent] Unused class pages (no instances) updated:', classList.length);
+      // console.log('[AppComponent] Unused class pages (no instances) updated:', classList.length);
     });
 
     // Subscribe to published display pages
