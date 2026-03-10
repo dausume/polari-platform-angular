@@ -5,8 +5,10 @@ import { map, tap, catchError, switchMap } from 'rxjs/operators';
 import { PolariService } from '@services/polari-service';
 import { Display } from '@models/dashboards/Display';
 import { DisplayRow } from '@models/dashboards/DisplayRow';
+import { DisplayColumn } from '@models/dashboards/DisplayColumn';
 import { DisplayItem } from '@models/dashboards/DisplayItem';
 import { DisplaySummary } from '@models/dashboards/DisplaySummary';
+import { DisplayStateDefinition } from '@models/dashboards/DisplayStateDefinition';
 
 @Injectable({ providedIn: 'root' })
 export class DisplayManagerService {
@@ -173,14 +175,18 @@ export class DisplayManagerService {
   }
 
   serializeDisplay(display: Display): string {
-    const data = {
+    const data: any = {
       rows: display.rows.map(row => this.serializeRow(row))
     };
+    if (display.stateDefinition &&
+        (display.stateDefinition.dataSources.length > 0 || display.stateDefinition.inputs.length > 0)) {
+      data.stateDefinition = display.stateDefinition.toJSON();
+    }
     return JSON.stringify(data);
   }
 
   private serializeRow(row: DisplayRow): any {
-    return {
+    const data: any = {
       index: row.index,
       rowSegments: row.rowSegments,
       minRowHeight: row.minRowHeight,
@@ -188,6 +194,24 @@ export class DisplayManagerService {
       autoHeight: row.autoHeight,
       cssClass: row.cssClass || '',
       items: row.dashboardItems.map(item => this.serializeItem(item))
+    };
+    if (row.columns && row.columns.length > 0) {
+      data.columns = row.columns.map(col => this.serializeColumn(col));
+    }
+    return data;
+  }
+
+  private serializeColumn(column: DisplayColumn): any {
+    return {
+      index: column.index,
+      columnSegmentsUsed: column.columnSegmentsUsed,
+      gridColumnStart: column.gridColumnStart ?? null,
+      columnSegments: column.columnSegments,
+      minColumnHeight: column.minColumnHeight,
+      maxColumnHeight: column.maxColumnHeight,
+      autoHeight: column.autoHeight,
+      cssClass: column.cssClass || '',
+      items: column.dashboardItems.map(item => this.serializeItem(item))
     };
   }
 
@@ -231,6 +255,10 @@ export class DisplayManagerService {
       });
     }
 
+    if (parsed.stateDefinition) {
+      display.stateDefinition = DisplayStateDefinition.fromJSON(parsed.stateDefinition);
+    }
+
     return display;
   }
 
@@ -250,7 +278,36 @@ export class DisplayManagerService {
       });
     }
 
+    if (rowData.columns && Array.isArray(rowData.columns)) {
+      rowData.columns.forEach((colData: any) => {
+        row.addColumn(this.deserializeColumn(colData));
+      });
+    }
+
     return row;
+  }
+
+  private deserializeColumn(colData: any): DisplayColumn {
+    const column = new DisplayColumn(
+      colData.index || 0,
+      colData.columnSegmentsUsed || 6,
+      colData.columnSegments || 12,
+      colData.minColumnHeight || 250,
+      colData.maxColumnHeight
+    );
+    column.autoHeight = colData.autoHeight || false;
+    column.cssClass = colData.cssClass || undefined;
+    if (colData.gridColumnStart != null) {
+      column.gridColumnStart = colData.gridColumnStart;
+    }
+
+    if (colData.items && Array.isArray(colData.items)) {
+      colData.items.forEach((itemData: any) => {
+        column.addItem(this.deserializeItem(itemData));
+      });
+    }
+
+    return column;
   }
 
   private deserializeItem(itemData: any): DisplayItem {

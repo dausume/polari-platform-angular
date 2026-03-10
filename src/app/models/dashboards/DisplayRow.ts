@@ -1,8 +1,17 @@
 import { DisplayItem } from "./DisplayItem";
+import { DisplayColumn } from "./DisplayColumn";
 
 /**
  * Represents a row within a dashboard, containing multiple dashboard items
  * arranged in a grid-like layout.
+ *
+ * A row can contain:
+ *   - dashboardItems: items that flow left→right across the row's horizontal segments
+ *   - columns: vertical subdivisions that each occupy some horizontal segments
+ *              and internally divide their height into vertical segments (rows)
+ *
+ * When a row has columns, the columns act like items in terms of horizontal
+ * placement but provide their own vertical grid for nesting items top→bottom.
  */
 export class DisplayRow {
     /** Position index of this row within the dashboard */
@@ -19,6 +28,9 @@ export class DisplayRow {
 
     /** Items contained in this row */
     dashboardItems: DisplayItem[];
+
+    /** Columns contained in this row — vertical subdivisions that stack items top→bottom */
+    columns: DisplayColumn[];
 
     /** Whether the row height should auto-adjust to content */
     autoHeight: boolean;
@@ -37,7 +49,45 @@ export class DisplayRow {
         this.minRowHeight = minRowHeight;
         this.maxRowHeight = maxRowHeight;
         this.dashboardItems = [];
+        this.columns = [];
         this.autoHeight = false;
+    }
+
+    /**
+     * Adds a column to this row.
+     * The column's columnSegmentsUsed determines how many horizontal
+     * segments it consumes (just like an item's rowSegmentsUsed).
+     */
+    addColumn(column: DisplayColumn): this {
+        column.index = this.columns.length;
+        this.columns.push(column);
+        return this;
+    }
+
+    /**
+     * Removes a column at the specified index
+     */
+    removeColumn(index: number): DisplayColumn | undefined {
+        if (index >= 0 && index < this.columns.length) {
+            const removed = this.columns.splice(index, 1)[0];
+            this.columns.forEach((col, idx) => col.index = idx);
+            return removed;
+        }
+        return undefined;
+    }
+
+    /**
+     * Checks if this row uses a column-based layout
+     */
+    hasColumns(): boolean {
+        return this.columns.length > 0;
+    }
+
+    /**
+     * Gets the total horizontal segments used by columns
+     */
+    getColumnsUsedSegments(): number {
+        return this.columns.reduce((sum, col) => sum + col.columnSegmentsUsed, 0);
     }
 
     /**

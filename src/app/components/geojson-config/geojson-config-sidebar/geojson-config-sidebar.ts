@@ -4,10 +4,15 @@ import {
   NamedGeoJsonConfig
 } from '@models/geojson/NamedGeoJsonConfig';
 import {
-  CoordinateMode, TupleOrder, MarkerAnchor, TileSourceType,
+  CoordinateMode, TupleOrder, TileSourceType,
   SvgMarkerDefinition, TileSourceConfig,
   DEFAULT_SVG_MARKER, DEFAULT_TILE_SOURCE, buildStyleFromTileSource
 } from '@models/geojson/GeoJsonConfigData';
+import {
+  getAllSvgIcons, getAllSvgStyles, getSvgIcon, getSvgStyle, applyStyleToSvg,
+  SvgIconDef, SvgIconStyle
+} from '@models/shared/SvgIconLibrary';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { TileSourceSummary } from '@models/geojson/TileSourceDefinition';
 import { TileSourceDefinitionService } from '@services/geojson/tile-source-definition.service';
 import { CreateTileSourceDialogComponent } from '@components/geojson-config/create-tile-source-dialog/create-tile-source-dialog';
@@ -33,6 +38,10 @@ export class GeoJsonConfigSidebarComponent implements OnChanges, OnInit {
   /** Index of marker currently being edited, or -1 for none */
   editingMarkerIndex: number = -1;
 
+  /** Shared icon and style libraries */
+  svgIcons: SvgIconDef[] = getAllSvgIcons();
+  svgStyles: SvgIconStyle[] = getAllSvgStyles();
+
   /** Tile source selection state */
   selectedTileSourceType: TileSourceType = 'tileserver';
   selectedTileSourceId: string = '';
@@ -49,7 +58,8 @@ export class GeoJsonConfigSidebarComponent implements OnChanges, OnInit {
   constructor(
     private dialog: MatDialog,
     private tileSourceService: TileSourceDefinitionService,
-    private geocoderDefService: GeocoderDefinitionService
+    private geocoderDefService: GeocoderDefinitionService,
+    private sanitizer: DomSanitizer
   ) {}
 
   ngOnInit(): void {
@@ -168,53 +178,38 @@ export class GeoJsonConfigSidebarComponent implements OnChanges, OnInit {
     this.emitChange();
   }
 
-  onMarkerSvgChange(index: number, svg: string): void {
-    this.config.geoJsonConfig.svgMarkers[index].svgString = svg;
+  onMarkerIconChange(index: number, iconName: string): void {
+    this.config.geoJsonConfig.svgMarkers[index].iconName = iconName;
     this.emitChange();
   }
 
-  onMarkerWidthChange(index: number, value: number | string): void {
-    const num = typeof value === 'string' ? parseInt(value, 10) : value;
-    if (!isNaN(num) && num > 0) {
-      this.config.geoJsonConfig.svgMarkers[index].width = num;
-      this.emitChange();
-    }
-  }
-
-  onMarkerHeightChange(index: number, value: number | string): void {
-    const num = typeof value === 'string' ? parseInt(value, 10) : value;
-    if (!isNaN(num) && num > 0) {
-      this.config.geoJsonConfig.svgMarkers[index].height = num;
-      this.emitChange();
-    }
-  }
-
-  onMarkerAnchorChange(index: number, anchor: MarkerAnchor): void {
-    this.config.geoJsonConfig.svgMarkers[index].anchor = anchor;
+  onMarkerStyleChange(index: number, styleName: string): void {
+    this.config.geoJsonConfig.svgMarkers[index].styleName = styleName;
     this.emitChange();
-  }
-
-  onMarkerFillChange(index: number, color: string): void {
-    this.config.geoJsonConfig.svgMarkers[index].fillColor = color;
-    this.emitChange();
-  }
-
-  onMarkerStrokeChange(index: number, color: string): void {
-    this.config.geoJsonConfig.svgMarkers[index].strokeColor = color;
-    this.emitChange();
-  }
-
-  onMarkerStrokeWidthChange(index: number, value: number | string): void {
-    const num = typeof value === 'string' ? parseFloat(value) : value;
-    if (!isNaN(num) && num >= 0) {
-      this.config.geoJsonConfig.svgMarkers[index].strokeWidth = num;
-      this.emitChange();
-    }
   }
 
   onDefaultMarkerChange(name: string): void {
     this.config.geoJsonConfig.defaultMarkerName = name;
     this.emitChange();
+  }
+
+  /** Get a preview of the marker with its icon + style applied */
+  getMarkerPreviewSvg(marker: SvgMarkerDefinition): SafeHtml {
+    const icon = getSvgIcon(marker.iconName);
+    const style = getSvgStyle(marker.styleName);
+    if (!icon) return this.sanitizer.bypassSecurityTrustHtml('');
+    const styledSvg = style ? applyStyleToSvg(icon.svgString, style) : icon.svgString;
+    return this.sanitizer.bypassSecurityTrustHtml(styledSvg);
+  }
+
+  /** Get sanitized SVG HTML for template rendering */
+  getSafeSvg(svgString: string): SafeHtml {
+    return this.sanitizer.bypassSecurityTrustHtml(svgString);
+  }
+
+  /** Get the style details for display */
+  getStyleDetails(styleName: string): SvgIconStyle | undefined {
+    return getSvgStyle(styleName);
   }
 
   // ===== Map Settings =====
@@ -456,23 +451,15 @@ export class GeoJsonConfigSidebarComponent implements OnChanges, OnInit {
   // ===== Helpers =====
 
   getStyledSvg(marker: SvgMarkerDefinition): string {
-    try {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(marker.svgString, 'image/svg+xml');
-      const svg = doc.documentElement;
-      const elements = svg.querySelectorAll('path, circle, rect, polygon, ellipse');
-      elements.forEach((el: Element) => {
-        const currentFill = el.getAttribute('fill');
-        if (currentFill !== 'white' && currentFill !== 'none' && currentFill !== '#ffffff' && currentFill !== '#fff') {
-          el.setAttribute('fill', marker.fillColor);
-        }
-        el.setAttribute('stroke', marker.strokeColor);
-        el.setAttribute('stroke-width', String(marker.strokeWidth));
-      });
-      return new XMLSerializer().serializeToString(svg);
-    } catch {
-      return marker.svgString;
-    }
+    const icon = getSvgIcon(marker.iconName);
+    const style = getSvgStyle(marker.styleName);
+    if (!icon) return '';
+    return style ? applyStyleToSvg(icon.svgString, style) : icon.svgString;
+  }
+
+  /** Expose getSvgIcon for template use */
+  getSvgIcon(name: string): SvgIconDef | undefined {
+    return getSvgIcon(name);
   }
 
   emitChange(): void {

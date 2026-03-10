@@ -39,11 +39,33 @@
     width: 100%;
 }
 
+/* Force all direct children into grid row 1 so items and columns
+   sit side-by-side horizontally, never wrapping to a second row. */
+.dashboard-row > * {
+    grid-row: 1;
+}
+
 .compact-mode .dashboard-row {
     gap: 8px;
 }
 
 .dashboard-row.auto-height {
+    /* Allow content to determine height */
+}
+
+/* Dashboard Columns — vertical grid within a row */
+.dashboard-column {
+    display: grid;
+    gap: 16px;
+    min-width: 0;
+    align-self: start;           /* align column to top of parent row */
+}
+
+.compact-mode .dashboard-column {
+    gap: 8px;
+}
+
+.dashboard-column.auto-height {
     /* Allow content to determine height */
 }
 
@@ -285,6 +307,11 @@
     gap: 6px;
 }
 
+.dashboard-container.edit-mode .dashboard-column {
+    min-height: 72px;
+    gap: 6px;
+}
+
 /* Edit mode item wrapper — position relative for delete button */
 .edit-mode-item {
     position: relative;
@@ -407,6 +434,53 @@
 .empty-cell-placeholder.selected:not(.selection-start):not(.selection-end) {
     box-shadow: 0 -2px 0 0 rgba(25, 118, 210, 0.2),
                 0  2px 0 0 rgba(25, 118, 210, 0.2);
+}
+
+/* ===== Column Cell Selection (vertical range) =====
+   Mirrors the horizontal range selection but rotated 90 degrees:
+   Start cell  = top rounded + no bottom border
+   End cell    = bottom rounded + no top border
+   Middle cell = no rounding + no top/bottom border */
+.empty-cell-placeholder.column-cell.selected.selection-start:not(.selection-single) {
+    border-width: 2px;
+    border-bottom-width: 0;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+.empty-cell-placeholder.column-cell.selected.selection-end:not(.selection-single) {
+    border-width: 2px;
+    border-top-width: 0;
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
+}
+
+.empty-cell-placeholder.column-cell.selected:not(.selection-start):not(.selection-end) {
+    border-width: 0 2px;
+    border-radius: 0;
+}
+
+/* Accent shadow on column range (vertical) */
+.empty-cell-placeholder.column-cell.selected.selection-start:not(.selection-single) {
+    box-shadow: 0 -2px 0 0 rgba(25, 118, 210, 0.2),
+                -2px 0 0 0 rgba(25, 118, 210, 0.2),
+                 2px 0 0 0 rgba(25, 118, 210, 0.2);
+}
+
+.empty-cell-placeholder.column-cell.selected.selection-end:not(.selection-single) {
+    box-shadow: 0  2px 0 0 rgba(25, 118, 210, 0.2),
+                -2px 0 0 0 rgba(25, 118, 210, 0.2),
+                 2px 0 0 0 rgba(25, 118, 210, 0.2);
+}
+
+.empty-cell-placeholder.column-cell.selected:not(.selection-start):not(.selection-end) {
+    box-shadow: -2px 0 0 0 rgba(25, 118, 210, 0.2),
+                 2px 0 0 0 rgba(25, 118, 210, 0.2);
+}
+
+/* Gridlines mode for columns */
+.dashboard-container.show-gridlines .dashboard-column {
+    border: 1px dashed rgba(76, 175, 80, 0.3);
+    border-radius: var(--radius-sm);
+    padding: 4px;
 }
 
 /* ===== Width Warning Overlay ===== */

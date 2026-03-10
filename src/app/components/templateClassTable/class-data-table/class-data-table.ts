@@ -7,10 +7,15 @@ import { MatDialog } from '@angular/material/dialog';
 import { HttpClient } from '@angular/common/http';
 import { TableConfig } from '@models/tableConfiguration';
 import { NamedTableConfig } from '@models/tables/NamedTableConfig';
+import { InstanceActionButton, DatasetActionButton } from '@models/tables/TableActionButton';
+import { getSvgIcon } from '@models/shared/SvgIconLibrary';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { classPolyTyping } from '@models/polyTyping/classPolyTyping';
 import { variablePolyTyping } from '@models/polyTyping/variablePolyTyping';
 import { RuntimeConfigService } from '@services/runtime-config.service';
 import { ClassTypingService } from '@services/class-typing-service';
+import { SolutionExecutionService } from '@services/no-code-services/solution-execution.service';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { CrudDialogComponent } from '@components/shared/crud-dialog/crud-dialog';
 import { CrudDialogData, CrudDialogResult, VariableDefinition } from '@components/shared/models/crud-config.models';
 
@@ -52,6 +57,11 @@ export class ClassDataTableComponent implements OnInit, OnChanges {
   wrappedColumnGroups: string[][] = [];
   separatorClass: string = 'separator-thick';
 
+  // Action buttons from named config
+  instanceActions: InstanceActionButton[] = [];
+  datasetActions: DatasetActionButton[] = [];
+  executingActions: Set<string> = new Set();
+
   // Table options menu state
   showOptionsMenu: boolean = false;
 
@@ -59,7 +69,10 @@ export class ClassDataTableComponent implements OnInit, OnChanges {
     private dialog: MatDialog,
     private http: HttpClient,
     private runtimeConfig: RuntimeConfigService,
-    private classTypingService: ClassTypingService
+    private classTypingService: ClassTypingService,
+    private executionService: SolutionExecutionService,
+    private snackBar: MatSnackBar,
+    private sanitizer: DomSanitizer
   ) {
     this.dataSource = new MatTableDataSource<any>([]);
   }
@@ -111,12 +124,18 @@ export class ClassDataTableComponent implements OnInit, OnChanges {
         this.canEdit = this.canEdit && perms.allowEdit;
         this.canDelete = this.canDelete && perms.allowDelete;
       }
+
+      // Load action buttons
+      this.instanceActions = this.namedTableConfig.instanceActions || [];
+      this.datasetActions = this.namedTableConfig.datasetActions || [];
     } else {
       this.initializeFromLegacyConfig();
+      this.instanceActions = [];
+      this.datasetActions = [];
     }
 
     // Add actions column at the end only if there are any actions available
-    const hasAnyActions = this.canEdit || this.canDelete;
+    const hasAnyActions = this.canEdit || this.canDelete || this.instanceActions.length > 0;
     if (hasAnyActions && !this.displayedColumns.includes('_actions')) {
       this.displayedColumns.push('_actions');
     } else if (!hasAnyActions && this.displayedColumns.includes('_actions')) {
@@ -534,6 +553,122 @@ export class ClassDataTableComponent implements OnInit, OnChanges {
     console.warn('[ClassDataTable] Could not find ID field in row. Available fields:', Object.keys(row));
     console.warn('[ClassDataTable] Row data:', row);
     return undefined;
+  }
+
+  /**
+   * Execute an instance-level action button (per-row).
+   * Maps instance fields to solution input params and launches the solution.
+   */
+  executeInstanceAction(action: InstanceActionButton, row: any): void {
+    if (!action.solutionName) {
+      this.snackBar.open('No solution configured for this action', 'OK', { duration: 3000 });
+      return;
+    }
+
+    const actionKey = `${action.id}_${this.getInstanceId(row)}`;
+    if (this.executingActions.has(actionKey)) return;
+
+    const inputParams: Record<string, any> = {};
+    if (action.paramMappings.length > 0) {
+      for (const mapping of action.paramMappings) {
+        inputParams[mapping.solutionParam] = row[mapping.instanceField];
+      }
+    } else {
+      // Default: pass the entire row as 'instance'
+      inputParams['instance'] = row;
+    }
+
+    this.executingActions.add(actionKey);
+    this.snackBar.open(`Running "${action.label}"...`, '', { duration: 2000 });
+
+    this.executionService.startExecution(
+      action.solutionName,
+      inputParams,
+      action.targetRuntime || 'python_backend',
+      { mode: 'step', recordContext: true }
+    ).subscribe({
+      next: (trace: any) => {
+        this.executingActions.delete(actionKey);
+        const status = trace?.trace?.status || trace?.status || 'completed';
+        if (status === 'completed') {
+          this.snackBar.open(`"${action.label}" completed successfully`, 'OK', { duration: 4000 });
+        } else if (status === 'errored') {
+          const errMsg = trace?.trace?.errorSummary || trace?.errorSummary || 'Unknown error';
+          this.snackBar.open(`"${action.label}" failed: ${errMsg}`, 'OK', { duration: 6000 });
+        }
+      },
+      error: (err: any) => {
+        this.executingActions.delete(actionKey);
+        console.error('[ClassDataTable] Action execution error:', err);
+        this.snackBar.open(`"${action.label}" failed: ${err.message || 'Unknown error'}`, 'OK', { duration: 6000 });
+      }
+    });
+  }
+
+  /**
+   * Execute a dataset-level action button (table-level).
+   * Passes the filtered or full dataset to the solution.
+   */
+  executeDatasetAction(action: DatasetActionButton): void {
+    if (!action.solutionName) {
+      this.snackBar.open('No solution configured for this action', 'OK', { duration: 3000 });
+      return;
+    }
+
+    if (this.executingActions.has(action.id)) return;
+
+    const dataset = action.includeFilteredOnly
+      ? this.dataSource.filteredData
+      : this.dataSource.data;
+
+    const inputParams: Record<string, any> = {
+      dataset: dataset
+    };
+
+    this.executingActions.add(action.id);
+    this.snackBar.open(`Running "${action.label}" on ${dataset.length} records...`, '', { duration: 2000 });
+
+    this.executionService.startExecution(
+      action.solutionName,
+      inputParams,
+      action.targetRuntime || 'python_backend',
+      { mode: 'step', recordContext: true }
+    ).subscribe({
+      next: (trace: any) => {
+        this.executingActions.delete(action.id);
+        const status = trace?.trace?.status || trace?.status || 'completed';
+        if (status === 'completed') {
+          this.snackBar.open(`"${action.label}" completed successfully`, 'OK', { duration: 4000 });
+        } else {
+          const errMsg = trace?.trace?.errorSummary || trace?.errorSummary || 'Unknown error';
+          this.snackBar.open(`"${action.label}" failed: ${errMsg}`, 'OK', { duration: 6000 });
+        }
+      },
+      error: (err: any) => {
+        this.executingActions.delete(action.id);
+        console.error('[ClassDataTable] Dataset action error:', err);
+        this.snackBar.open(`"${action.label}" failed: ${err.message || 'Unknown error'}`, 'OK', { duration: 6000 });
+      }
+    });
+  }
+
+  /** Get the sanitized SVG HTML for an icon name from the shared library */
+  getActionIconSvg(iconName: string): SafeHtml {
+    const icon = getSvgIcon(iconName);
+    if (icon) {
+      return this.sanitizer.bypassSecurityTrustHtml(icon.svgString);
+    }
+    // Fallback: default play icon
+    const fallback = getSvgIcon('play');
+    return this.sanitizer.bypassSecurityTrustHtml(fallback?.svgString || '');
+  }
+
+  /** Check if an action is currently executing */
+  isActionExecuting(actionId: string, row?: any): boolean {
+    if (row) {
+      return this.executingActions.has(`${actionId}_${this.getInstanceId(row)}`);
+    }
+    return this.executingActions.has(actionId);
   }
 
   /**

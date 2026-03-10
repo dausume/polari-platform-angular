@@ -10,8 +10,139 @@
     </div>
 
     <!-- ============================================================
+         Reusable item content template — renders the inside of any item
+         regardless of whether it's in a row, column, edit/normal mode.
+         ============================================================ -->
+    <ng-template #itemContent let-item="item" let-availableWidth="availableWidth"
+                 let-spanSegments="spanSegments" let-parentSegments="parentSegments">
+        <ng-container [ngSwitch]="item.type">
+            <ng-container *ngSwitchCase="'component'">
+                <ng-container *ngIf="getComponent(item) as component">
+                    <ng-container *ngComponentOutlet="component; inputs: getComponentInputs(item)"></ng-container>
+                </ng-container>
+                <div *ngIf="!getComponent(item)" class="component-error">Component not found</div>
+            </ng-container>
+            <ng-container *ngSwitchCase="'metric'">
+                <dashboard-metric-card [data]="getMetricData(item)"></dashboard-metric-card>
+            </ng-container>
+            <ng-container *ngSwitchCase="'text'">
+                <div [class]="'text-content ' + (item.cssClass || '')">{{ getTextContent(item) }}</div>
+            </ng-container>
+            <ng-container *ngSwitchCase="'table'">
+                <div class="table-placeholder">Table content</div>
+            </ng-container>
+            <ng-container *ngSwitchCase="'graph'">
+                <div class="graph-placeholder">Graph content</div>
+            </ng-container>
+            <ng-container *ngSwitchCase="'container'">
+                <div class="nested-row-container" *ngIf="item.nestedRows?.length">
+                    <ng-container *ngTemplateOutlet="rowContent; context: {
+                        rows: item.nestedRows,
+                        availableWidth: calculateNestedWidth(availableWidth, spanSegments, parentSegments)
+                    }"></ng-container>
+                </div>
+                <div class="nested-container" *ngIf="!item.nestedRows?.length && item.items?.length">
+                    <ng-container *ngFor="let nestedItem of item.items; trackBy: trackItem">
+                        <div class="nested-item" [style.width]="(nestedItem.rowSegmentsUsed / 12 * 100) + '%'">
+                            <ng-container [ngSwitch]="nestedItem.type">
+                                <dashboard-metric-card *ngSwitchCase="'metric'" [data]="getMetricData(nestedItem)"></dashboard-metric-card>
+                                <div *ngSwitchCase="'text'" class="text-content">{{ getTextContent(nestedItem) }}</div>
+                            </ng-container>
+                        </div>
+                    </ng-container>
+                </div>
+            </ng-container>
+            <ng-container *ngSwitchDefault>
+                <div class="unknown-type">Unknown: {{ item.type }}</div>
+            </ng-container>
+        </ng-container>
+    </ng-template>
+
+    <!-- ============================================================
+         Column template — renders a single column's vertical grid.
+         Items flow top→bottom; vertical segments become rows.
+         ============================================================ -->
+    <ng-template #columnContent let-column="column" let-parentRow="parentRow" let-availableWidth="availableWidth">
+        <div [class]="getColumnClasses(column)"
+             [ngStyle]="getColumnStyle(column)"
+             [style.grid-column]="getColumnGridColumn(column)"
+             [style.grid-template-rows]="getColumnGridTemplate(column)">
+
+            <!-- === COLUMN EDIT MODE === -->
+            <ng-container *ngIf="editMode">
+                <ng-container *ngFor="let cell of getColumnCellMap(column); trackBy: trackCell">
+
+                    <!-- Occupied vertical cell -->
+                    <div *ngIf="cell.type === 'item' && cell.item && isItemVisible(cell.item)"
+                         [class]="getItemClasses(cell.item)"
+                         [style.grid-row]="cell.startSegment + ' / span ' + cell.spanSegments"
+                         class="edit-mode-item">
+
+                        <button class="item-remove-btn"
+                                (click)="onRemoveColumnItem(column, cell.item!.index, $event)"
+                                title="Remove item">
+                            <mat-icon>close</mat-icon>
+                        </button>
+
+                        <div class="item-header" *ngIf="cell.item.title && cell.item.type !== 'text'">
+                            <span class="item-title">{{ cell.item.title }}</span>
+                        </div>
+
+                        <div class="item-content" [class.has-header]="cell.item.title && cell.item.type !== 'text'">
+                            <ng-container *ngTemplateOutlet="itemContent; context: {
+                                item: cell.item,
+                                availableWidth: availableWidth,
+                                spanSegments: cell.spanSegments,
+                                parentSegments: column.columnSegments
+                            }"></ng-container>
+                        </div>
+                    </div>
+
+                    <!-- Empty vertical cell placeholder -->
+                    <div *ngIf="cell.type === 'empty'"
+                         class="empty-cell-placeholder column-cell"
+                         [class.selected]="isColumnCellSelected(column, cell.startSegment)"
+                         [class.selection-start]="isColumnSelectionStart(column, cell.startSegment)"
+                         [class.selection-end]="isColumnSelectionEnd(column, cell.startSegment)"
+                         [class.selection-single]="isColumnCellSelected(column, cell.startSegment) && isSingleColumnCellSelection()"
+                         [style.grid-row]="cell.startSegment + ' / span 1'"
+                         (click)="selectColumnCell(column, cell.startSegment, availableWidth)">
+                        <mat-icon class="empty-cell-icon">add</mat-icon>
+                    </div>
+
+                </ng-container>
+            </ng-container>
+
+            <!-- === COLUMN NORMAL MODE === -->
+            <ng-container *ngIf="!editMode">
+                <ng-container *ngFor="let item of column.dashboardItems; trackBy: trackItem">
+                    <div *ngIf="isItemVisible(item)"
+                         [class]="getItemClasses(item)"
+                         [style.grid-row]="getItemGridRow(item)">
+
+                        <div class="item-header" *ngIf="item.title && item.type !== 'text'">
+                            <span class="item-title">{{ item.title }}</span>
+                        </div>
+
+                        <div class="item-content" [class.has-header]="item.title && item.type !== 'text'">
+                            <ng-container *ngTemplateOutlet="itemContent; context: {
+                                item: item,
+                                availableWidth: availableWidth,
+                                spanSegments: item.rowSegmentsUsed,
+                                parentSegments: column.columnSegments
+                            }"></ng-container>
+                        </div>
+                    </div>
+                </ng-container>
+            </ng-container>
+        </div>
+    </ng-template>
+
+    <!-- ============================================================
          Recursive row template — used for both top-level and nested rows.
-         Single component instance, single selection state.
+         Items and columns coexist in the same CSS grid. The cell map
+         accounts for segments occupied by both items and columns, so
+         empty cells only appear in truly unoccupied segments.
          ============================================================ -->
     <ng-template #rowContent let-rows="rows" let-availableWidth="availableWidth">
         <div *ngFor="let row of rows; trackBy: trackRow"
@@ -19,11 +150,20 @@
              [ngStyle]="getRowStyle(row)"
              [style.grid-template-columns]="getGridTemplate(row)">
 
-            <!-- === EDIT MODE === -->
+            <!-- === Columns (always rendered alongside items) === -->
+            <ng-container *ngFor="let column of row.columns; trackBy: trackColumn">
+                <ng-container *ngTemplateOutlet="columnContent; context: {
+                    column: column,
+                    parentRow: row,
+                    availableWidth: availableWidth
+                }"></ng-container>
+            </ng-container>
+
+            <!-- === EDIT MODE (items + empty cells from unified cell map) === -->
             <ng-container *ngIf="editMode">
                 <ng-container *ngFor="let cell of getRowCellMap(row); trackBy: trackCell">
 
-                    <!-- Occupied cell -->
+                    <!-- Occupied cell (item) -->
                     <div *ngIf="cell.type === 'item' && cell.item && isItemVisible(cell.item)"
                          [class]="getItemClasses(cell.item)"
                          [style.grid-column]="cell.startSegment + ' / span ' + cell.spanSegments"
@@ -40,48 +180,12 @@
                         </div>
 
                         <div class="item-content" [class.has-header]="cell.item.title && cell.item.type !== 'text'">
-                            <ng-container [ngSwitch]="cell.item.type">
-                                <ng-container *ngSwitchCase="'component'">
-                                    <ng-container *ngIf="getComponent(cell.item) as component">
-                                        <ng-container *ngComponentOutlet="component; inputs: getComponentInputs(cell.item)"></ng-container>
-                                    </ng-container>
-                                    <div *ngIf="!getComponent(cell.item)" class="component-error">Component not found</div>
-                                </ng-container>
-                                <ng-container *ngSwitchCase="'metric'">
-                                    <dashboard-metric-card [data]="getMetricData(cell.item)"></dashboard-metric-card>
-                                </ng-container>
-                                <ng-container *ngSwitchCase="'text'">
-                                    <div [class]="'text-content ' + (cell.item.cssClass || '')">{{ getTextContent(cell.item) }}</div>
-                                </ng-container>
-                                <ng-container *ngSwitchCase="'table'">
-                                    <div class="table-placeholder">Table content</div>
-                                </ng-container>
-                                <ng-container *ngSwitchCase="'graph'">
-                                    <div class="graph-placeholder">Graph content</div>
-                                </ng-container>
-                                <!-- Container with nested rows (recursive) -->
-                                <ng-container *ngSwitchCase="'container'">
-                                    <div class="nested-row-container" *ngIf="cell.item.nestedRows?.length">
-                                        <ng-container *ngTemplateOutlet="rowContent; context: {
-                                            rows: cell.item.nestedRows,
-                                            availableWidth: calculateNestedWidth(availableWidth, cell.spanSegments, row.rowSegments)
-                                        }"></ng-container>
-                                    </div>
-                                    <div class="nested-container" *ngIf="!cell.item.nestedRows?.length && cell.item.items?.length">
-                                        <ng-container *ngFor="let nestedItem of cell.item.items; trackBy: trackItem">
-                                            <div class="nested-item" [style.width]="(nestedItem.rowSegmentsUsed / 12 * 100) + '%'">
-                                                <ng-container [ngSwitch]="nestedItem.type">
-                                                    <dashboard-metric-card *ngSwitchCase="'metric'" [data]="getMetricData(nestedItem)"></dashboard-metric-card>
-                                                    <div *ngSwitchCase="'text'" class="text-content">{{ getTextContent(nestedItem) }}</div>
-                                                </ng-container>
-                                            </div>
-                                        </ng-container>
-                                    </div>
-                                </ng-container>
-                                <ng-container *ngSwitchDefault>
-                                    <div class="unknown-type">Unknown: {{ cell.item.type }}</div>
-                                </ng-container>
-                            </ng-container>
+                            <ng-container *ngTemplateOutlet="itemContent; context: {
+                                item: cell.item,
+                                availableWidth: availableWidth,
+                                spanSegments: cell.spanSegments,
+                                parentSegments: row.rowSegments
+                            }"></ng-container>
                         </div>
                     </div>
 
@@ -100,7 +204,7 @@
                 </ng-container>
             </ng-container>
 
-            <!-- === NORMAL MODE === -->
+            <!-- === NORMAL MODE (items only, columns already rendered above) === -->
             <ng-container *ngIf="!editMode">
                 <ng-container *ngFor="let item of row.dashboardItems; trackBy: trackItem">
                     <div *ngIf="isItemVisible(item)"
@@ -112,48 +216,12 @@
                         </div>
 
                         <div class="item-content" [class.has-header]="item.title && item.type !== 'text'">
-                            <ng-container [ngSwitch]="item.type">
-                                <ng-container *ngSwitchCase="'component'">
-                                    <ng-container *ngIf="getComponent(item) as component">
-                                        <ng-container *ngComponentOutlet="component; inputs: getComponentInputs(item)"></ng-container>
-                                    </ng-container>
-                                    <div *ngIf="!getComponent(item)" class="component-error">Component not found in registry</div>
-                                </ng-container>
-                                <ng-container *ngSwitchCase="'metric'">
-                                    <dashboard-metric-card [data]="getMetricData(item)"></dashboard-metric-card>
-                                </ng-container>
-                                <ng-container *ngSwitchCase="'text'">
-                                    <div [class]="'text-content ' + (item.cssClass || '')">{{ getTextContent(item) }}</div>
-                                </ng-container>
-                                <ng-container *ngSwitchCase="'table'">
-                                    <div class="table-placeholder">Table content (use 'component' type with templateClassTable)</div>
-                                </ng-container>
-                                <ng-container *ngSwitchCase="'graph'">
-                                    <div class="graph-placeholder">Graph content (integration pending)</div>
-                                </ng-container>
-                                <!-- Container with nested rows (recursive) -->
-                                <ng-container *ngSwitchCase="'container'">
-                                    <div class="nested-row-container" *ngIf="item.nestedRows?.length">
-                                        <ng-container *ngTemplateOutlet="rowContent; context: {
-                                            rows: item.nestedRows,
-                                            availableWidth: calculateNestedWidth(availableWidth, item.rowSegmentsUsed, row.rowSegments)
-                                        }"></ng-container>
-                                    </div>
-                                    <div class="nested-container" *ngIf="!item.nestedRows?.length && item.items?.length">
-                                        <ng-container *ngFor="let nestedItem of item.items; trackBy: trackItem">
-                                            <div class="nested-item" [style.width]="(nestedItem.rowSegmentsUsed / 12 * 100) + '%'">
-                                                <ng-container [ngSwitch]="nestedItem.type">
-                                                    <dashboard-metric-card *ngSwitchCase="'metric'" [data]="getMetricData(nestedItem)"></dashboard-metric-card>
-                                                    <div *ngSwitchCase="'text'" class="text-content">{{ getTextContent(nestedItem) }}</div>
-                                                </ng-container>
-                                            </div>
-                                        </ng-container>
-                                    </div>
-                                </ng-container>
-                                <ng-container *ngSwitchDefault>
-                                    <div class="unknown-type">Unknown item type: {{ item.type }}</div>
-                                </ng-container>
-                            </ng-container>
+                            <ng-container *ngTemplateOutlet="itemContent; context: {
+                                item: item,
+                                availableWidth: availableWidth,
+                                spanSegments: item.rowSegmentsUsed,
+                                parentSegments: row.rowSegments
+                            }"></ng-container>
                         </div>
                     </div>
                 </ng-container>

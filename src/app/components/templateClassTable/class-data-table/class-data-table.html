@@ -26,6 +26,17 @@
                 </button>
             </mat-menu>
 
+            <!-- Dataset Action Buttons -->
+            <button *ngFor="let action of datasetActions"
+                    mat-raised-button [color]="action.color || 'primary'"
+                    (click)="executeDatasetAction(action)"
+                    [disabled]="isActionExecuting(action.id)"
+                    class="dataset-action-btn">
+                <span *ngIf="!isActionExecuting(action.id)" class="btn-svg-icon" [innerHTML]="getActionIconSvg(action.iconName)"></span>
+                <mat-icon *ngIf="isActionExecuting(action.id)" class="spinning">sync</mat-icon>
+                {{ action.label }}
+            </button>
+
             <!-- Create New Button - only shown if class allows instance creation -->
             <button *ngIf="canCreate" mat-raised-button color="primary" (click)="openCreateDialog()" class="create-btn">
                 <mat-icon>add</mat-icon>
@@ -88,6 +99,16 @@
                 <th mat-header-cell *matHeaderCellDef class="actions-header">Actions</th>
                 <td mat-cell *matCellDef="let row" class="actions-cell">
                     <div class="row-actions">
+                        <!-- Instance Action Buttons -->
+                        <button *ngFor="let action of instanceActions"
+                                mat-icon-button [color]="action.color || 'primary'"
+                                (click)="executeInstanceAction(action, row)"
+                                [matTooltip]="action.label"
+                                [disabled]="isActionExecuting(action.id, row)">
+                            <span *ngIf="!isActionExecuting(action.id, row)" class="row-svg-icon" [innerHTML]="getActionIconSvg(action.iconName)"></span>
+                            <mat-icon *ngIf="isActionExecuting(action.id, row)" class="spinning">sync</mat-icon>
+                        </button>
+
                         <button *ngIf="canEdit" mat-icon-button color="primary" (click)="openEditDialog(row)" matTooltip="Edit">
                             <mat-icon>edit</mat-icon>
                         </button>

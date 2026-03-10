@@ -8,6 +8,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { NamedGeoJsonConfig } from '@models/geojson/NamedGeoJsonConfig';
 import { buildStyleFromTileSource } from '@models/geojson/GeoJsonConfigData';
+import { getSvgIcon, getSvgStyle, applyStyleToSvg } from '@models/shared/SvgIconLibrary';
 
 @Component({
   standalone: true,
@@ -42,6 +43,11 @@ import { buildStyleFromTileSource } from '@models/geojson/GeoJsonConfigData';
               (click)="locateMeClicked.emit()" title="Find my location">
         <mat-icon>my_location</mat-icon>
       </button>
+
+      <!-- Zoom level indicator -->
+      <div *ngIf="!loading && !error && !noData" class="zoom-indicator">
+        Zoom: {{ currentZoom }}
+      </div>
     </div>
   `,
   styleUrls: ['./map-renderer.css'],
@@ -55,6 +61,10 @@ export class MapRendererComponent implements OnChanges, OnDestroy {
   @Input() pickModeActive: boolean = false;
   @Input() showLocateMe: boolean = false;
   @Input() styleOverride: any = null;
+  @Input() collectionMarker: { iconName: string; styleName: string } | null = null;
+  @Input() featureMarkerOverrides: Map<string, { iconName: string; styleName: string }> | null = null;
+  @Input() collectionViewRange: { minZoom: number; maxZoom: number } | null = null;
+  @Input() featureViewRangeOverrides: Map<string, { minZoom: number; maxZoom: number }> | null = null;
 
   @Output() mapClicked = new EventEmitter<{ lng: number; lat: number }>();
   @Output() locateMeClicked = new EventEmitter<void>();
@@ -65,10 +75,11 @@ export class MapRendererComponent implements OnChanges, OnDestroy {
   loading = false;
   error = '';
   noData = false;
+  currentZoom: string = '0.00';
 
   private maplibregl: any = null;
   private map: any = null;
-  private markers: any[] = [];
+  private markers: { marker: any; lngLat: [number, number]; minZoom: number; maxZoom: number; visible: boolean }[] = [];
   private resizeObserver: ResizeObserver | null = null;
   private clickHandlerRegistered = false;
   private currentStyleJson: string = '';
@@ -76,7 +87,9 @@ export class MapRendererComponent implements OnChanges, OnDestroy {
   constructor(private ngZone: NgZone) {}
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['config'] || changes['instanceData'] || changes['styleOverride']) {
+    if (changes['config'] || changes['instanceData'] || changes['styleOverride']
+        || changes['collectionMarker'] || changes['featureMarkerOverrides']
+        || changes['collectionViewRange'] || changes['featureViewRangeOverrides']) {
       this.renderMap();
     }
     if (changes['pickModeActive'] && this.map) {
@@ -185,7 +198,15 @@ export class MapRendererComponent implements OnChanges, OnDestroy {
           this.map.on('load', () => {
             this.ngZone.run(() => {
               this.loading = false;
+              this.currentZoom = this.map.getZoom().toFixed(2);
               this.addMarkers(MarkerClass);
+            });
+          });
+
+          this.map.on('zoom', () => {
+            this.ngZone.run(() => {
+              this.currentZoom = this.map.getZoom().toFixed(2);
+              this.updateMarkerVisibility();
             });
           });
 
@@ -240,61 +261,87 @@ export class MapRendererComponent implements OnChanges, OnDestroy {
 
   private addMarkers(MarkerClass: any): void {
     // Clear existing markers
-    this.markers.forEach(m => m.remove());
+    this.markers.forEach(m => m.marker.remove());
     this.markers = [];
 
     if (!this.map || !this.config || !this.instanceData || this.instanceData.length === 0 || !MarkerClass) {
       return;
     }
 
-    const featureCollection = this.config.buildFeatureCollection(this.instanceData);
+    const featureCollection = this.config.buildFeatureCollection(
+      this.instanceData,
+      this.collectionMarker || undefined,
+      this.featureMarkerOverrides || undefined,
+      this.collectionViewRange || undefined,
+      this.featureViewRangeOverrides || undefined
+    );
+
+    // Resolve collection-level fallbacks from the built FeatureCollection
+    const fcIconName = featureCollection._markerIconName;
+    const fcStyleName = featureCollection._markerStyleName;
+    const fcMinZoom = featureCollection._minZoom;
+    const fcMaxZoom = featureCollection._maxZoom;
 
     for (const feature of featureCollection.features) {
       const coords = feature.geometry.coordinates as [number, number];
-      const marker = this.config.getMarker();
+      const props = feature.properties || {};
 
-      // Create HTML element from SVG string
+      // Resolve marker: feature props → collection level → config default
+      const iconName = props._markerIconName || fcIconName;
+      const styleName = props._markerStyleName || fcStyleName;
+      const resolved = this.resolveMarker(iconName, styleName);
+
+      // Create HTML element from styled SVG string
       const el = document.createElement('div');
       el.className = 'map-svg-marker';
-      el.style.width = `${marker.width}px`;
-      el.style.height = `${marker.height}px`;
-      el.innerHTML = this.applySvgStyles(marker.svgString, marker);
+      el.style.width = `${resolved.style.width}px`;
+      el.style.height = `${resolved.style.height}px`;
+      el.innerHTML = resolved.svgString;
 
-      const anchor = marker.anchor === 'bottom' ? 'bottom' : 'center';
+      const anchor = resolved.style.anchor === 'bottom' ? 'bottom' : 'center';
 
       const mlMarker = new MarkerClass({ element: el, anchor })
         .setLngLat(coords)
         .addTo(this.map!);
 
-      this.markers.push(mlMarker);
+      // Resolve zoom range: feature props → collection level → full range
+      const minZoom = props._minZoom ?? fcMinZoom ?? 0;
+      const maxZoom = props._maxZoom ?? fcMaxZoom ?? 24;
+
+      this.markers.push({ marker: mlMarker, lngLat: coords, minZoom, maxZoom, visible: true });
+    }
+
+    // Apply initial visibility based on current zoom
+    this.updateMarkerVisibility();
+  }
+
+  private updateMarkerVisibility(): void {
+    if (!this.map) return;
+    const zoom = this.map.getZoom();
+    for (const entry of this.markers) {
+      const shouldBeVisible = zoom >= entry.minZoom && zoom <= entry.maxZoom;
+      if (shouldBeVisible && !entry.visible) {
+        entry.marker.setLngLat(entry.lngLat).addTo(this.map);
+        entry.visible = true;
+      } else if (!shouldBeVisible && entry.visible) {
+        entry.marker.remove();
+        entry.visible = false;
+      }
     }
   }
 
-  private applySvgStyles(svgString: string, marker: { fillColor: string; strokeColor: string; strokeWidth: number }): string {
-    try {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(svgString, 'image/svg+xml');
-      const svg = doc.documentElement;
-
-      // Apply fill to paths/circles that don't have fill="white" or fill="none"
-      const elements = svg.querySelectorAll('path, circle, rect, polygon, ellipse');
-      elements.forEach((el: Element) => {
-        const currentFill = el.getAttribute('fill');
-        if (currentFill !== 'white' && currentFill !== 'none' && currentFill !== '#ffffff' && currentFill !== '#fff') {
-          el.setAttribute('fill', marker.fillColor);
-        }
-        el.setAttribute('stroke', marker.strokeColor);
-        el.setAttribute('stroke-width', String(marker.strokeWidth));
-      });
-
-      return new XMLSerializer().serializeToString(svg);
-    } catch {
-      return svgString;
+  private resolveMarker(iconName: string, styleName: string): { svgString: string; style: any } {
+    const icon = getSvgIcon(iconName);
+    const style = getSvgStyle(styleName);
+    if (icon && style) {
+      return { svgString: applyStyleToSvg(icon.svgString, style), style };
     }
+    // Fallback to config default
+    return this.config.getMarker();
   }
 
   private destroyMap(): void {
-    this.markers.forEach(m => m.remove());
+    this.markers.forEach(m => m.marker.remove());
     this.markers = [];
     if (this.map) {
       this.map.remove();

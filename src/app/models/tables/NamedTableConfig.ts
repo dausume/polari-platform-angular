@@ -1,4 +1,5 @@
 import { TableConfiguration, ITableConfiguration } from './TableConfiguration';
+import { InstanceActionButton, DatasetActionButton } from './TableActionButton';
 
 export interface TableDefinitionSummary {
   id: string;
@@ -39,6 +40,8 @@ export class NamedTableConfig {
   tableConfiguration: TableConfiguration;
   rowWrapping: RowWrappingConfig;
   crudPermissions: CrudPermissionConfig;
+  instanceActions: InstanceActionButton[];
+  datasetActions: DatasetActionButton[];
 
   constructor(id: string, name: string, description: string, sourceClass: string) {
     this.id = id;
@@ -48,13 +51,17 @@ export class NamedTableConfig {
     this.tableConfiguration = new TableConfiguration(sourceClass);
     this.rowWrapping = { ...DEFAULT_ROW_WRAPPING };
     this.crudPermissions = { ...DEFAULT_CRUD_PERMISSIONS };
+    this.instanceActions = [];
+    this.datasetActions = [];
   }
 
   toDefinitionJSON(): string {
     return JSON.stringify({
       tableConfiguration: this.tableConfiguration.toJSON(),
       rowWrapping: this.rowWrapping,
-      crudPermissions: this.crudPermissions
+      crudPermissions: this.crudPermissions,
+      instanceActions: this.instanceActions.map(a => a.toJSON()),
+      datasetActions: this.datasetActions.map(a => a.toJSON())
     });
   }
 
@@ -91,6 +98,13 @@ export class NamedTableConfig {
             ...DEFAULT_CRUD_PERMISSIONS,
             ...parsed.crudPermissions
           };
+        }
+
+        if (parsed.instanceActions && Array.isArray(parsed.instanceActions)) {
+          config.instanceActions = parsed.instanceActions.map((a: any) => InstanceActionButton.fromJSON(a));
+        }
+        if (parsed.datasetActions && Array.isArray(parsed.datasetActions)) {
+          config.datasetActions = parsed.datasetActions.map((a: any) => DatasetActionButton.fromJSON(a));
         }
       } catch (e) {
         console.warn('[NamedTableConfig] Failed to parse definition:', e);

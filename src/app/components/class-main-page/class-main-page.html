@@ -309,6 +309,8 @@
               [showGridlines]="displayShowGridlines || displayEditMode"
               (cellSelected)="onDisplayCellSelected($event)"
               (itemRemoved)="onDisplayItemRemoved($event)"
+              (columnCellSelected)="onDisplayColumnCellSelected($event)"
+              (columnItemRemoved)="onDisplayColumnItemRemoved($event)"
               (containerWidthMeasured)="onRendererWidthMeasured($event)">
             </dashboard-renderer>
           </div>
@@ -368,6 +370,101 @@
                     <mat-icon class="palette-add-icon">{{ isSolutionLinked(sol.name) ? 'link_off' : 'link' }}</mat-icon>
                   </div>
                 </div>
+              </div>
+
+              <mat-divider></mat-divider>
+
+              <!-- Display State Definition -->
+              <div class="config-section" *ngIf="selectedDisplay">
+                <h4>Data Sources</h4>
+                <p class="palette-hint">Define what data is available to components within this display.</p>
+
+                <div *ngFor="let ds of selectedDisplay.stateDefinition.dataSources; let dsi = index" class="state-source-card">
+                  <div class="state-source-header">
+                    <mat-icon>{{ ds.sourceType === 'class' ? 'storage' : ds.sourceType === 'solution' ? 'play_circle' : 'data_object' }}</mat-icon>
+                    <span class="state-source-title">{{ ds.label || 'Untitled' }}</span>
+                    <button mat-icon-button color="warn" (click)="removeDisplayDataSource(dsi)" matTooltip="Remove">
+                      <mat-icon>close</mat-icon>
+                    </button>
+                  </div>
+
+                  <mat-form-field appearance="outline" class="full-width">
+                    <mat-label>Label</mat-label>
+                    <input matInput [(ngModel)]="ds.label" (ngModelChange)="onDisplayPropertyChange()">
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline" class="full-width">
+                    <mat-label>Source Type</mat-label>
+                    <mat-select [(ngModel)]="ds.sourceType" (ngModelChange)="onDisplayPropertyChange()">
+                      <mat-option value="class">Class (load instances)</mat-option>
+                      <mat-option value="solution">Solution (execute)</mat-option>
+                      <mat-option value="static">Static data</mat-option>
+                    </mat-select>
+                  </mat-form-field>
+
+                  <mat-form-field *ngIf="ds.sourceType === 'class'" appearance="outline" class="full-width">
+                    <mat-label>Class Name</mat-label>
+                    <input matInput [(ngModel)]="ds.className" (ngModelChange)="onDisplayPropertyChange()">
+                  </mat-form-field>
+
+                  <mat-form-field *ngIf="ds.sourceType === 'solution'" appearance="outline" class="full-width">
+                    <mat-label>Solution Name</mat-label>
+                    <mat-select [(ngModel)]="ds.solutionName" (ngModelChange)="onDisplayPropertyChange()">
+                      <mat-option *ngFor="let sol of availableFrontendSolutions" [value]="sol.name">{{ sol.name }}</mat-option>
+                    </mat-select>
+                  </mat-form-field>
+
+                  <mat-slide-toggle [(ngModel)]="ds.autoLoad" (ngModelChange)="onDisplayPropertyChange()">
+                    Auto-load on display init
+                  </mat-slide-toggle>
+                </div>
+
+                <button mat-stroked-button color="primary" (click)="addDisplayDataSource()" class="full-width" style="margin-top: 8px">
+                  <mat-icon>add</mat-icon> Add Data Source
+                </button>
+
+                <!-- Display Inputs -->
+                <h4 style="margin-top: 16px">Display Inputs</h4>
+                <p class="palette-hint">Parameters this display expects from its context (route params, parent component, etc.).</p>
+
+                <div *ngFor="let inp of selectedDisplay.stateDefinition.inputs; let inpi = index" class="state-source-card">
+                  <div class="state-source-header">
+                    <mat-icon>input</mat-icon>
+                    <span class="state-source-title">{{ inp.name || 'Untitled' }}</span>
+                    <button mat-icon-button color="warn" (click)="removeDisplayInput(inpi)" matTooltip="Remove">
+                      <mat-icon>close</mat-icon>
+                    </button>
+                  </div>
+
+                  <mat-form-field appearance="outline" class="full-width">
+                    <mat-label>Name</mat-label>
+                    <input matInput [(ngModel)]="inp.name" (ngModelChange)="onDisplayPropertyChange()">
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline" class="full-width">
+                    <mat-label>Label</mat-label>
+                    <input matInput [(ngModel)]="inp.label" (ngModelChange)="onDisplayPropertyChange()">
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline" class="full-width">
+                    <mat-label>Data Type</mat-label>
+                    <mat-select [(ngModel)]="inp.dataType" (ngModelChange)="onDisplayPropertyChange()">
+                      <mat-option value="string">String</mat-option>
+                      <mat-option value="number">Number</mat-option>
+                      <mat-option value="boolean">Boolean</mat-option>
+                      <mat-option value="object">Object</mat-option>
+                      <mat-option value="array">Array</mat-option>
+                    </mat-select>
+                  </mat-form-field>
+
+                  <mat-slide-toggle [(ngModel)]="inp.required" (ngModelChange)="onDisplayPropertyChange()">
+                    Required
+                  </mat-slide-toggle>
+                </div>
+
+                <button mat-stroked-button color="primary" (click)="addDisplayInput()" class="full-width" style="margin-top: 8px">
+                  <mat-icon>add</mat-icon> Add Input
+                </button>
               </div>
 
               <mat-divider></mat-divider>
@@ -444,6 +541,77 @@
                             }"></ng-container>
                           </div>
                         </div>
+                      </div>
+
+                      <!-- Columns in this row -->
+                      <div *ngIf="row.hasColumns()" class="nested-row-config" [ngClass]="'depth-' + (depth + 1)">
+                        <div class="nested-config-header">
+                          <h5><mat-icon style="font-size:14px;width:14px;height:14px">view_week</mat-icon> Columns</h5>
+                          <button mat-icon-button color="primary"
+                                  (click)="addColumnToRow(row)"
+                                  title="Add column">
+                            <mat-icon>add</mat-icon>
+                          </button>
+                        </div>
+                        <mat-accordion>
+                          <mat-expansion-panel *ngFor="let col of row.columns; let ci = index">
+                            <mat-expansion-panel-header>
+                              <mat-panel-title>Column {{ ci + 1 }}</mat-panel-title>
+                              <mat-panel-description>
+                                {{ col.columnSegmentsUsed }} wide, {{ col.columnSegments }} rows, {{ col.dashboardItems.length }} items
+                              </mat-panel-description>
+                            </mat-expansion-panel-header>
+
+                            <div class="row-config">
+                              <mat-form-field appearance="outline" class="half-width">
+                                <mat-label>Width (segments)</mat-label>
+                                <input matInput type="number" [(ngModel)]="col.columnSegmentsUsed"
+                                       (ngModelChange)="onDisplayPropertyChange()" min="1" [max]="row.rowSegments">
+                              </mat-form-field>
+
+                              <mat-form-field appearance="outline" class="half-width">
+                                <mat-label>Vertical Segments</mat-label>
+                                <input matInput type="number" [(ngModel)]="col.columnSegments"
+                                       (ngModelChange)="onDisplayPropertyChange()" min="1" max="24">
+                              </mat-form-field>
+
+                              <mat-form-field appearance="outline" class="half-width">
+                                <mat-label>Min Height (px)</mat-label>
+                                <input matInput type="number" [(ngModel)]="col.minColumnHeight" (ngModelChange)="onDisplayPropertyChange()" min="0">
+                              </mat-form-field>
+
+                              <mat-form-field appearance="outline" class="half-width">
+                                <mat-label>Max Height (px)</mat-label>
+                                <input matInput type="number" [(ngModel)]="col.maxColumnHeight" (ngModelChange)="onDisplayPropertyChange()">
+                              </mat-form-field>
+
+                              <mat-slide-toggle [(ngModel)]="col.autoHeight" (ngModelChange)="onDisplayPropertyChange()">
+                                Auto Height
+                              </mat-slide-toggle>
+
+                              <mat-form-field appearance="outline" class="full-width">
+                                <mat-label>CSS Class</mat-label>
+                                <input matInput [(ngModel)]="col.cssClass" (ngModelChange)="onDisplayPropertyChange()">
+                              </mat-form-field>
+
+                              <!-- Items in this column -->
+                              <div class="row-items-summary" *ngIf="col.dashboardItems.length > 0">
+                                <h5>Items ({{ col.dashboardItems.length }})</h5>
+                                <div *ngFor="let item of col.dashboardItems" class="config-item-entry">
+                                  <div class="config-item-header">
+                                    <mat-icon>{{ getItemIcon(item.type) }}</mat-icon>
+                                    <span>{{ item.title || item.type }} ({{ item.rowSegmentsUsed }} rows)</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <button mat-stroked-button color="warn"
+                                      (click)="removeColumnFromRow(row, ci)">
+                                <mat-icon>delete</mat-icon> Remove Column
+                              </button>
+                            </div>
+                          </mat-expansion-panel>
+                        </mat-accordion>
                       </div>
 
                       <button mat-stroked-button color="warn"
@@ -538,6 +706,11 @@
                     <div class="palette-item" (click)="placeComponentInCell('container')">
                       <mat-icon>view_agenda</mat-icon>
                       <span class="palette-item-name">Row Container</span>
+                      <mat-icon class="palette-add-icon">add_circle_outline</mat-icon>
+                    </div>
+                    <div class="palette-item" (click)="placeComponentInCell('column-container')">
+                      <mat-icon>view_week</mat-icon>
+                      <span class="palette-item-name">Column Container</span>
                       <mat-icon class="palette-add-icon">add_circle_outline</mat-icon>
                     </div>
                   </div>
@@ -691,6 +864,9 @@
               <mat-button-toggle value="data" title="Interactive data view">
                 <mat-icon>place</mat-icon>
               </mat-button-toggle>
+              <mat-button-toggle value="features" title="FeatureCollection viewer">
+                <mat-icon>data_object</mat-icon>
+              </mat-button-toggle>
             </mat-button-toggle-group>
             <button mat-flat-button color="primary" *ngIf="hasGeoJsonDraftChanges && geoJsonViewMode === 'config'" (click)="saveGeoJsonConfig()">
               <mat-icon>save</mat-icon> Save
@@ -733,6 +909,17 @@
             [className]="className!"
             (instanceDataChange)="onGeoJsonInstanceDataChange($event)">
           </geojson-data-view>
+        </div>
+
+        <!-- FeatureCollection Debug View -->
+        <div class="editor-body" *ngIf="geoJsonViewMode === 'features'">
+          <feature-collection-view
+            [config]="selectedGeoJsonConfig"
+            [instanceData]="geoJsonPreviewData"
+            [classTypeData]="classTypeData"
+            [className]="className!"
+            (instanceDataChange)="onGeoJsonInstanceDataChange($event)">
+          </feature-collection-view>
         </div>
       </div>
 

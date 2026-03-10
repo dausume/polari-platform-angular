@@ -1,7 +1,11 @@
 import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges } from '@angular/core';
 import { NamedTableConfig, RowWrappingConfig, CrudPermissionConfig } from '@models/tables/NamedTableConfig';
+import { InstanceActionButton, DatasetActionButton, ParamMapping } from '@models/tables/TableActionButton';
 import { ColumnConfiguration } from '@models/tables/ColumnConfiguration';
 import { SortOrder, SortDirection, TableDensity } from '@models/tables/TableConfiguration';
+import { SolutionManagerService, SolutionSummary } from '@services/no-code-services/solution-manager.service';
+import { getAllSvgIcons, SvgIconDef } from '@models/shared/SvgIconLibrary';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 
 interface FieldInfo {
   name: string;
@@ -24,6 +28,15 @@ export class TableConfigSidebarComponent implements OnChanges {
 
   fields: FieldInfo[] = [];
   pageSizeOptions: number[] = [5, 10, 25, 50, 100];
+  availableSolutions: SolutionSummary[] = [];
+  svgIcons: SvgIconDef[] = getAllSvgIcons();
+
+  constructor(private solutionManager: SolutionManagerService, private sanitizer: DomSanitizer) {
+    this.solutionManager.solutionList$.subscribe(solutions => {
+      this.availableSolutions = solutions;
+    });
+    this.solutionManager.fetchSolutionList();
+  }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['config'] || changes['classTypeData']) {
@@ -153,5 +166,64 @@ export class TableConfigSidebarComponent implements OnChanges {
 
   get availableFields(): FieldInfo[] {
     return this.fields.filter(f => f.available);
+  }
+
+  get fieldNames(): string[] {
+    return this.fields.map(f => f.name);
+  }
+
+  // ===== Instance Action Buttons =====
+
+  addInstanceAction(): void {
+    const action = new InstanceActionButton();
+    this.config.instanceActions.push(action);
+    this.emitChange();
+  }
+
+  removeInstanceAction(index: number): void {
+    this.config.instanceActions.splice(index, 1);
+    this.emitChange();
+  }
+
+  onInstanceActionChange(): void {
+    this.emitChange();
+  }
+
+  addParamMapping(action: InstanceActionButton): void {
+    action.paramMappings.push({ instanceField: '', solutionParam: '' });
+    this.emitChange();
+  }
+
+  removeParamMapping(action: InstanceActionButton, index: number): void {
+    action.paramMappings.splice(index, 1);
+    this.emitChange();
+  }
+
+  // ===== Dataset Action Buttons =====
+
+  addDatasetAction(): void {
+    const action = new DatasetActionButton();
+    this.config.datasetActions.push(action);
+    this.emitChange();
+  }
+
+  removeDatasetAction(index: number): void {
+    this.config.datasetActions.splice(index, 1);
+    this.emitChange();
+  }
+
+  onDatasetActionChange(): void {
+    this.emitChange();
+  }
+
+  /** Get sanitized SVG HTML for template rendering */
+  getSafeSvg(svgString: string): SafeHtml {
+    return this.sanitizer.bypassSecurityTrustHtml(svgString);
+  }
+
+  /** Get sanitized SVG for an icon by name */
+  getIconSvgByName(name: string): SafeHtml {
+    const icon = this.svgIcons.find(i => i.name === name);
+    return this.sanitizer.bypassSecurityTrustHtml(icon?.svgString || '');
   }
 }

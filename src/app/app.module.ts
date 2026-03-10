@@ -120,6 +120,7 @@ import { MapRendererComponent } from '@components/geojson-config/map-renderer/ma
 import { CreateGeoJsonConfigDialogComponent } from '@components/geojson-config/create-geojson-config-dialog/create-geojson-config-dialog';
 import { GeolocationDialogComponent } from '@components/geojson-config/geolocation-dialog/geolocation-dialog';
 import { GeoJsonDataViewComponent } from '@components/geojson-config/geojson-data-view/geojson-data-view';
+import { FeatureCollectionViewComponent } from '@components/geojson-config/feature-collection-view/feature-collection-view';
 import { CreateTileSourceDialogComponent } from '@components/geojson-config/create-tile-source-dialog/create-tile-source-dialog';
 import { TileSourceDetailDialogComponent } from '@components/geojson-config/tile-source-detail-dialog/tile-source-detail-dialog';
 import { CreateGeocoderDialogComponent } from '@components/geojson-config/create-geocoder-dialog/create-geocoder-dialog';
@@ -259,6 +260,7 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     CreateGeoJsonConfigDialogComponent,
     GeolocationDialogComponent,
     GeoJsonDataViewComponent,
+    FeatureCollectionViewComponent,
     CreateTileSourceDialogComponent,
     TileSourceDetailDialogComponent,
     CreateGeocoderDialogComponent,

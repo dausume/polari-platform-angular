@@ -46,6 +46,7 @@
               <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ col }}</th>
               <td mat-cell *matCellDef="let row">{{ formatCellValue(row[col]) }}</td>
             </ng-container>
+
             <ng-container *ngIf="col === '_setLocation'">
               <th mat-header-cell *matHeaderCellDef>Location</th>
               <td mat-cell *matCellDef="let row">

@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { Display } from '@models/dashboards/Display';
 import { DisplayRow } from '@models/dashboards/DisplayRow';
+import { DisplayColumn } from '@models/dashboards/DisplayColumn';
 import { DisplayItem, DisplayItemType, MetricData } from '@models/dashboards/DisplayItem';
 import { DISPLAY_COMPONENT_REGISTRY } from '@models/dashboards/ComponentRegistry';
 import { DisplayMetricCardComponent } from '@components/dashboard/dashboard-metric-card/dashboard-metric-card';
@@ -17,7 +18,8 @@ export interface DisplayContext {
 }
 
 /**
- * Represents a single cell in the grid (either an item or empty space)
+ * Represents a single cell in the grid (either an item or empty space).
+ * Used for both horizontal cells in rows and vertical cells in columns.
  */
 export interface GridCell {
     type: 'item' | 'empty';
@@ -61,17 +63,29 @@ export class DisplayRendererComponent implements OnInit, OnChanges, AfterViewIni
     /** Emitted when a user removes an item in edit mode */
     @Output() itemRemoved = new EventEmitter<{row: DisplayRow, itemIndex: number}>();
 
+    /** Emitted when an empty cell in a column is selected in edit mode */
+    @Output() columnCellSelected = new EventEmitter<{column: DisplayColumn, startSegment: number, spanSegments: number, availableHeight: number} | null>();
+
+    /** Emitted when a user removes an item from a column in edit mode */
+    @Output() columnItemRemoved = new EventEmitter<{column: DisplayColumn, itemIndex: number}>();
+
     /** Emitted when the container element width is measured or changes */
     @Output() containerWidthMeasured = new EventEmitter<number>();
 
     /** Measured width of the .dashboard-container element */
     containerWidth: number = 0;
 
-    /** Currently selected range in edit mode */
+    /** Currently selected range in edit mode (row horizontal selection) */
     selectedRange: {row: DisplayRow, startSegment: number, endSegment: number, availableWidth: number} | null = null;
 
-    /** Anchor point for range selection (the first click) */
+    /** Anchor point for row range selection (the first click) */
     private selectionAnchor: {row: DisplayRow, segment: number, availableWidth: number} | null = null;
+
+    /** Currently selected range in a column (vertical selection) */
+    selectedColumnRange: {column: DisplayColumn, startSegment: number, endSegment: number, availableHeight: number} | null = null;
+
+    /** Anchor point for column range selection */
+    private columnSelectionAnchor: {column: DisplayColumn, segment: number, availableHeight: number} | null = null;
 
     private resizeObserver?: ResizeObserver;
 
@@ -81,11 +95,12 @@ export class DisplayRendererComponent implements OnInit, OnChanges, AfterViewIni
 
     ngOnChanges(changes: SimpleChanges): void {
         if (changes['dashboard']) {
-            // console.log('[DisplayRenderer] Display changed:', this.dashboard?.name);
             this.clearSelection();
+            this.clearColumnSelection();
         }
         if (changes['editMode'] && !this.editMode) {
             this.clearSelection();
+            this.clearColumnSelection();
         }
     }
 
@@ -153,6 +168,32 @@ export class DisplayRendererComponent implements OnInit, OnChanges, AfterViewIni
         const cells: GridCell[] = [];
         const occupied: Set<number> = new Set();
         const itemStarts: Map<DisplayItem, number> = new Map();
+
+        // Phase 0: mark segments occupied by columns (columns share the same row grid)
+        for (const col of row.columns) {
+            if (col.gridColumnStart != null) {
+                for (let s = col.gridColumnStart; s < col.gridColumnStart + col.columnSegmentsUsed; s++) {
+                    occupied.add(s);
+                }
+            }
+        }
+        // Auto-place columns without gridColumnStart
+        for (const col of row.columns) {
+            if (col.gridColumnStart == null) {
+                for (let start = 1; start <= row.rowSegments - col.columnSegmentsUsed + 1; start++) {
+                    let fits = true;
+                    for (let s = start; s < start + col.columnSegmentsUsed; s++) {
+                        if (occupied.has(s)) { fits = false; break; }
+                    }
+                    if (fits) {
+                        for (let s = start; s < start + col.columnSegmentsUsed; s++) {
+                            occupied.add(s);
+                        }
+                        break;
+                    }
+                }
+            }
+        }
 
         // Phase 1: place explicitly positioned items
         for (const item of row.dashboardItems) {
@@ -232,6 +273,9 @@ export class DisplayRendererComponent implements OnInit, OnChanges, AfterViewIni
      *  - Second click in same row: extends range from anchor to clicked cell
      */
     selectCell(row: DisplayRow, segment: number, availableWidth: number): void {
+        // Clear column selection when selecting in a row
+        this.clearColumnSelection();
+
         // If clicking any cell that is already selected, deselect everything
         if (this.isCellSelected(row, segment)) {
             this.clearSelection();
@@ -280,6 +324,160 @@ export class DisplayRendererComponent implements OnInit, OnChanges, AfterViewIni
     }
 
     // ================================================================
+    // Column cell map — vertical segment analysis
+    // ================================================================
+
+    /**
+     * Builds a cell map for a column's vertical segments.
+     * Works like getRowCellMap but for top→bottom placement.
+     * Items use rowSegmentsUsed as the number of vertical segments they occupy.
+     */
+    getColumnCellMap(column: DisplayColumn): GridCell[] {
+        const cells: GridCell[] = [];
+        const occupied: Set<number> = new Set();
+        const itemStarts: Map<DisplayItem, number> = new Map();
+
+        // Phase 1: place explicitly positioned items
+        for (const item of column.dashboardItems) {
+            if (item.gridColumnStart != null) {
+                itemStarts.set(item, item.gridColumnStart);
+                for (let s = item.gridColumnStart; s < item.gridColumnStart + item.rowSegmentsUsed; s++) {
+                    occupied.add(s);
+                }
+            }
+        }
+
+        // Phase 2: auto-place items without gridColumnStart
+        for (const item of column.dashboardItems) {
+            if (item.gridColumnStart == null) {
+                for (let start = 1; start <= column.columnSegments - item.rowSegmentsUsed + 1; start++) {
+                    let fits = true;
+                    for (let s = start; s < start + item.rowSegmentsUsed; s++) {
+                        if (occupied.has(s)) { fits = false; break; }
+                    }
+                    if (fits) {
+                        itemStarts.set(item, start);
+                        for (let s = start; s < start + item.rowSegmentsUsed; s++) {
+                            occupied.add(s);
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Phase 3: walk segments top-to-bottom and build cell list
+        const processedItems = new Set<DisplayItem>();
+        let seg = 1;
+        while (seg <= column.columnSegments) {
+            let itemHere: DisplayItem | undefined;
+            for (const item of column.dashboardItems) {
+                if (itemStarts.get(item) === seg && !processedItems.has(item)) {
+                    itemHere = item;
+                    break;
+                }
+            }
+
+            if (itemHere) {
+                processedItems.add(itemHere);
+                cells.push({
+                    type: 'item',
+                    item: itemHere,
+                    startSegment: seg,
+                    spanSegments: itemHere.rowSegmentsUsed
+                });
+                seg += itemHere.rowSegmentsUsed;
+            } else if (occupied.has(seg)) {
+                seg++;
+            } else {
+                cells.push({
+                    type: 'empty',
+                    startSegment: seg,
+                    spanSegments: 1
+                });
+                seg++;
+            }
+        }
+
+        return cells;
+    }
+
+    // ================================================================
+    // Column cell selection (vertical range, mirrors row selection)
+    // ================================================================
+
+    /**
+     * Handles clicking an empty cell in a column for vertical range selection.
+     * Clears any active row selection when a column cell is clicked.
+     */
+    selectColumnCell(column: DisplayColumn, segment: number, availableHeight: number): void {
+        // Clear row selection when selecting in a column
+        this.clearSelection();
+
+        // If clicking an already-selected column cell, deselect
+        if (this.isColumnCellSelected(column, segment)) {
+            this.clearColumnSelection();
+            this.emitColumnSelection();
+            return;
+        }
+
+        // Different column or no anchor: start fresh
+        if (!this.columnSelectionAnchor || this.columnSelectionAnchor.column !== column) {
+            this.columnSelectionAnchor = { column, segment, availableHeight };
+            this.selectedColumnRange = { column, startSegment: segment, endSegment: segment, availableHeight };
+        } else {
+            // Same column: extend range
+            const start = Math.min(this.columnSelectionAnchor.segment, segment);
+            const end = Math.max(this.columnSelectionAnchor.segment, segment);
+            this.selectedColumnRange = { column, startSegment: start, endSegment: end, availableHeight: this.columnSelectionAnchor.availableHeight };
+        }
+
+        this.emitColumnSelection();
+    }
+
+    isColumnCellSelected(column: DisplayColumn, segment: number): boolean {
+        if (!this.selectedColumnRange || this.selectedColumnRange.column !== column) return false;
+        return segment >= this.selectedColumnRange.startSegment && segment <= this.selectedColumnRange.endSegment;
+    }
+
+    isColumnSelectionStart(column: DisplayColumn, segment: number): boolean {
+        return !!this.selectedColumnRange &&
+            this.selectedColumnRange.column === column &&
+            this.selectedColumnRange.startSegment === segment;
+    }
+
+    isColumnSelectionEnd(column: DisplayColumn, segment: number): boolean {
+        return !!this.selectedColumnRange &&
+            this.selectedColumnRange.column === column &&
+            this.selectedColumnRange.endSegment === segment;
+    }
+
+    isSingleColumnCellSelection(): boolean {
+        return !!this.selectedColumnRange &&
+            this.selectedColumnRange.startSegment === this.selectedColumnRange.endSegment;
+    }
+
+    clearColumnSelection(): void {
+        this.selectedColumnRange = null;
+        this.columnSelectionAnchor = null;
+        this.columnCellSelected.emit(null);
+    }
+
+    private emitColumnSelection(): void {
+        if (this.selectedColumnRange) {
+            const span = this.selectedColumnRange.endSegment - this.selectedColumnRange.startSegment + 1;
+            this.columnCellSelected.emit({
+                column: this.selectedColumnRange.column,
+                startSegment: this.selectedColumnRange.startSegment,
+                spanSegments: span,
+                availableHeight: this.selectedColumnRange.availableHeight
+            });
+        } else {
+            this.columnCellSelected.emit(null);
+        }
+    }
+
+    // ================================================================
     // Item removal
     // ================================================================
 
@@ -287,6 +485,12 @@ export class DisplayRendererComponent implements OnInit, OnChanges, AfterViewIni
     onRemoveItem(row: DisplayRow, itemIndex: number, event: Event): void {
         event.stopPropagation();
         this.itemRemoved.emit({ row, itemIndex });
+    }
+
+    /** Removes an item from a column and emits the event */
+    onRemoveColumnItem(column: DisplayColumn, itemIndex: number, event: Event): void {
+        event.stopPropagation();
+        this.columnItemRemoved.emit({ column, itemIndex });
     }
 
     // ================================================================
@@ -319,6 +523,43 @@ export class DisplayRendererComponent implements OnInit, OnChanges, AfterViewIni
             return `${item.gridColumnStart} / span ${item.rowSegmentsUsed}`;
         }
         return `span ${item.rowSegmentsUsed}`;
+    }
+
+    // ================================================================
+    // Column grid helpers
+    // ================================================================
+
+    /** Gets the grid template rows CSS value for a column */
+    getColumnGridTemplate(column: DisplayColumn): string {
+        return `repeat(${column.columnSegments}, 1fr)`;
+    }
+
+    /** Gets the grid-column CSS for a column within its parent row */
+    getColumnGridColumn(column: DisplayColumn): string {
+        if (column.gridColumnStart != null) {
+            return `${column.gridColumnStart} / span ${column.columnSegmentsUsed}`;
+        }
+        return `span ${column.columnSegmentsUsed}`;
+    }
+
+    /** Gets the grid-row CSS for an item inside a column (vertical placement) */
+    getItemGridRow(item: DisplayItem): string {
+        if (item.gridColumnStart != null) {
+            return `${item.gridColumnStart} / span ${item.rowSegmentsUsed}`;
+        }
+        return `span ${item.rowSegmentsUsed}`;
+    }
+
+    /** Gets the column style (min/max height) */
+    getColumnStyle(column: DisplayColumn): { [key: string]: string } {
+        const style: { [key: string]: string } = {};
+        if (!column.autoHeight) {
+            style['min-height'] = `${column.minColumnHeight}px`;
+            if (column.maxColumnHeight) {
+                style['max-height'] = `${column.maxColumnHeight}px`;
+            }
+        }
+        return style;
     }
 
     // ================================================================
@@ -379,12 +620,23 @@ export class DisplayRendererComponent implements OnInit, OnChanges, AfterViewIni
         return classes.join(' ');
     }
 
+    getColumnClasses(column: DisplayColumn): string {
+        const classes: string[] = ['dashboard-column'];
+        if (column.cssClass) classes.push(column.cssClass);
+        if (column.autoHeight) classes.push('auto-height');
+        return classes.join(' ');
+    }
+
     // ================================================================
     // Track functions
     // ================================================================
 
     trackRow(index: number, row: DisplayRow): number {
         return row.index;
+    }
+
+    trackColumn(index: number, column: DisplayColumn): number {
+        return column.index;
     }
 
     trackItem(index: number, item: DisplayItem): string {
@@ -402,6 +654,7 @@ export class DisplayRendererComponent implements OnInit, OnChanges, AfterViewIni
     clearSelection(): void {
         this.selectedRange = null;
         this.selectionAnchor = null;
+        this.cellSelected.emit(null);
     }
 
     private emitSelection(): void {

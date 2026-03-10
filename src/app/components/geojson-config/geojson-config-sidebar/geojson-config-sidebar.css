@@ -154,6 +154,92 @@
   max-height: 64px;
 }
 
+/* Icon option in select dropdown */
+.icon-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.icon-option-svg {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+}
+
+.icon-option-svg ::ng-deep svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
+.icon-category-badge {
+  font-size: 0.7em;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background-color: rgba(0, 0, 0, 0.06);
+  color: var(--text-tertiary);
+  margin-left: 4px;
+}
+
+/* Style option in select dropdown */
+.style-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.style-color-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 2px solid;
+  flex-shrink: 0;
+}
+
+.style-size-badge,
+.style-anchor-badge {
+  font-size: 0.7em;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background-color: rgba(0, 0, 0, 0.06);
+  color: var(--text-tertiary);
+}
+
+/* Style details panel */
+.style-details {
+  padding: 8px 12px;
+  background: var(--surface-secondary);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+}
+
+.style-detail-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding: 2px 0;
+}
+
+.style-detail-label {
+  font-weight: 600;
+  min-width: 50px;
+}
+
+.style-color-swatch-inline {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  border: 1px solid var(--border-medium);
+  flex-shrink: 0;
+}
+
 .add-marker-btn {
   width: 100%;
   margin-top: 4px;

@@ -1,0 +1,469 @@
+:host {
+  display: flex;
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+}
+
+.fc-view-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+}
+
+/* ===== Toolbar ===== */
+.fc-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: var(--surface-secondary);
+  border-bottom: 1px solid var(--border-medium);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.fc-stats {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.fc-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.fc-stat mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
+.fc-stat strong {
+  color: var(--text-primary);
+}
+
+.fc-collection-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fc-toggle-btn {
+  font-size: 12px;
+  line-height: 30px;
+  padding: 0 10px;
+  white-space: nowrap;
+}
+
+.fc-toggle-btn mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  margin-right: 4px;
+}
+
+.fc-toggle-active {
+  background: rgba(25, 118, 210, 0.1);
+  border-color: var(--brand-blue);
+  color: var(--brand-blue);
+}
+
+.fc-marker-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.fc-marker-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+}
+
+.fc-marker-preview ::ng-deep svg {
+  width: 24px;
+  height: 24px;
+}
+
+.fc-select {
+  width: 160px;
+}
+
+.fc-select ::ng-deep .mat-mdc-form-field-infix {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  min-height: 36px;
+}
+
+.fc-zoom-input {
+  width: 90px;
+}
+
+.fc-zoom-input ::ng-deep .mat-mdc-form-field-infix {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  min-height: 36px;
+}
+
+.fc-zoom-input ::ng-deep input[type="number"] {
+  -moz-appearance: textfield;
+  width: 100%;
+}
+
+.fc-zoom-separator {
+  color: var(--text-tertiary);
+  font-size: 14px;
+}
+
+/* ===== Per-feature Zoom Cell ===== */
+.fc-zoom-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.fc-zoom-inline {
+  width: 48px;
+  padding: 2px 4px;
+  border: 1px solid var(--border-medium);
+  border-radius: 4px;
+  font-size: 11px;
+  text-align: center;
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  -moz-appearance: textfield;
+}
+
+.fc-zoom-inline::-webkit-outer-spin-button,
+.fc-zoom-inline::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.fc-zoom-inline:focus {
+  outline: none;
+  border-color: var(--brand-blue);
+}
+
+/* ===== Enable Override Button ===== */
+.fc-enable-btn {
+  width: 28px;
+  height: 28px;
+  line-height: 28px;
+  opacity: 0.4;
+}
+
+.fc-enable-btn:hover {
+  opacity: 1;
+}
+
+.fc-enable-btn mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
+.fc-detail-no-overrides {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+/* ===== Detail Zoom Range ===== */
+.fc-detail-zoom-range {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-family: monospace;
+  margin-left: auto;
+}
+
+/* ===== Body ===== */
+.fc-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  min-height: 500px;
+}
+
+.fc-map-panel {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+
+.fc-features-panel {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--border-medium);
+  background: var(--surface-primary);
+  overflow: hidden;
+}
+
+.fc-features-panel ::ng-deep .mat-mdc-tab-body-wrapper {
+  flex: 1;
+  overflow: hidden;
+}
+
+.fc-features-panel ::ng-deep .mat-mdc-tab-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.fc-features-panel ::ng-deep .mat-mdc-tab-body-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ===== Features Table ===== */
+.fc-table-wrapper {
+  flex: 1;
+  overflow: auto;
+  padding: 0 8px;
+}
+
+.fc-table {
+  width: 100%;
+}
+
+.fc-table th {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--surface-tertiary);
+}
+
+.fc-table td {
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding: 4px 8px;
+}
+
+.fc-id-cell {
+  cursor: pointer;
+  color: var(--brand-blue);
+  text-decoration: underline;
+  font-family: monospace;
+  font-size: 11px;
+}
+
+.fc-id-cell:hover {
+  color: #0d47a1;
+}
+
+.fc-inline-select {
+  width: 120px;
+}
+
+.fc-inline-select ::ng-deep .mat-mdc-form-field-infix {
+  padding-top: 4px;
+  padding-bottom: 4px;
+  min-height: 28px;
+}
+
+.fc-inline-select ::ng-deep .mat-mdc-select-value-text {
+  font-size: 11px;
+}
+
+.fc-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.fc-marker-mini-preview {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+}
+
+.fc-marker-mini-preview ::ng-deep svg {
+  width: 18px;
+  height: 18px;
+}
+
+.fc-row-overridden {
+  background: rgba(25, 118, 210, 0.05) !important;
+}
+
+.fc-row-selected {
+  background: var(--brand-blue-light) !important;
+}
+
+.fc-no-data {
+  text-align: center;
+  padding: 24px;
+  color: var(--text-tertiary);
+}
+
+/* ===== JSON Panel ===== */
+.fc-json-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.fc-json-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--surface-tertiary);
+  border-bottom: 1px solid var(--border-light);
+  flex-shrink: 0;
+}
+
+.fc-json-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.fc-export-btn {
+  font-size: 12px;
+  line-height: 28px;
+  padding: 0 10px;
+}
+
+.fc-export-btn mat-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  margin-right: 4px;
+}
+
+.fc-json-block {
+  margin: 0;
+  padding: 12px;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  background: var(--surface-primary);
+  white-space: pre-wrap;
+  word-break: break-all;
+  overflow: auto;
+  flex: 1;
+}
+
+/* ===== Detail Panel ===== */
+.fc-detail-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: auto;
+}
+
+.fc-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--surface-tertiary);
+  border-bottom: 1px solid var(--border-light);
+  flex-shrink: 0;
+}
+
+.fc-detail-marker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--surface-secondary);
+  border-bottom: 1px solid var(--border-light);
+  flex-shrink: 0;
+}
+
+.fc-detail-marker-names {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-family: monospace;
+}
+
+/* ===== Icon/Style option inline ===== */
+.icon-option-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.icon-option-svg {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+}
+
+.icon-option-svg ::ng-deep svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+.style-option-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.style-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  border: 2px solid;
+  flex-shrink: 0;
+}
+
+/* ===== Force theme colors ===== */
+:host ::ng-deep .mat-mdc-text-field-wrapper,
+:host ::ng-deep .mdc-text-field--outlined {
+  background: var(--surface-primary);
+}
+
+:host ::ng-deep .mat-mdc-form-field-input-control,
+:host ::ng-deep .mdc-floating-label,
+:host ::ng-deep .mat-mdc-select-value-text {
+  color: var(--text-primary) !important;
+}
+
+:host ::ng-deep .mdc-notched-outline__leading,
+:host ::ng-deep .mdc-notched-outline__notch,
+:host ::ng-deep .mdc-notched-outline__trailing {
+  border-color: var(--border-dark) !important;
+}
+
+:host ::ng-deep .mat-mdc-tab-labels {
+  background: var(--surface-secondary);
+}
+
+:host ::ng-deep .mat-mdc-paginator {
+  border-top: 1px solid var(--border-medium);
+  flex-shrink: 0;
+}

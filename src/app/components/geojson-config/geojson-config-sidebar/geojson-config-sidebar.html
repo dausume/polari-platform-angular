@@ -100,7 +100,7 @@
         <mat-panel-title>SVG Markers</mat-panel-title>
       </mat-expansion-panel-header>
 
-      <p class="section-hint">Define named SVG markers with custom styling for map points.</p>
+      <p class="section-hint">Define named markers by combining a shared icon with a shared style.</p>
 
       <!-- Default marker selector -->
       <mat-form-field appearance="outline" class="full-width" *ngIf="config.geoJsonConfig.svgMarkers.length > 0">
@@ -116,7 +116,7 @@
       <div class="marker-list">
         <div *ngFor="let marker of config.geoJsonConfig.svgMarkers; let i = index" class="marker-entry">
           <div class="marker-header">
-            <div class="svg-preview-small" [innerHTML]="getStyledSvg(marker)"></div>
+            <div class="svg-preview-small" [innerHTML]="getMarkerPreviewSvg(marker)"></div>
             <span class="marker-name">{{ marker.name }}</span>
             <button mat-icon-button (click)="toggleEditMarker(i)" title="Edit marker">
               <mat-icon>{{ editingMarkerIndex === i ? 'expand_less' : 'edit' }}</mat-icon>
@@ -134,54 +134,67 @@
               <input matInput [ngModel]="marker.name" (ngModelChange)="onMarkerNameChange(i, $event)">
             </mat-form-field>
 
+            <!-- Icon Picker -->
             <mat-form-field appearance="outline" class="full-width">
-              <mat-label>SVG Markup</mat-label>
-              <textarea matInput [ngModel]="marker.svgString" (ngModelChange)="onMarkerSvgChange(i, $event)"
-                        rows="4" class="svg-textarea"></textarea>
-            </mat-form-field>
-
-            <div class="marker-dimensions">
-              <mat-form-field appearance="outline" class="half-width">
-                <mat-label>Width (px)</mat-label>
-                <input matInput type="number" [ngModel]="marker.width" (ngModelChange)="onMarkerWidthChange(i, $event)" min="1">
-              </mat-form-field>
-              <mat-form-field appearance="outline" class="half-width">
-                <mat-label>Height (px)</mat-label>
-                <input matInput type="number" [ngModel]="marker.height" (ngModelChange)="onMarkerHeightChange(i, $event)" min="1">
-              </mat-form-field>
-            </div>
-
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Anchor</mat-label>
-              <mat-select [ngModel]="marker.anchor" (ngModelChange)="onMarkerAnchorChange(i, $event)">
-                <mat-option value="center">Center</mat-option>
-                <mat-option value="bottom">Bottom (pin-style)</mat-option>
+              <mat-label>Icon</mat-label>
+              <mat-select [ngModel]="marker.iconName" (ngModelChange)="onMarkerIconChange(i, $event)">
+                <mat-select-trigger>
+                  <span class="icon-option">
+                    <span class="icon-option-svg" [innerHTML]="getSafeSvg(getSvgIcon(marker.iconName)?.svgString || '')"></span>
+                    {{ marker.iconName }}
+                  </span>
+                </mat-select-trigger>
+                <mat-option *ngFor="let icon of svgIcons" [value]="icon.name">
+                  <span class="icon-option">
+                    <span class="icon-option-svg" [innerHTML]="getSafeSvg(icon.svgString)"></span>
+                    {{ icon.label }} <span class="icon-category-badge">{{ icon.category }}</span>
+                  </span>
+                </mat-option>
               </mat-select>
             </mat-form-field>
 
-            <div class="color-controls">
-              <div class="color-row">
-                <span class="color-label">Fill Color</span>
-                <input type="color" [value]="marker.fillColor"
-                       (change)="onMarkerFillChange(i, $any($event.target).value)">
+            <!-- Style Picker -->
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Style</mat-label>
+              <mat-select [ngModel]="marker.styleName" (ngModelChange)="onMarkerStyleChange(i, $event)">
+                <mat-option *ngFor="let style of svgStyles" [value]="style.name">
+                  <span class="style-option">
+                    <span class="style-color-swatch" [style.background-color]="style.fillColor"
+                          [style.border-color]="style.strokeColor"></span>
+                    {{ style.label }}
+                    <span class="style-size-badge">{{ style.width }}x{{ style.height }}</span>
+                    <span class="style-anchor-badge">{{ style.anchor }}</span>
+                  </span>
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <!-- Style details -->
+            <div *ngIf="getStyleDetails(marker.styleName) as style" class="style-details">
+              <div class="style-detail-row">
+                <span class="style-detail-label">Size:</span>
+                <span>{{ style.width }}x{{ style.height }}px</span>
               </div>
-              <div class="color-row">
-                <span class="color-label">Stroke Color</span>
-                <input type="color" [value]="marker.strokeColor"
-                       (change)="onMarkerStrokeChange(i, $any($event.target).value)">
+              <div class="style-detail-row">
+                <span class="style-detail-label">Anchor:</span>
+                <span>{{ style.anchor }}</span>
+              </div>
+              <div class="style-detail-row">
+                <span class="style-detail-label">Fill:</span>
+                <span class="style-color-swatch-inline" [style.background-color]="style.fillColor"></span>
+                <span>{{ style.fillColor }}</span>
+              </div>
+              <div class="style-detail-row">
+                <span class="style-detail-label">Stroke:</span>
+                <span class="style-color-swatch-inline" [style.background-color]="style.strokeColor"></span>
+                <span>{{ style.strokeColor }} ({{ style.strokeWidth }}px)</span>
               </div>
             </div>
-
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Stroke Width</mat-label>
-              <input matInput type="number" [ngModel]="marker.strokeWidth"
-                     (ngModelChange)="onMarkerStrokeWidthChange(i, $event)" min="0" step="0.5">
-            </mat-form-field>
 
             <!-- Live SVG preview -->
             <div class="svg-preview-section">
               <div class="subsection-label">Preview</div>
-              <div class="svg-preview" [innerHTML]="getStyledSvg(marker)"></div>
+              <div class="svg-preview" [innerHTML]="getMarkerPreviewSvg(marker)"></div>
             </div>
           </div>
         </div>

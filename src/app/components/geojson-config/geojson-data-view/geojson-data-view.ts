@@ -20,6 +20,7 @@ import { GeolocationService } from '@services/geojson/geolocation.service';
 import { GeolocationDialogComponent } from '@components/geojson-config/geolocation-dialog/geolocation-dialog';
 import { MapRendererComponent } from '@components/geojson-config/map-renderer/map-renderer';
 import { RuntimeConfigService } from '@services/runtime-config.service';
+import { MatSelectModule } from '@angular/material/select';
 
 @Component({
   standalone: true,
@@ -30,7 +31,7 @@ import { RuntimeConfigService } from '@services/runtime-config.service';
     CommonModule, FormsModule,
     MatTableModule, MatSortModule, MatPaginatorModule,
     MatFormFieldModule, MatInputModule, MatButtonModule,
-    MatIconModule, MatSnackBarModule,
+    MatIconModule, MatSnackBarModule, MatSelectModule,
     MapRendererComponent
   ]
 })
@@ -288,4 +289,5 @@ export class GeoJsonDataViewComponent implements OnInit, OnChanges {
     if (Array.isArray(value)) return JSON.stringify(value);
     return String(value);
   }
+
 }

@@ -104,6 +104,105 @@
     margin: 12px 0;
 }
 
+/* Solution Action Buttons */
+.action-card {
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    padding: 12px;
+    margin-bottom: 12px;
+    background: var(--surface-secondary);
+}
+
+.action-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.action-card-title {
+    flex: 1;
+    font-weight: 500;
+    font-size: 0.9em;
+}
+
+.hint-text {
+    font-weight: 400;
+    font-size: 0.85em;
+    color: var(--text-tertiary);
+}
+
+.add-action-btn {
+    width: 100%;
+    margin: 8px 0;
+}
+
+.param-mappings {
+    margin-top: 8px;
+}
+
+.param-mappings h6 {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin: 0 0 4px 0;
+    font-size: 0.85em;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.mapping-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 4px;
+}
+
+.mapping-field {
+    flex: 1;
+}
+
+.mapping-arrow {
+    color: var(--text-tertiary);
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+/* SVG icon picker */
+.icon-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.icon-option-svg {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+}
+
+.icon-option-svg svg {
+    width: 18px;
+    height: 18px;
+    fill: currentColor;
+}
+
+.action-card-icon-preview {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+}
+
+.action-card-icon-preview svg {
+    width: 18px;
+    height: 18px;
+    fill: currentColor;
+}
+
 /* Force dark text in sidebar context */
 :host {
     color: var(--text-primary);

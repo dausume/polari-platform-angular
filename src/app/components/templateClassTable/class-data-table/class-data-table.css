@@ -229,11 +229,13 @@ th.mat-header-cell {
     font-size: 0.95em;
     padding: 12px 16px;
     border-bottom: 2px solid var(--border-light);
+    text-align: center;
 }
 
 .header-content {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 6px;
 }
 
@@ -247,7 +249,6 @@ th.mat-header-cell {
 }
 
 .header-text {
-    flex: 1;
 }
 
 .header-type {
@@ -297,6 +298,7 @@ td.mat-cell {
     color: var(--text-secondary) !important;
     font-size: 0.9em;
     border-bottom: 1px solid var(--border-light);
+    text-align: center;
 }
 
 /* Ensure all content within cells is dark */
@@ -530,4 +532,57 @@ mat-paginator ::ng-deep .mat-mdc-paginator-navigation-button[disabled] {
 .separator-double {
     margin-bottom: 8px;
     border-bottom: 3px double var(--text-disabled);
+}
+
+/* Dataset Action Buttons */
+.dataset-action-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+}
+
+.dataset-action-btn mat-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+}
+
+/* SVG icon sizing inside buttons */
+.btn-svg-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+}
+
+.btn-svg-icon svg {
+    width: 20px;
+    height: 20px;
+    fill: currentColor;
+}
+
+.row-svg-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+}
+
+.row-svg-icon svg {
+    width: 20px;
+    height: 20px;
+    fill: currentColor;
+}
+
+/* Spinning icon for executing actions */
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.spinning {
+    animation: spin 1s linear infinite;
 }

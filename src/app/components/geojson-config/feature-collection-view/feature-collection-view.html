@@ -1,0 +1,310 @@
+<div class="fc-view-container">
+
+  <!-- Top bar: Stats + Collection-level controls -->
+  <div class="fc-toolbar">
+    <div class="fc-stats">
+      <span class="fc-stat">
+        <mat-icon>place</mat-icon>
+        <strong>{{ featureCount }}</strong> features
+      </span>
+      <span class="fc-stat" *ngIf="unmappedCount > 0">
+        <mat-icon>warning</mat-icon>
+        {{ unmappedCount }} unmapped
+      </span>
+      <span class="fc-stat">
+        <mat-icon>storage</mat-icon>
+        {{ totalInstances }} total instances
+      </span>
+    </div>
+
+    <!-- Collection Marker: toggle + controls -->
+    <div class="fc-collection-section">
+      <button mat-stroked-button class="fc-toggle-btn"
+              [class.fc-toggle-active]="collectionMarkerEnabled"
+              (click)="toggleCollectionMarker()"
+              matTooltip="Enable/disable collection-level marker override">
+        <mat-icon>{{ collectionMarkerEnabled ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
+        Marker
+      </button>
+
+      <ng-container *ngIf="collectionMarkerEnabled">
+        <div class="fc-marker-preview" [innerHTML]="getIconPreviewSvg(collectionIconName, collectionStyleName)"></div>
+        <mat-form-field appearance="outline" class="fc-select">
+          <mat-label>Icon</mat-label>
+          <mat-select [value]="collectionIconName" (selectionChange)="onCollectionIconChange($event.value)">
+            <mat-select-trigger>
+              <span class="icon-option-inline">
+                <span class="icon-option-svg" [innerHTML]="getSafeSvg(getSvgIcon(collectionIconName)?.svgString || '')"></span>
+                {{ collectionIconName }}
+              </span>
+            </mat-select-trigger>
+            <mat-option *ngFor="let icon of svgIcons" [value]="icon.name">
+              <span class="icon-option-inline">
+                <span class="icon-option-svg" [innerHTML]="getSafeSvg(icon.svgString)"></span>
+                {{ icon.label }}
+              </span>
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="fc-select">
+          <mat-label>Style</mat-label>
+          <mat-select [value]="collectionStyleName" (selectionChange)="onCollectionStyleChange($event.value)">
+            <mat-option *ngFor="let style of svgStyles" [value]="style.name">
+              <span class="style-option-inline">
+                <span class="style-swatch" [style.background-color]="style.fillColor"
+                      [style.border-color]="style.strokeColor"></span>
+                {{ style.label }} ({{ style.width }}x{{ style.height }})
+              </span>
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+      </ng-container>
+    </div>
+
+    <!-- Collection View Range: toggle + controls -->
+    <div class="fc-collection-section">
+      <button mat-stroked-button class="fc-toggle-btn"
+              [class.fc-toggle-active]="collectionViewRangeEnabled"
+              (click)="toggleCollectionViewRange()"
+              matTooltip="Enable/disable collection-level zoom range">
+        <mat-icon>{{ collectionViewRangeEnabled ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
+        Zoom
+      </button>
+
+      <ng-container *ngIf="collectionViewRangeEnabled">
+        <mat-form-field appearance="outline" class="fc-zoom-input">
+          <mat-label>Min</mat-label>
+          <input matInput type="number" [value]="collectionMinZoom"
+                 (change)="onCollectionMinZoomChange($any($event.target).value)"
+                 min="0" max="24" step="1">
+        </mat-form-field>
+        <span class="fc-zoom-separator">—</span>
+        <mat-form-field appearance="outline" class="fc-zoom-input">
+          <mat-label>Max</mat-label>
+          <input matInput type="number" [value]="collectionMaxZoom"
+                 (change)="onCollectionMaxZoomChange($any($event.target).value)"
+                 min="0" max="24" step="1">
+        </mat-form-field>
+      </ng-container>
+    </div>
+  </div>
+
+  <!-- Main body: split into map + features panel -->
+  <div class="fc-body">
+
+    <!-- Left: Map preview -->
+    <div class="fc-map-panel">
+      <map-renderer
+        [config]="config"
+        [instanceData]="instanceData"
+        [classTypeData]="classTypeData"
+        [styleOverride]="cachedMapStyle"
+        [collectionMarker]="cachedCollectionMarker"
+        [featureMarkerOverrides]="featureMarkerOverrides"
+        [collectionViewRange]="cachedCollectionViewRange"
+        [featureViewRangeOverrides]="featureViewRangeOverrides">
+      </map-renderer>
+    </div>
+
+    <!-- Right: Features panel with tabs -->
+    <div class="fc-features-panel">
+      <mat-tab-group>
+
+        <!-- Features Table Tab -->
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <mat-icon>list</mat-icon> Features ({{ featureCount }})
+          </ng-template>
+
+          <div class="fc-table-wrapper">
+            <table mat-table [dataSource]="featureDataSource" class="fc-table">
+
+              <!-- ID Column -->
+              <ng-container matColumnDef="_id">
+                <th mat-header-cell *matHeaderCellDef>ID</th>
+                <td mat-cell *matCellDef="let row">
+                  <span class="fc-id-cell" (click)="selectFeature(row)">{{ row._id || '—' }}</span>
+                </td>
+              </ng-container>
+
+              <!-- Coordinates Column -->
+              <ng-container matColumnDef="_coordinates">
+                <th mat-header-cell *matHeaderCellDef>Coordinates</th>
+                <td mat-cell *matCellDef="let row">{{ row._coordinates }}</td>
+              </ng-container>
+
+              <!-- Icon Column -->
+              <ng-container matColumnDef="_markerIconName">
+                <th mat-header-cell *matHeaderCellDef>Icon</th>
+                <td mat-cell *matCellDef="let row">
+                  <ng-container *ngIf="row._hasMarkerOverride; else enableMarkerBtn">
+                    <mat-form-field appearance="outline" class="fc-inline-select">
+                      <mat-select [value]="row._markerIconName"
+                                  (selectionChange)="onFeatureIconChange(row, $event.value)">
+                        <mat-option *ngFor="let icon of svgIcons" [value]="icon.name">
+                          <span class="icon-option-inline">
+                            <span class="icon-option-svg" [innerHTML]="getSafeSvg(icon.svgString)"></span>
+                            {{ icon.label }}
+                          </span>
+                        </mat-option>
+                      </mat-select>
+                    </mat-form-field>
+                  </ng-container>
+                  <ng-template #enableMarkerBtn>
+                    <button mat-icon-button class="fc-enable-btn"
+                            (click)="enableFeatureMarker(row)"
+                            matTooltip="Enable marker override">
+                      <mat-icon>add_circle_outline</mat-icon>
+                    </button>
+                  </ng-template>
+                </td>
+              </ng-container>
+
+              <!-- Style Column -->
+              <ng-container matColumnDef="_markerStyleName">
+                <th mat-header-cell *matHeaderCellDef>Style</th>
+                <td mat-cell *matCellDef="let row">
+                  <ng-container *ngIf="row._hasMarkerOverride">
+                    <mat-form-field appearance="outline" class="fc-inline-select">
+                      <mat-select [value]="row._markerStyleName"
+                                  (selectionChange)="onFeatureStyleChange(row, $event.value)">
+                        <mat-option *ngFor="let style of svgStyles" [value]="style.name">
+                          <span class="style-option-inline">
+                            <span class="style-swatch" [style.background-color]="style.fillColor"
+                                  [style.border-color]="style.strokeColor"></span>
+                            {{ style.label }}
+                          </span>
+                        </mat-option>
+                      </mat-select>
+                    </mat-form-field>
+                  </ng-container>
+                </td>
+              </ng-container>
+
+              <!-- View Range Column -->
+              <ng-container matColumnDef="_viewRange">
+                <th mat-header-cell *matHeaderCellDef>Zoom</th>
+                <td mat-cell *matCellDef="let row">
+                  <ng-container *ngIf="row._hasViewRangeOverride; else enableZoomBtn">
+                    <div class="fc-zoom-cell">
+                      <input type="number" class="fc-zoom-inline"
+                             [value]="row._minZoom" min="0" max="24" step="1"
+                             (change)="onFeatureMinZoomChange(row, $any($event.target).value)"
+                             matTooltip="Min zoom">
+                      <span class="fc-zoom-separator">—</span>
+                      <input type="number" class="fc-zoom-inline"
+                             [value]="row._maxZoom" min="0" max="24" step="1"
+                             (change)="onFeatureMaxZoomChange(row, $any($event.target).value)"
+                             matTooltip="Max zoom">
+                    </div>
+                  </ng-container>
+                  <ng-template #enableZoomBtn>
+                    <button mat-icon-button class="fc-enable-btn"
+                            (click)="enableFeatureViewRange(row)"
+                            matTooltip="Enable zoom range override">
+                      <mat-icon>add_circle_outline</mat-icon>
+                    </button>
+                  </ng-template>
+                </td>
+              </ng-container>
+
+              <!-- Actions Column -->
+              <ng-container matColumnDef="_actions">
+                <th mat-header-cell *matHeaderCellDef></th>
+                <td mat-cell *matCellDef="let row">
+                  <div class="fc-row-actions">
+                    <span *ngIf="row._hasMarkerOverride" class="fc-marker-mini-preview"
+                          [innerHTML]="getIconPreviewSvg(row._markerIconName, row._markerStyleName)"></span>
+                    <button mat-icon-button *ngIf="hasFeatureOverride(row)"
+                            (click)="clearFeatureOverride(row)"
+                            matTooltip="Remove all overrides">
+                      <mat-icon>restart_alt</mat-icon>
+                    </button>
+                    <button mat-icon-button (click)="selectFeature(row)" matTooltip="View JSON">
+                      <mat-icon>code</mat-icon>
+                    </button>
+                  </div>
+                </td>
+              </ng-container>
+
+              <tr mat-header-row *matHeaderRowDef="featureColumns"></tr>
+              <tr mat-row *matRowDef="let row; columns: featureColumns;"
+                  [class.fc-row-overridden]="hasFeatureOverride(row)"
+                  [class.fc-row-selected]="selectedFeature === row._feature"></tr>
+
+              <tr class="mat-row" *matNoDataRow>
+                <td class="mat-cell fc-no-data" [attr.colspan]="featureColumns.length">
+                  No features — check that coordinate variables are configured.
+                </td>
+              </tr>
+            </table>
+          </div>
+
+          <mat-paginator [pageSizeOptions]="[10, 25, 50, 100]" showFirstLastButtons></mat-paginator>
+        </mat-tab>
+
+        <!-- JSON Tab -->
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <mat-icon>data_object</mat-icon> JSON
+          </ng-template>
+
+          <div class="fc-json-panel">
+            <div class="fc-json-header">
+              <span>FeatureCollection ({{ featureCount }} features)</span>
+              <div class="fc-json-actions">
+                <button mat-stroked-button (click)="copyGeoJson()" class="fc-export-btn">
+                  <mat-icon>content_copy</mat-icon> Copy
+                </button>
+                <button mat-stroked-button (click)="exportGeoJson()" class="fc-export-btn">
+                  <mat-icon>download</mat-icon> Export
+                </button>
+              </div>
+            </div>
+            <pre class="fc-json-block">{{ featureCollectionJson }}</pre>
+          </div>
+        </mat-tab>
+
+        <!-- Feature Detail Tab -->
+        <mat-tab [disabled]="!selectedFeature">
+          <ng-template mat-tab-label>
+            <mat-icon>article</mat-icon> Feature Detail
+          </ng-template>
+
+          <div class="fc-detail-panel" *ngIf="selectedFeature">
+            <div class="fc-detail-header">
+              <span>Feature Detail</span>
+              <button mat-icon-button (click)="clearSelectedFeature()">
+                <mat-icon>close</mat-icon>
+              </button>
+            </div>
+
+            <div class="fc-detail-marker">
+              <ng-container *ngIf="selectedFeature.properties?._markerIconName">
+                <span class="fc-marker-label">Marker:</span>
+                <span class="fc-marker-mini-preview"
+                      [innerHTML]="getIconPreviewSvg(selectedFeature.properties._markerIconName, selectedFeature.properties._markerStyleName)">
+                </span>
+                <span class="fc-detail-marker-names">
+                  {{ selectedFeature.properties._markerIconName }} / {{ selectedFeature.properties._markerStyleName }}
+                </span>
+              </ng-container>
+              <ng-container *ngIf="selectedFeature.properties?._minZoom != null">
+                <span class="fc-detail-zoom-range">
+                  Zoom: {{ selectedFeature.properties._minZoom }}–{{ selectedFeature.properties._maxZoom }}
+                </span>
+              </ng-container>
+              <span *ngIf="!selectedFeature.properties?._markerIconName && selectedFeature.properties?._minZoom == null"
+                    class="fc-detail-no-overrides">No feature-level overrides</span>
+            </div>
+
+            <pre class="fc-json-block">{{ selectedFeatureJson }}</pre>
+          </div>
+        </mat-tab>
+
+      </mat-tab-group>
+    </div>
+
+  </div>
+</div>

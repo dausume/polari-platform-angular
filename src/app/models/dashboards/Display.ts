@@ -1,4 +1,5 @@
 import { DisplayRow } from "./DisplayRow";
+import { DisplayStateDefinition } from "./DisplayStateDefinition";
 
 /**
  * Represents a complete dashboard containing multiple rows of items.
@@ -28,6 +29,9 @@ export class Display {
 
     /** URL-friendly slug for the page route */
     pageRoute?: string;
+
+    /** Data sources and inputs available to components within this display */
+    stateDefinition: DisplayStateDefinition = new DisplayStateDefinition();
 
     constructor(id?: string, name?: string, description?: string) {
         this.id = id || this.generateId();
@@ -153,6 +157,7 @@ export class Display {
         cloned.linkedSolutions = [...this.linkedSolutions];
         cloned.isPage = this.isPage;
         cloned.pageRoute = this.pageRoute;
+        cloned.stateDefinition = DisplayStateDefinition.fromJSON(this.stateDefinition.toJSON());
         this.rows.forEach(row => {
             // Create new row with same configuration
             const clonedRow = new DisplayRow(

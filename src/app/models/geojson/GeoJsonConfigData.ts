@@ -15,8 +15,7 @@ export type TupleOrder = 'lat-lng' | 'lng-lat';
 
 /**
  * Where the marker anchor point attaches to the geographic coordinate.
- * - 'center': The center of the SVG aligns with the point
- * - 'bottom': The bottom-center of the SVG aligns with the point (typical for pin markers)
+ * @deprecated Use IconAnchor from SvgIconLibrary instead. Kept for backward compat.
  */
 export type MarkerAnchor = 'center' | 'bottom';
 
@@ -50,27 +49,20 @@ export interface TileSourceConfig {
 }
 
 /**
- * A named SVG marker definition with styling overrides.
+ * A named SVG marker definition that references a shared icon + style.
  * These are class-level definitions, NOT per-instance.
  * Stored as part of the GeoJSON config definition JSON.
+ *
+ * Uses iconName to reference an SvgIconDef from SvgIconLibrary
+ * and styleName to reference an SvgIconStyle from SvgIconLibrary.
  */
 export interface SvgMarkerDefinition {
     /** Unique name for this marker within the config */
     name: string;
-    /** Raw SVG markup string */
-    svgString: string;
-    /** Display width in pixels */
-    width: number;
-    /** Display height in pixels */
-    height: number;
-    /** Where the coordinate point attaches to the marker */
-    anchor: MarkerAnchor;
-    /** Fill color override (applied to SVG fill attributes) */
-    fillColor: string;
-    /** Stroke color override (applied to SVG stroke attributes) */
-    strokeColor: string;
-    /** Stroke width override */
-    strokeWidth: number;
+    /** Name of the shared SVG icon (references SvgIconDef.name) */
+    iconName: string;
+    /** Name of the shared icon style (references SvgIconStyle.name) */
+    styleName: string;
 }
 
 /**
@@ -118,16 +110,8 @@ export interface GeoJsonConfigData {
 
 export const DEFAULT_SVG_MARKER: SvgMarkerDefinition = {
     name: 'default-pin',
-    svgString: '<svg width="24" height="36" viewBox="0 0 24 36" xmlns="http://www.w3.org/2000/svg">'
-        + '<path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" />'
-        + '<circle cx="12" cy="12" r="5" fill="white" />'
-        + '</svg>',
-    width: 24,
-    height: 36,
-    anchor: 'bottom',
-    fillColor: '#3f51b5',
-    strokeColor: '#1a237e',
-    strokeWidth: 1
+    iconName: 'pin',
+    styleName: 'default-pin'
 };
 
 export const DEFAULT_TILE_SOURCE: TileSourceConfig = {

@@ -565,6 +565,8 @@ export class templateClassTableComponent implements OnInit, OnDestroy {
                       this.instanceList = this.instanceList.concat(dataSet.data);
                     }
                   });
+                  // Deduplicate by id/_id (multiple DataSets may contain the same instances)
+                  this.instanceList = this.deduplicateInstances(this.instanceList);
                   // console.log(`[TemplateClassTable] Total extracted instances: ${this.instanceList.length}`);
                 } else {
                   // Direct array of instances
@@ -639,6 +641,20 @@ export class templateClassTableComponent implements OnInit, OnDestroy {
         this.instanceList = [];
       }
     );
+  }
+
+  /** Remove duplicate instances by id/_id */
+  private deduplicateInstances(instances: any[]): any[] {
+    if (instances.length === 0) return instances;
+    const seen = new Set<string>();
+    return instances.filter((inst: any) => {
+      const id = inst?.id ?? inst?._id;
+      if (id == null) return true;
+      const key = String(id);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   }
 
   ngOnDestroy() {

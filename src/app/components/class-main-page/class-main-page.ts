@@ -12,6 +12,7 @@ import { DisplayConfigService } from '@services/dashboard/dashboard-config.servi
 import { DisplayManagerService } from '@services/dashboard/display-manager.service';
 import { Display } from '@models/dashboards/Display';
 import { DisplayRow } from '@models/dashboards/DisplayRow';
+import { DisplayColumn } from '@models/dashboards/DisplayColumn';
 import { DisplayItem } from '@models/dashboards/DisplayItem';
 import { DisplaySummary } from '@models/dashboards/DisplaySummary';
 import { CreateDisplayDialogComponent } from '@components/dashboard/create-display-dialog/create-display-dialog';
@@ -82,7 +83,7 @@ export class ClassMainPageComponent implements OnDestroy {
   geoJsonConfigPanelOpen: boolean = false;
   geoJsonConfigsLoading: boolean = false;
   geoJsonPreviewData: any[] = [];
-  geoJsonViewMode: 'config' | 'data' = 'config';
+  geoJsonViewMode: 'config' | 'data' | 'features' = 'config';
 
   /** Class poly typing for Configuration tab */
   classPolyTypingObj: classPolyTyping | null = null;
@@ -102,6 +103,7 @@ export class ClassMainPageComponent implements OnDestroy {
   displayEditMode: boolean = false;
   displayShowGridlines: boolean = false;
   selectedDisplayCell: {row: DisplayRow, startSegment: number, spanSegments: number, availableWidth: number} | null = null;
+  selectedDisplayColumnCell: {column: DisplayColumn, startSegment: number, spanSegments: number, availableHeight: number} | null = null;
 
   /** Measured width of the dashboard-renderer container */
   rendererContainerWidth: number = 0;
@@ -592,7 +594,7 @@ export class ClassMainPageComponent implements OnDestroy {
                 instances.push(...ds.data);
               }
             });
-            return instances;
+            return this.deduplicateInstances(instances);
           }
           // Direct array of instances
           return classData;
@@ -607,10 +609,24 @@ export class ClassMainPageComponent implements OnDestroy {
 
     // Fallback: { data: [...] }
     if (data && data.data && Array.isArray(data.data)) {
-      return data.data;
+      return this.deduplicateInstances(data.data);
     }
 
     return [];
+  }
+
+  /** Remove duplicate instances by id/_id */
+  private deduplicateInstances(instances: any[]): any[] {
+    if (instances.length === 0) return instances;
+    const seen = new Set<string>();
+    return instances.filter((inst: any) => {
+      const id = inst?.id ?? inst?._id;
+      if (id == null) return true;
+      const key = String(id);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   }
 
   /**
@@ -935,9 +951,9 @@ export class ClassMainPageComponent implements OnDestroy {
   /**
    * Switch GeoJSON view mode, loading data if needed.
    */
-  onGeoJsonViewModeChange(mode: 'config' | 'data'): void {
+  onGeoJsonViewModeChange(mode: 'config' | 'data' | 'features'): void {
     this.geoJsonViewMode = mode;
-    if (mode === 'data' && this.geoJsonPreviewData.length === 0) {
+    if ((mode === 'data' || mode === 'features') && this.geoJsonPreviewData.length === 0) {
       this.loadGeoJsonPreviewData();
     }
   }
@@ -1098,6 +1114,7 @@ export class ClassMainPageComponent implements OnDestroy {
       }
     } else {
       this.selectedDisplayCell = null;
+      this.selectedDisplayColumnCell = null;
     }
   }
 
@@ -1106,6 +1123,17 @@ export class ClassMainPageComponent implements OnDestroy {
    */
   onDisplayCellSelected(event: {row: DisplayRow, startSegment: number, spanSegments: number, availableWidth: number} | null): void {
     this.selectedDisplayCell = event || null;
+    // Clear column selection when a row cell is selected
+    if (event) this.selectedDisplayColumnCell = null;
+  }
+
+  /**
+   * Handle column cell selection from the dashboard renderer
+   */
+  onDisplayColumnCellSelected(event: {column: DisplayColumn, startSegment: number, spanSegments: number, availableHeight: number} | null): void {
+    this.selectedDisplayColumnCell = event || null;
+    // Clear row selection when a column cell is selected
+    if (event) this.selectedDisplayCell = null;
   }
 
   /**
@@ -1128,10 +1156,34 @@ export class ClassMainPageComponent implements OnDestroy {
   }
 
   /**
+   * Handle item removal from a column in the dashboard renderer
+   */
+  onDisplayColumnItemRemoved(event: {column: DisplayColumn, itemIndex: number}): void {
+    event.column.removeItem(event.itemIndex);
+    this.selectedDisplayColumnCell = null;
+    if (this.dashboardRenderer) {
+      this.dashboardRenderer.clearColumnSelection();
+    }
+    this.onDisplayPropertyChange();
+  }
+
+  /**
    * Place a component into the currently selected cell.
    * Sets gridColumnStart so the item appears at the exact grid position.
    */
-  placeComponentInCell(type: 'table' | 'graph' | 'text' | 'metric' | 'container', configId?: string, configName?: string): void {
+  placeComponentInCell(type: 'table' | 'graph' | 'text' | 'metric' | 'container' | 'column-container', configId?: string, configName?: string): void {
+    // Column container: adds a column to the selected row
+    if (type === 'column-container') {
+      this.placeColumnContainerInCell();
+      return;
+    }
+
+    // For placing items into a column's vertical cell
+    if (this.selectedDisplayColumnCell && !this.selectedDisplayCell) {
+      this.placeComponentInColumnCell(type, configId, configName);
+      return;
+    }
+
     if (!this.selectedDisplayCell || !this.selectedDisplay) {
       this.snackBar.open('Select an empty cell in the grid first', 'OK', { duration: 3000 });
       return;
@@ -1177,8 +1229,81 @@ export class ClassMainPageComponent implements OnDestroy {
     item.gridColumnStart = startSegment;
     row.addItem(item);
     this.selectedDisplayCell = null;
+    this.selectedDisplayColumnCell = null;
     if (this.dashboardRenderer) {
       this.dashboardRenderer.clearSelection();
+      this.dashboardRenderer.clearColumnSelection();
+    }
+    this.onDisplayPropertyChange();
+  }
+
+  /**
+   * Place a Column Container into the currently selected row cell.
+   * Adds a DisplayColumn to the row using the selected horizontal segments.
+   */
+  private placeColumnContainerInCell(): void {
+    if (!this.selectedDisplayCell || !this.selectedDisplay) {
+      this.snackBar.open('Select an empty cell in a row first', 'OK', { duration: 3000 });
+      return;
+    }
+
+    const { row, startSegment, spanSegments } = this.selectedDisplayCell;
+    const column = new DisplayColumn(row.columns.length, spanSegments, 12, 250);
+    column.gridColumnStart = startSegment;
+    row.addColumn(column);
+
+    this.selectedDisplayCell = null;
+    this.selectedDisplayColumnCell = null;
+    if (this.dashboardRenderer) {
+      this.dashboardRenderer.clearSelection();
+      this.dashboardRenderer.clearColumnSelection();
+    }
+    this.onDisplayPropertyChange();
+  }
+
+  /**
+   * Place a component into the currently selected column cell (vertical placement).
+   */
+  private placeComponentInColumnCell(type: 'table' | 'graph' | 'text' | 'metric' | 'container', configId?: string, configName?: string): void {
+    if (!this.selectedDisplayColumnCell || !this.selectedDisplay) {
+      this.snackBar.open('Select an empty cell in a column first', 'OK', { duration: 3000 });
+      return;
+    }
+
+    const { column, startSegment, spanSegments } = this.selectedDisplayColumnCell;
+
+    let item: DisplayItem;
+    switch (type) {
+      case 'table':
+        item = DisplayItem.createComponentItem('embeddedTable', { tableConfigId: configId }, spanSegments);
+        if (configName) item.setTitle(configName);
+        break;
+      case 'graph':
+        item = DisplayItem.createComponentItem('embeddedGraph', { graphConfigId: configId }, spanSegments);
+        if (configName) item.setTitle(configName);
+        break;
+      case 'text':
+        item = DisplayItem.createTextItem('New text block', spanSegments);
+        break;
+      case 'metric':
+        item = DisplayItem.createMetricItem('Metric', 0, spanSegments);
+        break;
+      case 'container':
+        item = DisplayItem.createContainerItem(spanSegments);
+        item.setTitle('Container');
+        break;
+      default:
+        return;
+    }
+
+    // Pin the item to the selected vertical position
+    item.gridColumnStart = startSegment;
+    column.addItem(item);
+    this.selectedDisplayCell = null;
+    this.selectedDisplayColumnCell = null;
+    if (this.dashboardRenderer) {
+      this.dashboardRenderer.clearSelection();
+      this.dashboardRenderer.clearColumnSelection();
     }
     this.onDisplayPropertyChange();
   }
@@ -1204,6 +1329,71 @@ export class ClassMainPageComponent implements OnDestroy {
   removeNestedRow(containerItem: DisplayItem, rowIndex: number): void {
     if (!containerItem || containerItem.type !== 'container') return;
     containerItem.removeNestedRow(rowIndex);
+    this.onDisplayPropertyChange();
+  }
+
+  /**
+   * Add a column to a row from the config panel
+   */
+  addColumnToRow(row: DisplayRow): void {
+    // Calculate total segments used by items and existing columns
+    const itemSegments = row.getUsedSegments();
+    const columnSegments = row.getColumnsUsedSegments();
+    const totalUsed = itemSegments + columnSegments;
+    const remainingSegments = row.rowSegments - totalUsed;
+    if (remainingSegments <= 0) {
+      this.snackBar.open('No remaining segments in this row', 'OK', { duration: 3000 });
+      return;
+    }
+    const segmentsForColumn = Math.min(remainingSegments, 6);
+    const column = new DisplayColumn(row.columns.length, segmentsForColumn, 12, 250);
+    // Auto-place after all existing occupied segments
+    column.gridColumnStart = totalUsed + 1;
+    row.addColumn(column);
+    this.onDisplayPropertyChange();
+  }
+
+  /**
+   * Remove a column from a row
+   */
+  removeColumnFromRow(row: DisplayRow, columnIndex: number): void {
+    row.removeColumn(columnIndex);
+    this.onDisplayPropertyChange();
+  }
+
+  // ==================== Display State Definition ====================
+
+  addDisplayDataSource(): void {
+    if (!this.selectedDisplay) return;
+    this.selectedDisplay.stateDefinition.addDataSource({
+      id: crypto.randomUUID(),
+      label: '',
+      sourceType: 'class',
+      autoLoad: true
+    });
+    this.onDisplayPropertyChange();
+  }
+
+  removeDisplayDataSource(index: number): void {
+    if (!this.selectedDisplay) return;
+    this.selectedDisplay.stateDefinition.dataSources.splice(index, 1);
+    this.onDisplayPropertyChange();
+  }
+
+  addDisplayInput(): void {
+    if (!this.selectedDisplay) return;
+    this.selectedDisplay.stateDefinition.addInput({
+      name: '',
+      label: '',
+      dataType: 'string',
+      required: false
+    });
+    this.onDisplayPropertyChange();
+  }
+
+  removeDisplayInput(index: number): void {
+    if (!this.selectedDisplay) return;
+    this.selectedDisplay.stateDefinition.inputs.splice(index, 1);
     this.onDisplayPropertyChange();
   }
 

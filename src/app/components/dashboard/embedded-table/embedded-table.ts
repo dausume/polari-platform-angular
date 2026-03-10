@@ -102,32 +102,43 @@ export class EmbeddedTableComponent implements OnInit {
   }
 
   private parseInstances(data: any): any[] {
+    let instances: any[] = [];
     if (!data) return [];
     if (typeof data === 'object' && !Array.isArray(data) && data.data && data.class) {
-      return Array.isArray(data.data) ? data.data : [];
-    }
-    if (Array.isArray(data)) {
+      instances = Array.isArray(data.data) ? data.data : [];
+    } else if (Array.isArray(data)) {
       if (data.length === 1 && data[0]?.data && data[0]?.class) {
-        return Array.isArray(data[0].data) ? data[0].data : [];
-      }
-      if (this.className && data[0]?.[this.className]) {
+        instances = Array.isArray(data[0].data) ? data[0].data : [];
+      } else if (this.className && data[0]?.[this.className]) {
         const classData = data[0][this.className];
         if (Array.isArray(classData)) {
           if (classData.length > 0 && classData[0]?.data) {
-            const instances: any[] = [];
             classData.forEach((ds: any) => {
               if (Array.isArray(ds.data)) instances.push(...ds.data);
             });
-            return instances;
+          } else {
+            instances = classData;
           }
-          return classData;
         }
+      } else if (data[0]?.id !== undefined || data[0]?._id !== undefined) {
+        instances = data;
       }
-      if (data[0]?.id !== undefined || data[0]?._id !== undefined) {
-        return data;
-      }
+    } else if (data?.data && Array.isArray(data.data)) {
+      instances = data.data;
     }
-    if (data?.data && Array.isArray(data.data)) return data.data;
-    return [];
+
+    // Deduplicate by id to avoid repeated instances from multiple DataSets
+    if (instances.length > 0) {
+      const seen = new Set<string>();
+      instances = instances.filter((inst: any) => {
+        const id = inst?.id ?? inst?._id;
+        if (id == null) return true;
+        const key = String(id);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+    return instances;
   }
 }

@@ -148,6 +148,164 @@
       </div>
     </mat-expansion-panel>
 
+    <!-- Solution Buttons Section -->
+    <mat-expansion-panel>
+      <mat-expansion-panel-header>
+        <mat-panel-title>Solution Buttons</mat-panel-title>
+        <mat-panel-description>
+          {{ config.instanceActions.length + config.datasetActions.length }} configured
+        </mat-panel-description>
+      </mat-expansion-panel-header>
+
+      <!-- Instance-Level Buttons -->
+      <h5>Instance Buttons <span class="hint-text">(per-row)</span></h5>
+      <p class="section-instructions">Each button appears in every row's actions column and runs a solution using that row's data.</p>
+
+      <div *ngFor="let action of config.instanceActions; let i = index" class="action-card">
+        <div class="action-card-header">
+          <span class="action-card-icon-preview" [innerHTML]="getSafeSvg(svgIcons[0]?.svgString || '')"></span>
+          <span class="action-card-title">{{ action.label || 'Untitled' }}</span>
+          <button mat-icon-button color="warn" (click)="removeInstanceAction(i)" matTooltip="Remove">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Button Label</mat-label>
+          <input matInput [(ngModel)]="action.label" (ngModelChange)="onInstanceActionChange()">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Icon</mat-label>
+          <mat-select [(ngModel)]="action.iconName" (ngModelChange)="onInstanceActionChange()">
+            <mat-select-trigger>
+              <span class="icon-option">
+                <span class="icon-option-svg" [innerHTML]="getIconSvgByName(action.iconName)"></span>
+                {{ action.iconName }}
+              </span>
+            </mat-select-trigger>
+            <mat-option *ngFor="let icon of svgIcons" [value]="icon.name">
+              <span class="icon-option">
+                <span class="icon-option-svg" [innerHTML]="getSafeSvg(icon.svgString)"></span>
+                {{ icon.label }}
+              </span>
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Solution</mat-label>
+          <mat-select [(ngModel)]="action.solutionName" (ngModelChange)="onInstanceActionChange()">
+            <mat-option *ngFor="let sol of availableSolutions" [value]="sol.name">
+              {{ sol.name }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Color</mat-label>
+          <mat-select [(ngModel)]="action.color" (ngModelChange)="onInstanceActionChange()">
+            <mat-option value="primary">Primary</mat-option>
+            <mat-option value="accent">Accent</mat-option>
+            <mat-option value="warn">Warn</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <!-- Parameter Mappings -->
+        <div class="param-mappings">
+          <h6>Parameter Mappings
+            <button mat-icon-button (click)="addParamMapping(action)" matTooltip="Add mapping">
+              <mat-icon>add</mat-icon>
+            </button>
+          </h6>
+          <p class="section-instructions" *ngIf="action.paramMappings.length === 0">No mappings — entire row will be passed as 'instance'.</p>
+
+          <div *ngFor="let mapping of action.paramMappings; let mi = index" class="mapping-row">
+            <mat-form-field appearance="outline" class="mapping-field">
+              <mat-label>Instance Field</mat-label>
+              <mat-select [(ngModel)]="mapping.instanceField" (ngModelChange)="onInstanceActionChange()">
+                <mat-option *ngFor="let fname of fieldNames" [value]="fname">{{ fname }}</mat-option>
+              </mat-select>
+            </mat-form-field>
+            <mat-icon class="mapping-arrow">arrow_forward</mat-icon>
+            <mat-form-field appearance="outline" class="mapping-field">
+              <mat-label>Solution Param</mat-label>
+              <input matInput [(ngModel)]="mapping.solutionParam" (ngModelChange)="onInstanceActionChange()">
+            </mat-form-field>
+            <button mat-icon-button color="warn" (click)="removeParamMapping(action, mi)" matTooltip="Remove mapping">
+              <mat-icon>close</mat-icon>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <button mat-stroked-button color="primary" (click)="addInstanceAction()" class="add-action-btn">
+        <mat-icon>add</mat-icon> Add Instance Button
+      </button>
+
+      <mat-divider class="inner-divider"></mat-divider>
+
+      <!-- Dataset-Level Buttons -->
+      <h5>Dataset Buttons <span class="hint-text">(table-level)</span></h5>
+      <p class="section-instructions">Each button appears at the top of the table and runs a solution using the current (optionally filtered) dataset.</p>
+
+      <div *ngFor="let action of config.datasetActions; let i = index" class="action-card">
+        <div class="action-card-header">
+          <span class="action-card-icon-preview" [innerHTML]="getSafeSvg(svgIcons[0]?.svgString || '')"></span>
+          <span class="action-card-title">{{ action.label || 'Untitled' }}</span>
+          <button mat-icon-button color="warn" (click)="removeDatasetAction(i)" matTooltip="Remove">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Button Label</mat-label>
+          <input matInput [(ngModel)]="action.label" (ngModelChange)="onDatasetActionChange()">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Icon</mat-label>
+          <mat-select [(ngModel)]="action.iconName" (ngModelChange)="onDatasetActionChange()">
+            <mat-option *ngFor="let icon of svgIcons" [value]="icon.name">
+              <span class="icon-option">
+                <span class="icon-option-svg" [innerHTML]="getSafeSvg(icon.svgString)"></span>
+                {{ icon.label }}
+              </span>
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Solution</mat-label>
+          <mat-select [(ngModel)]="action.solutionName" (ngModelChange)="onDatasetActionChange()">
+            <mat-option *ngFor="let sol of availableSolutions" [value]="sol.name">
+              {{ sol.name }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Color</mat-label>
+          <mat-select [(ngModel)]="action.color" (ngModelChange)="onDatasetActionChange()">
+            <mat-option value="primary">Primary</mat-option>
+            <mat-option value="accent">Accent</mat-option>
+            <mat-option value="warn">Warn</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-slide-toggle
+          [checked]="action.includeFilteredOnly"
+          (change)="action.includeFilteredOnly = $event.checked; onDatasetActionChange()"
+          color="primary">
+          Only include filtered rows
+        </mat-slide-toggle>
+      </div>
+
+      <button mat-stroked-button color="primary" (click)="addDatasetAction()" class="add-action-btn">
+        <mat-icon>add</mat-icon> Add Dataset Button
+      </button>
+    </mat-expansion-panel>
+
     <!-- Display Section -->
     <mat-expansion-panel>
       <mat-expansion-panel-header>
