@@ -25,6 +25,9 @@ import { CreateGraphConfigDialogComponent } from '@components/graph-config/creat
 import { GeoJsonDefinitionService } from '@services/geojson/geojson-definition.service';
 import { NamedGeoJsonConfig, GeoJsonDefinitionSummary } from '@models/geojson/NamedGeoJsonConfig';
 import { CreateGeoJsonConfigDialogComponent } from '@components/geojson-config/create-geojson-config-dialog/create-geojson-config-dialog';
+import { DataSetDefinitionService } from '@services/dataset/dataset-definition.service';
+import { NamedDataSetConfig, DataSetDefinitionSummary } from '@models/datasets/NamedDataSetConfig';
+import { CreateDataSetConfigDialogComponent } from '@components/dataset-config/create-dataset-config-dialog/create-dataset-config-dialog';
 import { classPolyTyping } from '@models/polyTyping/classPolyTyping';
 import { DisplayRendererComponent } from '@components/dashboard/dashboard-renderer/dashboard-renderer';
 import { EditClassDialogComponent } from '@components/class-main-page/edit-class-dialog/edit-class-dialog';
@@ -85,6 +88,15 @@ export class ClassMainPageComponent implements OnDestroy {
   geoJsonPreviewData: any[] = [];
   geoJsonViewMode: 'config' | 'data' | 'features' = 'config';
 
+  /** DataSet config management state */
+  dataSetConfigList: DataSetDefinitionSummary[] = [];
+  selectedDataSetConfig: NamedDataSetConfig | null = null;
+  hasDataSetDraftChanges: boolean = false;
+  dataSetConfigPanelOpen: boolean = false;
+  dataSetConfigsLoading: boolean = false;
+  dataSetPreviewInstanceData: any[] = [];
+  dataSetFilteredPreviewData: any[] = [];
+
   /** Class poly typing for Configuration tab */
   classPolyTypingObj: classPolyTyping | null = null;
 
@@ -127,6 +139,7 @@ export class ClassMainPageComponent implements OnDestroy {
     private tableDefService: TableDefinitionService,
     private graphDefService: GraphDefinitionService,
     private geoJsonDefService: GeoJsonDefinitionService,
+    private dataSetDefService: DataSetDefinitionService,
     private noCodeSolutionService: NoCodeSolutionStateService
   ) {}
 
@@ -195,6 +208,22 @@ export class ClassMainPageComponent implements OnDestroy {
     });
     this.subscriptions.push(geoJsonDraftSub);
 
+    // DataSet config subscriptions
+    const dataSetListSub = this.dataSetDefService.configList$.subscribe(list => {
+      this.dataSetConfigList = list;
+    });
+    this.subscriptions.push(dataSetListSub);
+
+    const dataSetLoadingSub = this.dataSetDefService.loading$.subscribe(l => {
+      this.dataSetConfigsLoading = l;
+    });
+    this.subscriptions.push(dataSetLoadingSub);
+
+    const dataSetDraftSub = this.dataSetDefService.hasDraftChanges$.subscribe(dirty => {
+      this.hasDataSetDraftChanges = dirty;
+    });
+    this.subscriptions.push(dataSetDraftSub);
+
     const routeSub = this.route.paramMap.subscribe(paramsMap => {
       Object.keys(paramsMap['params']).forEach(param => {
         if (param == "class") {
@@ -223,6 +252,11 @@ export class ClassMainPageComponent implements OnDestroy {
             this.geoJsonConfigPanelOpen = false;
             this.geoJsonPreviewData = [];
             this.geoJsonViewMode = 'config';
+            this.selectedDataSetConfig = null;
+            this.hasDataSetDraftChanges = false;
+            this.dataSetConfigPanelOpen = false;
+            this.dataSetPreviewInstanceData = [];
+            this.dataSetFilteredPreviewData = [];
             this.classPolyTypingObj = null;
             this.selectedTabIndex = 0;
 
@@ -305,6 +339,10 @@ export class ClassMainPageComponent implements OnDestroy {
     // Load GeoJSON configs when switching to the GeoJSON tab (index 5)
     if (index === 5 && this.className) {
       this.loadGeoJsonConfigsForClass();
+    }
+    // Load DataSet configs when switching to the Filters & DataSets tab (index 6)
+    if (index === 6 && this.className) {
+      this.loadDataSetConfigsForClass();
     }
   }
 
@@ -963,6 +1001,117 @@ export class ClassMainPageComponent implements OnDestroy {
    */
   onGeoJsonInstanceDataChange(data: any[]): void {
     this.geoJsonPreviewData = data;
+  }
+
+  // ==================== DataSet Config Management ====================
+
+  loadDataSetConfigsForClass(): void {
+    if (!this.className) return;
+    this.dataSetDefService.fetchConfigsForClass(this.className);
+  }
+
+  openCreateDataSetConfigDialog(): void {
+    const dialogRef = this.dialog.open(CreateDataSetConfigDialogComponent, {
+      width: '480px',
+      data: {}
+    });
+
+    const dialogSub = dialogRef.afterClosed().subscribe((result: { name: string; description: string } | null) => {
+      if (result && this.className) {
+        this.dataSetDefService.createConfig(result.name, result.description, this.className).subscribe({
+          next: () => {},
+          error: (err: any) => {
+            console.error('[ClassMainPage] Create dataset config failed:', err);
+          }
+        });
+      }
+    });
+    this.subscriptions.push(dialogSub);
+  }
+
+  selectDataSetConfig(summary: DataSetDefinitionSummary): void {
+    this.dataSetDefService.loadConfig(summary.id).subscribe({
+      next: (config: NamedDataSetConfig) => {
+        this.selectedDataSetConfig = config;
+        this.dataSetConfigPanelOpen = true;
+        this.loadDataSetPreviewData();
+      },
+      error: (err: any) => {
+        console.error('[ClassMainPage] Failed to load dataset config:', err);
+      }
+    });
+  }
+
+  private loadDataSetPreviewData(): void {
+    if (!this.crudeService) return;
+    this.crudeService.readAll().subscribe({
+      next: (data: any) => {
+        this.dataSetPreviewInstanceData = this.parseCrudeInstances(data);
+        this.applyDataSetFilters();
+      },
+      error: () => {
+        this.dataSetPreviewInstanceData = [];
+        this.dataSetFilteredPreviewData = [];
+      }
+    });
+  }
+
+  applyDataSetFilters(): void {
+    if (!this.selectedDataSetConfig) {
+      this.dataSetFilteredPreviewData = this.dataSetPreviewInstanceData;
+      return;
+    }
+    this.dataSetFilteredPreviewData = this.selectedDataSetConfig.applyToInstances(this.dataSetPreviewInstanceData);
+  }
+
+  deselectDataSetConfig(): void {
+    this.selectedDataSetConfig = null;
+    this.hasDataSetDraftChanges = false;
+    this.dataSetConfigPanelOpen = false;
+    this.dataSetPreviewInstanceData = [];
+    this.dataSetFilteredPreviewData = [];
+    this.dataSetDefService.draftConfig$.next(null);
+    this.dataSetDefService.hasDraftChanges$.next(false);
+    if (this.className) {
+      this.loadDataSetConfigsForClass();
+    }
+  }
+
+  onDataSetConfigChange(config: NamedDataSetConfig): void {
+    const updated = Object.assign(
+      new NamedDataSetConfig(config.id, config.name, config.description, config.source_class),
+      config
+    );
+    this.selectedDataSetConfig = updated;
+    this.dataSetDefService.updateDraft(updated);
+    this.applyDataSetFilters();
+  }
+
+  saveDataSetConfig(): void {
+    if (!this.selectedDataSetConfig) return;
+    this.dataSetDefService.saveConfig(this.selectedDataSetConfig).subscribe({
+      next: () => {},
+      error: (err: any) => {
+        console.error('[ClassMainPage] Save dataset config failed:', err);
+      }
+    });
+  }
+
+  deleteDataSetConfig(summary: DataSetDefinitionSummary, event: Event): void {
+    event.stopPropagation();
+    this.dataSetDefService.deleteConfig(summary.id).subscribe({
+      next: () => {
+        if (this.selectedDataSetConfig && this.selectedDataSetConfig.id === summary.id) {
+          this.deselectDataSetConfig();
+        }
+        if (this.className) {
+          this.loadDataSetConfigsForClass();
+        }
+      },
+      error: (err: any) => {
+        console.error('[ClassMainPage] Delete dataset config failed:', err);
+      }
+    });
   }
 
   // ==================== Configuration Tab Toggle Handlers ====================

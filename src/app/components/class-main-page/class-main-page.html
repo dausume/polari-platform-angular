@@ -926,4 +926,101 @@
     </div>
   </mat-tab>
 
+  <!-- ===== FILTERS & DATASETS TAB ===== -->
+  <mat-tab label="Filters & DataSets">
+    <div class="tab-content">
+
+      <!-- DataSet Config List View (no config selected) -->
+      <div *ngIf="!selectedDataSetConfig" class="displays-list-view">
+        <div class="displays-header">
+          <div>
+            <h3>Filters & DataSet Definitions for {{ className }}</h3>
+            <p class="subtitle">Create and manage filter chain definitions for this class.</p>
+          </div>
+          <button mat-fab color="primary" (click)="openCreateDataSetConfigDialog()" class="create-btn">
+            <mat-icon>add</mat-icon>
+          </button>
+        </div>
+
+        <mat-spinner *ngIf="dataSetConfigsLoading" diameter="40"></mat-spinner>
+
+        <!-- Empty state -->
+        <div *ngIf="!dataSetConfigsLoading && dataSetConfigList.length === 0" class="empty-state">
+          <mat-icon class="empty-icon">filter_alt</mat-icon>
+          <h3>No DataSet Definitions Yet</h3>
+          <p>Get started by creating your first filter & dataset definition for this class.</p>
+          <button mat-flat-button color="primary" (click)="openCreateDataSetConfigDialog()">
+            <mat-icon>add</mat-icon> Create Your First DataSet Definition
+          </button>
+        </div>
+
+        <!-- DataSet config cards grid -->
+        <div *ngIf="!dataSetConfigsLoading && dataSetConfigList.length > 0" class="displays-grid">
+          <mat-card *ngFor="let dsc of dataSetConfigList" class="display-card">
+            <mat-card-header>
+              <mat-icon mat-card-avatar class="display-icon">filter_alt</mat-icon>
+              <mat-card-title>{{ dsc.name || 'Untitled Definition' }}</mat-card-title>
+              <mat-card-subtitle *ngIf="dsc.description">{{ dsc.description }}</mat-card-subtitle>
+            </mat-card-header>
+            <mat-card-actions align="end">
+              <button mat-stroked-button color="primary" (click)="selectDataSetConfig(dsc)" title="Edit dataset definition">
+                <mat-icon>edit</mat-icon> Edit
+              </button>
+              <button mat-icon-button color="warn" (click)="deleteDataSetConfig(dsc, $event)" title="Delete dataset definition">
+                <mat-icon>delete</mat-icon>
+              </button>
+            </mat-card-actions>
+          </mat-card>
+        </div>
+      </div>
+
+      <!-- DataSet Config Editor View (config selected) -->
+      <div *ngIf="selectedDataSetConfig" class="display-editor-view">
+        <div class="editor-toolbar">
+          <div class="editor-toolbar-left">
+            <button mat-icon-button (click)="deselectDataSetConfig()" title="Back to list">
+              <mat-icon>arrow_back</mat-icon>
+            </button>
+            <h3>{{ selectedDataSetConfig.name || 'Untitled Definition' }}</h3>
+            <span *ngIf="hasDataSetDraftChanges" class="unsaved-badge">Unsaved changes</span>
+          </div>
+          <div class="editor-toolbar-right">
+            <span class="filter-count-label" *ngIf="dataSetPreviewInstanceData.length > 0">
+              {{ dataSetFilteredPreviewData.length }} / {{ dataSetPreviewInstanceData.length }} rows
+            </span>
+            <button mat-flat-button color="primary" *ngIf="hasDataSetDraftChanges" (click)="saveDataSetConfig()">
+              <mat-icon>save</mat-icon> Save
+            </button>
+            <button mat-icon-button (click)="dataSetConfigPanelOpen = !dataSetConfigPanelOpen"
+                    [color]="dataSetConfigPanelOpen ? 'primary' : ''">
+              <mat-icon>tune</mat-icon>
+            </button>
+          </div>
+        </div>
+
+        <div class="editor-body">
+          <!-- Preview area: filtered data table -->
+          <div class="editor-preview" [class.with-config-panel]="dataSetConfigPanelOpen">
+            <class-data-table
+              [className]="className"
+              [classTypeData]="classTypeData"
+              [instanceData]="dataSetFilteredPreviewData"
+              [hideColumnSelector]="true">
+            </class-data-table>
+          </div>
+
+          <!-- Config sidebar -->
+          <div class="config-panel" *ngIf="dataSetConfigPanelOpen">
+            <dataset-config-sidebar
+              [config]="selectedDataSetConfig"
+              [classTypeData]="classTypeData"
+              (configChange)="onDataSetConfigChange($event)">
+            </dataset-config-sidebar>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </mat-tab>
+
 </mat-tab-group>

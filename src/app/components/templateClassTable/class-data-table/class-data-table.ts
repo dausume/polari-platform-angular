@@ -13,6 +13,7 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { classPolyTyping } from '@models/polyTyping/classPolyTyping';
 import { variablePolyTyping } from '@models/polyTyping/variablePolyTyping';
 import { RuntimeConfigService } from '@services/runtime-config.service';
+import { getFieldTypeIcon } from '@models/shared/PolariFieldType';
 import { ClassTypingService } from '@services/class-typing-service';
 import { SolutionExecutionService } from '@services/no-code-services/solution-execution.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -302,24 +303,7 @@ export class ClassDataTableComponent implements OnInit, OnChanges {
    * Get type icon for display
    */
   getTypeIcon(type: string): string {
-    const typeMap: { [key: string]: string } = {
-      'str': 'T',
-      'string': 'T',
-      'int': '#',
-      'integer': '#',
-      'float': '∞',
-      'bool': '✓',
-      'boolean': '✓',
-      'list': '[]',
-      'dict': '{}',
-      'object': '{}',
-      'date': '📅',
-      'datetime': '🕐',
-      'polariList': '📋',
-      'polariDict': '📚'
-    };
-
-    return typeMap[type?.toLowerCase()] || '◆';
+    return getFieldTypeIcon(type);
   }
 
   /**

@@ -1,0 +1,144 @@
+<div class="ds-sidebar">
+
+  <!-- Filter Chain Section -->
+  <div class="ds-section">
+    <div class="ds-section-header">
+      <mat-icon>filter_list</mat-icon>
+      <span>Filter Chain</span>
+      <span class="ds-count-badge" *ngIf="config.filterChainLinks.length > 0">
+        {{ config.filterChainLinks.length }}
+      </span>
+    </div>
+
+    <div class="ds-filter-list">
+      <div *ngFor="let link of config.filterChainLinks; let i = index; let first = first; let last = last"
+           class="ds-filter-row">
+
+        <!-- Chain connector -->
+        <div class="ds-chain-connector" *ngIf="!first">
+          <span class="ds-chain-and">AND</span>
+        </div>
+
+        <div class="ds-filter-card">
+          <!-- Row header with index and actions -->
+          <div class="ds-filter-card-header">
+            <span class="ds-filter-index">#{{ i + 1 }}</span>
+            <div class="ds-filter-actions">
+              <button mat-icon-button [disabled]="first"
+                      (click)="moveFilterLink(i, -1)" matTooltip="Move up">
+                <mat-icon>arrow_upward</mat-icon>
+              </button>
+              <button mat-icon-button [disabled]="last"
+                      (click)="moveFilterLink(i, 1)" matTooltip="Move down">
+                <mat-icon>arrow_downward</mat-icon>
+              </button>
+              <button mat-icon-button color="warn"
+                      (click)="removeFilterLink(i)" matTooltip="Remove filter">
+                <mat-icon>close</mat-icon>
+              </button>
+            </div>
+          </div>
+
+          <!-- Field selector -->
+          <mat-form-field appearance="outline" class="ds-field-select">
+            <mat-label>Field</mat-label>
+            <mat-select [(value)]="link.variableName"
+                        (selectionChange)="onFieldChange(link)">
+              <mat-option *ngFor="let field of availableFields" [value]="field">
+                <span class="ds-field-option">
+                  <span class="ds-field-type-badge"
+                        [style.background]="getFieldInfo(field)?.badgeColor || '#78909c'">
+                    {{ getFieldInfo(field)?.icon || '◆' }}
+                  </span>
+                  {{ field }}
+                </span>
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <!-- Filter type selector -->
+          <mat-form-field appearance="outline" class="ds-filter-type-select">
+            <mat-label>Condition</mat-label>
+            <mat-select [(value)]="link.filterType"
+                        (selectionChange)="onFilterTypeChange(link)">
+              <mat-option *ngFor="let opt of getFilterOptionsFor(link.variableName)" [value]="opt">
+                {{ getFilterLabel(opt) }}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <!-- Value input (single) -->
+          <mat-form-field appearance="outline" class="ds-value-input"
+                          *ngIf="!requiresNoValue(link.filterType) && !requiresRange(link.filterType)">
+            <mat-label>Value</mat-label>
+            <input matInput
+                   [type]="getInputType(link.variableName)"
+                   [(ngModel)]="link.filterValue"
+                   (ngModelChange)="onFilterValueChange(link)"
+                   placeholder="Filter value...">
+          </mat-form-field>
+
+          <!-- Range inputs -->
+          <div class="ds-range-inputs" *ngIf="requiresRange(link.filterType)">
+            <mat-form-field appearance="outline" class="ds-range-input">
+              <mat-label>Min</mat-label>
+              <input matInput
+                     [type]="getInputType(link.variableName)"
+                     [value]="getRangeValue(link, 0)"
+                     (change)="onRangeValueChange(link, 0, $any($event.target).value)">
+            </mat-form-field>
+            <span class="ds-range-separator">—</span>
+            <mat-form-field appearance="outline" class="ds-range-input">
+              <mat-label>Max</mat-label>
+              <input matInput
+                     [type]="getInputType(link.variableName)"
+                     [value]="getRangeValue(link, 1)"
+                     (change)="onRangeValueChange(link, 1, $any($event.target).value)">
+            </mat-form-field>
+          </div>
+
+          <!-- No value indicator -->
+          <div class="ds-no-value" *ngIf="requiresNoValue(link.filterType)">
+            <mat-icon>check_circle</mat-icon>
+            <span>No value needed</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add filter button -->
+    <button mat-stroked-button class="ds-add-filter-btn" (click)="addFilterLink()"
+            [disabled]="availableFields.length === 0">
+      <mat-icon>add</mat-icon> Add Filter
+    </button>
+
+    <div class="ds-empty-hint" *ngIf="config.filterChainLinks.length === 0">
+      No filters configured. Add a filter to start building the chain.
+    </div>
+
+    <div class="ds-no-fields-hint" *ngIf="availableFields.length === 0">
+      <mat-icon>warning</mat-icon>
+      No class fields detected. Load instance data to populate available fields.
+    </div>
+  </div>
+
+  <!-- Settings Section -->
+  <div class="ds-section">
+    <div class="ds-section-header">
+      <mat-icon>settings</mat-icon>
+      <span>Settings</span>
+    </div>
+
+    <div class="ds-setting-row">
+      <mat-slide-toggle
+        [checked]="config.disableUserConfigChanges"
+        (change)="onDisableUserChangesToggle($event.checked)">
+        Lock filters for end users
+      </mat-slide-toggle>
+      <span class="ds-setting-hint">
+        When enabled, end users cannot modify filter settings.
+      </span>
+    </div>
+  </div>
+
+</div>

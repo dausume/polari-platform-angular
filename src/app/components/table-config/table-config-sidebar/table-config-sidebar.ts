@@ -6,6 +6,7 @@ import { SortOrder, SortDirection, TableDensity } from '@models/tables/TableConf
 import { SolutionManagerService, SolutionSummary } from '@services/no-code-services/solution-manager.service';
 import { getAllSvgIcons, SvgIconDef } from '@models/shared/SvgIconLibrary';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { getFieldTypeIcon } from '@models/shared/PolariFieldType';
 
 interface FieldInfo {
   name: string;
@@ -72,15 +73,7 @@ export class TableConfigSidebarComponent implements OnChanges {
   }
 
   private getTypeIcon(type: string): string {
-    const typeMap: Record<string, string> = {
-      'str': 'T', 'string': 'T',
-      'int': '#', 'integer': '#',
-      'float': '#', 'bool': '\u2713', 'boolean': '\u2713',
-      'list': '[]', 'dict': '{}', 'object': '{}',
-      'date': 'D', 'datetime': 'DT',
-      'polariList': '[]', 'polariDict': '{}'
-    };
-    return typeMap[type?.toLowerCase()] || '\u25C6';
+    return getFieldTypeIcon(type);
   }
 
   toggleFieldAvailability(field: FieldInfo): void {

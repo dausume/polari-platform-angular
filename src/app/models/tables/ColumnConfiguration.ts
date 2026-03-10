@@ -20,6 +20,11 @@
  * See also: ColumnPersonalization for end-user customizable settings.
  */
 
+import {
+    getFieldTypeIcon, getDefaultAlignment as getSharedAlignment,
+    isSortableType, isFilterableType, normalizeDataType
+} from '@models/shared/PolariFieldType';
+
 /**
  * Column display format options
  */
@@ -186,28 +191,7 @@ export class ColumnConfiguration implements IColumnConfiguration {
      * Get the type icon for this column
      */
     getTypeIcon(): string {
-        const typeMap: Record<string, string> = {
-            'str': 'T',
-            'string': 'T',
-            'int': '#',
-            'integer': '#',
-            'float': '∞',
-            'number': '∞',
-            'bool': '✓',
-            'boolean': '✓',
-            'list': '[]',
-            'array': '[]',
-            'dict': '{}',
-            'object': '{}',
-            'date': '📅',
-            'datetime': '🕐',
-            'polariList': '📋',
-            'polariDict': '📚',
-            'uuid': '🔑',
-            'email': '✉',
-            'url': '🔗'
-        };
-        return typeMap[this.dataType?.toLowerCase() || ''] || '◆';
+        return getFieldTypeIcon(this.dataType || 'unknown');
     }
 
     /**
@@ -282,13 +266,7 @@ export class ColumnConfiguration implements IColumnConfiguration {
      * Determine default alignment based on data type
      */
     static getDefaultAlignment(dataType: string): ColumnAlignment {
-        const rightAligned = ['int', 'integer', 'float', 'number', 'currency', 'percent'];
-        const centerAligned = ['bool', 'boolean', 'date', 'datetime'];
-
-        const lowerType = dataType?.toLowerCase() || '';
-        if (rightAligned.includes(lowerType)) return 'right';
-        if (centerAligned.includes(lowerType)) return 'center';
-        return 'left';
+        return getSharedAlignment(dataType);
     }
 
     /**
@@ -320,8 +298,8 @@ export class ColumnConfiguration implements IColumnConfiguration {
             visible: true,
             alignment: ColumnConfiguration.getDefaultAlignment(dataType),
             format: ColumnConfiguration.getDefaultFormat(dataType),
-            sortable: !['list', 'dict', 'object', 'polariList', 'polariDict'].includes(dataType.toLowerCase()),
-            filterable: !['list', 'dict', 'object', 'polariList', 'polariDict'].includes(dataType.toLowerCase())
+            sortable: isSortableType(dataType),
+            filterable: isFilterableType(dataType)
         });
     }
 

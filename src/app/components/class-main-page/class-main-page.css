@@ -214,6 +214,13 @@
     gap: 8px;
 }
 
+.filter-count-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-weight: 500;
+    margin-right: 8px;
+}
+
 .unsaved-badge {
     background: var(--brand-orange);
     color: white;
