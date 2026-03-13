@@ -1,0 +1,83 @@
+<div class="page-container">
+    <div class="page-header">
+        <h1>Tables</h1>
+        <p class="subtitle">Browse table configurations across all objects</p>
+    </div>
+
+    <div class="section-header">
+        <h2>Table Configurations by Class</h2>
+        <button mat-icon-button (click)="refresh()" matTooltip="Refresh">
+            <mat-icon>refresh</mat-icon>
+        </button>
+    </div>
+
+    <div *ngIf="loading" class="loading-container">
+        <mat-spinner diameter="40"></mat-spinner>
+        <span>Loading table configurations...</span>
+    </div>
+
+    <div *ngIf="!loading && allConfigs.length === 0" class="empty-state">
+        <mat-icon class="empty-icon">table_chart</mat-icon>
+        <p>No table configurations found.</p>
+        <p class="hint">Create a table configuration from a class's Tables tab to see it here.</p>
+    </div>
+
+    <div *ngIf="!loading && configsByClass.length > 0" class="class-groups">
+        <div class="class-group" *ngFor="let group of configsByClass">
+            <div class="class-group-header" [class.expanded]="isExpanded(group.className)"
+                 (click)="toggleExpand(group.className)">
+                <mat-icon class="class-icon">category</mat-icon>
+                <h3>{{ group.className }}</h3>
+                <span class="config-count">{{ group.configs.length }} table{{ group.configs.length !== 1 ? 's' : '' }}</span>
+                <mat-icon class="expand-icon">expand_more</mat-icon>
+            </div>
+
+            <div class="class-group-body" [class.expanded]="isExpanded(group.className)">
+                <!-- API Endpoint Toggle -->
+                <div class="endpoint-toggles" (click)="$event.stopPropagation()">
+                    <div class="endpoint-toggle">
+                        <span class="toggle-label">Paginated / Flat JSON API</span>
+                        <mat-slide-toggle
+                            [checked]="group.flatJsonEnabled"
+                            (change)="toggleFlatJsonEndpoint(group)"
+                            color="primary">
+                        </mat-slide-toggle>
+                    </div>
+                    <span class="endpoint-status" *ngIf="group.flatJsonEnabled && group.flatJsonEndpoint">
+                        <mat-icon class="active-icon">check_circle</mat-icon>
+                        {{ group.flatJsonEndpoint }}
+                    </span>
+                </div>
+
+                <div class="configs-grid">
+                    <div class="config-card" *ngFor="let config of group.configs">
+                        <div class="card-header">
+                            <mat-icon class="config-icon">table_chart</mat-icon>
+                            <div class="config-info">
+                                <h4>{{ config.name || 'Untitled Table' }}</h4>
+                                <span class="config-description" *ngIf="config.description">{{ config.description }}</span>
+                            </div>
+                        </div>
+                        <div class="card-badges">
+                            <span class="badge default-badge" *ngIf="config.is_default_table">
+                                <mat-icon>star</mat-icon> Default Table
+                            </span>
+                            <span class="badge instance-badge" *ngIf="config.is_default_instance_display">
+                                <mat-icon>person</mat-icon> Instance Display
+                            </span>
+                            <span class="badge dataset-badge" *ngIf="config.is_default_dataset_display">
+                                <mat-icon>dataset</mat-icon> DataSet Display
+                            </span>
+                        </div>
+                        <div class="card-actions">
+                            <button mat-stroked-button color="primary"
+                                    (click)="editConfig(group.className, $event)">
+                                <mat-icon>edit</mat-icon> Edit
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

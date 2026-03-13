@@ -245,6 +245,87 @@
     flex: 1;
 }
 
+.detail-preview-wrapper {
+    padding: 8px 0;
+}
+
+.detail-preview-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0 16px 0;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.detail-preview-header mat-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+}
+
+.detail-preview-hint {
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--text-tertiary);
+    margin-left: auto;
+}
+
+/* ===== Overview DataSet Display ===== */
+.overview-dataset-display {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.overview-metric-row {
+    display: flex;
+    gap: 16px;
+}
+
+.overview-metric-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--surface-secondary, #f5f5f5);
+    border: 1px solid var(--border-light, #e0e0e0);
+    border-radius: 8px;
+    padding: 16px 24px;
+    min-width: 200px;
+}
+
+.overview-metric-icon {
+    font-size: 32px;
+    width: 32px;
+    height: 32px;
+    color: var(--brand-teal, #009688);
+}
+
+.overview-metric-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.overview-metric-value {
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--text-primary, #212121);
+    line-height: 1.2;
+}
+
+.overview-metric-label {
+    font-size: 13px;
+    color: var(--text-secondary, #757575);
+    margin-top: 2px;
+}
+
+.overview-table-section {
+    border: 1px solid var(--border-light, #e0e0e0);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
 /* ===== Config Panel ===== */
 .config-panel {
     width: 340px;
@@ -351,6 +432,33 @@
 /* ===== Table Definition Cards (teal accent) ===== */
 .table-def-card {
     border-left: 4px solid var(--brand-teal) !important;
+}
+
+.table-def-card.is-default {
+    border-left-width: 4px !important;
+    box-shadow: 0 0 0 1px var(--brand-teal), 0 2px 8px rgba(0,0,0,0.12) !important;
+}
+
+.default-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-left: 8px;
+    vertical-align: middle;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.default-badge.table-badge {
+    background: var(--brand-teal);
+    color: #fff;
+}
+
+.default-badge.display-badge {
+    background: var(--brand-blue);
+    color: #fff;
 }
 
 .table-def-icon {

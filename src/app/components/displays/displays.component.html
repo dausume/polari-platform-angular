@@ -1,0 +1,146 @@
+<div class="displays-container">
+    <div class="displays-header">
+        <h1>Displays</h1>
+        <p class="subtitle">Browse and manage display configurations across all objects</p>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="tab-nav">
+        <button class="tab-btn" [class.active]="activeTab === 'all-displays'"
+                (click)="setActiveTab('all-displays')">
+            <mat-icon>dashboard</mat-icon>
+            All Displays
+        </button>
+        <button class="tab-btn" [class.active]="activeTab === 'published-pages'"
+                (click)="setActiveTab('published-pages')">
+            <mat-icon>public</mat-icon>
+            Published Pages
+        </button>
+    </div>
+
+    <!-- Tab: All Displays -->
+    <div class="tab-content" *ngIf="activeTab === 'all-displays'">
+        <div class="section-header">
+            <h2>Displays by Class</h2>
+            <button mat-icon-button (click)="refreshDisplays()" matTooltip="Refresh">
+                <mat-icon>refresh</mat-icon>
+            </button>
+        </div>
+
+        <div *ngIf="loading" class="loading-container">
+            <mat-spinner diameter="40"></mat-spinner>
+            <span>Loading displays...</span>
+        </div>
+
+        <div *ngIf="!loading && allDisplays.length === 0" class="empty-state">
+            <mat-icon class="empty-icon">dashboard</mat-icon>
+            <p>No displays found.</p>
+            <p class="hint">Create a display from a class's Displays tab to see it here.</p>
+        </div>
+
+        <div *ngIf="!loading && displaysByClass.length > 0" class="class-groups">
+            <div class="class-group" *ngFor="let group of displaysByClass">
+                <div class="class-group-header" [class.expanded]="isExpanded(group.className)"
+                     (click)="toggleExpand(group.className)">
+                    <mat-icon class="class-icon">category</mat-icon>
+                    <h3>{{ group.className }}</h3>
+                    <span class="display-count">{{ group.displays.length }} display{{ group.displays.length !== 1 ? 's' : '' }}</span>
+                    <mat-icon class="expand-icon">expand_more</mat-icon>
+                </div>
+
+                <div class="class-group-body" [class.expanded]="isExpanded(group.className)">
+                    <div class="displays-grid">
+                        <div class="display-card" *ngFor="let display of group.displays">
+                            <div class="card-header">
+                                <mat-icon class="display-icon">{{ display.isPage ? 'public' : 'dashboard' }}</mat-icon>
+                                <div class="display-info">
+                                    <h4>{{ display.name || 'Untitled Display' }}</h4>
+                                    <span class="display-description" *ngIf="display.description">{{ display.description }}</span>
+                                </div>
+                            </div>
+
+                            <div class="card-badges">
+                                <span class="badge page-badge" *ngIf="display.isPage">
+                                    <mat-icon>public</mat-icon> Published Page
+                                </span>
+                                <span class="badge solution-badge" *ngIf="getLinkedSolutionCount(display) > 0">
+                                    <mat-icon>account_tree</mat-icon> {{ getLinkedSolutionCount(display) }} Solution{{ getLinkedSolutionCount(display) !== 1 ? 's' : '' }}
+                                </span>
+                            </div>
+
+                            <div class="card-actions">
+                                <button mat-stroked-button color="primary"
+                                        (click)="editDisplay(group.className, $event)"
+                                        title="Edit in class page">
+                                    <mat-icon>edit</mat-icon> Edit
+                                </button>
+                                <button mat-stroked-button *ngIf="display.isPage"
+                                        (click)="navigateToDisplayPage(display)"
+                                        title="View published page">
+                                    <mat-icon>open_in_new</mat-icon> View Page
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab: Published Pages -->
+    <div class="tab-content" *ngIf="activeTab === 'published-pages'">
+        <div class="section-header">
+            <h2>Published Display Pages</h2>
+            <button mat-icon-button (click)="refreshDisplays()" matTooltip="Refresh">
+                <mat-icon>refresh</mat-icon>
+            </button>
+        </div>
+
+        <div *ngIf="loading" class="loading-container">
+            <mat-spinner diameter="40"></mat-spinner>
+            <span>Loading published pages...</span>
+        </div>
+
+        <div *ngIf="!loading && publishedDisplays.length === 0" class="empty-state">
+            <mat-icon class="empty-icon">public</mat-icon>
+            <p>No published display pages.</p>
+            <p class="hint">Publish a display from a class's Displays tab to make it accessible as a standalone page.</p>
+        </div>
+
+        <div *ngIf="!loading && publishedDisplays.length > 0" class="displays-grid">
+            <div class="display-card" *ngFor="let display of publishedDisplays">
+                <div class="card-header">
+                    <mat-icon class="display-icon published">public</mat-icon>
+                    <div class="display-info">
+                        <h4>{{ display.name || 'Untitled Page' }}</h4>
+                        <span class="display-description" *ngIf="display.description">{{ display.description }}</span>
+                    </div>
+                </div>
+
+                <div class="card-meta">
+                    <span class="meta-item" *ngIf="display.source_class">
+                        <mat-icon>category</mat-icon> {{ display.source_class }}
+                    </span>
+                    <span class="meta-item" *ngIf="display.pageRoute">
+                        <mat-icon>link</mat-icon> /display/{{ display.pageRoute }}
+                    </span>
+                    <span class="meta-item" *ngIf="getLinkedSolutionCount(display) > 0">
+                        <mat-icon>account_tree</mat-icon> {{ getLinkedSolutionCount(display) }} linked solution{{ getLinkedSolutionCount(display) !== 1 ? 's' : '' }}
+                    </span>
+                </div>
+
+                <div class="card-actions">
+                    <button mat-raised-button color="primary"
+                            (click)="navigateToDisplayPage(display)">
+                        <mat-icon>open_in_new</mat-icon> Open Page
+                    </button>
+                    <button mat-stroked-button
+                            (click)="editDisplay(display.source_class, $event)"
+                            *ngIf="display.source_class">
+                        <mat-icon>edit</mat-icon> Edit
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -3,25 +3,34 @@
   <!-- ===== OVERVIEW TAB ===== -->
   <mat-tab label="Overview">
     <div class="tab-content">
-      <!-- Dashboard view for class pages -->
-      <dashboard-renderer
-          *ngIf="dashboard"
-          [dashboard]="dashboard"
-          [context]="dashboardContext">
-      </dashboard-renderer>
-
-      <!-- Fallback: Direct table display when no dashboard yet -->
-      <div class="fallback-container" *ngIf="!dashboard && className">
-          <template-class-table
-              [className]="className"
-              [classTypeData]="classTypeData">
-          </template-class-table>
-      </div>
-
       <!-- Loading state -->
-      <div class="loading-container" *ngIf="!dashboard && !className">
+      <div class="loading-container" *ngIf="!className">
           <mat-spinner diameter="40"></mat-spinner>
           <p>Loading class data...</p>
+      </div>
+
+      <!-- Default DataSet Display -->
+      <div *ngIf="className" class="overview-dataset-display">
+        <!-- Instance count metric -->
+        <div class="overview-metric-row">
+          <div class="overview-metric-card">
+            <mat-icon class="overview-metric-icon">storage</mat-icon>
+            <div class="overview-metric-content">
+              <span class="overview-metric-value">{{ instanceCount ?? '—' }}</span>
+              <span class="overview-metric-label">Total Instances</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Default dataset table (from config marked as default dataset display, or fallback) -->
+        <div class="overview-table-section">
+          <class-data-table
+            [className]="className"
+            [classTypeData]="classTypeData"
+            [instanceData]="overviewInstanceData"
+            [namedTableConfig]="defaultDatasetConfig || undefined">
+          </class-data-table>
+        </div>
       </div>
     </div>
   </mat-tab>
@@ -56,10 +65,16 @@
 
         <!-- Table config cards grid -->
         <div *ngIf="!tableConfigsLoading && tableConfigList.length > 0" class="displays-grid">
-          <mat-card *ngFor="let tc of tableConfigList" class="display-card table-def-card">
+          <mat-card *ngFor="let tc of tableConfigList" class="display-card table-def-card"
+                    [class.is-default]="tc.is_default_table || tc.is_default_instance_display || tc.is_default_dataset_display">
             <mat-card-header>
               <mat-icon mat-card-avatar class="display-icon table-def-icon">table_chart</mat-icon>
-              <mat-card-title>{{ tc.name || 'Untitled Config' }}</mat-card-title>
+              <mat-card-title>
+                {{ tc.name || 'Untitled Config' }}
+                <span *ngIf="tc.is_default_table" class="default-badge table-badge">Default Table</span>
+                <span *ngIf="tc.is_default_instance_display" class="default-badge display-badge">Instance Display</span>
+                <span *ngIf="tc.is_default_dataset_display" class="default-badge display-badge">DataSet Display</span>
+              </mat-card-title>
               <mat-card-subtitle *ngIf="tc.description">{{ tc.description }}</mat-card-subtitle>
             </mat-card-header>
             <mat-card-actions align="end">
@@ -98,13 +113,30 @@
         <div class="editor-body">
           <!-- Preview area -->
           <div class="editor-preview" [class.with-config-panel]="tableConfigPanelOpen">
-            <class-data-table
+            <!-- Table preview (default) -->
+            <class-data-table *ngIf="!selectedTableConfig.is_default_instance_display"
               [className]="className"
               [classTypeData]="classTypeData"
               [instanceData]="previewInstanceData"
               [namedTableConfig]="selectedTableConfig"
-              [hideColumnSelector]="true">
+>
             </class-data-table>
+
+            <!-- Detail display preview (when is_default_instance_display) -->
+            <div *ngIf="selectedTableConfig.is_default_instance_display" class="detail-preview-wrapper">
+              <div class="detail-preview-header">
+                <mat-icon>preview</mat-icon>
+                <span>Detail Display Preview</span>
+                <span class="detail-preview-hint" *ngIf="previewInstanceData.length > 0">
+                  Showing data from first instance
+                </span>
+              </div>
+              <detail-display-renderer
+                [config]="selectedTableConfig.detailDisplay"
+                [instance]="previewInstanceData.length > 0 ? previewInstanceData[0] : null"
+                [classTypeData]="classTypeData">
+              </detail-display-renderer>
+            </div>
           </div>
 
           <!-- Config sidebar -->
@@ -797,7 +829,7 @@
   </mat-tab>
 
   <!-- ===== GEOJSON TAB ===== -->
-  <mat-tab label="GeoJSON">
+  <mat-tab label="Maps">
     <div class="tab-content">
 
       <!-- GeoJSON Config List View (no config selected) -->
@@ -1005,7 +1037,7 @@
               [className]="className"
               [classTypeData]="classTypeData"
               [instanceData]="dataSetFilteredPreviewData"
-              [hideColumnSelector]="true">
+>
             </class-data-table>
           </div>
 

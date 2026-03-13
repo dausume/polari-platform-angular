@@ -11,6 +11,32 @@
       <mat-label>Description</mat-label>
       <textarea matInput [(ngModel)]="config.description" (ngModelChange)="emitChange()" rows="2"></textarea>
     </mat-form-field>
+
+    <div class="default-toggles">
+      <mat-slide-toggle
+        [checked]="config.is_default_table"
+        (change)="onDefaultToggle('is_default_table', $event.checked)"
+        color="primary">
+        Default Table
+      </mat-slide-toggle>
+      <span class="default-hint">Used as the primary table view for this class</span>
+
+      <mat-slide-toggle
+        [checked]="config.is_default_instance_display"
+        (change)="onDefaultToggle('is_default_instance_display', $event.checked)"
+        color="primary">
+        Default Instance Display
+      </mat-slide-toggle>
+      <span class="default-hint">Used as the detail view when viewing a single instance</span>
+
+      <mat-slide-toggle
+        [checked]="config.is_default_dataset_display"
+        (change)="onDefaultToggle('is_default_dataset_display', $event.checked)"
+        color="primary">
+        Default DataSet Display
+      </mat-slide-toggle>
+      <span class="default-hint">Used on the Overview tab to display the full dataset</span>
+    </div>
   </div>
 
   <mat-divider></mat-divider>
@@ -303,6 +329,72 @@
 
       <button mat-stroked-button color="primary" (click)="addDatasetAction()" class="add-action-btn">
         <mat-icon>add</mat-icon> Add Dataset Button
+      </button>
+    </mat-expansion-panel>
+
+    <!-- Detail Display Cards Section (only when is_default_instance_display) -->
+    <mat-expansion-panel *ngIf="config.is_default_instance_display" [expanded]="true">
+      <mat-expansion-panel-header>
+        <mat-panel-title>Detail Display Cards</mat-panel-title>
+        <mat-panel-description>{{ config.detailDisplay.cards.length }} metric cards</mat-panel-description>
+      </mat-expansion-panel-header>
+
+      <p class="section-instructions">Configure metric cards for the detail view. Cards are displayed in a 4-column grid, filling left to right.</p>
+
+      <div *ngFor="let card of config.detailDisplay.cards; let i = index" class="action-card">
+        <div class="action-card-header">
+          <mat-icon class="card-preview-icon">{{ card.icon || 'analytics' }}</mat-icon>
+          <span class="action-card-title">{{ card.label || getFieldDisplayName(card.fieldName) || 'Untitled Card' }}</span>
+          <button mat-icon-button (click)="moveCardUp(i)" [disabled]="i === 0" matTooltip="Move up">
+            <mat-icon>arrow_upward</mat-icon>
+          </button>
+          <button mat-icon-button (click)="moveCardDown(i)" [disabled]="i === config.detailDisplay.cards.length - 1" matTooltip="Move down">
+            <mat-icon>arrow_downward</mat-icon>
+          </button>
+          <button mat-icon-button color="warn" (click)="removeCard(i)" matTooltip="Remove card">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Source Field</mat-label>
+          <mat-select [(ngModel)]="card.fieldName" (ngModelChange)="onCardChange()">
+            <mat-option *ngFor="let fname of fieldNames" [value]="fname">
+              <span class="field-type-icon">{{ getFieldTypeIcon(fname) }}</span>
+              {{ fname }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Label (optional — defaults to field name)</mat-label>
+          <input matInput [(ngModel)]="card.label" (ngModelChange)="onCardChange()">
+        </mat-form-field>
+
+        <div class="card-config-row">
+          <mat-form-field appearance="outline" class="half-width">
+            <mat-label>Icon</mat-label>
+            <mat-select [(ngModel)]="card.icon" (ngModelChange)="onCardChange()">
+              <mat-option *ngFor="let ic of metricIcons" [value]="ic.value">
+                <mat-icon>{{ ic.value }}</mat-icon> {{ ic.label }}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="half-width">
+            <mat-label>Format</mat-label>
+            <mat-select [(ngModel)]="card.format" (ngModelChange)="onCardChange()">
+              <mat-option value="text">Text</mat-option>
+              <mat-option value="number">Number</mat-option>
+              <mat-option value="percent">Percent</mat-option>
+              <mat-option value="currency">Currency</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+      </div>
+
+      <button mat-stroked-button color="primary" (click)="addCard()" class="add-action-btn">
+        <mat-icon>add</mat-icon> Add Metric Card
       </button>
     </mat-expansion-panel>
 

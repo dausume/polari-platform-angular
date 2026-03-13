@@ -36,6 +36,15 @@ import { RowActionsCellComponent } from './row-actions-cell/row-actions-cell';
 // CRUD Dialog Component
 import { CrudDialogComponent } from './crud-dialog/crud-dialog';
 
+// Instance Picker Dialog Component
+import { InstancePickerDialogComponent } from './instance-picker-dialog/instance-picker-dialog';
+
+// Class Selector Dialog Component
+import { ClassSelectorDialogComponent } from './class-selector-dialog/class-selector-dialog';
+
+// Detail Display Renderer
+import { DetailDisplayRendererComponent } from './detail-display-renderer/detail-display-renderer';
+
 // Dynamic Data Table Component
 import { DynamicDataTableComponent } from './dynamic-data-table/dynamic-data-table';
 
@@ -49,8 +58,12 @@ import { DynamicDataTableComponent } from './dynamic-data-table/dynamic-data-tab
     EditableSelectCellComponent,
     // Row Actions
     RowActionsCellComponent,
-    // Dialog
+    // Dialogs
     CrudDialogComponent,
+    InstancePickerDialogComponent,
+    ClassSelectorDialogComponent,
+    // Detail Display
+    DetailDisplayRendererComponent,
     // Table
     DynamicDataTableComponent
   ],
@@ -85,8 +98,12 @@ import { DynamicDataTableComponent } from './dynamic-data-table/dynamic-data-tab
     EditableSelectCellComponent,
     // Row Actions
     RowActionsCellComponent,
-    // Dialog
+    // Dialogs
     CrudDialogComponent,
+    InstancePickerDialogComponent,
+    ClassSelectorDialogComponent,
+    // Detail Display
+    DetailDisplayRendererComponent,
     // Table
     DynamicDataTableComponent
   ]
@@ -102,3 +119,6 @@ export { EditableBooleanCellComponent } from './editable-cells/editable-boolean-
 export { EditableDateCellComponent } from './editable-cells/editable-date-cell/editable-date-cell';
 export { EditableSelectCellComponent } from './editable-cells/editable-select-cell/editable-select-cell';
 export { RowActionsCellComponent } from './row-actions-cell/row-actions-cell';
+export { InstancePickerDialogComponent } from './instance-picker-dialog/instance-picker-dialog';
+export { ClassSelectorDialogComponent } from './class-selector-dialog/class-selector-dialog';
+export { DetailDisplayRendererComponent } from './detail-display-renderer/detail-display-renderer';

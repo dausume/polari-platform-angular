@@ -188,6 +188,7 @@ export interface FormatUpdateRequest {
   className: string;
   flatJson?: boolean;
   d3Column?: boolean;
+  geoJson?: boolean;
   flatJsonPrefix?: string;
   d3ColumnPrefix?: string;
   polariTreeWs?: boolean;

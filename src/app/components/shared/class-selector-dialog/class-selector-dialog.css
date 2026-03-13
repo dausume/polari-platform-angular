@@ -1,0 +1,158 @@
+.class-selector-dialog {
+  display: flex;
+  flex-direction: column;
+  min-width: 400px;
+  max-width: 500px;
+}
+
+/* Header */
+.dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border-medium);
+  margin: 0;
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-icon {
+  color: var(--brand-blue);
+  font-size: 24px;
+  width: 24px;
+  height: 24px;
+}
+
+.header-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.header-title {
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.header-subtitle {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.close-btn {
+  color: var(--text-tertiary);
+}
+
+/* Content */
+.dialog-content {
+  padding: 8px 0;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+/* Category Groups */
+.category-group {
+  margin-bottom: 4px;
+}
+
+.category-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s ease;
+}
+
+.category-header:hover {
+  background: var(--surface-hover);
+}
+
+.category-toggle {
+  color: var(--text-tertiary);
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+}
+
+.category-icon {
+  color: var(--text-secondary);
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+}
+
+.category-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.category-count {
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+/* Class Items */
+.category-items {
+  padding: 0 0 4px 0;
+}
+
+.class-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 24px 9px 52px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.class-item:hover {
+  background: var(--surface-hover);
+}
+
+.class-icon {
+  color: var(--text-tertiary);
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
+.class-name {
+  flex: 1;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.select-arrow {
+  color: var(--text-tertiary);
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.class-item:hover .select-arrow {
+  opacity: 1;
+}
+
+/* Actions */
+.dialog-actions {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  border-top: 1px solid var(--border-medium);
+}
+
+.spacer {
+  flex: 1;
+}

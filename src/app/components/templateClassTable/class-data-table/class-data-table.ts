@@ -32,8 +32,6 @@ export class ClassDataTableComponent implements OnInit, OnChanges {
   @Input() instanceData: any[] = [];
   @Input() tableConfig?: TableConfig;
   @Input() namedTableConfig?: NamedTableConfig;
-  @Input() hideColumnSelector: boolean = false;
-
   @Output() instanceCreated = new EventEmitter<any>();
   @Output() instanceUpdated = new EventEmitter<any>();
   @Output() instanceDeleted = new EventEmitter<string>();
@@ -416,12 +414,21 @@ export class ClassDataTableComponent implements OnInit, OnChanges {
       classTypeKeys.forEach(key => {
         const varData = this.classTypeData[key];
         if (varData?.variablePythonType) {
+          const pyType = varData.variablePythonType;
+          // Get referenced class name: from explicit refClass property,
+          // or extract from CLASS-ClassName-REFERENCE pattern
+          let refClass: string | undefined = varData.refClass;
+          if (!refClass && typeof pyType === 'string' && pyType.startsWith('CLASS-') && pyType.endsWith('-REFERENCE')) {
+            const match = pyType.match(/^CLASS-(.+)-REFERENCE$/);
+            if (match) refClass = match[1];
+          }
           schema.push({
             varName: key,
             varDisplayName: varData?.displayName || this.getColumnDisplayName(key),
             varType: varData.variablePythonType,
             isIdentifier: key === 'id',
-            required: key === 'id'
+            required: key === 'id',
+            refClass
           });
         }
       });

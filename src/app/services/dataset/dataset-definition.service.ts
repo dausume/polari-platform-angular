@@ -9,6 +9,7 @@ import { NamedDataSetConfig, DataSetDefinitionSummary } from '@models/datasets/N
 export class DataSetDefinitionService {
 
   configList$ = new BehaviorSubject<DataSetDefinitionSummary[]>([]);
+  allConfigList$ = new BehaviorSubject<DataSetDefinitionSummary[]>([]);
   draftConfig$ = new BehaviorSubject<NamedDataSetConfig | null>(null);
   hasDraftChanges$ = new BehaviorSubject<boolean>(false);
   loading$ = new BehaviorSubject<boolean>(false);
@@ -19,6 +20,24 @@ export class DataSetDefinitionService {
 
   private get baseUrl(): string {
     return `${this.polariService.getBackendBaseUrl()}/${this.className}`;
+  }
+
+  fetchAllConfigs(): void {
+    this.http.get<any>(this.baseUrl, this.polariService.backendRequestOptions).subscribe({
+      next: (response: any) => {
+        const items = this.parseReadAllResponse(response);
+        const summaries: DataSetDefinitionSummary[] = items.map((item: any) => ({
+          id: item.id,
+          name: item.name || '',
+          description: item.description || '',
+          source_class: item.source_class || ''
+        }));
+        this.allConfigList$.next(summaries);
+      },
+      error: (err: any) => {
+        console.error('[DataSetDefinitionService] Failed to fetch all configs:', err);
+      }
+    });
   }
 
   fetchConfigsForClass(sourceClass: string): void {

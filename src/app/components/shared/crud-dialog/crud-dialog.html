@@ -83,7 +83,7 @@
             </editable-date-cell>
           </ng-container>
 
-          <!-- Select Field -->
+          <!-- Select Field (non-reference) -->
           <ng-container *ngIf="getCellType(varDef) === 'select'">
             <editable-select-cell
               mode="edit"
@@ -93,9 +93,48 @@
               [required]="varDef.required || false"
               [disabled]="isReadOnly(varDef.varName)"
               [options]="getOptions(varDef)"
-              [refClassName]="varDef.refClass || ''"
               (valueChange)="onFieldChange(varDef.varName, $event)">
             </editable-select-cell>
+          </ng-container>
+
+          <!-- Reference Field (single) -->
+          <ng-container *ngIf="getCellType(varDef) === 'reference'">
+            <div class="reference-picker-field" (click)="openReferencePicker(varDef)">
+              <mat-icon class="ref-type-icon">link</mat-icon>
+              <span class="ref-value" *ngIf="form.get(varDef.varName)?.value">
+                {{ getRefDisplayLabel(varDef) || form.get(varDef.varName)?.value }}
+              </span>
+              <span class="ref-placeholder" *ngIf="!form.get(varDef.varName)?.value">
+                Click to select instance...
+              </span>
+              <button mat-icon-button type="button" class="ref-browse-btn"
+                      *ngIf="form.get(varDef.varName)?.value"
+                      (click)="clearReference(varDef); $event.stopPropagation()"
+                      [disabled]="isReadOnly(varDef.varName)">
+                <mat-icon>close</mat-icon>
+              </button>
+              <mat-icon class="ref-browse-icon">search</mat-icon>
+            </div>
+          </ng-container>
+
+          <!-- Reference List Field (multi) -->
+          <ng-container *ngIf="getCellType(varDef) === 'referenceList'">
+            <div class="reference-picker-field" (click)="openReferencePicker(varDef)">
+              <mat-icon class="ref-type-icon">link</mat-icon>
+              <span class="ref-value" *ngIf="form.get(varDef.varName)?.value?.length">
+                {{ getRefDisplayLabel(varDef) }}
+              </span>
+              <span class="ref-placeholder" *ngIf="!form.get(varDef.varName)?.value?.length">
+                Click to select instances...
+              </span>
+              <button mat-icon-button type="button" class="ref-browse-btn"
+                      *ngIf="form.get(varDef.varName)?.value?.length"
+                      (click)="clearReference(varDef); $event.stopPropagation()"
+                      [disabled]="isReadOnly(varDef.varName)">
+                <mat-icon>close</mat-icon>
+              </button>
+              <mat-icon class="ref-browse-icon">search</mat-icon>
+            </div>
           </ng-container>
 
           <!-- Field Error -->

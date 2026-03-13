@@ -9,6 +9,7 @@ import { NamedTableConfig, TableDefinitionSummary } from '@models/tables/NamedTa
 export class TableDefinitionService {
 
   configList$ = new BehaviorSubject<TableDefinitionSummary[]>([]);
+  allConfigList$ = new BehaviorSubject<TableDefinitionSummary[]>([]);
   draftConfig$ = new BehaviorSubject<NamedTableConfig | null>(null);
   hasDraftChanges$ = new BehaviorSubject<boolean>(false);
   loading$ = new BehaviorSubject<boolean>(false);
@@ -19,6 +20,27 @@ export class TableDefinitionService {
 
   private get baseUrl(): string {
     return `${this.polariService.getBackendBaseUrl()}/${this.className}`;
+  }
+
+  fetchAllConfigs(): void {
+    this.http.get<any>(this.baseUrl, this.polariService.backendRequestOptions).subscribe({
+      next: (response: any) => {
+        const items = this.parseReadAllResponse(response);
+        const summaries: TableDefinitionSummary[] = items.map((item: any) => ({
+          id: item.id,
+          name: item.name || '',
+          description: item.description || '',
+          source_class: item.source_class || '',
+          is_default_table: !!item.is_default_table,
+          is_default_instance_display: !!(item.is_default_instance_display || item.is_default_display),
+          is_default_dataset_display: !!item.is_default_dataset_display
+        }));
+        this.allConfigList$.next(summaries);
+      },
+      error: (err: any) => {
+        console.error('[TableDefinitionService] Failed to fetch all configs:', err);
+      }
+    });
   }
 
   fetchConfigsForClass(sourceClass: string): void {
@@ -32,7 +54,10 @@ export class TableDefinitionService {
             id: item.id,
             name: item.name || '',
             description: item.description || '',
-            source_class: item.source_class || ''
+            source_class: item.source_class || '',
+            is_default_table: !!item.is_default_table,
+            is_default_instance_display: !!(item.is_default_instance_display || item.is_default_display),
+            is_default_dataset_display: !!item.is_default_dataset_display
           }));
         this.configList$.next(summaries);
         this.loading$.next(false);
@@ -63,6 +88,23 @@ export class TableDefinitionService {
       catchError((err: any) => {
         this.loading$.next(false);
         return throwError(() => err);
+      })
+    );
+  }
+
+  /**
+   * Load a config without updating draft state.
+   * Use this when loading a config for read-only purposes (e.g., overview display).
+   */
+  loadConfigSilent(id: string, classTypeData?: Record<string, any>): Observable<NamedTableConfig> {
+    return this.http.get<any>(this.baseUrl, this.polariService.backendRequestOptions).pipe(
+      map((response: any) => {
+        const items = this.parseReadAllResponse(response);
+        const backendObj = items.find((item: any) => item.id === id);
+        if (!backendObj) {
+          throw new Error(`TableDefinition ${id} not found`);
+        }
+        return NamedTableConfig.fromBackend(backendObj, classTypeData);
       })
     );
   }
@@ -99,13 +141,71 @@ export class TableDefinitionService {
     formData.append('updateData', JSON.stringify({
       name: config.name,
       description: config.description,
-      definition: definition
+      definition: definition,
+      is_default_table: config.is_default_table,
+      is_default_instance_display: config.is_default_instance_display,
+      is_default_display: config.is_default_instance_display, // backwards compat
+      is_default_dataset_display: config.is_default_dataset_display
     }));
     return this.http.put(this.baseUrl, formData).pipe(
       tap(() => {
         this.hasDraftChanges$.next(false);
       })
     );
+  }
+
+  /**
+   * Clear the default flag on all other configs for the same class.
+   * Called before saving a config that has been set as default.
+   * @param sourceClass The class to scope the clearing to
+   * @param exceptId The config ID to skip (the one being set as default)
+   * @param flagName Which default flag to clear
+   */
+  clearOtherDefaults(sourceClass: string, exceptId: string, flagName: 'is_default_table' | 'is_default_instance_display' | 'is_default_dataset_display'): Observable<void> {
+    // Get current list and find any other configs with this flag set
+    const currentList = this.configList$.getValue();
+    const toUpdate = currentList.filter(
+      s => s.source_class === sourceClass && s.id !== exceptId && s[flagName]
+    );
+
+    if (toUpdate.length === 0) {
+      return new Observable(subscriber => { subscriber.next(); subscriber.complete(); });
+    }
+
+    // Clear each one
+    let completed = 0;
+    return new Observable(subscriber => {
+      toUpdate.forEach(summary => {
+        const formData = new FormData();
+        formData.append('polariId', summary.id);
+        // Send both old and new field names for backwards compatibility
+        const updatePayload: Record<string, boolean> = { [flagName]: false };
+        if (flagName === 'is_default_instance_display') {
+          updatePayload['is_default_display'] = false;
+        }
+        formData.append('updateData', JSON.stringify(updatePayload));
+        this.http.put(this.baseUrl, formData).subscribe({
+          next: () => {
+            // Update local summary
+            summary[flagName] = false;
+            completed++;
+            if (completed === toUpdate.length) {
+              this.configList$.next([...currentList]);
+              subscriber.next();
+              subscriber.complete();
+            }
+          },
+          error: (err) => {
+            console.error(`[TableDefinitionService] Failed to clear ${flagName} on ${summary.id}:`, err);
+            completed++;
+            if (completed === toUpdate.length) {
+              subscriber.next();
+              subscriber.complete();
+            }
+          }
+        });
+      });
+    });
   }
 
   deleteConfig(id: string): Observable<any> {

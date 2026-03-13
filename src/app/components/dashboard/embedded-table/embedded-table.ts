@@ -17,7 +17,7 @@ import { NamedTableConfig } from '@models/tables/NamedTableConfig';
       [classTypeData]="classTypeData"
       [instanceData]="instanceData"
       [namedTableConfig]="loadedConfig"
-      [hideColumnSelector]="true">
+>
     </class-data-table>
     <div *ngIf="loading" class="embedded-loading">Loading table...</div>
     <div *ngIf="error" class="embedded-error">{{ error }}</div>

@@ -43,3 +43,47 @@
     font-size: 13px;
     color: var(--text-secondary) !important;
 }
+
+/* Editable reference mode */
+.editable-ref {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+
+.ref-display {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.ref-placeholder {
+    flex: 1;
+    font-size: 13px;
+    color: var(--text-tertiary);
+    font-style: italic;
+}
+
+.picker-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--border-medium);
+    border-radius: var(--radius-sm);
+    background: var(--surface-secondary);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.15s ease;
+}
+
+.picker-btn:hover {
+    background: var(--surface-hover);
+    border-color: var(--brand-blue);
+}
+
+.picker-btn-icon {
+    font-size: 14px;
+}

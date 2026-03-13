@@ -45,22 +45,6 @@
         </div>
     </div>
 
-    <!-- Column Selector -->
-    <div class="column-selector" *ngIf="availableColumns.length > 0 && !hideColumnSelector">
-        <span class="selector-label">Columns ({{availableColumns.length}}):</span>
-        <div class="column-chips">
-            <span
-                *ngFor="let col of availableColumns"
-                class="chip-wrapper"
-                (click)="toggleColumn(col)"
-                [class.visibility-visible]="isColumnVisible(col)"
-                [class.visibility-hidden]="!isColumnVisible(col)">
-                <span class="chip-icon">{{getTypeIcon(getColumnType(col))}}</span>
-                {{getColumnDisplayName(col)}}
-            </span>
-        </div>
-    </div>
-
     <!-- Standard Table Mode -->
     <div class="table-wrapper" *ngIf="!wrappedMode">
         <table mat-table [dataSource]="dataSource" matSort class="data-table">

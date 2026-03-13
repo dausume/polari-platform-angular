@@ -1,0 +1,47 @@
+<div class="class-selector-dialog">
+  <!-- Header -->
+  <div mat-dialog-title class="dialog-header">
+    <div class="header-content">
+      <mat-icon class="header-icon">link</mat-icon>
+      <div class="header-text">
+        <span class="header-title">{{ data.title || 'Select Class' }}</span>
+        <span class="header-subtitle" *ngIf="data.subtitle">{{ data.subtitle }}</span>
+      </div>
+    </div>
+    <button mat-icon-button (click)="onCancel()" class="close-btn" aria-label="Close">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <!-- Content -->
+  <mat-dialog-content class="dialog-content">
+    <div class="category-list">
+      <div *ngFor="let group of categoryGroups" class="category-group">
+        <!-- Category Header -->
+        <div class="category-header" (click)="toggleGroup(group)">
+          <mat-icon class="category-toggle">{{ group.expanded ? 'expand_less' : 'expand_more' }}</mat-icon>
+          <mat-icon class="category-icon">{{ group.icon }}</mat-icon>
+          <span class="category-label">{{ group.label }}</span>
+          <span class="category-count">({{ group.classes.length }})</span>
+        </div>
+
+        <!-- Category Items -->
+        <div *ngIf="group.expanded" class="category-items">
+          <div *ngFor="let cls of group.classes"
+               class="class-item"
+               (click)="selectClass(cls)">
+            <mat-icon class="class-icon">class</mat-icon>
+            <span class="class-name">{{ cls.displayName }}</span>
+            <mat-icon class="select-arrow">chevron_right</mat-icon>
+          </div>
+        </div>
+      </div>
+    </div>
+  </mat-dialog-content>
+
+  <!-- Actions -->
+  <mat-dialog-actions class="dialog-actions">
+    <span class="spacer"></span>
+    <button mat-button (click)="onCancel()">Cancel</button>
+  </mat-dialog-actions>
+</div>

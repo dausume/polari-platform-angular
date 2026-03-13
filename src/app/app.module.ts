@@ -109,6 +109,12 @@ import { ApiConfigComponent } from '@components/api-config/api-config';
 import { ApiConfigDetailDialogComponent } from '@components/api-config/api-config-detail-dialog';
 // Maps Component
 import { MapsComponent } from '@components/maps/maps.component';
+// Displays Component
+import { DisplaysComponent } from '@components/displays/displays.component';
+// Centralizing Pages
+import { TablesComponent } from '@components/tables/tables.component';
+import { GraphsComponent } from '@components/graphs/graphs.component';
+import { DataSetsComponent } from '@components/datasets/datasets.component';
 // Table Config Components
 import { TableConfigSidebarComponent } from '@components/table-config/table-config-sidebar/table-config-sidebar';
 // Graph Config Components
@@ -206,7 +212,11 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     DataSetConfigSidebarComponent,
     EmbeddedTableComponent,
     SolutionInvokeButtonComponent,
-    MapsComponent
+    MapsComponent,
+    DisplaysComponent,
+    TablesComponent,
+    GraphsComponent,
+    DataSetsComponent
   ],
   imports: [
     BrowserModule,

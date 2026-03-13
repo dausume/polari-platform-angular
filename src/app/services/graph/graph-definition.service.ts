@@ -9,6 +9,7 @@ import { NamedGraphConfig, GraphDefinitionSummary } from '@models/graphs/NamedGr
 export class GraphDefinitionService {
 
   configList$ = new BehaviorSubject<GraphDefinitionSummary[]>([]);
+  allConfigList$ = new BehaviorSubject<GraphDefinitionSummary[]>([]);
   draftConfig$ = new BehaviorSubject<NamedGraphConfig | null>(null);
   hasDraftChanges$ = new BehaviorSubject<boolean>(false);
   loading$ = new BehaviorSubject<boolean>(false);
@@ -19,6 +20,24 @@ export class GraphDefinitionService {
 
   private get baseUrl(): string {
     return `${this.polariService.getBackendBaseUrl()}/${this.className}`;
+  }
+
+  fetchAllConfigs(): void {
+    this.http.get<any>(this.baseUrl, this.polariService.backendRequestOptions).subscribe({
+      next: (response: any) => {
+        const items = this.parseReadAllResponse(response);
+        const summaries: GraphDefinitionSummary[] = items.map((item: any) => ({
+          id: item.id,
+          name: item.name || '',
+          description: item.description || '',
+          source_class: item.source_class || ''
+        }));
+        this.allConfigList$.next(summaries);
+      },
+      error: (err: any) => {
+        console.error('[GraphDefinitionService] Failed to fetch all configs:', err);
+      }
+    });
   }
 
   fetchConfigsForClass(sourceClass: string): void {

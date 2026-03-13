@@ -1,0 +1,93 @@
+<div class="instance-picker-dialog">
+  <!-- Header -->
+  <div mat-dialog-title class="dialog-header">
+    <div class="header-content">
+      <mat-icon class="header-icon">{{ isMultiple ? 'checklist' : 'person_search' }}</mat-icon>
+      <span class="header-title">
+        Select {{ displayName }}
+        <span class="header-mode-badge" *ngIf="isMultiple">Multi-select</span>
+      </span>
+    </div>
+    <button mat-icon-button (click)="onCancel()" class="close-btn" aria-label="Close">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <!-- Content -->
+  <mat-dialog-content class="dialog-content">
+    <!-- Loading -->
+    <div *ngIf="isLoading" class="loading-state">
+      <mat-spinner diameter="40"></mat-spinner>
+      <span>Loading {{ displayName }} instances...</span>
+    </div>
+
+    <!-- Error -->
+    <div *ngIf="loadError" class="error-state">
+      <mat-icon>error_outline</mat-icon>
+      <span>{{ loadError }}</span>
+      <button mat-button color="primary" (click)="loadClassData()">Retry</button>
+    </div>
+
+    <!-- Selection Summary (multi-select) -->
+    <div *ngIf="!isLoading && !loadError && isMultiple && selectedInstances.length > 0" class="selection-summary">
+      <mat-chip-listbox class="selection-chips">
+        <mat-chip *ngFor="let inst of selectedInstances" (removed)="onRowClick(inst)" class="selection-chip">
+          {{ getInstanceLabel(inst) }}
+          <mat-icon matChipRemove>cancel</mat-icon>
+        </mat-chip>
+      </mat-chip-listbox>
+      <button mat-button (click)="clearSelection()" class="clear-btn">Clear All</button>
+    </div>
+
+    <!-- Instance Table -->
+    <div *ngIf="!isLoading && !loadError" class="table-container">
+      <table class="picker-table" *ngIf="instanceData.length > 0">
+        <thead>
+          <tr>
+            <th class="select-col"></th>
+            <th *ngFor="let key of getVisibleColumns()" class="data-col">{{ key }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let instance of instanceData"
+              (click)="onRowClick(instance)"
+              [class.selected]="isRowSelected(instance)"
+              class="picker-row">
+            <td class="select-col">
+              <mat-icon *ngIf="!isMultiple" class="radio-icon">
+                {{ isRowSelected(instance) ? 'radio_button_checked' : 'radio_button_unchecked' }}
+              </mat-icon>
+              <mat-icon *ngIf="isMultiple" class="check-icon">
+                {{ isRowSelected(instance) ? 'check_box' : 'check_box_outline_blank' }}
+              </mat-icon>
+            </td>
+            <td *ngFor="let key of getVisibleColumns()" class="data-col">
+              {{ formatCellValue(instance[key]) }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Empty state -->
+      <div *ngIf="instanceData.length === 0" class="empty-state">
+        <mat-icon>inbox</mat-icon>
+        <span>No {{ displayName }} instances found</span>
+      </div>
+    </div>
+  </mat-dialog-content>
+
+  <!-- Actions -->
+  <mat-dialog-actions class="dialog-actions">
+    <span class="selection-count" *ngIf="hasSelection">
+      {{ selectionCount }} selected
+    </span>
+    <span class="spacer"></span>
+    <button mat-button (click)="onCancel()">Cancel</button>
+    <button mat-raised-button color="primary"
+            (click)="onConfirm()"
+            [disabled]="!hasSelection">
+      <mat-icon>check</mat-icon>
+      Confirm
+    </button>
+  </mat-dialog-actions>
+</div>

@@ -1,0 +1,20 @@
+<div class="detail-display" *ngIf="resolvedCards.length > 0">
+  <div class="metric-grid">
+    <div *ngFor="let card of resolvedCards" class="metric-cell">
+      <div class="metric-card">
+        <div class="metric-icon">
+          <mat-icon>{{ card.config.icon || 'analytics' }}</mat-icon>
+        </div>
+        <div class="metric-content">
+          <div class="metric-value">{{ formatValue(card) }}</div>
+          <div class="metric-label">{{ card.displayLabel }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="detail-display-empty" *ngIf="resolvedCards.length === 0 && config">
+  <mat-icon>dashboard_customize</mat-icon>
+  <p>No metric cards configured for this detail display.</p>
+</div>

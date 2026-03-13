@@ -17,6 +17,24 @@
     width: 100%;
 }
 
+.default-toggles {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 8px;
+}
+
+.default-toggles mat-slide-toggle {
+    margin-top: 4px;
+}
+
+.default-hint {
+    font-size: 0.75em;
+    color: var(--text-tertiary);
+    margin-left: 44px;
+    margin-bottom: 4px;
+}
+
 .section-instructions {
     font-size: 0.8em;
     color: var(--text-secondary);
@@ -201,6 +219,22 @@
     width: 18px;
     height: 18px;
     fill: currentColor;
+}
+
+.card-config-row {
+    display: flex;
+    gap: 12px;
+}
+
+.half-width {
+    flex: 1;
+}
+
+.card-preview-icon {
+    color: var(--brand-blue);
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
 }
 
 /* Force dark text in sidebar context */

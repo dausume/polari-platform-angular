@@ -1,5 +1,7 @@
 <div class="object-cell">
+    <!-- Read-only display -->
     <span class="cell-value"
+          *ngIf="!editable"
           [class.clickable]="canNavigate()"
           (click)="canNavigate() && navigateToObject()">
         <span class="object-icon">🔗</span>
@@ -7,4 +9,22 @@
         <span class="object-separator">:</span>
         <span class="object-id">{{getObjectId()}}</span>
     </span>
+
+    <!-- Editable display -->
+    <div class="editable-ref" *ngIf="editable">
+        <span class="cell-value ref-display" *ngIf="hasValue()"
+              [class.clickable]="canNavigate()"
+              (click)="canNavigate() && navigateToObject()">
+            <span class="object-icon">🔗</span>
+            <span class="object-class">{{getClassName()}}</span>
+            <span class="object-separator">:</span>
+            <span class="object-id">{{getObjectId()}}</span>
+        </span>
+        <span class="ref-placeholder" *ngIf="!hasValue()">
+            No reference selected
+        </span>
+        <button class="picker-btn" (click)="openPicker()" title="Browse instances">
+            <span class="picker-btn-icon">🔍</span>
+        </button>
+    </div>
 </div>

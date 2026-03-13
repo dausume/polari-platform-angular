@@ -124,6 +124,75 @@ mat-label {
     border: 1px solid var(--color-info-border);
 }
 
+/* ===== Reference Class Selector ===== */
+.ref-class-search {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-light);
+    position: sticky;
+    top: 0;
+    background: var(--surface-primary);
+    z-index: 1;
+}
+
+.ref-class-search-input {
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid var(--border-medium);
+    border-radius: 4px;
+    font-size: 13px;
+    background: var(--surface-secondary);
+    color: var(--text-primary);
+    outline: none;
+    box-sizing: border-box;
+}
+
+.ref-class-search-input:focus {
+    border-color: var(--brand-blue);
+}
+
+.ref-class-search-input::placeholder {
+    color: var(--text-tertiary);
+}
+
+.ref-class-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+
+.ref-class-category-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--text-tertiary);
+}
+
+.ref-class-category-dot.cat-custom {
+    background: #4caf50;
+}
+
+.ref-class-category-dot.cat-module {
+    background: #ff9800;
+}
+
+.ref-class-category-dot.cat-framework {
+    background: #2196f3;
+}
+
+.ref-class-name {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.ref-class-code {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    font-family: monospace;
+    margin-left: auto;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     mat-grid-list {

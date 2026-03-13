@@ -286,3 +286,22 @@ body.dark-theme ::-webkit-scrollbar-thumb {
 body.dark-theme ::-webkit-scrollbar-thumb:hover {
   background: var(--text-tertiary);
 }
+
+/* Reference class selector panel (rendered in overlay, outside component scope) */
+.ref-class-panel {
+  max-height: 360px !important;
+}
+
+.ref-class-panel .mat-mdc-optgroup-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-tertiary);
+  min-height: 32px;
+}
+
+/* Instance picker dialog overlay — ensure it stacks above parent dialogs */
+.instance-picker-overlay {
+  z-index: 1050 !important;
+}

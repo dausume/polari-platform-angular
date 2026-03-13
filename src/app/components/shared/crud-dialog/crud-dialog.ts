@@ -1,11 +1,12 @@
 // crud-dialog.ts
 import { Component, Inject, OnInit, OnDestroy } from '@angular/core';
 import { FormGroup, FormControl, Validators } from '@angular/forms';
-import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { MatDialogRef, MAT_DIALOG_DATA, MatDialog } from '@angular/material/dialog';
 import { HttpClient } from '@angular/common/http';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { RuntimeConfigService } from '@services/runtime-config.service';
+import { ClassTypingService } from '@services/class-typing-service';
 import {
   CrudDialogData,
   CrudDialogResult,
@@ -13,6 +14,15 @@ import {
   getCellTypeForDataType,
   SelectOption
 } from '../models/crud-config.models';
+import {
+  InstancePickerDialogComponent,
+  InstancePickerDialogData,
+  InstancePickerDialogResult
+} from '../instance-picker-dialog/instance-picker-dialog';
+import {
+  ClassSelectorDialogComponent,
+  ClassSelectorDialogResult
+} from '../class-selector-dialog/class-selector-dialog';
 
 @Component({
   standalone: false,
@@ -27,11 +37,17 @@ export class CrudDialogComponent implements OnInit, OnDestroy {
 
   private destroy$ = new Subject<void>();
 
+  /** Display labels for selected references keyed by field name */
+  refDisplayLabels: Record<string, string> = {};
+
+
   constructor(
     @Inject(MAT_DIALOG_DATA) public data: CrudDialogData,
     private dialogRef: MatDialogRef<CrudDialogComponent>,
+    private dialog: MatDialog,
     private http: HttpClient,
-    private runtimeConfig: RuntimeConfigService
+    private runtimeConfig: RuntimeConfigService,
+    private typingService: ClassTypingService
   ) {
     this.form = new FormGroup({});
   }
@@ -96,7 +112,10 @@ export class CrudDialogComponent implements OnInit, OnDestroy {
       'dict': {},
       'date': null,
       'datetime': null,
-      'reference': null
+      'reference': null,
+      'referencelist': [],
+      'reference list': [],
+      'reference_list': []
     };
     return defaults[varType?.toLowerCase()] ?? '';
   }
@@ -134,6 +153,151 @@ export class CrudDialogComponent implements OnInit, OnDestroy {
    */
   get visibleFields(): VariableDefinition[] {
     return this.data.schema.filter(v => !this.isHidden(v.varName));
+  }
+
+  /**
+   * Open the instance picker dialog for a reference field
+   */
+  openReferencePicker(varDef: VariableDefinition): void {
+    const cellType = this.getCellType(varDef);
+    const isMultiple = cellType === 'referenceList';
+
+    // Get the referenced class name from multiple sources:
+    // 1. Explicit refClass on the schema variable definition
+    // 2. CLASS-ClassName-REFERENCE pattern in varType
+    // 3. Fallback: look up refClass from the typing service's variablePolyTyping data
+    let className = varDef.refClass || '';
+    if (!className && varDef.varType) {
+      const match = varDef.varType.match(/^CLASS-(.+)-REFERENCE$/);
+      if (match) className = match[1];
+    }
+    if (!className && this.data.className) {
+      // Try to get refClass from the typing service's variable typing data
+      const classTyping = this.typingService.getClassPolyTyping(this.data.className);
+      if (classTyping?.completeVariableTypingData) {
+        const varTyping = classTyping.completeVariableTypingData[varDef.varName];
+        if (varTyping?.refClass) {
+          className = varTyping.refClass;
+        }
+      }
+    }
+    if (!className) {
+      // Final fallback: show class selector so user can pick which class to browse
+      this.showClassSelectorForReference(varDef, isMultiple);
+      return;
+    }
+
+    this.openReferencePickerWithClass(varDef, className, isMultiple);
+  }
+
+  /**
+   * Show a class selector dialog when refClass is unknown, then open the instance picker.
+   * This handles legacy classes created before refClass metadata was stored.
+   */
+  private showClassSelectorForReference(varDef: VariableDefinition, isMultiple: boolean): void {
+    const selectorRef = this.dialog.open(ClassSelectorDialogComponent, {
+      data: {
+        title: 'Select Referenced Class',
+        subtitle: `Choose which class "${varDef.varDisplayName}" references`
+      },
+      width: '480px',
+      maxHeight: '70vh',
+      panelClass: 'instance-picker-overlay',
+      autoFocus: false
+    });
+
+    selectorRef.afterClosed().subscribe((result: ClassSelectorDialogResult) => {
+      if (result?.action === 'select' && result.className) {
+        // Cache the selection so future clicks don't ask again
+        varDef.refClass = result.className;
+        this.openReferencePickerWithClass(varDef, result.className, isMultiple);
+      }
+    });
+  }
+
+  /**
+   * Open the instance picker with a known class name.
+   * Extracted to be reusable from both openReferencePicker and onRefClassSelected.
+   */
+  private openReferencePickerWithClass(varDef: VariableDefinition, className: string, isMultiple: boolean): void {
+    const typing = this.typingService.getClassPolyTyping(className);
+    const displayName = typing?.displayClassName || className;
+
+    const currentValue = this.form.get(varDef.varName)?.value;
+    let selectedIds: string[] = [];
+    if (isMultiple && Array.isArray(currentValue)) {
+      selectedIds = currentValue.map((v: any) => String(v));
+    } else if (currentValue) {
+      selectedIds = [String(currentValue)];
+    }
+
+    const dialogData: InstancePickerDialogData = {
+      className,
+      classDisplayName: displayName,
+      multiple: isMultiple,
+      selectedIds
+    };
+
+    const dialogRef = this.dialog.open(InstancePickerDialogComponent, {
+      data: dialogData,
+      width: '800px',
+      maxHeight: '80vh',
+      panelClass: 'instance-picker-overlay',
+      autoFocus: false
+    });
+
+    dialogRef.afterClosed().subscribe((result: InstancePickerDialogResult) => {
+      if (result?.action === 'select') {
+        if (isMultiple) {
+          const ids = result.selectedIds || [];
+          this.form.get(varDef.varName)?.setValue(ids);
+          this.refDisplayLabels[varDef.varName] = ids.length > 0
+            ? `${ids.length} selected`
+            : '';
+        } else {
+          const id = result.selectedIds?.[0] || null;
+          this.form.get(varDef.varName)?.setValue(id);
+          this.refDisplayLabels[varDef.varName] = id
+            ? this.getRefLabel(result.selected)
+            : '';
+        }
+      }
+    });
+  }
+
+  /**
+   * Get a display label for a reference value
+   */
+  getRefDisplayLabel(varDef: VariableDefinition): string {
+    if (this.refDisplayLabels[varDef.varName]) {
+      return this.refDisplayLabels[varDef.varName];
+    }
+    const value = this.form.get(varDef.varName)?.value;
+    if (!value) return '';
+    if (Array.isArray(value)) return `${value.length} selected`;
+    return String(value);
+  }
+
+  private getRefLabel(instance: any): string {
+    if (!instance) return '';
+    for (const field of ['name', 'title', 'displayName', 'label']) {
+      if (instance[field]) return `${instance[field]}`;
+    }
+    const idFields = ['id', '_instanceId', '_id'];
+    for (const field of idFields) {
+      if (instance[field] !== undefined) return String(instance[field]);
+    }
+    return '';
+  }
+
+  /**
+   * Clear a reference field value
+   */
+  clearReference(varDef: VariableDefinition): void {
+    const cellType = this.getCellType(varDef);
+    const isMultiple = cellType === 'referenceList';
+    this.form.get(varDef.varName)?.setValue(isMultiple ? [] : null);
+    delete this.refDisplayLabels[varDef.varName];
   }
 
   /**

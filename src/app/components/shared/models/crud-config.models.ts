@@ -210,6 +210,9 @@ export const TYPE_DISPLAY_MAP: Record<string, string> = {
   'bool': 'Boolean',
   'boolean': 'Boolean',
   'reference': 'Reference',
+  'referencelist': 'Reference List',
+  'reference list': 'Reference List',
+  'reference_list': 'Reference List',
   'date': 'Date',
   'datetime': 'DateTime',
   'polariList': 'List',
@@ -230,7 +233,10 @@ export const CELL_TYPE_MAP: Record<string, string> = {
   'boolean': 'boolean',
   'date': 'date',
   'datetime': 'date',
-  'reference': 'select',
+  'reference': 'reference',
+  'referencelist': 'referenceList',
+  'reference list': 'referenceList',
+  'reference_list': 'referenceList',
   'list': 'string',
   'dict': 'string',
   'polariList': 'string',
@@ -241,7 +247,14 @@ export const CELL_TYPE_MAP: Record<string, string> = {
  * Get the appropriate cell component type for a given data type
  */
 export function getCellTypeForDataType(dataType: string): string {
-  return CELL_TYPE_MAP[dataType?.toLowerCase()] || 'string';
+  if (!dataType) return 'string';
+
+  // Handle CLASS-ClassName-REFERENCE pattern from backend polyTyping
+  if (dataType.startsWith('CLASS-') && dataType.endsWith('-REFERENCE')) {
+    return 'reference';
+  }
+
+  return CELL_TYPE_MAP[dataType.toLowerCase()] || 'string';
 }
 
 /**
@@ -272,7 +285,8 @@ export function getTypeIcon(dataType: string): string {
     'datetime': '🕐',
     'polariList': '📋',
     'polariDict': '📚',
-    'reference': '🔗'
+    'reference': '🔗',
+    'referencelist': '⇉'
   };
   return typeMap[dataType?.toLowerCase()] || '◆';
 }

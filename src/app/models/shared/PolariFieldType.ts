@@ -25,6 +25,7 @@ export type CanonicalFieldType =
     | 'list'
     | 'dict'
     | 'reference'
+    | 'referenceList'
     | 'uuid'
     | 'unknown';
 
@@ -79,6 +80,11 @@ const TYPE_NORMALIZATION_MAP: Record<string, CanonicalFieldType> = {
 
     // Reference (CLASS-ClassName-REFERENCE pattern handled separately)
     'reference':  'reference',
+
+    // Reference List (multi-select reference)
+    'referencelist': 'referenceList',
+    'reference list': 'referenceList',
+    'reference_list': 'referenceList',
 };
 
 /**
@@ -151,9 +157,10 @@ const FIELD_TYPE_ICONS: Record<CanonicalFieldType, string> = {
     'datetime':  '🕐',
     'list':      '[]',
     'dict':      '{}',
-    'reference': '→',
-    'uuid':      '🔑',
-    'unknown':   '◆',
+    'reference':     '→',
+    'referenceList': '⇉',
+    'uuid':          '🔑',
+    'unknown':       '◆',
 };
 
 /**
@@ -175,9 +182,10 @@ const FIELD_TYPE_LABELS: Record<CanonicalFieldType, string> = {
     'datetime':  'Date & Time',
     'list':      'List',
     'dict':      'Dictionary',
-    'reference': 'Reference',
-    'uuid':      'UUID',
-    'unknown':   'Unknown',
+    'reference':     'Reference',
+    'referenceList': 'Reference List',
+    'uuid':          'UUID',
+    'unknown':       'Unknown',
 };
 
 export function getFieldTypeLabel(typeOrRaw: string): string {
@@ -195,9 +203,10 @@ const FIELD_TYPE_COLORS: Record<CanonicalFieldType, string> = {
     'datetime':  '#e64a19',
     'list':      '#00838f',
     'dict':      '#5d4037',
-    'reference': '#f57c00',
-    'uuid':      '#78909c',
-    'unknown':   '#78909c',
+    'reference':     '#f57c00',
+    'referenceList': '#ef6c00',
+    'uuid':          '#78909c',
+    'unknown':       '#78909c',
 };
 
 export function getFieldTypeBadgeColor(typeOrRaw: string): string {
@@ -247,6 +256,11 @@ export const REFERENCE_FILTER_OPTIONS = [
     'isNull', 'isNotNull'
 ] as const;
 
+export const REFERENCE_LIST_FILTER_OPTIONS = [
+    'contains', 'notContains',
+    'isNull', 'isNotNull'
+] as const;
+
 export const IDENTITY_FILTER_OPTIONS = [
     'equals', 'notEquals',
     'isNull', 'isNotNull'
@@ -260,8 +274,9 @@ const FILTER_OPTIONS_MAP: Record<CanonicalFieldType, readonly string[]> = {
     'datetime':  DATE_FILTER_OPTIONS,
     'list':      LIST_FILTER_OPTIONS,
     'dict':      LIST_FILTER_OPTIONS,
-    'reference': REFERENCE_FILTER_OPTIONS,
-    'uuid':      IDENTITY_FILTER_OPTIONS,
+    'reference':     REFERENCE_FILTER_OPTIONS,
+    'referenceList': REFERENCE_LIST_FILTER_OPTIONS,
+    'uuid':          IDENTITY_FILTER_OPTIONS,
     'unknown':   STRING_FILTER_OPTIONS,    // Fall back to string filters
 };
 
@@ -321,9 +336,10 @@ const INPUT_TYPE_MAP: Record<CanonicalFieldType, string> = {
     'datetime':  'datetime-local',
     'list':      'text',
     'dict':      'text',
-    'reference': 'text',
-    'uuid':      'text',
-    'unknown':   'text',
+    'reference':     'text',
+    'referenceList': 'text',
+    'uuid':          'text',
+    'unknown':       'text',
 };
 
 /**
@@ -346,9 +362,10 @@ const ALIGNMENT_MAP: Record<CanonicalFieldType, ColumnAlignment> = {
     'datetime':  'center',
     'list':      'left',
     'dict':      'left',
-    'reference': 'left',
-    'uuid':      'left',
-    'unknown':   'left',
+    'reference':     'left',
+    'referenceList': 'left',
+    'uuid':          'left',
+    'unknown':       'left',
 };
 
 export function getDefaultAlignment(typeOrRaw: string): ColumnAlignment {
@@ -361,7 +378,7 @@ export function getDefaultAlignment(typeOrRaw: string): ColumnAlignment {
  */
 export function isSortableType(typeOrRaw: string): boolean {
     const canonical = normalizeDataType(typeOrRaw);
-    return !['list', 'dict', 'unknown'].includes(canonical);
+    return !['list', 'dict', 'referenceList', 'unknown'].includes(canonical);
 }
 
 /**
@@ -369,7 +386,7 @@ export function isSortableType(typeOrRaw: string): boolean {
  */
 export function isFilterableType(typeOrRaw: string): boolean {
     const canonical = normalizeDataType(typeOrRaw);
-    return !['list', 'dict', 'unknown'].includes(canonical);
+    return !['list', 'dict', 'referenceList', 'unknown'].includes(canonical);
 }
 
 // ─── Convenience: Detect all fields from classTypeData ───────────────────────

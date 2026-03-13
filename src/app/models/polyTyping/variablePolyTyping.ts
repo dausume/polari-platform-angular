@@ -3,12 +3,15 @@ export class variablePolyTyping {
     variableName?: string;
     variablePythonType?: string;
     variableFrontendType?: string;
+    /** For reference/referenceList types: the class name being referenced */
+    refClass?: string;
 
-    constructor(objectName?: string, variableName?: string, variablePythonType?: string, variableFrontendType?: string)
+    constructor(objectName?: string, variableName?: string, variablePythonType?: string, variableFrontendType?: string, refClass?: string)
     {
         this.objectName = objectName;
         this.variableName = variableName;
         this.variablePythonType = variablePythonType;
+        this.refClass = refClass;
         if(this.variableFrontendType == undefined)
         {
             this.deriveFrontendTypeFromPythonType()

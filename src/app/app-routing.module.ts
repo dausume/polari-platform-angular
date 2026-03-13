@@ -9,6 +9,10 @@ import { CustomNoCodeComponent } from '@components/custom-no-code/custom-no-code
 import { ApiProfilerComponent } from '@components/api-profiler/api-profiler.component';
 import { ApiConfigComponent } from '@components/api-config/api-config';
 import { MapsComponent } from '@components/maps/maps.component';
+import { DisplaysComponent } from '@components/displays/displays.component';
+import { TablesComponent } from '@components/tables/tables.component';
+import { GraphsComponent } from '@components/graphs/graphs.component';
+import { DataSetsComponent } from '@components/datasets/datasets.component';
 
 const routes: Routes = [
   { path: '', loadComponent: () => import('@components/home/home').then(m => m.HomeComponent) },
@@ -24,6 +28,10 @@ const routes: Routes = [
   { path: 'system-diagnostics', loadComponent: () => import('@components/system-diagnostics/system-diagnostics').then(m => m.SystemDiagnosticsComponent) },
   { path: 'module-management', loadComponent: () => import('@components/module-management/module-management.component').then(m => m.ModuleManagementComponent) },
   { path: 'maps', component: MapsComponent },
+  { path: 'displays', component: DisplaysComponent },
+  { path: 'tables', component: TablesComponent },
+  { path: 'graphs', component: GraphsComponent },
+  { path: 'datasets', component: DataSetsComponent },
   { path: 'display/:id', loadComponent: () => import('@components/dashboard/display-page/display-page').then(m => m.DisplayPageComponent) }
 ];
 

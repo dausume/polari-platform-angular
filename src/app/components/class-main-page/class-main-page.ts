@@ -33,7 +33,7 @@ import { DisplayRendererComponent } from '@components/dashboard/dashboard-render
 import { EditClassDialogComponent } from '@components/class-main-page/edit-class-dialog/edit-class-dialog';
 import { NoCodeSolutionStateService } from '@services/no-code-services/no-code-solution-state.service';
 import { NoCodeSolutionRawData } from '@models/noCode/mock-NCS-data';
-import { Subscription } from 'rxjs';
+import { Subscription, forkJoin, Observable } from 'rxjs';
 
 @Component({
   standalone: false,
@@ -52,6 +52,11 @@ export class ClassMainPageComponent implements OnDestroy {
 
   /** Instance count for metrics */
   instanceCount?: number;
+
+  /** Overview tab: default dataset display */
+  overviewInstanceData: any[] = [];
+  defaultDatasetConfig: NamedTableConfig | null = null;
+  overviewLoading: boolean = false;
 
   /** Current tab index */
   selectedTabIndex: number = 0;
@@ -163,6 +168,7 @@ export class ClassMainPageComponent implements OnDestroy {
     // Table config subscriptions
     const tableListSub = this.tableDefService.configList$.subscribe(list => {
       this.tableConfigList = list;
+      this.loadDefaultDatasetDisplay(list);
     });
     this.subscriptions.push(tableListSub);
 
@@ -223,6 +229,23 @@ export class ClassMainPageComponent implements OnDestroy {
       this.hasDataSetDraftChanges = dirty;
     });
     this.subscriptions.push(dataSetDraftSub);
+
+    // Read query params for tab targeting (e.g., ?tab=tables)
+    const queryParamSub = this.route.queryParamMap.subscribe(queryParams => {
+      const tab = queryParams.get('tab');
+      if (tab) {
+        const tabMap: { [key: string]: number } = {
+          'overview': 0, 'tables': 1, 'graphs': 2, 'displays': 3,
+          'configuration': 4, 'maps': 5, 'datasets': 6
+        };
+        const idx = tabMap[tab.toLowerCase()];
+        if (idx !== undefined) {
+          this.selectedTabIndex = idx;
+          this.onTabChange(idx);
+        }
+      }
+    });
+    this.subscriptions.push(queryParamSub);
 
     const routeSub = this.route.paramMap.subscribe(paramsMap => {
       Object.keys(paramsMap['params']).forEach(param => {
@@ -287,6 +310,9 @@ export class ClassMainPageComponent implements OnDestroy {
 
             // Fetch instance count for metrics
             this.fetchInstanceCount();
+
+            // Load table configs so Overview tab can find the default dataset display
+            this.loadTableConfigsForClass();
           }
         }
       });
@@ -320,9 +346,12 @@ export class ClassMainPageComponent implements OnDestroy {
    */
   onTabChange(index: number): void {
     this.selectedTabIndex = index;
-    // Load table configs when switching to the Tables tab (index 1)
-    if (index === 1 && this.className) {
+    // Load table configs when switching to Overview (index 0) or Tables tab (index 1)
+    if ((index === 0 || index === 1) && this.className) {
       this.loadTableConfigsForClass();
+      if (index === 0) {
+        this.fetchInstanceCount();
+      }
     }
     // Load graph configs when switching to the Graphs tab (index 2)
     if (index === 2 && this.className) {
@@ -699,14 +728,38 @@ export class ClassMainPageComponent implements OnDestroy {
    */
   saveTableConfig(): void {
     if (!this.selectedTableConfig) return;
-    this.tableDefService.saveConfig(this.selectedTableConfig).subscribe({
-      next: () => {
-        // console.log('[ClassMainPage] Table config saved successfully');
-      },
-      error: (err: any) => {
-        console.error('[ClassMainPage] Save table config failed:', err);
-      }
-    });
+    const config = this.selectedTableConfig;
+    const sourceClass = config.source_class;
+
+    // If this config is being set as a default, clear other defaults first
+    const clearOps: Observable<void>[] = [];
+    if (config.is_default_table) {
+      clearOps.push(this.tableDefService.clearOtherDefaults(sourceClass, config.id, 'is_default_table'));
+    }
+    if (config.is_default_instance_display) {
+      clearOps.push(this.tableDefService.clearOtherDefaults(sourceClass, config.id, 'is_default_instance_display'));
+    }
+    if (config.is_default_dataset_display) {
+      clearOps.push(this.tableDefService.clearOtherDefaults(sourceClass, config.id, 'is_default_dataset_display'));
+    }
+
+    const doSave = () => {
+      this.tableDefService.saveConfig(config).subscribe({
+        next: () => {
+          // Refresh the list to reflect updated default flags
+          this.tableDefService.fetchConfigsForClass(sourceClass);
+        },
+        error: (err: any) => {
+          console.error('[ClassMainPage] Save table config failed:', err);
+        }
+      });
+    };
+
+    if (clearOps.length > 0) {
+      forkJoin(clearOps).subscribe({ next: doSave, error: doSave });
+    } else {
+      doSave();
+    }
   }
 
   /**
@@ -1613,6 +1666,30 @@ export class ClassMainPageComponent implements OnDestroy {
   }
 
   /**
+   * Load the default dataset display config when the table config list updates.
+   */
+  private loadDefaultDatasetDisplay(list: TableDefinitionSummary[]): void {
+    const defaultSummary = list.find(s => s.is_default_dataset_display);
+    if (!defaultSummary) {
+      this.defaultDatasetConfig = null;
+      return;
+    }
+    // Only reload if the ID changed
+    if (this.defaultDatasetConfig && this.defaultDatasetConfig.id === defaultSummary.id) {
+      return;
+    }
+    this.tableDefService.loadConfigSilent(defaultSummary.id, this.classTypeData).subscribe({
+      next: (config: NamedTableConfig) => {
+        this.defaultDatasetConfig = config;
+      },
+      error: (err: any) => {
+        console.warn('[ClassMainPage] Failed to load default dataset display config:', err);
+        this.defaultDatasetConfig = null;
+      }
+    });
+  }
+
+  /**
    * Fetches the instance count for display in metrics
    */
   private fetchInstanceCount(): void {
@@ -1620,19 +1697,9 @@ export class ClassMainPageComponent implements OnDestroy {
 
     this.crudeService.readAll().subscribe({
       next: (data: any) => {
-        let count = 0;
-
-        if (Array.isArray(data)) {
-          count = data.length;
-        } else if (data && data.data && Array.isArray(data.data)) {
-          count = data.data.length;
-        } else if (data && this.className && data[this.className]) {
-          const classData = data[this.className];
-          count = Array.isArray(classData) ? classData.length : 0;
-        }
-
-        this.instanceCount = count;
-        // console.log(`[ClassMainPage] Instance count for ${this.className}: ${count}`);
+        const instances = this.parseCrudeInstances(data);
+        this.instanceCount = instances.length;
+        this.overviewInstanceData = instances;
 
         // Regenerate dashboard with updated count
         if (this.dashboard) {

@@ -1,0 +1,79 @@
+@import '../../../styles/config-page-common';
+
+// Displays uses .displays-container as wrapper
+.displays-container {
+    padding: 24px;
+    max-width: 1200px;
+    margin: 0 auto;
+    color: var(--text-primary);
+}
+
+.displays-header {
+    margin-bottom: 24px;
+
+    h1 {
+        font-size: 28px;
+        font-weight: 500;
+        margin: 0 0 4px 0;
+        color: var(--text-primary) !important;
+    }
+
+    .subtitle {
+        font-size: 14px;
+        color: var(--text-tertiary) !important;
+        margin: 0;
+    }
+}
+
+// Tab Navigation
+.tab-nav {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid var(--border-light);
+    margin-bottom: 24px;
+
+    .tab-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 20px;
+        background: transparent;
+        border: none;
+        color: var(--text-tertiary);
+        font-size: 14px;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        transition: all 0.2s ease;
+
+        mat-icon {
+            font-size: 20px;
+            width: 20px;
+            height: 20px;
+        }
+
+        &:hover {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        &.active {
+            color: #90caf9;
+            border-bottom-color: #90caf9;
+        }
+    }
+}
+
+.display-icon {
+    color: #90caf9;
+    &.published { color: #66bb6a; }
+}
+
+.page-badge {
+    background: rgba(102, 187, 106, 0.15);
+    color: #66bb6a;
+}
+
+.solution-badge {
+    background: rgba(144, 202, 249, 0.15);
+    color: #90caf9;
+}

@@ -1,19 +1,33 @@
 // object-cell.component.ts
-import { Component, Input } from '@angular/core';
+import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
+import { MatDialog } from '@angular/material/dialog';
+import {
+  InstancePickerDialogComponent,
+  InstancePickerDialogData,
+  InstancePickerDialogResult
+} from '@components/shared/instance-picker-dialog/instance-picker-dialog';
 
 @Component({
   standalone: true,
   selector: 'object-cell',
   templateUrl: `object-cell.html`,
-  styleUrls: ['./object-cell.css']
+  styleUrls: ['./object-cell.css'],
+  imports: [CommonModule]
 })
 export class ObjectCellComponent {
   @Input() value: any = '';
   @Input() columnName: string = '';
   @Input() editable: boolean = false;
+  /** The class name of the referenced type (for picker) */
+  @Input() refClassName: string = '';
+  /** Whether this is a multi-select reference list */
+  @Input() multiple: boolean = false;
 
-  constructor(private router: Router) {}
+  @Output() valueChange = new EventEmitter<any>();
+
+  constructor(private router: Router, private dialog: MatDialog) {}
 
   /**
    * Unwrap the object reference from backend format
@@ -61,20 +75,15 @@ export class ObjectCellComponent {
   }
 
   /**
-   * Get the object class name from value
+   * Get the effective class name (from value or input)
    */
   getClassName(): string {
+    if (this.refClassName) return this.refClassName;
+
     const unwrapped = this.unwrapValue();
-
     if (!unwrapped) return 'unknown';
-
-    if (unwrapped.className) {
-      return unwrapped.className;
-    }
-    if (unwrapped.class) {
-      return unwrapped.class;
-    }
-
+    if (unwrapped.className) return unwrapped.className;
+    if (unwrapped.class) return unwrapped.class;
     return 'object';
   }
 
@@ -99,6 +108,11 @@ export class ObjectCellComponent {
       return String(unwrapped._instanceId);
     }
 
+    // If the value is a simple string (just an ID)
+    if (typeof this.value === 'string' && this.value) {
+      return this.value;
+    }
+
     return '-';
   }
 
@@ -118,5 +132,46 @@ export class ObjectCellComponent {
   canNavigate(): boolean {
     const className = this.getClassName();
     return className !== 'unknown' && className !== 'object';
+  }
+
+  /**
+   * Open the instance picker dialog (edit mode)
+   */
+  openPicker(): void {
+    if (!this.editable) return;
+
+    const className = this.getClassName();
+    if (!className || className === 'unknown' || className === 'object') return;
+
+    // Determine current selection for pre-fill
+    const currentId = this.getObjectId();
+    const selectedIds = currentId && currentId !== '-' ? [currentId] : [];
+
+    const dialogData: InstancePickerDialogData = {
+      className,
+      multiple: this.multiple,
+      selectedIds
+    };
+
+    const dialogRef = this.dialog.open(InstancePickerDialogComponent, {
+      data: dialogData,
+      width: '800px',
+      maxHeight: '80vh'
+    });
+
+    dialogRef.afterClosed().subscribe((result: InstancePickerDialogResult) => {
+      if (result?.action === 'select') {
+        if (this.multiple) {
+          this.valueChange.emit(result.selectedIds || []);
+        } else {
+          this.valueChange.emit(result.selectedIds?.[0] || null);
+        }
+      }
+    });
+  }
+
+  /** Whether the cell has a value to display */
+  hasValue(): boolean {
+    return this.value !== null && this.value !== undefined && this.value !== '';
   }
 }

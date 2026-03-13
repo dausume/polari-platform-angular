@@ -35,7 +35,11 @@ export class ClassTypingService {
         new navComponent("API Config","api-config","ApiConfigComponent", {}, []),
         new navComponent("System Diagnostics","system-diagnostics","SystemDiagnosticsComponent", {}, []),
         new navComponent("Module Management","module-management","ModuleManagementComponent", {}, []),
-        new navComponent("Maps","maps","MapsComponent", {}, [])
+        new navComponent("Tables","tables","TablesComponent", {}, []),
+        new navComponent("Graphs","graphs","GraphsComponent", {}, []),
+        new navComponent("Displays","displays","DisplaysComponent", {}, []),
+        new navComponent("Maps","maps","MapsComponent", {}, []),
+        new navComponent("DataSets","datasets","DataSetsComponent", {}, [])
     ]
 
     // Dynamic navigation items for object class pages WITH instances (shown in main dropdown)
@@ -115,7 +119,7 @@ export class ClassTypingService {
                         currentVarTypingList.forEach((varTyping: any) => {
                             const varObjectName = variablePolyTyping.getClassName(varTyping);
                             if (varObjectName === typeObj.className) {
-                                const formattedVar = new variablePolyTyping(varObjectName, varTyping.name, varTyping.pythonTypeDefault);
+                                const formattedVar = new variablePolyTyping(varObjectName, varTyping.name, varTyping.pythonTypeDefault, undefined, varTyping.refClass);
                                 if (formattedVar.variableName != null) {
                                     this.polyVarTyping[typeObj.className][formattedVar.variableName] = formattedVar;
                                 }
@@ -269,7 +273,7 @@ export class ClassTypingService {
                     varObjectName = variablePolyTyping.getClassName(varTyping);
                     if(varObjectName == className)
                     {
-                        formattedVar = new variablePolyTyping(varObjectName, varTyping.name, varTyping.pythonTypeDefault)
+                        formattedVar = new variablePolyTyping(varObjectName, varTyping.name, varTyping.pythonTypeDefault, undefined, varTyping.refClass)
                         // console.log("Existing object keys: ", Object.keys(this.polyVarTyping))
                         // console.log(this.polyVarTyping.hasOwnProperty(varObjectName))
                         if(!(this.polyVarTyping.hasOwnProperty(varObjectName)))
