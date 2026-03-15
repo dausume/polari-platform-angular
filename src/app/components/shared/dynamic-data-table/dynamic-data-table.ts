@@ -160,6 +160,15 @@ export class DynamicDataTableComponent implements OnInit, OnDestroy, OnChanges {
       this.displayedColumns = this.schema.map(v => v.varName);
     }
 
+    // Exclude parent reference columns — the resolved fields replace them
+    const parentRefVars = this.getParentRefVarNames();
+    if (parentRefVars.length > 0) {
+      this.displayedColumns = this.displayedColumns.filter(c => !parentRefVars.includes(c));
+    }
+
+    // Add resolved field columns from _resolvedFields
+    this.addResolvedFieldColumns();
+
     // Add actions column if enabled AND if class permissions allow any actions
     // Permissions from class config take precedence over rowActionsConfig
     const hasConfiguredActions = this.rowActionsConfig.enableEdit || this.rowActionsConfig.enableDelete;
@@ -170,6 +179,45 @@ export class DynamicDataTableComponent implements OnInit, OnDestroy, OnChanges {
         this.displayedColumns.push('_actions');
       }
     }
+  }
+
+  /**
+   * Scan instance data for _resolvedFields and generate dot-notation columns.
+   */
+  private addResolvedFieldColumns(): void {
+    if (!this.instanceData || this.instanceData.length === 0) return;
+
+    const resolvedColsSet = new Set<string>();
+    for (const inst of this.instanceData) {
+      const resolved = inst._resolvedFields;
+      if (resolved && typeof resolved === 'object') {
+        for (const varName of Object.keys(resolved)) {
+          if (resolved[varName] && typeof resolved[varName] === 'object') {
+            for (const fieldName of Object.keys(resolved[varName])) {
+              resolvedColsSet.add(`${varName}.${fieldName}`);
+            }
+          }
+        }
+      }
+    }
+
+    for (const dotCol of resolvedColsSet) {
+      if (!this.displayedColumns.includes(dotCol)) {
+        this.displayedColumns.push(dotCol);
+      }
+    }
+  }
+
+  /**
+   * Get cell value for a row and column.
+   * Supports dot-notation columns (e.g., 'plant.commonName') that read from _resolvedFields.
+   */
+  getCellValue(row: any, column: string): any {
+    if (column.includes('.')) {
+      const [varName, fieldName] = column.split('.', 2);
+      return row._resolvedFields?.[varName]?.[fieldName] ?? null;
+    }
+    return row[column];
   }
 
   /**
@@ -197,6 +245,13 @@ export class DynamicDataTableComponent implements OnInit, OnDestroy, OnChanges {
    * Get column display name
    */
   getColumnDisplayName(columnName: string): string {
+    // Dot-notation columns from _resolvedFields: "varName.fieldName" → "VarName: Field Name"
+    if (columnName.includes('.')) {
+      const [varName, fieldName] = columnName.split('.', 2);
+      const formatPart = (s: string) => s.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase()).trim();
+      return `${formatPart(varName)}: ${formatPart(fieldName)}`;
+    }
+
     const varDef = this.schema.find(v => v.varName === columnName);
     if (varDef) {
       return varDef.varDisplayName || varDef.varName;

@@ -453,6 +453,13 @@ export class ClassTypingService {
                                         console.log('[ClassTypingService] WARNING: classPolyTyping not found yet for', obj.className);
                                     }
                                 }
+                                // Populate fieldProfiles on classPolyTyping if available from api-config
+                                if (obj.fieldProfiles && Object.keys(obj.fieldProfiles).length > 0) {
+                                    const classTyping = this.getClassPolyTyping(obj.className);
+                                    if (classTyping) {
+                                        classTyping.fieldProfiles = obj.fieldProfiles;
+                                    }
+                                }
                             });
 
                             // Re-categorize nav components with the correct categories

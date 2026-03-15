@@ -204,6 +204,15 @@ export class ClassDataTableComponent implements OnInit, OnChanges {
       this.displayedColumns = allKeys.filter(k => !tc.removedColumns.includes(k));
     }
 
+    // Exclude parent reference columns — the resolved fields replace them
+    const parentRefVars = this.getParentRefVarNames();
+    if (parentRefVars.length > 0) {
+      this.displayedColumns = this.displayedColumns.filter(c => !parentRefVars.includes(c));
+    }
+
+    // Add resolved field columns from _resolvedFields
+    this.addResolvedFieldColumns();
+
     // Wrapped mode
     const rw = this.namedTableConfig!.rowWrapping;
     this.wrappedMode = rw.enabled;
@@ -269,6 +278,15 @@ export class ClassDataTableComponent implements OnInit, OnChanges {
       }
     }
 
+    // Exclude parent reference columns — the resolved fields replace them
+    const parentRefVars = this.getParentRefVarNames();
+    if (parentRefVars.length > 0) {
+      this.displayedColumns = this.displayedColumns.filter(c => !parentRefVars.includes(c));
+    }
+
+    // Add resolved field columns from _resolvedFields
+    this.addResolvedFieldColumns();
+
     this.wrappedMode = false;
     this.wrappedColumnGroups = [];
   }
@@ -282,18 +300,83 @@ export class ClassDataTableComponent implements OnInit, OnChanges {
   }
 
   /**
+   * Scan instance data for _resolvedFields and generate dot-notation columns.
+   */
+  private addResolvedFieldColumns(): void {
+    if (!this.instanceData || this.instanceData.length === 0) return;
+
+    const resolvedColsSet = new Set<string>();
+    for (const inst of this.instanceData) {
+      const resolved = inst._resolvedFields;
+      if (resolved && typeof resolved === 'object') {
+        for (const varName of Object.keys(resolved)) {
+          if (resolved[varName] && typeof resolved[varName] === 'object') {
+            for (const fieldName of Object.keys(resolved[varName])) {
+              resolvedColsSet.add(`${varName}.${fieldName}`);
+            }
+          }
+        }
+      }
+    }
+
+    if (resolvedColsSet.size === 0) return;
+
+    for (const dotCol of resolvedColsSet) {
+      if (!this.columnTypes[dotCol]) {
+        // Infer type from first non-null value
+        const [varName, fieldName] = dotCol.split('.', 2);
+        let inferredType = 'str';
+        for (const inst of this.instanceData) {
+          const val = inst._resolvedFields?.[varName]?.[fieldName];
+          if (val !== undefined && val !== null) {
+            if (typeof val === 'number') {
+              inferredType = Number.isInteger(val) ? 'int' : 'float';
+            } else if (typeof val === 'boolean') {
+              inferredType = 'bool';
+            }
+            break;
+          }
+        }
+        this.columnTypes[dotCol] = inferredType;
+      }
+      if (!this.displayedColumns.includes(dotCol)) {
+        this.displayedColumns.push(dotCol);
+      }
+    }
+  }
+
+  /**
+   * Get cell value for a row and column.
+   * Supports dot-notation columns (e.g., 'plant.commonName') that read from _resolvedFields.
+   */
+  getCellValue(row: any, column: string): any {
+    if (column.includes('.')) {
+      const [varName, fieldName] = column.split('.', 2);
+      return row._resolvedFields?.[varName]?.[fieldName] ?? null;
+    }
+    return row[column];
+  }
+
+  /**
    * Get all available columns (excluding removed ones)
    */
   getAllColumns(): string[] {
     const allColumns = Object.keys(this.columnTypes);
     const removedColumns = this.tableConfig?.removedColumns || [];
-    return allColumns.filter(col => !removedColumns.includes(col));
+    const parentRefVars = this.getParentRefVarNames();
+    return allColumns.filter(col => !removedColumns.includes(col) && !parentRefVars.includes(col));
   }
 
   /**
    * Get the display name for a column (formatted from camelCase)
    */
   getColumnDisplayName(columnName: string): string {
+    // Dot-notation columns from _resolvedFields: "varName.fieldName" → "VarName: Field Name"
+    if (columnName.includes('.')) {
+      const [varName, fieldName] = columnName.split('.', 2);
+      const formatPart = (s: string) => s.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase()).trim();
+      return `${formatPart(varName)}: ${formatPart(fieldName)}`;
+    }
     // Convert camelCase to readable format
     return columnName
       .replace(/([A-Z])/g, ' $1')

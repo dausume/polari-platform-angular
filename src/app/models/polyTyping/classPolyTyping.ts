@@ -69,6 +69,8 @@ export class classPolyTyping {
     config: ClassConfig;
     /** Multi-inheritance: maps variable name to parent class name (e.g., {plant: 'Plant', nutrients: 'NutrientProfile'}) */
     inheritsFrom?: Record<string, string>;
+    /** Field profiles: named configs controlling which fields from referenced objects get resolved in CRUDE GET responses */
+    fieldProfiles?: Record<string, Record<string, { targetClass: string; fields: string[] | string; excludeFields: string[]; source: string; }>>;
 
     constructor(
         className: string,

@@ -65,7 +65,7 @@
               <!-- String cell -->
               <editable-string-cell *ngIf="getCellType(column) === 'string'"
                                     mode="read"
-                                    [value]="row[column]"
+                                    [value]="getCellValue(row, column)"
                                     [fieldName]="column"
                                     (editStarted)="onRowEdit({ action: 'edit', rowData: row })"
                                     (valueChange)="onCellValueChange(row, column, $event)">
@@ -74,7 +74,7 @@
               <!-- Number cell -->
               <editable-number-cell *ngIf="getCellType(column) === 'number'"
                                     mode="read"
-                                    [value]="row[column]"
+                                    [value]="getCellValue(row, column)"
                                     [fieldName]="column"
                                     [isInteger]="getVarDef(column)?.varType === 'int'"
                                     (editStarted)="onRowEdit({ action: 'edit', rowData: row })"
@@ -84,7 +84,7 @@
               <!-- Boolean cell -->
               <editable-boolean-cell *ngIf="getCellType(column) === 'boolean'"
                                      mode="read"
-                                     [value]="row[column]"
+                                     [value]="getCellValue(row, column)"
                                      [fieldName]="column"
                                      (editStarted)="onRowEdit({ action: 'edit', rowData: row })"
                                      (valueChange)="onCellValueChange(row, column, $event)">
@@ -93,7 +93,7 @@
               <!-- Date cell -->
               <editable-date-cell *ngIf="getCellType(column) === 'date'"
                                   mode="read"
-                                  [value]="row[column]"
+                                  [value]="getCellValue(row, column)"
                                   [fieldName]="column"
                                   [includeTime]="getVarDef(column)?.varType === 'datetime'"
                                   (editStarted)="onRowEdit({ action: 'edit', rowData: row })"
@@ -103,7 +103,7 @@
               <!-- Select cell -->
               <editable-select-cell *ngIf="getCellType(column) === 'select'"
                                     mode="read"
-                                    [value]="row[column]"
+                                    [value]="getCellValue(row, column)"
                                     [fieldName]="column"
                                     [options]="getVarDef(column)?.options || []"
                                     (editStarted)="onRowEdit({ action: 'edit', rowData: row })"
@@ -116,7 +116,7 @@
               <!-- String cell -->
               <editable-string-cell *ngIf="getCellType(column) === 'string'"
                                     mode="edit"
-                                    [value]="row[column]"
+                                    [value]="getCellValue(row, column)"
                                     [fieldName]="column"
                                     [required]="getVarDef(column)?.required || false"
                                     (valueChange)="onCellValueChange(row, column, $event)">
@@ -125,7 +125,7 @@
               <!-- Number cell -->
               <editable-number-cell *ngIf="getCellType(column) === 'number'"
                                     mode="edit"
-                                    [value]="row[column]"
+                                    [value]="getCellValue(row, column)"
                                     [fieldName]="column"
                                     [isInteger]="getVarDef(column)?.varType === 'int'"
                                     [required]="getVarDef(column)?.required || false"
@@ -135,7 +135,7 @@
               <!-- Boolean cell -->
               <editable-boolean-cell *ngIf="getCellType(column) === 'boolean'"
                                      mode="edit"
-                                     [value]="row[column]"
+                                     [value]="getCellValue(row, column)"
                                      [fieldName]="column"
                                      (valueChange)="onCellValueChange(row, column, $event)">
               </editable-boolean-cell>
@@ -143,7 +143,7 @@
               <!-- Date cell -->
               <editable-date-cell *ngIf="getCellType(column) === 'date'"
                                   mode="edit"
-                                  [value]="row[column]"
+                                  [value]="getCellValue(row, column)"
                                   [fieldName]="column"
                                   [includeTime]="getVarDef(column)?.varType === 'datetime'"
                                   [required]="getVarDef(column)?.required || false"
@@ -153,7 +153,7 @@
               <!-- Select cell -->
               <editable-select-cell *ngIf="getCellType(column) === 'select'"
                                     mode="edit"
-                                    [value]="row[column]"
+                                    [value]="getCellValue(row, column)"
                                     [fieldName]="column"
                                     [options]="getVarDef(column)?.options || []"
                                     [required]="getVarDef(column)?.required || false"

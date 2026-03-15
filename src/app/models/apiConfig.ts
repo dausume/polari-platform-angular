@@ -103,6 +103,8 @@ export interface ApiConfigObject {
   events: EventInfo[];
   /** Multi-inheritance mapping: variable name → parent class name */
   inheritsFrom?: Record<string, string>;
+  /** Field profiles: named configs for reference field resolution */
+  fieldProfiles?: Record<string, Record<string, any>>;
 }
 
 /**

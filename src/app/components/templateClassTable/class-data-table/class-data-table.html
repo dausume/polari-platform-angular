@@ -60,7 +60,7 @@
                 <td mat-cell *matCellDef="let row" [attr.data-type]="getColumnType(column)">
                     <!-- Reference type columns (CLASS-*-REFERENCE / CLASS-*-IDs) -->
                     <ng-container *ngIf="isReferenceType(getColumnType(column)); else normalCell">
-                        <object-cell [value]="row[column]" [columnName]="column"
+                        <object-cell [value]="getCellValue(row, column)" [columnName]="column"
                                      [refClassName]="getRefClassName(column)"
                                      [displayOverrideId]="getDisplayOverride(column)"
                                      (viewInstanceDisplay)="onViewInstanceDisplay(column, $event)">
@@ -69,23 +69,23 @@
                     <!-- Non-reference type columns -->
                     <ng-template #normalCell>
                     <ng-container [ngSwitch]="getColumnType(column).toLowerCase()">
-                        <string-cell *ngSwitchCase="'str'" [value]="row[column]" [columnName]="column"></string-cell>
-                        <string-cell *ngSwitchCase="'string'" [value]="row[column]" [columnName]="column"></string-cell>
-                        <number-cell *ngSwitchCase="'int'" [value]="row[column]" [columnName]="column" [type]="'int'"></number-cell>
-                        <number-cell *ngSwitchCase="'integer'" [value]="row[column]" [columnName]="column" [type]="'int'"></number-cell>
-                        <number-cell *ngSwitchCase="'float'" [value]="row[column]" [columnName]="column" [type]="'float'"></number-cell>
-                        <boolean-cell *ngSwitchCase="'bool'" [value]="row[column]" [columnName]="column"></boolean-cell>
-                        <boolean-cell *ngSwitchCase="'boolean'" [value]="row[column]" [columnName]="column"></boolean-cell>
-                        <date-cell *ngSwitchCase="'date'" [value]="row[column]" [columnName]="column" [type]="'date'"></date-cell>
-                        <date-cell *ngSwitchCase="'datetime'" [value]="row[column]" [columnName]="column" [type]="'datetime'"></date-cell>
-                        <list-cell *ngSwitchCase="'list'" [value]="row[column]" [columnName]="column"></list-cell>
-                        <list-cell *ngSwitchCase="'polarilist'" [value]="row[column]" [columnName]="column"></list-cell>
-                        <dict-cell *ngSwitchCase="'dict'" [value]="row[column]" [columnName]="column"></dict-cell>
-                        <dict-cell *ngSwitchCase="'polaridict'" [value]="row[column]" [columnName]="column"></dict-cell>
-                        <object-cell *ngSwitchCase="'object'" [value]="row[column]" [columnName]="column"
+                        <string-cell *ngSwitchCase="'str'" [value]="getCellValue(row, column)" [columnName]="column"></string-cell>
+                        <string-cell *ngSwitchCase="'string'" [value]="getCellValue(row, column)" [columnName]="column"></string-cell>
+                        <number-cell *ngSwitchCase="'int'" [value]="getCellValue(row, column)" [columnName]="column" [type]="'int'"></number-cell>
+                        <number-cell *ngSwitchCase="'integer'" [value]="getCellValue(row, column)" [columnName]="column" [type]="'int'"></number-cell>
+                        <number-cell *ngSwitchCase="'float'" [value]="getCellValue(row, column)" [columnName]="column" [type]="'float'"></number-cell>
+                        <boolean-cell *ngSwitchCase="'bool'" [value]="getCellValue(row, column)" [columnName]="column"></boolean-cell>
+                        <boolean-cell *ngSwitchCase="'boolean'" [value]="getCellValue(row, column)" [columnName]="column"></boolean-cell>
+                        <date-cell *ngSwitchCase="'date'" [value]="getCellValue(row, column)" [columnName]="column" [type]="'date'"></date-cell>
+                        <date-cell *ngSwitchCase="'datetime'" [value]="getCellValue(row, column)" [columnName]="column" [type]="'datetime'"></date-cell>
+                        <list-cell *ngSwitchCase="'list'" [value]="getCellValue(row, column)" [columnName]="column"></list-cell>
+                        <list-cell *ngSwitchCase="'polarilist'" [value]="getCellValue(row, column)" [columnName]="column"></list-cell>
+                        <dict-cell *ngSwitchCase="'dict'" [value]="getCellValue(row, column)" [columnName]="column"></dict-cell>
+                        <dict-cell *ngSwitchCase="'polaridict'" [value]="getCellValue(row, column)" [columnName]="column"></dict-cell>
+                        <object-cell *ngSwitchCase="'object'" [value]="getCellValue(row, column)" [columnName]="column"
                                      (viewInstanceDisplay)="onViewInstanceDisplay(column, $event)">
                         </object-cell>
-                        <span *ngSwitchDefault>{{formatCellValue(row[column], getColumnType(column))}}</span>
+                        <span *ngSwitchDefault>{{formatCellValue(getCellValue(row, column), getColumnType(column))}}</span>
                     </ng-container>
                     </ng-template>
                 </td>
@@ -149,7 +149,7 @@
                     <div class="wrapped-cell-value">
                         <!-- Reference type columns -->
                         <ng-container *ngIf="isReferenceType(getColumnType(col)); else wrappedNormalCell">
-                            <object-cell [value]="row[col]" [columnName]="col"
+                            <object-cell [value]="getCellValue(row, col)" [columnName]="col"
                                          [refClassName]="getRefClassName(col)"
                                          [displayOverrideId]="getDisplayOverride(col)"
                                          (viewInstanceDisplay)="onViewInstanceDisplay(col, $event)">
@@ -157,23 +157,23 @@
                         </ng-container>
                         <ng-template #wrappedNormalCell>
                         <ng-container [ngSwitch]="getColumnType(col).toLowerCase()">
-                            <string-cell *ngSwitchCase="'str'" [value]="row[col]" [columnName]="col"></string-cell>
-                            <string-cell *ngSwitchCase="'string'" [value]="row[col]" [columnName]="col"></string-cell>
-                            <number-cell *ngSwitchCase="'int'" [value]="row[col]" [columnName]="col" [type]="'int'"></number-cell>
-                            <number-cell *ngSwitchCase="'integer'" [value]="row[col]" [columnName]="col" [type]="'int'"></number-cell>
-                            <number-cell *ngSwitchCase="'float'" [value]="row[col]" [columnName]="col" [type]="'float'"></number-cell>
-                            <boolean-cell *ngSwitchCase="'bool'" [value]="row[col]" [columnName]="col"></boolean-cell>
-                            <boolean-cell *ngSwitchCase="'boolean'" [value]="row[col]" [columnName]="col"></boolean-cell>
-                            <date-cell *ngSwitchCase="'date'" [value]="row[col]" [columnName]="col" [type]="'date'"></date-cell>
-                            <date-cell *ngSwitchCase="'datetime'" [value]="row[col]" [columnName]="col" [type]="'datetime'"></date-cell>
-                            <list-cell *ngSwitchCase="'list'" [value]="row[col]" [columnName]="col"></list-cell>
-                            <list-cell *ngSwitchCase="'polarilist'" [value]="row[col]" [columnName]="col"></list-cell>
-                            <dict-cell *ngSwitchCase="'dict'" [value]="row[col]" [columnName]="col"></dict-cell>
-                            <dict-cell *ngSwitchCase="'polaridict'" [value]="row[col]" [columnName]="col"></dict-cell>
-                            <object-cell *ngSwitchCase="'object'" [value]="row[col]" [columnName]="col"
+                            <string-cell *ngSwitchCase="'str'" [value]="getCellValue(row, col)" [columnName]="col"></string-cell>
+                            <string-cell *ngSwitchCase="'string'" [value]="getCellValue(row, col)" [columnName]="col"></string-cell>
+                            <number-cell *ngSwitchCase="'int'" [value]="getCellValue(row, col)" [columnName]="col" [type]="'int'"></number-cell>
+                            <number-cell *ngSwitchCase="'integer'" [value]="getCellValue(row, col)" [columnName]="col" [type]="'int'"></number-cell>
+                            <number-cell *ngSwitchCase="'float'" [value]="getCellValue(row, col)" [columnName]="col" [type]="'float'"></number-cell>
+                            <boolean-cell *ngSwitchCase="'bool'" [value]="getCellValue(row, col)" [columnName]="col"></boolean-cell>
+                            <boolean-cell *ngSwitchCase="'boolean'" [value]="getCellValue(row, col)" [columnName]="col"></boolean-cell>
+                            <date-cell *ngSwitchCase="'date'" [value]="getCellValue(row, col)" [columnName]="col" [type]="'date'"></date-cell>
+                            <date-cell *ngSwitchCase="'datetime'" [value]="getCellValue(row, col)" [columnName]="col" [type]="'datetime'"></date-cell>
+                            <list-cell *ngSwitchCase="'list'" [value]="getCellValue(row, col)" [columnName]="col"></list-cell>
+                            <list-cell *ngSwitchCase="'polarilist'" [value]="getCellValue(row, col)" [columnName]="col"></list-cell>
+                            <dict-cell *ngSwitchCase="'dict'" [value]="getCellValue(row, col)" [columnName]="col"></dict-cell>
+                            <dict-cell *ngSwitchCase="'polaridict'" [value]="getCellValue(row, col)" [columnName]="col"></dict-cell>
+                            <object-cell *ngSwitchCase="'object'" [value]="getCellValue(row, col)" [columnName]="col"
                                          (viewInstanceDisplay)="onViewInstanceDisplay(col, $event)">
                             </object-cell>
-                            <span *ngSwitchDefault>{{formatCellValue(row[col], getColumnType(col))}}</span>
+                            <span *ngSwitchDefault>{{formatCellValue(getCellValue(row, col), getColumnType(col))}}</span>
                         </ng-container>
                         </ng-template>
                     </div>
