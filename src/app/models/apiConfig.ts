@@ -101,6 +101,8 @@ export interface ApiConfigObject {
   permissionSetRefs: string[];
   variables: VariableInfo[];
   events: EventInfo[];
+  /** Multi-inheritance mapping: variable name → parent class name */
+  inheritsFrom?: Record<string, string>;
 }
 
 /**

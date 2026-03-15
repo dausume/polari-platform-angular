@@ -18,6 +18,7 @@ import {
   RowActionsConfig,
   DEFAULT_ROW_ACTIONS_CONFIG,
   VariableDefinition,
+  ParentClassSchema,
   CrudDialogData,
   CrudDialogResult,
   RowActionEvent,
@@ -260,14 +261,83 @@ export class DynamicDataTableComponent implements OnInit, OnDestroy, OnChanges {
   // ============================================================================
 
   /**
+   * Build parent schemas for multi-inheritance classes.
+   */
+  private getParentSchemas(): ParentClassSchema[] | undefined {
+    if (!this.className) return undefined;
+    const classTyping = this.classTypingService.getClassPolyTyping(this.className);
+    if (!classTyping?.inheritsFrom || Object.keys(classTyping.inheritsFrom).length === 0) {
+      return undefined;
+    }
+
+    const parentSchemas: ParentClassSchema[] = [];
+    for (const [varName, parentClassName] of Object.entries(classTyping.inheritsFrom)) {
+      const parentTyping = this.classTypingService.getClassPolyTyping(parentClassName);
+      if (parentTyping?.completeVariableTypingData) {
+        const parentFields: VariableDefinition[] = [];
+        for (const [fieldName, varData] of Object.entries(parentTyping.completeVariableTypingData)) {
+          const vd = varData as any;
+          parentFields.push({
+            varName: fieldName,
+            varDisplayName: vd?.displayName || this.getColumnDisplayName(fieldName),
+            varType: vd?.variablePythonType || 'str',
+            isIdentifier: fieldName === 'id',
+            required: fieldName === 'id',
+            refClass: vd?.refClass
+          });
+        }
+        parentSchemas.push({
+          varName,
+          className: parentClassName,
+          displayName: parentTyping.displayClassName || parentClassName,
+          fields: parentFields
+        });
+      }
+    }
+    return parentSchemas.length > 0 ? parentSchemas : undefined;
+  }
+
+  /**
+   * Get the list of parent reference variable names (to hide from the child's own fields).
+   */
+  private getParentRefVarNames(): string[] {
+    if (!this.className) return [];
+    const classTyping = this.classTypingService.getClassPolyTyping(this.className);
+    if (!classTyping?.inheritsFrom) return [];
+    return Object.keys(classTyping.inheritsFrom);
+  }
+
+  /**
    * Open create dialog
    */
   openCreateDialog(): void {
+    const classTyping = this.classTypingService.getClassPolyTyping(this.className);
+    console.log('[DynamicDataTable] openCreateDialog for:', this.className,
+      'classTyping:', classTyping,
+      'inheritsFrom:', classTyping?.inheritsFrom);
+
+    const parentSchemas = this.getParentSchemas();
+    const parentRefVarNames = this.getParentRefVarNames();
+    console.log('[DynamicDataTable] parentSchemas:', parentSchemas,
+      'parentRefVarNames:', parentRefVarNames);
+
+    // Mark parent ref fields
+    const schema = [...this.schema];
+    schema.forEach(v => {
+      if (parentRefVarNames.includes(v.varName)) {
+        v.isParentRef = true;
+      }
+    });
+
+    const hiddenFields = parentRefVarNames.length > 0 ? parentRefVarNames : undefined;
+
     const dialogData: CrudDialogData = {
       mode: 'create',
       className: this.className,
       classDisplayName: this.classDisplayName || this.className,
-      schema: this.schema
+      schema: schema,
+      hiddenFields: hiddenFields,
+      parentSchemas: parentSchemas
     };
 
     const dialogRef = this.dialog.open(CrudDialogComponent, {

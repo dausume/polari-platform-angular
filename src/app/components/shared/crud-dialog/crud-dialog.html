@@ -22,7 +22,127 @@
     </div>
 
     <!-- Form -->
-    <form [formGroup]="form" class="form-grid">
+    <form [formGroup]="form" class="crud-form-container">
+      <!-- Parent Class Sections (multi-inheritance) — rendered as nested cards -->
+      <ng-container *ngIf="parentClassEntries.length > 0">
+        <div class="parent-sections-container">
+          <div *ngFor="let parentEntry of parentClassEntries" class="parent-card">
+            <!-- Parent card header: variable label + class name + swap button -->
+            <div class="parent-card-header">
+              <div class="parent-card-label">{{ parentEntry.varName }}</div>
+              <div class="parent-card-right">
+                <div class="parent-card-class">
+                  <mat-icon class="parent-card-icon">account_tree</mat-icon>
+                  <span>{{ parentEntry.displayName }}</span>
+                </div>
+                <button mat-icon-button
+                        class="parent-swap-btn"
+                        type="button"
+                        (click)="toggleParentMode(parentEntry.className)"
+                        [matTooltip]="isParentCreating(parentEntry.className) ? 'Switch to reference existing' : 'Switch to create new'">
+                  <mat-icon>{{ isParentCreating(parentEntry.className) ? 'search' : 'add_circle_outline' }}</mat-icon>
+                </button>
+              </div>
+            </div>
+
+            <!-- MODE: Create Inline — nested field form -->
+            <div *ngIf="isParentCreating(parentEntry.className)" class="parent-card-fields form-grid">
+              <ng-container *ngFor="let field of parentEntry.fields">
+                <div class="form-field">
+                  <label class="field-label">{{ field.varDisplayName }}</label>
+
+                  <!-- String Field -->
+                  <ng-container *ngIf="getCellType(field) === 'string'">
+                    <editable-string-cell
+                      mode="edit"
+                      [value]="form.get(getParentFieldName(parentEntry.className, field.varName))?.value"
+                      [fieldName]="getParentFieldName(parentEntry.className, field.varName)"
+                      [displayName]="field.varDisplayName"
+                      [required]="field.required || false"
+                      (valueChange)="onFieldChange(getParentFieldName(parentEntry.className, field.varName), $event)">
+                    </editable-string-cell>
+                  </ng-container>
+
+                  <!-- Number Field -->
+                  <ng-container *ngIf="getCellType(field) === 'number'">
+                    <editable-number-cell
+                      mode="edit"
+                      [value]="form.get(getParentFieldName(parentEntry.className, field.varName))?.value"
+                      [fieldName]="getParentFieldName(parentEntry.className, field.varName)"
+                      [displayName]="field.varDisplayName"
+                      [required]="field.required || false"
+                      [isInteger]="field.varType === 'int' || field.varType === 'integer'"
+                      (valueChange)="onFieldChange(getParentFieldName(parentEntry.className, field.varName), $event)">
+                    </editable-number-cell>
+                  </ng-container>
+
+                  <!-- Boolean Field -->
+                  <ng-container *ngIf="getCellType(field) === 'boolean'">
+                    <editable-boolean-cell
+                      mode="edit"
+                      [value]="form.get(getParentFieldName(parentEntry.className, field.varName))?.value"
+                      [fieldName]="getParentFieldName(parentEntry.className, field.varName)"
+                      [displayName]="field.varDisplayName"
+                      (valueChange)="onFieldChange(getParentFieldName(parentEntry.className, field.varName), $event)">
+                    </editable-boolean-cell>
+                  </ng-container>
+
+                  <!-- Date Field -->
+                  <ng-container *ngIf="getCellType(field) === 'date'">
+                    <editable-date-cell
+                      mode="edit"
+                      [value]="form.get(getParentFieldName(parentEntry.className, field.varName))?.value"
+                      [fieldName]="getParentFieldName(parentEntry.className, field.varName)"
+                      [displayName]="field.varDisplayName"
+                      [required]="field.required || false"
+                      [includeTime]="field.varType === 'datetime'"
+                      (valueChange)="onFieldChange(getParentFieldName(parentEntry.className, field.varName), $event)">
+                    </editable-date-cell>
+                  </ng-container>
+
+                  <!-- Reference Field -->
+                  <ng-container *ngIf="getCellType(field) === 'reference'">
+                    <editable-string-cell
+                      mode="edit"
+                      [value]="form.get(getParentFieldName(parentEntry.className, field.varName))?.value"
+                      [fieldName]="getParentFieldName(parentEntry.className, field.varName)"
+                      [displayName]="field.varDisplayName"
+                      (valueChange)="onFieldChange(getParentFieldName(parentEntry.className, field.varName), $event)">
+                    </editable-string-cell>
+                  </ng-container>
+                </div>
+              </ng-container>
+            </div>
+
+            <!-- MODE: Reference Existing — instance picker -->
+            <div *ngIf="!isParentCreating(parentEntry.className)" class="parent-card-ref-mode">
+              <div class="reference-picker-field" (click)="openParentReferencePicker(parentEntry)">
+                <mat-icon class="ref-type-icon">link</mat-icon>
+                <span class="ref-value" *ngIf="form.get('_parentRef_' + parentEntry.className)?.value">
+                  {{ getParentRefDisplayLabel(parentEntry.className) || form.get('_parentRef_' + parentEntry.className)?.value }}
+                </span>
+                <span class="ref-placeholder" *ngIf="!form.get('_parentRef_' + parentEntry.className)?.value">
+                  Click to select existing {{ parentEntry.displayName }}...
+                </span>
+                <button mat-icon-button type="button" class="ref-browse-btn"
+                        *ngIf="form.get('_parentRef_' + parentEntry.className)?.value"
+                        (click)="clearParentReference(parentEntry.className); $event.stopPropagation()">
+                  <mat-icon>close</mat-icon>
+                </button>
+                <mat-icon class="ref-browse-icon">search</mat-icon>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Child fields header -->
+        <div class="child-section-header">
+          <span class="child-section-label">{{ data.classDisplayName || data.className }}</span>
+        </div>
+      </ng-container>
+
+      <!-- Child's own fields -->
+      <div class="form-grid">
       <ng-container *ngFor="let varDef of visibleFields; let i = index">
         <div class="form-field" [class.full-width]="getCellType(varDef) === 'string' && i === visibleFields.length - 1">
           <label class="field-label">
@@ -143,6 +263,7 @@
           </mat-error>
         </div>
       </ng-container>
+      </div>
     </form>
   </mat-dialog-content>
 

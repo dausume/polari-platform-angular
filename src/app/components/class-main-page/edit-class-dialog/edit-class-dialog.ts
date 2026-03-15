@@ -38,6 +38,13 @@ export class EditClassDialogComponent implements AfterViewInit {
   }
 
   saveChanges() {
+    // Check for circular inheritance errors before saving
+    if (this.variableModifier.hasInheritanceErrors()) {
+      this.saveStatus = 'error';
+      this.saveMessage = 'Cannot save: circular inheritance detected. Please fix Parent Reference variables.';
+      return;
+    }
+
     this.saveStatus = 'saving';
     this.saveMessage = 'Saving changes...';
 
@@ -48,6 +55,7 @@ export class EditClassDialogComponent implements AfterViewInit {
       'List': 'list',
       'Dictionary': 'dict',
       'Reference': 'reference',
+      'Parent Reference': 'parent_reference',
       'Unique Identifier - Alphanumeric': 'str',
       'Numeric Index': 'int'
     };
@@ -61,11 +69,24 @@ export class EditClassDialogComponent implements AfterViewInit {
       refClass: varDef.varRefClass
     }));
 
-    const payload = {
+    // Build inheritsFrom dict from Parent Reference variables
+    const inheritsFrom: Record<string, string> = {};
+    for (const varDef of this.variableModifier.variableConfigDefs) {
+      if (varDef.varType === 'Parent Reference' && varDef.varRefClass && varDef.varName) {
+        inheritsFrom[varDef.varName] = varDef.varRefClass;
+      }
+    }
+
+    const payload: any = {
       className: this.className,
       classDisplayName: this.classDisplayName.trim() || this.className,
       variables: variables
     };
+
+    // Include inheritsFrom if there are parent references
+    if (Object.keys(inheritsFrom).length > 0) {
+      payload.inheritsFrom = inheritsFrom;
+    }
 
     const backendUrl = this.runtimeConfig.getBackendBaseUrl();
 

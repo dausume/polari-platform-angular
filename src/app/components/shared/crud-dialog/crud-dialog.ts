@@ -11,6 +11,7 @@ import {
   CrudDialogData,
   CrudDialogResult,
   VariableDefinition,
+  ParentClassSchema,
   getCellTypeForDataType,
   SelectOption
 } from '../models/crud-config.models';
@@ -40,6 +41,14 @@ export class CrudDialogComponent implements OnInit, OnDestroy {
   /** Display labels for selected references keyed by field name */
   refDisplayLabels: Record<string, string> = {};
 
+  /** Parent class entries for multi-inheritance form sections */
+  parentClassEntries: ParentClassSchema[] = [];
+
+  /** Tracks which form fields belong to which parent class */
+  private parentFieldMap: Map<string, string> = new Map(); // prefixed field name -> parent class name
+
+  /** Per-parent mode: true = create inline (default), false = reference existing */
+  parentCreateMode: Map<string, boolean> = new Map(); // parent className -> is creating inline
 
   constructor(
     @Inject(MAT_DIALOG_DATA) public data: CrudDialogData,
@@ -65,6 +74,42 @@ export class CrudDialogComponent implements OnInit, OnDestroy {
    * Build the form dynamically based on schema
    */
   private buildForm(): void {
+    console.log('[CrudDialog] buildForm called. mode:', this.data.mode,
+      'parentSchemas:', this.data.parentSchemas,
+      'schema fields:', this.data.schema.map(s => `${s.varName}(${s.varType})`),
+      'hiddenFields:', this.data.hiddenFields);
+    // Build parent class sections first (for multi-inheritance)
+    if (this.data.parentSchemas && this.data.parentSchemas.length > 0 && this.data.mode === 'create') {
+      for (const parentSchema of this.data.parentSchemas) {
+        // Filter out 'id' from parent fields (auto-generated)
+        const visibleFields = parentSchema.fields.filter(f => f.varName !== 'id');
+
+        this.parentClassEntries.push({
+          ...parentSchema,
+          fields: visibleFields
+        });
+
+        // Default to inline creation mode
+        this.parentCreateMode.set(parentSchema.className, true);
+
+        // Add a hidden reference control for "reference existing" mode
+        this.form.addControl(`_parentRef_${parentSchema.className}`, new FormControl(null));
+
+        // Add each parent field to the form with a prefix to avoid collisions
+        for (const field of visibleFields) {
+          const prefixedName = `_parent_${parentSchema.className}_${field.varName}`;
+          const initialValue = this.getDefaultValue(field.varType);
+          const validators: any[] = [];
+          if (field.required) {
+            validators.push(Validators.required);
+          }
+          this.form.addControl(prefixedName, new FormControl(initialValue, validators));
+          this.parentFieldMap.set(prefixedName, parentSchema.className);
+        }
+      }
+    }
+
+    // Build the child's own fields
     this.data.schema.forEach(varDef => {
       // Skip hidden fields
       if (this.data.hiddenFields?.includes(varDef.varName)) {
@@ -301,6 +346,79 @@ export class CrudDialogComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Toggle a parent entry between inline-create mode and reference-existing mode.
+   */
+  toggleParentMode(parentClassName: string): void {
+    const current = this.parentCreateMode.get(parentClassName) ?? true;
+    this.parentCreateMode.set(parentClassName, !current);
+  }
+
+  /**
+   * Check if a parent entry is in inline-create mode.
+   */
+  isParentCreating(parentClassName: string): boolean {
+    return this.parentCreateMode.get(parentClassName) ?? true;
+  }
+
+  /**
+   * Open the instance picker for a parent in "reference existing" mode.
+   */
+  openParentReferencePicker(parentEntry: ParentClassSchema): void {
+    const typing = this.typingService.getClassPolyTyping(parentEntry.className);
+    const displayName = typing?.displayClassName || parentEntry.displayName;
+
+    const refControlName = `_parentRef_${parentEntry.className}`;
+    const currentValue = this.form.get(refControlName)?.value;
+    const selectedIds: string[] = currentValue ? [String(currentValue)] : [];
+
+    const dialogData: InstancePickerDialogData = {
+      className: parentEntry.className,
+      classDisplayName: displayName,
+      multiple: false,
+      selectedIds
+    };
+
+    const dialogRef = this.dialog.open(InstancePickerDialogComponent, {
+      data: dialogData,
+      width: '800px',
+      maxHeight: '80vh',
+      panelClass: 'instance-picker-overlay',
+      autoFocus: false
+    });
+
+    dialogRef.afterClosed().subscribe((result: InstancePickerDialogResult) => {
+      if (result?.action === 'select') {
+        const id = result.selectedIds?.[0] || null;
+        this.form.get(refControlName)?.setValue(id);
+        this.refDisplayLabels[refControlName] = id
+          ? this.getRefLabel(result.selected)
+          : '';
+      }
+    });
+  }
+
+  /**
+   * Clear the selected parent reference.
+   */
+  clearParentReference(parentClassName: string): void {
+    const refControlName = `_parentRef_${parentClassName}`;
+    this.form.get(refControlName)?.setValue(null);
+    delete this.refDisplayLabels[refControlName];
+  }
+
+  /**
+   * Get display label for a parent reference.
+   */
+  getParentRefDisplayLabel(parentClassName: string): string {
+    const refControlName = `_parentRef_${parentClassName}`;
+    if (this.refDisplayLabels[refControlName]) {
+      return this.refDisplayLabels[refControlName];
+    }
+    const value = this.form.get(refControlName)?.value;
+    return value ? String(value) : '';
+  }
+
+  /**
    * Handle form submission
    */
   onSubmit(): void {
@@ -327,10 +445,52 @@ export class CrudDialogComponent implements OnInit, OnDestroy {
     // });
 
     if (this.data.mode === 'create') {
+      // Restructure form data for multi-inheritance: extract parent fields into _parentData
+      let submitData = formData;
+      if (this.parentClassEntries.length > 0) {
+        const parentData: Record<string, Record<string, any>> = {};
+        const parentRefs: Record<string, string> = {};
+        const childData: Record<string, any> = {};
+
+        for (const [key, value] of Object.entries(formData)) {
+          // Skip parent ref controls (handled separately)
+          if (key.startsWith('_parentRef_')) continue;
+
+          const parentClass = this.parentFieldMap.get(key);
+          if (parentClass) {
+            // Only include inline fields if in create mode for this parent
+            if (this.isParentCreating(parentClass)) {
+              const originalName = key.replace(`_parent_${parentClass}_`, '');
+              if (!parentData[parentClass]) parentData[parentClass] = {};
+              parentData[parentClass][originalName] = value;
+            }
+          } else {
+            childData[key] = value;
+          }
+        }
+
+        // For parents in "reference existing" mode, include the reference ID
+        for (const parentEntry of this.parentClassEntries) {
+          if (!this.isParentCreating(parentEntry.className)) {
+            const refValue = this.form.get(`_parentRef_${parentEntry.className}`)?.value;
+            if (refValue) {
+              // Pass the existing reference ID under the variable name
+              parentRefs[parentEntry.varName] = refValue;
+            }
+          }
+        }
+
+        submitData = {
+          ...childData,
+          ...(Object.keys(parentData).length > 0 ? { _parentData: parentData } : {}),
+          ...(Object.keys(parentRefs).length > 0 ? { _parentRefs: parentRefs } : {})
+        };
+      }
+
       // Backend expects multipart form data with initParamSets field
       // containing a JSON array of parameter sets
       const multipartData = new FormData();
-      multipartData.append('initParamSets', JSON.stringify([formData]));
+      multipartData.append('initParamSets', JSON.stringify([submitData]));
 
       // console.log('[CrudDialog] Sending multipart data with initParamSets:', [formData]);
       // console.log('[CrudDialog] initParamSets JSON:', JSON.stringify([formData]));
@@ -540,6 +700,13 @@ export class CrudDialogComponent implements OnInit, OnDestroy {
    */
   onFieldChange(fieldName: string, value: any): void {
     this.form.get(fieldName)?.setValue(value);
+  }
+
+  /**
+   * Get the prefixed form control name for a parent field
+   */
+  getParentFieldName(parentClassName: string, fieldName: string): string {
+    return `_parent_${parentClassName}_${fieldName}`;
   }
 
   /**

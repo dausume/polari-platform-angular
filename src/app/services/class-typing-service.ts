@@ -177,6 +177,12 @@ export class ClassTypingService {
                         isUserCreated: configSource.isUserCreated ?? false
                     } : undefined;
 
+                    // Extract inheritsFrom mapping from backend response
+                    const inheritsFrom = rawObj.inheritsFrom || rawObj.config?.inheritsFrom || undefined;
+                    if (inheritsFrom) {
+                        console.log('[ClassTypingService] Found inheritsFrom on polyTypedObject for', typeObj.className, ':', inheritsFrom);
+                    }
+
                     this.polyTyping[typeObj.className] = new classPolyTyping(
                         typeObj.className,
                         this.polyVarTyping[typeObj.className],
@@ -184,7 +190,8 @@ export class ClassTypingService {
                         undefined, // variableNames - derived from completeVariableTypingData
                         undefined, // polyTypedVars
                         undefined, // variableTypes
-                        classConfig // config from backend for UI behavior control
+                        classConfig, // config from backend for UI behavior control
+                        inheritsFrom // multi-inheritance mapping
                     );
                     this.polyTypingBehaviorSubject.next(this.polyVarTyping);
 
@@ -434,9 +441,19 @@ export class ClassTypingService {
                                     category = 'custom';
                                 }
                                 this.apiConfigCategoryMap.set(obj.className, category);
+
+                                // Populate inheritsFrom on classPolyTyping if available from api-config
+                                if (obj.inheritsFrom && Object.keys(obj.inheritsFrom).length > 0) {
+                                    console.log('[ClassTypingService] Found inheritsFrom in api-config for', obj.className, ':', obj.inheritsFrom);
+                                    const classTyping = this.getClassPolyTyping(obj.className);
+                                    if (classTyping) {
+                                        classTyping.inheritsFrom = obj.inheritsFrom;
+                                        console.log('[ClassTypingService] Set inheritsFrom on classPolyTyping for', obj.className);
+                                    } else {
+                                        console.log('[ClassTypingService] WARNING: classPolyTyping not found yet for', obj.className);
+                                    }
+                                }
                             });
-                            // console.log('[ClassTypingService] API config categories loaded:',
-                            //     this.apiConfigCategoryMap.size, 'objects');
 
                             // Re-categorize nav components with the correct categories
                             this.recategorizeNavComponents();

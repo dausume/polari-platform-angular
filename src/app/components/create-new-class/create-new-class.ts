@@ -47,6 +47,13 @@ export class CreateNewClassComponent {
       return;
     }
 
+    // Check for circular inheritance errors before saving
+    if (this.variableModifier.hasInheritanceErrors()) {
+      this.saveStatus = 'error';
+      this.saveMessage = 'Cannot save: circular inheritance detected. Please fix Parent Reference variables.';
+      return;
+    }
+
     this.saveStatus = 'saving';
     this.saveMessage = 'Creating class...';
 
@@ -58,6 +65,7 @@ export class CreateNewClassComponent {
       'List': 'list',
       'Dictionary': 'dict',
       'Reference': 'reference',
+      'Parent Reference': 'parent_reference',
       'Unique Identifier - Alphanumeric': 'str',
       'Numeric Index': 'int'
     };
@@ -72,8 +80,16 @@ export class CreateNewClassComponent {
       refClass: varDef.varRefClass
     }));
 
+    // Build inheritsFrom dict from Parent Reference variables
+    const inheritsFrom: Record<string, string> = {};
+    for (const varDef of this.variableModifier.variableConfigDefs) {
+      if (varDef.varType === 'Parent Reference' && varDef.varRefClass && varDef.varName) {
+        inheritsFrom[varDef.varName] = varDef.varRefClass;
+      }
+    }
+
     // Build the payload
-    const payload = {
+    const payload: any = {
       className: this.className.trim(),
       classDisplayName: this.classDisplayName.trim() || this.className.trim(),
       variables: variables,
@@ -83,6 +99,11 @@ export class CreateNewClassComponent {
       // Default display fields to all variables
       stateSpaceDisplayFields: this.isStateSpaceObject ? variables.map(v => v.varName) : []
     };
+
+    // Include inheritsFrom if there are parent references
+    if (Object.keys(inheritsFrom).length > 0) {
+      payload.inheritsFrom = inheritsFrom;
+    }
 
     // console.log('Creating class with payload:', payload);
 

@@ -89,6 +89,10 @@ export interface VariableDefinition {
   defaultValue?: any;
   // ColumnConfiguration integration
   columnConfig?: Partial<IColumnConfiguration>;
+  // Multi-inheritance: marks this variable as a parent reference (hidden in form, parent fields shown instead)
+  isParentRef?: boolean;
+  // The parent class name this variable references (for multi-inheritance)
+  parentClassName?: string;
 }
 
 /**
@@ -125,6 +129,21 @@ export function columnConfigToVariableDef(colConfig: IColumnConfiguration): Vari
 }
 
 /**
+ * Schema for a parent class in a multi-inheritance create form.
+ * Each entry represents one parent that the child inherits from.
+ */
+export interface ParentClassSchema {
+  /** The variable name on the child class (e.g., "plant", "nutrients") */
+  varName: string;
+  /** The parent class name (e.g., "Plant", "NutrientProfile") */
+  className: string;
+  /** Human-readable display name for the parent class */
+  displayName: string;
+  /** The parent class's own field definitions */
+  fields: VariableDefinition[];
+}
+
+/**
  * Data passed to the CRUD dialog
  */
 export interface CrudDialogData {
@@ -136,6 +155,8 @@ export interface CrudDialogData {
   // Additional configuration
   readOnlyFields?: string[];
   hiddenFields?: string[];
+  // Multi-inheritance: parent class schemas for inline parent creation
+  parentSchemas?: ParentClassSchema[];
 }
 
 /**
@@ -210,6 +231,7 @@ export const TYPE_DISPLAY_MAP: Record<string, string> = {
   'bool': 'Boolean',
   'boolean': 'Boolean',
   'reference': 'Reference',
+  'parent_reference': 'Parent Reference',
   'referencelist': 'Reference List',
   'reference list': 'Reference List',
   'reference_list': 'Reference List',
@@ -234,6 +256,7 @@ export const CELL_TYPE_MAP: Record<string, string> = {
   'date': 'date',
   'datetime': 'date',
   'reference': 'reference',
+  'parent_reference': 'reference',
   'referencelist': 'referenceList',
   'reference list': 'referenceList',
   'reference_list': 'referenceList',

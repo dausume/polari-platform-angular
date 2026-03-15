@@ -9,6 +9,11 @@
         <span class="object-separator">:</span>
         <span class="object-id">{{getObjectId()}}</span>
     </span>
+    <button class="view-display-btn" *ngIf="!editable && canViewDisplay()"
+            (click)="onViewInstanceDisplay($event)"
+            title="View instance display">
+        <span class="view-display-icon">📋</span>
+    </button>
 
     <!-- Editable display -->
     <div class="editable-ref" *ngIf="editable">

@@ -200,6 +200,122 @@
   flex-shrink: 0;
 }
 
+/* ===== Parent Class Sections (multi-inheritance nested cards) ===== */
+
+/* Overall form container when parents exist */
+.crud-form-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Container for all parent cards */
+.parent-sections-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Each parent rendered as a nested card */
+.parent-card {
+  border: 1px solid var(--border-medium);
+  border-radius: 8px;
+  background: var(--surface-secondary);
+  overflow: hidden;
+}
+
+/* Parent card header — variable label prominently at top */
+.parent-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: var(--surface-tertiary, rgba(0,0,0,0.04));
+  border-bottom: 1px solid var(--border-light);
+}
+
+.parent-card-label {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: monospace;
+  letter-spacing: 0.3px;
+}
+
+.parent-card-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.parent-card-class {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.parent-card-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  color: var(--brand-blue);
+}
+
+/* Swap button between create-inline and reference-existing */
+.parent-swap-btn.mat-mdc-icon-button {
+  width: 32px;
+  height: 32px;
+  padding: 4px;
+  color: var(--text-secondary);
+  transition: color 0.15s ease;
+}
+
+.parent-swap-btn.mat-mdc-icon-button:hover {
+  color: var(--brand-blue);
+}
+
+.parent-swap-btn .mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
+/* Reference-existing mode inside parent card */
+.parent-card-ref-mode {
+  padding: 16px;
+}
+
+/* Parent card fields area */
+.parent-card-fields {
+  padding: 16px;
+}
+
+/* Child section header — shown between parent cards and child fields */
+.child-section-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 0;
+}
+
+.child-section-header::before,
+.child-section-header::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-medium);
+}
+
+.child-section-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
 /* Responsive */
 @media (max-width: 600px) {
   .crud-dialog {

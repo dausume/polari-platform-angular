@@ -30,46 +30,53 @@
         </mat-form-field>
       </mat-grid-tile>
 
-      <!-- Reference Class (conditional — shown for Reference and Reference List) -->
-      <mat-grid-tile *ngIf="variableDef.varType == 'Reference' || variableDef.varType == 'Reference List'">
-        <mat-form-field appearance="outline" class="ref-class-field">
-          <mat-label>Referenced Class</mat-label>
-          <mat-select [(ngModel)]="variableDef.varRefClass" panelClass="ref-class-panel">
-            <!-- Search input inside dropdown -->
-            <div class="ref-class-search">
-              <input matInput
-                     [formControl]="getRefClassSearchControl(variableDef.varIndex)"
-                     (input)="onRefClassSearchChange(variableDef.varIndex)"
-                     (keydown)="$event.stopPropagation()"
-                     placeholder="Search classes..."
-                     class="ref-class-search-input">
-            </div>
+      <!-- Reference Class (conditional — shown for Reference, Reference List, and Parent Reference) -->
+      <mat-grid-tile *ngIf="variableDef.varType == 'Reference' || variableDef.varType == 'Reference List' || variableDef.varType == 'Parent Reference'">
+        <div class="ref-class-wrapper">
+          <mat-form-field appearance="outline" class="ref-class-field">
+            <mat-label>{{ variableDef.varType == 'Parent Reference' ? 'Parent Class' : 'Referenced Class' }}</mat-label>
+            <mat-select [(ngModel)]="variableDef.varRefClass" panelClass="ref-class-panel"
+                        (selectionChange)="variableDef.varType == 'Parent Reference' ? onParentRefClassChange(variableDef.varIndex, variableDef.varRefClass || '') : null">
+              <!-- Search input inside dropdown -->
+              <div class="ref-class-search">
+                <input matInput
+                       [formControl]="getRefClassSearchControl(variableDef.varIndex)"
+                       (input)="onRefClassSearchChange(variableDef.varIndex)"
+                       (keydown)="$event.stopPropagation()"
+                       placeholder="Search classes..."
+                       class="ref-class-search-input">
+              </div>
 
-            <!-- Grouped class options -->
-            <mat-optgroup *ngFor="let group of getFilteredClassGroups(variableDef.varIndex)"
-                          [label]="group.label">
-              <mat-option *ngFor="let cls of group.classes" [value]="cls.className">
-                <span class="ref-class-option">
-                  <span class="ref-class-category-dot"
-                        [class.cat-custom]="cls.category === 'custom'"
-                        [class.cat-module]="cls.category === 'materials_science'"
-                        [class.cat-framework]="cls.category === 'framework'"></span>
-                  <span class="ref-class-name">{{ cls.displayName }}</span>
-                  <span class="ref-class-code" *ngIf="cls.displayName !== cls.className">{{ cls.className }}</span>
-                </span>
+              <!-- Grouped class options -->
+              <mat-optgroup *ngFor="let group of getFilteredClassGroups(variableDef.varIndex)"
+                            [label]="group.label">
+                <mat-option *ngFor="let cls of group.classes" [value]="cls.className">
+                  <span class="ref-class-option">
+                    <span class="ref-class-category-dot"
+                          [class.cat-custom]="cls.category === 'custom'"
+                          [class.cat-module]="cls.category === 'materials_science'"
+                          [class.cat-framework]="cls.category === 'framework'"></span>
+                    <span class="ref-class-name">{{ cls.displayName }}</span>
+                    <span class="ref-class-code" *ngIf="cls.displayName !== cls.className">{{ cls.className }}</span>
+                  </span>
+                </mat-option>
+              </mat-optgroup>
+
+              <!-- Empty state -->
+              <mat-option disabled *ngIf="getFilteredClassGroups(variableDef.varIndex).length === 0">
+                No classes found
               </mat-option>
-            </mat-optgroup>
-
-            <!-- Empty state -->
-            <mat-option disabled *ngIf="getFilteredClassGroups(variableDef.varIndex).length === 0">
-              No classes found
-            </mat-option>
-          </mat-select>
-        </mat-form-field>
+            </mat-select>
+          </mat-form-field>
+          <!-- Circular inheritance error -->
+          <mat-error *ngIf="inheritanceErrors.has(variableDef.varIndex)" class="inheritance-error">
+            {{ inheritanceErrors.get(variableDef.varIndex) }}
+          </mat-error>
+        </div>
       </mat-grid-tile>
 
       <!-- Spacer for non-reference types -->
-      <mat-grid-tile *ngIf="variableDef.varType != 'Reference' && variableDef.varType != 'Reference List'">
+      <mat-grid-tile *ngIf="variableDef.varType != 'Reference' && variableDef.varType != 'Reference List' && variableDef.varType != 'Parent Reference'">
       </mat-grid-tile>
 
       <!-- Remove Button -->

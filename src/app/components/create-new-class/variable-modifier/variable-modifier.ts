@@ -27,9 +27,12 @@ export interface ClassCategoryGroup {
 export class VariableModifierComponent implements OnInit, OnDestroy {
 
   @Input() editMode: boolean = false;
+  @Input() currentClassName: string = '';
 
   variableConfigDefs: variableConfigDef[] = [];
-  typesAllowed = ["String", "Integer", "Decimal", "List", "Dictionary", "Reference", "Reference List", "Unique Identifier - Alphanumeric", "Numeric Index"];
+  /** Per-variable inheritance validation errors */
+  inheritanceErrors: Map<number, string> = new Map();
+  typesAllowed = ["String", "Integer", "Decimal", "List", "Dictionary", "Reference", "Reference List", "Parent Reference", "Unique Identifier - Alphanumeric", "Numeric Index"];
   selectedType = "Select Type";
   varName = "";
   typeControl = new FormControl();
@@ -195,7 +198,8 @@ export class VariableModifierComponent implements OnInit, OnDestroy {
     const reverseTypeMap: Record<string, string> = {
       'str': 'String', 'int': 'Integer', 'float': 'Decimal',
       'list': 'List', 'dict': 'Dictionary', 'reference': 'Reference',
-      'referencelist': 'Reference List', 'reference_list': 'Reference List'
+      'referencelist': 'Reference List', 'reference_list': 'Reference List',
+      'parent_reference': 'Parent Reference'
     };
     this.variableConfigDefs = variables.map((v: any, i: number) => ({
       varIndex: i + 1,
@@ -235,6 +239,60 @@ export class VariableModifierComponent implements OnInit, OnDestroy {
     });
     if (variableDefFound) {
       variableDefFound.varType = newType;
+      // Clear inheritance error when type changes away from Parent Reference
+      if (newType !== 'Parent Reference') {
+        this.inheritanceErrors.delete(changedIndex);
+      }
     }
+  }
+
+  /**
+   * Called when a ref class is selected for a Parent Reference variable.
+   * Validates for circular inheritance.
+   */
+  onParentRefClassChange(varIndex: number, targetClassName: string): void {
+    if (!targetClassName) {
+      this.inheritanceErrors.delete(varIndex);
+      return;
+    }
+    if (this.checkCircularInheritance(targetClassName, this.currentClassName)) {
+      this.inheritanceErrors.set(varIndex,
+        `Circular inheritance detected: ${targetClassName} already inherits from ${this.currentClassName}`
+      );
+    } else {
+      this.inheritanceErrors.delete(varIndex);
+    }
+  }
+
+  /**
+   * DFS through inheritsFrom chains to detect circular inheritance.
+   * Returns true if targetClassName eventually inherits from currentClassName.
+   */
+  checkCircularInheritance(targetClassName: string, currentClassName: string): boolean {
+    if (!currentClassName || !targetClassName) return false;
+    const visited = new Set<string>();
+    const stack = [targetClassName];
+
+    while (stack.length > 0) {
+      const cls = stack.pop()!;
+      if (cls === currentClassName) return true;
+      if (visited.has(cls)) continue;
+      visited.add(cls);
+
+      const typing = this.typingService.getClassPolyTyping(cls);
+      if (typing?.inheritsFrom) {
+        for (const parentClass of Object.values(typing.inheritsFrom)) {
+          stack.push(parentClass);
+        }
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Check if any Parent Reference variables have circular inheritance errors.
+   */
+  hasInheritanceErrors(): boolean {
+    return this.inheritanceErrors.size > 0;
   }
 }

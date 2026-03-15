@@ -67,6 +67,8 @@ export class classPolyTyping {
     variableTypes?: {};
     /** Configuration flags controlling UI behavior and API access for this class */
     config: ClassConfig;
+    /** Multi-inheritance: maps variable name to parent class name (e.g., {plant: 'Plant', nutrients: 'NutrientProfile'}) */
+    inheritsFrom?: Record<string, string>;
 
     constructor(
         className: string,
@@ -75,7 +77,8 @@ export class classPolyTyping {
         variableNames?: string[],
         polyTypedVars?: objectIdentifiersSpec[],
         variableTypes?: object,
-        config?: Partial<ClassConfig>
+        config?: Partial<ClassConfig>,
+        inheritsFrom?: Record<string, string>
     ) {
         this.className = className;
         this.displayClassName = displayClassName;
@@ -90,6 +93,10 @@ export class classPolyTyping {
         else
         {
             this.variableNames = variableNames;
+        }
+        // Store inheritance mapping if provided
+        if (inheritsFrom && Object.keys(inheritsFrom).length > 0) {
+            this.inheritsFrom = inheritsFrom;
         }
         // Config handling:
         // - If config is explicitly provided (even partially), use protective defaults for missing fields

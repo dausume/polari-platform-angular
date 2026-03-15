@@ -18,7 +18,7 @@ import { ClassTypingService } from '@services/class-typing-service';
 import { SolutionExecutionService } from '@services/no-code-services/solution-execution.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { CrudDialogComponent } from '@components/shared/crud-dialog/crud-dialog';
-import { CrudDialogData, CrudDialogResult, VariableDefinition } from '@components/shared/models/crud-config.models';
+import { CrudDialogData, CrudDialogResult, VariableDefinition, ParentClassSchema } from '@components/shared/models/crud-config.models';
 
 @Component({
   standalone: false,
@@ -32,9 +32,20 @@ export class ClassDataTableComponent implements OnInit, OnChanges {
   @Input() instanceData: any[] = [];
   @Input() tableConfig?: TableConfig;
   @Input() namedTableConfig?: NamedTableConfig;
+  /** Optional per-column overrides for which display config to launch for reference cells.
+   *  Keys are column names, values are display/table config IDs. */
+  @Input() referenceDisplayOverrides: { [columnName: string]: string } = {};
+
   @Output() instanceCreated = new EventEmitter<any>();
   @Output() instanceUpdated = new EventEmitter<any>();
   @Output() instanceDeleted = new EventEmitter<string>();
+  /** Emitted when a user clicks the "view instance display" button on a reference cell */
+  @Output() referenceDisplayRequested = new EventEmitter<{
+    refClassName: string;
+    instanceId: string;
+    columnName: string;
+    displayOverrideId: string;
+  }>();
 
   @ViewChild(MatSort) sort!: MatSort;
   @ViewChild(MatPaginator) paginator!: MatPaginator;
@@ -450,15 +461,84 @@ export class ClassDataTableComponent implements OnInit, OnChanges {
   }
 
   /**
+   * Build parent schemas for multi-inheritance classes.
+   * Returns an array of ParentClassSchema entries, or undefined if no inheritance.
+   */
+  private getParentSchemas(): ParentClassSchema[] | undefined {
+    if (!this.className) return undefined;
+    const classTyping = this.classTypingService.getClassPolyTyping(this.className);
+    if (!classTyping?.inheritsFrom || Object.keys(classTyping.inheritsFrom).length === 0) {
+      return undefined;
+    }
+
+    const parentSchemas: ParentClassSchema[] = [];
+    for (const [varName, parentClassName] of Object.entries(classTyping.inheritsFrom)) {
+      const parentTyping = this.classTypingService.getClassPolyTyping(parentClassName);
+      if (parentTyping?.completeVariableTypingData) {
+        const parentFields: VariableDefinition[] = [];
+        for (const [fieldName, varData] of Object.entries(parentTyping.completeVariableTypingData)) {
+          const vd = varData as any;
+          parentFields.push({
+            varName: fieldName,
+            varDisplayName: vd?.displayName || this.getColumnDisplayName(fieldName),
+            varType: vd?.variablePythonType || 'str',
+            isIdentifier: fieldName === 'id',
+            required: fieldName === 'id',
+            refClass: vd?.refClass
+          });
+        }
+        parentSchemas.push({
+          varName,
+          className: parentClassName,
+          displayName: parentTyping.displayClassName || parentClassName,
+          fields: parentFields
+        });
+      }
+    }
+    return parentSchemas.length > 0 ? parentSchemas : undefined;
+  }
+
+  /**
+   * Get the list of parent reference variable names (to hide from the child's own fields).
+   */
+  private getParentRefVarNames(): string[] {
+    if (!this.className) return [];
+    const classTyping = this.classTypingService.getClassPolyTyping(this.className);
+    if (!classTyping?.inheritsFrom) return [];
+    return Object.keys(classTyping.inheritsFrom);
+  }
+
+  /**
    * Open create dialog
    */
   openCreateDialog(): void {
+    const classTyping = this.classTypingService.getClassPolyTyping(this.className || '');
+    console.log('[ClassDataTable] openCreateDialog for:', this.className,
+      'classTyping:', classTyping,
+      'inheritsFrom:', classTyping?.inheritsFrom);
+
+    const parentSchemas = this.getParentSchemas();
+    const parentRefVarNames = this.getParentRefVarNames();
+    console.log('[ClassDataTable] parentSchemas:', parentSchemas,
+      'parentRefVarNames:', parentRefVarNames);
+
+    // Mark parent ref fields and add them to hidden fields
+    const schema = this.getSchema();
+    schema.forEach(v => {
+      if (parentRefVarNames.includes(v.varName)) {
+        v.isParentRef = true;
+      }
+    });
+
+    const hiddenFields = ['id', ...parentRefVarNames];
+
     const dialogData: CrudDialogData = {
       mode: 'create',
       className: this.className || 'Unknown',
       classDisplayName: this.className || 'Unknown',
-      schema: this.getSchema(),
-      hiddenFields: ['id'] // Hide id field for create (auto-generated)
+      schema: schema,
+      hiddenFields: hiddenFields,
+      parentSchemas: parentSchemas
     };
 
     const dialogRef = this.dialog.open(CrudDialogComponent, {
@@ -652,6 +732,43 @@ export class ClassDataTableComponent implements OnInit, OnChanges {
     // Fallback: default play icon
     const fallback = getSvgIcon('play');
     return this.sanitizer.bypassSecurityTrustHtml(fallback?.svgString || '');
+  }
+
+  /**
+   * Check if a column type represents a reference to another class.
+   * Matches patterns like CLASS-ClassName-REFERENCE or CLASS-ClassName-IDs.
+   */
+  isReferenceType(columnType: string): boolean {
+    return typeof columnType === 'string' && columnType.startsWith('CLASS-');
+  }
+
+  /**
+   * Extract the referenced class name from a CLASS-ClassName-REFERENCE type string.
+   */
+  getRefClassName(columnName: string): string {
+    const type = this.columnTypes[columnName] || '';
+    const match = type.match(/^CLASS-(.+?)-(REFERENCE|IDs)$/);
+    return match ? match[1] : '';
+  }
+
+  /**
+   * Get the display override ID for a given column, if any.
+   */
+  getDisplayOverride(columnName: string): string {
+    return this.referenceDisplayOverrides?.[columnName] || '';
+  }
+
+  /**
+   * Handle viewInstanceDisplay events from object-cell components.
+   * Re-emits as referenceDisplayRequested with the column name included.
+   */
+  onViewInstanceDisplay(columnName: string, event: { refClassName: string; instanceId: string; displayOverrideId: string }): void {
+    this.referenceDisplayRequested.emit({
+      refClassName: event.refClassName,
+      instanceId: event.instanceId,
+      columnName,
+      displayOverrideId: event.displayOverrideId
+    });
   }
 
   /** Check if an action is currently executing */

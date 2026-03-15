@@ -87,3 +87,33 @@
 .picker-btn-icon {
     font-size: 14px;
 }
+
+/* View instance display button */
+.view-display-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    cursor: pointer;
+    flex-shrink: 0;
+    margin-left: 4px;
+    opacity: 0;
+    transition: all 0.15s ease;
+}
+
+.object-cell:hover .view-display-btn {
+    opacity: 1;
+}
+
+.view-display-btn:hover {
+    background: var(--surface-hover);
+    border-color: var(--brand-blue);
+}
+
+.view-display-icon {
+    font-size: 12px;
+}

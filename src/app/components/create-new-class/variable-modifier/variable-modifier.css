@@ -193,6 +193,19 @@ mat-label {
     margin-left: auto;
 }
 
+/* Reference class wrapper for Parent Reference with error display */
+.ref-class-wrapper {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+.inheritance-error {
+    font-size: 11px;
+    margin-top: -4px;
+    padding: 2px 4px;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     mat-grid-list {

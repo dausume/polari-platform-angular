@@ -25,7 +25,12 @@ export class ObjectCellComponent {
   /** Whether this is a multi-select reference list */
   @Input() multiple: boolean = false;
 
+  /** Optional override display config ID for the "view instance" button */
+  @Input() displayOverrideId: string = '';
+
   @Output() valueChange = new EventEmitter<any>();
+  /** Emitted when the user clicks the "view instance display" button */
+  @Output() viewInstanceDisplay = new EventEmitter<{ refClassName: string; instanceId: string; displayOverrideId: string }>();
 
   constructor(private router: Router, private dialog: MatDialog) {}
 
@@ -173,5 +178,26 @@ export class ObjectCellComponent {
   /** Whether the cell has a value to display */
   hasValue(): boolean {
     return this.value !== null && this.value !== undefined && this.value !== '';
+  }
+
+  /** Whether the "view instance display" button should be shown */
+  canViewDisplay(): boolean {
+    const className = this.getClassName();
+    const objectId = this.getObjectId();
+    return className !== 'unknown' && className !== 'object' && objectId !== '-';
+  }
+
+  /** Emit event to open the instance's default display */
+  onViewInstanceDisplay(event: MouseEvent): void {
+    event.stopPropagation();
+    const refClassName = this.getClassName();
+    const instanceId = this.getObjectId();
+    if (refClassName && instanceId !== '-') {
+      this.viewInstanceDisplay.emit({
+        refClassName,
+        instanceId,
+        displayOverrideId: this.displayOverrideId || ''
+      });
+    }
   }
 }
