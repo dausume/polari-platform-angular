@@ -3,18 +3,18 @@ import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, throwError } from 'rxjs';
 import { map, tap, catchError } from 'rxjs/operators';
 import { PolariService } from '@services/polari-service';
-import { NamedDataSetConfig, DataSetDefinitionSummary } from '@models/datasets/NamedDataSetConfig';
+import { NamedFilterChainConfig, FilterChainDefinitionSummary } from '@models/datasets/NamedFilterChainConfig';
 
 @Injectable({ providedIn: 'root' })
-export class DataSetDefinitionService {
+export class FilterChainDefinitionService {
 
-  configList$ = new BehaviorSubject<DataSetDefinitionSummary[]>([]);
-  allConfigList$ = new BehaviorSubject<DataSetDefinitionSummary[]>([]);
-  draftConfig$ = new BehaviorSubject<NamedDataSetConfig | null>(null);
+  configList$ = new BehaviorSubject<FilterChainDefinitionSummary[]>([]);
+  allConfigList$ = new BehaviorSubject<FilterChainDefinitionSummary[]>([]);
+  draftConfig$ = new BehaviorSubject<NamedFilterChainConfig | null>(null);
   hasDraftChanges$ = new BehaviorSubject<boolean>(false);
   loading$ = new BehaviorSubject<boolean>(false);
 
-  private readonly className = 'DataSetDefinition';
+  private readonly className = 'FilterChainDefinition';
 
   constructor(private http: HttpClient, private polariService: PolariService) {}
 
@@ -26,7 +26,7 @@ export class DataSetDefinitionService {
     this.http.get<any>(this.baseUrl, this.polariService.backendRequestOptions).subscribe({
       next: (response: any) => {
         const items = this.parseReadAllResponse(response);
-        const summaries: DataSetDefinitionSummary[] = items.map((item: any) => ({
+        const summaries: FilterChainDefinitionSummary[] = items.map((item: any) => ({
           id: item.id,
           name: item.name || '',
           description: item.description || '',
@@ -35,7 +35,7 @@ export class DataSetDefinitionService {
         this.allConfigList$.next(summaries);
       },
       error: (err: any) => {
-        console.error('[DataSetDefinitionService] Failed to fetch all configs:', err);
+        console.error('[FilterChainDefinitionService] Failed to fetch all configs:', err);
       }
     });
   }
@@ -45,7 +45,7 @@ export class DataSetDefinitionService {
     this.http.get<any>(this.baseUrl, this.polariService.backendRequestOptions).subscribe({
       next: (response: any) => {
         const items = this.parseReadAllResponse(response);
-        const summaries: DataSetDefinitionSummary[] = items
+        const summaries: FilterChainDefinitionSummary[] = items
           .filter((item: any) => (item.source_class || '') === sourceClass)
           .map((item: any) => ({
             id: item.id,
@@ -57,24 +57,24 @@ export class DataSetDefinitionService {
         this.loading$.next(false);
       },
       error: (err: any) => {
-        console.error('[DataSetDefinitionService] Failed to fetch configs:', err);
+        console.error('[FilterChainDefinitionService] Failed to fetch configs:', err);
         this.loading$.next(false);
       }
     });
   }
 
-  loadConfig(id: string): Observable<NamedDataSetConfig> {
+  loadConfig(id: string): Observable<NamedFilterChainConfig> {
     this.loading$.next(true);
     return this.http.get<any>(this.baseUrl, this.polariService.backendRequestOptions).pipe(
       map((response: any) => {
         const items = this.parseReadAllResponse(response);
         const backendObj = items.find((item: any) => item.id === id);
         if (!backendObj) {
-          throw new Error(`DataSetDefinition ${id} not found`);
+          throw new Error(`FilterChainDefinition ${id} not found`);
         }
-        return NamedDataSetConfig.fromBackend(backendObj);
+        return NamedFilterChainConfig.fromBackend(backendObj);
       }),
-      tap((config: NamedDataSetConfig) => {
+      tap((config: NamedFilterChainConfig) => {
         this.draftConfig$.next(config);
         this.hasDraftChanges$.next(false);
         this.loading$.next(false);
@@ -86,9 +86,9 @@ export class DataSetDefinitionService {
     );
   }
 
-  createConfig(name: string, description: string, source_class: string, field_profile_id: string = '', filter_chain_id: string = ''): Observable<any> {
+  createConfig(name: string, description: string, source_class: string): Observable<any> {
     const formData = new FormData();
-    formData.append('initParamSets', JSON.stringify([{ name, description, source_class, definition: '{}', field_profile_id, filter_chain_id }]));
+    formData.append('initParamSets', JSON.stringify([{ name, description, source_class, definition: '{}' }]));
     return this.http.post(this.baseUrl, formData).pipe(
       tap(() => {
         if (source_class) {
@@ -111,16 +111,14 @@ export class DataSetDefinitionService {
     );
   }
 
-  saveConfig(config: NamedDataSetConfig): Observable<any> {
+  saveConfig(config: NamedFilterChainConfig): Observable<any> {
     const definition = config.toDefinitionJSON();
     const formData = new FormData();
     formData.append('polariId', config.id);
     formData.append('updateData', JSON.stringify({
       name: config.name,
       description: config.description,
-      definition: definition,
-      field_profile_id: config.field_profile_id,
-      filter_chain_id: config.filter_chain_id
+      definition: definition
     }));
     return this.http.put(this.baseUrl, formData).pipe(
       tap(() => {
@@ -139,7 +137,7 @@ export class DataSetDefinitionService {
     this.hasDraftChanges$.next(true);
   }
 
-  updateDraft(config: NamedDataSetConfig): void {
+  updateDraft(config: NamedFilterChainConfig): void {
     this.draftConfig$.next(config);
     this.hasDraftChanges$.next(true);
   }

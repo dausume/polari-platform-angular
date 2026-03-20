@@ -107,18 +107,18 @@ export interface ApiConfigDetailDialogData {
             </span>
             <span class="col-type">{{ variable.type }}</span>
             <span class="col-crud">
-              <mat-icon [class]="variable.crud?.create ? 'perm-yes' : 'perm-no'">
-                {{ variable.crud?.create ? 'check' : 'close' }}
+              <mat-icon [class]="variable.crud.create ? 'perm-yes' : 'perm-no'">
+                {{ variable.crud.create ? 'check' : 'close' }}
               </mat-icon>
             </span>
             <span class="col-crud">
-              <mat-icon [class]="variable.crud?.read ? 'perm-yes' : 'perm-no'">
-                {{ variable.crud?.read ? 'check' : 'close' }}
+              <mat-icon [class]="variable.crud.read ? 'perm-yes' : 'perm-no'">
+                {{ variable.crud.read ? 'check' : 'close' }}
               </mat-icon>
             </span>
             <span class="col-crud">
-              <mat-icon [class]="variable.crud?.update ? 'perm-yes' : 'perm-no'">
-                {{ variable.crud?.update ? 'check' : 'close' }}
+              <mat-icon [class]="variable.crud.update ? 'perm-yes' : 'perm-no'">
+                {{ variable.crud.update ? 'check' : 'close' }}
               </mat-icon>
             </span>
           </div>

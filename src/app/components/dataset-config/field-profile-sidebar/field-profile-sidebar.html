@@ -1,0 +1,141 @@
+<div class="fp-sidebar">
+
+  <!-- ===== Own Fields Section ===== -->
+  <div class="fp-section">
+    <div class="fp-section-header">
+      <mat-icon>view_list</mat-icon>
+      <span>Own Fields</span>
+      <span class="fp-count-badge" *ngIf="config.ownFields.length > 0">
+        {{ includedOwnFieldCount }} / {{ config.ownFields.length }}
+      </span>
+    </div>
+
+    <p class="fp-section-desc">Toggle which direct fields on this class are returned in API responses.</p>
+
+    <!-- Bulk actions -->
+    <div class="fp-bulk-actions" *ngIf="config.ownFields.length > 0">
+      <button mat-stroked-button (click)="toggleAllOwnFields(true)" class="fp-bulk-btn">
+        <mat-icon>check_box</mat-icon> Include All
+      </button>
+      <button mat-stroked-button (click)="toggleAllOwnFields(false)" class="fp-bulk-btn">
+        <mat-icon>check_box_outline_blank</mat-icon> Exclude All
+      </button>
+    </div>
+
+    <!-- Own field list -->
+    <div class="fp-field-list">
+      <div *ngFor="let field of config.ownFields" class="fp-field-row">
+        <mat-slide-toggle
+          [checked]="field.included"
+          (change)="onOwnFieldToggle(field, $event.checked)"
+          class="fp-field-toggle">
+          <span class="fp-field-name">{{ field.name }}</span>
+        </mat-slide-toggle>
+        <span class="fp-data-type-badge">{{ field.dataType }}</span>
+      </div>
+    </div>
+
+    <div class="fp-empty-hint" *ngIf="config.ownFields.length === 0">
+      No fields detected. Load class typing data to populate.
+    </div>
+  </div>
+
+  <!-- ===== Referenced Objects Section ===== -->
+  <div class="fp-section">
+    <div class="fp-section-header">
+      <mat-icon>account_tree</mat-icon>
+      <span>Referenced Objects</span>
+      <span class="fp-count-badge" *ngIf="config.referencedObjects.length > 0">
+        {{ enabledRefCount }} / {{ config.referencedObjects.length }}
+      </span>
+    </div>
+
+    <p class="fp-section-desc">
+      Configure which fields from parent and referenced objects get resolved in API responses.
+    </p>
+
+    <div class="fp-ref-list">
+      <div *ngFor="let ref of config.referencedObjects" class="fp-ref-card">
+
+        <!-- Ref object header -->
+        <div class="fp-ref-header" (click)="toggleRefPanel(ref.varName)">
+          <div class="fp-ref-header-left">
+            <mat-icon class="fp-ref-source-icon">{{ getSourceIcon(ref.source) }}</mat-icon>
+            <div class="fp-ref-header-info">
+              <span class="fp-ref-var-name">{{ ref.varName }}</span>
+              <span class="fp-ref-target-class">{{ ref.targetClass }}</span>
+            </div>
+            <span class="fp-source-badge" [ngClass]="'fp-source-' + ref.source">
+              {{ getSourceLabel(ref.source) }}
+            </span>
+          </div>
+          <div class="fp-ref-header-right">
+            <span class="fp-ref-field-count" *ngIf="ref.fields.length > 0 && ref.enabled">
+              {{ getIncludedRefFieldCount(ref) }}/{{ ref.fields.length }}
+            </span>
+            <mat-slide-toggle
+              [checked]="ref.enabled"
+              (change)="onRefObjectToggle(ref, $event.checked)"
+              (click)="$event.stopPropagation()"
+              class="fp-ref-toggle">
+            </mat-slide-toggle>
+            <mat-icon class="fp-expand-icon">
+              {{ isRefPanelExpanded(ref.varName) ? 'expand_less' : 'expand_more' }}
+            </mat-icon>
+          </div>
+        </div>
+
+        <!-- Expanded fields panel -->
+        <div class="fp-ref-fields-panel" *ngIf="isRefPanelExpanded(ref.varName)">
+          <div *ngIf="!ref.enabled" class="fp-ref-disabled-hint">
+            <mat-icon>info</mat-icon>
+            Enable this reference to configure resolved fields.
+          </div>
+
+          <div *ngIf="ref.enabled && ref.fields.length > 0">
+            <!-- Field bulk actions -->
+            <div class="fp-bulk-actions fp-ref-bulk">
+              <button mat-stroked-button (click)="toggleAllRefFields(ref, true)" class="fp-bulk-btn">
+                <mat-icon>check_box</mat-icon> All
+              </button>
+              <button mat-stroked-button (click)="toggleAllRefFields(ref, false)" class="fp-bulk-btn">
+                <mat-icon>check_box_outline_blank</mat-icon> None
+              </button>
+            </div>
+
+            <!-- Individual field toggles -->
+            <div class="fp-field-list fp-ref-field-list">
+              <div *ngFor="let field of ref.fields" class="fp-field-row">
+                <mat-slide-toggle
+                  [checked]="field.included"
+                  (change)="onRefFieldToggle(ref, field, $event.checked)"
+                  class="fp-field-toggle">
+                  <span class="fp-field-name">{{ field.name }}</span>
+                </mat-slide-toggle>
+                <span class="fp-data-type-badge">{{ field.dataType }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="ref.enabled && ref.fields.length === 0" class="fp-ref-no-fields">
+            <mat-icon>warning</mat-icon>
+            No typed variables found for {{ ref.targetClass }}. The class may not have been analyzed yet.
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="fp-empty-hint" *ngIf="config.referencedObjects.length === 0">
+      No parent or reference-type variables detected on this class.
+    </div>
+  </div>
+
+  <!-- ===== Utility ===== -->
+  <div class="fp-section fp-utility-section">
+    <button mat-stroked-button (click)="reinitialize()" class="fp-bulk-btn" matTooltip="Re-detect fields and references from class typing data">
+      <mat-icon>refresh</mat-icon> Re-detect All
+    </button>
+  </div>
+
+</div>

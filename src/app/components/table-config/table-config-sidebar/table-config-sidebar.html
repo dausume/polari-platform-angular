@@ -189,7 +189,7 @@
 
       <div *ngFor="let action of config.instanceActions; let i = index" class="action-card">
         <div class="action-card-header">
-          <span class="action-card-icon-preview" [innerHTML]="getSafeSvg(svgIcons[0]?.svgString || '')"></span>
+          <span class="action-card-icon-preview" [innerHTML]="getSafeSvg(svgIcons[0].svgString || '')"></span>
           <span class="action-card-title">{{ action.label || 'Untitled' }}</span>
           <button mat-icon-button color="warn" (click)="removeInstanceAction(i)" matTooltip="Remove">
             <mat-icon>close</mat-icon>
@@ -277,7 +277,7 @@
 
       <div *ngFor="let action of config.datasetActions; let i = index" class="action-card">
         <div class="action-card-header">
-          <span class="action-card-icon-preview" [innerHTML]="getSafeSvg(svgIcons[0]?.svgString || '')"></span>
+          <span class="action-card-icon-preview" [innerHTML]="getSafeSvg(svgIcons[0].svgString || '')"></span>
           <span class="action-card-title">{{ action.label || 'Untitled' }}</span>
           <button mat-icon-button color="warn" (click)="removeDatasetAction(i)" matTooltip="Remove">
             <mat-icon>close</mat-icon>

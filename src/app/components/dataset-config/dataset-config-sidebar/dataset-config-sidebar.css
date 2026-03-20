@@ -102,13 +102,29 @@
 
 .ds-filter-actions {
   display: flex;
+  align-items: center;
   gap: 0;
 }
 
 .ds-filter-actions button {
-  width: 28px;
-  height: 28px;
-  line-height: 28px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  line-height: 24px;
+}
+
+:host ::ng-deep .ds-filter-actions .mat-mdc-icon-button {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+:host ::ng-deep .ds-filter-actions .mat-mdc-icon-button .mat-mdc-button-touch-target {
+  width: 24px;
+  height: 24px;
 }
 
 .ds-filter-actions mat-icon {
@@ -224,6 +240,201 @@
   font-size: 16px;
   width: 16px;
   height: 16px;
+}
+
+/* ===== Segment List ===== */
+.ds-segment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ds-segment-card {
+  border: 1px solid var(--border-medium);
+  border-radius: 8px;
+  background: var(--surface-secondary);
+  overflow: hidden;
+}
+
+.ds-segment-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  cursor: pointer;
+  background: var(--surface-secondary);
+}
+
+.ds-segment-header:hover {
+  background: var(--surface-hover, rgba(0, 0, 0, 0.04));
+}
+
+.ds-segment-type-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  color: var(--brand-blue);
+  flex-shrink: 0;
+}
+
+.ds-segment-name-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  outline: none;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.ds-segment-name-input:focus {
+  background: var(--surface-primary);
+  border: 1px solid var(--brand-blue);
+}
+
+.ds-segment-name-display {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 2px 4px;
+}
+
+.ds-segment-type-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: rgba(25, 118, 210, 0.1);
+  color: var(--brand-blue);
+  flex-shrink: 0;
+}
+
+.ds-segment-link-count {
+  font-size: 10px;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: var(--brand-blue);
+  color: white;
+  flex-shrink: 0;
+}
+
+.ds-segment-actions {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-left: auto;
+}
+
+.ds-segment-actions button {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  line-height: 24px;
+}
+
+:host ::ng-deep .ds-segment-actions .mat-mdc-icon-button {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+:host ::ng-deep .ds-segment-actions .mat-mdc-icon-button .mat-mdc-button-touch-target {
+  width: 24px;
+  height: 24px;
+}
+
+.ds-segment-actions mat-icon {
+  font-size: 15px;
+  width: 15px;
+  height: 15px;
+}
+
+.ds-segment-expand-icon {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+/* ===== Segment Body ===== */
+.ds-segment-body {
+  padding: 8px 10px 12px;
+  border-top: 1px solid var(--border-light);
+}
+
+.ds-segment-type-select {
+  width: 100%;
+  margin-bottom: 4px;
+}
+
+.ds-segment-filter-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ===== Segment Sources (set operations) ===== */
+.ds-segment-sources {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ds-segment-sources-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  padding-bottom: 4px;
+}
+
+.ds-segment-source-row {
+  display: flex;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.ds-segment-source-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+/* ===== Reference Content ===== */
+.ds-segment-reference-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ds-reference-select {
+  width: 100%;
+}
+
+/* ===== Add Segment Row ===== */
+.ds-add-segment-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding-top: 4px;
 }
 
 /* ===== Settings ===== */

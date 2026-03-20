@@ -18,6 +18,7 @@ import { DisplaySummary } from '@models/dashboards/DisplaySummary';
 import { CreateDisplayDialogComponent } from '@components/dashboard/create-display-dialog/create-display-dialog';
 import { TableDefinitionService } from '@services/table/table-definition.service';
 import { NamedTableConfig, TableDefinitionSummary } from '@models/tables/NamedTableConfig';
+import { ColumnConfiguration } from '@models/tables/ColumnConfiguration';
 import { CreateTableConfigDialogComponent } from '@components/table-config/create-table-config-dialog/create-table-config-dialog';
 import { GraphDefinitionService } from '@services/graph/graph-definition.service';
 import { NamedGraphConfig, GraphDefinitionSummary } from '@models/graphs/NamedGraphConfig';
@@ -28,6 +29,13 @@ import { CreateGeoJsonConfigDialogComponent } from '@components/geojson-config/c
 import { DataSetDefinitionService } from '@services/dataset/dataset-definition.service';
 import { NamedDataSetConfig, DataSetDefinitionSummary } from '@models/datasets/NamedDataSetConfig';
 import { CreateDataSetConfigDialogComponent } from '@components/dataset-config/create-dataset-config-dialog/create-dataset-config-dialog';
+import { FieldProfileDefinitionService } from '@services/dataset/field-profile-definition.service';
+import { NamedFieldProfileConfig, FieldProfileDefinitionSummary } from '@models/datasets/NamedFieldProfileConfig';
+import { CreateFieldProfileDialogComponent } from '@components/dataset-config/create-field-profile-dialog/create-field-profile-dialog';
+import { FilterChainDefinitionService } from '@services/dataset/filter-chain-definition.service';
+import { NamedFilterChainConfig, FilterChainDefinitionSummary } from '@models/datasets/NamedFilterChainConfig';
+import { CreateFilterChainDialogComponent } from '@components/dataset-config/create-filter-chain-dialog/create-filter-chain-dialog';
+import { FilterChainEditable } from '@components/dataset-config/dataset-config-sidebar/dataset-config-sidebar';
 import { classPolyTyping } from '@models/polyTyping/classPolyTyping';
 import { DisplayRendererComponent } from '@components/dashboard/dashboard-renderer/dashboard-renderer';
 import { EditClassDialogComponent } from '@components/class-main-page/edit-class-dialog/edit-class-dialog';
@@ -102,6 +110,40 @@ export class ClassMainPageComponent implements OnDestroy {
   dataSetPreviewInstanceData: any[] = [];
   dataSetFilteredPreviewData: any[] = [];
 
+  /** DataSets sub-tab state */
+  dataSetSubTabIndex: number = 0;
+
+  /** Standalone filter chain (Filter Chains sub-tab) — kept for backwards compat */
+  standaloneFilterConfig: NamedDataSetConfig | null = null;
+  standaloneFilterPreviewData: any[] = [];
+  standaloneFilteredPreviewData: any[] = [];
+
+  /** Field Profile config management state */
+  fieldProfileConfigList: FieldProfileDefinitionSummary[] = [];
+  selectedFieldProfileConfig: NamedFieldProfileConfig | null = null;
+  hasFieldProfileDraftChanges: boolean = false;
+  fieldProfileConfigPanelOpen: boolean = false;
+  fieldProfileConfigsLoading: boolean = false;
+  fieldProfilePreviewData: any[] = [];
+  fieldProfilePreviewTableConfig: NamedTableConfig | null = null;
+
+  /** Filter Chain config management state */
+  filterChainConfigList: FilterChainDefinitionSummary[] = [];
+  selectedFilterChainConfig: NamedFilterChainConfig | null = null;
+  hasFilterChainDraftChanges: boolean = false;
+  filterChainConfigPanelOpen: boolean = false;
+  filterChainConfigsLoading: boolean = false;
+  filterChainPreviewData: any[] = [];
+  filterChainFilteredPreviewData: any[] = [];
+  filterChainSampleProfile: NamedFieldProfileConfig | null = null;
+  filterChainPreviewTableConfig: NamedTableConfig | null = null;
+  filterChainApplyFilters: boolean = true;
+
+  /** Loaded field profile configs (full objects, for compatibility checks) */
+  loadedFieldProfileConfigs: NamedFieldProfileConfig[] = [];
+  /** Loaded filter chain configs (full objects, for compatibility checks) */
+  loadedFilterChainConfigs: NamedFilterChainConfig[] = [];
+
   /** Class poly typing for Configuration tab */
   classPolyTypingObj: classPolyTyping | null = null;
 
@@ -145,6 +187,8 @@ export class ClassMainPageComponent implements OnDestroy {
     private graphDefService: GraphDefinitionService,
     private geoJsonDefService: GeoJsonDefinitionService,
     private dataSetDefService: DataSetDefinitionService,
+    private fieldProfileDefService: FieldProfileDefinitionService,
+    private filterChainDefService: FilterChainDefinitionService,
     private noCodeSolutionService: NoCodeSolutionStateService
   ) {}
 
@@ -230,6 +274,45 @@ export class ClassMainPageComponent implements OnDestroy {
     });
     this.subscriptions.push(dataSetDraftSub);
 
+    // Field Profile config subscriptions
+    const fpListSub = this.fieldProfileDefService.configList$.subscribe(list => {
+      this.fieldProfileConfigList = list;
+      // When on DataSets sub-tab, load full configs for compatibility checks
+      if (this.dataSetSubTabIndex === 2 && list.length > 0) {
+        this.loadFullFieldProfileConfigs();
+      }
+    });
+    this.subscriptions.push(fpListSub);
+
+    const fpLoadingSub = this.fieldProfileDefService.loading$.subscribe(l => {
+      this.fieldProfileConfigsLoading = l;
+    });
+    this.subscriptions.push(fpLoadingSub);
+
+    const fpDraftSub = this.fieldProfileDefService.hasDraftChanges$.subscribe(dirty => {
+      this.hasFieldProfileDraftChanges = dirty;
+    });
+    this.subscriptions.push(fpDraftSub);
+
+    // Filter Chain config subscriptions
+    const fcListSub = this.filterChainDefService.configList$.subscribe(list => {
+      this.filterChainConfigList = list;
+      if (this.dataSetSubTabIndex === 2 && list.length > 0) {
+        this.loadFullFilterChainConfigs();
+      }
+    });
+    this.subscriptions.push(fcListSub);
+
+    const fcLoadingSub = this.filterChainDefService.loading$.subscribe(l => {
+      this.filterChainConfigsLoading = l;
+    });
+    this.subscriptions.push(fcLoadingSub);
+
+    const fcDraftSub = this.filterChainDefService.hasDraftChanges$.subscribe(dirty => {
+      this.hasFilterChainDraftChanges = dirty;
+    });
+    this.subscriptions.push(fcDraftSub);
+
     // Read query params for tab targeting (e.g., ?tab=tables)
     const queryParamSub = this.route.queryParamMap.subscribe(queryParams => {
       const tab = queryParams.get('tab');
@@ -280,6 +363,24 @@ export class ClassMainPageComponent implements OnDestroy {
             this.dataSetConfigPanelOpen = false;
             this.dataSetPreviewInstanceData = [];
             this.dataSetFilteredPreviewData = [];
+            this.dataSetSubTabIndex = 0;
+            this.standaloneFilterConfig = null;
+            this.standaloneFilterPreviewData = [];
+            this.standaloneFilteredPreviewData = [];
+            this.selectedFieldProfileConfig = null;
+            this.hasFieldProfileDraftChanges = false;
+            this.fieldProfileConfigPanelOpen = false;
+            this.fieldProfilePreviewData = [];
+            this.fieldProfilePreviewTableConfig = null;
+            this.selectedFilterChainConfig = null;
+            this.hasFilterChainDraftChanges = false;
+            this.filterChainConfigPanelOpen = false;
+            this.filterChainPreviewData = [];
+            this.filterChainFilteredPreviewData = [];
+            this.filterChainSampleProfile = null;
+            this.filterChainPreviewTableConfig = null;
+            this.loadedFieldProfileConfigs = [];
+            this.loadedFilterChainConfigs = [];
             this.classPolyTypingObj = null;
             this.selectedTabIndex = 0;
 
@@ -369,9 +470,15 @@ export class ClassMainPageComponent implements OnDestroy {
     if (index === 5 && this.className) {
       this.loadGeoJsonConfigsForClass();
     }
-    // Load DataSet configs when switching to the Filters & DataSets tab (index 6)
+    // Load configs when switching to the DataSets tab (index 6)
     if (index === 6 && this.className) {
+      this.loadFieldProfileConfigsForClass();
+      this.loadFilterChainConfigsForClass();
       this.loadDataSetConfigsForClass();
+      // Ensure classPolyTypingObj is loaded for Field Profiles sub-tab
+      if (!this.classPolyTypingObj) {
+        this.classPolyTypingObj = this.typingService.getClassPolyTyping(this.className);
+      }
     }
   }
 
@@ -1056,6 +1163,558 @@ export class ClassMainPageComponent implements OnDestroy {
     this.geoJsonPreviewData = data;
   }
 
+  // ==================== DataSets Sub-Tab Management ====================
+
+  onDataSetSubTabChange(index: number): void {
+    this.dataSetSubTabIndex = index;
+    // Field Profiles sub-tab (index 0)
+    if (index === 0 && this.className) {
+      this.loadFieldProfileConfigsForClass();
+    }
+    // Filter Chains sub-tab (index 1)
+    if (index === 1 && this.className) {
+      this.loadFilterChainConfigsForClass();
+    }
+    // Filter Chains sub-tab: also load field profiles for the sample dropdown
+    if (index === 1 && this.className) {
+      this.loadFieldProfileConfigsForClass();
+    }
+    // Data Sets sub-tab (index 2): load everything + full configs for compatibility
+    if (index === 2 && this.className) {
+      this.loadDataSetConfigsForClass();
+      this.loadFieldProfileConfigsForClass();
+      this.loadFilterChainConfigsForClass();
+    }
+  }
+
+  // ===== Field Profiles helpers =====
+
+  getFieldProfileNames(): string[] {
+    if (!this.classPolyTypingObj?.fieldProfiles) return [];
+    return Object.keys(this.classPolyTypingObj.fieldProfiles);
+  }
+
+  getFieldProfileEntryCount(profileName: string): number {
+    const profile = this.classPolyTypingObj?.fieldProfiles?.[profileName];
+    return profile ? Object.keys(profile).length : 0;
+  }
+
+  getFieldProfileEntries(profileName: string): { varName: string; config: any }[] {
+    const profile = this.classPolyTypingObj?.fieldProfiles?.[profileName];
+    if (!profile) return [];
+    return Object.entries(profile).map(([varName, config]) => ({ varName, config }));
+  }
+
+  // ===== Standalone Filter Chain helpers =====
+
+  private loadStandaloneFilterPreviewData(): void {
+    if (!this.crudeService) return;
+    this.crudeService.readAll().subscribe({
+      next: (data: any) => {
+        this.standaloneFilterPreviewData = this.parseCrudeInstances(data);
+        this.applyStandaloneFilters();
+      },
+      error: () => {
+        this.standaloneFilterPreviewData = [];
+        this.standaloneFilteredPreviewData = [];
+      }
+    });
+  }
+
+  onStandaloneFilterChange(editable: FilterChainEditable): void {
+    if (!this.standaloneFilterConfig) return;
+    this.standaloneFilterConfig.filterChainLinks = editable.filterChainLinks;
+    this.standaloneFilterConfig.segments = editable.segments || [];
+    this.standaloneFilterConfig.disableUserConfigChanges = editable.disableUserConfigChanges;
+    this.applyStandaloneFilters();
+  }
+
+  private applyStandaloneFilters(): void {
+    if (!this.standaloneFilterConfig) {
+      this.standaloneFilteredPreviewData = this.standaloneFilterPreviewData;
+      return;
+    }
+    this.standaloneFilteredPreviewData = this.standaloneFilterConfig.applyToInstances(this.standaloneFilterPreviewData);
+  }
+
+  // ==================== Field Profile Config Management ====================
+
+  loadFieldProfileConfigsForClass(): void {
+    if (!this.className) return;
+    this.fieldProfileDefService.fetchConfigsForClass(this.className);
+  }
+
+  openCreateFieldProfileDialog(): void {
+    const dialogRef = this.dialog.open(CreateFieldProfileDialogComponent, {
+      width: '480px',
+      data: {}
+    });
+
+    const dialogSub = dialogRef.afterClosed().subscribe((result: { name: string; description: string } | null) => {
+      if (result && this.className) {
+        this.fieldProfileDefService.createConfig(result.name, result.description, this.className).subscribe({
+          next: () => {},
+          error: (err: any) => {
+            console.error('[ClassMainPage] Create field profile config failed:', err);
+          }
+        });
+      }
+    });
+    this.subscriptions.push(dialogSub);
+  }
+
+  selectFieldProfileConfig(summary: FieldProfileDefinitionSummary): void {
+    this.fieldProfileDefService.loadConfig(summary.id).subscribe({
+      next: (config: NamedFieldProfileConfig) => {
+        this.selectedFieldProfileConfig = config;
+        this.fieldProfileConfigPanelOpen = true;
+        // Auto-initialize own fields and references if empty
+        if (config.ownFields.length === 0 && this.classTypeData) {
+          config.initializeOwnFields(this.classTypeData);
+        }
+        if (config.referencedObjects.length === 0) {
+          config.initializeReferencedObjects(this.classTypeData, this.classPolyTypingObj?.inheritsFrom);
+        }
+        this.buildFieldProfilePreviewTableConfig();
+        this.loadFieldProfilePreviewData();
+      },
+      error: (err: any) => {
+        console.error('[ClassMainPage] Failed to load field profile config:', err);
+      }
+    });
+  }
+
+  deselectFieldProfileConfig(): void {
+    this.selectedFieldProfileConfig = null;
+    this.hasFieldProfileDraftChanges = false;
+    this.fieldProfileConfigPanelOpen = false;
+    this.fieldProfilePreviewData = [];
+    this.fieldProfilePreviewTableConfig = null;
+    this.fieldProfileDefService.draftConfig$.next(null);
+    this.fieldProfileDefService.hasDraftChanges$.next(false);
+    if (this.className) {
+      this.loadFieldProfileConfigsForClass();
+    }
+  }
+
+  onFieldProfileConfigChange(config: NamedFieldProfileConfig): void {
+    this.selectedFieldProfileConfig = config;
+    this.fieldProfileDefService.updateDraft(config);
+    this.buildFieldProfilePreviewTableConfig();
+  }
+
+  saveFieldProfileConfig(): void {
+    if (!this.selectedFieldProfileConfig) return;
+    this.fieldProfileDefService.saveConfig(this.selectedFieldProfileConfig).subscribe({
+      next: () => {},
+      error: (err: any) => {
+        console.error('[ClassMainPage] Save field profile config failed:', err);
+      }
+    });
+  }
+
+  deleteFieldProfileConfig(summary: FieldProfileDefinitionSummary, event: Event): void {
+    event.stopPropagation();
+    this.fieldProfileDefService.deleteConfig(summary.id).subscribe({
+      next: () => {
+        if (this.selectedFieldProfileConfig && this.selectedFieldProfileConfig.id === summary.id) {
+          this.deselectFieldProfileConfig();
+        }
+        if (this.className) {
+          this.loadFieldProfileConfigsForClass();
+        }
+      },
+      error: (err: any) => {
+        console.error('[ClassMainPage] Delete field profile config failed:', err);
+      }
+    });
+  }
+
+  private loadFieldProfilePreviewData(): void {
+    if (!this.crudeService) return;
+    this.crudeService.readAll().subscribe({
+      next: (data: any) => {
+        this.fieldProfilePreviewData = this.parseCrudeInstances(data);
+      },
+      error: () => {
+        this.fieldProfilePreviewData = [];
+      }
+    });
+  }
+
+  /**
+   * Builds a transient (non-saveable) NamedTableConfig that reflects the field profile's
+   * included own fields AND enabled referenced object fields.
+   *
+   * We build explicit ColumnConfiguration entries for every column that should appear,
+   * and mark everything else as removed so the data table doesn't auto-add them.
+   */
+  private buildFieldProfilePreviewTableConfig(): void {
+    if (!this.selectedFieldProfileConfig || !this.className) {
+      this.fieldProfilePreviewTableConfig = null;
+      return;
+    }
+    const fp = this.selectedFieldProfileConfig;
+    const preview = new NamedTableConfig('_fp_preview', 'Field Profile Preview', '', this.className);
+
+    // Collect the set of reference variable names so we can exclude them from own-field columns.
+    // (The data table would strip these anyway for parent refs, but being explicit avoids confusion.)
+    const refVarNames = new Set(fp.referencedObjects.map(r => r.varName));
+
+    // Build the column list from scratch — only what the profile says should be visible.
+    const columns: ColumnConfiguration[] = [];
+    let order = 0;
+
+    // 1. Own fields (excluding reference-type variables that have a referencedObjects entry)
+    for (const field of fp.ownFields) {
+      if (!field.included) continue;
+      if (refVarNames.has(field.name)) continue; // skip — handled as ref below
+      columns.push(new ColumnConfiguration(field.name, {
+        visible: true,
+        order: order++,
+        dataType: field.dataType
+      }));
+    }
+
+    // 2. Referenced object fields as dot-notation columns
+    for (const ref of fp.referencedObjects) {
+      if (!ref.enabled) continue;
+      for (const field of ref.fields) {
+        if (!field.included) continue;
+        columns.push(new ColumnConfiguration(`${ref.varName}.${field.name}`, {
+          visible: true,
+          order: order++,
+          dataType: field.dataType
+        }));
+      }
+    }
+
+    preview.tableConfiguration.columns = columns;
+
+    // Disable CRUD since this is just a preview
+    preview.crudPermissions = { allowCreate: false, allowEdit: false, allowDelete: false };
+
+    this.fieldProfilePreviewTableConfig = preview;
+  }
+
+  /**
+   * Quick-save the current field profile preview as a named table config.
+   * Creates a table named "{fieldProfileName}-table" from the current preview state.
+   */
+  quickSaveFieldProfileAsTable(): void {
+    if (!this.selectedFieldProfileConfig || !this.fieldProfilePreviewTableConfig || !this.className) return;
+
+    const tableName = `${this.selectedFieldProfileConfig.name}-table`;
+    const tableDesc = `Auto-generated from field profile "${this.selectedFieldProfileConfig.name}"`;
+
+    this.tableDefService.createConfig(tableName, tableDesc, this.className).subscribe({
+      next: (response: any) => {
+        // Extract the created ID
+        const createdId = response?.id;
+        if (!createdId) {
+          this.snackBar.open('Table created but could not retrieve ID to save config', 'OK', { duration: 4000 });
+          return;
+        }
+
+        // Build a saveable table config from the preview
+        const tableConfig = new NamedTableConfig(createdId, tableName, tableDesc, this.className!);
+        if (this.classTypeData) {
+          tableConfig.tableConfiguration.initializeFromClassTypeData(this.classTypeData);
+        }
+
+        // Apply own-field visibility
+        const includedOwnFields = new Set(
+          this.selectedFieldProfileConfig!.ownFields.filter(f => f.included).map(f => f.name)
+        );
+        for (const col of tableConfig.tableConfiguration.columns) {
+          col.visible = includedOwnFields.has(col.name);
+        }
+
+        // Save the definition
+        this.tableDefService.saveConfig(tableConfig).subscribe({
+          next: () => {
+            this.snackBar.open(`Table "${tableName}" created`, 'OK', { duration: 3000 });
+          },
+          error: (err: any) => {
+            console.error('[ClassMainPage] Failed to save quick table config:', err);
+            this.snackBar.open('Failed to save table configuration', 'OK', { duration: 4000 });
+          }
+        });
+      },
+      error: (err: any) => {
+        console.error('[ClassMainPage] Failed to create quick table:', err);
+        this.snackBar.open('Failed to create table', 'OK', { duration: 4000 });
+      }
+    });
+  }
+
+  // ==================== Filter Chain Config Management ====================
+
+  loadFilterChainConfigsForClass(): void {
+    if (!this.className) return;
+    this.filterChainDefService.fetchConfigsForClass(this.className);
+  }
+
+  openCreateFilterChainDialog(): void {
+    const dialogRef = this.dialog.open(CreateFilterChainDialogComponent, {
+      width: '480px',
+      data: {}
+    });
+
+    const dialogSub = dialogRef.afterClosed().subscribe((result: { name: string; description: string } | null) => {
+      if (result && this.className) {
+        this.filterChainDefService.createConfig(result.name, result.description, this.className).subscribe({
+          next: () => {},
+          error: (err: any) => {
+            console.error('[ClassMainPage] Create filter chain config failed:', err);
+          }
+        });
+      }
+    });
+    this.subscriptions.push(dialogSub);
+  }
+
+  selectFilterChainConfig(summary: FilterChainDefinitionSummary): void {
+    this.filterChainDefService.loadConfig(summary.id).subscribe({
+      next: (config: NamedFilterChainConfig) => {
+        this.selectedFilterChainConfig = config;
+        this.filterChainConfigPanelOpen = true;
+        this.filterChainSampleProfile = null;
+        this.filterChainPreviewTableConfig = null;
+        // If the chain has a saved sample profile, load it
+        if (config.sampleFieldProfileId) {
+          this.loadFilterChainSampleProfile(config.sampleFieldProfileId);
+        }
+        this.loadFilterChainPreviewData();
+      },
+      error: (err: any) => {
+        console.error('[ClassMainPage] Failed to load filter chain config:', err);
+      }
+    });
+  }
+
+  deselectFilterChainConfig(): void {
+    this.selectedFilterChainConfig = null;
+    this.hasFilterChainDraftChanges = false;
+    this.filterChainConfigPanelOpen = false;
+    this.filterChainPreviewData = [];
+    this.filterChainFilteredPreviewData = [];
+    this.filterChainSampleProfile = null;
+    this.filterChainPreviewTableConfig = null;
+    this.filterChainApplyFilters = true;
+    this.filterChainDefService.draftConfig$.next(null);
+    this.filterChainDefService.hasDraftChanges$.next(false);
+    if (this.className) {
+      this.loadFilterChainConfigsForClass();
+    }
+  }
+
+  onFilterChainConfigChange(editable: FilterChainEditable): void {
+    if (!this.selectedFilterChainConfig) return;
+    this.selectedFilterChainConfig.filterChainLinks = editable.filterChainLinks;
+    this.selectedFilterChainConfig.segments = editable.segments || [];
+    this.selectedFilterChainConfig.disableUserConfigChanges = editable.disableUserConfigChanges;
+    this.filterChainDefService.updateDraft(this.selectedFilterChainConfig);
+    this.applyFilterChainFilters();
+  }
+
+  saveFilterChainConfig(): void {
+    if (!this.selectedFilterChainConfig) return;
+    this.filterChainDefService.saveConfig(this.selectedFilterChainConfig).subscribe({
+      next: () => {},
+      error: (err: any) => {
+        console.error('[ClassMainPage] Save filter chain config failed:', err);
+      }
+    });
+  }
+
+  deleteFilterChainConfig(summary: FilterChainDefinitionSummary, event: Event): void {
+    event.stopPropagation();
+    this.filterChainDefService.deleteConfig(summary.id).subscribe({
+      next: () => {
+        if (this.selectedFilterChainConfig && this.selectedFilterChainConfig.id === summary.id) {
+          this.deselectFilterChainConfig();
+        }
+        if (this.className) {
+          this.loadFilterChainConfigsForClass();
+        }
+      },
+      error: (err: any) => {
+        console.error('[ClassMainPage] Delete filter chain config failed:', err);
+      }
+    });
+  }
+
+  private loadFilterChainPreviewData(): void {
+    if (!this.crudeService) return;
+    this.crudeService.readAll().subscribe({
+      next: (data: any) => {
+        this.filterChainPreviewData = this.parseCrudeInstances(data);
+        this.applyFilterChainFilters();
+      },
+      error: () => {
+        this.filterChainPreviewData = [];
+        this.filterChainFilteredPreviewData = [];
+      }
+    });
+  }
+
+  applyFilterChainFilters(): void {
+    if (!this.selectedFilterChainConfig || !this.filterChainApplyFilters) {
+      this.filterChainFilteredPreviewData = this.filterChainPreviewData;
+      return;
+    }
+    this.filterChainFilteredPreviewData = this.selectedFilterChainConfig.applyToInstances(this.filterChainPreviewData);
+  }
+
+  onFilterChainApplyToggle(checked: boolean): void {
+    this.filterChainApplyFilters = checked;
+    this.applyFilterChainFilters();
+  }
+
+  onFilterChainSampleProfileChange(profileId: string): void {
+    if (!this.selectedFilterChainConfig) return;
+    this.selectedFilterChainConfig.sampleFieldProfileId = profileId;
+    this.filterChainDefService.updateDraft(this.selectedFilterChainConfig);
+    if (profileId) {
+      this.loadFilterChainSampleProfile(profileId);
+    } else {
+      this.filterChainSampleProfile = null;
+      this.filterChainPreviewTableConfig = null;
+    }
+  }
+
+  private loadFilterChainSampleProfile(profileId: string): void {
+    this.fieldProfileDefService.loadConfig(profileId).subscribe({
+      next: (profile: NamedFieldProfileConfig) => {
+        // Initialize the profile if needed
+        if (profile.ownFields.length === 0 && this.classTypeData) {
+          profile.initializeOwnFields(this.classTypeData);
+        }
+        if (profile.referencedObjects.length === 0) {
+          profile.initializeReferencedObjects(this.classTypeData, this.classPolyTypingObj?.inheritsFrom);
+        }
+        this.filterChainSampleProfile = profile;
+        this.buildFilterChainPreviewTableConfig();
+      },
+      error: () => {
+        this.filterChainSampleProfile = null;
+        this.filterChainPreviewTableConfig = null;
+      }
+    });
+  }
+
+  /**
+   * Build a preview table config for the filter chain editor using the sample profile.
+   * Reuses the same logic as the field profile preview builder.
+   */
+  private buildFilterChainPreviewTableConfig(): void {
+    if (!this.filterChainSampleProfile || !this.className) {
+      this.filterChainPreviewTableConfig = null;
+      return;
+    }
+    const fp = this.filterChainSampleProfile;
+    const preview = new NamedTableConfig('_fc_preview', 'Filter Chain Preview', '', this.className);
+    const refVarNames = new Set(fp.referencedObjects.map(r => r.varName));
+    const columns: ColumnConfiguration[] = [];
+    let order = 0;
+    for (const field of fp.ownFields) {
+      if (!field.included) continue;
+      if (refVarNames.has(field.name)) continue;
+      columns.push(new ColumnConfiguration(field.name, { visible: true, order: order++, dataType: field.dataType }));
+    }
+    for (const ref of fp.referencedObjects) {
+      if (!ref.enabled) continue;
+      for (const field of ref.fields) {
+        if (!field.included) continue;
+        columns.push(new ColumnConfiguration(`${ref.varName}.${field.name}`, { visible: true, order: order++, dataType: field.dataType }));
+      }
+    }
+    preview.tableConfiguration.columns = columns;
+    preview.crudPermissions = { allowCreate: false, allowEdit: false, allowDelete: false };
+    this.filterChainPreviewTableConfig = preview;
+  }
+
+  // ==================== Full Config Loading (for compatibility) ====================
+
+  /**
+   * Load full NamedFieldProfileConfig objects for all profiles in the current class.
+   * Used for compatibility checking in the DataSet editor.
+   */
+  loadFullFieldProfileConfigs(): void {
+    this.loadedFieldProfileConfigs = [];
+    for (const summary of this.fieldProfileConfigList) {
+      this.fieldProfileDefService.loadConfig(summary.id).subscribe({
+        next: (config: NamedFieldProfileConfig) => {
+          if (config.ownFields.length === 0 && this.classTypeData) {
+            config.initializeOwnFields(this.classTypeData);
+          }
+          if (config.referencedObjects.length === 0) {
+            config.initializeReferencedObjects(this.classTypeData, this.classPolyTypingObj?.inheritsFrom);
+          }
+          // Replace or add
+          const idx = this.loadedFieldProfileConfigs.findIndex(c => c.id === config.id);
+          if (idx >= 0) this.loadedFieldProfileConfigs[idx] = config;
+          else this.loadedFieldProfileConfigs.push(config);
+        }
+      });
+    }
+  }
+
+  loadFullFilterChainConfigs(): void {
+    this.loadedFilterChainConfigs = [];
+    for (const summary of this.filterChainConfigList) {
+      this.filterChainDefService.loadConfig(summary.id).subscribe({
+        next: (config: NamedFilterChainConfig) => {
+          const idx = this.loadedFilterChainConfigs.findIndex(c => c.id === config.id);
+          if (idx >= 0) this.loadedFilterChainConfigs[idx] = config;
+          else this.loadedFilterChainConfigs.push(config);
+        }
+      });
+    }
+  }
+
+  /**
+   * Get filter chains compatible with the currently selected field profile in the DataSet editor.
+   * A chain is compatible if the profile includes all the fields the chain filters on.
+   */
+  getCompatibleFilterChains(): FilterChainDefinitionSummary[] {
+    if (!this.selectedDataSetConfig) return this.filterChainConfigList;
+    const profileId = this.selectedDataSetConfig.field_profile_id;
+    if (!profileId) return this.filterChainConfigList; // no profile = all fields available
+
+    const profile = this.loadedFieldProfileConfigs.find(p => p.id === profileId);
+    if (!profile) return this.filterChainConfigList; // profile not loaded yet, show all
+
+    return this.filterChainConfigList.filter(summary => {
+      const chain = this.loadedFilterChainConfigs.find(c => c.id === summary.id);
+      if (!chain) return true; // not loaded yet, show as option
+      if (chain.filterChainLinks.length === 0) return true; // no filters = always compatible
+      return profile.includesAllFields(chain.getUsedFieldNames());
+    });
+  }
+
+  /**
+   * Get field profiles compatible with the currently selected filter chain in the DataSet editor.
+   * A profile is compatible if it includes all the fields the chain filters on.
+   */
+  getCompatibleFieldProfiles(): FieldProfileDefinitionSummary[] {
+    if (!this.selectedDataSetConfig) return this.fieldProfileConfigList;
+    const chainId = this.selectedDataSetConfig.filter_chain_id;
+    if (!chainId) return this.fieldProfileConfigList; // no chain = any profile works
+
+    const chain = this.loadedFilterChainConfigs.find(c => c.id === chainId);
+    if (!chain) return this.fieldProfileConfigList; // not loaded yet
+    if (chain.filterChainLinks.length === 0) return this.fieldProfileConfigList; // no filters
+
+    const usedFields = chain.getUsedFieldNames();
+    return this.fieldProfileConfigList.filter(summary => {
+      const profile = this.loadedFieldProfileConfigs.find(p => p.id === summary.id);
+      if (!profile) return true; // not loaded yet
+      return profile.includesAllFields(usedFields);
+    });
+  }
+
   // ==================== DataSet Config Management ====================
 
   loadDataSetConfigsForClass(): void {
@@ -1130,14 +1789,25 @@ export class ClassMainPageComponent implements OnDestroy {
     }
   }
 
-  onDataSetConfigChange(config: NamedDataSetConfig): void {
-    const updated = Object.assign(
-      new NamedDataSetConfig(config.id, config.name, config.description, config.source_class),
-      config
-    );
-    this.selectedDataSetConfig = updated;
-    this.dataSetDefService.updateDraft(updated);
+  onDataSetConfigChange(editable: FilterChainEditable): void {
+    if (!this.selectedDataSetConfig) return;
+    this.selectedDataSetConfig.filterChainLinks = editable.filterChainLinks;
+    this.selectedDataSetConfig.segments = editable.segments || [];
+    this.selectedDataSetConfig.disableUserConfigChanges = editable.disableUserConfigChanges;
+    this.dataSetDefService.updateDraft(this.selectedDataSetConfig);
     this.applyDataSetFilters();
+  }
+
+  onDataSetFieldProfileChange(profileId: string): void {
+    if (!this.selectedDataSetConfig) return;
+    this.selectedDataSetConfig.field_profile_id = profileId;
+    this.dataSetDefService.updateDraft(this.selectedDataSetConfig);
+  }
+
+  onDataSetFilterChainChange(chainId: string): void {
+    if (!this.selectedDataSetConfig) return;
+    this.selectedDataSetConfig.filter_chain_id = chainId;
+    this.dataSetDefService.updateDraft(this.selectedDataSetConfig);
   }
 
   saveDataSetConfig(): void {

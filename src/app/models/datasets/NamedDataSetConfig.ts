@@ -17,6 +17,28 @@ export interface FilterChainLinkDef {
 }
 
 /**
+ * A named, collapsible group of filter links (a "segment").
+ *
+ * - type 'filter': standard AND-joined filter links applied to the full data
+ * - type 'union' / 'intersection' / 'difference': set operation combining
+ *   results from upstream segments referenced by sourceSegmentIds
+ */
+export type SegmentOperationType = 'filter' | 'union' | 'intersection' | 'difference' | 'reference';
+
+export interface FilterChainSegmentDef {
+    id: string;
+    name: string;
+    collapsed: boolean;
+    type: SegmentOperationType;
+    /** Filter links when type='filter' */
+    filterLinks: FilterChainLinkDef[];
+    /** Upstream segment IDs when type is a set operation */
+    sourceSegmentIds: string[];
+    /** Referenced filter chain ID when type='reference' */
+    referenceFilterChainId?: string;
+}
+
+/**
  * A configured filter for end-user display within a filter panel.
  * Controls how a filter appears and behaves for end users.
  *
@@ -50,8 +72,17 @@ export class NamedDataSetConfig {
     description: string;
     source_class: string;
 
+    /** Referenced field profile ID (empty = no field profile) */
+    field_profile_id: string;
+
+    /** Referenced filter chain ID (empty = use inline filterChainLinks) */
+    filter_chain_id: string;
+
     /** The active filter chain as a serializable array of filter links */
     filterChainLinks: FilterChainLinkDef[];
+
+    /** Named segments for composable filter chains with set operations */
+    segments: FilterChainSegmentDef[];
 
     /** Configured filter panels for end-user UI */
     filterPanels: ConfiguredFilterPanelDef[];
@@ -64,7 +95,10 @@ export class NamedDataSetConfig {
         this.name = name;
         this.description = description;
         this.source_class = sourceClass;
+        this.field_profile_id = '';
+        this.filter_chain_id = '';
         this.filterChainLinks = [];
+        this.segments = [];
         this.filterPanels = [];
         this.disableUserConfigChanges = false;
     }
@@ -72,6 +106,7 @@ export class NamedDataSetConfig {
     toDefinitionJSON(): string {
         return JSON.stringify({
             filterChainLinks: this.filterChainLinks,
+            segments: this.segments,
             filterPanels: this.filterPanels,
             disableUserConfigChanges: this.disableUserConfigChanges
         });
@@ -85,6 +120,9 @@ export class NamedDataSetConfig {
             backendObj.source_class || ''
         );
 
+        config.field_profile_id = backendObj.field_profile_id || '';
+        config.filter_chain_id = backendObj.filter_chain_id || '';
+
         if (backendObj.definition && backendObj.definition !== '{}') {
             try {
                 const parsed = typeof backendObj.definition === 'string'
@@ -92,6 +130,7 @@ export class NamedDataSetConfig {
                     : backendObj.definition;
 
                 config.filterChainLinks = parsed.filterChainLinks || [];
+                config.segments = parsed.segments || [];
                 config.filterPanels = parsed.filterPanels || [];
                 config.disableUserConfigChanges = parsed.disableUserConfigChanges || false;
             } catch (e) {
@@ -114,6 +153,9 @@ export class NamedDataSetConfig {
      * Applies the filter chain to raw instance data, returning the filtered array.
      */
     applyToInstances(instances: any[]): any[] {
+        if (this.segments && this.segments.length > 0) {
+            return DataSeriesFilterChain.executeSegments(this.segments, instances);
+        }
         const chain = this.buildFilterChain();
         if (!chain) return instances;
         return chain.applyDataSeriesFilterChain(instances);

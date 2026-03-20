@@ -339,6 +339,13 @@ export class ClassDataTableComponent implements OnInit, OnChanges {
         }
         this.columnTypes[dotCol] = inferredType;
       }
+      // When using a namedTableConfig, only auto-add dot-columns that are
+      // already in the config's column list (i.e. explicitly included).
+      // This prevents _resolvedFields from overriding the config's intent.
+      if (this.namedTableConfig) {
+        const configColNames = this.namedTableConfig.tableConfiguration.columns.map(c => c.name);
+        if (!configColNames.includes(dotCol)) continue;
+      }
       if (!this.displayedColumns.includes(dotCol)) {
         this.displayedColumns.push(dotCol);
       }

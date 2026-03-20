@@ -104,7 +104,7 @@
 
             <div class="current-class" *ngIf="!isEditing">
               <mat-icon class="class-icon">{{ getStateIcon() }}</mat-icon>
-              <span class="class-name">{{ stateInstance?.boundObjectClass || stateInstance?.stateClass || 'None selected' }}</span>
+              <span class="class-name">{{ stateInstance.boundObjectClass || stateInstance.stateClass || 'None selected' }}</span>
             </div>
 
             <div class="class-search-container" *ngIf="isEditing">

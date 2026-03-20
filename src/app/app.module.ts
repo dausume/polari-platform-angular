@@ -122,6 +122,7 @@ import { GraphConfigSidebarComponent } from '@components/graph-config/graph-conf
 import { GraphRendererComponent } from '@components/graph-config/graph-renderer/graph-renderer';
 // DataSet Config Components
 import { DataSetConfigSidebarComponent } from '@components/dataset-config/dataset-config-sidebar/dataset-config-sidebar';
+import { FieldProfileSidebarComponent } from '@components/dataset-config/field-profile-sidebar/field-profile-sidebar';
 // GeoJSON Config Components
 import { GeoJsonConfigSidebarComponent } from '@components/geojson-config/geojson-config-sidebar/geojson-config-sidebar';
 import { MapRendererComponent } from '@components/geojson-config/map-renderer/map-renderer';
@@ -210,6 +211,7 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     GraphConfigSidebarComponent,
     GeoJsonConfigSidebarComponent,
     DataSetConfigSidebarComponent,
+    FieldProfileSidebarComponent,
     EmbeddedTableComponent,
     SolutionInvokeButtonComponent,
     MapsComponent,

@@ -1,119 +1,227 @@
 <div class="ds-sidebar">
 
-  <!-- Filter Chain Section -->
+  <!-- ===== Filter Segments ===== -->
   <div class="ds-section">
     <div class="ds-section-header">
-      <mat-icon>filter_list</mat-icon>
-      <span>Filter Chain</span>
-      <span class="ds-count-badge" *ngIf="config.filterChainLinks.length > 0">
-        {{ config.filterChainLinks.length }}
+      <mat-icon>account_tree</mat-icon>
+      <span>Filter Segments</span>
+      <span class="ds-count-badge" *ngIf="config.segments.length > 0">
+        {{ config.segments.length }}
       </span>
     </div>
 
-    <div class="ds-filter-list">
-      <div *ngFor="let link of config.filterChainLinks; let i = index; let first = first; let last = last"
-           class="ds-filter-row">
+    <!-- Segment list -->
+    <div class="ds-segment-list">
+      <div *ngFor="let seg of config.segments; let si = index; let sfirst = first; let slast = last"
+           class="ds-segment-card" [class.ds-segment-collapsed]="seg.collapsed">
 
-        <!-- Chain connector -->
-        <div class="ds-chain-connector" *ngIf="!first">
-          <span class="ds-chain-and">AND</span>
+        <!-- Segment header -->
+        <div class="ds-segment-header" (click)="toggleSegmentCollapse(seg)">
+          <mat-icon class="ds-segment-type-icon">{{ getSegmentOperationIcon(seg.type) }}</mat-icon>
+
+          <!-- Name display / edit -->
+          <span *ngIf="editingSegmentId !== seg.id" class="ds-segment-name-display">
+            {{ seg.name || 'Unnamed Segment' }}
+          </span>
+          <input *ngIf="editingSegmentId === seg.id"
+                 matInput class="ds-segment-name-input"
+                 [value]="seg.name"
+                 (click)="$event.stopPropagation()"
+                 (keydown.enter)="finishEditSegmentName(seg, $any($event.target).value)"
+                 (keydown.escape)="cancelEditSegmentName()"
+                 (blur)="finishEditSegmentName(seg, $any($event.target).value)"
+                 #segNameInput
+                 placeholder="Segment name...">
+
+          <span class="ds-segment-type-badge">{{ getSegmentOperationLabel(seg.type) }}</span>
+          <span class="ds-segment-link-count" *ngIf="seg.type === 'filter' && seg.filterLinks.length > 0">
+            {{ seg.filterLinks.length }}
+          </span>
+          <div class="ds-segment-actions">
+            <button mat-icon-button (click)="$event.stopPropagation(); startEditSegmentName(seg)" matTooltip="Rename">
+              <mat-icon>edit</mat-icon>
+            </button>
+            <button mat-icon-button [disabled]="sfirst"
+                    (click)="$event.stopPropagation(); moveSegment(si, -1)" matTooltip="Move up">
+              <mat-icon>arrow_upward</mat-icon>
+            </button>
+            <button mat-icon-button [disabled]="slast"
+                    (click)="$event.stopPropagation(); moveSegment(si, 1)" matTooltip="Move down">
+              <mat-icon>arrow_downward</mat-icon>
+            </button>
+            <button mat-icon-button color="warn"
+                    (click)="$event.stopPropagation(); removeSegment(si)" matTooltip="Remove segment">
+              <mat-icon>close</mat-icon>
+            </button>
+          </div>
+          <mat-icon class="ds-segment-expand-icon">
+            {{ seg.collapsed ? 'expand_more' : 'expand_less' }}
+          </mat-icon>
         </div>
 
-        <div class="ds-filter-card">
-          <!-- Row header with index and actions -->
-          <div class="ds-filter-card-header">
-            <span class="ds-filter-index">#{{ i + 1 }}</span>
-            <div class="ds-filter-actions">
-              <button mat-icon-button [disabled]="first"
-                      (click)="moveFilterLink(i, -1)" matTooltip="Move up">
-                <mat-icon>arrow_upward</mat-icon>
-              </button>
-              <button mat-icon-button [disabled]="last"
-                      (click)="moveFilterLink(i, 1)" matTooltip="Move down">
-                <mat-icon>arrow_downward</mat-icon>
-              </button>
-              <button mat-icon-button color="warn"
-                      (click)="removeFilterLink(i)" matTooltip="Remove filter">
-                <mat-icon>close</mat-icon>
-              </button>
+        <!-- Segment body (when expanded) -->
+        <div class="ds-segment-body" *ngIf="!seg.collapsed">
+
+          <!-- Segment type selector -->
+          <mat-form-field appearance="outline" class="ds-segment-type-select">
+            <mat-label>Segment Type</mat-label>
+            <mat-select [value]="seg.type"
+                        (selectionChange)="onSegmentTypeChange(seg, $event.value)">
+              <mat-option value="filter">
+                <mat-icon>filter_list</mat-icon> Filter (AND chain)
+              </mat-option>
+              <mat-option value="union">
+                <mat-icon>join_full</mat-icon> Union (OR — combine results)
+              </mat-option>
+              <mat-option value="intersection">
+                <mat-icon>join_inner</mat-icon> Intersection (AND — common rows)
+              </mat-option>
+              <mat-option value="difference">
+                <mat-icon>remove_circle_outline</mat-icon> Difference (subtract rows)
+              </mat-option>
+              <mat-option value="reference">
+                <mat-icon>link</mat-icon> Reference (use existing filter chain)
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <!-- Filter segment: show filter links -->
+          <div *ngIf="seg.type === 'filter'" class="ds-segment-filter-content">
+            <div class="ds-filter-list">
+              <div *ngFor="let link of seg.filterLinks; let i = index; let first = first; let last = last"
+                   class="ds-filter-row">
+                <div class="ds-chain-connector" *ngIf="!first">
+                  <span class="ds-chain-and">AND</span>
+                </div>
+                <div class="ds-filter-card">
+                  <div class="ds-filter-card-header">
+                    <span class="ds-filter-index">#{{ i + 1 }}</span>
+                    <div class="ds-filter-actions">
+                      <button mat-icon-button [disabled]="first"
+                              (click)="moveSegmentFilterLink(seg, i, -1)" matTooltip="Move up">
+                        <mat-icon>arrow_upward</mat-icon>
+                      </button>
+                      <button mat-icon-button [disabled]="last"
+                              (click)="moveSegmentFilterLink(seg, i, 1)" matTooltip="Move down">
+                        <mat-icon>arrow_downward</mat-icon>
+                      </button>
+                      <button mat-icon-button color="warn"
+                              (click)="removeSegmentFilterLink(seg, i)" matTooltip="Remove filter">
+                        <mat-icon>close</mat-icon>
+                      </button>
+                    </div>
+                  </div>
+                  <mat-form-field appearance="outline" class="ds-field-select">
+                    <mat-label>Field</mat-label>
+                    <mat-select [(value)]="link.variableName"
+                                (selectionChange)="onSegmentFieldChange(link)">
+                      <mat-option *ngFor="let field of availableFields" [value]="field">
+                        <span class="ds-field-option">
+                          <span class="ds-field-type-badge"
+                                [style.background]="getFieldInfo(field)?.badgeColor || '#78909c'">
+                            {{ getFieldInfo(field)?.icon || '◆' }}
+                          </span>
+                          {{ field }}
+                        </span>
+                      </mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="ds-filter-type-select">
+                    <mat-label>Condition</mat-label>
+                    <mat-select [(value)]="link.filterType"
+                                (selectionChange)="onFilterTypeChange(link)">
+                      <mat-option *ngFor="let opt of getFilterOptionsFor(link.variableName)" [value]="opt">
+                        {{ getFilterLabel(opt) }}
+                      </mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="ds-value-input"
+                                  *ngIf="!requiresNoValue(link.filterType) && !requiresRange(link.filterType)">
+                    <mat-label>Value</mat-label>
+                    <input matInput
+                           [type]="getInputType(link.variableName)"
+                           [(ngModel)]="link.filterValue"
+                           (ngModelChange)="onFilterValueChange(link)"
+                           placeholder="Filter value...">
+                  </mat-form-field>
+                  <div class="ds-range-inputs" *ngIf="requiresRange(link.filterType)">
+                    <mat-form-field appearance="outline" class="ds-range-input">
+                      <mat-label>Min</mat-label>
+                      <input matInput [type]="getInputType(link.variableName)"
+                             [value]="getRangeValue(link, 0)"
+                             (change)="onRangeValueChange(link, 0, $any($event.target).value)">
+                    </mat-form-field>
+                    <span class="ds-range-separator">—</span>
+                    <mat-form-field appearance="outline" class="ds-range-input">
+                      <mat-label>Max</mat-label>
+                      <input matInput [type]="getInputType(link.variableName)"
+                             [value]="getRangeValue(link, 1)"
+                             (change)="onRangeValueChange(link, 1, $any($event.target).value)">
+                    </mat-form-field>
+                  </div>
+                  <div class="ds-no-value" *ngIf="requiresNoValue(link.filterType)">
+                    <mat-icon>check_circle</mat-icon>
+                    <span>No value needed</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <button mat-stroked-button class="ds-add-filter-btn" (click)="addSegmentFilterLink(seg)"
+                    [disabled]="availableFields.length === 0">
+              <mat-icon>add</mat-icon> Add Filter
+            </button>
+            <div class="ds-empty-hint" *ngIf="seg.filterLinks.length === 0">
+              No filters in this segment.
             </div>
           </div>
 
-          <!-- Field selector -->
-          <mat-form-field appearance="outline" class="ds-field-select">
-            <mat-label>Field</mat-label>
-            <mat-select [(value)]="link.variableName"
-                        (selectionChange)="onFieldChange(link)">
-              <mat-option *ngFor="let field of availableFields" [value]="field">
-                <span class="ds-field-option">
-                  <span class="ds-field-type-badge"
-                        [style.background]="getFieldInfo(field)?.badgeColor || '#78909c'">
-                    {{ getFieldInfo(field)?.icon || '◆' }}
-                  </span>
-                  {{ field }}
-                </span>
-              </mat-option>
-            </mat-select>
-          </mat-form-field>
-
-          <!-- Filter type selector -->
-          <mat-form-field appearance="outline" class="ds-filter-type-select">
-            <mat-label>Condition</mat-label>
-            <mat-select [(value)]="link.filterType"
-                        (selectionChange)="onFilterTypeChange(link)">
-              <mat-option *ngFor="let opt of getFilterOptionsFor(link.variableName)" [value]="opt">
-                {{ getFilterLabel(opt) }}
-              </mat-option>
-            </mat-select>
-          </mat-form-field>
-
-          <!-- Value input (single) -->
-          <mat-form-field appearance="outline" class="ds-value-input"
-                          *ngIf="!requiresNoValue(link.filterType) && !requiresRange(link.filterType)">
-            <mat-label>Value</mat-label>
-            <input matInput
-                   [type]="getInputType(link.variableName)"
-                   [(ngModel)]="link.filterValue"
-                   (ngModelChange)="onFilterValueChange(link)"
-                   placeholder="Filter value...">
-          </mat-form-field>
-
-          <!-- Range inputs -->
-          <div class="ds-range-inputs" *ngIf="requiresRange(link.filterType)">
-            <mat-form-field appearance="outline" class="ds-range-input">
-              <mat-label>Min</mat-label>
-              <input matInput
-                     [type]="getInputType(link.variableName)"
-                     [value]="getRangeValue(link, 0)"
-                     (change)="onRangeValueChange(link, 0, $any($event.target).value)">
+          <!-- Reference segment: show filter chain selector -->
+          <div *ngIf="seg.type === 'reference'" class="ds-segment-reference-content">
+            <mat-form-field appearance="outline" class="ds-reference-select">
+              <mat-label>Referenced Filter Chain</mat-label>
+              <mat-select [value]="seg.referenceFilterChainId || ''"
+                          (selectionChange)="onReferenceFilterChainChange(seg, $event.value)">
+                <mat-option value="">— Select a filter chain —</mat-option>
+                <mat-option *ngFor="let fc of availableFilterChains" [value]="fc.id">
+                  {{ fc.name }}
+                </mat-option>
+              </mat-select>
             </mat-form-field>
-            <span class="ds-range-separator">—</span>
-            <mat-form-field appearance="outline" class="ds-range-input">
-              <mat-label>Max</mat-label>
-              <input matInput
-                     [type]="getInputType(link.variableName)"
-                     [value]="getRangeValue(link, 1)"
-                     (change)="onRangeValueChange(link, 1, $any($event.target).value)">
-            </mat-form-field>
+            <div class="ds-empty-hint" *ngIf="availableFilterChains.length === 0">
+              No other filter chains available. Create one first.
+            </div>
           </div>
 
-          <!-- No value indicator -->
-          <div class="ds-no-value" *ngIf="requiresNoValue(link.filterType)">
-            <mat-icon>check_circle</mat-icon>
-            <span>No value needed</span>
+          <!-- Set operation segment: show source segment selectors -->
+          <div *ngIf="seg.type !== 'filter' && seg.type !== 'reference'" class="ds-segment-sources">
+            <div class="ds-segment-sources-label">
+              Select upstream segments to {{ getSegmentOperationLabel(seg.type).toLowerCase() }}:
+            </div>
+            <div *ngIf="getUpstreamSegments(si).length === 0" class="ds-empty-hint">
+              No upstream segments available. Add filter segments above this one.
+            </div>
+            <div *ngFor="let upstream of getUpstreamSegments(si)" class="ds-segment-source-row">
+              <mat-checkbox
+                [checked]="seg.sourceSegmentIds.includes(upstream.id)"
+                (change)="onSegmentSourceToggle(seg, upstream.id, $event.checked)">
+                <mat-icon class="ds-segment-source-icon">{{ getSegmentOperationIcon(upstream.type) }}</mat-icon>
+                {{ upstream.name }}
+              </mat-checkbox>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Add filter button -->
-    <button mat-stroked-button class="ds-add-filter-btn" (click)="addFilterLink()"
-            [disabled]="availableFields.length === 0">
-      <mat-icon>add</mat-icon> Add Filter
-    </button>
+    <!-- Add segment button -->
+    <div class="ds-add-segment-row">
+      <button mat-stroked-button class="ds-add-filter-btn" (click)="addFilterSegment()">
+        <mat-icon>add</mat-icon> Add Segment
+      </button>
+    </div>
 
-    <div class="ds-empty-hint" *ngIf="config.filterChainLinks.length === 0">
-      No filters configured. Add a filter to start building the chain.
+    <div class="ds-empty-hint" *ngIf="config.segments.length === 0">
+      No segments configured. Add a segment to start building the filter chain.
     </div>
 
     <div class="ds-no-fields-hint" *ngIf="availableFields.length === 0">

@@ -49,74 +49,148 @@ export class DataSeriesFilterChain {
     }
 
     /**
+     * Coerce a filter value to match the type of the actual data value.
+     * Input fields always produce strings, but data values may be numbers,
+     * booleans, etc. Without coercion, strict equality and comparisons fail.
+     */
+    private coerceValue(filterVal: any, sampleDataVal: any): any {
+        if (filterVal === null || filterVal === undefined) return filterVal;
+        if (typeof filterVal !== 'string') return filterVal; // already typed
+
+        if (typeof sampleDataVal === 'number') {
+            const n = Number(filterVal);
+            return isNaN(n) ? filterVal : n;
+        }
+        if (typeof sampleDataVal === 'boolean') {
+            const lower = filterVal.toLowerCase().trim();
+            if (lower === 'true' || lower === '1') return true;
+            if (lower === 'false' || lower === '0') return false;
+            return filterVal;
+        }
+        return filterVal;
+    }
+
+    /**
+     * Resolve a field value from a data point.
+     * Supports dot-notation (e.g. "plant.commonName") by reading from _resolvedFields.
+     */
+    private getFieldValue(dp: any, variableName: string): any {
+        if (variableName.includes('.')) {
+            const [refVar, fieldName] = variableName.split('.', 2);
+            return dp._resolvedFields?.[refVar]?.[fieldName] ?? dp[variableName];
+        }
+        return dp[variableName];
+    }
+
+    /**
+     * Find a representative non-null sample value for a field across the data
+     * so we know what type to coerce the filter value to.
+     */
+    private findSampleValue(dataPoints: any[], variableName: string): any {
+        for (const dp of dataPoints) {
+            const val = this.getFieldValue(dp, variableName);
+            if (val !== null && val !== undefined) return val;
+        }
+        return undefined;
+    }
+
+    /**
      * Applies a single filter to the data points
      */
     private applyFilter(dataPoints: any[], filter: DataSeriesFilterChain): any[] {
-        const { variableName, filterValue, filterType } = filter;
+        const { variableName, filterType } = filter;
+        let { filterValue } = filter;
+
+        // Coerce filterValue to match the data's actual type
+        const sample = this.findSampleValue(dataPoints, variableName);
+        if (sample !== undefined) {
+            if (Array.isArray(filterValue)) {
+                filterValue = filterValue.map(v => this.coerceValue(v, sample));
+            } else {
+                filterValue = this.coerceValue(filterValue, sample);
+            }
+        }
+
+        // Helper: get the field value, supporting dot-notation for _resolvedFields
+        const gv = (dp: any) => this.getFieldValue(dp, variableName);
 
         switch (filterType) {
             case 'noop':
                 return dataPoints;
 
-            // Numeric/Equality Operators
+            // Equality — case-insensitive for strings
             case 'equals':
-                return dataPoints.filter(dp => dp[variableName] === filterValue);
+                return dataPoints.filter(dp => {
+                    const v = gv(dp);
+                    if (typeof v === 'string' && typeof filterValue === 'string') {
+                        return v.toLowerCase() === filterValue.toLowerCase();
+                    }
+                    return v === filterValue;
+                });
             case 'notEquals':
-                return dataPoints.filter(dp => dp[variableName] !== filterValue);
+                return dataPoints.filter(dp => {
+                    const v = gv(dp);
+                    if (typeof v === 'string' && typeof filterValue === 'string') {
+                        return v.toLowerCase() !== filterValue.toLowerCase();
+                    }
+                    return v !== filterValue;
+                });
+
+            // Numeric/Comparison Operators
             case 'greaterThan':
-                return dataPoints.filter(dp => dp[variableName] > filterValue);
+                return dataPoints.filter(dp => gv(dp) > filterValue);
             case 'lessThan':
-                return dataPoints.filter(dp => dp[variableName] < filterValue);
+                return dataPoints.filter(dp => gv(dp) < filterValue);
             case 'greaterThanOrEqual':
-                return dataPoints.filter(dp => dp[variableName] >= filterValue);
+                return dataPoints.filter(dp => gv(dp) >= filterValue);
             case 'lessThanOrEqual':
-                return dataPoints.filter(dp => dp[variableName] <= filterValue);
+                return dataPoints.filter(dp => gv(dp) <= filterValue);
             case 'inRange':
                 if (Array.isArray(filterValue) && filterValue.length === 2) {
-                    return dataPoints.filter(dp =>
-                        dp[variableName] >= filterValue[0] &&
-                        dp[variableName] <= filterValue[1]
-                    );
+                    return dataPoints.filter(dp => {
+                        const v = gv(dp);
+                        return v >= filterValue[0] && v <= filterValue[1];
+                    });
                 }
                 return dataPoints;
             case 'notInRange':
             case 'excludeRange':
                 if (Array.isArray(filterValue) && filterValue.length === 2) {
-                    return dataPoints.filter(dp =>
-                        dp[variableName] < filterValue[0] ||
-                        dp[variableName] > filterValue[1]
-                    );
+                    return dataPoints.filter(dp => {
+                        const v = gv(dp);
+                        return v < filterValue[0] || v > filterValue[1];
+                    });
                 }
                 return dataPoints;
 
-            // String Operators
+            // String Operators — case-insensitive
             case 'contains':
-                return dataPoints.filter(dp =>
-                    typeof dp[variableName] === 'string' &&
-                    dp[variableName].includes(filterValue)
-                );
+                return dataPoints.filter(dp => {
+                    const v = gv(dp);
+                    return v != null && String(v).toLowerCase().includes(String(filterValue).toLowerCase());
+                });
             case 'notContains':
-                return dataPoints.filter(dp =>
-                    typeof dp[variableName] === 'string' &&
-                    !dp[variableName].includes(filterValue)
-                );
+                return dataPoints.filter(dp => {
+                    const v = gv(dp);
+                    return v != null && !String(v).toLowerCase().includes(String(filterValue).toLowerCase());
+                });
             case 'startsWith':
-                return dataPoints.filter(dp =>
-                    typeof dp[variableName] === 'string' &&
-                    dp[variableName].startsWith(filterValue)
-                );
+                return dataPoints.filter(dp => {
+                    const v = gv(dp);
+                    return v != null && String(v).toLowerCase().startsWith(String(filterValue).toLowerCase());
+                });
             case 'endsWith':
-                return dataPoints.filter(dp =>
-                    typeof dp[variableName] === 'string' &&
-                    dp[variableName].endsWith(filterValue)
-                );
+                return dataPoints.filter(dp => {
+                    const v = gv(dp);
+                    return v != null && String(v).toLowerCase().endsWith(String(filterValue).toLowerCase());
+                });
             case 'regexMatch':
                 try {
-                    const regex = new RegExp(filterValue);
-                    return dataPoints.filter(dp =>
-                        typeof dp[variableName] === 'string' &&
-                        regex.test(dp[variableName])
-                    );
+                    const regex = new RegExp(filterValue, 'i');
+                    return dataPoints.filter(dp => {
+                        const v = gv(dp);
+                        return v != null && regex.test(String(v));
+                    });
                 } catch {
                     console.warn(`DataSeriesFilterChain: Invalid regex pattern "${filterValue}"`);
                     return dataPoints;
@@ -124,19 +198,21 @@ export class DataSeriesFilterChain {
 
             // Boolean Operators
             case 'isTrue':
-                return dataPoints.filter(dp => dp[variableName] === true);
+                return dataPoints.filter(dp => gv(dp) === true);
             case 'isFalse':
-                return dataPoints.filter(dp => dp[variableName] === false);
+                return dataPoints.filter(dp => gv(dp) === false);
 
             // Null Checks
             case 'isNull':
-                return dataPoints.filter(dp =>
-                    dp[variableName] === null || dp[variableName] === undefined
-                );
+                return dataPoints.filter(dp => {
+                    const v = gv(dp);
+                    return v === null || v === undefined;
+                });
             case 'isNotNull':
-                return dataPoints.filter(dp =>
-                    dp[variableName] !== null && dp[variableName] !== undefined
-                );
+                return dataPoints.filter(dp => {
+                    const v = gv(dp);
+                    return v !== null && v !== undefined;
+                });
 
             default:
                 console.warn(`DataSeriesFilterChain: Unknown filter type "${filterType}"`);
@@ -296,5 +372,98 @@ export class DataSeriesFilterChain {
         }
 
         return chain[0];
+    }
+
+    /**
+     * Execute a segmented filter chain.
+     * Processes segments in order; each 'filter' segment runs its links against the
+     * full data. Set operations combine results from upstream segments.
+     * 'reference' segments apply the segments from a referenced filter chain.
+     * Returns the result of the last segment, or the full data if no segments.
+     *
+     * @param resolveReference optional callback that returns the segments of a referenced
+     *   filter chain by ID, enabling 'reference' type segments.
+     */
+    static executeSegments(
+        segments: Array<{ id: string; type: string; filterLinks: Array<{ variableName: string; filterValue: any; filterType: string }>; sourceSegmentIds: string[]; referenceFilterChainId?: string }>,
+        dataPoints: any[],
+        resolveReference?: (filterChainId: string) => Array<{ id: string; type: string; filterLinks: Array<{ variableName: string; filterValue: any; filterType: string }>; sourceSegmentIds: string[]; referenceFilterChainId?: string }> | null
+    ): any[] {
+        if (!segments || segments.length === 0) return dataPoints;
+
+        const results = new Map<string, any[]>();
+
+        for (const seg of segments) {
+            let segResult: any[];
+
+            if (seg.type === 'filter') {
+                // Apply this segment's filter links to the full data
+                const chain = DataSeriesFilterChain.fromArray(seg.filterLinks);
+                segResult = chain ? chain.applyDataSeriesFilterChain(dataPoints) : dataPoints;
+            } else if (seg.type === 'reference') {
+                // Reference: execute the referenced filter chain's segments
+                if (seg.referenceFilterChainId && resolveReference) {
+                    const refSegments = resolveReference(seg.referenceFilterChainId);
+                    if (refSegments && refSegments.length > 0) {
+                        segResult = DataSeriesFilterChain.executeSegments(refSegments, dataPoints, resolveReference);
+                    } else {
+                        segResult = dataPoints;
+                    }
+                } else {
+                    segResult = dataPoints;
+                }
+            } else {
+                // Set operation — combine results from source segments
+                const sources = seg.sourceSegmentIds
+                    .map(id => results.get(id))
+                    .filter((r): r is any[] => r !== undefined);
+
+                if (sources.length === 0) {
+                    segResult = dataPoints;
+                } else if (seg.type === 'union') {
+                    // Union: all unique rows across sources
+                    const seen = new Set<any>();
+                    segResult = [];
+                    for (const src of sources) {
+                        for (const row of src) {
+                            if (!seen.has(row)) {
+                                seen.add(row);
+                                segResult.push(row);
+                            }
+                        }
+                    }
+                } else if (seg.type === 'intersection') {
+                    // Intersection: only rows present in ALL sources
+                    if (sources.length === 1) {
+                        segResult = sources[0];
+                    } else {
+                        segResult = sources[0].filter(row => {
+                            return sources.every(src => src === sources[0] || src.includes(row));
+                        });
+                    }
+                } else if (seg.type === 'difference') {
+                    // Difference: rows in first source but not in any subsequent source
+                    if (sources.length === 1) {
+                        segResult = sources[0];
+                    } else {
+                        const exclude = new Set<any>();
+                        for (let i = 1; i < sources.length; i++) {
+                            for (const row of sources[i]) {
+                                exclude.add(row);
+                            }
+                        }
+                        segResult = sources[0].filter(row => !exclude.has(row));
+                    }
+                } else {
+                    segResult = dataPoints;
+                }
+            }
+
+            results.set(seg.id, segResult);
+        }
+
+        // Return the last segment's result
+        const lastSeg = segments[segments.length - 1];
+        return results.get(lastSeg.id) || dataPoints;
     }
 }

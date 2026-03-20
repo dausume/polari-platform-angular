@@ -958,99 +958,423 @@
     </div>
   </mat-tab>
 
-  <!-- ===== FILTERS & DATASETS TAB ===== -->
-  <mat-tab label="Filters & DataSets">
-    <div class="tab-content">
+  <!-- ===== DATASETS TAB ===== -->
+  <mat-tab label="DataSets">
+    <div class="tab-content datasets-tab-content">
 
-      <!-- DataSet Config List View (no config selected) -->
-      <div *ngIf="!selectedDataSetConfig" class="displays-list-view">
-        <div class="displays-header">
-          <div>
-            <h3>Filters & DataSet Definitions for {{ className }}</h3>
-            <p class="subtitle">Create and manage filter chain definitions for this class.</p>
+      <mat-tab-group class="datasets-sub-tabs" [(selectedIndex)]="dataSetSubTabIndex"
+                     (selectedIndexChange)="onDataSetSubTabChange($event)">
+
+        <!-- ===== Field Profiles Sub-Tab ===== -->
+        <mat-tab label="Field Profiles">
+          <div class="sub-tab-content">
+
+            <!-- Field Profile List View (no config selected) -->
+            <div *ngIf="!selectedFieldProfileConfig" class="displays-list-view">
+              <div class="dataset-info-callout">
+                <mat-icon>info_outline</mat-icon>
+                <span>Each Field Profile can be used on its own as a DataSet. When used alone, no filters are applied — all instances are returned with only the profiled fields.</span>
+              </div>
+              <div class="displays-header">
+                <div>
+                  <h3>Field Profiles for {{ className }}</h3>
+                  <p class="subtitle">Control which fields from this class and its referenced objects are included in API responses.</p>
+                </div>
+                <button mat-fab color="primary" (click)="openCreateFieldProfileDialog()" class="create-btn">
+                  <mat-icon>add</mat-icon>
+                </button>
+              </div>
+
+              <mat-spinner *ngIf="fieldProfileConfigsLoading" diameter="40"></mat-spinner>
+
+              <!-- Empty state -->
+              <div *ngIf="!fieldProfileConfigsLoading && fieldProfileConfigList.length === 0" class="empty-state">
+                <mat-icon class="empty-icon">view_column</mat-icon>
+                <h3>No Field Profiles Yet</h3>
+                <p>Create a field profile to define which columns appear and how they are formatted.</p>
+                <button mat-flat-button color="primary" (click)="openCreateFieldProfileDialog()">
+                  <mat-icon>add</mat-icon> Create Your First Field Profile
+                </button>
+              </div>
+
+              <!-- Field profile cards grid -->
+              <div *ngIf="!fieldProfileConfigsLoading && fieldProfileConfigList.length > 0" class="displays-grid">
+                <mat-card *ngFor="let fp of fieldProfileConfigList" class="display-card">
+                  <mat-card-header>
+                    <mat-icon mat-card-avatar class="display-icon">view_column</mat-icon>
+                    <mat-card-title>{{ fp.name || 'Untitled Profile' }}</mat-card-title>
+                    <mat-card-subtitle *ngIf="fp.description">{{ fp.description }}</mat-card-subtitle>
+                  </mat-card-header>
+                  <mat-card-actions align="end">
+                    <button mat-stroked-button color="primary" (click)="selectFieldProfileConfig(fp)" title="Edit profile">
+                      <mat-icon>edit</mat-icon> Edit
+                    </button>
+                    <button mat-icon-button color="warn" (click)="deleteFieldProfileConfig(fp, $event)" title="Delete profile">
+                      <mat-icon>delete</mat-icon>
+                    </button>
+                  </mat-card-actions>
+                </mat-card>
+              </div>
+
+              <!-- Collapsed polyTyping section -->
+              <div *ngIf="classPolyTypingObj?.fieldProfiles && getFieldProfileNames().length > 0" class="poly-typing-section">
+                <mat-expansion-panel>
+                  <mat-expansion-panel-header>
+                    <mat-panel-title>
+                      <mat-icon>account_tree</mat-icon>
+                      PolyTyping Reference Profiles ({{ getFieldProfileNames().length }})
+                    </mat-panel-title>
+                    <mat-panel-description>Auto-generated from class inheritance</mat-panel-description>
+                  </mat-expansion-panel-header>
+                  <div class="displays-grid">
+                    <mat-card *ngFor="let profileName of getFieldProfileNames()" class="display-card field-profile-card">
+                      <mat-card-header>
+                        <mat-icon mat-card-avatar class="display-icon">account_tree</mat-icon>
+                        <mat-card-title>{{ profileName }}</mat-card-title>
+                        <mat-card-subtitle>{{ getFieldProfileEntryCount(profileName) }} referenced field group(s)</mat-card-subtitle>
+                      </mat-card-header>
+                      <mat-card-content>
+                        <div class="field-profile-entries">
+                          <div *ngFor="let entry of getFieldProfileEntries(profileName)" class="field-profile-entry">
+                            <div class="field-profile-entry-header">
+                              <span class="field-profile-var-name">{{ entry.varName }}</span>
+                              <mat-icon class="field-profile-arrow">arrow_forward</mat-icon>
+                              <span class="field-profile-target-class">{{ entry.config.targetClass }}</span>
+                              <span class="field-profile-source-badge" [ngClass]="'source-' + entry.config.source">
+                                {{ entry.config.source }}
+                              </span>
+                            </div>
+                            <div class="field-profile-fields">
+                              <span *ngIf="entry.config.fields === '*'" class="field-profile-all-fields">All fields</span>
+                              <span *ngIf="entry.config.fields !== '*'" class="field-profile-field-list">
+                                {{ entry.config.fields.join(', ') }}
+                              </span>
+                              <span *ngIf="entry.config.excludeFields?.length > 0" class="field-profile-excludes">
+                                (excludes: {{ entry.config.excludeFields.join(', ') }})
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </mat-card-content>
+                    </mat-card>
+                  </div>
+                </mat-expansion-panel>
+              </div>
+            </div>
+
+            <!-- Field Profile Editor View (config selected) -->
+            <div *ngIf="selectedFieldProfileConfig" class="display-editor-view">
+              <div class="editor-toolbar">
+                <div class="editor-toolbar-left">
+                  <button mat-icon-button (click)="deselectFieldProfileConfig()" title="Back to list">
+                    <mat-icon>arrow_back</mat-icon>
+                  </button>
+                  <h3>{{ selectedFieldProfileConfig.name || 'Untitled Profile' }}</h3>
+                  <span *ngIf="hasFieldProfileDraftChanges" class="unsaved-badge">Unsaved changes</span>
+                </div>
+                <div class="editor-toolbar-right">
+                  <span class="filter-count-label" *ngIf="selectedFieldProfileConfig.ownFields.length > 0">
+                    {{ selectedFieldProfileConfig.ownFields.length }} fields, {{ selectedFieldProfileConfig.referencedObjects.length }} refs
+                  </span>
+                  <button mat-flat-button color="primary" *ngIf="hasFieldProfileDraftChanges" (click)="saveFieldProfileConfig()">
+                    <mat-icon>save</mat-icon> Save
+                  </button>
+                  <button mat-stroked-button (click)="quickSaveFieldProfileAsTable()"
+                          matTooltip="Save current preview as a table config named '{{ selectedFieldProfileConfig.name }}-table'">
+                    <mat-icon>table_chart</mat-icon> Save as Table
+                  </button>
+                  <button mat-icon-button (click)="fieldProfileConfigPanelOpen = !fieldProfileConfigPanelOpen"
+                          [color]="fieldProfileConfigPanelOpen ? 'primary' : ''">
+                    <mat-icon>tune</mat-icon>
+                  </button>
+                </div>
+              </div>
+
+              <div class="editor-body">
+                <!-- Preview area: data table with profile applied -->
+                <div class="editor-preview" [class.with-config-panel]="fieldProfileConfigPanelOpen">
+                  <div class="fp-preview-label">
+                    <mat-icon>visibility</mat-icon>
+                    <span>Sample Preview — showing only included fields (not saved as a table config)</span>
+                  </div>
+                  <class-data-table
+                    [className]="className"
+                    [classTypeData]="classTypeData"
+                    [instanceData]="fieldProfilePreviewData"
+                    [namedTableConfig]="fieldProfilePreviewTableConfig || undefined">
+                  </class-data-table>
+                </div>
+
+                <!-- Config sidebar -->
+                <div class="config-panel" *ngIf="fieldProfileConfigPanelOpen">
+                  <field-profile-sidebar
+                    [config]="selectedFieldProfileConfig"
+                    [classTypeData]="classTypeData"
+                    [classPolyTypingObj]="classPolyTypingObj"
+                    (configChange)="onFieldProfileConfigChange($event)">
+                  </field-profile-sidebar>
+                </div>
+              </div>
+            </div>
+
           </div>
-          <button mat-fab color="primary" (click)="openCreateDataSetConfigDialog()" class="create-btn">
-            <mat-icon>add</mat-icon>
-          </button>
-        </div>
+        </mat-tab>
 
-        <mat-spinner *ngIf="dataSetConfigsLoading" diameter="40"></mat-spinner>
+        <!-- ===== Filter Chains Sub-Tab ===== -->
+        <mat-tab label="Filter Chains">
+          <div class="sub-tab-content">
 
-        <!-- Empty state -->
-        <div *ngIf="!dataSetConfigsLoading && dataSetConfigList.length === 0" class="empty-state">
-          <mat-icon class="empty-icon">filter_alt</mat-icon>
-          <h3>No DataSet Definitions Yet</h3>
-          <p>Get started by creating your first filter & dataset definition for this class.</p>
-          <button mat-flat-button color="primary" (click)="openCreateDataSetConfigDialog()">
-            <mat-icon>add</mat-icon> Create Your First DataSet Definition
-          </button>
-        </div>
+            <!-- Filter Chain List View (no config selected) -->
+            <div *ngIf="!selectedFilterChainConfig" class="displays-list-view">
+              <div class="dataset-info-callout">
+                <mat-icon>info_outline</mat-icon>
+                <span>Each Filter Chain can be used on its own as a DataSet. When used alone, the default Field Profile is assumed — all standard fields are included, with only the chain's filters applied.</span>
+              </div>
+              <div class="displays-header">
+                <div>
+                  <h3>Filter Chains for {{ className }}</h3>
+                  <p class="subtitle">Named, reusable filter chains that can be referenced by data sets.</p>
+                </div>
+                <button mat-fab color="primary" (click)="openCreateFilterChainDialog()" class="create-btn">
+                  <mat-icon>add</mat-icon>
+                </button>
+              </div>
 
-        <!-- DataSet config cards grid -->
-        <div *ngIf="!dataSetConfigsLoading && dataSetConfigList.length > 0" class="displays-grid">
-          <mat-card *ngFor="let dsc of dataSetConfigList" class="display-card">
-            <mat-card-header>
-              <mat-icon mat-card-avatar class="display-icon">filter_alt</mat-icon>
-              <mat-card-title>{{ dsc.name || 'Untitled Definition' }}</mat-card-title>
-              <mat-card-subtitle *ngIf="dsc.description">{{ dsc.description }}</mat-card-subtitle>
-            </mat-card-header>
-            <mat-card-actions align="end">
-              <button mat-stroked-button color="primary" (click)="selectDataSetConfig(dsc)" title="Edit dataset definition">
-                <mat-icon>edit</mat-icon> Edit
-              </button>
-              <button mat-icon-button color="warn" (click)="deleteDataSetConfig(dsc, $event)" title="Delete dataset definition">
-                <mat-icon>delete</mat-icon>
-              </button>
-            </mat-card-actions>
-          </mat-card>
-        </div>
-      </div>
+              <mat-spinner *ngIf="filterChainConfigsLoading" diameter="40"></mat-spinner>
 
-      <!-- DataSet Config Editor View (config selected) -->
-      <div *ngIf="selectedDataSetConfig" class="display-editor-view">
-        <div class="editor-toolbar">
-          <div class="editor-toolbar-left">
-            <button mat-icon-button (click)="deselectDataSetConfig()" title="Back to list">
-              <mat-icon>arrow_back</mat-icon>
-            </button>
-            <h3>{{ selectedDataSetConfig.name || 'Untitled Definition' }}</h3>
-            <span *ngIf="hasDataSetDraftChanges" class="unsaved-badge">Unsaved changes</span>
+              <!-- Empty state -->
+              <div *ngIf="!filterChainConfigsLoading && filterChainConfigList.length === 0" class="empty-state">
+                <mat-icon class="empty-icon">filter_list</mat-icon>
+                <h3>No Filter Chains Yet</h3>
+                <p>Create a filter chain to define reusable filtering rules for your data.</p>
+                <button mat-flat-button color="primary" (click)="openCreateFilterChainDialog()">
+                  <mat-icon>add</mat-icon> Create Your First Filter Chain
+                </button>
+              </div>
+
+              <!-- Filter chain cards grid -->
+              <div *ngIf="!filterChainConfigsLoading && filterChainConfigList.length > 0" class="displays-grid">
+                <mat-card *ngFor="let fc of filterChainConfigList" class="display-card">
+                  <mat-card-header>
+                    <mat-icon mat-card-avatar class="display-icon">filter_list</mat-icon>
+                    <mat-card-title>{{ fc.name || 'Untitled Filter Chain' }}</mat-card-title>
+                    <mat-card-subtitle *ngIf="fc.description">{{ fc.description }}</mat-card-subtitle>
+                  </mat-card-header>
+                  <mat-card-actions align="end">
+                    <button mat-stroked-button color="primary" (click)="selectFilterChainConfig(fc)" title="Edit filter chain">
+                      <mat-icon>edit</mat-icon> Edit
+                    </button>
+                    <button mat-icon-button color="warn" (click)="deleteFilterChainConfig(fc, $event)" title="Delete filter chain">
+                      <mat-icon>delete</mat-icon>
+                    </button>
+                  </mat-card-actions>
+                </mat-card>
+              </div>
+            </div>
+
+            <!-- Filter Chain Editor View (config selected) -->
+            <div *ngIf="selectedFilterChainConfig" class="display-editor-view">
+              <div class="editor-toolbar">
+                <div class="editor-toolbar-left">
+                  <button mat-icon-button (click)="deselectFilterChainConfig()" title="Back to list">
+                    <mat-icon>arrow_back</mat-icon>
+                  </button>
+                  <h3>{{ selectedFilterChainConfig.name || 'Untitled Filter Chain' }}</h3>
+                  <span *ngIf="hasFilterChainDraftChanges" class="unsaved-badge">Unsaved changes</span>
+                </div>
+                <div class="editor-toolbar-right">
+                  <button mat-flat-button color="primary" *ngIf="hasFilterChainDraftChanges" (click)="saveFilterChainConfig()">
+                    <mat-icon>save</mat-icon> Save
+                  </button>
+                  <button mat-icon-button (click)="filterChainConfigPanelOpen = !filterChainConfigPanelOpen"
+                          [color]="filterChainConfigPanelOpen ? 'primary' : ''">
+                    <mat-icon>tune</mat-icon>
+                  </button>
+                </div>
+              </div>
+
+              <div class="editor-body">
+                <!-- Preview area: filtered data table -->
+                <div class="editor-preview" [class.with-config-panel]="filterChainConfigPanelOpen">
+                  <class-data-table
+                    [className]="className"
+                    [classTypeData]="classTypeData"
+                    [instanceData]="filterChainFilteredPreviewData"
+                    [namedTableConfig]="filterChainPreviewTableConfig || undefined">
+                  </class-data-table>
+                </div>
+
+                <!-- Config sidebar -->
+                <div class="config-panel" *ngIf="filterChainConfigPanelOpen">
+                  <!-- Field Profile selector + Apply toggle above the filter chain -->
+                  <div class="fc-sidebar-controls">
+                    <mat-form-field appearance="outline" class="fc-sidebar-profile-select">
+                      <mat-label>Field Profile</mat-label>
+                      <mat-select [value]="selectedFilterChainConfig.sampleFieldProfileId"
+                                  (selectionChange)="onFilterChainSampleProfileChange($event.value)">
+                        <mat-option value="">Default (all fields)</mat-option>
+                        <mat-option *ngFor="let fp of fieldProfileConfigList" [value]="fp.id">
+                          {{ fp.name }}
+                        </mat-option>
+                      </mat-select>
+                      <mat-hint>Fields available for filtering</mat-hint>
+                    </mat-form-field>
+
+                    <div class="fc-sidebar-apply-row">
+                      <mat-slide-toggle
+                        [checked]="filterChainApplyFilters"
+                        (change)="onFilterChainApplyToggle($event.checked)">
+                        Apply Filters
+                      </mat-slide-toggle>
+                      <span class="filter-count-label" *ngIf="filterChainPreviewData.length > 0">
+                        {{ filterChainFilteredPreviewData.length }} / {{ filterChainPreviewData.length }} rows
+                      </span>
+                    </div>
+                  </div>
+
+                  <dataset-config-sidebar
+                    [config]="selectedFilterChainConfig"
+                    [classTypeData]="classTypeData"
+                    [fieldProfile]="filterChainSampleProfile"
+                    [availableFilterChains]="filterChainConfigList"
+                    (configChange)="onFilterChainConfigChange($event)">
+                  </dataset-config-sidebar>
+                </div>
+              </div>
+            </div>
+
           </div>
-          <div class="editor-toolbar-right">
-            <span class="filter-count-label" *ngIf="dataSetPreviewInstanceData.length > 0">
-              {{ dataSetFilteredPreviewData.length }} / {{ dataSetPreviewInstanceData.length }} rows
-            </span>
-            <button mat-flat-button color="primary" *ngIf="hasDataSetDraftChanges" (click)="saveDataSetConfig()">
-              <mat-icon>save</mat-icon> Save
-            </button>
-            <button mat-icon-button (click)="dataSetConfigPanelOpen = !dataSetConfigPanelOpen"
-                    [color]="dataSetConfigPanelOpen ? 'primary' : ''">
-              <mat-icon>tune</mat-icon>
-            </button>
-          </div>
-        </div>
+        </mat-tab>
 
-        <div class="editor-body">
-          <!-- Preview area: filtered data table -->
-          <div class="editor-preview" [class.with-config-panel]="dataSetConfigPanelOpen">
-            <class-data-table
-              [className]="className"
-              [classTypeData]="classTypeData"
-              [instanceData]="dataSetFilteredPreviewData"
->
-            </class-data-table>
-          </div>
+        <!-- ===== Data Sets Sub-Tab ===== -->
+        <mat-tab label="Data Sets">
+          <div class="sub-tab-content">
 
-          <!-- Config sidebar -->
-          <div class="config-panel" *ngIf="dataSetConfigPanelOpen">
-            <dataset-config-sidebar
-              [config]="selectedDataSetConfig"
-              [classTypeData]="classTypeData"
-              (configChange)="onDataSetConfigChange($event)">
-            </dataset-config-sidebar>
+            <!-- DataSet Config List View (no config selected) -->
+            <div *ngIf="!selectedDataSetConfig" class="displays-list-view">
+              <div class="dataset-info-callout">
+                <mat-icon>info_outline</mat-icon>
+                <span>A DataSet combines a Field Profile with a Filter Chain. Individual Field Profiles and Filter Chains can also serve as standalone DataSets — a Field Profile alone returns all instances with profiled fields, a Filter Chain alone uses the default profile with its filters applied.</span>
+              </div>
+              <div class="displays-header">
+                <div>
+                  <h3>Data Set Definitions for {{ className }}</h3>
+                  <p class="subtitle">Data sets combine field profiles with filter chains to create reusable data views.</p>
+                </div>
+                <button mat-fab color="primary" (click)="openCreateDataSetConfigDialog()" class="create-btn">
+                  <mat-icon>add</mat-icon>
+                </button>
+              </div>
+
+              <mat-spinner *ngIf="dataSetConfigsLoading" diameter="40"></mat-spinner>
+
+              <!-- Empty state -->
+              <div *ngIf="!dataSetConfigsLoading && dataSetConfigList.length === 0" class="empty-state">
+                <mat-icon class="empty-icon">dataset</mat-icon>
+                <h3>No Data Sets Yet</h3>
+                <p>Create a data set to combine field configurations with filters for reusable data views.</p>
+                <button mat-flat-button color="primary" (click)="openCreateDataSetConfigDialog()">
+                  <mat-icon>add</mat-icon> Create Your First Data Set
+                </button>
+              </div>
+
+              <!-- DataSet config cards grid -->
+              <div *ngIf="!dataSetConfigsLoading && dataSetConfigList.length > 0" class="displays-grid">
+                <mat-card *ngFor="let dsc of dataSetConfigList" class="display-card">
+                  <mat-card-header>
+                    <mat-icon mat-card-avatar class="display-icon">dataset</mat-icon>
+                    <mat-card-title>{{ dsc.name || 'Untitled Data Set' }}</mat-card-title>
+                    <mat-card-subtitle *ngIf="dsc.description">{{ dsc.description }}</mat-card-subtitle>
+                  </mat-card-header>
+                  <mat-card-actions align="end">
+                    <button mat-stroked-button color="primary" (click)="selectDataSetConfig(dsc)" title="Edit data set">
+                      <mat-icon>edit</mat-icon> Edit
+                    </button>
+                    <button mat-icon-button color="warn" (click)="deleteDataSetConfig(dsc, $event)" title="Delete data set">
+                      <mat-icon>delete</mat-icon>
+                    </button>
+                  </mat-card-actions>
+                </mat-card>
+              </div>
+            </div>
+
+            <!-- DataSet Config Editor View (config selected) -->
+            <div *ngIf="selectedDataSetConfig" class="display-editor-view">
+              <div class="editor-toolbar">
+                <div class="editor-toolbar-left">
+                  <button mat-icon-button (click)="deselectDataSetConfig()" title="Back to list">
+                    <mat-icon>arrow_back</mat-icon>
+                  </button>
+                  <h3>{{ selectedDataSetConfig.name || 'Untitled Data Set' }}</h3>
+                  <span *ngIf="hasDataSetDraftChanges" class="unsaved-badge">Unsaved changes</span>
+                </div>
+                <div class="editor-toolbar-right">
+                  <span class="filter-count-label" *ngIf="dataSetPreviewInstanceData.length > 0">
+                    {{ dataSetFilteredPreviewData.length }} / {{ dataSetPreviewInstanceData.length }} rows
+                  </span>
+                  <button mat-flat-button color="primary" *ngIf="hasDataSetDraftChanges" (click)="saveDataSetConfig()">
+                    <mat-icon>save</mat-icon> Save
+                  </button>
+                  <button mat-icon-button (click)="dataSetConfigPanelOpen = !dataSetConfigPanelOpen"
+                          [color]="dataSetConfigPanelOpen ? 'primary' : ''">
+                    <mat-icon>tune</mat-icon>
+                  </button>
+                </div>
+              </div>
+
+              <div class="editor-body">
+                <!-- Preview area: filtered data table -->
+                <div class="editor-preview" [class.with-config-panel]="dataSetConfigPanelOpen">
+                  <!-- Composition controls: field profile and filter chain dropdowns -->
+                  <div class="dataset-composition-controls">
+                    <mat-form-field appearance="outline" class="composition-select">
+                      <mat-label>Field Profile</mat-label>
+                      <mat-select [value]="selectedDataSetConfig.field_profile_id"
+                                  (selectionChange)="onDataSetFieldProfileChange($event.value)">
+                        <mat-option value="">None (show all fields)</mat-option>
+                        <mat-option *ngFor="let fp of getCompatibleFieldProfiles()" [value]="fp.id">
+                          {{ fp.name }}
+                        </mat-option>
+                      </mat-select>
+                      <mat-hint *ngIf="selectedDataSetConfig.filter_chain_id">Filtered to profiles compatible with selected chain</mat-hint>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="composition-select">
+                      <mat-label>Filter Chain</mat-label>
+                      <mat-select [value]="selectedDataSetConfig.filter_chain_id"
+                                  (selectionChange)="onDataSetFilterChainChange($event.value)">
+                        <mat-option value="">None (use inline filters)</mat-option>
+                        <mat-option *ngFor="let fc of getCompatibleFilterChains()" [value]="fc.id">
+                          {{ fc.name }}
+                        </mat-option>
+                      </mat-select>
+                      <mat-hint *ngIf="selectedDataSetConfig.field_profile_id">Filtered to chains compatible with selected profile</mat-hint>
+                    </mat-form-field>
+                  </div>
+
+                  <class-data-table
+                    [className]="className"
+                    [classTypeData]="classTypeData"
+                    [instanceData]="dataSetFilteredPreviewData">
+                  </class-data-table>
+                </div>
+
+                <!-- Config sidebar -->
+                <div class="config-panel" *ngIf="dataSetConfigPanelOpen">
+                  <dataset-config-sidebar
+                    [config]="selectedDataSetConfig"
+                    [classTypeData]="classTypeData"
+                    [availableFilterChains]="filterChainConfigList"
+                    (configChange)="onDataSetConfigChange($event)">
+                  </dataset-config-sidebar>
+                </div>
+              </div>
+            </div>
+
           </div>
-        </div>
-      </div>
+        </mat-tab>
+
+      </mat-tab-group>
 
     </div>
   </mat-tab>

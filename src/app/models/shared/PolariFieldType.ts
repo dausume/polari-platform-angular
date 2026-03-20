@@ -149,7 +149,7 @@ export function normalizeFieldFromClassTypeData(fieldInfo: any): CanonicalFieldT
 
 // ─── Type Icons ──────────────────────────────────────────────────────────────
 
-const FIELD_TYPE_ICONS: Record<CanonicalFieldType, string> = {
+export const FIELD_TYPE_ICONS: Record<CanonicalFieldType, string> = {
     'string':    'T',
     'number':    '#',
     'boolean':   '✓',
@@ -174,7 +174,7 @@ export function getFieldTypeIcon(typeOrRaw: string): string {
 
 // ─── Type Labels ─────────────────────────────────────────────────────────────
 
-const FIELD_TYPE_LABELS: Record<CanonicalFieldType, string> = {
+export const FIELD_TYPE_LABELS: Record<CanonicalFieldType, string> = {
     'string':    'String',
     'number':    'Number',
     'boolean':   'Boolean',
@@ -195,7 +195,7 @@ export function getFieldTypeLabel(typeOrRaw: string): string {
 
 // ─── Type Badge Colors ───────────────────────────────────────────────────────
 
-const FIELD_TYPE_COLORS: Record<CanonicalFieldType, string> = {
+export const FIELD_TYPE_COLORS: Record<CanonicalFieldType, string> = {
     'string':    '#388e3c',
     'number':    '#1976d2',
     'boolean':   '#7b1fa2',
