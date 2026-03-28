@@ -14,3 +14,7 @@ export {
 export {
     NamedGeoJsonConfig, GeoJsonDefinitionSummary
 } from './NamedGeoJsonConfig';
+
+export { MapPointDefinition, MapPointSummary } from './MapPointDefinition';
+export { MapLineSegmentDefinition, MapLineSegmentSummary } from './MapLineSegmentDefinition';
+export { MapPolygonDefinition, MapPolygonSummary, PolygonCompositionMode } from './MapPolygonDefinition';

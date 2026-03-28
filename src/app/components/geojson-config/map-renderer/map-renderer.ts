@@ -8,7 +8,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { NamedGeoJsonConfig } from '@models/geojson/NamedGeoJsonConfig';
 import { buildStyleFromTileSource } from '@models/geojson/GeoJsonConfigData';
-import { getSvgIcon, getSvgStyle, applyStyleToSvg } from '@models/shared/SvgIconLibrary';
+import { getSvgIcon, getSvgStyle, applyStyleToSvg, getMapLineStyle, getMapPolygonStyle, validateMapAnchor } from '@models/shared/SvgIconLibrary';
 
 @Component({
   standalone: true,
@@ -65,6 +65,7 @@ export class MapRendererComponent implements OnChanges, OnDestroy {
   @Input() featureMarkerOverrides: Map<string, { iconName: string; styleName: string }> | null = null;
   @Input() collectionViewRange: { minZoom: number; maxZoom: number } | null = null;
   @Input() featureViewRangeOverrides: Map<string, { minZoom: number; maxZoom: number }> | null = null;
+  @Input() mixedFeatureCollection: GeoJSON.FeatureCollection | null = null;
 
   @Output() mapClicked = new EventEmitter<{ lng: number; lat: number }>();
   @Output() locateMeClicked = new EventEmitter<void>();
@@ -80,6 +81,7 @@ export class MapRendererComponent implements OnChanges, OnDestroy {
   private maplibregl: any = null;
   private map: any = null;
   private markers: { marker: any; lngLat: [number, number]; minZoom: number; maxZoom: number; visible: boolean }[] = [];
+  private polygonIconMarkers: { marker: any; el: HTMLElement; lngLat: [number, number]; areaSqM: number; lat: number }[] = [];
   private resizeObserver: ResizeObserver | null = null;
   private clickHandlerRegistered = false;
   private currentStyleJson: string = '';
@@ -89,7 +91,8 @@ export class MapRendererComponent implements OnChanges, OnDestroy {
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['config'] || changes['instanceData'] || changes['styleOverride']
         || changes['collectionMarker'] || changes['featureMarkerOverrides']
-        || changes['collectionViewRange'] || changes['featureViewRangeOverrides']) {
+        || changes['collectionViewRange'] || changes['featureViewRangeOverrides']
+        || changes['mixedFeatureCollection']) {
       this.renderMap();
     }
     if (changes['pickModeActive'] && this.map) {
@@ -105,6 +108,43 @@ export class MapRendererComponent implements OnChanges, OnDestroy {
         duration: 1500
       });
     }
+  }
+
+  /**
+   * Fly to a geometry's center at an appropriate zoom level.
+   * Uses the bounding box diagonal to determine a 1:50 ratio zoom
+   * (the geometry fills ~1/50th of the viewport for comfortable context).
+   *
+   * @param centerLng - Center longitude (effective center for polygons)
+   * @param centerLat - Center latitude
+   * @param areaSqMeters - Area in square meters (for polygons) or 0
+   * @param bboxDiagonalMeters - Optional bounding box diagonal in meters (for lines)
+   */
+  flyToGeometry(centerLng: number, centerLat: number, areaSqMeters: number = 0, bboxDiagonalMeters: number = 0): void {
+    if (!this.map) return;
+
+    // Determine the "extent" in meters
+    let extentMeters: number;
+    if (bboxDiagonalMeters > 0) {
+      extentMeters = bboxDiagonalMeters;
+    } else if (areaSqMeters > 0) {
+      // Equivalent diameter of a circle with the same area
+      extentMeters = 2 * Math.sqrt(areaSqMeters / Math.PI);
+    } else {
+      this.flyTo(centerLng, centerLat);
+      return;
+    }
+
+    // 1:50 ratio — the geometry should appear as ~1/50th of the viewport width
+    const viewportExtent = extentMeters * 50;
+
+    // Convert to zoom: at zoom z, viewport width in meters ≈ (containerWidth * 156543 * cos(lat)) / 2^z
+    const containerWidth = this.container.nativeElement.offsetWidth || 800;
+    const metersAtZoom0 = containerWidth * 156543.03392 * Math.cos(centerLat * Math.PI / 180);
+    let zoom = Math.log2(metersAtZoom0 / viewportExtent);
+    zoom = Math.max(1, Math.min(zoom, 20));
+
+    this.flyTo(centerLng, centerLat, zoom);
   }
 
   private async loadMapLibre(): Promise<any> {
@@ -125,9 +165,22 @@ export class MapRendererComponent implements OnChanges, OnDestroy {
     // Check if coordinate variables are configured.
     // When a styleOverride is provided (e.g. tile-only preview), skip this
     // check — we don't need data points to render tile layers.
-    const hasCoordConfig = gc.coordinateMode === 'tuple'
-      ? !!gc.tupleVariable
-      : (!!gc.latitudeVariable && !!gc.longitudeVariable);
+    let hasCoordConfig = false;
+    switch (gc.coordinateMode) {
+      case 'tuple':
+        hasCoordConfig = !!gc.tupleVariable;
+        break;
+      case 'separate':
+        hasCoordConfig = !!gc.latitudeVariable && !!gc.longitudeVariable;
+        break;
+      case 'line_center':
+      case 'polygon_center':
+        hasCoordConfig = !!gc.geometryVariable;
+        break;
+      case 'parent':
+        hasCoordConfig = !!gc.parentGeoClass;
+        break;
+    }
 
     // console.log(`[MapRenderer] hasCoordConfig=${hasCoordConfig} styleOverride=${!!this.styleOverride}`);
     if (!hasCoordConfig && !this.styleOverride) {
@@ -200,6 +253,7 @@ export class MapRendererComponent implements OnChanges, OnDestroy {
               this.loading = false;
               this.currentZoom = this.map.getZoom().toFixed(2);
               this.addMarkers(MarkerClass);
+              this.addMixedGeometryLayers();
             });
           });
 
@@ -207,6 +261,7 @@ export class MapRendererComponent implements OnChanges, OnDestroy {
             this.ngZone.run(() => {
               this.currentZoom = this.map.getZoom().toFixed(2);
               this.updateMarkerVisibility();
+              this.rescalePolygonIconMarkers();
             });
           });
 
@@ -251,6 +306,7 @@ export class MapRendererComponent implements OnChanges, OnDestroy {
         this.map.setMaxZoom(maxZoom);
         this.loading = false;
         this.addMarkers(MarkerClass);
+        this.addMixedGeometryLayers();
       }
     } catch (e: any) {
       this.loading = false;
@@ -298,7 +354,17 @@ export class MapRendererComponent implements OnChanges, OnDestroy {
       el.style.height = `${resolved.style.height}px`;
       el.innerHTML = resolved.svgString;
 
-      const anchor = resolved.style.anchor === 'bottom' ? 'bottom' : 'center';
+      // Use effectiveAnchor (validated against icon's natural anchor) when available,
+      // otherwise fall back to the style's declared anchor
+      const anchor = resolved.effectiveAnchor
+        || (resolved.style.anchor === 'bottom' ? 'bottom' : 'center');
+
+      console.debug(
+        `[MapRenderer] addMarker: icon="${iconName}" style="${styleName}" ` +
+        `anchor="${anchor}" styleAnchor="${resolved.style.anchor}" ` +
+        `size=${resolved.style.width}x${resolved.style.height} ` +
+        `coords=[${coords[0].toFixed(5)}, ${coords[1].toFixed(5)}]`
+      );
 
       const mlMarker = new MarkerClass({ element: el, anchor })
         .setLngLat(coords)
@@ -330,19 +396,206 @@ export class MapRendererComponent implements OnChanges, OnDestroy {
     }
   }
 
-  private resolveMarker(iconName: string, styleName: string): { svgString: string; style: any } {
+  private resolveMarker(iconName: string, styleName: string): { svgString: string; style: any; effectiveAnchor?: string } {
     const icon = getSvgIcon(iconName);
     const style = getSvgStyle(styleName);
     if (icon && style) {
-      return { svgString: applyStyleToSvg(icon.svgString, style), style };
+      const effectiveAnchor = validateMapAnchor(icon, style);
+      return { svgString: applyStyleToSvg(icon.svgString, style), style, effectiveAnchor };
     }
     // Fallback to config default
     return this.config.getMarker();
   }
 
+  private addMixedGeometryLayers(): void {
+    if (!this.map || !this.mixedFeatureCollection) return;
+
+    // MapLibre throws "Style is not done loading" if we add sources/layers
+    // before the style is ready. Defer until the style finishes loading.
+    if (!this.map.isStyleLoaded()) {
+      this.map.once('style.load', () => this.addMixedGeometryLayers());
+      return;
+    }
+
+    // Remove existing mixed-geometry layers/source if present
+    this.removeMixedGeometryLayers();
+
+    // Filter to only lines and polygons (points are handled by DOM markers)
+    const lineFeatures = this.mixedFeatureCollection.features.filter(
+      f => f.geometry.type === 'LineString'
+    );
+    const polygonFeatures = this.mixedFeatureCollection.features.filter(
+      f => f.geometry.type === 'Polygon'
+    );
+
+    // Add polygon source + layers
+    if (polygonFeatures.length > 0) {
+      this.map.addSource('mixed-polygons', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: polygonFeatures }
+      });
+
+      const defaultPolyStyle = getMapPolygonStyle('default-polygon');
+      this.map.addLayer({
+        id: 'mixed-polygons-fill',
+        type: 'fill',
+        source: 'mixed-polygons',
+        paint: {
+          'fill-color': ['coalesce', ['get', '_fillColor'], defaultPolyStyle?.fillColor || '#1976d2'],
+          'fill-opacity': ['coalesce', ['get', '_fillOpacity'], defaultPolyStyle?.fillOpacity || 0.25]
+        }
+      });
+
+      this.map.addLayer({
+        id: 'mixed-polygons-outline',
+        type: 'line',
+        source: 'mixed-polygons',
+        paint: {
+          'line-color': ['coalesce', ['get', '_outlineColor'], defaultPolyStyle?.outlineColor || '#0d47a1'],
+          'line-width': ['coalesce', ['get', '_outlineWidth'], defaultPolyStyle?.outlineWidth || 2],
+          'line-opacity': ['coalesce', ['get', '_outlineOpacity'], defaultPolyStyle?.outlineOpacity || 1]
+        }
+      });
+    }
+
+    // Add polygon icon markers (SVG at effective center, scaled to area)
+    if (polygonFeatures.length > 0) {
+      this.addPolygonIconMarkers(polygonFeatures);
+    }
+
+    // Add line source + layer
+    if (lineFeatures.length > 0) {
+      this.map.addSource('mixed-lines', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: lineFeatures }
+      });
+
+      const defaultLineStyle = getMapLineStyle('default-line');
+      this.map.addLayer({
+        id: 'mixed-lines-layer',
+        type: 'line',
+        source: 'mixed-lines',
+        paint: {
+          'line-color': ['coalesce', ['get', '_lineColor'], defaultLineStyle?.lineColor || '#1976d2'],
+          'line-width': ['coalesce', ['get', '_lineWidth'], defaultLineStyle?.lineWidth || 3],
+          'line-opacity': ['coalesce', ['get', '_lineOpacity'], defaultLineStyle?.lineOpacity || 1]
+        },
+        layout: {
+          'line-cap': 'round',
+          'line-join': 'round'
+        }
+      });
+    }
+  }
+
+  /**
+   * Add DOM markers for polygon representational SVG icons.
+   * Each polygon with _iconName gets a styled SVG marker at its effective center,
+   * scaled proportionally to the polygon's area at the current zoom level.
+   */
+  private addPolygonIconMarkers(polygonFeatures: GeoJSON.Feature[]): void {
+    // Clear existing polygon icon markers
+    this.polygonIconMarkers.forEach(m => m.marker.remove());
+    this.polygonIconMarkers = [];
+
+    if (!this.map) return;
+
+    const ml = this.maplibregl;
+    const MarkerClass = ml?.Marker || ml?.default?.Marker;
+    if (!MarkerClass) return;
+
+    for (const feature of polygonFeatures) {
+      const props = feature.properties || {};
+      const iconName = props._iconName;
+      if (!iconName) continue;
+
+      const styleName = props._iconStyleName || 'medium-marker';
+      const icon = getSvgIcon(iconName);
+      const style = getSvgStyle(styleName);
+      if (!icon || !style) continue;
+
+      const centerLng = props._effectiveCenterLng ?? props._centerLng;
+      const centerLat = props._effectiveCenterLat ?? props._centerLat;
+      if (centerLng == null || centerLat == null) continue;
+
+      const areaSqM = props._areaSqMeters || 0;
+      const styledSvg = applyStyleToSvg(icon.svgString, style);
+
+      const el = document.createElement('div');
+      el.className = 'polygon-icon-marker';
+      el.innerHTML = styledSvg;
+      el.style.display = 'flex';
+      el.style.alignItems = 'center';
+      el.style.justifyContent = 'center';
+      el.style.pointerEvents = 'none';
+
+      // Initial size will be set by rescalePolygonIconMarkers
+      const lngLat: [number, number] = [centerLng, centerLat];
+
+      console.debug(
+        `[MapRenderer] polygonIconMarker: icon="${iconName}" style="${styleName}" ` +
+        `anchor="center" center=[${centerLng.toFixed(5)}, ${centerLat.toFixed(5)}] ` +
+        `area=${areaSqM.toFixed(1)}m²`
+      );
+
+      const marker = new MarkerClass({ element: el, anchor: 'center' })
+        .setLngLat(lngLat)
+        .addTo(this.map);
+
+      this.polygonIconMarkers.push({ marker, el, lngLat, areaSqM, lat: centerLat });
+    }
+
+    this.rescalePolygonIconMarkers();
+  }
+
+  /**
+   * Rescale polygon icon markers based on current zoom level.
+   * The SVG scales so its pixel footprint approximates the polygon's real-world area.
+   */
+  private rescalePolygonIconMarkers(): void {
+    if (!this.map || this.polygonIconMarkers.length === 0) return;
+    const zoom = this.map.getZoom();
+
+    for (const entry of this.polygonIconMarkers) {
+      if (entry.areaSqM <= 0) {
+        entry.el.style.width = '24px';
+        entry.el.style.height = '24px';
+        continue;
+      }
+
+      // Convert area to pixel size at this zoom level
+      const metersPerPixel = 156543.03392 * Math.cos(entry.lat * Math.PI / 180) / Math.pow(2, zoom);
+      const areaInPixels = entry.areaSqM / (metersPerPixel * metersPerPixel);
+      let sizePx = Math.sqrt(areaInPixels);
+
+      // Clamp to reasonable range
+      sizePx = Math.max(16, Math.min(sizePx, 400));
+
+      entry.el.style.width = `${sizePx}px`;
+      entry.el.style.height = `${sizePx}px`;
+    }
+  }
+
+  private removeMixedGeometryLayers(): void {
+    if (!this.map) return;
+    // Remove polygon icon markers
+    this.polygonIconMarkers.forEach(m => m.marker.remove());
+    this.polygonIconMarkers = [];
+    const layerIds = ['mixed-lines-layer', 'mixed-polygons-fill', 'mixed-polygons-outline'];
+    const sourceIds = ['mixed-lines', 'mixed-polygons'];
+    for (const id of layerIds) {
+      if (this.map.getLayer(id)) this.map.removeLayer(id);
+    }
+    for (const id of sourceIds) {
+      if (this.map.getSource(id)) this.map.removeSource(id);
+    }
+  }
+
   private destroyMap(): void {
     this.markers.forEach(m => m.marker.remove());
     this.markers = [];
+    this.polygonIconMarkers.forEach(m => m.marker.remove());
+    this.polygonIconMarkers = [];
     if (this.map) {
       this.map.remove();
       this.map = null;

@@ -33,6 +33,7 @@
         <!-- Status Message -->
         <div *ngIf="saveMessage" class="status-message-banner" [ngClass]="{
             'status-success': saveStatus === 'success',
+            'status-warning': saveStatus === 'warning',
             'status-error': saveStatus === 'error',
             'status-saving': saveStatus === 'saving'
         }">

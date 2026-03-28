@@ -56,6 +56,9 @@ export class EditClassDialogComponent implements AfterViewInit {
       'Dictionary': 'dict',
       'Reference': 'reference',
       'Parent Reference': 'parent_reference',
+      'Map Coordinate': 'map_coordinate',
+      'Map Line Segment': 'map_line_segment',
+      'Map Polygon': 'map_polygon',
       'Unique Identifier - Alphanumeric': 'str',
       'Numeric Index': 'int'
     };

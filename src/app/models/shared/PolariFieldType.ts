@@ -26,6 +26,9 @@ export type CanonicalFieldType =
     | 'dict'
     | 'reference'
     | 'referenceList'
+    | 'mapCoordinate'
+    | 'mapLineSegment'
+    | 'mapPolygon'
     | 'uuid'
     | 'unknown';
 
@@ -85,6 +88,11 @@ const TYPE_NORMALIZATION_MAP: Record<string, CanonicalFieldType> = {
     'referencelist': 'referenceList',
     'reference list': 'referenceList',
     'reference_list': 'referenceList',
+
+    // Map geometry types
+    'map_coordinate':   'mapCoordinate',
+    'map_line_segment': 'mapLineSegment',
+    'map_polygon':      'mapPolygon',
 };
 
 /**
@@ -159,6 +167,9 @@ export const FIELD_TYPE_ICONS: Record<CanonicalFieldType, string> = {
     'dict':      '{}',
     'reference':     '→',
     'referenceList': '⇉',
+    'mapCoordinate':  '📍',
+    'mapLineSegment': '📏',
+    'mapPolygon':     '⬡',
     'uuid':          '🔑',
     'unknown':       '◆',
 };
@@ -184,6 +195,9 @@ export const FIELD_TYPE_LABELS: Record<CanonicalFieldType, string> = {
     'dict':      'Dictionary',
     'reference':     'Reference',
     'referenceList': 'Reference List',
+    'mapCoordinate':  'Map Coordinate',
+    'mapLineSegment': 'Map Line Segment',
+    'mapPolygon':     'Map Polygon',
     'uuid':          'UUID',
     'unknown':       'Unknown',
 };
@@ -205,6 +219,9 @@ export const FIELD_TYPE_COLORS: Record<CanonicalFieldType, string> = {
     'dict':      '#5d4037',
     'reference':     '#f57c00',
     'referenceList': '#ef6c00',
+    'mapCoordinate':  '#0288d1',
+    'mapLineSegment': '#0097a7',
+    'mapPolygon':     '#00695c',
     'uuid':          '#78909c',
     'unknown':       '#78909c',
 };
@@ -276,6 +293,9 @@ const FILTER_OPTIONS_MAP: Record<CanonicalFieldType, readonly string[]> = {
     'dict':      LIST_FILTER_OPTIONS,
     'reference':     REFERENCE_FILTER_OPTIONS,
     'referenceList': REFERENCE_LIST_FILTER_OPTIONS,
+    'mapCoordinate':  NUMBER_FILTER_OPTIONS,
+    'mapLineSegment': REFERENCE_FILTER_OPTIONS,
+    'mapPolygon':     REFERENCE_FILTER_OPTIONS,
     'uuid':          IDENTITY_FILTER_OPTIONS,
     'unknown':   STRING_FILTER_OPTIONS,    // Fall back to string filters
 };
@@ -338,6 +358,9 @@ const INPUT_TYPE_MAP: Record<CanonicalFieldType, string> = {
     'dict':      'text',
     'reference':     'text',
     'referenceList': 'text',
+    'mapCoordinate':  'text',
+    'mapLineSegment': 'text',
+    'mapPolygon':     'text',
     'uuid':          'text',
     'unknown':       'text',
 };
@@ -364,6 +387,9 @@ const ALIGNMENT_MAP: Record<CanonicalFieldType, ColumnAlignment> = {
     'dict':      'left',
     'reference':     'left',
     'referenceList': 'left',
+    'mapCoordinate':  'left',
+    'mapLineSegment': 'left',
+    'mapPolygon':     'left',
     'uuid':          'left',
     'unknown':       'left',
 };
@@ -378,7 +404,7 @@ export function getDefaultAlignment(typeOrRaw: string): ColumnAlignment {
  */
 export function isSortableType(typeOrRaw: string): boolean {
     const canonical = normalizeDataType(typeOrRaw);
-    return !['list', 'dict', 'referenceList', 'unknown'].includes(canonical);
+    return !['list', 'dict', 'referenceList', 'mapLineSegment', 'mapPolygon', 'unknown'].includes(canonical);
 }
 
 /**
@@ -386,7 +412,7 @@ export function isSortableType(typeOrRaw: string): boolean {
  */
 export function isFilterableType(typeOrRaw: string): boolean {
     const canonical = normalizeDataType(typeOrRaw);
-    return !['list', 'dict', 'referenceList', 'unknown'].includes(canonical);
+    return !['list', 'dict', 'referenceList', 'mapLineSegment', 'mapPolygon', 'unknown'].includes(canonical);
 }
 
 // ─── Convenience: Detect all fields from classTypeData ───────────────────────

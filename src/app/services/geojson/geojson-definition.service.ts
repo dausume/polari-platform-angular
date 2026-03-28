@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable, throwError } from 'rxjs';
+import { BehaviorSubject, Observable, throwError, of } from 'rxjs';
 import { map, tap, catchError } from 'rxjs/operators';
 import { PolariService } from '@services/polari-service';
 import { NamedGeoJsonConfig, GeoJsonDefinitionSummary } from '@models/geojson/NamedGeoJsonConfig';
@@ -19,6 +19,17 @@ export class GeoJsonDefinitionService {
 
     private get baseUrl(): string {
         return `${this.polariService.getBackendBaseUrl()}/${this.className}`;
+    }
+
+    /**
+     * Fetch all GeoJsonDefinitions (unfiltered) as an Observable.
+     * Used to determine which classes are "mappable".
+     */
+    fetchAllGeoJsonDefs(): Observable<any[]> {
+        return this.http.get<any>(this.baseUrl, this.polariService.backendRequestOptions).pipe(
+            map((response: any) => this.parseReadAllResponse(response)),
+            catchError(() => of([]))
+        );
     }
 
     fetchConfigsForClass(sourceClass: string): void {

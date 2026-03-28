@@ -25,7 +25,7 @@ export class CreateNewClassComponent {
   stateSpaceFieldsPerRow = 1;
 
   // Status messages
-  saveStatus: 'idle' | 'saving' | 'success' | 'error' = 'idle';
+  saveStatus: 'idle' | 'saving' | 'success' | 'warning' | 'error' = 'idle';
   saveMessage = '';
 
   constructor(
@@ -66,6 +66,9 @@ export class CreateNewClassComponent {
       'Dictionary': 'dict',
       'Reference': 'reference',
       'Parent Reference': 'parent_reference',
+      'Map Coordinate': 'map_coordinate',
+      'Map Line Segment': 'map_line_segment',
+      'Map Polygon': 'map_polygon',
       'Unique Identifier - Alphanumeric': 'str',
       'Numeric Index': 'int'
     };
@@ -77,7 +80,8 @@ export class CreateNewClassComponent {
       varType: typeMap[varDef.varType] || 'str',
       isIdentifier: varDef.soleIdentifier || varDef.jointIdentifier,
       isUnique: varDef.isUnique,
-      refClass: varDef.varRefClass
+      refClass: varDef.varRefClass,
+      coordinateOrder: varDef.varCoordinateOrder || undefined
     }));
 
     // Build inheritsFrom dict from Parent Reference variables
@@ -111,9 +115,13 @@ export class CreateNewClassComponent {
 
     this.http.post<any>(`${backendUrl}/createClass`, payload).subscribe({
       next: (response) => {
-        // console.log('Class created successfully:', response);
-        this.saveStatus = 'success';
-        this.saveMessage = `Class "${response.className}" created successfully! API endpoint: ${response.apiEndpoint}`;
+        if (response.warnings?.length) {
+          this.saveStatus = 'warning';
+          this.saveMessage = `Class "${response.className}" created, but with issues: ${response.warnings.join('; ')}`;
+        } else {
+          this.saveStatus = 'success';
+          this.saveMessage = `Class "${response.className}" created successfully! API endpoint: ${response.apiEndpoint}`;
+        }
       },
       error: (error) => {
         console.error('Failed to create class:', error);

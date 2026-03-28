@@ -30,11 +30,11 @@
         </mat-form-field>
       </mat-grid-tile>
 
-      <!-- Reference Class (conditional — shown for Reference, Reference List, and Parent Reference) -->
-      <mat-grid-tile *ngIf="variableDef.varType == 'Reference' || variableDef.varType == 'Reference List' || variableDef.varType == 'Parent Reference'">
+      <!-- Reference Class (conditional — shown for Reference, Reference List, Parent Reference, and Map geometry types) -->
+      <mat-grid-tile *ngIf="variableDef.varType == 'Reference' || variableDef.varType == 'Reference List' || variableDef.varType == 'Parent Reference' || isMapGeometryType(variableDef.varType)">
         <div class="ref-class-wrapper">
           <mat-form-field appearance="outline" class="ref-class-field">
-            <mat-label>{{ variableDef.varType == 'Parent Reference' ? 'Parent Class' : 'Referenced Class' }}</mat-label>
+            <mat-label>{{ variableDef.varType == 'Parent Reference' ? 'Parent Class' : isMapGeometryType(variableDef.varType) ? 'Mappable Class' : 'Referenced Class' }}</mat-label>
             <mat-select [(ngModel)]="variableDef.varRefClass" panelClass="ref-class-panel"
                         (selectionChange)="variableDef.varType == 'Parent Reference' ? onParentRefClassChange(variableDef.varIndex, variableDef.varRefClass || '') : null">
               <!-- Search input inside dropdown -->
@@ -47,8 +47,8 @@
                        class="ref-class-search-input">
               </div>
 
-              <!-- Grouped class options -->
-              <mat-optgroup *ngFor="let group of getFilteredClassGroups(variableDef.varIndex)"
+              <!-- Grouped class options (filtered to mappable classes for geometry types) -->
+              <mat-optgroup *ngFor="let group of (isMapGeometryType(variableDef.varType) ? getMappableClassGroups(variableDef.varIndex) : getFilteredClassGroups(variableDef.varIndex))"
                             [label]="group.label">
                 <mat-option *ngFor="let cls of group.classes" [value]="cls.className">
                   <span class="ref-class-option">
@@ -62,8 +62,12 @@
                 </mat-option>
               </mat-optgroup>
 
-              <!-- Empty state -->
-              <mat-option disabled *ngIf="getFilteredClassGroups(variableDef.varIndex).length === 0">
+              <!-- Empty state for map geometry types -->
+              <mat-option disabled *ngIf="isMapGeometryType(variableDef.varType) && getMappableClassGroups(variableDef.varIndex).length === 0">
+                No mappable classes found — create a GeoJSON config first
+              </mat-option>
+              <!-- Empty state for regular reference types -->
+              <mat-option disabled *ngIf="!isMapGeometryType(variableDef.varType) && getFilteredClassGroups(variableDef.varIndex).length === 0">
                 No classes found
               </mat-option>
             </mat-select>
@@ -75,8 +79,19 @@
         </div>
       </mat-grid-tile>
 
-      <!-- Spacer for non-reference types -->
-      <mat-grid-tile *ngIf="variableDef.varType != 'Reference' && variableDef.varType != 'Reference List' && variableDef.varType != 'Parent Reference'">
+      <!-- Coordinate Order (for Map Coordinate type) -->
+      <mat-grid-tile *ngIf="variableDef.varType == 'Map Coordinate'">
+        <mat-form-field appearance="outline">
+          <mat-label>Coordinate Order</mat-label>
+          <mat-select [(ngModel)]="variableDef.varCoordinateOrder">
+            <mat-option value="lat-lng">[Latitude, Longitude]</mat-option>
+            <mat-option value="lng-lat">[Longitude, Latitude]</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </mat-grid-tile>
+
+      <!-- Spacer for non-reference, non-coordinate types -->
+      <mat-grid-tile *ngIf="variableDef.varType != 'Reference' && variableDef.varType != 'Reference List' && variableDef.varType != 'Parent Reference' && !isMapGeometryType(variableDef.varType) && variableDef.varType != 'Map Coordinate'">
       </mat-grid-tile>
 
       <!-- Remove Button -->

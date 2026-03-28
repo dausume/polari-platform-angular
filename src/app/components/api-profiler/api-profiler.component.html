@@ -1285,6 +1285,9 @@
                     </mat-card-title>
                 </mat-card-header>
                 <mat-card-content>
+                    <div *ngIf="createClassResult.warnings?.length" class="status-message-banner status-warning" style="margin-bottom: 12px;">
+                        <div *ngFor="let w of createClassResult.warnings">{{ w }}</div>
+                    </div>
                     <div *ngIf="createClassResult.success" class="success-details">
                         <p><strong>Class Name:</strong> {{ createClassResult.className }}</p>
                         <p><strong>API Endpoint:</strong> {{ createClassResult.apiEndpoint }}</p>

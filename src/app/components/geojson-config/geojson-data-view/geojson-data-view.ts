@@ -20,6 +20,8 @@ import { GeolocationService } from '@services/geojson/geolocation.service';
 import { GeolocationDialogComponent } from '@components/geojson-config/geolocation-dialog/geolocation-dialog';
 import { MapRendererComponent } from '@components/geojson-config/map-renderer/map-renderer';
 import { RuntimeConfigService } from '@services/runtime-config.service';
+import { GeoJsonDefinitionService } from '@services/geojson/geojson-definition.service';
+import { getMapPolygonStyle, getMapLineStyle } from '@models/shared/SvgIconLibrary';
 import { MatSelectModule } from '@angular/material/select';
 
 @Component({
@@ -58,6 +60,9 @@ export class GeoJsonDataViewComponent implements OnInit, OnChanges {
   /** Cached style object — computed once on init/config change, not every CD cycle */
   cachedMapStyle: any = OSM_RASTER_STYLE;
 
+  /** Mixed geometry collection for polygon/line rendering on the map */
+  mixedFeatureCollection: GeoJSON.FeatureCollection | null = null;
+
   private idFields = ['id', '_instanceId', '_id', 'Id', 'ID', 'instanceId'];
 
   constructor(
@@ -65,7 +70,8 @@ export class GeoJsonDataViewComponent implements OnInit, OnChanges {
     private snackBar: MatSnackBar,
     private dialog: MatDialog,
     private geolocationService: GeolocationService,
-    private runtimeConfig: RuntimeConfigService
+    private runtimeConfig: RuntimeConfigService,
+    private geoJsonDefService: GeoJsonDefinitionService
   ) {}
 
   ngOnInit(): void {
@@ -87,6 +93,7 @@ export class GeoJsonDataViewComponent implements OnInit, OnChanges {
     this.dataSource.data = this.instanceData || [];
     this.displayedColumns = this.detectColumns();
     this.updateCachedMapStyle();
+    this.buildMixedFeatureCollection();
   }
 
   private updateCachedMapStyle(): void {
@@ -115,6 +122,8 @@ export class GeoJsonDataViewComponent implements OnInit, OnChanges {
         if (gc.longitudeVariable && allKeys.includes(gc.longitudeVariable)) coordCols.push(gc.longitudeVariable);
       } else if (gc.coordinateMode === 'tuple') {
         if (gc.tupleVariable && allKeys.includes(gc.tupleVariable)) coordCols.push(gc.tupleVariable);
+      } else if ((gc.coordinateMode === 'line_center' || gc.coordinateMode === 'polygon_center') && gc.geometryVariable) {
+        if (allKeys.includes(gc.geometryVariable)) coordCols.push(gc.geometryVariable);
       }
     }
 
@@ -248,6 +257,313 @@ export class GeoJsonDataViewComponent implements OnInit, OnChanges {
         });
       }
     });
+  }
+
+  // ==================== Geometry Feature Collection ====================
+
+  /**
+   * Build a mixed GeoJSON FeatureCollection from polygon/line geometry variables
+   * so the map renderer can draw the actual shapes (not just center-point markers).
+   *
+   * For data WITH stored vertices (new format): builds polygon features directly.
+   * For data WITHOUT stored vertices (legacy format with ref_class + instance_ids):
+   * fetches the referenced class instances and resolves coordinates.
+   */
+  private buildMixedFeatureCollection(): void {
+    const gc = this.config?.geoJsonConfig;
+    if (!gc || !gc.geometryVariable) {
+      this.mixedFeatureCollection = null;
+      return;
+    }
+    if (gc.coordinateMode !== 'polygon_center' && gc.coordinateMode !== 'line_center') {
+      this.mixedFeatureCollection = null;
+      return;
+    }
+    if (!this.instanceData || this.instanceData.length === 0) {
+      this.mixedFeatureCollection = null;
+      return;
+    }
+
+    const features: GeoJSON.Feature[] = [];
+    const unresolvedRefs: { refClass: string; instanceIds: string[]; styleName: string; parentIndex: number }[] = [];
+
+    for (let i = 0; i < this.instanceData.length; i++) {
+      const instance = this.instanceData[i];
+      const rawValue = instance[gc.geometryVariable];
+      if (!rawValue) continue;
+
+      try {
+        const parsed = typeof rawValue === 'string' ? JSON.parse(rawValue) : rawValue;
+
+        if (gc.coordinateMode === 'polygon_center') {
+          if (parsed.vertices && Array.isArray(parsed.vertices) && parsed.vertices.length >= 3) {
+            // New format: vertices are stored inline
+            const ring: [number, number][] = [...parsed.vertices];
+            const first = ring[0];
+            const last = ring[ring.length - 1];
+            if (first[0] !== last[0] || first[1] !== last[1]) {
+              ring.push([...first] as [number, number]);
+            }
+
+            const polyStyle = getMapPolygonStyle(parsed.style_name || 'default-polygon');
+            const effectiveCenterLng = (parsed.center_lng || 0) + (parsed.center_offset_lng || 0);
+            const effectiveCenterLat = (parsed.center_lat || 0) + (parsed.center_offset_lat || 0);
+
+            features.push({
+              type: 'Feature',
+              geometry: { type: 'Polygon', coordinates: [ring] },
+              properties: {
+                _geometryType: 'polygon',
+                _polygonStyleName: parsed.style_name || 'default-polygon',
+                _fillColor: polyStyle?.fillColor || '#1976d2',
+                _fillOpacity: polyStyle?.fillOpacity ?? 0.25,
+                _outlineColor: polyStyle?.outlineColor || '#0d47a1',
+                _outlineWidth: polyStyle?.outlineWidth ?? 2,
+                _outlineOpacity: polyStyle?.outlineOpacity ?? 1,
+                _centerLng: parsed.center_lng,
+                _centerLat: parsed.center_lat,
+                _effectiveCenterLng: effectiveCenterLng,
+                _effectiveCenterLat: effectiveCenterLat,
+                _areaSqMeters: parsed.area_sq_meters || 0
+              }
+            });
+          } else if (parsed.ref_class && parsed.instance_ids?.length >= 3) {
+            // Legacy format: needs resolution from ref class
+            unresolvedRefs.push({
+              refClass: parsed.ref_class,
+              instanceIds: parsed.instance_ids,
+              styleName: parsed.style_name || 'default-polygon',
+              parentIndex: i
+            });
+          }
+        } else if (gc.coordinateMode === 'line_center') {
+          if (parsed.vertices && Array.isArray(parsed.vertices) && parsed.vertices.length >= 2) {
+            const lineStyle = getMapLineStyle(parsed.style_name || 'default-line');
+            features.push({
+              type: 'Feature',
+              geometry: { type: 'LineString', coordinates: parsed.vertices },
+              properties: {
+                _geometryType: 'line',
+                _lineColor: lineStyle?.lineColor || '#1976d2',
+                _lineWidth: lineStyle?.lineWidth ?? 3,
+                _lineOpacity: lineStyle?.lineOpacity ?? 1
+              }
+            });
+          } else if (parsed.ref_class && parsed.instance_ids?.length >= 2) {
+            unresolvedRefs.push({
+              refClass: parsed.ref_class,
+              instanceIds: parsed.instance_ids,
+              styleName: parsed.style_name || 'default-line',
+              parentIndex: i
+            });
+          }
+        }
+      } catch { /* invalid JSON — skip */ }
+    }
+
+    // Set what we have immediately (from inline vertices)
+    if (features.length > 0) {
+      this.mixedFeatureCollection = { type: 'FeatureCollection', features };
+    } else {
+      this.mixedFeatureCollection = null;
+    }
+
+    // Resolve legacy refs that don't have inline vertices
+    if (unresolvedRefs.length > 0) {
+      this.resolveLegacyGeometryRefs(unresolvedRefs, features);
+    }
+  }
+
+  /**
+   * For geometry data stored WITHOUT inline vertices (legacy format),
+   * fetch the referenced class instances and resolve coordinates to build features.
+   */
+  private resolveLegacyGeometryRefs(
+    refs: { refClass: string; instanceIds: string[]; styleName: string; parentIndex: number }[],
+    existingFeatures: GeoJSON.Feature[]
+  ): void {
+    // Group by ref_class to minimize fetches
+    const byClass = new Map<string, typeof refs>();
+    for (const ref of refs) {
+      if (!byClass.has(ref.refClass)) byClass.set(ref.refClass, []);
+      byClass.get(ref.refClass)!.push(ref);
+    }
+
+    const gc = this.config.geoJsonConfig;
+
+    for (const [refClass, classRefs] of byClass) {
+      // Fetch the ref class's GeoJSON config + instances
+      const backendUrl = this.runtimeConfig.getBackendBaseUrl();
+      this.geoJsonDefService.fetchAllGeoJsonDefs().subscribe({
+        next: (defs) => {
+          const matchingDef = defs.find((d: any) => d.source_class === refClass);
+          if (!matchingDef) return;
+
+          const refConfig = NamedGeoJsonConfig.fromBackend(matchingDef);
+          const refGc = refConfig.geoJsonConfig;
+
+          // Fetch instances of the ref class
+          this.http.get<any>(`${backendUrl}/${refClass}`).subscribe({
+            next: (response) => {
+              const instances = this.extractRefInstances(response, refClass);
+              const instanceMap = new Map<string, any>();
+              for (const inst of instances) {
+                const id = inst.id || inst._id || inst._instanceId;
+                if (id) instanceMap.set(String(id), inst);
+              }
+
+              const newFeatures: GeoJSON.Feature[] = [...existingFeatures];
+
+              for (const ref of classRefs) {
+                const coords: [number, number][] = [];
+                for (const instId of ref.instanceIds) {
+                  const inst = instanceMap.get(instId);
+                  if (!inst) continue;
+                  const center = refConfig.extractCoordinates(inst, refGc);
+                  if (center) coords.push(center);
+                }
+
+                if (gc.coordinateMode === 'polygon_center' && coords.length >= 3) {
+                  const ring = [...coords];
+                  const first = ring[0];
+                  const last = ring[ring.length - 1];
+                  if (first[0] !== last[0] || first[1] !== last[1]) {
+                    ring.push([...first] as [number, number]);
+                  }
+                  const polyStyle = getMapPolygonStyle(ref.styleName);
+                  const avgLng = coords.reduce((s, c) => s + c[0], 0) / coords.length;
+                  const avgLat = coords.reduce((s, c) => s + c[1], 0) / coords.length;
+                  newFeatures.push({
+                    type: 'Feature',
+                    geometry: { type: 'Polygon', coordinates: [ring] },
+                    properties: {
+                      _geometryType: 'polygon',
+                      _fillColor: polyStyle?.fillColor || '#1976d2',
+                      _fillOpacity: polyStyle?.fillOpacity ?? 0.25,
+                      _outlineColor: polyStyle?.outlineColor || '#0d47a1',
+                      _outlineWidth: polyStyle?.outlineWidth ?? 2,
+                      _outlineOpacity: polyStyle?.outlineOpacity ?? 1,
+                      _centerLng: avgLng,
+                      _centerLat: avgLat,
+                      _effectiveCenterLng: avgLng,
+                      _effectiveCenterLat: avgLat
+                    }
+                  });
+                } else if (gc.coordinateMode === 'line_center' && coords.length >= 2) {
+                  const lineStyle = getMapLineStyle(ref.styleName);
+                  newFeatures.push({
+                    type: 'Feature',
+                    geometry: { type: 'LineString', coordinates: coords },
+                    properties: {
+                      _geometryType: 'line',
+                      _lineColor: lineStyle?.lineColor || '#1976d2',
+                      _lineWidth: lineStyle?.lineWidth ?? 3,
+                      _lineOpacity: lineStyle?.lineOpacity ?? 1
+                    }
+                  });
+                }
+              }
+
+              if (newFeatures.length > 0) {
+                this.mixedFeatureCollection = { type: 'FeatureCollection', features: newFeatures };
+              }
+            }
+          });
+        }
+      });
+    }
+  }
+
+  /**
+   * Extract instances from a CRUDE readAll response.
+   */
+  private extractRefInstances(response: any, className: string): any[] {
+    if (!response) return [];
+    if (Array.isArray(response) && response.length > 0 && response[0]?.[className]) {
+      const classData = response[0][className];
+      if (Array.isArray(classData)) {
+        const instances: any[] = [];
+        classData.forEach((ds: any) => {
+          if (ds.data && Array.isArray(ds.data)) instances.push(...ds.data);
+          else if (ds.id !== undefined) instances.push(ds);
+        });
+        return instances;
+      }
+    }
+    if (Array.isArray(response)) return response;
+    if (response?.data && Array.isArray(response.data)) return response.data;
+    return [];
+  }
+
+  // ==================== Go-To Navigation ====================
+
+  /**
+   * Whether the row has resolvable coordinates for map navigation.
+   */
+  canGoTo(row: any): boolean {
+    return this.resolveRowCoords(row) !== null;
+  }
+
+  /**
+   * Fly the map to the row's coordinates.
+   */
+  goToLocation(row: any): void {
+    const coords = this.resolveRowCoords(row);
+    if (!coords || !this.mapRenderer) return;
+
+    if (coords.areaSqMeters || coords.bboxDiagonalMeters) {
+      this.mapRenderer.flyToGeometry(coords.lng, coords.lat, coords.areaSqMeters, coords.bboxDiagonalMeters);
+    } else {
+      this.mapRenderer.flyTo(coords.lng, coords.lat, 14);
+    }
+  }
+
+  /**
+   * Extract [lng, lat] + optional geometry metrics from a row based on the current coordinate mode.
+   */
+  private resolveRowCoords(row: any): { lng: number; lat: number; areaSqMeters?: number; bboxDiagonalMeters?: number } | null {
+    const gc = this.config?.geoJsonConfig;
+    if (!gc) return null;
+
+    if (gc.coordinateMode === 'separate') {
+      const lat = parseFloat(row[gc.latitudeVariable]);
+      const lng = parseFloat(row[gc.longitudeVariable]);
+      if (!isNaN(lat) && !isNaN(lng)) return { lng, lat };
+    } else if (gc.coordinateMode === 'tuple' && gc.tupleVariable) {
+      const tuple = row[gc.tupleVariable];
+      if (Array.isArray(tuple) && tuple.length >= 2) {
+        const [a, b] = tuple.map(Number);
+        if (!isNaN(a) && !isNaN(b)) {
+          return gc.tupleOrder === 'lat-lng' ? { lng: b, lat: a } : { lng: a, lat: b };
+        }
+      }
+    } else if ((gc.coordinateMode === 'polygon_center' || gc.coordinateMode === 'line_center') && gc.geometryVariable) {
+      const rawValue = row[gc.geometryVariable];
+      if (!rawValue) return null;
+      try {
+        const parsed = typeof rawValue === 'string' ? JSON.parse(rawValue) : rawValue;
+        // Try stored center
+        const cLng = parseFloat(parsed.center_lng);
+        const cLat = parseFloat(parsed.center_lat);
+        if (!isNaN(cLng) && !isNaN(cLat) && (cLng !== 0 || cLat !== 0)) {
+          const offLng = parseFloat(parsed.center_offset_lng) || 0;
+          const offLat = parseFloat(parsed.center_offset_lat) || 0;
+          return {
+            lng: cLng + offLng,
+            lat: cLat + offLat,
+            areaSqMeters: parseFloat(parsed.area_sq_meters) || 0
+          };
+        }
+        // Fallback: compute from vertices
+        if (parsed.vertices?.length >= 2) {
+          const verts = parsed.vertices as [number, number][];
+          const avgLng = verts.reduce((s: number, v: [number, number]) => s + v[0], 0) / verts.length;
+          const avgLat = verts.reduce((s: number, v: [number, number]) => s + v[1], 0) / verts.length;
+          return { lng: avgLng, lat: avgLat, areaSqMeters: parseFloat(parsed.area_sq_meters) || 0 };
+        }
+      } catch { /* invalid JSON */ }
+    }
+    return null;
   }
 
   // ==================== Helpers ====================

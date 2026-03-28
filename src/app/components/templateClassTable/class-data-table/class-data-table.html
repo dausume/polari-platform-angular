@@ -82,6 +82,31 @@
                         <list-cell *ngSwitchCase="'polarilist'" [value]="getCellValue(row, column)" [columnName]="column"></list-cell>
                         <dict-cell *ngSwitchCase="'dict'" [value]="getCellValue(row, column)" [columnName]="column"></dict-cell>
                         <dict-cell *ngSwitchCase="'polaridict'" [value]="getCellValue(row, column)" [columnName]="column"></dict-cell>
+                        <!-- Map geometry types with Go-To button -->
+                        <span *ngSwitchCase="'map_polygon'" class="geometry-cell">
+                            <span class="geometry-label">⬡ Polygon</span>
+                            <button mat-icon-button color="primary" (click)="openMapPreview(row, column, 'polygon')"
+                                    [disabled]="!getCellValue(row, column) || getCellValue(row, column) === '{}'"
+                                    matTooltip="View on map" class="goto-btn">
+                                <mat-icon>my_location</mat-icon>
+                            </button>
+                        </span>
+                        <span *ngSwitchCase="'map_line_segment'" class="geometry-cell">
+                            <span class="geometry-label">📏 Line</span>
+                            <button mat-icon-button color="primary" (click)="openMapPreview(row, column, 'line')"
+                                    [disabled]="!getCellValue(row, column) || getCellValue(row, column) === '{}'"
+                                    matTooltip="View on map" class="goto-btn">
+                                <mat-icon>my_location</mat-icon>
+                            </button>
+                        </span>
+                        <span *ngSwitchCase="'map_coordinate'" class="geometry-cell">
+                            <span class="geometry-label">📍 {{ formatCoordinate(getCellValue(row, column)) }}</span>
+                            <button mat-icon-button color="primary" (click)="openMapPreview(row, column, 'coordinate')"
+                                    [disabled]="!getCellValue(row, column) || getCellValue(row, column) === '[]'"
+                                    matTooltip="View on map" class="goto-btn">
+                                <mat-icon>my_location</mat-icon>
+                            </button>
+                        </span>
                         <object-cell *ngSwitchCase="'object'" [value]="getCellValue(row, column)" [columnName]="column"
                                      (viewInstanceDisplay)="onViewInstanceDisplay(column, $event)">
                         </object-cell>

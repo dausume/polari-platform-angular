@@ -24,6 +24,12 @@ import {
   ClassSelectorDialogComponent,
   ClassSelectorDialogResult
 } from '../class-selector-dialog/class-selector-dialog';
+import {
+  MapPointPickerDialogComponent,
+  MapPointPickerDialogData,
+  MapPointPickerDialogResult,
+  MapPointPickerMode
+} from '../map-point-picker-dialog/map-point-picker-dialog';
 
 @Component({
   standalone: false,
@@ -160,7 +166,9 @@ export class CrudDialogComponent implements OnInit, OnDestroy {
       'reference': null,
       'referencelist': [],
       'reference list': [],
-      'reference_list': []
+      'reference_list': [],
+      'map_line_segment': '{}',
+      'map_polygon': '{}'
     };
     return defaults[varType?.toLowerCase()] ?? '';
   }
@@ -342,6 +350,101 @@ export class CrudDialogComponent implements OnInit, OnDestroy {
     const cellType = this.getCellType(varDef);
     const isMultiple = cellType === 'referenceList';
     this.form.get(varDef.varName)?.setValue(isMultiple ? [] : null);
+    delete this.refDisplayLabels[varDef.varName];
+  }
+
+  /**
+   * Open the map point picker for Map Line Segment / Map Polygon fields.
+   * Loads the referenced mappable class's instances and displays them on a map.
+   */
+  openMapPointPicker(varDef: VariableDefinition): void {
+    const cellType = this.getCellType(varDef);
+    const mode: MapPointPickerMode = cellType === 'mapLineSegment' ? 'line' : 'polygon';
+
+    // Resolve the referenced mappable class from refClass metadata
+    let refClassName = varDef.refClass || '';
+    if (!refClassName && this.data.className) {
+      const classTyping = this.typingService.getClassPolyTyping(this.data.className);
+      if (classTyping?.completeVariableTypingData) {
+        const varTyping = classTyping.completeVariableTypingData[varDef.varName];
+        if (varTyping?.refClass) {
+          refClassName = varTyping.refClass;
+        }
+      }
+    }
+
+    if (!refClassName) {
+      console.warn('[CrudDialog] No refClass found for map geometry field:', varDef.varName);
+      return;
+    }
+
+    // Try to restore previously selected instance IDs from the current value
+    let existingPointIds: string[] = [];
+    const currentVal = this.form.get(varDef.varName)?.value;
+    if (currentVal) {
+      try {
+        const parsed = typeof currentVal === 'string' ? JSON.parse(currentVal) : currentVal;
+        if (parsed.instance_ids && Array.isArray(parsed.instance_ids)) {
+          existingPointIds = parsed.instance_ids;
+        }
+      } catch { /* ignore */ }
+    }
+
+    const dialogData: MapPointPickerDialogData = {
+      mode,
+      refClassName,
+      title: `Select ${refClassName} instances for ${varDef.varDisplayName}`,
+      selectedPointIds: existingPointIds
+    };
+
+    const dialogRef = this.dialog.open(MapPointPickerDialogComponent, {
+      data: dialogData,
+      width: '900px',
+      maxHeight: '85vh',
+      panelClass: 'map-picker-overlay',
+      autoFocus: false
+    });
+
+    dialogRef.afterClosed().subscribe((result: MapPointPickerDialogResult) => {
+      if (result?.action === 'select' && result.geometryData) {
+        const jsonValue = JSON.stringify(result.geometryData);
+        this.form.get(varDef.varName)?.setValue(jsonValue);
+        const count = result.selectedPointIds?.length || 0;
+        this.refDisplayLabels[varDef.varName] = mode === 'line'
+          ? `Line (${count} ${refClassName} instances)`
+          : `Polygon (${count} ${refClassName} vertices)`;
+      }
+    });
+  }
+
+  /**
+   * Get display label for a map geometry field.
+   */
+  getMapGeometryLabel(varDef: VariableDefinition): string {
+    if (this.refDisplayLabels[varDef.varName]) {
+      return this.refDisplayLabels[varDef.varName];
+    }
+    const value = this.form.get(varDef.varName)?.value;
+    if (!value || value === '{}') return '';
+    try {
+      const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+      const ids = parsed.instance_ids || parsed.point_ids;
+      if (ids?.length) {
+        const cellType = this.getCellType(varDef);
+        const refClass = parsed.ref_class || '';
+        return cellType === 'mapLineSegment'
+          ? `Line (${ids.length} ${refClass} instances)`
+          : `Polygon (${ids.length} ${refClass} vertices)`;
+      }
+    } catch { /* ignore */ }
+    return '';
+  }
+
+  /**
+   * Clear a map geometry field.
+   */
+  clearMapGeometry(varDef: VariableDefinition): void {
+    this.form.get(varDef.varName)?.setValue('{}');
     delete this.refDisplayLabels[varDef.varName];
   }
 

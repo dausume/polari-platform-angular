@@ -37,6 +37,7 @@ import { NamedFilterChainConfig, FilterChainDefinitionSummary } from '@models/da
 import { CreateFilterChainDialogComponent } from '@components/dataset-config/create-filter-chain-dialog/create-filter-chain-dialog';
 import { FilterChainEditable } from '@components/dataset-config/dataset-config-sidebar/dataset-config-sidebar';
 import { classPolyTyping } from '@models/polyTyping/classPolyTyping';
+import { getMapPolygonStyle, getMapLineStyle } from '@models/shared/SvgIconLibrary';
 import { DisplayRendererComponent } from '@components/dashboard/dashboard-renderer/dashboard-renderer';
 import { EditClassDialogComponent } from '@components/class-main-page/edit-class-dialog/edit-class-dialog';
 import { NoCodeSolutionStateService } from '@services/no-code-services/no-code-solution-state.service';
@@ -100,6 +101,7 @@ export class ClassMainPageComponent implements OnDestroy {
   geoJsonConfigsLoading: boolean = false;
   geoJsonPreviewData: any[] = [];
   geoJsonViewMode: 'config' | 'data' | 'features' = 'config';
+  geoJsonMixedFeatures: GeoJSON.FeatureCollection | null = null;
 
   /** DataSet config management state */
   dataSetConfigList: DataSetDefinitionSummary[] = [];
@@ -1075,11 +1077,196 @@ export class ClassMainPageComponent implements OnDestroy {
     this.crudeService.readAll().subscribe({
       next: (data: any) => {
         this.geoJsonPreviewData = this.parseCrudeInstances(data);
+        this.buildGeoJsonMixedFeatures();
       },
       error: () => {
         this.geoJsonPreviewData = [];
+        this.geoJsonMixedFeatures = null;
       }
     });
+  }
+
+  /**
+   * Build a mixed GeoJSON FeatureCollection from polygon/line geometry variables in the preview data.
+   * This enables polygon/line shape rendering in both the config tab and data view map-renderers.
+   */
+  private buildGeoJsonMixedFeatures(): void {
+    const gc = this.selectedGeoJsonConfig?.geoJsonConfig;
+    if (!gc || !gc.geometryVariable || !this.geoJsonPreviewData?.length) {
+      this.geoJsonMixedFeatures = null;
+      return;
+    }
+    if (gc.coordinateMode !== 'polygon_center' && gc.coordinateMode !== 'line_center') {
+      this.geoJsonMixedFeatures = null;
+      return;
+    }
+
+    const features: GeoJSON.Feature[] = [];
+    const unresolvedRefs: { refClass: string; instanceIds: string[]; styleName: string }[] = [];
+
+    for (const instance of this.geoJsonPreviewData) {
+      const rawValue = instance[gc.geometryVariable];
+      if (!rawValue) continue;
+      try {
+        const parsed = typeof rawValue === 'string' ? JSON.parse(rawValue) : rawValue;
+
+        if (gc.coordinateMode === 'polygon_center') {
+          if (parsed.vertices && Array.isArray(parsed.vertices) && parsed.vertices.length >= 3) {
+            const ring: [number, number][] = [...parsed.vertices];
+            const first = ring[0];
+            const last = ring[ring.length - 1];
+            if (first[0] !== last[0] || first[1] !== last[1]) {
+              ring.push([...first] as [number, number]);
+            }
+            const polyStyle = getMapPolygonStyle(parsed.style_name || 'default-polygon');
+            features.push({
+              type: 'Feature',
+              geometry: { type: 'Polygon', coordinates: [ring] },
+              properties: {
+                _geometryType: 'polygon',
+                _fillColor: polyStyle?.fillColor || '#1976d2',
+                _fillOpacity: polyStyle?.fillOpacity ?? 0.25,
+                _outlineColor: polyStyle?.outlineColor || '#0d47a1',
+                _outlineWidth: polyStyle?.outlineWidth ?? 2,
+                _outlineOpacity: polyStyle?.outlineOpacity ?? 1,
+                _centerLng: parsed.center_lng,
+                _centerLat: parsed.center_lat,
+                _effectiveCenterLng: (parsed.center_lng || 0) + (parsed.center_offset_lng || 0),
+                _effectiveCenterLat: (parsed.center_lat || 0) + (parsed.center_offset_lat || 0),
+                _areaSqMeters: parsed.area_sq_meters || 0
+              }
+            });
+          } else if (parsed.ref_class && parsed.instance_ids?.length >= 3) {
+            unresolvedRefs.push({
+              refClass: parsed.ref_class,
+              instanceIds: parsed.instance_ids,
+              styleName: parsed.style_name || 'default-polygon'
+            });
+          }
+        } else if (gc.coordinateMode === 'line_center') {
+          if (parsed.vertices && Array.isArray(parsed.vertices) && parsed.vertices.length >= 2) {
+            const lineStyle = getMapLineStyle(parsed.style_name || 'default-line');
+            features.push({
+              type: 'Feature',
+              geometry: { type: 'LineString', coordinates: parsed.vertices },
+              properties: {
+                _geometryType: 'line',
+                _lineColor: lineStyle?.lineColor || '#1976d2',
+                _lineWidth: lineStyle?.lineWidth ?? 3,
+                _lineOpacity: lineStyle?.lineOpacity ?? 1
+              }
+            });
+          } else if (parsed.ref_class && parsed.instance_ids?.length >= 2) {
+            unresolvedRefs.push({
+              refClass: parsed.ref_class,
+              instanceIds: parsed.instance_ids,
+              styleName: parsed.style_name || 'default-line'
+            });
+          }
+        }
+      } catch { /* invalid JSON */ }
+    }
+
+    if (features.length > 0) {
+      this.geoJsonMixedFeatures = { type: 'FeatureCollection', features };
+    } else {
+      this.geoJsonMixedFeatures = null;
+    }
+
+    // Resolve legacy refs without inline vertices
+    if (unresolvedRefs.length > 0) {
+      this.resolveLegacyGeoJsonRefs(unresolvedRefs, features);
+    }
+  }
+
+  /**
+   * Resolve legacy geometry references (ref_class + instance_ids without vertices)
+   * by fetching the referenced class instances and extracting coordinates.
+   */
+  private resolveLegacyGeoJsonRefs(
+    refs: { refClass: string; instanceIds: string[]; styleName: string }[],
+    existingFeatures: GeoJSON.Feature[]
+  ): void {
+    const gc = this.selectedGeoJsonConfig!.geoJsonConfig;
+    const byClass = new Map<string, typeof refs>();
+    for (const ref of refs) {
+      if (!byClass.has(ref.refClass)) byClass.set(ref.refClass, []);
+      byClass.get(ref.refClass)!.push(ref);
+    }
+
+    for (const [refClass, classRefs] of byClass) {
+      const backendUrl = this.polariService.getBackendBaseUrl();
+      this.geoJsonDefService.fetchAllGeoJsonDefs().subscribe({
+        next: (defs) => {
+          const matchingDef = defs.find((d: any) => d.source_class === refClass);
+          if (!matchingDef) return;
+
+          const refConfig = NamedGeoJsonConfig.fromBackend(matchingDef);
+          const refGc = refConfig.geoJsonConfig;
+
+          this.http.get<any>(`${backendUrl}/${refClass}`).subscribe({
+            next: (response: any) => {
+              const instances = this.parseCrudeInstances(response);
+              const instanceMap = new Map<string, any>();
+              for (const inst of instances) {
+                const id = inst.id || inst._id || inst._instanceId;
+                if (id) instanceMap.set(String(id), inst);
+              }
+
+              const newFeatures = [...existingFeatures];
+              for (const ref of classRefs) {
+                const coords: [number, number][] = [];
+                for (const instId of ref.instanceIds) {
+                  const inst = instanceMap.get(instId);
+                  if (!inst) continue;
+                  const coord = refConfig.extractCoordinates(inst, refGc);
+                  if (coord) coords.push(coord);
+                }
+
+                if (gc.coordinateMode === 'polygon_center' && coords.length >= 3) {
+                  const ring = [...coords];
+                  const first = ring[0]; const last = ring[ring.length - 1];
+                  if (first[0] !== last[0] || first[1] !== last[1]) ring.push([...first] as [number, number]);
+                  const polyStyle = getMapPolygonStyle(ref.styleName);
+                  const avgLng = coords.reduce((s, c) => s + c[0], 0) / coords.length;
+                  const avgLat = coords.reduce((s, c) => s + c[1], 0) / coords.length;
+                  newFeatures.push({
+                    type: 'Feature',
+                    geometry: { type: 'Polygon', coordinates: [ring] },
+                    properties: {
+                      _geometryType: 'polygon',
+                      _fillColor: polyStyle?.fillColor || '#1976d2',
+                      _fillOpacity: polyStyle?.fillOpacity ?? 0.25,
+                      _outlineColor: polyStyle?.outlineColor || '#0d47a1',
+                      _outlineWidth: polyStyle?.outlineWidth ?? 2,
+                      _outlineOpacity: polyStyle?.outlineOpacity ?? 1,
+                      _centerLng: avgLng, _centerLat: avgLat,
+                      _effectiveCenterLng: avgLng, _effectiveCenterLat: avgLat
+                    }
+                  });
+                } else if (gc.coordinateMode === 'line_center' && coords.length >= 2) {
+                  const lineStyle = getMapLineStyle(ref.styleName);
+                  newFeatures.push({
+                    type: 'Feature',
+                    geometry: { type: 'LineString', coordinates: coords },
+                    properties: {
+                      _geometryType: 'line',
+                      _lineColor: lineStyle?.lineColor || '#1976d2',
+                      _lineWidth: lineStyle?.lineWidth ?? 3,
+                      _lineOpacity: lineStyle?.lineOpacity ?? 1
+                    }
+                  });
+                }
+              }
+
+              if (newFeatures.length > 0) {
+                this.geoJsonMixedFeatures = { type: 'FeatureCollection', features: newFeatures };
+              }
+            }
+          });
+        }
+      });
+    }
   }
 
   /**
@@ -1090,6 +1277,7 @@ export class ClassMainPageComponent implements OnDestroy {
     this.hasGeoJsonDraftChanges = false;
     this.geoJsonConfigPanelOpen = false;
     this.geoJsonPreviewData = [];
+    this.geoJsonMixedFeatures = null;
     this.geoJsonViewMode = 'config';
     this.geoJsonDefService.draftConfig$.next(null);
     this.geoJsonDefService.hasDraftChanges$.next(false);
@@ -1109,6 +1297,7 @@ export class ClassMainPageComponent implements OnDestroy {
     );
     this.selectedGeoJsonConfig = updated;
     this.geoJsonDefService.updateDraft(updated);
+    this.buildGeoJsonMixedFeatures();
   }
 
   /**

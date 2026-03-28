@@ -21,6 +21,7 @@
         [pickModeActive]="pickModeActive"
         [showLocateMe]="true"
         [styleOverride]="cachedMapStyle"
+        [mixedFeatureCollection]="mixedFeatureCollection"
         (mapClicked)="onMapClicked($event)"
         (locateMeClicked)="onLocateMeClicked()"
         (pickModeCancelled)="cancelPickMode()">
@@ -51,6 +52,12 @@
               <th mat-header-cell *matHeaderCellDef>Location</th>
               <td mat-cell *matCellDef="let row">
                 <div class="location-actions">
+                  <button mat-icon-button color="primary"
+                          (click)="goToLocation(row)"
+                          [disabled]="!canGoTo(row)"
+                          title="Go to location on map">
+                    <mat-icon>my_location</mat-icon>
+                  </button>
                   <button mat-stroked-button color="primary" class="set-location-btn"
                           (click)="startPickMode(row)"
                           [disabled]="pickModeActive">

@@ -31,6 +31,7 @@ import { GeocoderDetailDialogComponent } from '@components/geojson-config/geocod
 export class GeoJsonConfigSidebarComponent implements OnChanges, OnInit {
   @Input() config!: NamedGeoJsonConfig;
   @Input() classTypeData: any = {};
+  @Input() dataSetList: { id: string; name: string }[] = [];
   @Output() configChange = new EventEmitter<NamedGeoJsonConfig>();
 
   availableFields: string[] = [];
@@ -115,6 +116,11 @@ export class GeoJsonConfigSidebarComponent implements OnChanges, OnInit {
     this.emitChange();
   }
 
+  onDataSetChange(dataSetId: string): void {
+    this.config.geoJsonConfig.dataSetId = dataSetId;
+    this.emitChange();
+  }
+
   // ===== Coordinate Mapping =====
 
   onCoordinateModeChange(mode: CoordinateMode): void {
@@ -145,6 +151,41 @@ export class GeoJsonConfigSidebarComponent implements OnChanges, OnInit {
   onParentGeoClassChange(className: string): void {
     this.config.geoJsonConfig.parentGeoClass = className;
     this.emitChange();
+  }
+
+  onGeometryVariableChange(variable: string): void {
+    this.config.geoJsonConfig.geometryVariable = variable;
+    this.emitChange();
+  }
+
+  /**
+   * Get class variables that match a specific geometry data type.
+   * Filters availableFields by checking the classTypeData for matching varType.
+   */
+  getGeometryFields(geometryType: string): string[] {
+    if (!this.classTypeData) return this.availableFields;
+    return this.availableFields.filter(field => {
+      const fieldInfo = this.classTypeData[field];
+      if (!fieldInfo) return false;
+      const varType = fieldInfo.variablePythonType || fieldInfo.type || '';
+      return varType === geometryType;
+    });
+  }
+
+  /**
+   * Get class variables that are Map Coordinate type (or any list/tuple that could hold coordinates).
+   * For Map Coordinate mode, shows map_coordinate typed fields and falls back to all fields.
+   */
+  getCoordinateFields(): string[] {
+    if (!this.classTypeData) return this.availableFields;
+    const coordFields = this.availableFields.filter(field => {
+      const fieldInfo = this.classTypeData[field];
+      if (!fieldInfo) return false;
+      const varType = fieldInfo.variablePythonType || fieldInfo.type || '';
+      return varType === 'map_coordinate' || varType === 'list';
+    });
+    // If no specific map_coordinate fields found, show all fields as fallback
+    return coordFields.length > 0 ? coordFields : this.availableFields;
   }
 
   // ===== SVG Markers =====

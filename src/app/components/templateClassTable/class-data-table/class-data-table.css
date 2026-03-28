@@ -494,3 +494,20 @@ mat-paginator ::ng-deep .mat-mdc-paginator-navigation-button[disabled] {
 .spinning {
     animation: spin 1s linear infinite;
 }
+
+/* Geometry cell with go-to button */
+.geometry-cell {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.geometry-label {
+    font-size: 0.85rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 120px;
+}
+.goto-btn {
+    flex-shrink: 0;
+}

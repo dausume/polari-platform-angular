@@ -173,6 +173,12 @@
   border: 1px solid #f5c6cb;
 }
 
+.status-message-banner.status-warning {
+  background-color: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeeba;
+}
+
 .status-message-banner.status-saving {
   background-color: #cce5ff;
   color: #004085;

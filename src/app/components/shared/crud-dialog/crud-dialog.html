@@ -257,6 +257,46 @@
             </div>
           </ng-container>
 
+          <!-- Map Line Segment Field -->
+          <ng-container *ngIf="getCellType(varDef) === 'mapLineSegment'">
+            <div class="reference-picker-field map-geometry-field" (click)="openMapPointPicker(varDef)">
+              <mat-icon class="ref-type-icon">timeline</mat-icon>
+              <span class="ref-value" *ngIf="getMapGeometryLabel(varDef)">
+                {{ getMapGeometryLabel(varDef) }}
+              </span>
+              <span class="ref-placeholder" *ngIf="!getMapGeometryLabel(varDef)">
+                Click to select points on map...
+              </span>
+              <button mat-icon-button type="button" class="ref-browse-btn"
+                      *ngIf="getMapGeometryLabel(varDef)"
+                      (click)="clearMapGeometry(varDef); $event.stopPropagation()"
+                      [disabled]="isReadOnly(varDef.varName)">
+                <mat-icon>close</mat-icon>
+              </button>
+              <mat-icon class="ref-browse-icon">map</mat-icon>
+            </div>
+          </ng-container>
+
+          <!-- Map Polygon Field -->
+          <ng-container *ngIf="getCellType(varDef) === 'mapPolygon'">
+            <div class="reference-picker-field map-geometry-field" (click)="openMapPointPicker(varDef)">
+              <mat-icon class="ref-type-icon">pentagon</mat-icon>
+              <span class="ref-value" *ngIf="getMapGeometryLabel(varDef)">
+                {{ getMapGeometryLabel(varDef) }}
+              </span>
+              <span class="ref-placeholder" *ngIf="!getMapGeometryLabel(varDef)">
+                Click to select vertices on map...
+              </span>
+              <button mat-icon-button type="button" class="ref-browse-btn"
+                      *ngIf="getMapGeometryLabel(varDef)"
+                      (click)="clearMapGeometry(varDef); $event.stopPropagation()"
+                      [disabled]="isReadOnly(varDef.varName)">
+                <mat-icon>close</mat-icon>
+              </button>
+              <mat-icon class="ref-browse-icon">map</mat-icon>
+            </div>
+          </ng-container>
+
           <!-- Field Error -->
           <mat-error *ngIf="form.get(varDef.varName)?.invalid && form.get(varDef.varName)?.touched">
             {{ varDef.varDisplayName }} is required

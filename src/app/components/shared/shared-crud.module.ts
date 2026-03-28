@@ -42,6 +42,9 @@ import { InstancePickerDialogComponent } from './instance-picker-dialog/instance
 // Class Selector Dialog Component
 import { ClassSelectorDialogComponent } from './class-selector-dialog/class-selector-dialog';
 
+// Map Point Picker Dialog Component
+import { MapPointPickerDialogComponent } from './map-point-picker-dialog/map-point-picker-dialog';
+
 // Detail Display Renderer
 import { DetailDisplayRendererComponent } from './detail-display-renderer/detail-display-renderer';
 
@@ -62,6 +65,7 @@ import { DynamicDataTableComponent } from './dynamic-data-table/dynamic-data-tab
     CrudDialogComponent,
     InstancePickerDialogComponent,
     ClassSelectorDialogComponent,
+    MapPointPickerDialogComponent,
     // Detail Display
     DetailDisplayRendererComponent,
     // Table
@@ -102,6 +106,7 @@ import { DynamicDataTableComponent } from './dynamic-data-table/dynamic-data-tab
     CrudDialogComponent,
     InstancePickerDialogComponent,
     ClassSelectorDialogComponent,
+    MapPointPickerDialogComponent,
     // Detail Display
     DetailDisplayRendererComponent,
     // Table
@@ -121,4 +126,5 @@ export { EditableSelectCellComponent } from './editable-cells/editable-select-ce
 export { RowActionsCellComponent } from './row-actions-cell/row-actions-cell';
 export { InstancePickerDialogComponent } from './instance-picker-dialog/instance-picker-dialog';
 export { ClassSelectorDialogComponent } from './class-selector-dialog/class-selector-dialog';
+export { MapPointPickerDialogComponent } from './map-point-picker-dialog/map-point-picker-dialog';
 export { DetailDisplayRendererComponent } from './detail-display-renderer/detail-display-renderer';

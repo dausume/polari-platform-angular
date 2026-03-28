@@ -5,6 +5,7 @@ import { ChangeDetectorRef } from '@angular/core';
 import { ClassTypingService } from '@services/class-typing-service';
 import { ObjectCategory } from '@models/navComponent';
 import { Subscription } from 'rxjs';
+import { GeoJsonDefinitionService } from '@services/geojson/geojson-definition.service';
 
 export interface ClassOption {
   className: string;
@@ -32,7 +33,7 @@ export class VariableModifierComponent implements OnInit, OnDestroy {
   variableConfigDefs: variableConfigDef[] = [];
   /** Per-variable inheritance validation errors */
   inheritanceErrors: Map<number, string> = new Map();
-  typesAllowed = ["String", "Integer", "Decimal", "List", "Dictionary", "Reference", "Reference List", "Parent Reference", "Unique Identifier - Alphanumeric", "Numeric Index"];
+  typesAllowed = ["String", "Integer", "Decimal", "List", "Dictionary", "Reference", "Reference List", "Parent Reference", "Map Coordinate", "Map Line Segment", "Map Polygon", "Unique Identifier - Alphanumeric", "Numeric Index"];
   selectedType = "Select Type";
   varName = "";
   typeControl = new FormControl();
@@ -49,11 +50,18 @@ export class VariableModifierComponent implements OnInit, OnDestroy {
   /** Per-variable filtered class groups */
   filteredClassGroups: Map<number, ClassCategoryGroup[]> = new Map();
 
+  /** Classes that have GeoJSON coordinate config (are "mappable") */
+  mappableClassNames = new Set<string>();
+
+  /** Per-variable cached mappable class groups */
+  mappableClassGroups: Map<number, ClassCategoryGroup[]> = new Map();
+
   private subscriptions: Subscription[] = [];
 
   constructor(
     private changeDetectorRef: ChangeDetectorRef,
-    private typingService: ClassTypingService
+    private typingService: ClassTypingService,
+    private geoJsonDefService: GeoJsonDefinitionService
   ) {
     setInterval(() => {
       this.changeDetectorRef.detectChanges();
@@ -71,6 +79,7 @@ export class VariableModifierComponent implements OnInit, OnDestroy {
     }
 
     this.buildClassList();
+    this.loadMappableClasses();
 
     // Re-build when typing data updates
     const sub = this.typingService.polyTypingBehaviorSubject.subscribe(() => {
@@ -146,6 +155,11 @@ export class VariableModifierComponent implements OnInit, OnDestroy {
     for (const [varIndex] of this.refClassSearchControls) {
       this.updateFilteredGroups(varIndex, '');
     }
+
+    // Rebuild mappable class groups if we have mappable data
+    if (this.mappableClassNames.size > 0) {
+      this.rebuildMappableClassGroups();
+    }
   }
 
   getRefClassSearchControl(varIndex: number): FormControl {
@@ -199,7 +213,9 @@ export class VariableModifierComponent implements OnInit, OnDestroy {
       'str': 'String', 'int': 'Integer', 'float': 'Decimal',
       'list': 'List', 'dict': 'Dictionary', 'reference': 'Reference',
       'referencelist': 'Reference List', 'reference_list': 'Reference List',
-      'parent_reference': 'Parent Reference'
+      'parent_reference': 'Parent Reference',
+      'map_coordinate': 'Map Coordinate',
+      'map_line_segment': 'Map Line Segment', 'map_polygon': 'Map Polygon'
     };
     this.variableConfigDefs = variables.map((v: any, i: number) => ({
       varIndex: i + 1,
@@ -207,6 +223,7 @@ export class VariableModifierComponent implements OnInit, OnDestroy {
       varDisplayName: v.varDisplayName || v.displayName || v.varName || '',
       varType: reverseTypeMap[v.varType] || v.varType || 'String',
       varRefClass: v.refClass || v.varRefClass,
+      varCoordinateOrder: v.coordinateOrder || undefined,
       soleIdentifier: v.isIdentifier || v.soleIdentifier || false,
       jointIdentifier: v.jointIdentifier || false,
       isUnique: v.isUnique || false,
@@ -222,6 +239,8 @@ export class VariableModifierComponent implements OnInit, OnDestroy {
       soleIdentifier: false, jointIdentifier: false, isUnique: false,
       varNameControl: new FormControl(), varDisplayNameControl: new FormControl()
     });
+    // Ensure mappable groups are cached for the new variable
+    this.rebuildMappableClassGroups();
   }
 
   removeVariable(changedIndex: number) {
@@ -287,6 +306,61 @@ export class VariableModifierComponent implements OnInit, OnDestroy {
       }
     }
     return false;
+  }
+
+  /**
+   * Load all GeoJsonDefinitions to determine which classes are "mappable"
+   * (have coordinate configuration defined).
+   */
+  private loadMappableClasses(): void {
+    this.geoJsonDefService.fetchAllGeoJsonDefs().subscribe({
+      next: (defs: any[]) => {
+        this.mappableClassNames.clear();
+        for (const def of defs) {
+          const sourceClass = def.source_class || '';
+          if (sourceClass) {
+            this.mappableClassNames.add(sourceClass);
+          }
+        }
+        this.rebuildMappableClassGroups();
+      },
+      error: () => {
+        // Silently fail — mappable filtering just won't apply
+      }
+    });
+  }
+
+  /**
+   * Rebuild cached mappable class groups for all existing variables.
+   * Called when mappableClassNames or classGroups change.
+   */
+  private rebuildMappableClassGroups(): void {
+    // Build unfiltered mappable groups from the full class list
+    const mappableGroups: ClassCategoryGroup[] = [];
+    for (const group of this.classGroups) {
+      const mappableClasses = group.classes.filter(c => this.mappableClassNames.has(c.className));
+      if (mappableClasses.length > 0) {
+        mappableGroups.push({ ...group, classes: mappableClasses });
+      }
+    }
+    // Cache for every variable index that exists
+    for (const varDef of this.variableConfigDefs) {
+      this.mappableClassGroups.set(varDef.varIndex, mappableGroups);
+    }
+  }
+
+  /**
+   * Get cached mappable class groups for a variable (safe for template binding).
+   */
+  getMappableClassGroups(varIndex: number): ClassCategoryGroup[] {
+    return this.mappableClassGroups.get(varIndex) || [];
+  }
+
+  /**
+   * Check if a type requires a mappable class reference.
+   */
+  isMapGeometryType(varType: string): boolean {
+    return varType === 'Map Line Segment' || varType === 'Map Polygon';
   }
 
   /**

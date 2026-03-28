@@ -3,8 +3,10 @@
  * - 'tuple': A single variable holds a [lat,lng] or [lng,lat] array/tuple
  * - 'separate': Latitude and longitude are stored in separate variables
  * - 'parent': Coordinates come from a parent GeoJSON-enabled class
+ * - 'line_center': Coordinates derived from a Map Line Segment variable's midpoint
+ * - 'polygon_center': Coordinates derived from a Map Polygon variable's effective center
  */
-export type CoordinateMode = 'tuple' | 'separate' | 'parent';
+export type CoordinateMode = 'tuple' | 'separate' | 'parent' | 'line_center' | 'polygon_center';
 
 /**
  * Coordinate ordering convention for tuple mode.
@@ -104,8 +106,16 @@ export interface GeoJsonConfigData {
     defaultMarkerName: string;
     /** If mode is 'parent': the class name of the parent GeoJSON-enabled object */
     parentGeoClass: string;
+    /** If mode is 'line_center' or 'polygon_center': the class variable holding the geometry JSON */
+    geometryVariable: string;
     /** Initial map view settings */
     mapOptions: MapViewOptions;
+    /** Optional default line style name for LineString features */
+    defaultLineStyleName?: string;
+    /** Optional default polygon style name for Polygon features */
+    defaultPolygonStyleName?: string;
+    /** Optional DataSet ID — filters instance data through a DataSet before rendering */
+    dataSetId: string;
 }
 
 export const DEFAULT_SVG_MARKER: SvgMarkerDefinition = {
@@ -298,7 +308,9 @@ export const DEFAULT_GEOJSON_CONFIG: GeoJsonConfigData = {
     latitudeVariable: '',
     longitudeVariable: '',
     parentGeoClass: '',
+    geometryVariable: '',
     svgMarkers: [{ ...DEFAULT_SVG_MARKER }],
     defaultMarkerName: 'default-pin',
-    mapOptions: { ...DEFAULT_MAP_VIEW }
+    mapOptions: { ...DEFAULT_MAP_VIEW },
+    dataSetId: ''
 };

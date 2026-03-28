@@ -120,6 +120,12 @@ export class NamedGeoJsonConfig {
             } else if (gc.coordinateMode === 'separate') {
                 if (gc.latitudeVariable) lat = parseFloat(instance[gc.latitudeVariable]);
                 if (gc.longitudeVariable) lng = parseFloat(instance[gc.longitudeVariable]);
+            } else if ((gc.coordinateMode === 'line_center' || gc.coordinateMode === 'polygon_center') && gc.geometryVariable) {
+                const center = this.extractGeometryCenter(instance[gc.geometryVariable], gc.coordinateMode);
+                if (center) {
+                    lng = center[0];
+                    lat = center[1];
+                }
             }
 
             if (lng != null && lat != null && !isNaN(lng) && !isNaN(lat)) {
@@ -171,6 +177,94 @@ export class NamedGeoJsonConfig {
         }
 
         return result;
+    }
+
+    /**
+     * Extract the center [lng, lat] from a geometry variable's JSON value.
+     * For polygon_center: reads center_lng/center_lat + offsets from the stored polygon data.
+     * For line_center: averages the referenced points' coordinates from the stored line data.
+     *
+     * The geometry variable stores JSON like:
+     *   { ref_class: "City", instance_ids: ["id1","id2"], style_name: "..." }
+     * or the direct polygon data with center fields.
+     */
+    private extractGeometryCenter(rawValue: any, mode: string): [number, number] | null {
+        if (!rawValue) return null;
+        try {
+            const parsed = typeof rawValue === 'string' ? JSON.parse(rawValue) : rawValue;
+
+            if (mode === 'polygon_center') {
+                // Try stored center_lng/center_lat + offsets first
+                const cLng = parseFloat(parsed.center_lng);
+                const cLat = parseFloat(parsed.center_lat);
+                if (!isNaN(cLng) && !isNaN(cLat) && (cLng !== 0 || cLat !== 0)) {
+                    const offLng = parseFloat(parsed.center_offset_lng) || 0;
+                    const offLat = parseFloat(parsed.center_offset_lat) || 0;
+                    return [cLng + offLng, cLat + offLat];
+                }
+                // Fallback: compute center from stored vertices
+                if (parsed.vertices && Array.isArray(parsed.vertices) && parsed.vertices.length >= 3) {
+                    const verts = parsed.vertices as [number, number][];
+                    const avgLng = verts.reduce((s: number, v: [number, number]) => s + v[0], 0) / verts.length;
+                    const avgLat = verts.reduce((s: number, v: [number, number]) => s + v[1], 0) / verts.length;
+                    return [avgLng, avgLat];
+                }
+            }
+
+            if (mode === 'line_center') {
+                // Try stored center first
+                const cLng = parseFloat(parsed.center_lng);
+                const cLat = parseFloat(parsed.center_lat);
+                if (!isNaN(cLng) && !isNaN(cLat) && (cLng !== 0 || cLat !== 0)) {
+                    return [cLng, cLat];
+                }
+                // Fallback: compute midpoint from stored vertices
+                if (parsed.vertices && Array.isArray(parsed.vertices) && parsed.vertices.length >= 2) {
+                    const verts = parsed.vertices as [number, number][];
+                    const avgLng = verts.reduce((s: number, v: [number, number]) => s + v[0], 0) / verts.length;
+                    const avgLat = verts.reduce((s: number, v: [number, number]) => s + v[1], 0) / verts.length;
+                    return [avgLng, avgLat];
+                }
+            }
+        } catch { /* invalid JSON */ }
+        return null;
+    }
+
+    /**
+     * Extract [lng, lat] coordinates from an instance using a given GeoJSON config.
+     * This is the public counterpart of extractGeometryCenter — it handles
+     * tuple, separate, and geometry center modes.
+     */
+    extractCoordinates(instance: any, gc: GeoJsonConfigData): [number, number] | null {
+        let lng: number | null = null;
+        let lat: number | null = null;
+
+        if (gc.coordinateMode === 'tuple' && gc.tupleVariable) {
+            const tuple = instance[gc.tupleVariable];
+            if (Array.isArray(tuple) && tuple.length >= 2) {
+                if (gc.tupleOrder === 'lat-lng') {
+                    lat = parseFloat(tuple[0]);
+                    lng = parseFloat(tuple[1]);
+                } else {
+                    lng = parseFloat(tuple[0]);
+                    lat = parseFloat(tuple[1]);
+                }
+            }
+        } else if (gc.coordinateMode === 'separate') {
+            if (gc.latitudeVariable) lat = parseFloat(instance[gc.latitudeVariable]);
+            if (gc.longitudeVariable) lng = parseFloat(instance[gc.longitudeVariable]);
+        } else if ((gc.coordinateMode === 'line_center' || gc.coordinateMode === 'polygon_center') && gc.geometryVariable) {
+            const center = this.extractGeometryCenter(instance[gc.geometryVariable], gc.coordinateMode);
+            if (center) {
+                lng = center[0];
+                lat = center[1];
+            }
+        }
+
+        if (lng != null && lat != null && !isNaN(lng) && !isNaN(lat)) {
+            return [lng, lat];
+        }
+        return null;
     }
 
     /**

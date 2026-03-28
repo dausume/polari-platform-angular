@@ -1,0 +1,314 @@
+.map-point-picker-dialog {
+  display: flex;
+  flex-direction: column;
+  max-height: 85vh;
+}
+
+.dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-default, rgba(0, 0, 0, 0.12));
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-icon {
+  color: var(--brand-blue, #1976d2);
+}
+
+.header-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-primary, #212529);
+}
+
+.close-btn {
+  opacity: 0.7;
+}
+
+.dialog-content {
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.loading-state,
+.error-state,
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 48px 24px;
+  color: var(--text-secondary, #495057);
+}
+
+.error-state mat-icon {
+  color: var(--color-error, #d32f2f);
+}
+
+/* Main layout */
+.picker-layout {
+  display: flex;
+  height: 500px;
+}
+
+.map-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border-default, rgba(0, 0, 0, 0.12));
+}
+
+.map-container {
+  flex: 1;
+  min-height: 0;
+}
+
+.map-hint {
+  padding: 6px 12px;
+  font-size: 11px;
+  color: var(--text-tertiary, #6c757d);
+  background: var(--surface-secondary, #f5f5f5);
+}
+
+/* Selection panel */
+.selection-panel {
+  width: 280px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--surface-primary, #ffffff);
+}
+
+.selection-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-default, rgba(0, 0, 0, 0.12));
+}
+
+.selection-title {
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--text-primary, #212529);
+}
+
+.selection-count {
+  font-size: 11px;
+  color: var(--brand-blue, #1976d2);
+}
+
+.selected-list {
+  max-height: 180px;
+  overflow-y: auto;
+  border-bottom: 1px solid var(--border-default, rgba(0, 0, 0, 0.08));
+}
+
+.selected-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border-default, rgba(0, 0, 0, 0.06));
+}
+
+.item-order {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--brand-blue, #1976d2);
+  color: var(--text-on-primary, #ffffff);
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.item-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.item-name {
+  font-size: 12px;
+  color: var(--text-primary, #212529);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.item-coords {
+  font-size: 10px;
+  color: var(--text-tertiary, #6c757d);
+}
+
+.item-actions {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-left: auto;
+}
+
+/* Match the filter-segment button alignment pattern */
+.reorder-btn,
+.remove-btn {
+  width: 24px !important;
+  height: 24px !important;
+  padding: 0 !important;
+  line-height: 24px !important;
+}
+
+:host ::ng-deep .item-actions .mat-mdc-icon-button {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+:host ::ng-deep .item-actions .mat-mdc-icon-button .mat-mdc-button-touch-target {
+  width: 24px;
+  height: 24px;
+}
+
+.item-actions mat-icon {
+  font-size: 15px;
+  width: 15px;
+  height: 15px;
+}
+
+.no-selection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 24px 12px;
+  color: var(--text-tertiary, #6c757d);
+  font-size: 12px;
+}
+
+/* Available points list */
+.available-header {
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary, #495057);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border-default, rgba(0, 0, 0, 0.08));
+  background: var(--surface-secondary, #f5f5f5);
+}
+
+.available-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.available-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+  color: var(--text-primary, #212529);
+}
+
+.available-item:hover {
+  background: var(--surface-hover, #eeeeee);
+}
+
+.available-item.is-selected {
+  background: var(--brand-blue-light, #e3f2fd);
+}
+
+.avail-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  color: var(--text-tertiary, #6c757d);
+}
+
+.available-item.is-selected .avail-icon {
+  color: var(--brand-blue, #1976d2);
+}
+
+.avail-name {
+  flex: 1;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.avail-coords {
+  font-size: 10px;
+  color: var(--text-tertiary, #6c757d);
+}
+
+/* Dialog actions */
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 8px 16px;
+  border-top: 1px solid var(--border-default, rgba(0, 0, 0, 0.12));
+}
+
+/* Map marker styles */
+:host ::ng-deep .map-picker-point {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #78909c;
+  border: 2px solid white;
+  cursor: pointer;
+  transition: all 0.2s;
+  /* Do NOT set position here — MapLibre's .maplibregl-marker sets
+     position:absolute which is required for correct map placement.
+     Overriding it with position:relative causes markers to stack in
+     normal document flow, shifting each one down by its full height
+     (20px + 4px border = 24px per marker). The ::after badge still
+     works because position:absolute also establishes a containing
+     block for absolutely-positioned children. */
+}
+
+:host ::ng-deep .map-picker-point:hover {
+  transform: scale(1.2);
+  background: #42a5f5;
+}
+
+:host ::ng-deep .map-picker-point.selected {
+  background: #1976d2;
+  border-color: #bbdefb;
+  box-shadow: 0 0 8px rgba(25, 118, 210, 0.5);
+}
+
+:host ::ng-deep .map-picker-point.selected::after {
+  content: attr(data-order);
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ff9800;
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

@@ -1,0 +1,101 @@
+<div class="map-point-picker-dialog">
+  <!-- Header -->
+  <div mat-dialog-title class="dialog-header">
+    <div class="header-content">
+      <mat-icon class="header-icon">{{ mode === 'line' ? 'timeline' : 'pentagon' }}</mat-icon>
+      <span class="header-title">{{ title }}</span>
+    </div>
+    <button mat-icon-button (click)="onCancel()" class="close-btn" aria-label="Close">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <mat-dialog-content class="dialog-content">
+    <!-- Loading -->
+    <div *ngIf="isLoading" class="loading-state">
+      <mat-spinner diameter="32"></mat-spinner>
+      <span>Loading map points...</span>
+    </div>
+
+    <!-- Error -->
+    <div *ngIf="loadError" class="error-state">
+      <mat-icon>error</mat-icon>
+      <span>{{ loadError }}</span>
+    </div>
+
+    <!-- Empty state -->
+    <div *ngIf="!isLoading && !loadError && allPoints.length === 0" class="empty-state">
+      <mat-icon>place</mat-icon>
+      <span>No map points exist yet. Create MapPointDefinition instances first.</span>
+    </div>
+
+    <!-- Main layout: Map + Selection panel -->
+    <div *ngIf="!isLoading && !loadError && allPoints.length > 0" class="picker-layout">
+      <!-- Map -->
+      <div class="map-panel">
+        <div id="map-point-picker-container" class="map-container"></div>
+        <div class="map-hint">
+          Click points on the map to select them. {{ mode === 'line' ? 'Select 2 points for the line segment.' : 'Select 3+ points for the polygon vertices.' }}
+        </div>
+      </div>
+
+      <!-- Selection panel -->
+      <div class="selection-panel">
+        <div class="selection-header">
+          <span class="selection-title">Selected Points</span>
+          <span class="selection-count">{{ selectionLabel }}</span>
+        </div>
+
+        <div class="selected-list" *ngIf="selectedPoints.length > 0">
+          <div *ngFor="let pt of selectedPoints; let i = index" class="selected-item">
+            <span class="item-order">{{ i + 1 }}</span>
+            <div class="item-info">
+              <span class="item-name">{{ pt.label }}</span>
+              <span class="item-coords">{{ pt.lat.toFixed(5) }}, {{ pt.lng.toFixed(5) }}</span>
+            </div>
+            <div class="item-actions">
+              <button mat-icon-button (click)="movePointUp(i)" [disabled]="i === 0" class="reorder-btn">
+                <mat-icon>arrow_upward</mat-icon>
+              </button>
+              <button mat-icon-button (click)="movePointDown(i)" [disabled]="i === selectedPoints.length - 1" class="reorder-btn">
+                <mat-icon>arrow_downward</mat-icon>
+              </button>
+              <button mat-icon-button (click)="removePoint(i)" color="warn" class="remove-btn">
+                <mat-icon>close</mat-icon>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="no-selection" *ngIf="selectedPoints.length === 0">
+          <mat-icon>touch_app</mat-icon>
+          <span>Click points on the map to add them</span>
+        </div>
+
+        <!-- Available points list -->
+        <div class="available-header">All Points ({{ allPoints.length }})</div>
+        <div class="available-list">
+          <div *ngFor="let pt of allPoints"
+               class="available-item"
+               [class.is-selected]="selectedIdSet.has(pt.id)"
+               (click)="togglePoint(pt); refreshMarkerStyles(); updatePreviewLine()">
+            <mat-icon class="avail-icon">{{ selectedIdSet.has(pt.id) ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
+            <span class="avail-name">{{ pt.label }}</span>
+            <span class="avail-coords">{{ pt.lat.toFixed(4) }}, {{ pt.lng.toFixed(4) }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </mat-dialog-content>
+
+  <!-- Actions -->
+  <mat-dialog-actions class="dialog-actions">
+    <button mat-button (click)="onCancel()">Cancel</button>
+    <button mat-raised-button color="primary"
+            (click)="onConfirm()"
+            [disabled]="!canConfirm">
+      <mat-icon>check</mat-icon>
+      Confirm Selection
+    </button>
+  </mat-dialog-actions>
+</div>

@@ -918,7 +918,8 @@
             <map-renderer
               [config]="selectedGeoJsonConfig"
               [instanceData]="geoJsonPreviewData"
-              [classTypeData]="classTypeData">
+              [classTypeData]="classTypeData"
+              [mixedFeatureCollection]="geoJsonMixedFeatures">
             </map-renderer>
           </div>
 
@@ -927,6 +928,7 @@
             <geojson-config-sidebar
               [config]="selectedGeoJsonConfig"
               [classTypeData]="classTypeData"
+              [dataSetList]="dataSetConfigList"
               (configChange)="onGeoJsonConfigChange($event)">
             </geojson-config-sidebar>
           </div>

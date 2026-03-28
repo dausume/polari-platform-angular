@@ -12,6 +12,8 @@ export class variableConfigDef {
     varDisplayName: string;
     varType: string;
     varRefClass?: string;
+    /** For Map Coordinate type: the coordinate order convention */
+    varCoordinateOrder?: 'lat-lng' | 'lng-lat';
     //Need to change form control in accordance with the type selected.
     varNameControl: FormControl;
     varDisplayNameControl: FormControl;

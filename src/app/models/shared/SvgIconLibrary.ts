@@ -9,12 +9,21 @@ export type IconAnchor = 'center' | 'bottom';
  * A named SVG icon definition.
  * Shared across the platform — used by action buttons, map markers, and other components.
  * Icons are pure SVG strings with no styling — styling comes from SvgIconStyle.
+ *
+ * For icons in the 'marker' category, `mapAnchor` declares the SVG's natural
+ * anchor point so the system can enforce correct MapLibre marker placement.
+ * - 'bottom': The visual "tip" of the icon is at the bottom-center (e.g. pins, flags).
+ *   Must be paired with a style that has `anchor: 'bottom'`.
+ * - 'center': The icon is visually symmetric around its center (e.g. dots, stars, diamonds).
+ *   Must be paired with a style that has `anchor: 'center'`.
  */
 export interface SvgIconDef {
   name: string;
   label: string;
   svgString: string;
   category: 'action' | 'status' | 'data' | 'navigation' | 'media' | 'marker';
+  /** For marker icons: declares the SVG's natural anchor point for correct map placement. */
+  mapAnchor?: IconAnchor;
 }
 
 /**
@@ -166,52 +175,62 @@ export const BUILT_IN_SVG_ICONS: SvgIconDef[] = [
   },
 
   // --- Marker icons ---
+  // Each marker icon declares its natural `mapAnchor` so the system can
+  // validate that the paired style uses a compatible anchor value.
   {
     name: 'pin',
     label: 'Map Pin',
     category: 'marker',
+    mapAnchor: 'bottom',
     svgString: '<svg viewBox="0 0 24 36" xmlns="http://www.w3.org/2000/svg"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="currentColor"/><circle cx="12" cy="12" r="5" fill="white"/></svg>'
   },
   {
     name: 'dot',
     label: 'Dot',
     category: 'marker',
+    mapAnchor: 'center',
     svgString: '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="8" fill="currentColor" stroke="white" stroke-width="2"/></svg>'
   },
   {
     name: 'star',
     label: 'Star',
     category: 'marker',
+    mapAnchor: 'center',
     svgString: '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="currentColor"/></svg>'
   },
   {
     name: 'diamond',
     label: 'Diamond',
     category: 'marker',
+    mapAnchor: 'center',
     svgString: '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L2 12l10 10 10-10L12 2z" fill="currentColor"/></svg>'
   },
   {
     name: 'square',
     label: 'Square',
     category: 'marker',
+    mapAnchor: 'center',
     svgString: '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="4" width="16" height="16" rx="2" fill="currentColor"/></svg>'
   },
   {
     name: 'triangle',
     label: 'Triangle',
     category: 'marker',
+    mapAnchor: 'center',
     svgString: '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 3L2 21h20L12 3z" fill="currentColor"/></svg>'
   },
   {
     name: 'flag',
     label: 'Flag',
     category: 'marker',
+    mapAnchor: 'bottom',
     svgString: '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z" fill="currentColor"/></svg>'
   },
   {
     name: 'crosshair',
     label: 'Crosshair',
     category: 'marker',
+    mapAnchor: 'center',
     svgString: '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0013 3.06V1h-2v2.06A8.994 8.994 0 003.06 11H1v2h2.06A8.994 8.994 0 0011 20.94V23h2v-2.06A8.994 8.994 0 0020.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z" fill="currentColor"/></svg>'
   }
 ];
@@ -372,14 +391,173 @@ export function applyStyleToSvg(svgString: string, style: SvgIconStyle): string 
 }
 
 /**
- * Resolve an icon + style combination into a fully styled SVG string.
+ * Validate that an icon's natural anchor is compatible with the style's anchor.
+ * Returns the effective anchor to use (icon's mapAnchor wins over style if they conflict).
+ * Logs a warning when a mismatch is detected so developers can fix the configuration.
  */
-export function resolveStyledIcon(iconName: string, styleName: string): { svgString: string; style: SvgIconStyle } | null {
+export function validateMapAnchor(icon: SvgIconDef, style: SvgIconStyle): IconAnchor {
+  if (icon.mapAnchor && icon.mapAnchor !== style.anchor) {
+    console.warn(
+      `[SvgIconLibrary] Anchor mismatch: icon "${icon.name}" declares mapAnchor="${icon.mapAnchor}" ` +
+      `but style "${style.name}" has anchor="${style.anchor}". ` +
+      `Using icon's mapAnchor="${icon.mapAnchor}" to ensure correct map placement. ` +
+      `Fix: use a style with anchor="${icon.mapAnchor}" for this icon.`
+    );
+    return icon.mapAnchor;
+  }
+  return style.anchor;
+}
+
+/**
+ * Resolve an icon + style combination into a fully styled SVG string.
+ * Validates anchor compatibility and returns the effective anchor for map placement.
+ */
+export function resolveStyledIcon(iconName: string, styleName: string): { svgString: string; style: SvgIconStyle; effectiveAnchor: IconAnchor } | null {
   const icon = getSvgIcon(iconName);
   const style = getSvgStyle(styleName);
   if (!icon || !style) return null;
+  const effectiveAnchor = validateMapAnchor(icon, style);
   return {
     svgString: applyStyleToSvg(icon.svgString, style),
-    style
+    style,
+    effectiveAnchor
   };
+}
+
+// ── Map Line Styles ──────────────────────────────────────────────────
+
+export interface MapLineStyle {
+  name: string;
+  label: string;
+  lineColor: string;
+  lineWidth: number;
+  lineOpacity: number;
+  lineDasharray: number[];
+  lineCap: 'butt' | 'round' | 'square';
+  lineJoin: 'bevel' | 'round' | 'miter';
+}
+
+export const BUILT_IN_LINE_STYLES: MapLineStyle[] = [
+  {
+    name: 'default-line',
+    label: 'Default Line',
+    lineColor: '#1976d2',
+    lineWidth: 3,
+    lineOpacity: 1,
+    lineDasharray: [],
+    lineCap: 'round',
+    lineJoin: 'round'
+  },
+  {
+    name: 'thin-line',
+    label: 'Thin Line',
+    lineColor: '#455a64',
+    lineWidth: 1.5,
+    lineOpacity: 1,
+    lineDasharray: [],
+    lineCap: 'round',
+    lineJoin: 'round'
+  },
+  {
+    name: 'thick-line',
+    label: 'Thick Line',
+    lineColor: '#d32f2f',
+    lineWidth: 5,
+    lineOpacity: 1,
+    lineDasharray: [],
+    lineCap: 'round',
+    lineJoin: 'round'
+  },
+  {
+    name: 'dashed-line',
+    label: 'Dashed Line',
+    lineColor: '#388e3c',
+    lineWidth: 3,
+    lineOpacity: 1,
+    lineDasharray: [8, 4],
+    lineCap: 'butt',
+    lineJoin: 'round'
+  },
+  {
+    name: 'dotted-line',
+    label: 'Dotted Line',
+    lineColor: '#7b1fa2',
+    lineWidth: 3,
+    lineOpacity: 1,
+    lineDasharray: [2, 4],
+    lineCap: 'round',
+    lineJoin: 'round'
+  }
+];
+
+export function getAllMapLineStyles(): MapLineStyle[] {
+  return BUILT_IN_LINE_STYLES;
+}
+
+export function getMapLineStyle(name: string): MapLineStyle | undefined {
+  return BUILT_IN_LINE_STYLES.find(s => s.name === name);
+}
+
+// ── Map Polygon Styles ───────────────────────────────────────────────
+
+export interface MapPolygonStyle {
+  name: string;
+  label: string;
+  fillColor: string;
+  fillOpacity: number;
+  outlineColor: string;
+  outlineWidth: number;
+  outlineOpacity: number;
+  outlineDasharray: number[];
+}
+
+export const BUILT_IN_POLYGON_STYLES: MapPolygonStyle[] = [
+  {
+    name: 'default-polygon',
+    label: 'Default Polygon',
+    fillColor: '#1976d2',
+    fillOpacity: 0.25,
+    outlineColor: '#0d47a1',
+    outlineWidth: 2,
+    outlineOpacity: 1,
+    outlineDasharray: []
+  },
+  {
+    name: 'highlight-polygon',
+    label: 'Highlight Polygon',
+    fillColor: '#ff9800',
+    fillOpacity: 0.35,
+    outlineColor: '#e65100',
+    outlineWidth: 2.5,
+    outlineOpacity: 1,
+    outlineDasharray: []
+  },
+  {
+    name: 'danger-polygon',
+    label: 'Danger Zone',
+    fillColor: '#d32f2f',
+    fillOpacity: 0.2,
+    outlineColor: '#b71c1c',
+    outlineWidth: 2,
+    outlineOpacity: 1,
+    outlineDasharray: [6, 3]
+  },
+  {
+    name: 'subtle-polygon',
+    label: 'Subtle Polygon',
+    fillColor: '#78909c',
+    fillOpacity: 0.15,
+    outlineColor: '#455a64',
+    outlineWidth: 1,
+    outlineOpacity: 0.6,
+    outlineDasharray: []
+  }
+];
+
+export function getAllMapPolygonStyles(): MapPolygonStyle[] {
+  return BUILT_IN_POLYGON_STYLES;
+}
+
+export function getMapPolygonStyle(name: string): MapPolygonStyle | undefined {
+  return BUILT_IN_POLYGON_STYLES.find(s => s.name === name);
 }

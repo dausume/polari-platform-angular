@@ -19,6 +19,7 @@ import { SolutionExecutionService } from '@services/no-code-services/solution-ex
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { CrudDialogComponent } from '@components/shared/crud-dialog/crud-dialog';
 import { CrudDialogData, CrudDialogResult, VariableDefinition, ParentClassSchema } from '@components/shared/models/crud-config.models';
+import { MapPreviewDialogComponent, MapPreviewDialogData } from '@components/geojson-config/map-preview-dialog/map-preview-dialog';
 
 @Component({
   standalone: false,
@@ -907,6 +908,71 @@ export class ClassDataTableComponent implements OnInit, OnChanges {
             alert('Failed to delete instance: ' + (error.error?.error || error.message));
           }
         });
+    }
+  }
+
+  // ==================== Map Geometry Preview ====================
+
+  /**
+   * Format a map_coordinate value for display.
+   */
+  formatCoordinate(value: any): string {
+    if (!value) return '';
+    try {
+      const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+      if (Array.isArray(parsed) && parsed.length >= 2) {
+        return `${Number(parsed[0]).toFixed(4)}, ${Number(parsed[1]).toFixed(4)}`;
+      }
+    } catch { /* not valid JSON */ }
+    return String(value);
+  }
+
+  /**
+   * Open a map preview dialog for a geometry cell.
+   */
+  openMapPreview(row: any, column: string, geometryType: 'polygon' | 'line' | 'coordinate'): void {
+    const rawValue = this.getCellValue(row, column);
+    if (!rawValue || rawValue === '{}' || rawValue === '[]') return;
+
+    try {
+      const parsed = typeof rawValue === 'string' ? JSON.parse(rawValue) : rawValue;
+      let dialogData: MapPreviewDialogData;
+
+      if (geometryType === 'coordinate') {
+        const coords = Array.isArray(parsed) ? parsed : [];
+        if (coords.length < 2) return;
+        dialogData = { title: `${column}`, lng: Number(coords[0]), lat: Number(coords[1]) };
+      } else {
+        // polygon or line — extract center from stored data
+        let lng = 0, lat = 0;
+        const cLng = parseFloat(parsed.center_lng);
+        const cLat = parseFloat(parsed.center_lat);
+        if (!isNaN(cLng) && !isNaN(cLat) && (cLng !== 0 || cLat !== 0)) {
+          lng = cLng + (parseFloat(parsed.center_offset_lng) || 0);
+          lat = cLat + (parseFloat(parsed.center_offset_lat) || 0);
+        } else if (parsed.vertices?.length >= 2) {
+          const verts = parsed.vertices as number[][];
+          lng = verts.reduce((s, v) => s + v[0], 0) / verts.length;
+          lat = verts.reduce((s, v) => s + v[1], 0) / verts.length;
+        } else {
+          return; // No location data
+        }
+        dialogData = {
+          title: `${column} — ${geometryType === 'polygon' ? 'Polygon' : 'Line Segment'}`,
+          lng, lat,
+          areaSqMeters: parseFloat(parsed.area_sq_meters) || 0,
+          vertices: parsed.vertices
+        };
+      }
+
+      this.dialog.open(MapPreviewDialogComponent, {
+        data: dialogData,
+        width: '600px',
+        maxHeight: '85vh',
+        autoFocus: false
+      });
+    } catch {
+      console.warn('[ClassDataTable] Failed to parse geometry value for map preview');
     }
   }
 }

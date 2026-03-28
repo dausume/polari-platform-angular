@@ -11,6 +11,13 @@
       <mat-label>Description</mat-label>
       <textarea matInput [ngModel]="config.description" (ngModelChange)="onDescriptionChange($event)" rows="2"></textarea>
     </mat-form-field>
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>DataSet</mat-label>
+      <mat-select [ngModel]="config.geoJsonConfig.dataSetId" (ngModelChange)="onDataSetChange($event)">
+        <mat-option value="">-- None (all instances) --</mat-option>
+        <mat-option *ngFor="let ds of dataSetList" [value]="ds.id">{{ ds.name }}</mat-option>
+      </mat-select>
+    </mat-form-field>
   </div>
 
   <mat-divider></mat-divider>
@@ -26,33 +33,37 @@
       <p class="section-hint">Define how geographic coordinates are specified on instances.</p>
 
       <div class="subsection-label">Coordinate Mode</div>
-      <mat-button-toggle-group
-        [value]="config.geoJsonConfig.coordinateMode"
-        (change)="onCoordinateModeChange($event.value)"
-        class="full-width mode-toggle">
-        <mat-button-toggle value="separate">Separate Lat/Lng</mat-button-toggle>
-        <mat-button-toggle value="tuple">Tuple Variable</mat-button-toggle>
-        <mat-button-toggle value="parent">Parent GeoObject</mat-button-toggle>
-      </mat-button-toggle-group>
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Coordinate Mode</mat-label>
+        <mat-select [ngModel]="config.geoJsonConfig.coordinateMode"
+                    (ngModelChange)="onCoordinateModeChange($event)">
+          <mat-option value="separate">Separate Lat/Lng Variables</mat-option>
+          <mat-option value="tuple">Map Coordinate Variable</mat-option>
+          <mat-option value="line_center">Line Segment Center</mat-option>
+          <mat-option value="polygon_center">Polygon Center</mat-option>
+          <mat-option value="parent">Parent GeoObject</mat-option>
+        </mat-select>
+      </mat-form-field>
 
-      <!-- Tuple mode fields -->
+      <!-- Map Coordinate mode fields -->
       <div *ngIf="config.geoJsonConfig.coordinateMode === 'tuple'" class="coord-fields">
         <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Tuple Variable</mat-label>
+          <mat-label>Map Coordinate Variable</mat-label>
           <mat-select [ngModel]="config.geoJsonConfig.tupleVariable" (ngModelChange)="onTupleVariableChange($event)">
             <mat-option value="">-- None --</mat-option>
-            <mat-option *ngFor="let field of availableFields" [value]="field">
+            <mat-option *ngFor="let field of getCoordinateFields()" [value]="field">
               {{ field }}
             </mat-option>
           </mat-select>
         </mat-form-field>
 
         <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Tuple Order</mat-label>
+          <mat-label>Coordinate Order</mat-label>
           <mat-select [ngModel]="config.geoJsonConfig.tupleOrder" (ngModelChange)="onTupleOrderChange($event)">
             <mat-option value="lat-lng">[latitude, longitude]</mat-option>
             <mat-option value="lng-lat">[longitude, latitude] (GeoJSON standard)</mat-option>
           </mat-select>
+          <mat-hint>Select the order your data source uses</mat-hint>
         </mat-form-field>
       </div>
 
@@ -73,6 +84,40 @@
           <mat-select [ngModel]="config.geoJsonConfig.longitudeVariable" (ngModelChange)="onLongitudeVariableChange($event)">
             <mat-option value="">-- None --</mat-option>
             <mat-option *ngFor="let field of availableFields" [value]="field">
+              {{ field }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <!-- Line center mode fields -->
+      <div *ngIf="config.geoJsonConfig.coordinateMode === 'line_center'" class="coord-fields">
+        <p class="section-hint">
+          Coordinates are derived from the midpoint of a Map Line Segment variable on each instance.
+          The variable should hold line geometry JSON with center_lng/center_lat fields.
+        </p>
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Line Segment Variable</mat-label>
+          <mat-select [ngModel]="config.geoJsonConfig.geometryVariable" (ngModelChange)="onGeometryVariableChange($event)">
+            <mat-option value="">-- None --</mat-option>
+            <mat-option *ngFor="let field of getGeometryFields('map_line_segment')" [value]="field">
+              {{ field }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <!-- Polygon center mode fields -->
+      <div *ngIf="config.geoJsonConfig.coordinateMode === 'polygon_center'" class="coord-fields">
+        <p class="section-hint">
+          Coordinates are derived from the effective center of a Map Polygon variable on each instance.
+          The center includes any user-configured offset from the Turf-computed centroid.
+        </p>
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Polygon Variable</mat-label>
+          <mat-select [ngModel]="config.geoJsonConfig.geometryVariable" (ngModelChange)="onGeometryVariableChange($event)">
+            <mat-option value="">-- None --</mat-option>
+            <mat-option *ngFor="let field of getGeometryFields('map_polygon')" [value]="field">
               {{ field }}
             </mat-option>
           </mat-select>

@@ -198,6 +198,7 @@ export interface CreateClassResult {
     variableCount?: number;
     variables?: any[];
     error?: string;
+    warnings?: string[];
 }
 
 export interface APIDomain {
