@@ -1,3 +1,5 @@
+import { DisplayType } from './Display';
+
 export interface DisplaySummary {
     id: string;
     name: string;
@@ -6,4 +8,5 @@ export interface DisplaySummary {
     linkedSolutions?: string[];
     isPage?: boolean;
     pageRoute?: string;
+    displayTypes?: DisplayType[];
 }

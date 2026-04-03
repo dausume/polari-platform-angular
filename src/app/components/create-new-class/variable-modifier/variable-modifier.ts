@@ -33,7 +33,7 @@ export class VariableModifierComponent implements OnInit, OnDestroy {
   variableConfigDefs: variableConfigDef[] = [];
   /** Per-variable inheritance validation errors */
   inheritanceErrors: Map<number, string> = new Map();
-  typesAllowed = ["String", "Integer", "Decimal", "List", "Dictionary", "Reference", "Reference List", "Parent Reference", "Map Coordinate", "Map Line Segment", "Map Polygon", "Unique Identifier - Alphanumeric", "Numeric Index"];
+  typesAllowed = ["String", "Integer", "Decimal", "Boolean", "Date", "Date & Time", "Date Duration", "Date & Time Duration", "Time", "Time Duration", "Precision Time", "Schedule", "List", "Dictionary", "Reference", "Reference List", "Parent Reference", "Map Coordinate", "Map Line Segment", "Map Polygon", "Unique Identifier - Alphanumeric", "Numeric Index"];
   selectedType = "Select Type";
   varName = "";
   typeControl = new FormControl();
@@ -211,6 +211,11 @@ export class VariableModifierComponent implements OnInit, OnDestroy {
   loadVariableDefinitions(variables: any[]): void {
     const reverseTypeMap: Record<string, string> = {
       'str': 'String', 'int': 'Integer', 'float': 'Decimal',
+      'bool': 'Boolean', 'boolean': 'Boolean',
+      'date': 'Date', 'datetime': 'Date & Time',
+      'date_duration': 'Date Duration', 'datetime_duration': 'Date & Time Duration',
+      'time': 'Time', 'time_duration': 'Time Duration', 'precision_time': 'Precision Time',
+      'schedule': 'Schedule',
       'list': 'List', 'dict': 'Dictionary', 'reference': 'Reference',
       'referencelist': 'Reference List', 'reference_list': 'Reference List',
       'parent_reference': 'Parent Reference',

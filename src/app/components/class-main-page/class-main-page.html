@@ -366,23 +366,12 @@
 
               <mat-divider></mat-divider>
 
-              <!-- Page Publishing -->
+              <!-- Display Types -->
               <div class="config-section">
-                <h4>Page Publishing</h4>
-                <mat-slide-toggle [checked]="selectedDisplay.isPage"
-                  (change)="togglePublishAsPage($event.checked)">
-                  Publish as standalone page
-                </mat-slide-toggle>
-                <div *ngIf="selectedDisplay.isPage" style="margin-top: 8px">
-                  <mat-form-field appearance="outline" class="full-width">
-                    <mat-label>Page Route</mat-label>
-                    <input matInput [(ngModel)]="selectedDisplay.pageRoute" (ngModelChange)="onDisplayPropertyChange()">
-                    <mat-hint>URL: /display/{{ selectedDisplay.id }}</mat-hint>
-                  </mat-form-field>
-                  <a mat-stroked-button color="primary" [routerLink]="['/display', selectedDisplay.id]" target="_blank">
-                    <mat-icon>open_in_new</mat-icon> Open Page
-                  </a>
-                </div>
+                <display-type-config
+                  [display]="selectedDisplay"
+                  (displayChange)="onDisplayPropertyChange()">
+                </display-type-config>
               </div>
 
               <mat-divider></mat-divider>
@@ -408,52 +397,11 @@
 
               <!-- Display State Definition -->
               <div class="config-section" *ngIf="selectedDisplay">
-                <h4>Data Sources</h4>
-                <p class="palette-hint">Define what data is available to components within this display.</p>
-
-                <div *ngFor="let ds of selectedDisplay.stateDefinition.dataSources; let dsi = index" class="state-source-card">
-                  <div class="state-source-header">
-                    <mat-icon>{{ ds.sourceType === 'class' ? 'storage' : ds.sourceType === 'solution' ? 'play_circle' : 'data_object' }}</mat-icon>
-                    <span class="state-source-title">{{ ds.label || 'Untitled' }}</span>
-                    <button mat-icon-button color="warn" (click)="removeDisplayDataSource(dsi)" matTooltip="Remove">
-                      <mat-icon>close</mat-icon>
-                    </button>
-                  </div>
-
-                  <mat-form-field appearance="outline" class="full-width">
-                    <mat-label>Label</mat-label>
-                    <input matInput [(ngModel)]="ds.label" (ngModelChange)="onDisplayPropertyChange()">
-                  </mat-form-field>
-
-                  <mat-form-field appearance="outline" class="full-width">
-                    <mat-label>Source Type</mat-label>
-                    <mat-select [(ngModel)]="ds.sourceType" (ngModelChange)="onDisplayPropertyChange()">
-                      <mat-option value="class">Class (load instances)</mat-option>
-                      <mat-option value="solution">Solution (execute)</mat-option>
-                      <mat-option value="static">Static data</mat-option>
-                    </mat-select>
-                  </mat-form-field>
-
-                  <mat-form-field *ngIf="ds.sourceType === 'class'" appearance="outline" class="full-width">
-                    <mat-label>Class Name</mat-label>
-                    <input matInput [(ngModel)]="ds.className" (ngModelChange)="onDisplayPropertyChange()">
-                  </mat-form-field>
-
-                  <mat-form-field *ngIf="ds.sourceType === 'solution'" appearance="outline" class="full-width">
-                    <mat-label>Solution Name</mat-label>
-                    <mat-select [(ngModel)]="ds.solutionName" (ngModelChange)="onDisplayPropertyChange()">
-                      <mat-option *ngFor="let sol of availableFrontendSolutions" [value]="sol.name">{{ sol.name }}</mat-option>
-                    </mat-select>
-                  </mat-form-field>
-
-                  <mat-slide-toggle [(ngModel)]="ds.autoLoad" (ngModelChange)="onDisplayPropertyChange()">
-                    Auto-load on display init
-                  </mat-slide-toggle>
-                </div>
-
-                <button mat-stroked-button color="primary" (click)="addDisplayDataSource()" class="full-width" style="margin-top: 8px">
-                  <mat-icon>add</mat-icon> Add Data Source
-                </button>
+                <display-data-source-list
+                  [stateDefinition]="selectedDisplay.stateDefinition"
+                  [availableSolutions]="availableFrontendSolutions"
+                  (stateChange)="onDisplayPropertyChange()">
+                </display-data-source-list>
 
                 <!-- Display Inputs -->
                 <h4 style="margin-top: 16px">Display Inputs</h4>
@@ -822,6 +770,20 @@
             <mat-spinner *ngIf="editClassLoading" diameter="18" class="inline-spinner"></mat-spinner>
           </div>
           <span class="flag-hint">Modify the variable definitions for this dynamically created class.</span>
+        </div>
+
+        <!-- Delete Class Definition Section -->
+        <div class="config-toggle-section" *ngIf="classPolyTypingObj?.canDeleteClassDefinition()">
+          <h4>Delete Class</h4>
+          <div class="config-toggle-row">
+            <button mat-raised-button color="warn"
+              [disabled]="deleteClassLoading"
+              (click)="deleteClass()">
+              <mat-icon>delete_forever</mat-icon> Delete Class
+            </button>
+            <mat-spinner *ngIf="deleteClassLoading" diameter="18" class="inline-spinner"></mat-spinner>
+          </div>
+          <span class="flag-hint">Permanently delete this class and all associated displays, tables, graphs, maps, datasets, field profiles, and filter chains.</span>
         </div>
 
       </div>

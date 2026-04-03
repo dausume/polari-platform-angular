@@ -1,0 +1,18 @@
+.data-source-list h4 {
+    margin: 0 0 12px 0;
+    font-size: 15px;
+}
+
+.list-hint {
+    font-size: 0.85em;
+    color: var(--text-secondary);
+    margin: 0 0 12px 0;
+}
+
+.full-width {
+    width: 100%;
+}
+
+.add-btn {
+    margin-top: 8px;
+}

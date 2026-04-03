@@ -1,0 +1,16 @@
+<div class="data-source-list">
+  <h4>Data Sources</h4>
+  <p class="list-hint">Define what data is available to components within this display.</p>
+
+  <display-data-source-config
+    *ngFor="let ds of stateDefinition.dataSources; let i = index"
+    [dataSource]="ds"
+    [availableSolutions]="availableSolutions"
+    (dataSourceChange)="onDataSourceChange()"
+    (remove)="removeDataSource(i)">
+  </display-data-source-config>
+
+  <button mat-stroked-button color="primary" (click)="addDataSource()" class="full-width add-btn">
+    <mat-icon>add</mat-icon> Add Data Source
+  </button>
+</div>

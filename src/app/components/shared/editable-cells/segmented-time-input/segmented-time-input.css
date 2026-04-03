@@ -1,0 +1,169 @@
+.segmented-time-input {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  padding: 2px 6px;
+  background: #fff;
+  transition: border-color 0.15s ease;
+  font-family: inherit;
+}
+
+.segmented-time-input:focus-within {
+  border-color: #5c6bc0;
+  box-shadow: 0 0 0 1px rgba(92, 107, 192, 0.2);
+}
+
+.segmented-time-input.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+/* ─── Segment column ─────────────────────────── */
+
+.segment-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+/* ─── Spinner buttons ────────────────────────── */
+
+.spin-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 14px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  color: var(--text-tertiary, #9e9e9e);
+  line-height: 1;
+}
+
+.segmented-time-input:hover .spin-btn,
+.segmented-time-input:focus-within .spin-btn {
+  opacity: 0.5;
+}
+
+.spin-btn:hover {
+  opacity: 1 !important;
+  color: #5c6bc0;
+}
+
+.spin-btn:active {
+  color: #3f51b5;
+}
+
+.spin-btn mat-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+  line-height: 14px;
+}
+
+.spin-btn:disabled {
+  cursor: default;
+  opacity: 0 !important;
+}
+
+/* ─── Segment inputs ─────────────────────────── */
+
+.seg-input {
+  border: none;
+  outline: none;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  padding: 2px 1px;
+  margin: 0;
+  background: transparent;
+  color: var(--text-primary, #212121);
+  border-radius: 3px;
+  transition: background-color 0.1s ease;
+  width: 26px;
+}
+
+.seg-input::placeholder {
+  color: var(--text-tertiary, #bdbdbd);
+  font-weight: 400;
+}
+
+.seg-input.active {
+  background: rgba(92, 107, 192, 0.1);
+}
+
+.seg-input:focus {
+  background: rgba(92, 107, 192, 0.12);
+}
+
+/* ─── Separator ──────────────────────────────── */
+
+.sep {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-tertiary, #9e9e9e);
+  user-select: none;
+  line-height: 1;
+  padding-bottom: 1px;
+}
+
+/* ─── AM/PM button ───────────────────────────── */
+
+.ampm-btn {
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 5px;
+  margin-left: 4px;
+  cursor: pointer;
+  color: #5c6bc0;
+  transition: background-color 0.15s ease;
+  letter-spacing: 0.03em;
+}
+
+.ampm-btn:hover {
+  background: rgba(92, 107, 192, 0.08);
+}
+
+.ampm-btn:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+/* ─── Format toggle (24h ↔ 12h) ─────────────── */
+
+.format-toggle-btn {
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 4px;
+  margin-left: 3px;
+  cursor: pointer;
+  color: var(--text-tertiary, #9e9e9e);
+  transition: color 0.15s ease, background-color 0.15s ease;
+  letter-spacing: 0.02em;
+}
+
+.format-toggle-btn:hover {
+  color: #5c6bc0;
+  background: rgba(92, 107, 192, 0.06);
+}
+
+.format-toggle-btn:disabled {
+  cursor: default;
+  opacity: 0.3;
+}

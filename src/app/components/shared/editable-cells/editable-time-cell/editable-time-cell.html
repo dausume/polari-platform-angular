@@ -1,0 +1,54 @@
+<div class="editable-time-cell" [class.duration-mode]="isDuration">
+  <!-- Read Mode -->
+  <ng-container *ngIf="!(isEditing$ | async)">
+    <span class="cell-value read-value" (dblclick)="enterEditMode()">
+      <mat-icon class="time-icon">schedule</mat-icon>
+      {{ getDisplayValue() }}
+    </span>
+  </ng-container>
+
+  <!-- Edit Mode: Single Time -->
+  <ng-container *ngIf="(isEditing$ | async) && !isDuration">
+    <div class="edit-container">
+      <segmented-time-input
+        [value]="control.value"
+        [disabled]="disabled"
+        [use24Hour]="use24Hour"
+        (valueChange)="onTimeChange($event)">
+      </segmented-time-input>
+      <button *ngIf="control.value" mat-icon-button class="clear-btn" type="button"
+              (click)="clearTime()" aria-label="Clear time">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+  </ng-container>
+
+  <!-- Edit Mode: Time Duration -->
+  <ng-container *ngIf="(isEditing$ | async) && isDuration">
+    <div class="duration-edit-container">
+      <div class="duration-row">
+        <span class="duration-label">Start</span>
+        <segmented-time-input
+          [value]="durationStartValue"
+          [disabled]="disabled"
+          [use24Hour]="use24Hour"
+          (valueChange)="onDurationStartChange($event)">
+        </segmented-time-input>
+      </div>
+      <div class="duration-row">
+        <span class="duration-label">End</span>
+        <segmented-time-input
+          [value]="durationEndValue"
+          [disabled]="disabled"
+          [use24Hour]="use24Hour"
+          (valueChange)="onDurationEndChange($event)">
+        </segmented-time-input>
+      </div>
+      <button *ngIf="durationStartValue || durationEndValue"
+              mat-icon-button class="clear-btn" type="button"
+              (click)="clearTime()" aria-label="Clear">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+  </ng-container>
+</div>

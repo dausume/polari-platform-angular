@@ -14,6 +14,9 @@ import {
     LIST_FILTER_OPTIONS,
     REFERENCE_FILTER_OPTIONS,
     IDENTITY_FILTER_OPTIONS,
+    GEO_FILTER_OPTIONS,
+    TIME_FILTER_OPTIONS,
+    DURATION_FILTER_OPTIONS,
     getFilterOptionsForFieldType,
     getFilterTypeMeta
 } from '@models/shared/PolariFieldType';
@@ -26,6 +29,9 @@ export const dateFilterOptions = DATE_FILTER_OPTIONS;
 export const listFilterOptions = LIST_FILTER_OPTIONS;
 export const referenceFilterOptions = REFERENCE_FILTER_OPTIONS;
 export const identityFilterOptions = IDENTITY_FILTER_OPTIONS;
+export const geoFilterOptions = GEO_FILTER_OPTIONS;
+export const durationFilterOptions = DURATION_FILTER_OPTIONS;
+export const timeFilterOptions = TIME_FILTER_OPTIONS;
 
 export const filterTypeOptions = {
     string: stringFilterOptions,
@@ -34,7 +40,14 @@ export const filterTypeOptions = {
     date: dateFilterOptions,
     list: listFilterOptions,
     reference: referenceFilterOptions,
-    uuid: identityFilterOptions
+    uuid: identityFilterOptions,
+    mapCoordinate: geoFilterOptions,
+    mapLineSegment: geoFilterOptions,
+    mapPolygon: geoFilterOptions,
+    time: timeFilterOptions,
+    timeDuration: durationFilterOptions,
+    dateDuration: durationFilterOptions,
+    dateTimeDuration: durationFilterOptions
 } as const;
 
 /** Type for string filter methods */
@@ -45,6 +58,10 @@ export type NumberFilterMethod = typeof numberFilterOptions[number];
 export type BooleanFilterMethod = typeof booleanFilterOptions[number];
 /** Type for date filter methods */
 export type DateFilterMethod = typeof dateFilterOptions[number];
+/** Type for geo filter methods */
+export type GeoFilterMethod = typeof geoFilterOptions[number];
+/** Type for duration filter methods */
+export type DurationFilterMethod = typeof durationFilterOptions[number];
 
 /** Union of all filter methods */
 export type FilterMethod =
@@ -52,6 +69,8 @@ export type FilterMethod =
     | NumberFilterMethod
     | BooleanFilterMethod
     | DateFilterMethod
+    | GeoFilterMethod
+    | DurationFilterMethod
     | 'noop';
 
 /**

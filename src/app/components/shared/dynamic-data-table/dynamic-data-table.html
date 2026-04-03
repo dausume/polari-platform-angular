@@ -100,6 +100,27 @@
                                   (valueChange)="onCellValueChange(row, column, $event)">
               </editable-date-cell>
 
+              <!-- Duration cell -->
+              <editable-date-cell *ngIf="getCellType(column) === 'dateDuration' || getCellType(column) === 'dateTimeDuration'"
+                                  mode="read"
+                                  [value]="getCellValue(row, column)"
+                                  [fieldName]="column"
+                                  [isDuration]="true"
+                                  [includeTime]="getCellType(column) === 'dateTimeDuration'"
+                                  (editStarted)="onRowEdit({ action: 'edit', rowData: row })"
+                                  (valueChange)="onCellValueChange(row, column, $event)">
+              </editable-date-cell>
+
+              <!-- Time cell -->
+              <editable-time-cell *ngIf="getCellType(column) === 'time' || getCellType(column) === 'timeDuration'"
+                                  mode="read"
+                                  [value]="getCellValue(row, column)"
+                                  [fieldName]="column"
+                                  [isDuration]="getCellType(column) === 'timeDuration'"
+                                  (editStarted)="onRowEdit({ action: 'edit', rowData: row })"
+                                  (valueChange)="onCellValueChange(row, column, $event)">
+              </editable-time-cell>
+
               <!-- Select cell -->
               <editable-select-cell *ngIf="getCellType(column) === 'select'"
                                     mode="read"
@@ -149,6 +170,27 @@
                                   [required]="getVarDef(column)?.required || false"
                                   (valueChange)="onCellValueChange(row, column, $event)">
               </editable-date-cell>
+
+              <!-- Duration cell -->
+              <editable-date-cell *ngIf="getCellType(column) === 'dateDuration' || getCellType(column) === 'dateTimeDuration'"
+                                  mode="edit"
+                                  [value]="getCellValue(row, column)"
+                                  [fieldName]="column"
+                                  [isDuration]="true"
+                                  [includeTime]="getCellType(column) === 'dateTimeDuration'"
+                                  [required]="getVarDef(column)?.required || false"
+                                  (valueChange)="onCellValueChange(row, column, $event)">
+              </editable-date-cell>
+
+              <!-- Time cell -->
+              <editable-time-cell *ngIf="getCellType(column) === 'time' || getCellType(column) === 'timeDuration'"
+                                  mode="edit"
+                                  [value]="getCellValue(row, column)"
+                                  [fieldName]="column"
+                                  [isDuration]="getCellType(column) === 'timeDuration'"
+                                  [required]="getVarDef(column)?.required || false"
+                                  (valueChange)="onCellValueChange(row, column, $event)">
+              </editable-time-cell>
 
               <!-- Select cell -->
               <editable-select-cell *ngIf="getCellType(column) === 'select'"

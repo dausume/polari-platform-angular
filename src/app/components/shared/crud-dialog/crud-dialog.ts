@@ -168,7 +168,13 @@ export class CrudDialogComponent implements OnInit, OnDestroy {
       'reference list': [],
       'reference_list': [],
       'map_line_segment': '{}',
-      'map_polygon': '{}'
+      'map_polygon': '{}',
+      'date_duration': null,
+      'datetime_duration': null,
+      'time': null,
+      'time_duration': null,
+      'precision_time': null,
+      'schedule': null
     };
     return defaults[varType?.toLowerCase()] ?? '';
   }

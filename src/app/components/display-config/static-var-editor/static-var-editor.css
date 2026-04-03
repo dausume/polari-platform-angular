@@ -1,0 +1,25 @@
+.static-var-editor {
+    padding: 4px 0;
+}
+
+.full-width {
+    width: 100%;
+}
+
+.ref-class-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.ref-class-field {
+    flex: 1;
+}
+
+.ref-class-btn {
+    flex-shrink: 0;
+}
+
+.clickable-input {
+    cursor: pointer;
+}

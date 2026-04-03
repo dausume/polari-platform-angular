@@ -93,6 +93,7 @@ import { StringCellComponent } from '@components/templateClassTable/type-cells/s
 import { NumberCellComponent } from '@components/templateClassTable/type-cells/number-cell/number-cell';
 import { BooleanCellComponent } from '@components/templateClassTable/type-cells/boolean-cell/boolean-cell';
 import { DateCellComponent } from '@components/templateClassTable/type-cells/date-cell/date-cell';
+import { TimeCellComponent } from '@components/templateClassTable/type-cells/time-cell/time-cell';
 import { ListCellComponent } from '@components/templateClassTable/type-cells/list-cell/list-cell';
 import { DictCellComponent } from '@components/templateClassTable/type-cells/dict-cell/dict-cell';
 import { ObjectCellComponent } from '@components/templateClassTable/type-cells/object-cell/object-cell';
@@ -123,6 +124,12 @@ import { GraphRendererComponent } from '@components/graph-config/graph-renderer/
 // DataSet Config Components
 import { DataSetConfigSidebarComponent } from '@components/dataset-config/dataset-config-sidebar/dataset-config-sidebar';
 import { FieldProfileSidebarComponent } from '@components/dataset-config/field-profile-sidebar/field-profile-sidebar';
+// Display Config Components
+import { DataSourceListComponent } from '@components/display-config/data-source-list/data-source-list';
+import { DataSourceConfigComponent } from '@components/display-config/data-source-config/data-source-config';
+import { StaticVarEditorComponent } from '@components/display-config/static-var-editor/static-var-editor';
+import { InstanceSourceConfigComponent } from '@components/display-config/instance-source-config/instance-source-config';
+import { DisplayTypeConfigComponent } from '@components/display-config/display-type-config/display-type-config';
 // GeoJSON Config Components
 import { GeoJsonConfigSidebarComponent } from '@components/geojson-config/geojson-config-sidebar/geojson-config-sidebar';
 import { MapRendererComponent } from '@components/geojson-config/map-renderer/map-renderer';
@@ -211,6 +218,11 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     GraphConfigSidebarComponent,
     GeoJsonConfigSidebarComponent,
     DataSetConfigSidebarComponent,
+    DataSourceListComponent,
+    DataSourceConfigComponent,
+    StaticVarEditorComponent,
+    InstanceSourceConfigComponent,
+    DisplayTypeConfigComponent,
     FieldProfileSidebarComponent,
     EmbeddedTableComponent,
     SolutionInvokeButtonComponent,
@@ -261,6 +273,7 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     NumberCellComponent,
     BooleanCellComponent,
     DateCellComponent,
+    TimeCellComponent,
     ObjectCellComponent,
     ConfigCellActions,
     DefaultCellComponent,

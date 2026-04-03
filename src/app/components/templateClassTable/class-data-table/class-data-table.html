@@ -55,6 +55,12 @@
                         <span class="header-icon">{{getTypeIcon(getColumnType(column))}}</span>
                         <span class="header-text">{{getColumnDisplayName(column)}}</span>
                         <span class="header-type">({{getColumnType(column)}})</span>
+                        <button *ngIf="isCalendarType(getColumnType(column))"
+                                mat-icon-button class="header-calendar-btn"
+                                (click)="openColumnCalendar(column); $event.stopPropagation()"
+                                matTooltip="View all in calendar">
+                            <mat-icon>calendar_month</mat-icon>
+                        </button>
                     </div>
                 </th>
                 <td mat-cell *matCellDef="let row" [attr.data-type]="getColumnType(column)">
@@ -78,6 +84,10 @@
                         <boolean-cell *ngSwitchCase="'boolean'" [value]="getCellValue(row, column)" [columnName]="column"></boolean-cell>
                         <date-cell *ngSwitchCase="'date'" [value]="getCellValue(row, column)" [columnName]="column" [type]="'date'"></date-cell>
                         <date-cell *ngSwitchCase="'datetime'" [value]="getCellValue(row, column)" [columnName]="column" [type]="'datetime'"></date-cell>
+                        <date-cell *ngSwitchCase="'date_duration'" [value]="getCellValue(row, column)" [columnName]="column" [type]="'date_duration'"></date-cell>
+                        <date-cell *ngSwitchCase="'datetime_duration'" [value]="getCellValue(row, column)" [columnName]="column" [type]="'datetime_duration'"></date-cell>
+                        <time-cell *ngSwitchCase="'time'" [value]="getCellValue(row, column)" [columnName]="column" [type]="'time'"></time-cell>
+                        <time-cell *ngSwitchCase="'time_duration'" [value]="getCellValue(row, column)" [columnName]="column" [type]="'time_duration'"></time-cell>
                         <list-cell *ngSwitchCase="'list'" [value]="getCellValue(row, column)" [columnName]="column"></list-cell>
                         <list-cell *ngSwitchCase="'polarilist'" [value]="getCellValue(row, column)" [columnName]="column"></list-cell>
                         <dict-cell *ngSwitchCase="'dict'" [value]="getCellValue(row, column)" [columnName]="column"></dict-cell>
@@ -191,6 +201,10 @@
                             <boolean-cell *ngSwitchCase="'boolean'" [value]="getCellValue(row, col)" [columnName]="col"></boolean-cell>
                             <date-cell *ngSwitchCase="'date'" [value]="getCellValue(row, col)" [columnName]="col" [type]="'date'"></date-cell>
                             <date-cell *ngSwitchCase="'datetime'" [value]="getCellValue(row, col)" [columnName]="col" [type]="'datetime'"></date-cell>
+                            <date-cell *ngSwitchCase="'date_duration'" [value]="getCellValue(row, col)" [columnName]="col" [type]="'date_duration'"></date-cell>
+                            <date-cell *ngSwitchCase="'datetime_duration'" [value]="getCellValue(row, col)" [columnName]="col" [type]="'datetime_duration'"></date-cell>
+                            <time-cell *ngSwitchCase="'time'" [value]="getCellValue(row, col)" [columnName]="col" [type]="'time'"></time-cell>
+                            <time-cell *ngSwitchCase="'time_duration'" [value]="getCellValue(row, col)" [columnName]="col" [type]="'time_duration'"></time-cell>
                             <list-cell *ngSwitchCase="'list'" [value]="getCellValue(row, col)" [columnName]="col"></list-cell>
                             <list-cell *ngSwitchCase="'polarilist'" [value]="getCellValue(row, col)" [columnName]="col"></list-cell>
                             <dict-cell *ngSwitchCase="'dict'" [value]="getCellValue(row, col)" [columnName]="col"></dict-cell>

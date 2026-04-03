@@ -1,0 +1,84 @@
+<div class="segmented-time-input" [class.disabled]="disabled" [class.has-value]="!isEmpty">
+  <!-- Hours -->
+  <div class="segment-col">
+    <button type="button" class="spin-btn spin-up" tabindex="-1"
+            (mousedown)="startSpinner('hours', 1)"
+            (mouseup)="stopSpinner()" (mouseleave)="stopSpinner()"
+            (touchstart)="startSpinner('hours', 1)" (touchend)="stopSpinner()"
+            [disabled]="disabled">
+      <mat-icon>expand_less</mat-icon>
+    </button>
+    <input #hoursInput
+           class="seg-input seg-hh"
+           [class.active]="activeSegment === 'hours'"
+           type="text" inputmode="numeric" maxlength="2"
+           [placeholder]="'HH'"
+           [(ngModel)]="hours"
+           (focus)="onSegmentFocus('hours', hoursInput)"
+           (blur)="onSegmentBlur('hours')"
+           (keydown)="onKeydown($event, 'hours')"
+           (input)="onInput('hours')"
+           [disabled]="disabled"
+           autocomplete="off">
+    <button type="button" class="spin-btn spin-down" tabindex="-1"
+            (mousedown)="startSpinner('hours', -1)"
+            (mouseup)="stopSpinner()" (mouseleave)="stopSpinner()"
+            (touchstart)="startSpinner('hours', -1)" (touchend)="stopSpinner()"
+            [disabled]="disabled">
+      <mat-icon>expand_more</mat-icon>
+    </button>
+  </div>
+
+  <span class="sep">:</span>
+
+  <!-- Minutes -->
+  <div class="segment-col">
+    <button type="button" class="spin-btn spin-up" tabindex="-1"
+            (mousedown)="startSpinner('minutes', 1)"
+            (mouseup)="stopSpinner()" (mouseleave)="stopSpinner()"
+            (touchstart)="startSpinner('minutes', 1)" (touchend)="stopSpinner()"
+            [disabled]="disabled">
+      <mat-icon>expand_less</mat-icon>
+    </button>
+    <input #minutesInput
+           class="seg-input seg-mm"
+           [class.active]="activeSegment === 'minutes'"
+           type="text" inputmode="numeric" maxlength="2"
+           [placeholder]="'MM'"
+           [(ngModel)]="minutes"
+           (focus)="onSegmentFocus('minutes', minutesInput)"
+           (blur)="onSegmentBlur('minutes')"
+           (keydown)="onKeydown($event, 'minutes')"
+           (input)="onInput('minutes')"
+           [disabled]="disabled"
+           autocomplete="off">
+    <button type="button" class="spin-btn spin-down" tabindex="-1"
+            (mousedown)="startSpinner('minutes', -1)"
+            (mouseup)="stopSpinner()" (mouseleave)="stopSpinner()"
+            (touchstart)="startSpinner('minutes', -1)" (touchend)="stopSpinner()"
+            [disabled]="disabled">
+      <mat-icon>expand_more</mat-icon>
+    </button>
+  </div>
+
+  <!-- AM/PM toggle (12-hour mode only) -->
+  <button *ngIf="!use24Hour"
+          type="button"
+          class="ampm-btn"
+          (click)="toggleAmPm()"
+          [disabled]="disabled"
+          tabindex="-1">
+    {{ ampm }}
+  </button>
+
+  <!-- 24h ↔ AM/PM format toggle -->
+  <button *ngIf="allowFormatToggle"
+          type="button"
+          class="format-toggle-btn"
+          (click)="toggleTimeFormat()"
+          [disabled]="disabled"
+          tabindex="-1"
+          [title]="use24Hour ? 'Switch to AM/PM' : 'Switch to 24-hour'">
+    {{ use24Hour ? '24h' : '12h' }}
+  </button>
+</div>

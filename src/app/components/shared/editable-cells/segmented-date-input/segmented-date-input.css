@@ -1,0 +1,179 @@
+.segmented-date-input {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  padding: 2px 4px 2px 6px;
+  background: #fff;
+  transition: border-color 0.15s ease;
+  font-family: inherit;
+}
+
+.segmented-date-input:focus-within {
+  border-color: #5c6bc0;
+  box-shadow: 0 0 0 1px rgba(92, 107, 192, 0.2);
+}
+
+.segmented-date-input.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+/* ─── Segment column ─────────────────────────── */
+
+.segment-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+/* ─── Spinner buttons ────────────────────────── */
+
+.spin-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 14px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  color: var(--text-tertiary, #9e9e9e);
+  line-height: 1;
+}
+
+.segmented-date-input:hover .spin-btn,
+.segmented-date-input:focus-within .spin-btn {
+  opacity: 0.5;
+}
+
+.spin-btn:hover {
+  opacity: 1 !important;
+  color: #5c6bc0;
+}
+
+.spin-btn:active {
+  color: #3f51b5;
+}
+
+.spin-btn mat-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+  line-height: 14px;
+}
+
+.spin-btn:disabled {
+  cursor: default;
+  opacity: 0 !important;
+}
+
+/* ─── Segment inputs ─────────────────────────── */
+
+.seg-input {
+  border: none;
+  outline: none;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  padding: 2px 1px;
+  margin: 0;
+  background: transparent;
+  color: var(--text-primary, #212121);
+  border-radius: 3px;
+  transition: background-color 0.1s ease;
+}
+
+.seg-input::placeholder {
+  color: var(--text-tertiary, #bdbdbd);
+  font-weight: 400;
+}
+
+.seg-input.active {
+  background: rgba(92, 107, 192, 0.1);
+}
+
+.seg-input:focus {
+  background: rgba(92, 107, 192, 0.12);
+}
+
+.seg-mm, .seg-dd {
+  width: 26px;
+}
+
+.seg-yyyy {
+  width: 40px;
+}
+
+/* ─── Separator ──────────────────────────────── */
+
+.sep {
+  font-size: 13px;
+  color: var(--text-tertiary, #9e9e9e);
+  user-select: none;
+  line-height: 1;
+  padding-bottom: 1px;
+}
+
+/* ─── Calendar picker toggle ─────────────────── */
+
+.calendar-toggle {
+  display: flex;
+  align-items: center;
+  margin-left: 2px;
+}
+
+.hidden-cal-input {
+  width: 0;
+  height: 0;
+  padding: 0;
+  margin: 0;
+  border: none;
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.cal-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-tertiary, #9e9e9e);
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.cal-btn:hover {
+  color: #5c6bc0;
+  background: rgba(92, 107, 192, 0.08);
+}
+
+.cal-btn:active {
+  color: #3f51b5;
+}
+
+.cal-btn mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
+.cal-btn:disabled {
+  cursor: default;
+  opacity: 0.3;
+}

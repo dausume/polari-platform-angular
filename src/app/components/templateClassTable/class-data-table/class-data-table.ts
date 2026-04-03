@@ -20,6 +20,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { CrudDialogComponent } from '@components/shared/crud-dialog/crud-dialog';
 import { CrudDialogData, CrudDialogResult, VariableDefinition, ParentClassSchema } from '@components/shared/models/crud-config.models';
 import { MapPreviewDialogComponent, MapPreviewDialogData } from '@components/geojson-config/map-preview-dialog/map-preview-dialog';
+import { CalendarViewDialogComponent, CalendarViewDialogData, CalendarEventEntry } from '@components/shared/calendar-view-dialog/calendar-view-dialog';
 
 @Component({
   standalone: false,
@@ -478,8 +479,37 @@ export class ClassDataTableComponent implements OnInit, OnChanges {
       case 'boolean':
         return value ? 'Yes' : 'No';
       case 'date':
+        try {
+          const d = new Date(value);
+          return isNaN(d.getTime()) ? String(value) : d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+        } catch { return String(value); }
       case 'datetime':
-        return new Date(value).toLocaleString();
+        try {
+          const dt = new Date(value);
+          return isNaN(dt.getTime()) ? String(value) : dt.toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        } catch { return String(value); }
+      case 'date_duration':
+      case 'datetime_duration':
+        try {
+          const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+          const s = parsed?.start ? new Date(parsed.start).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '?';
+          const e = parsed?.end ? new Date(parsed.end).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '?';
+          return `${s} → ${e}`;
+        } catch { return String(value); }
+      case 'time':
+        if (typeof value === 'string' && value.includes(':')) {
+          const [h, m] = value.split(':').map(Number);
+          if (!isNaN(h) && !isNaN(m)) {
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${ampm}`;
+          }
+        }
+        return String(value);
+      case 'time_duration':
+        try {
+          const tp = typeof value === 'string' ? JSON.parse(value) : value;
+          return `${tp?.start || '?'} → ${tp?.end || '?'}`;
+        } catch { return String(value); }
       case 'list':
       case 'polarilist':
         return Array.isArray(value) ? `[${value.length} items]` : String(value);
@@ -925,6 +955,76 @@ export class ClassDataTableComponent implements OnInit, OnChanges {
       }
     } catch { /* not valid JSON */ }
     return String(value);
+  }
+
+  /**
+   * Whether a column type is a calendar-viewable type.
+   */
+  isCalendarType(type: string): boolean {
+    const t = type?.toLowerCase();
+    return t === 'datetime' || t === 'date_duration' || t === 'datetime_duration';
+  }
+
+  /**
+   * Open a calendar dialog showing all values from a date/duration column.
+   */
+  openColumnCalendar(column: string): void {
+    const type = this.getColumnType(column).toLowerCase();
+    const isDuration = type === 'date_duration' || type === 'datetime_duration';
+    const includeTime = type === 'datetime' || type === 'datetime_duration';
+
+    const events: CalendarEventEntry[] = [];
+    const data = this.dataSource?.filteredData || [];
+
+    for (const row of data) {
+      const raw = this.getCellValue(row, column);
+      if (!raw) continue;
+
+      // Build a label from the first identifier-like field
+      const label = row['name'] || row['id'] || row['_displayLabel'] || '';
+
+      if (isDuration) {
+        let parsed = raw;
+        if (typeof parsed === 'string') {
+          try { parsed = JSON.parse(parsed); } catch { continue; }
+        }
+        if (parsed?.start) {
+          events.push({
+            id: row['id'],
+            title: label || column,
+            start: parsed.start,
+            end: parsed.end || undefined,
+            meta: { rowId: row['id'] }
+          });
+        }
+      } else {
+        const d = new Date(raw);
+        if (!isNaN(d.getTime())) {
+          events.push({
+            id: row['id'],
+            title: label || column,
+            start: d.toISOString(),
+            meta: { rowId: row['id'] }
+          });
+        }
+      }
+    }
+
+    if (events.length === 0) return;
+
+    const dialogData: CalendarViewDialogData = {
+      title: `${this.getColumnDisplayName(column)} — ${this.className}`,
+      fieldName: column,
+      events,
+      includeTime,
+      initialView: isDuration ? 'month' : 'month'
+    };
+
+    this.dialog.open(CalendarViewDialogComponent, {
+      data: dialogData,
+      width: '900px',
+      maxHeight: '90vh'
+    });
   }
 
   /**

@@ -108,8 +108,8 @@ export function variableDefToColumnConfig(
     order: order,
     available: true,
     visible: true,
-    sortable: !['list', 'dict', 'reference', 'map_line_segment', 'map_polygon'].includes(varDef.varType),
-    filterable: !['list', 'dict', 'reference', 'map_line_segment', 'map_polygon'].includes(varDef.varType),
+    sortable: !['list', 'dict', 'reference'].includes(varDef.varType),
+    filterable: !['list', 'dict', 'reference'].includes(varDef.varType),
     alignment: ColumnConfiguration.getDefaultAlignment(varDef.varType),
     format: ColumnConfiguration.getDefaultFormat(varDef.varType),
     ...varDef.columnConfig
@@ -238,6 +238,12 @@ export const TYPE_DISPLAY_MAP: Record<string, string> = {
   'map_coordinate': 'Map Coordinate',
   'map_line_segment': 'Map Line Segment',
   'map_polygon': 'Map Polygon',
+  'time': 'Time',
+  'time_duration': 'Time Duration',
+  'precision_time': 'Precision Time',
+  'date_duration': 'Date Duration',
+  'datetime_duration': 'Date & Time Duration',
+  'schedule': 'Schedule',
   'date': 'Date',
   'datetime': 'DateTime',
   'polariList': 'List',
@@ -266,6 +272,12 @@ export const CELL_TYPE_MAP: Record<string, string> = {
   'map_coordinate': 'mapCoordinate',
   'map_line_segment': 'mapLineSegment',
   'map_polygon': 'mapPolygon',
+  'time': 'time',
+  'time_duration': 'timeDuration',
+  'precision_time': 'precisionTime',
+  'date_duration': 'dateDuration',
+  'datetime_duration': 'dateTimeDuration',
+  'schedule': 'schedule',
   'list': 'string',
   'dict': 'string',
   'polariList': 'string',
@@ -318,7 +330,13 @@ export function getTypeIcon(dataType: string): string {
     'referencelist': '⇉',
     'map_coordinate': '📍',
     'map_line_segment': '📏',
-    'map_polygon': '⬡'
+    'map_polygon': '⬡',
+    'time': '🕐',
+    'time_duration': '🕑',
+    'precision_time': '⏱',
+    'date_duration': '⏱',
+    'datetime_duration': '⏳',
+    'schedule': '🔄'
   };
   return typeMap[dataType?.toLowerCase()] || '◆';
 }

@@ -1,0 +1,36 @@
+<div class="display-type-config">
+  <h4>Display Types</h4>
+  <p class="type-hint">Select the modes this display supports. A display can have multiple types.</p>
+
+  <div class="type-chips">
+    <div *ngFor="let option of typeOptions"
+         class="type-chip"
+         [class.active]="isTypeActive(option.type)"
+         [class.always-on]="option.alwaysOn"
+         (click)="onTypeToggle(option)"
+         [matTooltip]="option.description">
+      <mat-icon class="chip-icon">{{ option.icon }}</mat-icon>
+      <span class="chip-label">{{ option.label }}</span>
+      <mat-icon class="chip-check" *ngIf="isTypeActive(option.type)">check</mat-icon>
+    </div>
+  </div>
+
+  <!-- Row type notice -->
+  <div *ngIf="isTypeActive('row')" class="type-notice">
+    <mat-icon>info_outline</mat-icon>
+    <span>Row mode requires a single-instance input to be defined in Display Inputs below.</span>
+  </div>
+
+  <!-- Page type: route config -->
+  <div *ngIf="isTypeActive('page')" class="page-config">
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Page Route</mat-label>
+      <input matInput [(ngModel)]="display.pageRoute" (ngModelChange)="onPageRouteChange()">
+      <mat-hint>URL: /display/{{ display.id }}</mat-hint>
+    </mat-form-field>
+    <a mat-stroked-button color="primary" [routerLink]="['/display', display.id]" target="_blank"
+       class="open-page-btn">
+      <mat-icon>open_in_new</mat-icon> Open Page
+    </a>
+  </div>
+</div>

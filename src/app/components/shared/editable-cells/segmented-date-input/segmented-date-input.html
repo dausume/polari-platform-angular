@@ -1,0 +1,112 @@
+<div class="segmented-date-input" [class.disabled]="disabled" [class.has-value]="!isEmpty">
+  <!-- Month -->
+  <div class="segment-col">
+    <button type="button" class="spin-btn spin-up" tabindex="-1"
+            (mousedown)="startSpinner('month', 1)"
+            (mouseup)="stopSpinner()" (mouseleave)="stopSpinner()"
+            (touchstart)="startSpinner('month', 1)" (touchend)="stopSpinner()"
+            [disabled]="disabled">
+      <mat-icon>expand_less</mat-icon>
+    </button>
+    <input #monthInput
+           class="seg-input seg-mm"
+           [class.active]="activeSegment === 'month'"
+           type="text" inputmode="numeric" maxlength="2"
+           [placeholder]="'MM'"
+           [(ngModel)]="month"
+           (focus)="onSegmentFocus('month', monthInput)"
+           (blur)="onSegmentBlur('month')"
+           (keydown)="onKeydown($event, 'month')"
+           (input)="onInput('month')"
+           [disabled]="disabled"
+           autocomplete="off">
+    <button type="button" class="spin-btn spin-down" tabindex="-1"
+            (mousedown)="startSpinner('month', -1)"
+            (mouseup)="stopSpinner()" (mouseleave)="stopSpinner()"
+            (touchstart)="startSpinner('month', -1)" (touchend)="stopSpinner()"
+            [disabled]="disabled">
+      <mat-icon>expand_more</mat-icon>
+    </button>
+  </div>
+
+  <span class="sep">/</span>
+
+  <!-- Day -->
+  <div class="segment-col">
+    <button type="button" class="spin-btn spin-up" tabindex="-1"
+            (mousedown)="startSpinner('day', 1)"
+            (mouseup)="stopSpinner()" (mouseleave)="stopSpinner()"
+            (touchstart)="startSpinner('day', 1)" (touchend)="stopSpinner()"
+            [disabled]="disabled">
+      <mat-icon>expand_less</mat-icon>
+    </button>
+    <input #dayInput
+           class="seg-input seg-dd"
+           [class.active]="activeSegment === 'day'"
+           type="text" inputmode="numeric" maxlength="2"
+           [placeholder]="'DD'"
+           [(ngModel)]="day"
+           (focus)="onSegmentFocus('day', dayInput)"
+           (blur)="onSegmentBlur('day')"
+           (keydown)="onKeydown($event, 'day')"
+           (input)="onInput('day')"
+           [disabled]="disabled"
+           autocomplete="off">
+    <button type="button" class="spin-btn spin-down" tabindex="-1"
+            (mousedown)="startSpinner('day', -1)"
+            (mouseup)="stopSpinner()" (mouseleave)="stopSpinner()"
+            (touchstart)="startSpinner('day', -1)" (touchend)="stopSpinner()"
+            [disabled]="disabled">
+      <mat-icon>expand_more</mat-icon>
+    </button>
+  </div>
+
+  <span class="sep">/</span>
+
+  <!-- Year -->
+  <div class="segment-col">
+    <button type="button" class="spin-btn spin-up" tabindex="-1"
+            (mousedown)="startSpinner('year', 1)"
+            (mouseup)="stopSpinner()" (mouseleave)="stopSpinner()"
+            (touchstart)="startSpinner('year', 1)" (touchend)="stopSpinner()"
+            [disabled]="disabled">
+      <mat-icon>expand_less</mat-icon>
+    </button>
+    <input #yearInput
+           class="seg-input seg-yyyy"
+           [class.active]="activeSegment === 'year'"
+           type="text" inputmode="numeric" maxlength="4"
+           [placeholder]="'YYYY'"
+           [(ngModel)]="year"
+           (focus)="onSegmentFocus('year', yearInput)"
+           (blur)="onSegmentBlur('year')"
+           (keydown)="onKeydown($event, 'year')"
+           (input)="onInput('year')"
+           [disabled]="disabled"
+           autocomplete="off">
+    <button type="button" class="spin-btn spin-down" tabindex="-1"
+            (mousedown)="startSpinner('year', -1)"
+            (mouseup)="stopSpinner()" (mouseleave)="stopSpinner()"
+            (touchstart)="startSpinner('year', -1)" (touchend)="stopSpinner()"
+            [disabled]="disabled">
+      <mat-icon>expand_more</mat-icon>
+    </button>
+  </div>
+
+  <!-- Calendar picker toggle -->
+  <div class="calendar-toggle">
+    <!-- Hidden input wired to MatDatepicker -->
+    <input #calendarInput
+           [matDatepicker]="calPicker"
+           [value]="calendarDate"
+           (dateChange)="onCalendarDateChange($event)"
+           class="hidden-cal-input"
+           [disabled]="disabled">
+    <mat-datepicker #calPicker></mat-datepicker>
+    <button type="button" class="cal-btn" tabindex="-1"
+            (click)="calPicker.open()"
+            [disabled]="disabled">
+      <mat-icon>calendar_today</mat-icon>
+    </button>
+  </div>
+</div>

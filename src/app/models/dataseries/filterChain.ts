@@ -214,10 +214,312 @@ export class DataSeriesFilterChain {
                     return v !== null && v !== undefined;
                 });
 
+            // Geographic / Bounding Box Operators
+            // filterValue = [south, west, north, east] i.e. [minLat, minLng, maxLat, maxLng]
+            //
+            // "geometry" variants check ALL coordinates (vertices, endpoints, etc.)
+            // "center" variants check ONLY the center-point / centroid
+
+            case 'geometryInBoundingBox':
+                if (Array.isArray(filterValue) && filterValue.length === 4) {
+                    const [south, west, north, east] = filterValue.map(Number);
+                    return dataPoints.filter(dp => {
+                        const coords = this.extractAllGeoCoordinates(gv(dp));
+                        if (coords.length === 0) return false;
+                        return coords.some(([lat, lng]) =>
+                            lat >= south && lat <= north && lng >= west && lng <= east
+                        );
+                    });
+                }
+                return dataPoints;
+            case 'geometryOutsideBoundingBox':
+                if (Array.isArray(filterValue) && filterValue.length === 4) {
+                    const [south, west, north, east] = filterValue.map(Number);
+                    return dataPoints.filter(dp => {
+                        const coords = this.extractAllGeoCoordinates(gv(dp));
+                        if (coords.length === 0) return true;
+                        return coords.every(([lat, lng]) =>
+                            lat < south || lat > north || lng < west || lng > east
+                        );
+                    });
+                }
+                return dataPoints;
+            case 'centerInBoundingBox':
+                if (Array.isArray(filterValue) && filterValue.length === 4) {
+                    const [south, west, north, east] = filterValue.map(Number);
+                    return dataPoints.filter(dp => {
+                        const center = this.extractGeoCenterPoint(gv(dp));
+                        if (!center) return false;
+                        const [lat, lng] = center;
+                        return lat >= south && lat <= north && lng >= west && lng <= east;
+                    });
+                }
+                return dataPoints;
+            case 'centerOutsideBoundingBox':
+                if (Array.isArray(filterValue) && filterValue.length === 4) {
+                    const [south, west, north, east] = filterValue.map(Number);
+                    return dataPoints.filter(dp => {
+                        const center = this.extractGeoCenterPoint(gv(dp));
+                        if (!center) return true;
+                        const [lat, lng] = center;
+                        return lat < south || lat > north || lng < west || lng > east;
+                    });
+                }
+                return dataPoints;
+
+            // Duration Operators
+            // Duration values stored as JSON: { start: ISO, end: ISO }
+            // filterValue for comparison: milliseconds (number) or ISO date string
+            // filterValue for range: [startISO, endISO]
+
+            case 'durationGreaterThan':
+                return dataPoints.filter(dp => {
+                    const ms = this.extractDurationMs(gv(dp));
+                    return ms !== null && ms > Number(filterValue);
+                });
+            case 'durationLessThan':
+                return dataPoints.filter(dp => {
+                    const ms = this.extractDurationMs(gv(dp));
+                    return ms !== null && ms < Number(filterValue);
+                });
+            case 'durationInRange':
+                if (Array.isArray(filterValue) && filterValue.length === 2) {
+                    const [minMs, maxMs] = filterValue.map(Number);
+                    return dataPoints.filter(dp => {
+                        const ms = this.extractDurationMs(gv(dp));
+                        return ms !== null && ms >= minMs && ms <= maxMs;
+                    });
+                }
+                return dataPoints;
+            case 'startsAfter':
+                return dataPoints.filter(dp => {
+                    const dur = this.parseDurationValue(gv(dp));
+                    return dur?.start !== null && dur!.start > new Date(filterValue).getTime();
+                });
+            case 'startsBefore':
+                return dataPoints.filter(dp => {
+                    const dur = this.parseDurationValue(gv(dp));
+                    return dur?.start !== null && dur!.start < new Date(filterValue).getTime();
+                });
+            case 'endsAfter':
+                return dataPoints.filter(dp => {
+                    const dur = this.parseDurationValue(gv(dp));
+                    return dur?.end !== null && dur!.end > new Date(filterValue).getTime();
+                });
+            case 'endsBefore':
+                return dataPoints.filter(dp => {
+                    const dur = this.parseDurationValue(gv(dp));
+                    return dur?.end !== null && dur!.end < new Date(filterValue).getTime();
+                });
+            case 'overlapsRange':
+                if (Array.isArray(filterValue) && filterValue.length === 2) {
+                    const rangeStart = new Date(filterValue[0]).getTime();
+                    const rangeEnd = new Date(filterValue[1]).getTime();
+                    return dataPoints.filter(dp => {
+                        const dur = this.parseDurationValue(gv(dp));
+                        if (!dur || dur.start === null || dur.end === null) return false;
+                        return dur.start <= rangeEnd && dur.end >= rangeStart;
+                    });
+                }
+                return dataPoints;
+
             default:
                 console.warn(`DataSeriesFilterChain: Unknown filter type "${filterType}"`);
                 return dataPoints;
         }
+    }
+
+    /**
+     * Parse a duration field value { start, end } into epoch timestamps.
+     */
+    private parseDurationValue(value: any): { start: number | null; end: number | null } | null {
+        if (value == null) return null;
+        if (typeof value === 'string') {
+            try { value = JSON.parse(value); } catch { return null; }
+        }
+        if (!value || typeof value !== 'object') return null;
+        const s = value.start ? new Date(value.start).getTime() : null;
+        const e = value.end ? new Date(value.end).getTime() : null;
+        if (s !== null && isNaN(s)) return null;
+        if (e !== null && isNaN(e)) return null;
+        return { start: s, end: e };
+    }
+
+    /**
+     * Extract the span in milliseconds from a duration field value.
+     */
+    private extractDurationMs(value: any): number | null {
+        const dur = this.parseDurationValue(value);
+        if (!dur || dur.start === null || dur.end === null) return null;
+        return Math.abs(dur.end - dur.start);
+    }
+
+    /**
+     * Parse a geo field value from raw data (handles JSON strings).
+     */
+    private parseGeoValue(value: any): any {
+        if (value == null) return null;
+        if (typeof value === 'string') {
+            try { return JSON.parse(value); }
+            catch { return null; }
+        }
+        return value;
+    }
+
+    /**
+     * Extract ALL [lat, lng] coordinate pairs from a geo field value.
+     * Used by "geometry" bounding box filters to check every vertex/endpoint.
+     *
+     * Handles:
+     *   - { lat, lng } — point
+     *   - [lat, lng] tuple
+     *   - { start_lat, start_lng, end_lat, end_lng } — line segment endpoints
+     *   - { vertices: [[lng,lat], ...] } — polygon vertices
+     *   - { center_lat, center_lng } — centroid (included as fallback)
+     *   - { coordinates: [...] } — GeoJSON coordinate arrays
+     *   - JSON string of any of the above
+     */
+    private extractAllGeoCoordinates(rawValue: any): [number, number][] {
+        let value = this.parseGeoValue(rawValue);
+        if (value == null) return [];
+
+        // Simple [lat, lng] tuple
+        if (Array.isArray(value) && value.length === 2 &&
+            typeof value[0] === 'number' && typeof value[1] === 'number') {
+            return [[value[0], value[1]]];
+        }
+
+        if (typeof value !== 'object' || value === null) return [];
+
+        const coords: [number, number][] = [];
+
+        // Point: { lat, lng }
+        if (typeof value.lat === 'number' && typeof value.lng === 'number') {
+            coords.push([value.lat, value.lng]);
+        }
+
+        // Line segment endpoints: { start_lat, start_lng, end_lat, end_lng }
+        if (typeof value.start_lat === 'number' && typeof value.start_lng === 'number') {
+            coords.push([value.start_lat, value.start_lng]);
+        }
+        if (typeof value.end_lat === 'number' && typeof value.end_lng === 'number') {
+            coords.push([value.end_lat, value.end_lng]);
+        }
+
+        // Polygon vertices: { vertices: [[lng, lat], ...] } (GeoJSON order)
+        if (Array.isArray(value.vertices)) {
+            for (const v of value.vertices) {
+                if (Array.isArray(v) && v.length >= 2 &&
+                    typeof v[0] === 'number' && typeof v[1] === 'number') {
+                    coords.push([v[1], v[0]]); // [lng,lat] → [lat,lng]
+                }
+            }
+        }
+
+        // GeoJSON coordinates: { coordinates: [[lng, lat], ...] }
+        if (Array.isArray(value.coordinates)) {
+            const flatCoords = Array.isArray(value.coordinates[0]?.[0])
+                ? value.coordinates.flat() // Polygon ring: [[[lng,lat],...]]
+                : value.coordinates;       // LineString: [[lng,lat],...]
+            for (const c of flatCoords) {
+                if (Array.isArray(c) && c.length >= 2 &&
+                    typeof c[0] === 'number' && typeof c[1] === 'number') {
+                    coords.push([c[1], c[0]]); // [lng,lat] → [lat,lng]
+                }
+            }
+        }
+
+        // Centroid as fallback if no other coords were found
+        if (coords.length === 0 && typeof value.center_lat === 'number' && typeof value.center_lng === 'number') {
+            let lat = value.center_lat;
+            let lng = value.center_lng;
+            if (typeof value.center_offset_lat === 'number') lat += value.center_offset_lat;
+            if (typeof value.center_offset_lng === 'number') lng += value.center_offset_lng;
+            coords.push([lat, lng]);
+        }
+
+        return coords;
+    }
+
+    /**
+     * Extract ONLY the center-point [lat, lng] from a geo field value.
+     * Used by "center" bounding box filters.
+     *
+     * Priority:
+     *   1. Explicit centroid: { center_lat, center_lng } (with offset support)
+     *   2. Point: { lat, lng }
+     *   3. [lat, lng] tuple
+     *   4. Midpoint of line segment endpoints
+     *   5. Average of polygon vertices
+     *   6. Centroid from GeoJSON coordinates
+     */
+    private extractGeoCenterPoint(rawValue: any): [number, number] | null {
+        let value = this.parseGeoValue(rawValue);
+        if (value == null) return null;
+
+        // Simple [lat, lng] tuple — treat as both the point and its center
+        if (Array.isArray(value) && value.length === 2 &&
+            typeof value[0] === 'number' && typeof value[1] === 'number') {
+            return [value[0], value[1]];
+        }
+
+        if (typeof value !== 'object' || value === null) return null;
+
+        // Explicit centroid (polygons and lines store this)
+        if (typeof value.center_lat === 'number' && typeof value.center_lng === 'number') {
+            let lat = value.center_lat;
+            let lng = value.center_lng;
+            if (typeof value.center_offset_lat === 'number') lat += value.center_offset_lat;
+            if (typeof value.center_offset_lng === 'number') lng += value.center_offset_lng;
+            return [lat, lng];
+        }
+
+        // Point: { lat, lng }
+        if (typeof value.lat === 'number' && typeof value.lng === 'number') {
+            return [value.lat, value.lng];
+        }
+
+        // Line segment midpoint
+        if (typeof value.start_lat === 'number' && typeof value.start_lng === 'number' &&
+            typeof value.end_lat === 'number' && typeof value.end_lng === 'number') {
+            return [
+                (value.start_lat + value.end_lat) / 2,
+                (value.start_lng + value.end_lng) / 2
+            ];
+        }
+
+        // Average of polygon vertices
+        if (Array.isArray(value.vertices) && value.vertices.length > 0) {
+            let sumLat = 0, sumLng = 0, count = 0;
+            for (const v of value.vertices) {
+                if (Array.isArray(v) && v.length >= 2 &&
+                    typeof v[0] === 'number' && typeof v[1] === 'number') {
+                    sumLat += v[1]; // [lng,lat] → lat
+                    sumLng += v[0]; // [lng,lat] → lng
+                    count++;
+                }
+            }
+            if (count > 0) return [sumLat / count, sumLng / count];
+        }
+
+        // Average of GeoJSON coordinates
+        if (Array.isArray(value.coordinates)) {
+            const flatCoords = Array.isArray(value.coordinates[0]?.[0])
+                ? value.coordinates.flat()
+                : value.coordinates;
+            let sumLat = 0, sumLng = 0, count = 0;
+            for (const c of flatCoords) {
+                if (Array.isArray(c) && c.length >= 2 &&
+                    typeof c[0] === 'number' && typeof c[1] === 'number') {
+                    sumLat += c[1]; // [lng,lat] → lat
+                    sumLng += c[0]; // [lng,lat] → lng
+                    count++;
+                }
+            }
+            if (count > 0) return [sumLat / count, sumLng / count];
+        }
+
+        return null;
     }
 
     /**

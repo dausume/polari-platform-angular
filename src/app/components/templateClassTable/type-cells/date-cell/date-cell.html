@@ -1,6 +1,6 @@
-<div class="date-cell">
+<div class="date-cell" [class.duration-cell]="isDuration">
     <span class="cell-value">
-        <span class="date-icon">{{type.toLowerCase() === 'datetime' ? '🕐' : '📅'}}</span>
+        <span class="date-icon">{{typeIcon}}</span>
         <span class="date-text">{{getDisplayValue()}}</span>
     </span>
 </div>

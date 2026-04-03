@@ -1,0 +1,50 @@
+<div class="instance-source-config">
+  <!-- Default Instance Selection -->
+  <div class="instance-section">
+    <span class="section-label">Default Instance</span>
+
+    <div class="instance-row">
+      <mat-form-field appearance="outline" class="instance-id-field">
+        <mat-label>Instance ID</mat-label>
+        <input matInput
+               [(ngModel)]="dataSource.defaultInstanceId"
+               (ngModelChange)="onDefaultInstanceIdChange()"
+               placeholder="Enter ID or use picker">
+      </mat-form-field>
+
+      <button mat-icon-button
+              [disabled]="!hasClassName"
+              (click)="openInstancePicker()"
+              matTooltip="Browse instances"
+              class="picker-btn">
+        <mat-icon>manage_search</mat-icon>
+      </button>
+
+      <button mat-icon-button
+              *ngIf="hasDefaultInstance"
+              (click)="clearDefaultInstance()"
+              matTooltip="Clear selection"
+              color="warn"
+              class="picker-btn">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+
+    <p *ngIf="!hasClassName" class="hint-text">
+      Select a class above to browse instances.
+    </p>
+  </div>
+
+  <!-- Mock Instance Toggle -->
+  <div class="mock-section">
+    <mat-slide-toggle
+      [checked]="hasMockInstance"
+      (change)="onMockToggle($event.checked)">
+      Configure mock instance for preview
+    </mat-slide-toggle>
+
+    <p *ngIf="hasMockInstance" class="hint-text">
+      Mock instance data will be used at design-time when no default instance is set.
+    </p>
+  </div>
+</div>

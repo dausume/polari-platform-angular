@@ -149,6 +149,11 @@ export class classPolyTyping {
         return this.config.allowClassEdit;
     }
 
+    /** Check if this class can be deleted (only dynamic, user-created classes) */
+    canDeleteClassDefinition(): boolean {
+        return this.config.allowClassEdit && this.config.isDynamicClass;
+    }
+
     /** Check if this class should appear in No-Code/State-Space environments */
     isAvailableInStateSpace(): boolean {
         return this.config.isStateSpaceObject;

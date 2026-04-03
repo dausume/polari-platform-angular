@@ -2,6 +2,15 @@ import { DisplayRow } from "./DisplayRow";
 import { DisplayStateDefinition } from "./DisplayStateDefinition";
 
 /**
+ * The types a display can be. A display can have multiple types simultaneously.
+ * - 'component': Always present. The display can be embedded as a component.
+ * - 'popup': The display can be shown in a popup/modal.
+ * - 'row': The display represents a single instance row. Mandates a single-instance input.
+ * - 'page': The display is a standalone page accessible via URL with route parameters.
+ */
+export type DisplayType = 'component' | 'popup' | 'row' | 'page';
+
+/**
  * Represents a complete dashboard containing multiple rows of items.
  * Displays organize content into a grid-based layout system.
  */
@@ -24,10 +33,13 @@ export class Display {
     /** Solution names linked to this display */
     linkedSolutions: string[] = [];
 
-    /** Whether this display is published as a standalone page */
-    isPage: boolean = false;
+    /**
+     * The types this display supports (multi-select).
+     * 'component' is always included.
+     */
+    displayTypes: DisplayType[] = ['component'];
 
-    /** URL-friendly slug for the page route */
+    /** URL-friendly slug for the page route (used when 'page' type is active) */
     pageRoute?: string;
 
     /** Data sources and inputs available to components within this display */
@@ -38,6 +50,53 @@ export class Display {
         this.name = name || '';
         this.description = description || '';
         this.rows = [];
+        this.lastModified = Date.now();
+    }
+
+    /**
+     * Whether this display is published as a standalone page.
+     * Derived from displayTypes for backward compatibility.
+     */
+    get isPage(): boolean {
+        return this.displayTypes.includes('page');
+    }
+
+    set isPage(value: boolean) {
+        if (value && !this.displayTypes.includes('page')) {
+            this.displayTypes.push('page');
+        } else if (!value) {
+            this.displayTypes = this.displayTypes.filter(t => t !== 'page');
+        }
+    }
+
+    /** Whether this display has the 'row' type (single instance). */
+    get isRow(): boolean {
+        return this.displayTypes.includes('row');
+    }
+
+    /** Whether this display has the 'popup' type. */
+    get isPopup(): boolean {
+        return this.displayTypes.includes('popup');
+    }
+
+    /**
+     * Check if a display type is active.
+     */
+    hasType(type: DisplayType): boolean {
+        return this.displayTypes.includes(type);
+    }
+
+    /**
+     * Toggle a display type on or off.
+     * 'component' cannot be removed.
+     */
+    toggleType(type: DisplayType): void {
+        if (type === 'component') return; // always on
+        if (this.displayTypes.includes(type)) {
+            this.displayTypes = this.displayTypes.filter(t => t !== type);
+        } else {
+            this.displayTypes.push(type);
+        }
         this.lastModified = Date.now();
     }
 
@@ -155,7 +214,7 @@ export class Display {
     clone(): Display {
         const cloned = new Display(this.id + '-clone', this.name, this.description);
         cloned.linkedSolutions = [...this.linkedSolutions];
-        cloned.isPage = this.isPage;
+        cloned.displayTypes = [...this.displayTypes];
         cloned.pageRoute = this.pageRoute;
         cloned.stateDefinition = DisplayStateDefinition.fromJSON(this.stateDefinition.toJSON());
         this.rows.forEach(row => {

@@ -29,6 +29,11 @@ import { EditableNumberCellComponent } from './editable-cells/editable-number-ce
 import { EditableBooleanCellComponent } from './editable-cells/editable-boolean-cell/editable-boolean-cell';
 import { EditableDateCellComponent } from './editable-cells/editable-date-cell/editable-date-cell';
 import { EditableSelectCellComponent } from './editable-cells/editable-select-cell/editable-select-cell';
+import { EditableTimeCellComponent } from './editable-cells/editable-time-cell/editable-time-cell';
+
+// Segmented inputs (standalone — imported, not declared)
+import { SegmentedDateInputComponent } from './editable-cells/segmented-date-input/segmented-date-input';
+import { SegmentedTimeInputComponent } from './editable-cells/segmented-time-input/segmented-time-input';
 
 // Row Actions Component
 import { RowActionsCellComponent } from './row-actions-cell/row-actions-cell';
@@ -45,6 +50,12 @@ import { ClassSelectorDialogComponent } from './class-selector-dialog/class-sele
 // Map Point Picker Dialog Component
 import { MapPointPickerDialogComponent } from './map-point-picker-dialog/map-point-picker-dialog';
 
+// Calendar View Dialog Component
+import { CalendarViewDialogComponent } from './calendar-view-dialog/calendar-view-dialog';
+
+// FullCalendar
+import { FullCalendarModule } from '@fullcalendar/angular';
+
 // Detail Display Renderer
 import { DetailDisplayRendererComponent } from './detail-display-renderer/detail-display-renderer';
 
@@ -59,6 +70,7 @@ import { DynamicDataTableComponent } from './dynamic-data-table/dynamic-data-tab
     EditableBooleanCellComponent,
     EditableDateCellComponent,
     EditableSelectCellComponent,
+    EditableTimeCellComponent,
     // Row Actions
     RowActionsCellComponent,
     // Dialogs
@@ -66,6 +78,7 @@ import { DynamicDataTableComponent } from './dynamic-data-table/dynamic-data-tab
     InstancePickerDialogComponent,
     ClassSelectorDialogComponent,
     MapPointPickerDialogComponent,
+    CalendarViewDialogComponent,
     // Detail Display
     DetailDisplayRendererComponent,
     // Table
@@ -91,7 +104,10 @@ import { DynamicDataTableComponent } from './dynamic-data-table/dynamic-data-tab
     MatDialogModule,
     MatTooltipModule,
     MatProgressSpinnerModule,
-    MatChipsModule
+    MatChipsModule,
+    FullCalendarModule,
+    SegmentedDateInputComponent,
+    SegmentedTimeInputComponent
   ],
   exports: [
     // Editable Cells
@@ -100,6 +116,7 @@ import { DynamicDataTableComponent } from './dynamic-data-table/dynamic-data-tab
     EditableBooleanCellComponent,
     EditableDateCellComponent,
     EditableSelectCellComponent,
+    EditableTimeCellComponent,
     // Row Actions
     RowActionsCellComponent,
     // Dialogs
@@ -107,6 +124,7 @@ import { DynamicDataTableComponent } from './dynamic-data-table/dynamic-data-tab
     InstancePickerDialogComponent,
     ClassSelectorDialogComponent,
     MapPointPickerDialogComponent,
+    CalendarViewDialogComponent,
     // Detail Display
     DetailDisplayRendererComponent,
     // Table
@@ -123,8 +141,10 @@ export { EditableNumberCellComponent } from './editable-cells/editable-number-ce
 export { EditableBooleanCellComponent } from './editable-cells/editable-boolean-cell/editable-boolean-cell';
 export { EditableDateCellComponent } from './editable-cells/editable-date-cell/editable-date-cell';
 export { EditableSelectCellComponent } from './editable-cells/editable-select-cell/editable-select-cell';
+export { EditableTimeCellComponent } from './editable-cells/editable-time-cell/editable-time-cell';
 export { RowActionsCellComponent } from './row-actions-cell/row-actions-cell';
 export { InstancePickerDialogComponent } from './instance-picker-dialog/instance-picker-dialog';
 export { ClassSelectorDialogComponent } from './class-selector-dialog/class-selector-dialog';
 export { MapPointPickerDialogComponent } from './map-point-picker-dialog/map-point-picker-dialog';
 export { DetailDisplayRendererComponent } from './detail-display-renderer/detail-display-renderer';
+export { CalendarViewDialogComponent } from './calendar-view-dialog/calendar-view-dialog';

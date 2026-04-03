@@ -1,53 +1,94 @@
-<div class="editable-date-cell">
-  <!-- Read Mode -->
+<div class="editable-date-cell" [class.duration-mode]="isDuration">
+  <!-- ─── Read Mode ──────────────────────────────────────────────────── -->
   <ng-container *ngIf="!(isEditing$ | async)">
     <span class="cell-value read-value" (dblclick)="enterEditMode()">
-      <mat-icon class="date-icon">event</mat-icon>
+      <mat-icon class="date-icon">{{ isDuration ? 'date_range' : 'event' }}</mat-icon>
       {{ getDisplayValue() }}
     </span>
+    <button *ngIf="value && (includeTime || isDuration)"
+            mat-icon-button
+            class="calendar-view-btn"
+            (click)="openCalendarView()"
+            matTooltip="View in calendar">
+      <mat-icon>calendar_month</mat-icon>
+    </button>
   </ng-container>
 
-  <!-- Edit Mode -->
-  <ng-container *ngIf="isEditing$ | async">
+  <!-- ─── Edit Mode: Single Date / DateTime ──────────────────────────── -->
+  <ng-container *ngIf="(isEditing$ | async) && !isDuration">
     <div class="edit-container">
-      <!-- Date picker -->
-      <mat-form-field appearance="outline" class="date-field">
-        <mat-label *ngIf="displayName">{{ displayName }}</mat-label>
-        <input matInput
-               [matDatepicker]="picker"
-               [value]="dateValue"
-               [min]="minDate"
-               [max]="maxDate"
-               (dateChange)="onDateChange($event)"
-               [placeholder]="placeholder || 'Select date'"
-               (keydown)="onKeydown($event)">
-        <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
-        <mat-datepicker #picker></mat-datepicker>
+      <segmented-date-input
+        [value]="control.value"
+        [disabled]="disabled"
+        (valueChange)="onSegmentedDateChange($event)">
+      </segmented-date-input>
 
-        <button *ngIf="dateValue"
-                mat-icon-button
-                matIconSuffix
-                type="button"
-                (click)="clearDate()"
-                aria-label="Clear date">
+      <segmented-time-input *ngIf="includeTime"
+        [value]="timeString"
+        [disabled]="disabled || !dateValue"
+        (valueChange)="onSegmentedTimeChange($event)">
+      </segmented-time-input>
+
+      <button *ngIf="dateValue" mat-icon-button class="clear-btn" type="button"
+              (click)="clearDate()" aria-label="Clear date">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+
+    <mat-error *ngIf="hasError()" class="field-error">
+      {{ getErrorMessage() }}
+    </mat-error>
+  </ng-container>
+
+  <!-- ─── Edit Mode: Duration (Start + End) ──────────────────────────── -->
+  <ng-container *ngIf="(isEditing$ | async) && isDuration">
+    <div class="duration-edit-container">
+      <!-- Start -->
+      <div class="duration-row">
+        <span class="duration-label">Start</span>
+        <segmented-date-input
+          [value]="durationStartISO"
+          [disabled]="disabled"
+          (valueChange)="onDurationStartDateChange($event)">
+        </segmented-date-input>
+        <segmented-time-input *ngIf="includeTime"
+          [value]="durationStartTimeString"
+          [disabled]="disabled || !durationStartValue"
+          (valueChange)="onDurationStartSegmentedTimeChange($event)">
+        </segmented-time-input>
+      </div>
+
+      <!-- End -->
+      <div class="duration-row">
+        <span class="duration-label">End</span>
+        <segmented-date-input
+          [value]="durationEndISO"
+          [disabled]="disabled"
+          (valueChange)="onDurationEndDateChange($event)">
+        </segmented-date-input>
+        <segmented-time-input *ngIf="includeTime"
+          [value]="durationEndTimeString"
+          [disabled]="disabled || !durationEndValue"
+          (valueChange)="onDurationEndSegmentedTimeChange($event)">
+        </segmented-time-input>
+      </div>
+
+      <!-- Duration span readout + clear -->
+      <div class="duration-footer">
+        <span *ngIf="durationSpanLabel" class="duration-span-label">
+          Duration: {{ durationSpanLabel }}
+        </span>
+        <button *ngIf="durationStartValue || durationEndValue"
+                mat-icon-button type="button"
+                (click)="clearDuration()" aria-label="Clear duration"
+                class="clear-btn">
           <mat-icon>close</mat-icon>
         </button>
+      </div>
 
-        <mat-error *ngIf="hasError()">
-          {{ getErrorMessage() }}
-        </mat-error>
-      </mat-form-field>
-
-      <!-- Time input (if includeTime) -->
-      <mat-form-field *ngIf="includeTime" appearance="outline" class="time-field">
-        <mat-label>Time</mat-label>
-        <input matInput
-               type="time"
-               [value]="timeString"
-               (change)="onTimeChange($event)"
-               [disabled]="!dateValue">
-        <mat-icon matIconPrefix>schedule</mat-icon>
-      </mat-form-field>
+      <mat-error *ngIf="hasError()" class="field-error">
+        {{ getErrorMessage() }}
+      </mat-error>
     </div>
   </ng-container>
 </div>

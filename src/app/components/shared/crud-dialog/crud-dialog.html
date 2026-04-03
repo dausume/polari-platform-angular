@@ -100,6 +100,20 @@
                     </editable-date-cell>
                   </ng-container>
 
+                  <!-- Date Duration Field -->
+                  <ng-container *ngIf="getCellType(field) === 'dateDuration' || getCellType(field) === 'dateTimeDuration'">
+                    <editable-date-cell
+                      mode="edit"
+                      [value]="form.get(getParentFieldName(parentEntry.className, field.varName))?.value"
+                      [fieldName]="getParentFieldName(parentEntry.className, field.varName)"
+                      [displayName]="field.varDisplayName"
+                      [required]="field.required || false"
+                      [isDuration]="true"
+                      [includeTime]="getCellType(field) === 'dateTimeDuration'"
+                      (valueChange)="onFieldChange(getParentFieldName(parentEntry.className, field.varName), $event)">
+                    </editable-date-cell>
+                  </ng-container>
+
                   <!-- Reference Field -->
                   <ng-container *ngIf="getCellType(field) === 'reference'">
                     <editable-string-cell
@@ -201,6 +215,35 @@
               [includeTime]="varDef.varType === 'datetime'"
               (valueChange)="onFieldChange(varDef.varName, $event)">
             </editable-date-cell>
+          </ng-container>
+
+          <!-- Date Duration Field -->
+          <ng-container *ngIf="getCellType(varDef) === 'dateDuration' || getCellType(varDef) === 'dateTimeDuration'">
+            <editable-date-cell
+              mode="edit"
+              [value]="form.get(varDef.varName)?.value"
+              [fieldName]="varDef.varName"
+              [displayName]="varDef.varDisplayName"
+              [required]="varDef.required || false"
+              [disabled]="isReadOnly(varDef.varName)"
+              [isDuration]="true"
+              [includeTime]="getCellType(varDef) === 'dateTimeDuration'"
+              (valueChange)="onFieldChange(varDef.varName, $event)">
+            </editable-date-cell>
+          </ng-container>
+
+          <!-- Time Field -->
+          <ng-container *ngIf="getCellType(varDef) === 'time' || getCellType(varDef) === 'timeDuration'">
+            <editable-time-cell
+              mode="edit"
+              [value]="form.get(varDef.varName)?.value"
+              [fieldName]="varDef.varName"
+              [displayName]="varDef.varDisplayName"
+              [required]="varDef.required || false"
+              [disabled]="isReadOnly(varDef.varName)"
+              [isDuration]="getCellType(varDef) === 'timeDuration'"
+              (valueChange)="onFieldChange(varDef.varName, $event)">
+            </editable-time-cell>
           </ng-container>
 
           <!-- Select Field (non-reference) -->

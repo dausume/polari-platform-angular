@@ -1,0 +1,84 @@
+<div class="data-source-card">
+  <!-- Header -->
+  <div class="card-header">
+    <mat-icon>{{ sourceIcon }}</mat-icon>
+    <span class="card-title">{{ title }}</span>
+    <button mat-icon-button color="warn" (click)="onRemove()" matTooltip="Remove data source">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <!-- Label -->
+  <mat-form-field appearance="outline" class="full-width">
+    <mat-label>Label</mat-label>
+    <input matInput [(ngModel)]="dataSource.label" (ngModelChange)="onChildChange()">
+  </mat-form-field>
+
+  <!-- Source Type -->
+  <mat-form-field appearance="outline" class="full-width">
+    <mat-label>Source Type</mat-label>
+    <mat-select [(ngModel)]="dataSource.sourceType" (ngModelChange)="onSourceTypeChange()">
+      <mat-option value="class">Class (load instances)</mat-option>
+      <mat-option value="solution">Solution (execute)</mat-option>
+      <mat-option value="static">Static data</mat-option>
+    </mat-select>
+  </mat-form-field>
+
+  <!-- Class Source: Class Selector -->
+  <ng-container *ngIf="dataSource.sourceType === 'class'">
+    <div class="class-selector-row">
+      <mat-form-field appearance="outline" class="class-selector-field">
+        <mat-label>Class</mat-label>
+        <input matInput
+               [value]="classDisplayName || '(none selected)'"
+               readonly
+               (click)="openClassSelector()"
+               class="clickable-input">
+      </mat-form-field>
+      <button mat-icon-button (click)="openClassSelector()" matTooltip="Select class">
+        <mat-icon>search</mat-icon>
+      </button>
+      <button mat-icon-button *ngIf="dataSource.className"
+              (click)="clearClass()" matTooltip="Clear" color="warn">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+
+    <!-- Sub-Type Selector -->
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Data Mode</mat-label>
+      <mat-select [(ngModel)]="dataSource.classSubType" (ngModelChange)="onSubTypeChange()">
+        <mat-option value="all-instances">All Instances</mat-option>
+        <mat-option value="row-instance">Single Instance</mat-option>
+        <mat-option value="static-data">Static Variable</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <!-- Sub-Type: Row Instance -->
+    <display-instance-source-config
+      *ngIf="dataSource.classSubType === 'row-instance'"
+      [dataSource]="dataSource"
+      (configChange)="onChildChange()">
+    </display-instance-source-config>
+
+    <!-- Sub-Type: Static Data -->
+    <display-static-var-editor
+      *ngIf="dataSource.classSubType === 'static-data'"
+      [dataSource]="dataSource"
+      (valueChange)="onChildChange()">
+    </display-static-var-editor>
+  </ng-container>
+
+  <!-- Solution Source: Solution Selector -->
+  <mat-form-field *ngIf="dataSource.sourceType === 'solution'" appearance="outline" class="full-width">
+    <mat-label>Solution Name</mat-label>
+    <mat-select [(ngModel)]="dataSource.solutionName" (ngModelChange)="onChildChange()">
+      <mat-option *ngFor="let sol of availableSolutions" [value]="sol.name">{{ sol.name }}</mat-option>
+    </mat-select>
+  </mat-form-field>
+
+  <!-- Auto-load Toggle -->
+  <mat-slide-toggle [(ngModel)]="dataSource.autoLoad" (ngModelChange)="onChildChange()">
+    Auto-load on display init
+  </mat-slide-toggle>
+</div>

@@ -2,6 +2,7 @@
   width: 100%;
   display: flex;
   align-items: center;
+  overflow: hidden;
 }
 
 .cell-value {
@@ -31,43 +32,95 @@
   color: var(--text-tertiary);
 }
 
+/* ─── Calendar view button ─────────────────────── */
+
+.calendar-view-btn {
+  width: 28px;
+  height: 28px;
+  line-height: 28px;
+  margin-left: 2px;
+  opacity: 0.5;
+  transition: opacity 0.15s ease;
+  flex-shrink: 0;
+}
+
+.calendar-view-btn:hover {
+  opacity: 1;
+}
+
+.calendar-view-btn .mat-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+}
+
+/* ─── Single date/datetime edit ────────────────── */
+
 .edit-container {
   display: flex;
+  align-items: center;
   gap: 8px;
-  align-items: flex-start;
   width: 100%;
 }
 
-.date-field {
-  flex: 1;
-  min-width: 160px;
+.clear-btn {
+  width: 24px;
+  height: 24px;
+  line-height: 24px;
+  flex-shrink: 0;
 }
 
-.time-field {
-  width: 120px;
+.clear-btn .mat-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
 }
 
-.edit-container ::ng-deep .mat-mdc-form-field-subscript-wrapper {
-  height: auto;
+.field-error {
+  font-size: 12px;
+  margin-top: 2px;
 }
 
-.edit-container ::ng-deep .mat-mdc-form-field-infix {
-  padding-top: 8px;
-  padding-bottom: 8px;
+/* ─── Duration edit ────────────────────────────── */
+
+.duration-edit-container {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
 }
 
-.edit-container ::ng-deep .mat-datepicker-toggle {
-  margin-right: -8px;
+.duration-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.edit-container ::ng-deep button[matIconSuffix] {
-  width: 28px;
-  height: 28px;
-  margin-right: -8px;
+.duration-label {
+  min-width: 36px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
-.edit-container ::ng-deep button[matIconSuffix] .mat-icon {
-  font-size: 18px;
-  width: 18px;
-  height: 18px;
+.duration-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 0 0 44px;
+}
+
+.duration-span-label {
+  font-size: 12px;
+  color: #ad1457;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Duration read mode ───────────────────────── */
+
+.duration-mode .read-value {
+  color: #ad1457;
 }

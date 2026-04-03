@@ -29,6 +29,12 @@ export type CanonicalFieldType =
     | 'mapCoordinate'
     | 'mapLineSegment'
     | 'mapPolygon'
+    | 'time'
+    | 'timeDuration'
+    | 'precisionTime'
+    | 'dateDuration'
+    | 'dateTimeDuration'
+    | 'schedule'
     | 'uuid'
     | 'unknown';
 
@@ -64,7 +70,6 @@ const TYPE_NORMALIZATION_MAP: Record<string, CanonicalFieldType> = {
     'date':      'date',
     'datetime':  'datetime',
     'timestamp': 'datetime',
-    'time':      'datetime',
 
     // Collections
     'list':       'list',
@@ -93,6 +98,22 @@ const TYPE_NORMALIZATION_MAP: Record<string, CanonicalFieldType> = {
     'map_coordinate':   'mapCoordinate',
     'map_line_segment': 'mapLineSegment',
     'map_polygon':      'mapPolygon',
+
+    // Time types
+    'time':              'time',
+    'time_duration':     'timeDuration',
+    'timeduration':      'timeDuration',
+    'precision_time':    'precisionTime',
+    'precisiontime':     'precisionTime',
+
+    // Schedule (recurrence) type
+    'schedule':          'schedule',
+
+    // Duration types
+    'date_duration':     'dateDuration',
+    'dateduration':      'dateDuration',
+    'datetime_duration': 'dateTimeDuration',
+    'datetimeduration':  'dateTimeDuration',
 };
 
 /**
@@ -132,7 +153,7 @@ export function normalizeDataType(rawType: string | undefined | null): Canonical
         return 'date';
     }
     if (lower.includes('time')) {
-        return 'datetime';
+        return 'time';
     }
     if (lower.includes('list') || lower.includes('array')) {
         return 'list';
@@ -170,6 +191,12 @@ export const FIELD_TYPE_ICONS: Record<CanonicalFieldType, string> = {
     'mapCoordinate':  '📍',
     'mapLineSegment': '📏',
     'mapPolygon':     '⬡',
+    'time':              '🕐',
+    'timeDuration':      '🕑',
+    'precisionTime':     '⏱',
+    'dateDuration':      '⏱',
+    'dateTimeDuration':  '⏳',
+    'schedule':          '🔄',
     'uuid':          '🔑',
     'unknown':       '◆',
 };
@@ -198,6 +225,12 @@ export const FIELD_TYPE_LABELS: Record<CanonicalFieldType, string> = {
     'mapCoordinate':  'Map Coordinate',
     'mapLineSegment': 'Map Line Segment',
     'mapPolygon':     'Map Polygon',
+    'time':              'Time',
+    'timeDuration':      'Time Duration',
+    'precisionTime':     'Precision Time',
+    'dateDuration':      'Date Duration',
+    'dateTimeDuration':  'Date & Time Duration',
+    'schedule':          'Schedule',
     'uuid':          'UUID',
     'unknown':       'Unknown',
 };
@@ -222,6 +255,12 @@ export const FIELD_TYPE_COLORS: Record<CanonicalFieldType, string> = {
     'mapCoordinate':  '#0288d1',
     'mapLineSegment': '#0097a7',
     'mapPolygon':     '#00695c',
+    'time':              '#e64a19',
+    'timeDuration':      '#d84315',
+    'precisionTime':     '#bf360c',
+    'dateDuration':      '#ad1457',
+    'dateTimeDuration':  '#880e4f',
+    'schedule':          '#6a1b9a',
     'uuid':          '#78909c',
     'unknown':       '#78909c',
 };
@@ -283,6 +322,28 @@ export const IDENTITY_FILTER_OPTIONS = [
     'isNull', 'isNotNull'
 ] as const;
 
+export const TIME_FILTER_OPTIONS = [
+    'equals', 'notEquals',
+    'greaterThan', 'lessThan',
+    'inRange',
+    'isNull', 'isNotNull'
+] as const;
+
+export const DURATION_FILTER_OPTIONS = [
+    'durationGreaterThan', 'durationLessThan',
+    'durationInRange',
+    'startsAfter', 'startsBefore',
+    'endsAfter', 'endsBefore',
+    'overlapsRange',
+    'isNull', 'isNotNull'
+] as const;
+
+export const GEO_FILTER_OPTIONS = [
+    'geometryInBoundingBox', 'geometryOutsideBoundingBox',
+    'centerInBoundingBox', 'centerOutsideBoundingBox',
+    'isNull', 'isNotNull'
+] as const;
+
 const FILTER_OPTIONS_MAP: Record<CanonicalFieldType, readonly string[]> = {
     'string':    STRING_FILTER_OPTIONS,
     'number':    NUMBER_FILTER_OPTIONS,
@@ -293,9 +354,15 @@ const FILTER_OPTIONS_MAP: Record<CanonicalFieldType, readonly string[]> = {
     'dict':      LIST_FILTER_OPTIONS,
     'reference':     REFERENCE_FILTER_OPTIONS,
     'referenceList': REFERENCE_LIST_FILTER_OPTIONS,
-    'mapCoordinate':  NUMBER_FILTER_OPTIONS,
-    'mapLineSegment': REFERENCE_FILTER_OPTIONS,
-    'mapPolygon':     REFERENCE_FILTER_OPTIONS,
+    'mapCoordinate':  GEO_FILTER_OPTIONS,
+    'mapLineSegment': GEO_FILTER_OPTIONS,
+    'mapPolygon':     GEO_FILTER_OPTIONS,
+    'time':              TIME_FILTER_OPTIONS,
+    'timeDuration':      DURATION_FILTER_OPTIONS,
+    'precisionTime':     TIME_FILTER_OPTIONS,
+    'dateDuration':      DURATION_FILTER_OPTIONS,
+    'dateTimeDuration':  DURATION_FILTER_OPTIONS,
+    'schedule':          REFERENCE_FILTER_OPTIONS,
     'uuid':          IDENTITY_FILTER_OPTIONS,
     'unknown':   STRING_FILTER_OPTIONS,    // Fall back to string filters
 };
@@ -337,6 +404,18 @@ const FILTER_TYPE_META: Record<string, FilterTypeMeta> = {
     'isNull':              { label: 'Is Null',               requiresValue: false, requiresRange: false },
     'isNotNull':           { label: 'Is Not Null',           requiresValue: false, requiresRange: false },
     'noop':                { label: 'No Operation',          requiresValue: false, requiresRange: false },
+    'durationGreaterThan':         { label: 'Duration Greater Than',         requiresValue: true,  requiresRange: false },
+    'durationLessThan':            { label: 'Duration Less Than',            requiresValue: true,  requiresRange: false },
+    'durationInRange':             { label: 'Duration In Range',             requiresValue: false, requiresRange: true },
+    'startsAfter':                 { label: 'Starts After',                  requiresValue: true,  requiresRange: false },
+    'startsBefore':                { label: 'Starts Before',                 requiresValue: true,  requiresRange: false },
+    'endsAfter':                   { label: 'Ends After',                    requiresValue: true,  requiresRange: false },
+    'endsBefore':                  { label: 'Ends Before',                   requiresValue: true,  requiresRange: false },
+    'overlapsRange':               { label: 'Overlaps Range',                requiresValue: false, requiresRange: true },
+    'geometryInBoundingBox':      { label: 'Geometry In Bounding Box',      requiresValue: false, requiresRange: true },
+    'geometryOutsideBoundingBox': { label: 'Geometry Outside Bounding Box', requiresValue: false, requiresRange: true },
+    'centerInBoundingBox':        { label: 'Center In Bounding Box',        requiresValue: false, requiresRange: true },
+    'centerOutsideBoundingBox':   { label: 'Center Outside Bounding Box',   requiresValue: false, requiresRange: true },
 };
 
 /**
@@ -361,6 +440,12 @@ const INPUT_TYPE_MAP: Record<CanonicalFieldType, string> = {
     'mapCoordinate':  'text',
     'mapLineSegment': 'text',
     'mapPolygon':     'text',
+    'time':              'text',
+    'timeDuration':      'text',
+    'precisionTime':     'text',
+    'dateDuration':      'text',
+    'dateTimeDuration':  'text',
+    'schedule':          'text',
     'uuid':          'text',
     'unknown':       'text',
 };
@@ -390,6 +475,12 @@ const ALIGNMENT_MAP: Record<CanonicalFieldType, ColumnAlignment> = {
     'mapCoordinate':  'left',
     'mapLineSegment': 'left',
     'mapPolygon':     'left',
+    'time':              'center',
+    'timeDuration':      'center',
+    'precisionTime':     'center',
+    'dateDuration':      'center',
+    'dateTimeDuration':  'center',
+    'schedule':          'left',
     'uuid':          'left',
     'unknown':       'left',
 };
@@ -404,7 +495,7 @@ export function getDefaultAlignment(typeOrRaw: string): ColumnAlignment {
  */
 export function isSortableType(typeOrRaw: string): boolean {
     const canonical = normalizeDataType(typeOrRaw);
-    return !['list', 'dict', 'referenceList', 'mapLineSegment', 'mapPolygon', 'unknown'].includes(canonical);
+    return !['list', 'dict', 'referenceList', 'unknown'].includes(canonical);
 }
 
 /**
@@ -412,7 +503,7 @@ export function isSortableType(typeOrRaw: string): boolean {
  */
 export function isFilterableType(typeOrRaw: string): boolean {
     const canonical = normalizeDataType(typeOrRaw);
-    return !['list', 'dict', 'referenceList', 'mapLineSegment', 'mapPolygon', 'unknown'].includes(canonical);
+    return !['list', 'dict', 'referenceList', 'unknown'].includes(canonical);
 }
 
 // ─── Convenience: Detect all fields from classTypeData ───────────────────────

@@ -1,0 +1,37 @@
+.instance-source-config {
+    padding: 4px 0;
+}
+
+.section-label {
+    font-size: 0.85em;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+    display: block;
+}
+
+.instance-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.instance-id-field {
+    flex: 1;
+}
+
+.picker-btn {
+    flex-shrink: 0;
+}
+
+.mock-section {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-light);
+}
+
+.hint-text {
+    font-size: 0.8em;
+    color: var(--text-secondary);
+    margin: 4px 0 0 0;
+}

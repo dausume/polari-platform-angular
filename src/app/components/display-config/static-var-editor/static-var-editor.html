@@ -1,0 +1,41 @@
+<div class="static-var-editor">
+  <!-- Variable Type Selector -->
+  <mat-form-field appearance="outline" class="full-width">
+    <mat-label>Variable Type</mat-label>
+    <mat-select [(ngModel)]="dataSource.staticVarType" (ngModelChange)="onTypeChange()">
+      <mat-option *ngFor="let type of typesAllowed" [value]="type">{{ type }}</mat-option>
+    </mat-select>
+  </mat-form-field>
+
+  <!-- Reference Class Selector (conditional) -->
+  <div *ngIf="isReferenceType" class="ref-class-row">
+    <mat-form-field appearance="outline" class="ref-class-field">
+      <mat-label>Referenced Class</mat-label>
+      <input matInput [value]="refClassDisplayName || '(none selected)'" readonly
+             (click)="openRefClassSelector()" class="clickable-input">
+    </mat-form-field>
+    <button mat-icon-button (click)="openRefClassSelector()" matTooltip="Select class" class="ref-class-btn">
+      <mat-icon>search</mat-icon>
+    </button>
+    <button mat-icon-button *ngIf="dataSource.staticVarRefClass"
+            (click)="clearRefClass()" matTooltip="Clear" color="warn" class="ref-class-btn">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <!-- Boolean Value Toggle -->
+  <mat-slide-toggle *ngIf="isBooleanType"
+                    [(ngModel)]="dataSource.staticVarValue"
+                    (ngModelChange)="onValueChange()">
+    Value: {{ dataSource.staticVarValue ? 'True' : 'False' }}
+  </mat-slide-toggle>
+
+  <!-- Text / Number / Date Value Input -->
+  <mat-form-field *ngIf="showValueInput" appearance="outline" class="full-width">
+    <mat-label>Value</mat-label>
+    <input matInput
+           [(ngModel)]="dataSource.staticVarValue"
+           [type]="getInputType()"
+           (ngModelChange)="onValueChange()">
+  </mat-form-field>
+</div>

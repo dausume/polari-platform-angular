@@ -1,0 +1,101 @@
+.display-type-config h4 {
+    margin: 0 0 8px 0;
+    font-size: 15px;
+}
+
+.type-hint {
+    font-size: 0.85em;
+    color: var(--text-secondary);
+    margin: 0 0 12px 0;
+}
+
+.type-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.type-chip {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    background: var(--surface-secondary);
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    user-select: none;
+}
+
+.type-chip:hover:not(.always-on) {
+    border-color: var(--primary-color, #1976d2);
+    background: var(--surface-hover, rgba(25, 118, 210, 0.04));
+}
+
+.type-chip.active {
+    border-color: var(--primary-color, #1976d2);
+    background: var(--primary-light, rgba(25, 118, 210, 0.08));
+}
+
+.type-chip.always-on {
+    cursor: default;
+    opacity: 0.85;
+}
+
+.chip-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    color: var(--text-secondary);
+}
+
+.type-chip.active .chip-icon {
+    color: var(--primary-color, #1976d2);
+}
+
+.chip-label {
+    font-size: 0.85em;
+    font-weight: 500;
+}
+
+.chip-check {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    color: var(--primary-color, #1976d2);
+}
+
+.type-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 8px 10px;
+    background: var(--surface-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm);
+    margin-bottom: 8px;
+    font-size: 0.82em;
+    color: var(--text-secondary);
+}
+
+.type-notice mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.page-config {
+    margin-top: 8px;
+}
+
+.full-width {
+    width: 100%;
+}
+
+.open-page-btn {
+    margin-top: 4px;
+}

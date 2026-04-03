@@ -50,7 +50,7 @@ export interface FilterChainSegmentDef {
 export interface ConfiguredFilterDef {
     variableName: string;
     filterConfigType: 'Checkbox' | 'MultiSelect' | 'RangeSlider' | 'SingleSelect'
-        | 'DateRangePicker' | 'Dropdown' | 'ToggleSwitch' | 'Pre-Set' | 'Enforced';
+        | 'DateRangePicker' | 'Dropdown' | 'ToggleSwitch' | 'BoundingBoxPicker' | 'Pre-Set' | 'Enforced';
     filterType: string;
     defaultValue?: any;
     defaultSecondValue?: any;

@@ -1,14 +1,42 @@
 /**
+ * Sub-type for class-based data sources.
+ */
+export type ClassDataSourceSubType = 'all-instances' | 'row-instance' | 'static-data';
+
+/**
  * A single data source that feeds into a display.
  */
 export interface DisplayDataSource {
   id: string;
   label: string;
   sourceType: 'class' | 'solution' | 'static';
+
+  // --- Class source fields ---
   className?: string;
+  /** Sub-type when sourceType === 'class' */
+  classSubType?: ClassDataSourceSubType;
+
+  // --- Row-instance sub-type fields ---
+  /** ID of a default instance to display */
+  defaultInstanceId?: string;
+  /** Mock instance data for design-time preview */
+  mockInstance?: Record<string, any>;
+
+  // --- Static-data sub-type fields ---
+  /** Variable type from the shared type system (e.g. 'String', 'Integer', 'Reference') */
+  staticVarType?: string;
+  /** Reference class when staticVarType is Reference or Reference List */
+  staticVarRefClass?: string;
+  /** The actual static value */
+  staticVarValue?: any;
+
+  // --- Solution source fields ---
   solutionName?: string;
   solutionParams?: Record<string, any>;
+
+  // --- Top-level static source fields ---
   staticData?: any;
+
   autoLoad: boolean;
   refreshIntervalMs?: number;
 }
@@ -67,6 +95,12 @@ export class DisplayStateDefinition {
         label: ds.label || '',
         sourceType: ds.sourceType || 'class',
         className: ds.className,
+        classSubType: ds.classSubType || (ds.sourceType === 'class' ? 'all-instances' : undefined),
+        defaultInstanceId: ds.defaultInstanceId,
+        mockInstance: ds.mockInstance,
+        staticVarType: ds.staticVarType,
+        staticVarRefClass: ds.staticVarRefClass,
+        staticVarValue: ds.staticVarValue,
         solutionName: ds.solutionName,
         solutionParams: ds.solutionParams,
         staticData: ds.staticData,

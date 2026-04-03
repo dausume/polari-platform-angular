@@ -40,7 +40,8 @@ export class DisplayManagerService {
           source_class: item.source_class || '',
           linkedSolutions: this.parseLinkedSolutions(item.linkedSolutions),
           isPage: item.isPage === true || item.isPage === 'true',
-          pageRoute: item.pageRoute || ''
+          pageRoute: item.pageRoute || '',
+          displayTypes: item.displayTypes ? (typeof item.displayTypes === 'string' ? JSON.parse(item.displayTypes) : item.displayTypes) : undefined
         }));
         this.displayList$.next(summaries);
         this.loading$.next(false);
@@ -150,7 +151,8 @@ export class DisplayManagerService {
       definition: definition,
       linkedSolutions: JSON.stringify(display.linkedSolutions),
       isPage: display.isPage,
-      pageRoute: display.pageRoute || ''
+      pageRoute: display.pageRoute || '',
+      displayTypes: JSON.stringify(display.displayTypes)
     }));
     return this.http.put(this.baseUrl, formData).pipe(
       tap(() => {
@@ -235,8 +237,22 @@ export class DisplayManagerService {
   deserializeDisplay(backendObj: any): Display {
     const display = new Display(backendObj.id, backendObj.name || '', backendObj.description || '');
     display.linkedSolutions = this.parseLinkedSolutions(backendObj.linkedSolutions);
-    display.isPage = backendObj.isPage === true || backendObj.isPage === 'true';
     display.pageRoute = backendObj.pageRoute || '';
+
+    // Restore displayTypes, falling back to legacy isPage flag
+    const rawTypes = backendObj.displayTypes;
+    if (rawTypes) {
+      const parsed_types = typeof rawTypes === 'string' ? JSON.parse(rawTypes) : rawTypes;
+      if (Array.isArray(parsed_types) && parsed_types.length > 0) {
+        display.displayTypes = parsed_types;
+        // Ensure 'component' is always present
+        if (!display.displayTypes.includes('component')) {
+          display.displayTypes.unshift('component');
+        }
+      }
+    } else if (backendObj.isPage === true || backendObj.isPage === 'true') {
+      display.displayTypes = ['component', 'page'];
+    }
 
     let parsed: any = {};
     if (backendObj.definition && backendObj.definition !== '{}') {

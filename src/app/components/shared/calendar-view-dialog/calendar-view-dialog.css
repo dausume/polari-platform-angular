@@ -1,0 +1,231 @@
+.calendar-view-dialog {
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+  min-width: 700px;
+}
+
+/* ─── Header ───────────────────────────────────── */
+
+.dialog-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.header-icon {
+  color: #5c6bc0;
+  font-size: 24px;
+  width: 24px;
+  height: 24px;
+}
+
+.dialog-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--text-primary, #212121);
+}
+
+.header-stats {
+  display: flex;
+  gap: 6px;
+}
+
+.stat-chip {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 10px;
+  letter-spacing: 0.02em;
+}
+
+.instant-chip {
+  background: rgba(92, 107, 192, 0.12);
+  color: #5c6bc0;
+}
+
+.duration-chip {
+  background: rgba(173, 20, 87, 0.12);
+  color: #ad1457;
+}
+
+.close-btn {
+  margin-left: 8px;
+}
+
+/* ─── Calendar ─────────────────────────────────── */
+
+.calendar-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 20px;
+  min-height: 400px;
+}
+
+/* FullCalendar style overrides */
+
+:host ::ng-deep .fc {
+  font-family: inherit;
+  font-size: 13px;
+}
+
+:host ::ng-deep .fc .fc-toolbar {
+  margin-bottom: 12px;
+}
+
+:host ::ng-deep .fc .fc-toolbar-title {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+:host ::ng-deep .fc .fc-button {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  text-transform: none;
+  font-weight: 500;
+}
+
+:host ::ng-deep .fc .fc-button-primary {
+  background-color: #5c6bc0;
+  border-color: #5c6bc0;
+}
+
+:host ::ng-deep .fc .fc-button-primary:not(:disabled).fc-button-active,
+:host ::ng-deep .fc .fc-button-primary:not(:disabled):active {
+  background-color: #3f51b5;
+  border-color: #3f51b5;
+}
+
+:host ::ng-deep .fc .fc-button-primary:hover {
+  background-color: #3f51b5;
+  border-color: #3f51b5;
+}
+
+:host ::ng-deep .fc .fc-daygrid-event {
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+:host ::ng-deep .fc .fc-timegrid-event {
+  border-radius: 3px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+:host ::ng-deep .fc .fc-list-event {
+  cursor: pointer;
+}
+
+:host ::ng-deep .fc .fc-day-today {
+  background: rgba(92, 107, 192, 0.04) !important;
+}
+
+:host ::ng-deep .fc .fc-event:hover {
+  opacity: 0.85;
+}
+
+/* ─── Event Detail Panel ───────────────────────── */
+
+.event-detail-panel {
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  padding: 12px 20px;
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.detail-title {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-primary, #212121);
+}
+
+.detail-close {
+  width: 28px;
+  height: 28px;
+  line-height: 28px;
+}
+
+.detail-close .mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
+.detail-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.detail-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.detail-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  color: var(--text-tertiary, #9e9e9e);
+}
+
+.detail-label {
+  color: var(--text-secondary, #616161);
+  min-width: 60px;
+}
+
+.detail-value {
+  color: var(--text-primary, #212121);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.duration-value {
+  color: #ad1457;
+}
+
+.meta-value {
+  font-family: monospace;
+  font-size: 12px;
+  font-weight: 400;
+  max-width: 400px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detail-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ─── Footer ───────────────────────────────────── */
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 20px 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}

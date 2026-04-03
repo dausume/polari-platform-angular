@@ -153,6 +153,7 @@ export class ClassMainPageComponent implements OnDestroy {
   stateSpaceUpdating: boolean = false;
   geoJsonAutoCreating: boolean = false;
   editClassLoading: boolean = false;
+  deleteClassLoading: boolean = false;
   get isGeoJsonEnabled(): boolean { return this.geoJsonConfigList.length > 0; }
 
   /** Available frontend solutions for the current class */
@@ -624,19 +625,6 @@ export class ClassMainPageComponent implements OnDestroy {
    */
   isSolutionLinked(solutionName: string): boolean {
     return this.selectedDisplay?.linkedSolutions.includes(solutionName) || false;
-  }
-
-  /**
-   * Toggle publish/unpublish display as standalone page
-   */
-  togglePublishAsPage(publish: boolean): void {
-    if (!this.selectedDisplay) return;
-    if (publish) {
-      this.selectedDisplay.publishAsPage();
-    } else {
-      this.selectedDisplay.unpublishAsPage();
-    }
-    this.onDisplayPropertyChange();
   }
 
   /**
@@ -2152,6 +2140,50 @@ export class ClassMainPageComponent implements OnDestroy {
     });
   }
 
+  // ==================== Delete Class Definition ====================
+
+  deleteClass(): void {
+    if (!this.className || !this.classPolyTypingObj) return;
+
+    const displayName = this.classPolyTypingObj.displayClassName || this.className;
+    const confirmed = window.confirm(
+      `Are you sure you want to delete the class "${displayName}"?\n\n` +
+      `This will permanently remove:\n` +
+      `- All instances of this class\n` +
+      `- All associated displays, tables, graphs, maps, datasets, field profiles, and filter chains\n` +
+      `- The database table and class definition\n\n` +
+      `This action cannot be undone.`
+    );
+
+    if (!confirmed) return;
+
+    this.deleteClassLoading = true;
+    const baseUrl = this.polariService.getBackendBaseUrl();
+
+    this.http.request<any>('DELETE', `${baseUrl}/createClass`, {
+      body: { className: this.className }
+    }).subscribe({
+      next: (response) => {
+        this.deleteClassLoading = false;
+        if (response.success) {
+          this.snackBar.open(`Class "${displayName}" deleted successfully.`, 'OK', { duration: 5000 });
+          // Refresh typing data so nav updates
+          this.typingService.fetchClassInstanceCounts();
+          // Navigate away since this class no longer exists
+          this.router.navigate(['/']);
+        } else {
+          this.snackBar.open(response.error || 'Failed to delete class.', 'Dismiss', { duration: 5000 });
+        }
+      },
+      error: (err) => {
+        this.deleteClassLoading = false;
+        const errorMsg = err.error?.error || 'Failed to delete class. Please try again.';
+        this.snackBar.open(errorMsg, 'Dismiss', { duration: 5000 });
+        console.error('[ClassMainPage] Delete class failed:', err);
+      }
+    });
+  }
+
   // ==================== Display Editor Mode ====================
 
   /**
@@ -2423,23 +2455,6 @@ export class ClassMainPageComponent implements OnDestroy {
   }
 
   // ==================== Display State Definition ====================
-
-  addDisplayDataSource(): void {
-    if (!this.selectedDisplay) return;
-    this.selectedDisplay.stateDefinition.addDataSource({
-      id: crypto.randomUUID(),
-      label: '',
-      sourceType: 'class',
-      autoLoad: true
-    });
-    this.onDisplayPropertyChange();
-  }
-
-  removeDisplayDataSource(index: number): void {
-    if (!this.selectedDisplay) return;
-    this.selectedDisplay.stateDefinition.dataSources.splice(index, 1);
-    this.onDisplayPropertyChange();
-  }
 
   addDisplayInput(): void {
     if (!this.selectedDisplay) return;

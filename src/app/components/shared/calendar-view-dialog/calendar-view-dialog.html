@@ -1,0 +1,68 @@
+<div class="calendar-view-dialog">
+  <!-- Header -->
+  <div class="dialog-header">
+    <div class="header-left">
+      <mat-icon class="header-icon">calendar_month</mat-icon>
+      <h2 class="dialog-title">{{ dialogTitle }}</h2>
+    </div>
+    <div class="header-stats">
+      <span class="stat-chip instant-chip" *ngIf="instantCount > 0">
+        {{ instantCount }} instant{{ instantCount !== 1 ? 's' : '' }}
+      </span>
+      <span class="stat-chip duration-chip" *ngIf="durationCount > 0">
+        {{ durationCount }} duration{{ durationCount !== 1 ? 's' : '' }}
+      </span>
+    </div>
+    <button mat-icon-button (click)="onClose()" class="close-btn" aria-label="Close">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <!-- Calendar -->
+  <div class="calendar-container">
+    <full-calendar [options]="calendarOptions"></full-calendar>
+  </div>
+
+  <!-- Event Detail Panel (shown when an event is clicked) -->
+  <div class="event-detail-panel" *ngIf="selectedEvent">
+    <div class="detail-header">
+      <span class="detail-title">{{ selectedEvent.title }}</span>
+      <button mat-icon-button (click)="clearSelection()" class="detail-close" aria-label="Close detail">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+    <div class="detail-body">
+      <div class="detail-row">
+        <mat-icon class="detail-icon">event</mat-icon>
+        <span class="detail-label">Start:</span>
+        <span class="detail-value">{{ formatEventDate(selectedEvent.start) }}</span>
+      </div>
+      <div class="detail-row" *ngIf="selectedEvent.end">
+        <mat-icon class="detail-icon">event</mat-icon>
+        <span class="detail-label">End:</span>
+        <span class="detail-value">{{ formatEventDate(selectedEvent.end!) }}</span>
+      </div>
+      <div class="detail-row" *ngIf="selectedDurationLabel">
+        <mat-icon class="detail-icon">timelapse</mat-icon>
+        <span class="detail-label">Duration:</span>
+        <span class="detail-value duration-value">{{ selectedDurationLabel }}</span>
+      </div>
+      <!-- Extra metadata -->
+      <div class="detail-row" *ngIf="selectedEvent.meta">
+        <mat-icon class="detail-icon">info</mat-icon>
+        <span class="detail-label">Details:</span>
+        <span class="detail-value meta-value">{{ selectedEvent.meta | json }}</span>
+      </div>
+    </div>
+    <div class="detail-actions">
+      <button mat-stroked-button color="primary" (click)="selectAndClose()">
+        <mat-icon>check</mat-icon> Select Event
+      </button>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="dialog-footer">
+    <button mat-button (click)="onClose()">Close</button>
+  </div>
+</div>
