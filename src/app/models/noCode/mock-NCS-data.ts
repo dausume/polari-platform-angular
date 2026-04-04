@@ -125,16 +125,13 @@ export interface NoCodeSolutionRawData {
  * Sample Solution 1: "AdditionTester.test_addition" - Simple arithmetic with conditional check
  * Tests adding two numbers and checking if the result matches an expected value
  *
- * Flow (Parallel Branch & Merge Pattern):
- *                     ┌→ [Compute Sum] ────────┐
- * [Start] ────────────┤                        ├→ [Check Result] → Return True/False
- *                     └→ [Get Expected] ───────┘
+ * Flow:
+ * [Start] → [Compute Sum (MathOperation)] → [Check Result] → Return True/False
  *
  * 1. Start with input variables (num_a, num_b, expected_result)
- * 2. PARALLEL: Compute Sum (sum_result = num_a + num_b)
- * 3. PARALLEL: Get Expected (comparison_value = expected_result)
- * 4. Check Result compares inputs from both branches using ValueSourceConfig
- * 5. Output the boolean result
+ * 2. Compute Sum (sum_result = num_a + num_b) via MathOperation
+ * 3. Check Result compares sum_result == expected_result using ValueSourceConfig
+ * 4. Output the boolean result
  */
 export const MOCK_SOLUTION_ADDITION_TEST: NoCodeSolutionRawData = {
   id: 1,
