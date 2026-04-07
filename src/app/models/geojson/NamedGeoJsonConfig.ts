@@ -102,12 +102,33 @@ export class NamedGeoJsonConfig {
 
         const features: any[] = [];
 
+        console.log('[GeoJSON buildGeoJson] Config:', {
+            coordinateMode: gc.coordinateMode,
+            tupleVariable: gc.tupleVariable,
+            tupleOrder: gc.tupleOrder,
+            latitudeVariable: gc.latitudeVariable,
+            longitudeVariable: gc.longitudeVariable,
+            geometryVariable: gc.geometryVariable,
+        });
+        console.log('[GeoJSON buildGeoJson] Instance count:', instanceData.length);
+
         for (const instance of instanceData) {
             let lng: number | null = null;
             let lat: number | null = null;
 
             if (gc.coordinateMode === 'tuple' && gc.tupleVariable) {
-                const tuple = instance[gc.tupleVariable];
+                let tuple = instance[gc.tupleVariable];
+                const rawType = typeof tuple;
+                console.log(`[GeoJSON] Instance ${instance.id}: raw tuple value =`, tuple, `(type: ${rawType})`);
+                // Handle JSON string values (map_coordinate stored as TEXT in DB)
+                if (typeof tuple === 'string') {
+                    try {
+                        tuple = JSON.parse(tuple);
+                        console.log(`[GeoJSON] Instance ${instance.id}: parsed string to`, tuple);
+                    } catch (e) {
+                        console.warn(`[GeoJSON] Instance ${instance.id}: JSON.parse failed on`, tuple, e);
+                    }
+                }
                 if (Array.isArray(tuple) && tuple.length >= 2) {
                     if (gc.tupleOrder === 'lat-lng') {
                         lat = parseFloat(tuple[0]);
@@ -116,16 +137,28 @@ export class NamedGeoJsonConfig {
                         lng = parseFloat(tuple[0]);
                         lat = parseFloat(tuple[1]);
                     }
+                    console.log(`[GeoJSON] Instance ${instance.id}: extracted lat=${lat}, lng=${lng}`);
+                } else {
+                    console.warn(`[GeoJSON] Instance ${instance.id}: tuple not a valid array after parse:`, tuple, `isArray=${Array.isArray(tuple)}, length=${tuple?.length}`);
                 }
             } else if (gc.coordinateMode === 'separate') {
                 if (gc.latitudeVariable) lat = parseFloat(instance[gc.latitudeVariable]);
                 if (gc.longitudeVariable) lng = parseFloat(instance[gc.longitudeVariable]);
+                console.log(`[GeoJSON] Instance ${instance.id}: separate mode lat=${lat}, lng=${lng}`);
             } else if ((gc.coordinateMode === 'line_center' || gc.coordinateMode === 'polygon_center') && gc.geometryVariable) {
-                const center = this.extractGeometryCenter(instance[gc.geometryVariable], gc.coordinateMode);
+                let geomVal = instance[gc.geometryVariable];
+                console.log(`[GeoJSON] Instance ${instance.id}: raw geometry value =`, geomVal, `(type: ${typeof geomVal})`);
+                if (typeof geomVal === 'string') {
+                    try { geomVal = JSON.parse(geomVal); } catch { /* not valid JSON */ }
+                }
+                const center = this.extractGeometryCenter(geomVal, gc.coordinateMode);
                 if (center) {
                     lng = center[0];
                     lat = center[1];
                 }
+                console.log(`[GeoJSON] Instance ${instance.id}: geometry center lat=${lat}, lng=${lng}`);
+            } else {
+                console.warn(`[GeoJSON] Instance ${instance.id}: no matching coordinateMode. mode=${gc.coordinateMode}, tupleVar=${gc.tupleVariable}, geomVar=${gc.geometryVariable}`);
             }
 
             if (lng != null && lat != null && !isNaN(lng) && !isNaN(lat)) {
@@ -240,7 +273,11 @@ export class NamedGeoJsonConfig {
         let lat: number | null = null;
 
         if (gc.coordinateMode === 'tuple' && gc.tupleVariable) {
-            const tuple = instance[gc.tupleVariable];
+            let tuple = instance[gc.tupleVariable];
+            console.log(`[GeoJSON extractCoordinates] Instance ${instance.id}: raw=${JSON.stringify(tuple)} (type: ${typeof tuple})`);
+            if (typeof tuple === 'string') {
+                try { tuple = JSON.parse(tuple); } catch { /* not valid JSON */ }
+            }
             if (Array.isArray(tuple) && tuple.length >= 2) {
                 if (gc.tupleOrder === 'lat-lng') {
                     lat = parseFloat(tuple[0]);
@@ -254,7 +291,11 @@ export class NamedGeoJsonConfig {
             if (gc.latitudeVariable) lat = parseFloat(instance[gc.latitudeVariable]);
             if (gc.longitudeVariable) lng = parseFloat(instance[gc.longitudeVariable]);
         } else if ((gc.coordinateMode === 'line_center' || gc.coordinateMode === 'polygon_center') && gc.geometryVariable) {
-            const center = this.extractGeometryCenter(instance[gc.geometryVariable], gc.coordinateMode);
+            let geomVal = instance[gc.geometryVariable];
+            if (typeof geomVal === 'string') {
+                try { geomVal = JSON.parse(geomVal); } catch { /* not valid JSON */ }
+            }
+            const center = this.extractGeometryCenter(geomVal, gc.coordinateMode);
             if (center) {
                 lng = center[0];
                 lat = center[1];

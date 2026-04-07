@@ -758,6 +758,27 @@
           </div>
         </div>
 
+        <!-- Module Binding Section -->
+        <div class="config-toggle-section" *ngIf="!classPolyTypingObj?.config?.isBaseObject">
+          <h4>Module Binding</h4>
+          <div class="config-toggle-row">
+            <mat-form-field appearance="outline" class="module-binding-select">
+              <mat-label>Module</mat-label>
+              <mat-select
+                [value]="classPolyTypingObj?.config?.moduleBinding || ''"
+                [disabled]="moduleBindingUpdating"
+                (selectionChange)="onModuleBindingChange($event.value)">
+                <mat-option value="">Unbound (Framework)</mat-option>
+                <mat-option *ngFor="let mod of availableModules" [value]="mod.id">
+                  {{ mod.name }}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+            <mat-spinner *ngIf="moduleBindingUpdating" diameter="18" class="inline-spinner"></mat-spinner>
+          </div>
+          <span class="flag-hint">Assign this class to a specific module for organization and dependency tracking.</span>
+        </div>
+
         <!-- Edit Class Definition Section -->
         <div class="config-toggle-section" *ngIf="classPolyTypingObj?.canEditClassDefinition()">
           <h4>Class Definition</h4>

@@ -79,9 +79,10 @@ export class GeoJsonDefinitionService {
         );
     }
 
-    createConfig(name: string, description: string, source_class: string): Observable<any> {
+    createConfig(name: string, description: string, source_class: string, definition?: any): Observable<any> {
+        const defStr = definition ? JSON.stringify(definition) : '{}';
         const formData = new FormData();
-        formData.append('initParamSets', JSON.stringify([{ name, description, source_class, definition: '{}' }]));
+        formData.append('initParamSets', JSON.stringify([{ name, description, source_class, definition: defStr }]));
         return this.http.post(this.baseUrl, formData).pipe(
             tap(() => {
                 if (source_class) {

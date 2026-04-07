@@ -27,6 +27,7 @@ const routes: Routes = [
   { path: 'api-config', component: ApiConfigComponent },
   { path: 'system-diagnostics', loadComponent: () => import('@components/system-diagnostics/system-diagnostics').then(m => m.SystemDiagnosticsComponent) },
   { path: 'module-management', loadComponent: () => import('@components/module-management/module-management.component').then(m => m.ModuleManagementComponent) },
+  { path: 'module-details/:moduleId', loadComponent: () => import('@components/module-details/module-details.component').then(m => m.ModuleDetailsComponent) },
   { path: 'maps', component: MapsComponent },
   { path: 'displays', component: DisplaysComponent },
   { path: 'tables', component: TablesComponent },

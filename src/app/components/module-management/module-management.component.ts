@@ -1,5 +1,6 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { Subscription } from 'rxjs';
 import { MatCardModule } from '@angular/material/card';
@@ -12,6 +13,7 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { PolariService } from '@services/polari-service';
 import { ClassTypingService } from '@services/class-typing-service';
 import { ModuleDisableConfirmDialogComponent, ModuleDisableConfirmData } from './module-disable-confirm-dialog';
+import { CreateModuleDialogComponent, CreateModuleDialogResult } from './create-module-dialog';
 
 interface ModuleInfo {
   id: string;
@@ -21,6 +23,7 @@ interface ModuleInfo {
   available: boolean;
   classCount: number;
   seedInstanceCount: number;
+  userCreated?: boolean;
 }
 
 @Component({
@@ -28,8 +31,16 @@ interface ModuleInfo {
   selector: 'module-management',
   template: `
     <div class="module-management-container">
-      <h2>Module Management</h2>
-      <p class="subtitle">Enable or disable optional modules for the Polari Research Framework.</p>
+      <div class="header-row">
+        <div>
+          <h2>Module Management</h2>
+          <p class="subtitle">Enable or disable optional modules for the Polari Research Framework.</p>
+        </div>
+        <button mat-raised-button color="primary" (click)="openCreateModuleDialog()" [disabled]="creating">
+          <mat-icon>add</mat-icon>
+          {{ creating ? 'Creating...' : 'Create Module' }}
+        </button>
+      </div>
 
       <mat-spinner *ngIf="loading" diameter="40"></mat-spinner>
 
@@ -60,6 +71,9 @@ interface ModuleInfo {
                 <mat-chip [highlighted]="mod.available" [color]="mod.available ? 'primary' : 'warn'">
                   {{ mod.available ? 'Package installed' : 'Package not installed' }}
                 </mat-chip>
+                <mat-chip *ngIf="mod.userCreated" color="accent" highlighted>
+                  User Created
+                </mat-chip>
               </mat-chip-set>
             </div>
           </mat-card-content>
@@ -79,6 +93,10 @@ interface ModuleInfo {
               <span *ngIf="!seeding">Load Seed Data</span>
               <span *ngIf="seeding">Loading...</span>
             </button>
+            <span class="spacer"></span>
+            <button mat-icon-button (click)="viewModuleDetails(mod)" title="View Details">
+              <mat-icon>open_in_new</mat-icon>
+            </button>
           </mat-card-actions>
         </mat-card>
       </div>
@@ -95,8 +113,14 @@ interface ModuleInfo {
       margin: 0 auto;
       padding: 24px;
     }
+    .header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 16px;
+    }
     h2 { margin-bottom: 4px; }
-    .subtitle { color: #666; margin-bottom: 24px; }
+    .subtitle { color: #666; margin-bottom: 0; }
     .modules-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
@@ -117,6 +141,7 @@ interface ModuleInfo {
       align-items: center;
       gap: 16px;
     }
+    .spacer { flex: 1; }
     .seed-button {
       display: flex;
       align-items: center;
@@ -145,11 +170,12 @@ export class ModuleManagementComponent implements OnInit, OnDestroy {
   error: string | null = null;
   toggling = false;
   seeding = false;
+  creating = false;
   toggleMessage: string | null = null;
   toggleError = false;
   private subscriptions: Subscription[] = [];
 
-  constructor(private http: HttpClient, private polariService: PolariService, private typingService: ClassTypingService, private dialog: MatDialog) {}
+  constructor(private http: HttpClient, private polariService: PolariService, private typingService: ClassTypingService, private dialog: MatDialog, private router: Router) {}
 
   ngOnInit(): void {
     this.subscriptions.push(
@@ -184,6 +210,10 @@ export class ModuleManagementComponent implements OnInit, OnDestroy {
         }
       })
     );
+  }
+
+  viewModuleDetails(mod: ModuleInfo): void {
+    this.router.navigate(['/module-details', mod.id]);
   }
 
   toggleModule(mod: ModuleInfo, enabled: boolean): void {
@@ -268,6 +298,48 @@ export class ModuleManagementComponent implements OnInit, OnDestroy {
           this.seeding = false;
           this.toggleError = true;
           this.toggleMessage = 'Seed request failed: ' + (err.message || err.statusText);
+        }
+      })
+    );
+  }
+
+  openCreateModuleDialog(): void {
+    const dialogRef = this.dialog.open(CreateModuleDialogComponent, {
+      width: '700px',
+      maxHeight: '80vh'
+    });
+
+    this.subscriptions.push(
+      dialogRef.afterClosed().subscribe((result: CreateModuleDialogResult | null) => {
+        if (result) {
+          this.createModule(result);
+        }
+      })
+    );
+  }
+
+  private createModule(definition: CreateModuleDialogResult): void {
+    this.creating = true;
+    this.toggleMessage = null;
+    const url = this.polariService.getBackendBaseUrl() + '/modules/create';
+
+    this.subscriptions.push(
+      this.http.post<any>(url, definition, this.polariService.backendRequestOptions).subscribe({
+        next: (res: any) => {
+          this.creating = false;
+          if (res.success) {
+            this.toggleError = false;
+            this.toggleMessage = res.message;
+            if (res.modules) { this.modules = res.modules; }
+          } else {
+            this.toggleError = true;
+            this.toggleMessage = res.error || 'Module creation failed';
+          }
+        },
+        error: (err: any) => {
+          this.creating = false;
+          this.toggleError = true;
+          this.toggleMessage = 'Creation failed: ' + (err.message || err.statusText);
         }
       })
     );

@@ -20,6 +20,8 @@ export interface ClassConfig {
     serverAccessOnly: boolean;
     /** Whether this object was dynamically created by a user */
     isUserCreated: boolean;
+    /** Which Polari module this class belongs to (module ID string, or null/undefined for framework) */
+    moduleBinding?: string | null;
 }
 
 /**

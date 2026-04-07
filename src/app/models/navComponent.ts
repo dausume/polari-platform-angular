@@ -1,5 +1,6 @@
 // Author: Dustin Etts
-export type ObjectCategory = 'framework' | 'custom' | 'materials_science';
+/** Category of an object class. 'framework' and 'custom' are built-in; module IDs (e.g. 'materials_science') are dynamic. */
+export type ObjectCategory = string;
 
 export class navComponent {
     title : string;

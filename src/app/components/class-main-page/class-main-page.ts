@@ -8,6 +8,7 @@ import { ClassTypingService } from '@services/class-typing-service';
 import { CRUDEservicesManager } from '@services/crude-services-manager';
 import { CRUDEclassService } from '@services/crude-class-service';
 import { DefaultDisplayFactory } from '@services/dashboard/default-dashboard-factory.service';
+import { ModuleBindConfirmDialogComponent, ModuleBindConfirmData, ModuleBindConfirmResult } from './module-bind-confirm-dialog';
 import { DisplayConfigService } from '@services/dashboard/dashboard-config.service';
 import { DisplayManagerService } from '@services/dashboard/display-manager.service';
 import { Display } from '@models/dashboards/Display';
@@ -154,6 +155,8 @@ export class ClassMainPageComponent implements OnDestroy {
   geoJsonAutoCreating: boolean = false;
   editClassLoading: boolean = false;
   deleteClassLoading: boolean = false;
+  moduleBindingUpdating: boolean = false;
+  availableModules: { id: string; name: string }[] = [];
   get isGeoJsonEnabled(): boolean { return this.geoJsonConfigList.length > 0; }
 
   /** Available frontend solutions for the current class */
@@ -430,10 +433,12 @@ export class ClassMainPageComponent implements OnDestroy {
           if (typingData && Object.keys(typingData).length > 0) {
             this.classTypeData = typingData;
             this.classPolyTypingObj = this.typingService.getClassPolyTyping(this.className!);
-            // console.log(`[ClassMainPage] Found typing data for ${this.className}`);
 
             // Generate dashboard when we have typing data
             this.generateDisplay();
+
+            // Auto-enable mapping if class has map fields but no GeoJSON config yet
+            this.autoEnableMapIfNeeded();
           } else {
             this.classTypeData = this.classTypeData || {};
             // console.log(`[ClassMainPage] No typing data yet for ${this.className}`);
@@ -465,9 +470,10 @@ export class ClassMainPageComponent implements OnDestroy {
     if (index === 3 && this.className) {
       this.loadDisplaysForClass();
     }
-    // Load GeoJSON configs on Configuration tab so toggle state is current
+    // Load GeoJSON configs and available modules on Configuration tab
     if (index === 4 && this.className) {
       this.loadGeoJsonConfigsForClass();
+      this.loadAvailableModules();
     }
     // Load GeoJSON configs when switching to the GeoJSON tab (index 5)
     if (index === 5 && this.className) {
@@ -2053,15 +2059,161 @@ export class ClassMainPageComponent implements OnDestroy {
     });
   }
 
+  onModuleBindingChange(moduleId: string): void {
+    if (!this.className || !this.classPolyTypingObj) return;
+    const previousValue = this.classPolyTypingObj.config.moduleBinding;
+    const newBinding = moduleId || null;
+    const isUnbinding = !newBinding;
+    const moduleName = newBinding
+      ? (this.availableModules.find(m => m.id === newBinding)?.name || newBinding)
+      : (this.availableModules.find(m => m.id === previousValue)?.name || previousValue || '');
+
+    // Show confirmation dialog
+    const dialogRef = this.dialog.open(ModuleBindConfirmDialogComponent, {
+      width: '500px',
+      data: {
+        className: this.className,
+        moduleName: moduleName,
+        moduleId: newBinding || previousValue || '',
+        isUnbinding: isUnbinding,
+      } as ModuleBindConfirmData
+    });
+
+    dialogRef.afterClosed().subscribe((result: ModuleBindConfirmResult | null) => {
+      if (!result || !result.confirmed) {
+        // Revert the select back to previous value
+        // Force change detection by briefly setting to null
+        const restore = previousValue || '';
+        this.classPolyTypingObj!.config.moduleBinding = undefined as any;
+        setTimeout(() => { this.classPolyTypingObj!.config.moduleBinding = restore; }, 0);
+        return;
+      }
+
+      this.classPolyTypingObj!.config.moduleBinding = newBinding;
+      this.moduleBindingUpdating = true;
+      const baseUrl = this.polariService.getBackendBaseUrl();
+      this.http.post(`${baseUrl}/updateClassConfig`, {
+        className: this.className,
+        config: {
+          moduleBinding: newBinding,
+          writeToModule: result.writeToModule,
+        }
+      }).subscribe({
+        next: (res: any) => {
+          this.moduleBindingUpdating = false;
+          const label = newBinding ? moduleName : 'Unbound';
+          let msg = `Module binding set to "${label}" for ${this.className}`;
+          if (res.moduleWriteResult && !res.moduleWriteResult.error) {
+            msg += ' — source files written';
+          }
+          this.snackBar.open(msg, 'OK', { duration: 4000 });
+        },
+        error: (err: any) => {
+          this.classPolyTypingObj!.config.moduleBinding = previousValue;
+          this.moduleBindingUpdating = false;
+          this.snackBar.open(
+            `Failed to update module binding: ${err.statusText || err.message || 'Unknown error'}`,
+            'Dismiss', { duration: 5000 }
+          );
+        }
+      });
+    });
+  }
+
+  loadAvailableModules(): void {
+    const baseUrl = this.polariService.getBackendBaseUrl();
+    this.http.get<any>(`${baseUrl}/modules`, this.polariService.backendRequestOptions).subscribe({
+      next: (res: any) => {
+        if (res.success && res.modules) {
+          this.availableModules = res.modules.map((m: any) => ({ id: m.id, name: m.name }));
+        }
+      },
+      error: () => { /* silently fail - modules dropdown just won't populate */ }
+    });
+  }
+
+  /**
+   * Detect map-typed fields on the class and build a pre-configured GeoJSON definition.
+   * Returns undefined if no map fields found (uses empty default).
+   */
+  private detectMapFieldConfig(): any | undefined {
+    if (!this.classPolyTypingObj) return undefined;
+    const varTyping = this.typingService.polyVarTyping[this.className!];
+    if (!varTyping) return undefined;
+
+    // Look for map_coordinate, map_line_segment, map_polygon fields
+    let coordField: string | null = null;
+    let lineField: string | null = null;
+    let polygonField: string | null = null;
+
+    for (const [fieldName, fieldInfo] of Object.entries(varTyping as Record<string, any>)) {
+      const varType = fieldInfo?.variablePythonType || fieldInfo?.type || '';
+      if (varType === 'map_coordinate' && !coordField) coordField = fieldName;
+      if (varType === 'map_line_segment' && !lineField) lineField = fieldName;
+      if (varType === 'map_polygon' && !polygonField) polygonField = fieldName;
+    }
+
+    if (!coordField && !lineField && !polygonField) return undefined;
+
+    // Build pre-configured definition based on what fields exist
+    const config: any = {};
+    if (polygonField) {
+      config.coordinateMode = 'polygon_center';
+      config.geometryVariable = polygonField;
+    } else if (lineField) {
+      config.coordinateMode = 'line_center';
+      config.geometryVariable = lineField;
+    } else if (coordField) {
+      config.coordinateMode = 'tuple';
+      config.tupleVariable = coordField;
+      config.tupleOrder = 'lat-lng';
+    }
+
+    return config;
+  }
+
+  /** Check if this class has map-typed fields and auto-create a GeoJSON config if none exists. */
+  private autoEnableMapIfNeeded(): void {
+    if (!this.className || this.geoJsonAutoCreating) return;
+
+    // Only auto-enable if we detect map fields
+    const autoConfig = this.detectMapFieldConfig();
+    if (!autoConfig) return;
+
+    // Fetch configs to see if one already exists, then auto-create if not
+    this.loadGeoJsonConfigsForClass();
+    // Use a brief delay to let the fetch complete before checking
+    setTimeout(() => {
+      if (this.geoJsonConfigList.length > 0 || this.geoJsonAutoCreating) return;
+
+      this.geoJsonAutoCreating = true;
+      this.geoJsonDefService.createConfig(
+        'Default Map Config',
+        'Auto-configured from map-typed fields',
+        this.className!,
+        autoConfig
+      ).subscribe({
+        next: () => {
+          this.geoJsonAutoCreating = false;
+        },
+        error: () => {
+          this.geoJsonAutoCreating = false;
+        }
+      });
+    }, 1500);
+  }
+
   onGeoJsonToggle(newValue: boolean): void {
     if (!this.className) return;
 
     if (newValue && this.geoJsonConfigList.length === 0) {
       this.geoJsonAutoCreating = true;
+      const autoConfig = this.detectMapFieldConfig();
       this.geoJsonDefService.createConfig(
         'Default Map Config',
         'Auto-created GeoJSON configuration',
-        this.className
+        this.className,
+        autoConfig
       ).subscribe({
         next: () => {
           this.geoJsonAutoCreating = false;

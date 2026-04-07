@@ -901,6 +901,10 @@
     display: block;
 }
 
+.module-binding-select {
+    min-width: 240px;
+}
+
 /* ===== GeoJSON View Mode Toggle ===== */
 .view-mode-toggle {
     margin-right: 8px;

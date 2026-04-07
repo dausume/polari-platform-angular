@@ -48,14 +48,10 @@ export class AppComponent {
   publishedDisplayPages: DisplaySummary[] = [];
   displayPagesExpanded: boolean = false;
 
-  // Sub-category expanded state for Object Pages
-  objectPagesSubExpanded: { framework: boolean; custom: boolean; materials_science: boolean } = {
-    framework: false, custom: false, materials_science: false
-  };
+  // Sub-category expanded state for Object Pages (keyed by category string)
+  objectPagesSubExpanded: Record<string, boolean> = { framework: false, custom: false };
   // Sub-category expanded state for Unused Objects
-  unusedPagesSubExpanded: { framework: boolean; custom: boolean; materials_science: boolean } = {
-    framework: false, custom: false, materials_science: false
-  };
+  unusedPagesSubExpanded: Record<string, boolean> = { framework: false, custom: false };
 
   private displayManager: DisplayManagerService;
 
@@ -116,23 +112,39 @@ export class AppComponent {
   }
 
   // Toggle a sub-category within Object Pages
-  toggleObjectPagesSub(category: 'framework' | 'custom' | 'materials_science') {
+  toggleObjectPagesSub(category: string) {
     this.objectPagesSubExpanded[category] = !this.objectPagesSubExpanded[category];
   }
 
   // Toggle a sub-category within Unused Objects
-  toggleUnusedPagesSub(category: 'framework' | 'custom' | 'materials_science') {
+  toggleUnusedPagesSub(category: string) {
     this.unusedPagesSubExpanded[category] = !this.unusedPagesSubExpanded[category];
   }
 
   // Filter dynamic class nav components by object category
-  getObjectPagesByCategory(category: ObjectCategory): navComponent[] {
+  getObjectPagesByCategory(category: string): navComponent[] {
     return this.dynamicClassNavComponents.filter(nav => nav.objectCategory === category);
   }
 
   // Filter unused class nav components by object category
-  getUnusedPagesByCategory(category: ObjectCategory): navComponent[] {
+  getUnusedPagesByCategory(category: string): navComponent[] {
     return this.unusedClassNavComponents.filter(nav => nav.objectCategory === category);
+  }
+
+  /** Get module category IDs that have classes (excludes 'framework' and 'custom'). */
+  getModuleCategories(source: navComponent[]): string[] {
+    const categories = new Set<string>();
+    for (const nav of source) {
+      if (nav.objectCategory && nav.objectCategory !== 'framework' && nav.objectCategory !== 'custom') {
+        categories.add(nav.objectCategory);
+      }
+    }
+    return Array.from(categories).sort();
+  }
+
+  /** Convert a module_id to a display name (e.g. 'materials_science' -> 'Materials Science'). */
+  formatModuleName(moduleId: string): string {
+    return moduleId.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
   }
 
   // Toggle the display pages dropdown

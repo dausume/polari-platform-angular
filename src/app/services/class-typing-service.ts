@@ -174,7 +174,8 @@ export class ClassTypingService {
                         isDynamicClass: configSource.isDynamicClass ?? false,
                         isBaseObject: configSource.isBaseObject ?? false,
                         serverAccessOnly: configSource.serverAccessOnly ?? false,
-                        isUserCreated: configSource.isUserCreated ?? false
+                        isUserCreated: configSource.isUserCreated ?? false,
+                        moduleBinding: configSource.moduleBinding ?? null,
                     } : undefined;
 
                     // Extract inheritsFrom mapping from backend response
@@ -433,8 +434,8 @@ export class ClassTypingService {
                             this.apiConfigCategoryMap.clear();
                             response.objects.forEach((obj: ApiConfigObject) => {
                                 let category: ObjectCategory;
-                                if (obj.sourceModule === 'materials_science') {
-                                    category = 'materials_science';
+                                if (obj.sourceModule && obj.sourceModule !== 'framework' && obj.sourceModule !== 'custom') {
+                                    category = obj.sourceModule as ObjectCategory;
                                 } else if (obj.isBaseObject || obj.serverAccessOnly) {
                                     category = 'framework';
                                 } else {
