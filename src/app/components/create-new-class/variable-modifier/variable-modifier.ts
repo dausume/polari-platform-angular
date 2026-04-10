@@ -119,16 +119,13 @@ export class VariableModifierComponent implements OnInit, OnDestroy {
         category: category
       };
 
-      switch (category) {
-        case 'custom':
-          customClasses.push(option);
-          break;
-        case 'materials_science':
-          moduleClasses.push(option);
-          break;
-        case 'framework':
-          frameworkClasses.push(option);
-          break;
+      if (category === 'framework') {
+        frameworkClasses.push(option);
+      } else if (category === 'custom') {
+        customClasses.push(option);
+      } else {
+        // Any module category (materials_science, agro_forestry, etc.)
+        moduleClasses.push(option);
       }
     }
 
@@ -143,7 +140,7 @@ export class VariableModifierComponent implements OnInit, OnDestroy {
       this.classGroups.push({ label: 'Custom Objects', category: 'custom', classes: customClasses });
     }
     if (moduleClasses.length > 0) {
-      this.classGroups.push({ label: 'Module Objects', category: 'materials_science', classes: moduleClasses });
+      this.classGroups.push({ label: 'Module Objects', category: 'module', classes: moduleClasses });
     }
     if (frameworkClasses.length > 0) {
       this.classGroups.push({ label: 'Framework Objects', category: 'framework', classes: frameworkClasses });

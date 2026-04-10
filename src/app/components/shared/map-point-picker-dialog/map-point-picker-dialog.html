@@ -23,19 +23,25 @@
       <span>{{ loadError }}</span>
     </div>
 
-    <!-- Empty state -->
-    <div *ngIf="!isLoading && !loadError && allPoints.length === 0" class="empty-state">
-      <mat-icon>place</mat-icon>
-      <span>No map points exist yet. Create MapPointDefinition instances first.</span>
-    </div>
-
-    <!-- Main layout: Map + Selection panel -->
-    <div *ngIf="!isLoading && !loadError && allPoints.length > 0" class="picker-layout">
+    <!-- Main layout: Map + Selection panel (always shown when not loading/errored) -->
+    <div *ngIf="!isLoading && !loadError" class="picker-layout">
       <!-- Map -->
       <div class="map-panel">
         <div id="map-point-picker-container" class="map-container"></div>
         <div class="map-hint">
-          Click points on the map to select them. {{ mode === 'line' ? 'Select 2 points for the line segment.' : 'Select 3+ points for the polygon vertices.' }}
+          <span *ngIf="!createMode">
+            Click points on the map to select them. {{ mode === 'line' ? 'Select 2 points for the line segment.' : 'Select 3+ points for the polygon vertices.' }}
+          </span>
+          <span *ngIf="createMode" class="create-mode-hint">
+            Click anywhere on the map to place a new point.
+          </span>
+          <button mat-stroked-button
+                  [color]="createMode ? 'accent' : 'primary'"
+                  (click)="toggleCreateMode()"
+                  class="create-mode-btn">
+            <mat-icon>{{ createMode ? 'near_me' : 'add_location' }}</mat-icon>
+            {{ createMode ? 'Select Existing' : 'Place New Points' }}
+          </button>
         </div>
       </div>
 
@@ -69,7 +75,8 @@
 
         <div class="no-selection" *ngIf="selectedPoints.length === 0">
           <mat-icon>touch_app</mat-icon>
-          <span>Click points on the map to add them</span>
+          <span *ngIf="allPoints.length > 0">Click points on the map to add them</span>
+          <span *ngIf="allPoints.length === 0">Use "Place New Points" to create points on the map</span>
         </div>
 
         <!-- Available points list -->

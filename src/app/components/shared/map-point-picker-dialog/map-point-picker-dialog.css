@@ -75,6 +75,22 @@
   font-size: 11px;
   color: var(--text-tertiary, #6c757d);
   background: var(--surface-secondary, #f5f5f5);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.create-mode-hint {
+  color: #f57c00;
+  font-weight: 500;
+}
+
+.create-mode-btn {
+  font-size: 11px;
+  line-height: 1;
+  padding: 2px 8px;
+  flex-shrink: 0;
 }
 
 /* Selection panel */

@@ -66,6 +66,11 @@ export class MapPointPickerDialogComponent implements OnInit, OnDestroy {
   selectedPoints: ResolvedMapPoint[] = [];
   selectedIdSet = new Set<string>();
 
+  /** Whether the user is in "create new points" mode (click map to place) */
+  createMode = false;
+  /** Counter for generating temp IDs for manually created points */
+  private createdPointCounter = 0;
+
   /** The GeoJSON config used to resolve coordinates */
   geoJsonConfig: NamedGeoJsonConfig | null = null;
 
@@ -160,14 +165,15 @@ export class MapPointPickerDialogComponent implements OnInit, OnDestroy {
         next: ([geoJsonDefs, instanceResponse]) => {
           // Find the GeoJSON config for this class
           const matchingDef = geoJsonDefs.find((d: any) => d.source_class === className);
-          if (!matchingDef) {
-            this.loadError = `No GeoJSON configuration found for class "${className}". Configure coordinate mapping first.`;
-            this.isLoading = false;
-            return;
+          let gc: any = {};
+          if (matchingDef) {
+            this.geoJsonConfig = NamedGeoJsonConfig.fromBackend(matchingDef);
+            gc = this.geoJsonConfig.geoJsonConfig;
+          } else {
+            console.warn(`[MapPointPicker] No GeoJSON config for "${className}". Point creation mode will be available.`);
+            // Auto-enable create mode when no config exists
+            this.createMode = true;
           }
-
-          this.geoJsonConfig = NamedGeoJsonConfig.fromBackend(matchingDef);
-          const gc = this.geoJsonConfig.geoJsonConfig;
 
           // Extract instances from response
           const instances = this.extractInstances(instanceResponse, className);
@@ -182,9 +188,7 @@ export class MapPointPickerDialogComponent implements OnInit, OnDestroy {
           }
 
           if (this.allPoints.length === 0 && instances.length > 0) {
-            this.loadError = `Found ${instances.length} instances but none have valid coordinates. Check the GeoJSON coordinate configuration.`;
-            this.isLoading = false;
-            return;
+            console.warn(`[MapPointPicker] Found ${instances.length} instances but none have valid coordinates. Showing map for manual point creation.`);
           }
 
           this.isLoading = false;
@@ -227,7 +231,11 @@ export class MapPointPickerDialogComponent implements OnInit, OnDestroy {
     let lng: number | null = null;
 
     if (gc.coordinateMode === 'tuple' && gc.tupleVariable) {
-      const tuple = instance[gc.tupleVariable];
+      let tuple = instance[gc.tupleVariable];
+      // Handle JSON string values (map_coordinate stored as TEXT in DB)
+      if (typeof tuple === 'string') {
+        try { tuple = JSON.parse(tuple); } catch { /* not valid JSON */ }
+      }
       if (Array.isArray(tuple) && tuple.length >= 2) {
         if (gc.tupleOrder === 'lat-lng') {
           lat = parseFloat(tuple[0]);
@@ -241,7 +249,11 @@ export class MapPointPickerDialogComponent implements OnInit, OnDestroy {
       if (gc.latitudeVariable) lat = parseFloat(instance[gc.latitudeVariable]);
       if (gc.longitudeVariable) lng = parseFloat(instance[gc.longitudeVariable]);
     } else if ((gc.coordinateMode === 'line_center' || gc.coordinateMode === 'polygon_center') && gc.geometryVariable) {
-      const center = this.extractGeometryCenter(instance[gc.geometryVariable], gc.coordinateMode);
+      let geomVal = instance[gc.geometryVariable];
+      if (typeof geomVal === 'string') {
+        try { geomVal = JSON.parse(geomVal); } catch { /* not valid JSON */ }
+      }
+      const center = this.extractGeometryCenter(geomVal, gc.coordinateMode);
       if (center) {
         lng = center[0];
         lat = center[1];
@@ -387,6 +399,13 @@ export class MapPointPickerDialogComponent implements OnInit, OnDestroy {
       this.map.on('zoomend', () => {
         this.debugMarkerPositions();
       });
+
+      // Click handler for creating new points directly on the map
+      this.map.on('click', (e: any) => {
+        if (!this.createMode) return;
+        const { lng, lat } = e.lngLat;
+        this.addCreatedPoint(lat, lng);
+      });
     } catch (e) {
       console.error('[MapPointPicker] Map init error:', e);
       this.loadError = 'Failed to initialize map';
@@ -430,6 +449,52 @@ export class MapPointPickerDialogComponent implements OnInit, OnDestroy {
 
       this.mapMarkers.push({ marker, point: pt, el });
     }
+  }
+
+  toggleCreateMode(): void {
+    this.createMode = !this.createMode;
+    if (this.map) {
+      this.map.getCanvas().style.cursor = this.createMode ? 'crosshair' : '';
+    }
+  }
+
+  /** Add a manually created point at the given coordinates */
+  addCreatedPoint(lat: number, lng: number): void {
+    this.createdPointCounter++;
+    const id = `_created_${this.createdPointCounter}`;
+    const label = `Point ${this.allPoints.length + 1}`;
+
+    const newPoint: ResolvedMapPoint = {
+      id,
+      label,
+      lat,
+      lng,
+      instance: { id, _isCreatedPoint: true, _lat: lat, _lng: lng }
+    };
+
+    this.allPoints.push(newPoint);
+
+    // Add marker on the map
+    if (this.MarkerClass && this.map) {
+      const el = document.createElement('div');
+      el.className = 'map-picker-marker';
+      el.title = `${label} (${lat.toFixed(5)}, ${lng.toFixed(5)})`;
+      const marker = new this.MarkerClass({ element: el, anchor: 'center' })
+        .setLngLat([lng, lat])
+        .addTo(this.map);
+      el.addEventListener('click', (e: Event) => {
+        e.stopPropagation();
+        this.togglePoint(newPoint);
+        this.refreshMarkerStyles();
+        this.updatePreviewLine();
+      });
+      this.mapMarkers.push({ marker, el, point: newPoint });
+    }
+
+    // Auto-select the new point
+    this.togglePoint(newPoint);
+    this.refreshMarkerStyles();
+    this.updatePreviewLine();
   }
 
   togglePoint(pt: ResolvedMapPoint): void {
@@ -635,7 +700,110 @@ export class MapPointPickerDialogComponent implements OnInit, OnDestroy {
   }
 
   onConfirm(): void {
-    const instanceIds = this.selectedPoints.map(p => p.id);
+    // Check if any selected points are newly created (need to be persisted first)
+    const createdPoints = this.selectedPoints.filter(p => p.instance?._isCreatedPoint);
+
+    if (createdPoints.length > 0) {
+      this.isLoading = true;
+      this.persistCreatedPoints(createdPoints).then((idMap) => {
+        this.isLoading = false;
+        this.closeWithResult(idMap);
+      }).catch((err) => {
+        this.isLoading = false;
+        console.error('[MapPointPicker] Failed to persist created points:', err);
+        // Still close with temp IDs — vertices are correct even if instance creation failed
+        this.closeWithResult(new Map());
+      });
+    } else {
+      this.closeWithResult(new Map());
+    }
+  }
+
+  /**
+   * Persist newly created points as real instances of the reference class.
+   * Returns a map of tempId -> realId for ID replacement.
+   */
+  private async persistCreatedPoints(createdPoints: ResolvedMapPoint[]): Promise<Map<string, string>> {
+    const className = this.data.refClassName;
+    const backendUrl = this.runtimeConfig.getBackendBaseUrl();
+    const gc = this.geoJsonConfig?.geoJsonConfig;
+
+    const idMap = new Map<string, string>();
+
+    for (const pt of createdPoints) {
+      try {
+        // Build the instance data based on the coordinate config
+        const instanceData: any = {};
+
+        if (gc?.coordinateMode === 'tuple' && gc.tupleVariable) {
+          // Store as [lat, lng] or [lng, lat] based on tupleOrder
+          if (gc.tupleOrder === 'lat-lng') {
+            instanceData[gc.tupleVariable] = JSON.stringify([pt.lat, pt.lng]);
+          } else {
+            instanceData[gc.tupleVariable] = JSON.stringify([pt.lng, pt.lat]);
+          }
+        } else if (gc?.coordinateMode === 'separate') {
+          if (gc.latitudeVariable) instanceData[gc.latitudeVariable] = pt.lat;
+          if (gc.longitudeVariable) instanceData[gc.longitudeVariable] = pt.lng;
+        } else {
+          // No config — store as a generic coordinate field if we can find one
+          // Fall back to storing lat/lng as name for identification
+          instanceData['name'] = `Point at ${pt.lat.toFixed(5)}, ${pt.lng.toFixed(5)}`;
+        }
+
+        // POST to CRUDE endpoint to create the instance
+        const formData = new FormData();
+        formData.append('initParamSets', JSON.stringify([instanceData]));
+
+        const response: any = await this.http.post(
+          `${backendUrl}/${className}`,
+          formData
+        ).toPromise();
+
+        // Extract the new instance ID from the response
+        const newId = this.extractCreatedInstanceId(response, className);
+        if (newId) {
+          idMap.set(pt.id, newId);
+          // Update the point's ID in allPoints and selectedPoints
+          pt.id = newId;
+          pt.instance.id = newId;
+          pt.instance._isCreatedPoint = false;
+          console.log(`[MapPointPicker] Persisted point ${pt.label} as ${className} id=${newId}`);
+        }
+      } catch (err) {
+        console.error(`[MapPointPicker] Failed to persist point ${pt.label}:`, err);
+      }
+    }
+
+    return idMap;
+  }
+
+  /** Extract the instance ID from a CRUDE POST response */
+  private extractCreatedInstanceId(response: any, className: string): string | null {
+    try {
+      // Response format: [{ className: { id: { ...data } } }] or { className: { id: { ...data } } }
+      let classData = response;
+      if (Array.isArray(response) && response.length > 0) {
+        classData = response[0];
+      }
+      if (classData && classData[className]) {
+        const ids = Object.keys(classData[className]);
+        if (ids.length > 0) return ids[0];
+      }
+      // Alternate format: { data: [{ id: '...' }] }
+      if (classData?.data && Array.isArray(classData.data) && classData.data.length > 0) {
+        return classData.data[0].id;
+      }
+    } catch { /* parsing failed */ }
+    return null;
+  }
+
+  /** Build geometry data and close the dialog */
+  private closeWithResult(idMap: Map<string, string>): void {
+    // Replace temp IDs with real IDs where available
+    const instanceIds = this.selectedPoints.map(p => {
+      return idMap.get(p.id) || p.id;
+    });
     const vertices: [number, number][] = this.selectedPoints.map(p => [p.lng, p.lat]);
 
     const geometryData: MapPointPickerDialogResult['geometryData'] = {

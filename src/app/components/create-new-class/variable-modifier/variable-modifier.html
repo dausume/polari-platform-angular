@@ -54,7 +54,7 @@
                   <span class="ref-class-option">
                     <span class="ref-class-category-dot"
                           [class.cat-custom]="cls.category === 'custom'"
-                          [class.cat-module]="cls.category === 'materials_science'"
+                          [class.cat-module]="cls.category !== 'custom' && cls.category !== 'framework'"
                           [class.cat-framework]="cls.category === 'framework'"></span>
                     <span class="ref-class-name">{{ cls.displayName }}</span>
                     <span class="ref-class-code" *ngIf="cls.displayName !== cls.className">{{ cls.className }}</span>
