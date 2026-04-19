@@ -11,6 +11,16 @@
             <mat-icon>dashboard</mat-icon>
             All Displays
         </button>
+        <button class="tab-btn" [class.active]="activeTab === 'forms'"
+                (click)="setActiveTab('forms')">
+            <mat-icon>dynamic_form</mat-icon>
+            Forms
+        </button>
+        <button class="tab-btn" [class.active]="activeTab === 'buttons'"
+                (click)="setActiveTab('buttons')">
+            <mat-icon>smart_button</mat-icon>
+            Buttons
+        </button>
         <button class="tab-btn" [class.active]="activeTab === 'published-pages'"
                 (click)="setActiveTab('published-pages')">
             <mat-icon>public</mat-icon>
@@ -84,6 +94,38 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Tab: Forms -->
+    <div class="tab-content" *ngIf="activeTab === 'forms'">
+        <div class="section-header">
+            <h2>Form Configurations</h2>
+            <button mat-icon-button (click)="refreshDisplays()" matTooltip="Refresh">
+                <mat-icon>refresh</mat-icon>
+            </button>
+        </div>
+
+        <div class="empty-state">
+            <mat-icon class="empty-icon">dynamic_form</mat-icon>
+            <p>No form configurations yet.</p>
+            <p class="hint">Forms are bound to a class and linked to a FormSubscription no-code solution. They can be embedded into displays and trigger validation logic when field values change.</p>
+        </div>
+    </div>
+
+    <!-- Tab: Buttons -->
+    <div class="tab-content" *ngIf="activeTab === 'buttons'">
+        <div class="section-header">
+            <h2>Button Configurations</h2>
+            <button mat-icon-button (click)="refreshDisplays()" matTooltip="Refresh">
+                <mat-icon>refresh</mat-icon>
+            </button>
+        </div>
+
+        <div class="empty-state">
+            <mat-icon class="empty-icon">smart_button</mat-icon>
+            <p>No button configurations yet.</p>
+            <p class="hint">Buttons invoke DirectInvocation frontend no-code solutions on click. They can be embedded into displays alongside forms and other content.</p>
         </div>
     </div>
 

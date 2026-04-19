@@ -1,0 +1,174 @@
+.form-validation-overlay {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  color: #e0e0e0;
+  overflow: hidden;
+  user-select: none;
+  pointer-events: auto;
+}
+
+.overlay-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.header-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+}
+
+.title {
+  font-weight: 600;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.overlay-content {
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.config-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.config-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #888;
+  font-weight: 600;
+}
+
+.config-input,
+.config-select {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  color: #e0e0e0;
+  font-size: 11px;
+  padding: 4px 6px;
+  outline: none;
+}
+
+.config-input:focus,
+.config-select:focus {
+  border-color: #00BCD4;
+}
+
+.config-select {
+  cursor: pointer;
+}
+
+.config-select option {
+  background: #2a2a2a;
+  color: #e0e0e0;
+}
+
+.fields-section {
+  margin-top: 4px;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.section-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #888;
+  font-weight: 600;
+}
+
+.field-count {
+  font-size: 9px;
+  color: #00BCD4;
+  background: rgba(0, 188, 212, 0.15);
+  padding: 1px 6px;
+  border-radius: 8px;
+}
+
+.fields-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.field-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 3px;
+}
+
+.field-icon {
+  font-size: 12px;
+  width: 12px;
+  height: 12px;
+  color: #00BCD4;
+}
+
+.field-name {
+  flex: 1;
+  font-size: 10px;
+  color: #ccc;
+}
+
+.field-type {
+  font-size: 9px;
+  color: #888;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.fields-note {
+  font-size: 9px;
+  color: #666;
+  font-style: italic;
+  margin: 4px 0 0 0;
+}
+
+.empty-state {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  color: #666;
+  font-style: italic;
+}
+
+.empty-state mat-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+}
+
+.compact-summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px;
+}
+
+.compact-text {
+  font-size: 10px;
+  font-weight: 600;
+}

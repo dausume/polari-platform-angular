@@ -144,6 +144,7 @@
             <table-config-sidebar
               [config]="selectedTableConfig"
               [classTypeData]="classTypeData"
+              [fieldProfileList]="fieldProfileConfigList"
               (configChange)="onTableConfigChange($event)">
             </table-config-sidebar>
           </div>
@@ -248,7 +249,15 @@
 
   <!-- ===== DISPLAYS TAB ===== -->
   <mat-tab label="Displays">
-    <div class="tab-content">
+    <div class="tab-content displays-tab-content">
+
+      <mat-tab-group class="displays-sub-tabs"
+                     [(selectedIndex)]="displaySubTabIndex"
+                     (selectedIndexChange)="onDisplaySubTabChange($event)">
+
+        <!-- ===== Displays Sub-Tab ===== -->
+        <mat-tab label="Display Configs">
+          <div class="sub-tab-content">
 
       <!-- Display List View (no display selected) -->
       <div *ngIf="!selectedDisplay" class="displays-list-view">
@@ -706,6 +715,407 @@
           </div>
         </div>
       </div>
+
+          </div>
+        </mat-tab>
+
+        <!-- ===== Forms Sub-Tab ===== -->
+        <mat-tab label="Forms">
+          <div class="sub-tab-content">
+
+            <!-- Form List View -->
+            <div *ngIf="!selectedFormConfig" class="displays-list-view">
+              <div class="displays-header">
+                <div>
+                  <h3>Forms for {{ className }}</h3>
+                  <p class="subtitle">Configure forms bound to this class. Forms link to FormSubscription no-code solutions and can be embedded into displays.</p>
+                </div>
+                <button mat-fab color="primary" (click)="createFormConfig()" class="create-btn">
+                  <mat-icon>add</mat-icon>
+                </button>
+              </div>
+
+              <!-- Empty state -->
+              <div *ngIf="formConfigList.length === 0" class="empty-state">
+                <mat-icon class="empty-icon">dynamic_form</mat-icon>
+                <h3>No Forms Yet</h3>
+                <p>Each form field can route through FormValidation states for individual validation logic.</p>
+                <button mat-flat-button color="primary" (click)="createFormConfig()">
+                  <mat-icon>add</mat-icon> Create Your First Form
+                </button>
+              </div>
+
+              <!-- Form cards grid -->
+              <div *ngIf="formConfigList.length > 0" class="displays-grid">
+                <mat-card *ngFor="let form of formConfigList" class="display-card">
+                  <mat-card-header>
+                    <mat-icon mat-card-avatar class="display-icon">dynamic_form</mat-icon>
+                    <mat-card-title>{{ getFormConfigName(form) }}</mat-card-title>
+                    <mat-card-subtitle>{{ form.formFields.length }} fields &middot; {{ form.formLayout }} layout</mat-card-subtitle>
+                  </mat-card-header>
+                  <div class="display-card-badges">
+                    <span class="badge badge-solutions" *ngIf="form.linkedSolutionName">
+                      <mat-icon>sensors</mat-icon> {{ form.linkedSolutionName }}
+                    </span>
+                  </div>
+                  <mat-card-actions align="end">
+                    <button mat-stroked-button color="primary" (click)="selectFormConfig(form)">
+                      <mat-icon>edit</mat-icon> Edit
+                    </button>
+                    <button mat-icon-button color="warn" (click)="deleteFormConfig(form, $event)">
+                      <mat-icon>delete</mat-icon>
+                    </button>
+                  </mat-card-actions>
+                </mat-card>
+              </div>
+            </div>
+
+            <!-- Form Editor View -->
+            <div *ngIf="selectedFormConfig" class="display-editor-view">
+              <div class="editor-toolbar">
+                <div class="editor-toolbar-left">
+                  <button mat-icon-button (click)="deselectFormConfig()" title="Back to list">
+                    <mat-icon>arrow_back</mat-icon>
+                  </button>
+                  <h3>{{ getFormConfigName(selectedFormConfig) }}</h3>
+                  <span *ngIf="hasFormDraftChanges" class="unsaved-badge">Unsaved changes</span>
+                </div>
+              </div>
+
+              <div class="editor-body">
+                <div class="config-panel" style="width: 100%; max-width: 600px; margin: 16px auto;">
+                  <div class="config-panel-content">
+
+                    <!-- Submission Mode -->
+                    <div class="config-section">
+                      <h4>Submission Mode</h4>
+                      <mat-form-field appearance="outline" class="full-width">
+                        <mat-label>Trigger Type</mat-label>
+                        <mat-select [(ngModel)]="selectedFormConfig.submissionMode" (ngModelChange)="onFormConfigChange()">
+                          <mat-option value="button">Button Submission</mat-option>
+                          <mat-option value="debounce">Data-Entry Delay (debounce)</mat-option>
+                        </mat-select>
+                        <mat-hint *ngIf="selectedFormConfig.submissionMode === 'button'">User clicks a submit button to trigger the solution</mat-hint>
+                        <mat-hint *ngIf="selectedFormConfig.submissionMode === 'debounce'">Triggers after a pause in data entry</mat-hint>
+                      </mat-form-field>
+
+                      <mat-form-field appearance="outline" class="full-width" *ngIf="selectedFormConfig.submissionMode === 'button'" style="margin-top: 12px">
+                        <mat-label>Submit Button Label</mat-label>
+                        <input matInput [(ngModel)]="selectedFormConfig.submitLabel" (ngModelChange)="onFormConfigChange()">
+                      </mat-form-field>
+
+                      <mat-form-field appearance="outline" class="full-width" *ngIf="selectedFormConfig.submissionMode === 'debounce'" style="margin-top: 12px">
+                        <mat-label>Debounce Delay (ms)</mat-label>
+                        <input matInput type="number" [(ngModel)]="selectedFormConfig.debounceDelayMs" (ngModelChange)="onFormConfigChange()" min="200" step="100">
+                        <mat-hint>Milliseconds of inactivity before triggering (e.g., 1500 = 1.5 seconds)</mat-hint>
+                      </mat-form-field>
+                    </div>
+
+                    <mat-divider></mat-divider>
+
+                    <!-- Layout -->
+                    <div class="config-section">
+                      <h4>Layout</h4>
+                      <mat-form-field appearance="outline" class="full-width">
+                        <mat-label>Form Layout</mat-label>
+                        <mat-select [(ngModel)]="selectedFormConfig.formLayout" (ngModelChange)="onFormConfigChange()">
+                          <mat-option value="vertical">Vertical</mat-option>
+                          <mat-option value="horizontal">Horizontal</mat-option>
+                          <mat-option value="grid">Grid</mat-option>
+                        </mat-select>
+                      </mat-form-field>
+                    </div>
+
+                    <mat-divider></mat-divider>
+
+                    <!-- Linked Solution -->
+                    <div class="config-section">
+                      <h4>Linked Solution</h4>
+                      <p class="palette-hint">Select a FormSubscription no-code solution to invoke, or create a new one.</p>
+                      <mat-form-field appearance="outline" class="full-width">
+                        <mat-label>FormSubscription Solution</mat-label>
+                        <mat-select [(ngModel)]="selectedFormConfig.linkedSolutionName" (ngModelChange)="onFormConfigChange()">
+                          <mat-option value="">-- None --</mat-option>
+                          <mat-option *ngFor="let sol of availableFrontendSolutions" [value]="sol.name">
+                            {{ sol.name }}
+                          </mat-option>
+                        </mat-select>
+                      </mat-form-field>
+                      <button mat-stroked-button color="primary" (click)="createFormSolution()" class="full-width">
+                        <mat-icon>add_circle_outline</mat-icon> Create FormSubscription Solution
+                      </button>
+                    </div>
+
+                    <mat-divider></mat-divider>
+
+                    <!-- Field Profile -->
+                    <div class="config-section">
+                      <h4>Field Profile</h4>
+                      <p class="palette-hint">Optionally select a Field Profile to control which class fields appear on this form.</p>
+                      <mat-form-field appearance="outline" class="full-width">
+                        <mat-label>Field Profile</mat-label>
+                        <mat-select [ngModel]="selectedFormConfig.fieldProfileName || ''" (ngModelChange)="applyFieldProfileToForm($event)">
+                          <mat-option value="">-- All Fields (no profile) --</mat-option>
+                          <mat-option *ngFor="let fp of fieldProfileConfigList" [value]="fp.name">
+                            {{ fp.name }}
+                          </mat-option>
+                        </mat-select>
+                      </mat-form-field>
+                    </div>
+
+                    <mat-divider></mat-divider>
+
+                    <!-- Form Fields -->
+                    <div class="config-section">
+                      <h4>Object Fields ({{ selectedFormConfig.formFields.length }})</h4>
+                      <p class="palette-hint">Toggle visibility for fields from {{ selectedFormConfig.boundClassName }}.</p>
+                      <div *ngFor="let field of selectedFormConfig.formFields; let i = index" class="config-item-entry" style="display: flex; align-items: center; gap: 8px; padding: 6px 0;">
+                        <mat-slide-toggle [(ngModel)]="field.visible" (ngModelChange)="onFormConfigChange()" style="flex-shrink: 0">
+                        </mat-slide-toggle>
+                        <span style="flex: 1; font-weight: 500;">{{ field.displayName }}</span>
+                        <span class="badge" style="font-size: 11px;">{{ field.fieldType }}</span>
+                      </div>
+                    </div>
+
+                    <mat-divider></mat-divider>
+
+                    <!-- Extra Variables -->
+                    <div class="config-section">
+                      <div class="section-header">
+                        <h4>Extra Variables</h4>
+                        <button mat-icon-button color="primary" (click)="addFormExtraVariable()" title="Add extra variable">
+                          <mat-icon>add</mat-icon>
+                        </button>
+                      </div>
+                      <p class="palette-hint">Arbitrary data-entry fields not tied to the object. These are passed as additional parameters to the linked solution.</p>
+
+                      <div *ngIf="selectedFormConfig.extraVariables.length === 0" style="color: #999; font-size: 12px; padding: 8px 0;">
+                        No extra variables. Click + to add one.
+                      </div>
+
+                      <div *ngFor="let ev of selectedFormConfig.extraVariables; let evi = index" class="state-source-card" style="margin-bottom: 8px;">
+                        <div class="state-source-header">
+                          <mat-icon>code</mat-icon>
+                          <span class="state-source-title">{{ ev.variableName }}</span>
+                          <button mat-icon-button color="warn" (click)="removeFormExtraVariable(evi)" matTooltip="Remove">
+                            <mat-icon>close</mat-icon>
+                          </button>
+                        </div>
+                        <mat-form-field appearance="outline" class="full-width">
+                          <mat-label>Display Name</mat-label>
+                          <input matInput [(ngModel)]="ev.displayName" (ngModelChange)="onFormConfigChange()">
+                        </mat-form-field>
+                        <mat-form-field appearance="outline" class="full-width">
+                          <mat-label>Data Type</mat-label>
+                          <mat-select [(ngModel)]="ev.dataType" (ngModelChange)="onFormConfigChange()">
+                            <mat-option value="string">String</mat-option>
+                            <mat-option value="number">Number</mat-option>
+                            <mat-option value="boolean">Boolean</mat-option>
+                            <mat-option value="date">Date</mat-option>
+                            <mat-option value="text">Text (multiline)</mat-option>
+                          </mat-select>
+                        </mat-form-field>
+                        <mat-form-field appearance="outline" class="full-width">
+                          <mat-label>Placeholder</mat-label>
+                          <input matInput [(ngModel)]="ev.placeholder" (ngModelChange)="onFormConfigChange()">
+                        </mat-form-field>
+                        <mat-slide-toggle [(ngModel)]="ev.required" (ngModelChange)="onFormConfigChange()">
+                          Required
+                        </mat-slide-toggle>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </mat-tab>
+
+        <!-- ===== Buttons Sub-Tab ===== -->
+        <mat-tab label="Buttons">
+          <div class="sub-tab-content">
+
+            <!-- Button List View -->
+            <div *ngIf="!selectedButtonConfig" class="displays-list-view">
+              <div class="displays-header">
+                <div>
+                  <h3>Buttons for {{ className }}</h3>
+                  <p class="subtitle">Configure buttons that invoke DirectInvocation frontend no-code solutions. Buttons can be embedded into displays.</p>
+                </div>
+                <button mat-fab color="primary" (click)="createButtonConfig()" class="create-btn">
+                  <mat-icon>add</mat-icon>
+                </button>
+              </div>
+
+              <!-- Empty state -->
+              <div *ngIf="buttonConfigList.length === 0" class="empty-state">
+                <mat-icon class="empty-icon">smart_button</mat-icon>
+                <h3>No Buttons Yet</h3>
+                <p>Buttons invoke DirectInvocation solutions on click. Configure them here, then place them into your displays.</p>
+                <button mat-flat-button color="primary" (click)="createButtonConfig()">
+                  <mat-icon>add</mat-icon> Create Your First Button
+                </button>
+              </div>
+
+              <!-- Button cards grid -->
+              <div *ngIf="buttonConfigList.length > 0" class="displays-grid">
+                <mat-card *ngFor="let btn of buttonConfigList" class="display-card">
+                  <mat-card-header>
+                    <mat-icon mat-card-avatar class="display-icon">smart_button</mat-icon>
+                    <mat-card-title>{{ btn.label }}</mat-card-title>
+                    <mat-card-subtitle>{{ btn.variant }} style</mat-card-subtitle>
+                  </mat-card-header>
+                  <div class="display-card-badges">
+                    <span class="badge badge-solutions" *ngIf="btn.linkedSolutionName">
+                      <mat-icon>play_circle</mat-icon> {{ btn.linkedSolutionName }}
+                    </span>
+                  </div>
+                  <mat-card-actions align="end">
+                    <button mat-stroked-button color="primary" (click)="selectButtonConfig(btn)">
+                      <mat-icon>edit</mat-icon> Edit
+                    </button>
+                    <button mat-icon-button color="warn" (click)="deleteButtonConfig(btn, $event)">
+                      <mat-icon>delete</mat-icon>
+                    </button>
+                  </mat-card-actions>
+                </mat-card>
+              </div>
+            </div>
+
+            <!-- Button Editor View -->
+            <div *ngIf="selectedButtonConfig" class="display-editor-view">
+              <div class="editor-toolbar">
+                <div class="editor-toolbar-left">
+                  <button mat-icon-button (click)="deselectButtonConfig()" title="Back to list">
+                    <mat-icon>arrow_back</mat-icon>
+                  </button>
+                  <h3>{{ selectedButtonConfig.label }}</h3>
+                  <span *ngIf="hasButtonDraftChanges" class="unsaved-badge">Unsaved changes</span>
+                </div>
+              </div>
+
+              <div class="editor-body">
+                <div class="config-panel" style="width: 100%; max-width: 600px; margin: 16px auto;">
+                  <div class="config-panel-content">
+
+                    <div class="config-section">
+                      <h4>Button Settings</h4>
+                      <mat-form-field appearance="outline" class="full-width">
+                        <mat-label>Label</mat-label>
+                        <input matInput [(ngModel)]="selectedButtonConfig.label" (ngModelChange)="onButtonConfigChange()">
+                      </mat-form-field>
+
+                      <mat-form-field appearance="outline" class="full-width">
+                        <mat-label>Button Variant</mat-label>
+                        <mat-select [(ngModel)]="selectedButtonConfig.variant" (ngModelChange)="onButtonConfigChange()">
+                          <mat-option value="raised">Raised</mat-option>
+                          <mat-option value="flat">Flat</mat-option>
+                          <mat-option value="stroked">Stroked</mat-option>
+                          <mat-option value="icon">Icon Only</mat-option>
+                        </mat-select>
+                      </mat-form-field>
+                    </div>
+
+                    <mat-divider></mat-divider>
+
+                    <!-- Icon, Style, Color cascade -->
+                    <div class="config-section">
+                      <h4>Appearance</h4>
+                      <p class="palette-hint">Icon sets the base color. Style overrides it. Color picker overrides everything.</p>
+
+                      <!-- Icon Picker -->
+                      <mat-form-field appearance="outline" class="full-width">
+                        <mat-label>Icon</mat-label>
+                        <mat-select [ngModel]="selectedButtonConfig.iconName || ''" (ngModelChange)="onButtonIconChange($event)">
+                          <mat-select-trigger>
+                            <span *ngIf="selectedButtonConfig.iconName" style="display: flex; align-items: center; gap: 8px;">
+                              <mat-icon style="font-size: 18px; width: 18px; height: 18px;">{{ selectedButtonConfig.iconName }}</mat-icon>
+                              {{ selectedButtonConfig.iconName }}
+                            </span>
+                            <span *ngIf="!selectedButtonConfig.iconName">-- No Icon --</span>
+                          </mat-select-trigger>
+                          <mat-option value="">-- No Icon --</mat-option>
+                          <mat-option *ngFor="let icon of svgIcons" [value]="icon.name">
+                            <span style="display: flex; align-items: center; gap: 8px;">
+                              <span [innerHTML]="getSafeSvg(icon.svgString)" style="width: 20px; height: 20px; display: inline-flex;"></span>
+                              {{ icon.label }}
+                              <span style="font-size: 10px; color: #999; margin-left: auto;">{{ icon.category }}</span>
+                            </span>
+                          </mat-option>
+                        </mat-select>
+                      </mat-form-field>
+
+                      <!-- Named Style Picker -->
+                      <mat-form-field appearance="outline" class="full-width">
+                        <mat-label>Named Style</mat-label>
+                        <mat-select [ngModel]="$any(selectedButtonConfig)._styleName || ''" (ngModelChange)="onButtonStyleChange($event)">
+                          <mat-option value="">-- No Style --</mat-option>
+                          <mat-option *ngFor="let style of svgStyles" [value]="style.name">
+                            <span style="display: flex; align-items: center; gap: 8px;">
+                              <span style="width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(0,0,0,0.2);"
+                                    [style.background-color]="style.fillColor"></span>
+                              {{ style.label }}
+                              <span style="font-size: 10px; color: #999; margin-left: auto;">{{ style.width }}x{{ style.height }}</span>
+                            </span>
+                          </mat-option>
+                        </mat-select>
+                      </mat-form-field>
+
+                      <!-- Color Override Picker -->
+                      <div style="display: flex; align-items: center; gap: 12px; margin-top: 4px;">
+                        <label style="font-size: 12px; color: #999;">Color Override</label>
+                        <input type="color"
+                               [value]="selectedButtonConfig.color || '#1976d2'"
+                               (change)="onButtonManualColorChange($any($event.target).value)"
+                               style="width: 48px; height: 32px; border: 1px solid #ddd; border-radius: 4px; padding: 2px; cursor: pointer;">
+                        <span style="font-size: 11px; color: #666;">{{ selectedButtonConfig.color }}</span>
+                      </div>
+                    </div>
+
+                    <mat-divider></mat-divider>
+
+                    <div class="config-section">
+                      <h4>Linked Solution</h4>
+                      <p class="palette-hint">Select a DirectInvocation no-code solution to invoke on click, or create a new one.</p>
+                      <mat-form-field appearance="outline" class="full-width">
+                        <mat-label>DirectInvocation Solution</mat-label>
+                        <mat-select [(ngModel)]="selectedButtonConfig.linkedSolutionName" (ngModelChange)="onButtonConfigChange()">
+                          <mat-option value="">-- None --</mat-option>
+                          <mat-option *ngFor="let sol of availableFrontendSolutions" [value]="sol.name">
+                            {{ sol.name }}
+                          </mat-option>
+                        </mat-select>
+                      </mat-form-field>
+                      <button mat-stroked-button color="primary" (click)="createButtonSolution()" class="full-width">
+                        <mat-icon>add_circle_outline</mat-icon> Create DirectInvocation Solution
+                      </button>
+                    </div>
+
+                    <!-- Button Preview -->
+                    <mat-divider></mat-divider>
+                    <div class="config-section">
+                      <h4>Preview</h4>
+                      <div style="padding: 16px; text-align: center;">
+                        <button mat-raised-button
+                                [style.background-color]="getEffectiveButtonColor(selectedButtonConfig)"
+                                style="color: white;">
+                          <mat-icon *ngIf="selectedButtonConfig.iconName">{{ selectedButtonConfig.iconName }}</mat-icon>
+                          {{ selectedButtonConfig.label }}
+                        </button>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </mat-tab>
+
+      </mat-tab-group>
 
     </div>
   </mat-tab>

@@ -1,4 +1,5 @@
 import { Component, OnDestroy, ViewChild } from '@angular/core';
+import { uniqueNamesGenerator, adjectives, colors, animals } from 'unique-names-generator';
 import { Router, ActivatedRoute } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { MatDialog } from '@angular/material/dialog';
@@ -14,7 +15,7 @@ import { DisplayManagerService } from '@services/dashboard/display-manager.servi
 import { Display } from '@models/dashboards/Display';
 import { DisplayRow } from '@models/dashboards/DisplayRow';
 import { DisplayColumn } from '@models/dashboards/DisplayColumn';
-import { DisplayItem } from '@models/dashboards/DisplayItem';
+import { DisplayItem, FormDisplayConfig, FormFieldConfig, FormExtraVariable, ButtonDisplayConfig } from '@models/dashboards/DisplayItem';
 import { DisplaySummary } from '@models/dashboards/DisplaySummary';
 import { CreateDisplayDialogComponent } from '@components/dashboard/create-display-dialog/create-display-dialog';
 import { TableDefinitionService } from '@services/table/table-definition.service';
@@ -38,7 +39,8 @@ import { NamedFilterChainConfig, FilterChainDefinitionSummary } from '@models/da
 import { CreateFilterChainDialogComponent } from '@components/dataset-config/create-filter-chain-dialog/create-filter-chain-dialog';
 import { FilterChainEditable } from '@components/dataset-config/dataset-config-sidebar/dataset-config-sidebar';
 import { classPolyTyping } from '@models/polyTyping/classPolyTyping';
-import { getMapPolygonStyle, getMapLineStyle } from '@models/shared/SvgIconLibrary';
+import { getMapPolygonStyle, getMapLineStyle, getAllSvgIcons, getAllSvgStyles, SvgIconDef, SvgIconStyle } from '@models/shared/SvgIconLibrary';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { DisplayRendererComponent } from '@components/dashboard/dashboard-renderer/dashboard-renderer';
 import { EditClassDialogComponent } from '@components/class-main-page/edit-class-dialog/edit-class-dialog';
 import { NoCodeSolutionStateService } from '@services/no-code-services/no-code-solution-state.service';
@@ -112,6 +114,19 @@ export class ClassMainPageComponent implements OnDestroy {
   dataSetConfigsLoading: boolean = false;
   dataSetPreviewInstanceData: any[] = [];
   dataSetFilteredPreviewData: any[] = [];
+
+  /** Displays sub-tab state */
+  displaySubTabIndex: number = 0;
+
+  /** Form config management state */
+  formConfigList: FormDisplayConfig[] = [];
+  selectedFormConfig: FormDisplayConfig | null = null;
+  hasFormDraftChanges: boolean = false;
+
+  /** Button config management state */
+  buttonConfigList: ButtonDisplayConfig[] = [];
+  selectedButtonConfig: ButtonDisplayConfig | null = null;
+  hasButtonDraftChanges: boolean = false;
 
   /** DataSets sub-tab state */
   dataSetSubTabIndex: number = 0;
@@ -195,8 +210,85 @@ export class ClassMainPageComponent implements OnDestroy {
     private dataSetDefService: DataSetDefinitionService,
     private fieldProfileDefService: FieldProfileDefinitionService,
     private filterChainDefService: FilterChainDefinitionService,
-    private noCodeSolutionService: NoCodeSolutionStateService
+    private noCodeSolutionService: NoCodeSolutionStateService,
+    private sanitizer: DomSanitizer
   ) {}
+
+  // Icon and style library for form/button editors
+  svgIcons: SvgIconDef[] = getAllSvgIcons();
+  svgStyles: SvgIconStyle[] = getAllSvgStyles();
+
+  getSafeSvg(svgString: string): SafeHtml {
+    return this.sanitizer.bypassSecurityTrustHtml(svgString);
+  }
+
+  /**
+   * Extract the primary fill color from an SVG icon string.
+   * Looks for fill="..." on path/circle/rect elements, ignoring fill="none".
+   */
+  getIconPrimaryColor(iconName: string): string | null {
+    const icon = this.svgIcons.find(i => i.name === iconName);
+    if (!icon) return null;
+    const match = icon.svgString.match(/fill="(#[0-9a-fA-F]{3,8})"/);
+    return match ? match[1] : null;
+  }
+
+  /**
+   * Get the effective button color following the cascade:
+   * icon primary color → overridden by style fill → overridden by manual color picker
+   */
+  getEffectiveButtonColor(config: ButtonDisplayConfig): string {
+    const manualColor = (config as any)._manualColor;
+    if (manualColor) return manualColor;
+
+    const styleName = (config as any)._styleName;
+    if (styleName) {
+      const style = this.svgStyles.find(s => s.name === styleName);
+      if (style) return style.fillColor;
+    }
+
+    if (config.iconName) {
+      const iconColor = this.getIconPrimaryColor(config.iconName);
+      if (iconColor) return iconColor;
+    }
+
+    return config.color || '#1976d2';
+  }
+
+  /** Handle icon selection — auto-set color from icon if no manual override */
+  onButtonIconChange(iconName: string): void {
+    if (!this.selectedButtonConfig) return;
+    this.selectedButtonConfig.iconName = iconName;
+    // Auto-apply icon primary color if no style or manual color is set
+    if (!(this.selectedButtonConfig as any)._styleName && !(this.selectedButtonConfig as any)._manualColor) {
+      const iconColor = this.getIconPrimaryColor(iconName);
+      if (iconColor) {
+        this.selectedButtonConfig.color = iconColor;
+      }
+    }
+    this.onButtonConfigChange();
+  }
+
+  /** Handle style selection — override color from style */
+  onButtonStyleChange(styleName: string): void {
+    if (!this.selectedButtonConfig) return;
+    (this.selectedButtonConfig as any)._styleName = styleName;
+    const style = this.svgStyles.find(s => s.name === styleName);
+    if (style) {
+      this.selectedButtonConfig.color = style.fillColor;
+      // Clear manual override since style is now governing
+      (this.selectedButtonConfig as any)._manualColor = undefined;
+    }
+    this.onButtonConfigChange();
+  }
+
+  /** Handle manual color picker — overrides everything */
+  onButtonManualColorChange(color: string): void {
+    if (!this.selectedButtonConfig) return;
+    (this.selectedButtonConfig as any)._manualColor = color;
+    this.selectedButtonConfig.color = color;
+    this.onButtonConfigChange();
+  }
 
   ngOnInit() {
     // Subscribe to display list updates
@@ -458,6 +550,10 @@ export class ClassMainPageComponent implements OnDestroy {
     // Load table configs when switching to Overview (index 0) or Tables tab (index 1)
     if ((index === 0 || index === 1) && this.className) {
       this.loadTableConfigsForClass();
+      if (index === 1) {
+        // Also load field profiles so the table config sidebar can offer profile selection
+        this.loadFieldProfileConfigsForClass();
+      }
       if (index === 0) {
         this.fetchInstanceCount();
       }
@@ -1344,6 +1440,185 @@ export class ClassMainPageComponent implements OnDestroy {
    */
   onGeoJsonInstanceDataChange(data: any[]): void {
     this.geoJsonPreviewData = data;
+  }
+
+  // ==================== Displays Sub-Tab Management ====================
+
+  onDisplaySubTabChange(index: number): void {
+    this.displaySubTabIndex = index;
+    if (index === 0 && this.className) {
+      this.loadDisplaysForClass();
+    }
+  }
+
+  // --- Form Config CRUD ---
+
+  createFormConfig(): void {
+    const name = uniqueNamesGenerator({
+      dictionaries: [adjectives, colors, animals],
+      separator: '-',
+      length: 3,
+      style: 'lowerCase'
+    });
+
+    // Auto-populate fields from the class type data
+    const fields: FormFieldConfig[] = [];
+    if (this.classTypeData?.variables) {
+      Object.entries(this.classTypeData.variables).forEach(([fieldName, fieldInfo]: [string, any], i) => {
+        fields.push({
+          fieldName,
+          displayName: fieldInfo?.displayName || fieldName,
+          fieldType: fieldInfo?.type || 'str',
+          visible: true,
+          orderIndex: i,
+          required: false,
+          placeholder: ''
+        });
+      });
+    }
+
+    const config: FormDisplayConfig = {
+      boundClassName: this.className || '',
+      formFields: fields,
+      linkedSolutionName: '',
+      formLayout: 'vertical',
+      submissionMode: 'button',
+      submitLabel: 'Save',
+      debounceDelayMs: 1500,
+      extraVariables: []
+    };
+    (config as any)._name = name;
+    (config as any)._id = 'form-' + Date.now();
+    this.formConfigList = [...this.formConfigList, config];
+    this.selectFormConfig(config);
+  }
+
+  selectFormConfig(config: FormDisplayConfig): void {
+    this.selectedFormConfig = config;
+    this.hasFormDraftChanges = false;
+  }
+
+  deselectFormConfig(): void {
+    this.selectedFormConfig = null;
+    this.hasFormDraftChanges = false;
+  }
+
+  onFormConfigChange(): void {
+    this.hasFormDraftChanges = true;
+  }
+
+  deleteFormConfig(config: FormDisplayConfig, event: Event): void {
+    event.stopPropagation();
+    if (!confirm('Delete this form configuration?')) return;
+    this.formConfigList = this.formConfigList.filter(f => f !== config);
+    if (this.selectedFormConfig === config) {
+      this.deselectFormConfig();
+    }
+  }
+
+  getFormConfigName(config: FormDisplayConfig): string {
+    return (config as any)._name || config.boundClassName || 'Untitled Form';
+  }
+
+  /** Apply a field profile to the form — updates visible fields to match the profile */
+  applyFieldProfileToForm(profileName: string): void {
+    if (!this.selectedFormConfig) return;
+    this.selectedFormConfig.fieldProfileName = profileName;
+    // If a profile is selected, we could filter formFields visibility based on it
+    // For now just track the selection — the actual filtering happens at render time
+    this.onFormConfigChange();
+  }
+
+  /** Add an arbitrary extra variable to the form */
+  addFormExtraVariable(): void {
+    if (!this.selectedFormConfig) return;
+    const varName = prompt('Variable name (will be passed to the solution):');
+    if (!varName || !varName.trim()) return;
+    this.selectedFormConfig.extraVariables.push({
+      variableName: varName.trim(),
+      displayName: varName.trim(),
+      dataType: 'string',
+      required: false,
+      placeholder: ''
+    });
+    this.onFormConfigChange();
+  }
+
+  /** Remove an extra variable from the form */
+  removeFormExtraVariable(index: number): void {
+    if (!this.selectedFormConfig) return;
+    this.selectedFormConfig.extraVariables.splice(index, 1);
+    this.onFormConfigChange();
+  }
+
+  /** Navigate to no-code editor and create a new FormSubscription solution for this form */
+  createFormSolution(): void {
+    const formName = this.selectedFormConfig ? this.getFormConfigName(this.selectedFormConfig) : this.className;
+    const solutionName = `${this.className}.${formName}_onChange`;
+    this.router.navigate(['/custom-no-code'], {
+      queryParams: {
+        createSolution: solutionName,
+        runtime: 'typescript_frontend',
+        initialStateType: 'form_subscription'
+      }
+    });
+  }
+
+  // --- Button Config CRUD ---
+
+  createButtonConfig(): void {
+    const label = uniqueNamesGenerator({
+      dictionaries: [adjectives, animals],
+      separator: ' ',
+      length: 2,
+      style: 'capital'
+    });
+
+    const config: ButtonDisplayConfig = {
+      label,
+      linkedSolutionName: '',
+      paramMappings: {},
+      variant: 'raised'
+    };
+    (config as any)._id = 'btn-' + Date.now();
+    this.buttonConfigList = [...this.buttonConfigList, config];
+    this.selectButtonConfig(config);
+  }
+
+  selectButtonConfig(config: ButtonDisplayConfig): void {
+    this.selectedButtonConfig = config;
+    this.hasButtonDraftChanges = false;
+  }
+
+  deselectButtonConfig(): void {
+    this.selectedButtonConfig = null;
+    this.hasButtonDraftChanges = false;
+  }
+
+  onButtonConfigChange(): void {
+    this.hasButtonDraftChanges = true;
+  }
+
+  deleteButtonConfig(config: ButtonDisplayConfig, event: Event): void {
+    event.stopPropagation();
+    if (!confirm('Delete this button configuration?')) return;
+    this.buttonConfigList = this.buttonConfigList.filter(b => b !== config);
+    if (this.selectedButtonConfig === config) {
+      this.deselectButtonConfig();
+    }
+  }
+
+  /** Navigate to no-code editor and create a new DirectInvocation solution for this button */
+  createButtonSolution(): void {
+    const btnLabel = this.selectedButtonConfig?.label || 'action';
+    const solutionName = `${this.className}.${btnLabel.replace(/\s+/g, '_')}_onClick`;
+    this.router.navigate(['/custom-no-code'], {
+      queryParams: {
+        createSolution: solutionName,
+        runtime: 'typescript_frontend',
+        initialStateType: 'direct_invocation'
+      }
+    });
   }
 
   // ==================== DataSets Sub-Tab Management ====================

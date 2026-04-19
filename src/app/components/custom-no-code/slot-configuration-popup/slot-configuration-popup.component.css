@@ -27,8 +27,10 @@
 /* Header */
 .popup-header {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
+  gap: 8px;
   margin-bottom: 16px;
   padding-bottom: 12px;
   border-bottom: 1px solid #e0e0e0;
@@ -47,6 +49,38 @@
   padding: 2px 8px;
   background: #f5f5f5;
   border-radius: 10px;
+}
+
+.slot-angle-input {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #666;
+}
+
+.slot-angle-input label {
+  font-weight: 500;
+}
+
+.angle-input {
+  width: 52px;
+  padding: 3px 6px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 11px;
+  text-align: right;
+  color: #333;
+  outline: none;
+}
+
+.angle-input:focus {
+  border-color: #2196f3;
+}
+
+.angle-unit {
+  color: #999;
+  font-size: 12px;
 }
 
 /* Config Sections */

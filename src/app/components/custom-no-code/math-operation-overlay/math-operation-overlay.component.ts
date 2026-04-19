@@ -88,12 +88,14 @@ export class MathOperationOverlayComponent implements OnInit, OnDestroy {
   isCompact: boolean = false;
   isSmall: boolean = false;
 
-  // Popup state for value source editing
-  activePopup: 'left' | 'right' | null = null;
+  // Popup state for value source editing (left operand, right operand, or result target)
+  activePopup: 'left' | 'right' | 'result' | null = null;
   popupPosition: { top: number; left: number } = { top: 0, left: 0 };
 
-  // Two-step result field selection state (matches operand "From Object" pattern:
-  // Step 1: select object like "self", Step 2: select field from that object)
+  // ValueSourceConfig for the result target (reuses the same interface as operands)
+  resultSourceConfig: ValueSourceConfig = { sourceType: 'from_source_object' };
+
+  // Legacy two-step state kept for backwards compat with existing data
   resultObjectName: string = '';
 
   constructor(private elementRef: ElementRef) {}
@@ -159,6 +161,11 @@ export class MathOperationOverlayComponent implements OnInit, OnDestroy {
         if (dotIdx > 0) {
           this.resultObjectName = this.config.resultFieldPath.substring(0, dotIdx);
         }
+        // Build a ValueSourceConfig for the result target
+        this.resultSourceConfig = {
+          sourceType: 'from_source_object',
+          sourceObjectPath: this.config.resultFieldPath
+        };
       }
 
       if (bofv['resultVariableName']) {
@@ -166,6 +173,13 @@ export class MathOperationOverlayComponent implements OnInit, OnDestroy {
           this.config.resultTarget = 'new_variable';
         }
         this.config.resultVariableName = bofv['resultVariableName'];
+        if (this.config.resultTarget === 'new_variable') {
+          this.resultSourceConfig = {
+            sourceType: 'direct_assignment',
+            directValue: this.config.resultVariableName,
+            directValueType: 'str'
+          };
+        }
       }
     }
   }
@@ -267,7 +281,7 @@ export class MathOperationOverlayComponent implements OnInit, OnDestroy {
   /**
    * Open value source popup
    */
-  openPopup(event: MouseEvent, side: 'left' | 'right'): void {
+  openPopup(event: MouseEvent, side: 'left' | 'right' | 'result'): void {
     event.stopPropagation();
     event.preventDefault();
 
@@ -309,6 +323,8 @@ export class MathOperationOverlayComponent implements OnInit, OnDestroy {
       return this.config.leftOperand;
     } else if (this.activePopup === 'right') {
       return this.config.rightOperand;
+    } else if (this.activePopup === 'result') {
+      return this.resultSourceConfig;
     }
     return createDefaultValueSourceConfig('direct_assignment');
   }
@@ -321,6 +337,23 @@ export class MathOperationOverlayComponent implements OnInit, OnDestroy {
       this.onLeftOperandChange(config);
     } else if (this.activePopup === 'right') {
       this.onRightOperandChange(config);
+    } else if (this.activePopup === 'result') {
+      this.resultSourceConfig = config;
+      // Sync back to the legacy fields
+      if (config.sourceType === 'from_source_object' && config.sourceObjectPath) {
+        this.config.resultTarget = 'solution_field';
+        this.config.resultFieldPath = config.sourceObjectPath;
+        this.config.resultVariableName = config.sourceObjectPath.split('.').pop() || '';
+        const dotIdx = config.sourceObjectPath.indexOf('.');
+        if (dotIdx > 0) {
+          this.resultObjectName = config.sourceObjectPath.substring(0, dotIdx);
+        }
+      } else if (config.sourceType === 'direct_assignment') {
+        this.config.resultTarget = 'new_variable';
+        this.config.resultVariableName = config.directValue || '';
+        this.config.resultFieldPath = '';
+      }
+      this.emitChange();
     }
   }
 

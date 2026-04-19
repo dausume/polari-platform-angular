@@ -34,6 +34,26 @@
             <ng-container *ngSwitchCase="'graph'">
                 <div class="graph-placeholder">Graph content</div>
             </ng-container>
+            <ng-container *ngSwitchCase="'form'">
+                <div class="form-display-item">
+                    <div class="form-header">
+                        <mat-icon>dynamic_form</mat-icon>
+                        <span>{{ item.item?.boundClassName || 'Form' }}</span>
+                    </div>
+                    <div class="form-placeholder">
+                        <p *ngIf="item.item?.linkedSolutionName">Linked to: {{ item.item.linkedSolutionName }}</p>
+                        <p *ngIf="!item.item?.linkedSolutionName">No solution linked</p>
+                    </div>
+                </div>
+            </ng-container>
+            <ng-container *ngSwitchCase="'button'">
+                <button mat-raised-button
+                        [style.background-color]="item.item?.color || '#1976d2'"
+                        style="color: white">
+                    <mat-icon *ngIf="item.item?.iconName">{{ item.item.iconName }}</mat-icon>
+                    {{ item.item?.label || 'Button' }}
+                </button>
+            </ng-container>
             <ng-container *ngSwitchCase="'container'">
                 <div class="nested-row-container" *ngIf="item.nestedRows?.length">
                     <ng-container *ngTemplateOutlet="rowContent; context: {

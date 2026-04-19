@@ -10,6 +10,16 @@
       {{ editedConfig.isInput ? 'Input' : 'Output' }} Slot Configuration
     </h3>
     <span class="slot-index">Slot #{{ editedConfig.index }}</span>
+    <div class="slot-angle-input">
+      <label title="Angular position in degrees (0-360)">Angle:</label>
+      <input type="number"
+             [value]="editedConfig.slotAngularPosition"
+             (input)="onAngularPositionInput($any($event.target).value)"
+             min="0" max="360" step="1"
+             class="angle-input"
+             (click)="$event.stopPropagation()">
+      <span class="angle-unit">°</span>
+    </div>
   </div>
 
   <!-- Conditional Output Indicator -->

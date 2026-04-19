@@ -70,6 +70,9 @@ export class InitialStateOverlayComponent implements OnInit, OnDestroy, OnChange
   @Input() boundObjectFieldValues: { [key: string]: any } = {};
   @Output() fieldValueChanged = new EventEmitter<{ fieldName: string; value: any }>();
 
+  // Linked parent solutions (auto-detected for logic_flow_entry)
+  @Input() linkedParentSolutions: { name: string; stateName: string; linkType: string }[] = [];
+
   // Available trigger type options (computed from runtime)
   triggerTypeOptions: TriggerTypeOption[] = [];
 

@@ -53,61 +53,16 @@
       </div>
     </div>
 
-    <!-- Result Section -->
+    <!-- Result Section — uses the same ValueSourceSelector popup as the operands -->
     <div class="section result-section">
       <label class="section-label">Store Result In</label>
-
-      <div class="result-target-tabs">
-        <button class="target-tab"
-                [class.active]="config.resultTarget === 'solution_field'"
-                (click)="onResultTargetChange('solution_field')">
-          <mat-icon>apartment</mat-icon>
-          <span *ngIf="!isSmall">Field</span>
-        </button>
-        <button class="target-tab"
-                [class.active]="config.resultTarget === 'new_variable'"
-                (click)="onResultTargetChange('new_variable')">
-          <mat-icon>add_circle</mat-icon>
-          <span *ngIf="!isSmall">Variable</span>
-        </button>
-      </div>
-
-      <!--
-        Solution Field Selector - TWO-STEP dropdown matching the operand "From Object" pattern:
-        Step 1: Select the object (e.g., "self") from unique object prefixes in sourceObjectFields.
-        Step 2: Select a specific field from that object (e.g., "sum_result").
-        Do NOT replace this with a single flat dropdown or text input.
-      -->
-      <div class="result-field-flow" *ngIf="config.resultTarget === 'solution_field'">
-        <!-- Step 1: Object selector (e.g., "self") -->
-        <select class="result-select result-object-select"
-                [value]="resultObjectName"
-                (change)="onResultObjectChange($any($event.target).value)">
-          <option value="" disabled>Object...</option>
-          <option *ngFor="let name of getUniqueResultObjectNames()" [value]="name">
-            {{ name }}
-          </option>
-        </select>
-        <!-- Step 2: Field selector (e.g., "sum_result") -->
-        <select class="result-select result-field-select"
-                *ngIf="resultObjectName"
-                [value]="config.resultFieldPath"
-                (change)="onResultFieldChange($any($event.target).value)">
-          <option value="" disabled>Field...</option>
-          <option *ngFor="let field of getFieldsForResultObject()"
-                  [value]="field.path">
-            {{ getFieldDisplayName(field) }} ({{ field.type }})
-          </option>
-        </select>
-      </div>
-
-      <!-- Variable Name Input -->
-      <input *ngIf="config.resultTarget === 'new_variable'"
-             type="text"
-             class="result-input"
-             [value]="config.resultVariableName"
-             (input)="onResultVariableChange($any($event.target).value)"
-             placeholder="Variable name">
+      <button class="operand-btn"
+              [class.active]="activePopup === 'result'"
+              (click)="openPopup($event, 'result')"
+              title="Where to store the result">
+        <span class="operand-value">{{ getResultTargetName() }}</span>
+        <mat-icon class="edit-icon">edit</mat-icon>
+      </button>
     </div>
 
     <!-- Preview -->
@@ -125,7 +80,7 @@
        (mousedown)="$event.stopPropagation()"
        (pointerdown)="$event.stopPropagation()">
     <div class="popup-header">
-      <span class="popup-title">{{ activePopup === 'left' ? 'Left' : 'Right' }} Operand</span>
+      <span class="popup-title">{{ activePopup === 'left' ? 'Left Operand' : activePopup === 'right' ? 'Right Operand' : 'Store Result In' }}</span>
       <button class="popup-close-btn" (click)="closePopup()">
         <mat-icon>close</mat-icon>
       </button>

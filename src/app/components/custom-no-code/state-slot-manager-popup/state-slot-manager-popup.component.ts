@@ -141,6 +141,7 @@ export class StateSlotManagerPopupComponent implements OnInit, AfterViewInit, On
       index: this.editedInputSlots.length,
       stateName: this.stateName,
       isInput: true,
+      slotAngularPosition: 180 - (this.editedInputSlots.length * 30),
       color: this.useDefaults ? this.solutionDefaults.inputColor : '#2196f3',
       mappingMode: this.useDefaults ? this.solutionDefaults.inputMappingMode : 'object_state'
     };
@@ -155,6 +156,7 @@ export class StateSlotManagerPopupComponent implements OnInit, AfterViewInit, On
       index: this.editedOutputSlots.length,
       stateName: this.stateName,
       isInput: false,
+      slotAngularPosition: this.editedOutputSlots.length * 30,
       color: this.useDefaults ? this.solutionDefaults.outputColor : '#4caf50',
       mappingMode: this.useDefaults ? this.solutionDefaults.outputMappingMode : 'function_return'
     };

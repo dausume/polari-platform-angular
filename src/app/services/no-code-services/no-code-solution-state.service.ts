@@ -13,8 +13,6 @@ import {
   NoCodeStateRawData,
   SlotRawData,
   ConnectorRawData,
-  MOCK_SOLUTIONS,
-  getAvailableSolutionNames,
   TargetRuntime
 } from '@models/noCode/mock-NCS-data';
 import { StateDefinition } from '@models/noCode/StateDefinition';
@@ -73,6 +71,11 @@ export class NoCodeSolutionStateService {
   // Whether backend is available
   private backendAvailable = false;
 
+  // Track solutions explicitly created locally this session.
+  // Only these are eligible for auto-creation on the backend — prevents
+  // stale localStorage entries from resurrecting deleted backend records.
+  private locallyCreatedSolutions: Set<string> = new Set();
+
   constructor(private solutionManager: SolutionManagerService) {
     // Set up debounced backend saves (save 2 seconds after last mutation)
     this.backendSaveSubject.pipe(
@@ -93,13 +96,13 @@ export class NoCodeSolutionStateService {
     this.loadingSubject.next(true);
     this.solutionManager.loadAllSolutions().subscribe({
       next: (solutions: NoCodeSolutionRawData[]) => {
-        // console.log('[StateService] Backend returned', solutions.length, 'solutions');
         this.loadingSubject.next(false);
 
         if (solutions.length > 0) {
           this.backendAvailable = true;
           const previousSelection = this.selectedSolutionNameSubject.value;
           this.solutionsCache.clear();
+          this.backendIdMap.clear();
 
           solutions.forEach(solution => {
             this.solutionsCache.set(solution.solutionName, solution);
@@ -123,10 +126,13 @@ export class NoCodeSolutionStateService {
 
           // console.log('[StateService] Backend data loaded. Selected:', targetSolution);
         } else {
-          // Backend returned 0 solutions — seed with mock data
-          // console.log('[StateService] Backend empty, seeding with mock data...');
+          // Backend returned 0 solutions — nothing to load
+          // console.log('[StateService] Backend has no solutions yet');
           this.backendAvailable = true;
-          this.seedBackendWithMockData();
+          this.solutionsCache.clear();
+          this.backendIdMap.clear();
+          this.updateAvailableSolutions();
+          this.saveToLocalStorage();
         }
       },
       error: (err: any) => {
@@ -139,37 +145,10 @@ export class NoCodeSolutionStateService {
   }
 
   /**
-   * Seed the backend with mock data when it has no solutions
-   */
-  private seedBackendWithMockData(): void {
-    MOCK_SOLUTIONS.forEach(solution => {
-      this.solutionsCache.set(solution.solutionName, solution);
-      this.solutionManager.createSolution(solution).subscribe({
-        next: (response: any) => {
-          const id = response?.id;
-          if (id) {
-            this.backendIdMap.set(solution.solutionName, id);
-          }
-          // console.log('[StateService] Seeded backend with:', solution.solutionName);
-        },
-        error: (err: any) => console.warn('[StateService] Failed to seed:', solution.solutionName, err)
-      });
-    });
-
-    this.updateAvailableSolutions();
-    this.saveToLocalStorage();
-
-    if (MOCK_SOLUTIONS.length > 0) {
-      this.selectSolution(MOCK_SOLUTIONS[0].solutionName);
-    }
-  }
-
-  /**
    * Save all current solutions to backend (debounced)
    */
   private saveAllToBackend(): void {
     if (!this.backendAvailable) return;
-
     this.solutionsCache.forEach((solution, name) => {
       const backendId = this.backendIdMap.get(name);
       if (backendId) {
@@ -177,8 +156,10 @@ export class NoCodeSolutionStateService {
           // next: () => console.log('[StateService] Saved to backend:', name),
           error: (err: any) => console.warn('[StateService] Backend save failed for:', name, err)
         });
-      } else {
-        // No backend ID yet — create it
+      } else if (this.locallyCreatedSolutions.has(name)) {
+        // Only create on backend if this solution was explicitly created locally
+        // this session — prevents stale localStorage data from resurrecting
+        // deleted backend records after a database wipe.
         this.solutionManager.createSolution(solution).subscribe({
           next: (response: any) => {
             const id = response?.id;
@@ -189,6 +170,8 @@ export class NoCodeSolutionStateService {
           },
           error: (err: any) => console.warn('[StateService] Backend create failed for:', name, err)
         });
+      } else {
+        console.warn('[StateService] Skipping backend create for orphaned local solution:', name);
       }
     });
   }
@@ -205,56 +188,21 @@ export class NoCodeSolutionStateService {
    */
   private initializeFromCache(): void {
     const cached = this.loadFromLocalStorage();
-    // console.log('[StateService] initializeFromCache - cached:', cached);
 
-    // Check cache validity: version must match AND solution names must match exactly
-    const expectedSolutionNames = MOCK_SOLUTIONS.map(s => s.solutionName).sort();
-    const cachedSolutionNames = cached ? Object.keys(cached.solutions).sort() : [];
-    const versionMatch = cached?.version === CACHE_VERSION;
-    const namesMatch = expectedSolutionNames.length === cachedSolutionNames.length &&
-      expectedSolutionNames.every((name, i) => name === cachedSolutionNames[i]);
-
-    if (cached && versionMatch && namesMatch) {
-      // console.log('[StateService] Restoring from cache (version', cached.version, ')');
+    if (cached && cached.version === CACHE_VERSION) {
       // Restore from cache
       Object.entries(cached.solutions).forEach(([name, data]) => {
-        // console.log('[StateService] Restoring solution:', name, 'with', data.stateInstances?.length, 'states');
         this.solutionsCache.set(name, data);
       });
 
-      // Update available solutions
       this.updateAvailableSolutions();
 
       // Restore selected solution
       if (cached.selectedSolutionName && this.solutionsCache.has(cached.selectedSolutionName)) {
-        // console.log('[StateService] Restoring selected solution:', cached.selectedSolutionName);
         this.selectSolution(cached.selectedSolutionName);
       }
-    } else {
-      // console.log('[StateService] Cache invalid - version match:', versionMatch,
-      //   ', names match:', namesMatch,
-      //   ', expected:', expectedSolutionNames,
-      //   ', cached:', cachedSolutionNames);
-      // Initialize with mock data (cache is stale or missing)
-      this.loadMockSolutions();
     }
-  }
-
-  /**
-   * Load mock solutions into the cache
-   */
-  private loadMockSolutions(): void {
-    MOCK_SOLUTIONS.forEach(solution => {
-      this.solutionsCache.set(solution.solutionName, solution);
-    });
-
-    this.updateAvailableSolutions();
-    this.saveToLocalStorage();
-
-    // Select the first solution by default
-    if (MOCK_SOLUTIONS.length > 0) {
-      this.selectSolution(MOCK_SOLUTIONS[0].solutionName);
-    }
+    // Otherwise leave cache empty — initializeFromBackend() will populate it
   }
 
   /**
@@ -305,9 +253,6 @@ export class NoCodeSolutionStateService {
     } catch (error) {
       console.warn('Failed to save solutions to localStorage:', error);
     }
-
-    // Also schedule a debounced save to backend
-    this.scheduleBackendSave();
   }
 
   /**
@@ -392,6 +337,28 @@ export class NoCodeSolutionStateService {
    */
   getFrontendSolutionsForClass(className: string): { name: string; data: NoCodeSolutionRawData }[] {
     return this.getSolutionsByBoundClass(className, 'typescript_frontend');
+  }
+
+  /**
+   * Find all solutions that reference the given solution via cross-runtime
+   * calls (AwaitBackendCall or EmitFrontendEvent). Used by logic_flow_entry
+   * initial states to display linked parent solutions.
+   */
+  getLinkedParentSolutions(solutionName: string): { name: string; stateName: string; linkType: string }[] {
+    const results: { name: string; stateName: string; linkType: string }[] = [];
+    this.solutionsCache.forEach((data, name) => {
+      if (!data.stateInstances) return;
+      for (const state of data.stateInstances) {
+        const stateClass = state.boundObjectClass || state.stateClass || '';
+        if (stateClass === 'AwaitBackendCall' || stateClass === 'EmitFrontendEvent') {
+          const target = state.boundObjectFieldValues?.['targetSolutionName'];
+          if (target === solutionName) {
+            results.push({ name, stateName: state.stateName, linkType: stateClass });
+          }
+        }
+      }
+    });
+    return results;
   }
 
   /**
@@ -1013,18 +980,85 @@ export class NoCodeSolutionStateService {
   /**
    * Create a new empty solution
    */
-  createNewSolution(solutionName: string, id?: number): void {
+  createNewSolution(
+    solutionName: string,
+    options?: {
+      id?: number;
+      targetRuntime?: TargetRuntime;
+      initialStateType?: string;
+    }
+  ): void {
+    const runtime = options?.targetRuntime || 'python_backend';
+    const initialStateType = options?.initialStateType;
+
+    const stateInstances: any[] = [];
+
+    // Auto-create an initial state if a type was specified
+    if (initialStateType) {
+      const stateClassMap: Record<string, { stateClass: string; color: string; fieldValues: any }> = {
+        'form_subscription': {
+          stateClass: 'FormSubscription',
+          color: '#E91E63',
+          fieldValues: { displayName: 'Form Subscription', triggerType: 'form_subscription', sourceName: '' }
+        },
+        'direct_invocation': {
+          stateClass: 'InitialState',
+          color: '#4CAF50',
+          fieldValues: { displayName: 'Start', triggerType: 'direct_invocation', inputParams: [] }
+        },
+        'logic_flow_entry': {
+          stateClass: 'InitialState',
+          color: '#673AB7',
+          fieldValues: { displayName: 'Entry', triggerType: 'logic_flow_entry' }
+        },
+        'backend_state_change': {
+          stateClass: 'InitialState',
+          color: '#FF5722',
+          fieldValues: { displayName: 'State Change', triggerType: 'backend_state_change', modelName: '', fieldName: '', changeType: 'any' }
+        }
+      };
+
+      const mapping = stateClassMap[initialStateType];
+      if (mapping) {
+        stateInstances.push({
+          stateName: mapping.fieldValues.displayName || 'Start',
+          id: 'start-state',
+          index: 0,
+          shapeType: 'circle',
+          solutionName,
+          stateClass: mapping.stateClass,
+          boundObjectClass: mapping.stateClass,
+          boundObjectFieldValues: mapping.fieldValues,
+          stateSvgSizeX: null,
+          stateSvgSizeY: null,
+          stateSvgRadius: 60,
+          layerName: 'start-layer',
+          stateLocationX: 80,
+          stateLocationY: 300,
+          stateSvgName: 'circle',
+          slots: [
+            { index: 0, stateName: mapping.fieldValues.displayName || 'Start', slotAngularPosition: 0, connectors: [], isInput: false, allowOneToMany: true, allowManyToOne: false, label: 'Out' }
+          ],
+          slotRadius: 5,
+          backgroundColor: mapping.color
+        });
+      }
+    }
+
     const newSolution: NoCodeSolutionRawData = {
-      id: id || Date.now(),
+      id: options?.id || Date.now(),
       solutionName,
+      targetRuntime: runtime,
       xBounds: 1200,
       yBounds: 800,
-      stateInstances: []
+      stateInstances
     };
 
     this.solutionsCache.set(solutionName, newSolution);
+    this.locallyCreatedSolutions.add(solutionName);
     this.updateAvailableSolutions();
     this.saveToLocalStorage();
+    this.scheduleBackendSave();
   }
 
   /**
@@ -1032,6 +1066,15 @@ export class NoCodeSolutionStateService {
    */
   deleteSolution(solutionName: string): void {
     if (!this.solutionsCache.has(solutionName)) return;
+
+    // Delete from backend if we have an ID
+    const backendId = this.backendIdMap.get(solutionName);
+    if (backendId && this.backendAvailable) {
+      this.solutionManager.deleteSolution(backendId).subscribe({
+        error: (err: any) => console.warn('[StateService] Backend delete failed for:', solutionName, err)
+      });
+      this.backendIdMap.delete(solutionName);
+    }
 
     this.solutionsCache.delete(solutionName);
 
@@ -1059,38 +1102,8 @@ export class NoCodeSolutionStateService {
     this.solutionsCache.clear();
     localStorage.removeItem(CACHE_KEY);
 
-    if (this.backendAvailable) {
-      // Re-fetch from backend
-      this.solutionManager.loadAllSolutions().subscribe({
-        next: (solutions: NoCodeSolutionRawData[]) => {
-          if (solutions.length > 0) {
-            solutions.forEach(solution => {
-              this.solutionsCache.set(solution.solutionName, solution);
-              if ((solution as any)._backendId) {
-                this.backendIdMap.set(solution.solutionName, (solution as any)._backendId);
-              }
-            });
-
-            this.updateAvailableSolutions();
-            this.saveToLocalStorage();
-
-            // Re-select the same solution if it still exists
-            if (currentSelection && this.solutionsCache.has(currentSelection)) {
-              this.selectSolution(currentSelection);
-            } else if (solutions.length > 0) {
-              this.selectSolution(solutions[0].solutionName);
-            }
-          } else {
-            this.loadMockSolutions();
-          }
-        },
-        error: () => {
-          this.loadMockSolutions();
-        }
-      });
-    } else {
-      this.loadMockSolutions();
-    }
+    // Re-fetch from backend
+    this.initializeFromBackend();
   }
 
   /**
@@ -1113,8 +1126,10 @@ export class NoCodeSolutionStateService {
         return false;
       }
       this.solutionsCache.set(solution.solutionName, solution);
+      this.locallyCreatedSolutions.add(solution.solutionName);
       this.updateAvailableSolutions();
       this.saveToLocalStorage();
+      this.scheduleBackendSave();
       return true;
     } catch (error) {
       console.error('Failed to import solution:', error);

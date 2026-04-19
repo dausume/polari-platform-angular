@@ -4,7 +4,7 @@ import { DisplayRow } from "./DisplayRow";
 /**
  * Types of items that can be displayed in a dashboard
  */
-export type DisplayItemType = 'graph' | 'table' | 'component' | 'container' | 'text' | 'metric';
+export type DisplayItemType = 'graph' | 'table' | 'component' | 'container' | 'text' | 'metric' | 'form' | 'button';
 
 /**
  * Component-specific properties for custom components
@@ -14,6 +14,94 @@ export interface ComponentProps {
     inputs?: Record<string, any>;
     outputs?: Record<string, (event: any) => void>;
     [key: string]: any;
+}
+
+/**
+ * Configuration for form display items.
+ * Forms are bound to a class and linked to a FormSubscription no-code solution.
+ */
+export interface FormDisplayConfig {
+    /** The class this form is bound to */
+    boundClassName: string;
+    /** Which fields to show (auto-populated from class, user can reorder/hide) */
+    formFields: FormFieldConfig[];
+    /** The FormSubscription no-code solution to invoke on form change */
+    linkedSolutionName: string;
+    /** Layout style for the form */
+    formLayout: 'vertical' | 'horizontal' | 'grid';
+    /**
+     * How the form triggers its linked solution:
+     * - 'button': User clicks a submit button to trigger
+     * - 'debounce': Triggers after a delay of inactivity (data-entry-delay-based)
+     */
+    submissionMode: 'button' | 'debounce';
+    /** Submit button label (only used when submissionMode is 'button') */
+    submitLabel?: string;
+    /** Debounce delay in ms (only used when submissionMode is 'debounce') */
+    debounceDelayMs?: number;
+    /** Optional field profile ID/name to control which class fields appear */
+    fieldProfileName?: string;
+    /** Arbitrary extra variables for data entry not tied to the object's fields.
+     *  These get passed as additional parameters into the linked solution. */
+    extraVariables: FormExtraVariable[];
+}
+
+/**
+ * An arbitrary variable on a form that is not tied to any class field.
+ * Used to collect additional user input to pass into the linked solution.
+ */
+export interface FormExtraVariable {
+    /** Variable name passed to the solution */
+    variableName: string;
+    /** Display label shown on the form */
+    displayName: string;
+    /** Data type for input rendering and validation */
+    dataType: 'string' | 'number' | 'boolean' | 'date' | 'text';
+    /** Default value */
+    defaultValue?: any;
+    /** Placeholder text */
+    placeholder?: string;
+    /** Whether this variable is required */
+    required?: boolean;
+}
+
+/**
+ * Configuration for a single form field
+ */
+export interface FormFieldConfig {
+    /** Field name from the bound class */
+    fieldName: string;
+    /** Display label */
+    displayName: string;
+    /** Field data type (str, int, bool, etc.) */
+    fieldType: string;
+    /** Whether this field is visible in the form */
+    visible: boolean;
+    /** Display order index */
+    orderIndex: number;
+    /** Whether this field is required */
+    required?: boolean;
+    /** Placeholder text */
+    placeholder?: string;
+}
+
+/**
+ * Configuration for button display items.
+ * Buttons invoke a DirectInvocation frontend no-code solution on click.
+ */
+export interface ButtonDisplayConfig {
+    /** Button label */
+    label: string;
+    /** Material icon name */
+    iconName?: string;
+    /** Button color (hex) */
+    color?: string;
+    /** The DirectInvocation no-code solution to invoke on click */
+    linkedSolutionName: string;
+    /** Parameter mappings from display context to solution input params */
+    paramMappings: { [paramName: string]: string };
+    /** Button style variant */
+    variant: 'raised' | 'flat' | 'stroked' | 'icon';
 }
 
 /**
@@ -316,5 +404,49 @@ export class DisplayItem {
         row.autoHeight = true;
         item.nestedRows.push(row);
         return item;
+    }
+
+    /**
+     * Creates a form display item linked to a FormSubscription solution
+     * @param boundClassName Class the form is bound to
+     * @param linkedSolutionName FormSubscription solution to invoke on change
+     * @param segments Grid segments to occupy (default 12)
+     */
+    static createFormItem(
+        boundClassName: string,
+        linkedSolutionName: string = '',
+        segments: number = 12
+    ): DisplayItem {
+        const config: FormDisplayConfig = {
+            boundClassName,
+            formFields: [],
+            linkedSolutionName,
+            formLayout: 'vertical',
+            submissionMode: 'button',
+            submitLabel: 'Save',
+            debounceDelayMs: 1500,
+            extraVariables: []
+        };
+        return new DisplayItem(0, 'form', config, segments);
+    }
+
+    /**
+     * Creates a button display item linked to a DirectInvocation solution
+     * @param label Button label text
+     * @param linkedSolutionName DirectInvocation solution to invoke on click
+     * @param segments Grid segments to occupy (default 3)
+     */
+    static createButtonItem(
+        label: string,
+        linkedSolutionName: string = '',
+        segments: number = 3
+    ): DisplayItem {
+        const config: ButtonDisplayConfig = {
+            label,
+            linkedSolutionName,
+            paramMappings: {},
+            variant: 'raised'
+        };
+        return new DisplayItem(0, 'button', config, segments);
     }
 }

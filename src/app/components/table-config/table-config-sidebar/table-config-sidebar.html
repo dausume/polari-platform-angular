@@ -41,6 +41,24 @@
 
   <mat-divider></mat-divider>
 
+  <!-- Field Profile Selector -->
+  <div class="config-section" *ngIf="fieldProfileList.length > 0">
+    <h4>Field Profile</h4>
+    <p class="section-instructions">Select a field profile to control which fields are available in this table.</p>
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Field Profile</mat-label>
+      <mat-select [(ngModel)]="config.fieldProfileName" (ngModelChange)="emitChange()">
+        <mat-option value="">-- All Fields (no profile) --</mat-option>
+        <mat-option *ngFor="let fp of fieldProfileList" [value]="fp.name">
+          {{ fp.name }}
+          <span *ngIf="fp.description" style="font-size: 11px; color: #999; margin-left: 8px;">{{ fp.description }}</span>
+        </mat-option>
+      </mat-select>
+    </mat-form-field>
+  </div>
+
+  <mat-divider *ngIf="fieldProfileList.length > 0"></mat-divider>
+
   <!-- Accordion Sections -->
   <mat-accordion multi>
 

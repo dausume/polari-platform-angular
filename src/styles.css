@@ -305,3 +305,12 @@ body.dark-theme ::-webkit-scrollbar-thumb:hover {
 .instance-picker-overlay {
   z-index: 1050 !important;
 }
+
+/* Class selector dialog used from no-code editor — must appear above state overlays */
+.above-overlays-dialog {
+  z-index: 1100 !important;
+}
+
+.cdk-overlay-container:has(.above-overlays-dialog) {
+  z-index: 1100 !important;
+}

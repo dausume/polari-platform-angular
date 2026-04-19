@@ -1,5 +1,6 @@
 import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges } from '@angular/core';
 import { NamedTableConfig, RowWrappingConfig, CrudPermissionConfig, MetricCardConfig } from '@models/tables/NamedTableConfig';
+import { FieldProfileDefinitionSummary } from '@models/datasets/NamedFieldProfileConfig';
 import { InstanceActionButton, DatasetActionButton, ParamMapping } from '@models/tables/TableActionButton';
 import { ColumnConfiguration } from '@models/tables/ColumnConfiguration';
 import { SortOrder, SortDirection, TableDensity } from '@models/tables/TableConfiguration';
@@ -25,6 +26,7 @@ interface FieldInfo {
 export class TableConfigSidebarComponent implements OnChanges {
   @Input() config!: NamedTableConfig;
   @Input() classTypeData: any = {};
+  @Input() fieldProfileList: FieldProfileDefinitionSummary[] = [];
   @Output() configChange = new EventEmitter<NamedTableConfig>();
 
   fields: FieldInfo[] = [];

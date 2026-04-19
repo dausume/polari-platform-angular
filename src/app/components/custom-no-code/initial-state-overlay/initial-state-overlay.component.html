@@ -121,18 +121,30 @@
 
     <!-- LogicFlowEntry fields -->
     <ng-container *ngIf="currentTriggerType === 'logic_flow_entry'">
-      <div class="trigger-field">
-        <label class="trigger-field-label">Parent Solution</label>
-        <input class="trigger-field-input"
-               type="text"
-               [value]="boundObjectFieldValues['parentSolutionName'] || ''"
-               (change)="onFieldValueChange('parentSolutionName', $any($event.target).value)"
-               placeholder="e.g., ParentSolution"
-               (click)="$event.stopPropagation()"
-               (mousedown)="$event.stopPropagation()" />
+      <div class="linked-parents-section" *ngIf="linkedParentSolutions.length > 0">
+        <div class="section-header">
+          <span class="section-label">Linked From</span>
+          <span class="field-count">{{ linkedParentSolutions.length }}</span>
+        </div>
+        <div class="linked-parents-list">
+          <div *ngFor="let parent of linkedParentSolutions" class="linked-parent-item">
+            <mat-icon class="parent-link-icon"
+                      [style.color]="parent.linkType === 'AwaitBackendCall' ? '#FF5722' : '#2196F3'">
+              {{ parent.linkType === 'AwaitBackendCall' ? 'cloud_download' : 'cloud_upload' }}
+            </mat-icon>
+            <div class="parent-info">
+              <span class="parent-name">{{ parent.name }}</span>
+              <span class="parent-state" *ngIf="!isSmall">via {{ parent.stateName }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="empty-state" *ngIf="linkedParentSolutions.length === 0">
+        <mat-icon>link_off</mat-icon>
+        <span>No parent solutions linked yet</span>
       </div>
       <p class="trigger-description" *ngIf="!isSmall">
-        Invoked as a child solution by a parent solution.
+        Invoked by other solutions via cross-runtime calls.
       </p>
     </ng-container>
 

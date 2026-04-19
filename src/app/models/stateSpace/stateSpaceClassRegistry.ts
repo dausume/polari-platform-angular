@@ -12,6 +12,7 @@
  */
 
 import { ConditionalChain, ConditionalChainLink, createConditionLink, createNestedConditionGroup } from './conditionalChain';
+import { FormValidation } from './formValidation';
 import { ConditionType, CONDITION_TYPE_OPTIONS, CONDITION_OPTIONS_BY_CATEGORY, getConditionOptionsForType } from './conditionTypeOptions';
 import { ForLoop, WhileLoop, ForEachLoop, createSimpleForLoop, createRangeForLoop, createSimpleWhileLoop, createForEachLoop } from './loopStates';
 import { VariableAssignment, FunctionCall, ReturnStatement, LogOutput, BreakStatement, ContinueStatement, createAssignment, createDeclaration, createFunctionCall, createReturn, createLog } from './operationStates';
@@ -266,7 +267,7 @@ export class StateSpaceClassRegistry {
       icon: 'account_tree',
       color: '#673AB7',
       isStateSpaceObject: true,
-      stateSpaceDisplayFields: ['displayName', 'parentSolutionName'],
+      stateSpaceDisplayFields: ['displayName'],
       stateSpaceFieldsPerRow: 1,
       isBuiltIn: true,
       specialStateType: 'initial',
@@ -285,7 +286,6 @@ export class StateSpaceClassRegistry {
       ],
       variables: [
         { name: 'displayName', displayName: 'Display Name', type: 'string', isEditable: true, defaultValue: 'Logic Flow Entry' },
-        { name: 'parentSolutionName', displayName: 'Parent Solution', type: 'string', isEditable: true, defaultValue: '' },
         { name: 'description', displayName: 'Description', type: 'string', isEditable: true, defaultValue: '' }
       ],
       factory: () => new LogicFlowEntry()
@@ -430,6 +430,52 @@ export class StateSpaceClassRegistry {
         { name: 'links', displayName: 'Condition Links', type: 'array', isEditable: false }
       ],
       factory: () => new ConditionalChain()
+    });
+
+    this.registerClass({
+      className: 'FormValidation',
+      displayName: 'Form Validation',
+      description: 'Introspects a form\'s fields and generates one output slot per field for individual validation logic. Specific to FormSubscription flows.',
+      category: 'Conditionals',
+      icon: 'checklist',
+      color: '#00BCD4',
+      isStateSpaceObject: true,
+      stateSpaceDisplayFields: ['displayName', 'formReference', 'boundClassName'],
+      stateSpaceFieldsPerRow: 1,
+      isBuiltIn: true,
+      supportedRuntimes: ['typescript_frontend'],
+      slotConfiguration: {
+        defaultInputCount: 1,
+        defaultOutputCount: 1,
+        allowDynamicInputs: false,
+        allowDynamicOutputs: true, // output slots are dynamically generated per form field
+        maxInputSlots: 1,
+        maxOutputSlots: 0, // unlimited — one per field + allValid
+        inputType: 'object',
+        outputType: 'any',
+        inputLabels: ['formData'],
+        outputLabels: ['All Valid'],
+      },
+      eventMethods: [
+        {
+          methodName: 'validate',
+          displayName: 'Validate Fields',
+          description: 'Route each form field value to its own validation output slot',
+          category: 'Conditionals',
+          inputParams: [
+            { name: 'formData', displayName: 'Form Data', type: 'object', isRequired: true }
+          ],
+          output: { type: 'boolean', displayName: 'All Valid' }
+        }
+      ],
+      variables: [
+        { name: 'displayName', displayName: 'Display Name', type: 'string', isEditable: true, defaultValue: 'Validate Form Fields' },
+        { name: 'description', displayName: 'Description', type: 'string', isEditable: true, defaultValue: 'Route each form field to its own validation logic' },
+        { name: 'formReference', displayName: 'Form Reference', type: 'string', isEditable: true, defaultValue: '' },
+        { name: 'boundClassName', displayName: 'Bound Class', type: 'string', isEditable: true, defaultValue: '' },
+        { name: 'fields', displayName: 'Validation Fields', type: 'array', isEditable: false }
+      ],
+      factory: () => new FormValidation()
     });
 
     // === Loops ===
@@ -1372,6 +1418,7 @@ export function getStateSpaceClassesByCategory(): Map<StateSpaceCategory, StateS
 export {
   ConditionalChain,
   ConditionalChainLink,
+  FormValidation,
   createConditionLink,
   createNestedConditionGroup,
   ConditionType,

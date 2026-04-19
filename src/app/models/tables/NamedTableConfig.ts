@@ -70,6 +70,8 @@ export class NamedTableConfig {
   is_default_instance_display: boolean;
   is_default_dataset_display: boolean;
   tableConfiguration: TableConfiguration;
+  /** Optional field profile to control which fields are available */
+  fieldProfileName: string;
   rowWrapping: RowWrappingConfig;
   crudPermissions: CrudPermissionConfig;
   instanceActions: InstanceActionButton[];
@@ -85,6 +87,7 @@ export class NamedTableConfig {
     this.is_default_instance_display = false;
     this.is_default_dataset_display = false;
     this.tableConfiguration = new TableConfiguration(sourceClass);
+    this.fieldProfileName = '';
     this.rowWrapping = { ...DEFAULT_ROW_WRAPPING };
     this.crudPermissions = { ...DEFAULT_CRUD_PERMISSIONS };
     this.instanceActions = [];
@@ -95,6 +98,7 @@ export class NamedTableConfig {
   toDefinitionJSON(): string {
     return JSON.stringify({
       tableConfiguration: this.tableConfiguration.toJSON(),
+      fieldProfileName: this.fieldProfileName || undefined,
       rowWrapping: this.rowWrapping,
       crudPermissions: this.crudPermissions,
       instanceActions: this.instanceActions.map(a => a.toJSON()),
@@ -126,6 +130,10 @@ export class NamedTableConfig {
             config.source_class,
             parsed.tableConfiguration
           );
+        }
+
+        if (parsed.fieldProfileName) {
+          config.fieldProfileName = parsed.fieldProfileName;
         }
 
         if (parsed.rowWrapping) {

@@ -68,16 +68,13 @@ export class LogicFlowEntry {
   type = 'LogicFlowEntry';
   triggerType: InitialStateTriggerType = 'logic_flow_entry';
   displayName: string;
-  parentSolutionName: string;
   description: string;
 
   constructor(
     displayName: string = 'Logic Flow Entry',
-    parentSolutionName: string = '',
     description: string = 'Invoked by a parent solution'
   ) {
     this.displayName = displayName;
-    this.parentSolutionName = parentSolutionName;
     this.description = description;
   }
 }

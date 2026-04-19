@@ -88,6 +88,8 @@ export interface SlotConfiguration {
   index: number;
   stateName: string;
   isInput: boolean;
+  /** Angular position in degrees (0-360) around the state shape */
+  slotAngularPosition: number;
   color: string;
   mappingMode: InputMappingMode | OutputMappingMode;
   /** Full name of the slot (unlimited length) */
@@ -154,6 +156,8 @@ export class SlotConfigurationPopupComponent implements OnInit, AfterViewInit, O
   @Output() connectionRemoved = new EventEmitter<SlotConnectionInfo>();
   /** Emitted when the user requests to delete this slot entirely */
   @Output() slotDeleted = new EventEmitter<SlotConfiguration>();
+  /** Emitted (debounced) when the user manually changes the angular position */
+  @Output() angularPositionChanged = new EventEmitter<{ slotIndex: number; angle: number }>();
 
   @ViewChild('popupContainer') popupContainer!: ElementRef<HTMLDivElement>;
 
@@ -190,9 +194,13 @@ export class SlotConfigurationPopupComponent implements OnInit, AfterViewInit, O
     index: 0,
     stateName: '',
     isInput: true,
+    slotAngularPosition: 0,
     color: '#2196f3',
     mappingMode: 'object_state'
   };
+
+  // Debounce timer for angular position changes
+  private angularPositionDebounceTimer: any = null;
 
   // Selectable context values for function return
   selectableContextValues: SelectableContextValue[] = [];
@@ -265,10 +273,39 @@ export class SlotConfigurationPopupComponent implements OnInit, AfterViewInit, O
     // Remove click outside listener
     document.removeEventListener('click', this.boundClickOutsideHandler);
 
+    // Clear any pending debounce
+    if (this.angularPositionDebounceTimer) {
+      clearTimeout(this.angularPositionDebounceTimer);
+    }
+
     // Remove from document.body when component is destroyed
     if (this.hostElement && this.hostElement.parentElement === document.body) {
       document.body.removeChild(this.hostElement);
     }
+  }
+
+  /**
+   * Handle manual angular position input change (debounced).
+   * Clamps to 0-360 and emits after 600ms of inactivity.
+   */
+  onAngularPositionInput(value: string): void {
+    let angle = parseFloat(value);
+    if (isNaN(angle)) return;
+
+    // Clamp to 0-360
+    angle = ((angle % 360) + 360) % 360;
+    this.editedConfig.slotAngularPosition = Math.round(angle * 10) / 10;
+
+    // Debounce — wait 600ms of inactivity before firing the move event
+    if (this.angularPositionDebounceTimer) {
+      clearTimeout(this.angularPositionDebounceTimer);
+    }
+    this.angularPositionDebounceTimer = setTimeout(() => {
+      this.angularPositionChanged.emit({
+        slotIndex: this.editedConfig.index,
+        angle: this.editedConfig.slotAngularPosition
+      });
+    }, 600);
   }
 
   ngAfterViewInit(): void {

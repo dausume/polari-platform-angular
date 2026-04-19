@@ -1,6 +1,8 @@
 // Author: Dustin Etts
 // polari-platform-angular/src/app/components/custom-no-code/custom-no-code.ts
 import { Component, Renderer2, HostListener, ElementRef, ChangeDetectorRef, ViewChild, ViewContainerRef, AfterViewInit, OnDestroy, OnInit } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
+import { uniqueNamesGenerator, adjectives, colors, animals } from 'unique-names-generator';
 import { NoCodeState } from '@models/noCode/NoCodeState';
 import { NoCodeSolution } from '@models/noCode/NoCodeSolution';
 import { Slot } from '@models/noCode/Slot';
@@ -32,6 +34,9 @@ import { PythonCodeGeneratorService } from '@services/no-code-services/python-co
 import { TypescriptCodeGeneratorService } from '@services/no-code-services/typescript-code-generator.service';
 import { SolutionManagerService } from '@services/no-code-services/solution-manager.service';
 import { SolutionExecutionService } from '@services/no-code-services/solution-execution.service';
+import { ClassTypingService } from '@services/class-typing-service';
+import { MatDialog } from '@angular/material/dialog';
+import { ClassSelectorDialogComponent, ClassSelectorDialogResult } from '@components/shared/class-selector-dialog/class-selector-dialog';
 import { SolutionVersionService } from '@services/no-code-services/solution-version.service';
 import { SolutionVersionData } from '@models/noCode/SolutionVersioning';
 import { StompService } from '@services/stomp.service';
@@ -79,6 +84,15 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
   makeConnectionsMode: boolean = false;
   sourceNode: any = null;
   d3GraphRenderingSVG: any;
+
+  /** The bound object class name for the current solution */
+  selectedObjectName: string = '';
+
+  /** Distinct object names that have at least one solution */
+  availableObjectNames: string[] = [];
+
+  /** Solutions filtered to the currently selected object, with short display names */
+  filteredSolutions: { name: string; shortName: string }[] = [];
 
   // For cleanup
   private destroy$ = new Subject<void>();
@@ -230,7 +244,11 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
       private solutionManagerService: SolutionManagerService,
       private solutionExecutionService: SolutionExecutionService,
       private solutionVersionService: SolutionVersionService,
-      private stompService: StompService
+      private stompService: StompService,
+      private route: ActivatedRoute,
+      private router: Router,
+      private classTypingService: ClassTypingService,
+      private dialog: MatDialog
   )
   {
     // Debounce resize events to avoid excessive updates
@@ -255,6 +273,7 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
       .pipe(takeUntil(this.destroy$))
       .subscribe(solutions => {
         this.availableSolutions = solutions;
+        this.updateObjectAndSolutionLists();
         this.changeDetectorRef.markForCheck();
       });
 
@@ -267,11 +286,52 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
         // console.log('[DEBUG] Current selectedSolutionName:', this.selectedSolutionName);
         if (solutionName && solutionName !== this.selectedSolutionName) {
           this.selectedSolutionName = solutionName;
+          // Sync the object selector to match
+          const objName = this.getObjectFromSolutionName(solutionName);
+          if (objName !== this.selectedObjectName) {
+            this.selectedObjectName = objName;
+            this.updateFilteredSolutions();
+          }
           // Trigger change detection immediately so dropdown updates
           this.changeDetectorRef.detectChanges();
           this.loadSelectedSolution();
         }
       });
+
+    // Check query params BEFORE backend init — if we have a createSolution param,
+    // we'll create+select it after the backend loads so the new solution isn't overwritten.
+    const params = this.route.snapshot.queryParams;
+    const createSolutionParam = params['createSolution'];
+
+    if (createSolutionParam) {
+      const runtime = params['runtime'] as any || 'typescript_frontend';
+      const initialStateType = params['initialStateType'] || undefined;
+
+      // Clear query params immediately so refresh doesn't re-create
+      this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: {},
+        replaceUrl: true
+      });
+
+      // Wait for backend init to finish (loading$ goes false), THEN create
+      this.solutionStateService.loading$
+        .pipe(
+          filter(loading => !loading),
+          takeUntil(this.destroy$)
+        )
+        .subscribe(() => {
+          // Only create if it doesn't already exist
+          if (!this.solutionStateService.getSolutionData(createSolutionParam)) {
+            this.solutionStateService.createNewSolution(createSolutionParam, {
+              targetRuntime: runtime,
+              initialStateType
+            });
+          }
+          this.solutionStateService.selectSolution(createSolutionParam);
+          this.solutionTargetRuntime = runtime;
+        });
+    }
 
     // Try to load solutions from backend (will update the cache asynchronously)
     this.solutionStateService.initializeFromBackend();
@@ -415,6 +475,15 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
    */
   private updateBoundClassAndCodeWithInstances(solutionData: any, freshInstances: NoCodeState[]): void {
     this.solutionTargetRuntime = solutionData.targetRuntime || 'python_backend';
+
+    // Update selected object name from boundClass or from solution name prefix
+    if (solutionData.boundClass?.className) {
+      this.selectedObjectName = solutionData.boundClass.className;
+    } else if (solutionData.solutionName?.includes('.')) {
+      this.selectedObjectName = solutionData.solutionName.split('.')[0];
+    } else {
+      this.selectedObjectName = '';
+    }
 
     if (solutionData.boundClass) {
       this.boundClass = {
@@ -773,6 +842,9 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
       return this.createInitialStateOverlay(stateName, stateGroup, stateInstance);
     } else if (stateClass === 'MathOperation') {
       return this.createMathOperationOverlay(stateName, stateGroup, stateInstance);
+    } else if (stateClass === 'FormValidation') {
+      // FormValidation uses the default overlay for now — its value is in dynamic slot generation
+      return this.createDefaultOverlay(stateName, stateGroup, stateInstance);
     } else if (stateClass === 'ReturnValue') {
       return this.createReturnValueOverlay(stateName, stateGroup, stateInstance);
     } else {
@@ -1145,6 +1217,11 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
     // Determine the current trigger type
     const currentTriggerType = this.getTriggerTypeForState(stateInstance);
 
+    // Detect parent solutions that link to this one via cross-runtime calls
+    const linkedParentSolutions = this.selectedSolutionName
+      ? this.solutionStateService.getLinkedParentSolutions(this.selectedSolutionName)
+      : [];
+
     const componentRef = this.stateOverlayManager.createOverlayForState(
       stateName,
       stateGroup,
@@ -1159,7 +1236,8 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
         inputParams: inputParams,
         currentTriggerType: currentTriggerType,
         targetRuntime: this.solutionTargetRuntime,
-        boundObjectFieldValues: fieldValues
+        boundObjectFieldValues: fieldValues,
+        linkedParentSolutions: linkedParentSolutions
       }
     );
 
@@ -1681,6 +1759,76 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   /**
+   * Extract the object name from a solution name (before the first dot)
+   */
+  private getObjectFromSolutionName(solutionName: string): string {
+    const dotIndex = solutionName.indexOf('.');
+    return dotIndex >= 0 ? solutionName.substring(0, dotIndex) : solutionName;
+  }
+
+  /**
+   * Extract the short function name from a solution name (after the first dot)
+   */
+  private getShortNameFromSolutionName(solutionName: string): string {
+    const dotIndex = solutionName.indexOf('.');
+    return dotIndex >= 0 ? solutionName.substring(dotIndex + 1) : solutionName;
+  }
+
+  /**
+   * Rebuild the object list and filtered solutions from availableSolutions
+   */
+  private updateObjectAndSolutionLists(): void {
+    // Derive distinct object names from solution names
+    const objectSet = new Set<string>();
+    for (const sol of this.availableSolutions) {
+      objectSet.add(this.getObjectFromSolutionName(sol.name));
+    }
+    this.availableObjectNames = Array.from(objectSet).sort();
+
+    // If current object is no longer in the list, select the first one
+    if (this.selectedObjectName && !objectSet.has(this.selectedObjectName)) {
+      this.selectedObjectName = this.availableObjectNames[0] || '';
+    }
+    // If no object selected yet, pick from the current solution or the first available
+    if (!this.selectedObjectName && this.selectedSolutionName) {
+      this.selectedObjectName = this.getObjectFromSolutionName(this.selectedSolutionName);
+    }
+    if (!this.selectedObjectName && this.availableObjectNames.length > 0) {
+      this.selectedObjectName = this.availableObjectNames[0];
+    }
+
+    this.updateFilteredSolutions();
+  }
+
+  /**
+   * Filter solutions to only show those belonging to the selected object
+   */
+  private updateFilteredSolutions(): void {
+    this.filteredSolutions = this.availableSolutions
+      .filter(sol => this.getObjectFromSolutionName(sol.name) === this.selectedObjectName)
+      .map(sol => ({
+        name: sol.name,
+        shortName: this.getShortNameFromSolutionName(sol.name)
+      }));
+  }
+
+  /**
+   * Handle object selection change from the dropdown
+   */
+  onObjectChange(objectName: string): void {
+    this.selectedObjectName = objectName;
+    this.updateFilteredSolutions();
+
+    // Auto-select the first solution for this object
+    if (this.filteredSolutions.length > 0) {
+      const firstSolution = this.filteredSolutions[0].name;
+      if (firstSolution !== this.selectedSolutionName) {
+        this.solutionStateService.selectSolution(firstSolution);
+      }
+    }
+  }
+
+  /**
    * Handle solution selection change from the dropdown
    */
   onSolutionChange(solutionName: string): void {
@@ -1698,6 +1846,42 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
     // Clear the current selection so it will reload even if same name
     this.selectedSolutionName = null;
     this.solutionStateService.resetToDefaults();
+  }
+
+  onDeleteSolution(): void {
+    if (!this.selectedSolutionName) return;
+    const confirmed = confirm(`Delete solution "${this.selectedSolutionName}"?\n\nThis will permanently remove it from the backend. This action cannot be undone.`);
+    if (!confirmed) return;
+    this.solutionStateService.deleteSolution(this.selectedSolutionName);
+  }
+
+  onCreateNewSolution(): void {
+    const dialogRef = this.dialog.open(ClassSelectorDialogComponent, {
+      width: '480px',
+      panelClass: 'above-overlays-dialog',
+      data: {
+        title: 'Select Object for New Solution',
+        subtitle: 'Choose which class this solution will be bound to.'
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((result: ClassSelectorDialogResult) => {
+      if (result?.action === 'select' && result.className) {
+        const funkyName = uniqueNamesGenerator({
+          dictionaries: [adjectives, animals],
+          separator: '_',
+          length: 2,
+          style: 'lowerCase'
+        });
+        const solutionName = `${result.className}.${funkyName}`;
+        const runtime = this.solutionTargetRuntime || 'python_backend';
+
+        this.solutionStateService.createNewSolution(solutionName, {
+          targetRuntime: runtime as any
+        });
+        this.solutionStateService.selectSolution(solutionName);
+      }
+    });
   }
 
   ngAfterViewInit(): void {
@@ -2816,6 +3000,7 @@ private dragRectangle(): any {
       index: slot.index,
       stateName: stateName,
       isInput: slot.isInput,
+      slotAngularPosition: slot.slotAngularPosition ?? 0,
       color: (slot as any).color || (slot.isInput ? '#2196f3' : '#4caf50'),
       mappingMode: (slot as any).mappingMode || (slot.isInput ? 'object_state' : 'function_return'),
       name: (slot as any).name || '',
@@ -3143,6 +3328,7 @@ private dragRectangle(): any {
         index: s.index ?? i,
         stateName: action.stateName,
         isInput: true,
+        slotAngularPosition: s.slotAngularPosition ?? 0,
         color: '#2196f3', // Default input color
         mappingMode: 'object_state' as InputMappingMode,
         label: `Input ${i + 1}`
@@ -3154,6 +3340,7 @@ private dragRectangle(): any {
         index: s.index ?? i,
         stateName: action.stateName,
         isInput: false,
+        slotAngularPosition: s.slotAngularPosition ?? 0,
         color: '#4caf50', // Default output color
         mappingMode: 'function_return' as OutputMappingMode,
         label: `Output ${i + 1}`
@@ -3745,6 +3932,66 @@ private dragRectangle(): any {
   /**
    * Handle slot configuration changes
    */
+  /**
+   * Handle manual angular position change from the slot configuration popup.
+   * Updates the slot's position and re-renders, using the same persistence
+   * path as drag-based repositioning.
+   */
+  onSlotAngularPositionChanged(event: { slotIndex: number; angle: number }): void {
+    if (!this.currentSlotConfig || !this.selectedSolutionName) return;
+    const stateName = this.currentSlotConfig.stateName;
+
+    // Find the state instance and slot
+    const stateInstance = this.stateInstances.find(s => s.stateName === stateName);
+    if (!stateInstance || !stateInstance.slots) return;
+
+    const slot = stateInstance.slots.find(s => s.index === event.slotIndex);
+    if (!slot) return;
+
+    // Update the angular position
+    slot.slotAngularPosition = event.angle;
+
+    // Persist all slots for this state (same as onSlotConfigChanged persistence)
+    const slotRawDataArray = stateInstance.slots.map(s => ({
+      index: s.index,
+      stateName: s.stateName || stateName,
+      slotAngularPosition: s.slotAngularPosition ?? 0,
+      connectors: (s.connectors || []).map(c => ({
+        id: c.id,
+        sourceSlot: c.sourceSlot,
+        sinkSlot: c.sinkSlot,
+        targetStateName: c.targetStateName
+      })),
+      isInput: s.isInput,
+      allowOneToMany: s.allowOneToMany,
+      allowManyToOne: s.allowManyToOne,
+      color: (s as any).color,
+      name: (s as any).name,
+      label: (s as any).label,
+      mappingMode: (s as any).mappingMode,
+      description: (s as any).description,
+      parameterName: (s as any).parameterName,
+      parameterType: (s as any).parameterType,
+      returnType: (s as any).returnType,
+      sourceInstance: (s as any).sourceInstance,
+      propertyPath: (s as any).propertyPath,
+      passthroughVariableName: (s as any).passthroughVariableName,
+      isConditional: (s as any).isConditional,
+      conditionLabel: (s as any).conditionLabel,
+      conditionExpression: (s as any).conditionExpression,
+      conditionalGroup: (s as any).conditionalGroup
+    }));
+
+    this.solutionStateService.updateStateSlots(
+      this.selectedSolutionName,
+      stateName,
+      slotRawDataArray
+    );
+
+    // Re-render to move the slot visually
+    this.loadSelectedSolution();
+  }
+
   onSlotConfigChanged(config: SlotConfiguration): void {
     // console.log('[onSlotConfigChanged] ===== SLOT CONFIG CHANGE =====');
     // console.log('[onSlotConfigChanged] Config:', config);

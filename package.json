@@ -42,6 +42,7 @@
     "maplibre-gl": "^5.18.0",
     "rxjs": "^7.8.2",
     "tslib": "^2.3.0",
+    "unique-names-generator": "^4.7.1",
     "zone.js": "~0.15.0"
   },
   "devDependencies": {

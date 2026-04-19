@@ -16,7 +16,7 @@ interface ClassDisplayGroup {
     styleUrls: ['./displays.component.scss']
 })
 export class DisplaysComponent implements OnInit, OnDestroy {
-    activeTab: 'all-displays' | 'published-pages' = 'all-displays';
+    activeTab: 'all-displays' | 'forms' | 'buttons' | 'published-pages' = 'all-displays';
 
     allDisplays: DisplaySummary[] = [];
     publishedDisplays: DisplaySummary[] = [];
@@ -51,7 +51,7 @@ export class DisplaysComponent implements OnInit, OnDestroy {
         this.subscriptions.forEach(s => s.unsubscribe());
     }
 
-    setActiveTab(tab: 'all-displays' | 'published-pages'): void {
+    setActiveTab(tab: 'all-displays' | 'forms' | 'buttons' | 'published-pages'): void {
         this.activeTab = tab;
         if (tab === 'published-pages') {
             this.displayManager.fetchPublishedDisplays();

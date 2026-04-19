@@ -2,22 +2,36 @@
     <div class="main-content-area">
       <div class="canvas-wrapper">
       <div class="canvas-toolbar">
-        <div class="toolbar-left">
-          <span class="toolbar-title">{{ noCodeSolution?.solutionName || 'No-Code Solution' }}<span *ngIf="isModified" style="color: #ff9800; font-size: 0.75em; margin-left: 6px;" title="Unsaved changes">(modified)</span></span>
+        <!-- Object selector -->
+        <div class="toolbar-object-selector">
+          <label>Object:</label>
+          <select (change)="onObjectChange($any($event.target).value)">
+            <option *ngFor="let obj of availableObjectNames"
+                    [value]="obj"
+                    [selected]="obj === selectedObjectName">
+              {{ obj }}
+            </option>
+          </select>
         </div>
+
+        <!-- Solution selector (filtered by selected object) -->
         <div class="solution-selector">
-          <label for="solution-select">Solution:</label>
+          <label>Solution:</label>
           <select
             id="solution-select"
             (change)="onSolutionChange($any($event.target).value)">
             <option
-              *ngFor="let solution of availableSolutions"
+              *ngFor="let solution of filteredSolutions"
               [value]="solution.name"
               [selected]="solution.name === selectedSolutionName">
-              {{ solution.name }}
+              {{ solution.shortName }}
             </option>
           </select>
-          <button class="reset-btn" (click)="resetToDefaults()" title="Refresh solutions from backend">Refresh</button>
+          <span *ngIf="isModified" style="color: #ff9800; font-size: 0.75em;" title="Unsaved changes">(modified)</span>
+          <button class="reset-btn" (click)="resetToDefaults()" title="Refresh from backend">
+            <mat-icon style="font-size: 14px; width: 14px; height: 14px;">refresh</mat-icon>
+          </button>
+          <button class="reset-btn" (click)="onCreateNewSolution()" title="Create a new solution">+ New</button>
         </div>
         <div class="runtime-selector">
           <label for="runtime-select">Runtime:</label>
@@ -32,7 +46,7 @@
           <button (click)="zoomOut()" title="Zoom Out">-</button>
           <span class="zoom-level">{{ zoomPercent }}%</span>
           <button (click)="zoomIn()" title="Zoom In">+</button>
-          <button (click)="resetZoom()" title="Reset View">Reset</button>
+          <button (click)="resetZoom()" title="Recenter">Recenter</button>
         </div>
 
         <!-- Manual Process Button -->
@@ -79,6 +93,11 @@
             <button mat-menu-item (click)="exportSolution()">
               <mat-icon>download</mat-icon>
               <span>Export Solution</span>
+            </button>
+            <mat-divider></mat-divider>
+            <button mat-menu-item (click)="onDeleteSolution()" [disabled]="!selectedSolutionName" class="delete-menu-item">
+              <mat-icon color="warn">delete</mat-icon>
+              <span style="color: #f44336;">Delete Solution</span>
             </button>
           </mat-menu>
           <!-- Save Version submenu -->
@@ -233,6 +252,7 @@
       [producedVariables]="slotConfigProducedVariables"
       [connections]="slotConfigConnections"
       (configurationChanged)="onSlotConfigChanged($event)"
+      (angularPositionChanged)="onSlotAngularPositionChanged($event)"
       (connectionRemoved)="onSlotConnectionRemoved($event)"
       (slotDeleted)="onSlotDeleted($event)"
       (closed)="closeSlotConfigPopup()">
@@ -299,3 +319,4 @@
       (activeStateChanged)="onExecutionActiveStateChanged($event)">
     </execution-panel>
 </mat-card>
+
