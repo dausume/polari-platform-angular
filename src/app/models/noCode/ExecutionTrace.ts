@@ -13,7 +13,7 @@ import {
   InstanceContext,
   InstanceVariable,
   InstanceObject
-} from '../stateSpace/solutionContext';
+} from '../stateSpace';
 import { TargetRuntime } from './mock-NCS-data';
 
 // ============================================================================

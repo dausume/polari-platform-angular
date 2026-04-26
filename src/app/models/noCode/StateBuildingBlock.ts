@@ -7,7 +7,7 @@
 
 import { TargetRuntime } from './mock-NCS-data';
 import { SlotDefinition, FieldDisplay } from './StateDefinition';
-import { StateSpaceCategory } from '../stateSpace/stateSpaceClassRegistry';
+import { StateSpaceCategory } from '../stateSpace';
 
 // ============================================================================
 // Interfaces

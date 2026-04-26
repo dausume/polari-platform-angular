@@ -22,7 +22,7 @@ import {
   StateSpaceClassMetadata,
   StateSpaceCategory,
   StateSpaceEventMethod as RegistryEventMethod
-} from '@models/stateSpace/stateSpaceClassRegistry';
+} from '@models/stateSpace';
 
 const LOCAL_STORAGE_KEY = 'polari-state-definitions-cache';
 

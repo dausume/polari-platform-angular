@@ -23,7 +23,7 @@ import {
   PotentialObjectField,
   BranchPoint,
   CONTROL_FLOW_STATE_TYPES
-} from '@models/stateSpace/solutionContext';
+} from '@models/stateSpace';
 import { SolutionManagerService } from './solution-manager.service';
 
 /**

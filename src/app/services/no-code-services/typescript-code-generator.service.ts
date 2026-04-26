@@ -5,9 +5,9 @@
 import { Injectable } from '@angular/core';
 import { NoCodeState } from '@models/noCode/NoCodeState';
 import { NoCodeSolution } from '@models/noCode/NoCodeSolution';
-import { BoundClassDefinition } from '../../components/custom-no-code/state-tool-sidebar/state-tool-sidebar.component';
+import { BoundClassDefinition } from '../../components/custom-no-code/editor/state-tool-sidebar/state-tool-sidebar.component';
 import { getBuildingBlockRegistry } from '@models/noCode/StateBuildingBlock';
-import { getStateSpaceRegistry } from '@models/stateSpace/stateSpaceClassRegistry';
+import { getStateSpaceRegistry } from '@models/stateSpace';
 
 /**
  * TypeScript code templates for each block type.
