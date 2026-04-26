@@ -557,8 +557,11 @@ export class DiamondStateLayer extends D3ModelLayer {
             }
           });
 
-        // Append the inner component rectangle (positioning marker for Angular overlays)
-        const innerSize = size * 0.5;
+        // Append the inner component rectangle (positioning marker for Angular overlays).
+        // 0.45 keeps the rect inside the diamond's inscribed square (size * 0.5), leaving
+        // a small margin for the overlay card's border and box-shadow so the card stays
+        // visually within the diamond's stroke.
+        const innerSize = size * 0.45;
         group.append('rect')
           .classed('overlay-component', true)
           .classed('debug-element', true)

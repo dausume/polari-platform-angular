@@ -1555,11 +1555,30 @@ export class ClassMainPageComponent implements OnDestroy {
   createFormSolution(): void {
     const formName = this.selectedFormConfig ? this.getFormConfigName(this.selectedFormConfig) : this.className;
     const solutionName = `${this.className}.${formName}_onChange`;
+
+    // Auto-link the solution back to the form config
+    if (this.selectedFormConfig) {
+      this.selectedFormConfig.linkedSolutionName = solutionName;
+      this.onFormConfigChange();
+    }
+
+    // Collect visible form fields with required flags to pass into the solution
+    const visibleFields = (this.selectedFormConfig?.formFields || [])
+      .filter(f => f.visible)
+      .map(f => ({
+        fieldName: f.fieldName,
+        displayName: f.displayName,
+        fieldType: f.fieldType,
+        required: f.required ?? false
+      }));
+
     this.router.navigate(['/custom-no-code'], {
       queryParams: {
         createSolution: solutionName,
         runtime: 'typescript_frontend',
-        initialStateType: 'form_subscription'
+        initialStateType: 'form_subscription',
+        boundClassName: this.className || '',
+        formFields: JSON.stringify(visibleFields)
       }
     });
   }

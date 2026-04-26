@@ -150,6 +150,24 @@ export class TypescriptCodeGeneratorService {
         result = `this.${source}.pipe(\n    // operators\n).subscribe((value) => {\n    // Handle subscription\n});`;
         break;
 
+      case 'FormValidation': {
+        const fvFields = values['fields'] || [];
+        const enabledFields = fvFields.filter((f: any) => f.enabled);
+        const requiredFields = enabledFields.filter((f: any) => f.required);
+        const validityVars = requiredFields.map((f: any) => `isValid_${f.fieldName}`);
+        const lines = [
+          `// FormValidation: ${enabledFields.length} fields, ${requiredFields.length} required`,
+          ...requiredFields.map((f: any) => `let isValid_${f.fieldName} = false;`),
+          '',
+          ...enabledFields.map((f: any) =>
+            `// ${f.fieldName}: debounce ${f.debounceMs}ms → validate → ${f.required ? 'required' : 'optional'}`
+          ),
+          '',
+          `const allValid = () => ${validityVars.length > 0 ? validityVars.join(' && ') : 'true'};`
+        ];
+        return lines.join('\n');
+      }
+
       case 'LogicFlowEntry':
         const parent = values['parentSolutionName'] || 'parent';
         return `// Entry point (invoked by ${parent})`;

@@ -362,6 +362,61 @@ export class NoCodeSolutionStateService {
   }
 
   /**
+   * Trace backward from a state's input slot to discover the fields available
+   * from the upstream state. Used by FormValidation to auto-detect fields
+   * from the FormSubscription or initial state that feeds into it.
+   */
+  getUpstreamFieldsForState(
+    solutionName: string,
+    stateName: string
+  ): { fieldName: string; displayName: string; fieldType: string; required: boolean }[] {
+    const solution = this.solutionsCache.get(solutionName);
+    if (!solution) return [];
+
+    const state = solution.stateInstances.find(s => s.stateName === stateName);
+    if (!state?.slots) return [];
+
+    // Find the input slot and trace its connector backward to the source state
+    for (const slot of state.slots) {
+      if (!slot.isInput) continue;
+      // Input slots don't have connectors — we need to find output slots on OTHER states
+      // that have connectors pointing to this state
+      for (const otherState of solution.stateInstances) {
+        if (otherState.stateName === stateName || !otherState.slots) continue;
+        for (const otherSlot of otherState.slots) {
+          if (otherSlot.isInput || !otherSlot.connectors) continue;
+          for (const conn of otherSlot.connectors) {
+            if (conn.targetStateName === stateName) {
+              // Found the upstream state — check for formFields
+              const upstreamValues = otherState.boundObjectFieldValues;
+              if (upstreamValues?.formFields && Array.isArray(upstreamValues.formFields)) {
+                return upstreamValues.formFields.map((f: any) => ({
+                  fieldName: f.fieldName || f.name || '',
+                  displayName: f.displayName || f.fieldName || '',
+                  fieldType: f.fieldType || f.type || 'str',
+                  required: f.required ?? false
+                }));
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Fallback: try the solution's boundClass fields
+    if (solution.boundClass?.fields) {
+      return solution.boundClass.fields.map(f => ({
+        fieldName: f.name,
+        displayName: f.displayName || f.name,
+        fieldType: f.type || 'str',
+        required: false
+      }));
+    }
+
+    return [];
+  }
+
+  /**
    * Convert raw slot data to Slot instance
    */
   private convertRawSlotToSlot(raw: SlotRawData): Slot {
@@ -986,6 +1041,8 @@ export class NoCodeSolutionStateService {
       id?: number;
       targetRuntime?: TargetRuntime;
       initialStateType?: string;
+      boundClassName?: string;
+      formFields?: { fieldName: string; displayName: string; fieldType: string; required: boolean }[];
     }
   ): void {
     const runtime = options?.targetRuntime || 'python_backend';
@@ -995,11 +1052,21 @@ export class NoCodeSolutionStateService {
 
     // Auto-create an initial state if a type was specified
     if (initialStateType) {
+      // Build form_subscription field values with form config if available
+      const formSubFieldValues: any = {
+        displayName: 'Form Subscription',
+        triggerType: 'form_subscription',
+        sourceName: options?.boundClassName ? `${options.boundClassName}Form$` : ''
+      };
+      if (options?.formFields) {
+        formSubFieldValues.formFields = options.formFields;
+      }
+
       const stateClassMap: Record<string, { stateClass: string; color: string; fieldValues: any }> = {
         'form_subscription': {
           stateClass: 'FormSubscription',
           color: '#E91E63',
-          fieldValues: { displayName: 'Form Subscription', triggerType: 'form_subscription', sourceName: '' }
+          fieldValues: formSubFieldValues
         },
         'direct_invocation': {
           stateClass: 'InitialState',

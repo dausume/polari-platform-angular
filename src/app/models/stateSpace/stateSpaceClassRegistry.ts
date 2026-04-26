@@ -440,7 +440,7 @@ export class StateSpaceClassRegistry {
       icon: 'checklist',
       color: '#00BCD4',
       isStateSpaceObject: true,
-      stateSpaceDisplayFields: ['displayName', 'formReference', 'boundClassName'],
+      stateSpaceDisplayFields: ['displayName'],
       stateSpaceFieldsPerRow: 1,
       isBuiltIn: true,
       supportedRuntimes: ['typescript_frontend'],
@@ -460,7 +460,7 @@ export class StateSpaceClassRegistry {
         {
           methodName: 'validate',
           displayName: 'Validate Fields',
-          description: 'Route each form field value to its own validation output slot',
+          description: 'Route each form field value to its own validation output slot with debounce and per-field validity tracking',
           category: 'Conditionals',
           inputParams: [
             { name: 'formData', displayName: 'Form Data', type: 'object', isRequired: true }
@@ -471,8 +471,6 @@ export class StateSpaceClassRegistry {
       variables: [
         { name: 'displayName', displayName: 'Display Name', type: 'string', isEditable: true, defaultValue: 'Validate Form Fields' },
         { name: 'description', displayName: 'Description', type: 'string', isEditable: true, defaultValue: 'Route each form field to its own validation logic' },
-        { name: 'formReference', displayName: 'Form Reference', type: 'string', isEditable: true, defaultValue: '' },
-        { name: 'boundClassName', displayName: 'Bound Class', type: 'string', isEditable: true, defaultValue: '' },
         { name: 'fields', displayName: 'Validation Fields', type: 'array', isEditable: false }
       ],
       factory: () => new FormValidation()

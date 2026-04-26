@@ -16,14 +16,24 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  /* Transparent background - let the D3 rect show through */
-  background-color: transparent;
-  border-radius: 4px;
+  background-color: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
   overflow: hidden;
   font-family: 'Roboto', sans-serif;
   font-size: 12px;
-  /* No border/shadow - the D3 shape provides the visual container */
   pointer-events: none;
+  box-sizing: border-box;
+}
+
+/* Tiny/micro modes use no card — the icon-only / dot indicators are
+   already self-contained and the card would visually overshoot. */
+.state-overlay.tiny,
+.state-overlay.micro {
+  background-color: transparent;
+  border: none;
+  box-shadow: none;
 }
 
 /* ==================== Header Section ==================== */
@@ -47,7 +57,7 @@
 /* State title (class name, block type, solution name) */
 .state-title {
   font-weight: 600;
-  background-color: rgba(255, 255, 255, 0.9);
+  background-color: transparent;
   padding: 2px 6px;
   border-radius: 3px;
   cursor: pointer;
@@ -75,7 +85,7 @@
   color: #666;
   line-height: 1.2;
   text-align: center;
-  background-color: rgba(255, 255, 255, 0.85);
+  background-color: transparent;
   padding: 1px 4px;
   border-radius: 2px;
   margin-top: 2px;
@@ -83,7 +93,6 @@
   pointer-events: auto;
   width: 100%;
   overflow: hidden;
-  margin-top: 2px;
   /* Reset z-index to stay within overlay stacking context */
   z-index: auto !important;
   position: relative;
@@ -294,7 +303,7 @@
 
 .slot-summary .input-slots,
 .slot-summary .output-slots {
-  background-color: rgba(255, 255, 255, 0.9);
+  background-color: transparent;
   padding: 1px 4px;
   border-radius: 2px;
   /* Interactive text */

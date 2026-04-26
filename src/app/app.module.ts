@@ -82,6 +82,9 @@ import { InitialStateOverlayComponent } from '@components/custom-no-code/initial
 import { MathOperationOverlayComponent } from '@components/custom-no-code/math-operation-overlay/math-operation-overlay.component';
 import { ReturnValueOverlayComponent } from '@components/custom-no-code/return-value-overlay/return-value-overlay.component';
 import { FormValidationOverlayComponent } from '@components/custom-no-code/form-validation-overlay/form-validation-overlay.component';
+import { FormValidationOverlayTinyComponent } from '@components/custom-no-code/form-validation-overlay/views/form-validation-overlay-tiny/form-validation-overlay-tiny.component';
+import { FormValidationOverlayCompactComponent } from '@components/custom-no-code/form-validation-overlay/views/form-validation-overlay-compact/form-validation-overlay-compact.component';
+import { FormValidationOverlayFullComponent } from '@components/custom-no-code/form-validation-overlay/views/form-validation-overlay-full/form-validation-overlay-full.component';
 import { ValueSourceSelectorComponent } from '@components/custom-no-code/value-source-selector/value-source-selector.component';
 import { ViewContextOverlayComponent } from '@components/custom-no-code/view-context-overlay/view-context-overlay.component';
 import { ExecutionPanelComponent } from '@components/custom-no-code/execution-panel/execution-panel.component';
@@ -205,6 +208,9 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     MathOperationOverlayComponent,
     ReturnValueOverlayComponent,
     FormValidationOverlayComponent,
+    FormValidationOverlayTinyComponent,
+    FormValidationOverlayCompactComponent,
+    FormValidationOverlayFullComponent,
     ValueSourceSelectorComponent,
     ViewContextOverlayComponent,
     ExecutionPanelComponent,

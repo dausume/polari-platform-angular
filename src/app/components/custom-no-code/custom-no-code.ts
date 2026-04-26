@@ -23,6 +23,7 @@ import { VariableAssignmentOverlayComponent } from './variable-assignment-overla
 import { InitialStateOverlayComponent } from './initial-state-overlay/initial-state-overlay.component';
 import { MathOperationOverlayComponent } from './math-operation-overlay/math-operation-overlay.component';
 import { ReturnValueOverlayComponent } from './return-value-overlay/return-value-overlay.component';
+import { FormValidationOverlayComponent } from './form-validation-overlay/form-validation-overlay.component';
 import { CircleStateLayer } from '@models/noCode/d3-extensions/CircleStateLayer';
 import { RectangleStateLayer } from '@models/noCode/d3-extensions/RectangleStateLayer';
 import { DiamondStateLayer } from '@models/noCode/d3-extensions/DiamondStateLayer';
@@ -306,6 +307,11 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
     if (createSolutionParam) {
       const runtime = params['runtime'] as any || 'typescript_frontend';
       const initialStateType = params['initialStateType'] || undefined;
+      const boundClassName = params['boundClassName'] || undefined;
+      let formFields: any[] | undefined;
+      try {
+        formFields = params['formFields'] ? JSON.parse(params['formFields']) : undefined;
+      } catch { formFields = undefined; }
 
       // Clear query params immediately so refresh doesn't re-create
       this.router.navigate([], {
@@ -325,7 +331,9 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
           if (!this.solutionStateService.getSolutionData(createSolutionParam)) {
             this.solutionStateService.createNewSolution(createSolutionParam, {
               targetRuntime: runtime,
-              initialStateType
+              initialStateType,
+              boundClassName,
+              formFields
             });
           }
           this.solutionStateService.selectSolution(createSolutionParam);
@@ -843,13 +851,93 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
     } else if (stateClass === 'MathOperation') {
       return this.createMathOperationOverlay(stateName, stateGroup, stateInstance);
     } else if (stateClass === 'FormValidation') {
-      // FormValidation uses the default overlay for now — its value is in dynamic slot generation
-      return this.createDefaultOverlay(stateName, stateGroup, stateInstance);
+      return this.createFormValidationOverlay(stateName, stateGroup, stateInstance);
     } else if (stateClass === 'ReturnValue') {
       return this.createReturnValueOverlay(stateName, stateGroup, stateInstance);
     } else {
       return this.createDefaultOverlay(stateName, stateGroup, stateInstance);
     }
+  }
+
+  /**
+   * Create a FormValidationOverlayComponent with upstream field auto-detection
+   * and dynamic per-field output slot management.
+   */
+  private createFormValidationOverlay(stateName: string, stateGroup: SVGGElement, stateInstance: NoCodeState): boolean {
+    const fieldValues = stateInstance.boundObjectFieldValues || {};
+    const solutionName = this.selectedSolutionName || '';
+
+    // Auto-detect fields from the upstream state
+    const upstreamFields = solutionName
+      ? this.solutionStateService.getUpstreamFieldsForState(solutionName, stateName)
+      : [];
+
+    const componentRef = this.stateOverlayManager.createOverlayForState(
+      stateName,
+      stateGroup,
+      FormValidationOverlayComponent,
+      {
+        stateName,
+        solutionName,
+        boundObjectFieldValues: fieldValues,
+        upstreamFields
+      }
+    );
+
+    if (componentRef) {
+      this.stateOverlayManager.setOverlayPointerEvents(stateName, true);
+
+      // Handle field value changes (persist config)
+      componentRef.instance.fieldValuesChanged.subscribe((updated: any) => {
+        stateInstance.boundObjectFieldValues = updated;
+        this.regenerateCode();
+      });
+
+      // Handle slot changes (materialize/remove output slots on the SVG)
+      componentRef.instance.slotsChanged.subscribe((fields: any[]) => {
+        if (!solutionName) return;
+
+        // Build new slots array: slot 0 = input, slot 1 = All Valid, slot 2+ = enabled fields
+        const newSlots: any[] = [
+          {
+            index: 0, stateName, slotAngularPosition: 0,
+            connectors: stateInstance.slots?.[0]?.connectors || [],
+            isInput: true, allowOneToMany: false, allowManyToOne: true,
+            label: 'formData'
+          },
+          {
+            index: 1, stateName, slotAngularPosition: 180,
+            connectors: stateInstance.slots?.[1]?.connectors || [],
+            isInput: false, allowOneToMany: true, allowManyToOne: false,
+            label: 'All Valid', passthroughVariableName: 'formData'
+          }
+        ];
+
+        // Add one output slot per enabled field
+        const enabledFields = fields.filter((f: any) => f.enabled);
+        enabledFields.forEach((field: any, i: number) => {
+          const slotIndex = i + 2;
+          // Preserve existing connectors if the slot already existed
+          const existingSlot = stateInstance.slots?.find(
+            (s: any) => s.index === field.outputSlotIndex && !s.isInput
+          );
+          const angleStep = 160 / Math.max(enabledFields.length, 1);
+          newSlots.push({
+            index: slotIndex, stateName,
+            slotAngularPosition: 100 + (i * angleStep),
+            connectors: existingSlot?.connectors || [],
+            isInput: false, allowOneToMany: true, allowManyToOne: false,
+            label: field.displayName || field.fieldName,
+            passthroughVariableName: field.fieldName
+          });
+        });
+
+        this.solutionStateService.updateStateSlots(solutionName, stateName, newSlots);
+      });
+
+      return true;
+    }
+    return false;
   }
 
   /**

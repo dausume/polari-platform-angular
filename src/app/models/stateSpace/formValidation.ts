@@ -27,6 +27,12 @@ export interface FormValidationField {
   fieldType: string;
   /** Index of the generated output slot for this field */
   outputSlotIndex: number;
+  /** Whether this field has an active validation output slot */
+  enabled: boolean;
+  /** Whether this field must pass for "All Valid" to fire */
+  required: boolean;
+  /** Debounce delay in ms before validation triggers after input (default 300) */
+  debounceMs: number;
 }
 
 /**
@@ -39,24 +45,16 @@ export class FormValidation {
   displayName: string;
   /** Description of what this validation step does */
   description: string;
-  /** Reference to the form this validation is bound to (form display item ID or name) */
-  formReference: string;
-  /** The bound class name whose fields define the form */
-  boundClassName: string;
   /** Dynamically generated field list — each becomes an output slot */
   fields: FormValidationField[];
 
   constructor(
     displayName: string = 'Validate Form Fields',
     description: string = 'Route each form field to its own validation logic',
-    formReference: string = '',
-    boundClassName: string = '',
     fields: FormValidationField[] = []
   ) {
     this.displayName = displayName;
     this.description = description;
-    this.formReference = formReference;
-    this.boundClassName = boundClassName;
     this.fields = fields;
   }
 }

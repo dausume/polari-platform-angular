@@ -1,87 +1,29 @@
-<div class="form-validation-overlay"
-     [class.compact]="isCompact"
-     (click)="$event.stopPropagation()"
-     (mousedown)="$event.stopPropagation()">
+<div class="form-validation-overlay" [attr.data-size-tier]="sizeTier">
 
-  <!-- Header -->
-  <div class="overlay-header">
-    <mat-icon class="header-icon" style="color: #00BCD4">checklist</mat-icon>
-    <span class="title" *ngIf="!isCompact">{{ displayName }}</span>
-  </div>
+  <form-validation-overlay-tiny
+    *ngIf="sizeTier === 'tiny'"
+    [displayName]="displayName"
+    [enabledCount]="enabledCount">
+  </form-validation-overlay-tiny>
 
-  <!-- Main content -->
-  <div class="overlay-content" *ngIf="!isCompact">
+  <form-validation-overlay-compact
+    *ngIf="sizeTier === 'compact'"
+    [displayName]="displayName"
+    [fields]="fields"
+    [enabledCount]="enabledCount"
+    (fieldToggled)="onFieldToggle($event)">
+  </form-validation-overlay-compact>
 
-    <!-- Display Name -->
-    <div class="config-field">
-      <label class="config-label">Display Name</label>
-      <input class="config-input"
-             type="text"
-             [value]="displayName"
-             (change)="onDisplayNameChange($any($event.target).value)"
-             placeholder="Validate Form Fields"
-             (click)="$event.stopPropagation()"
-             (mousedown)="$event.stopPropagation()" />
-    </div>
+  <form-validation-overlay-full
+    *ngIf="sizeTier === 'full'"
+    [displayName]="displayName"
+    [fields]="fields"
+    [enabledCount]="enabledCount"
+    [requiredCount]="requiredCount"
+    (displayNameChanged)="onDisplayNameChange($event)"
+    (fieldToggled)="onFieldToggle($event)"
+    (fieldRequiredToggled)="onFieldRequiredToggle($event)"
+    (fieldDebounceChanged)="onFieldDebounceChange($event)">
+  </form-validation-overlay-full>
 
-    <!-- Bound Class Selector -->
-    <div class="config-field">
-      <label class="config-label">Bound Class</label>
-      <select class="config-select"
-              [value]="boundClassName"
-              (change)="onBoundClassChange($any($event.target).value)"
-              (click)="$event.stopPropagation()"
-              (mousedown)="$event.stopPropagation()">
-        <option value="">-- Select Class --</option>
-        <option *ngFor="let cls of availableClasses"
-                [value]="cls.className">
-          {{ cls.displayName || cls.className }}
-        </option>
-      </select>
-    </div>
-
-    <!-- Form Reference -->
-    <div class="config-field">
-      <label class="config-label">Form Reference</label>
-      <input class="config-input"
-             type="text"
-             [value]="formReference"
-             (change)="onFormReferenceChange($any($event.target).value)"
-             placeholder="e.g., userProfileForm"
-             (click)="$event.stopPropagation()"
-             (mousedown)="$event.stopPropagation()" />
-    </div>
-
-    <!-- Generated Field Slots -->
-    <div class="fields-section" *ngIf="fields.length > 0">
-      <div class="section-header">
-        <span class="section-label">Validation Slots</span>
-        <span class="field-count">{{ fields.length }} fields</span>
-      </div>
-      <div class="fields-list">
-        <div *ngFor="let field of fields" class="field-item">
-          <mat-icon class="field-icon">output</mat-icon>
-          <span class="field-name">{{ field.displayName }}</span>
-          <span class="field-type">{{ field.fieldType }}</span>
-        </div>
-      </div>
-      <p class="fields-note">Each field gets its own output slot for individual validation logic.</p>
-    </div>
-
-    <!-- Empty state -->
-    <div class="empty-state" *ngIf="fields.length === 0 && boundClassName">
-      <mat-icon>info_outline</mat-icon>
-      <span>No fields found for {{ boundClassName }}</span>
-    </div>
-    <div class="empty-state" *ngIf="!boundClassName">
-      <mat-icon>info_outline</mat-icon>
-      <span>Select a class to generate validation slots</span>
-    </div>
-  </div>
-
-  <!-- Compact mode -->
-  <div class="compact-summary" *ngIf="isCompact">
-    <mat-icon style="color: #00BCD4">checklist</mat-icon>
-    <span class="compact-text">Validate</span>
-  </div>
 </div>
