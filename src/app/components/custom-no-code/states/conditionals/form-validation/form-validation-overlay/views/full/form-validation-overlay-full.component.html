@@ -1,7 +1,6 @@
 <div class="state-overlay-card full-view"
      style="--state-accent: #00BCD4"
-     (click)="stopPropagation($event)"
-     (mousedown)="stopPropagation($event)">
+     appStateOverlayRoot>
 
   <!-- Header -->
   <div class="state-overlay-header state-overlay-header--bordered">
@@ -10,7 +9,6 @@
     <button class="state-overlay-expand-btn"
             *ngIf="hasPopupView"
             (click)="onExpand($event)"
-            (mousedown)="stopPropagation($event)"
             title="Open full view">
       <mat-icon>open_in_full</mat-icon>
     </button>
@@ -26,9 +24,7 @@
              type="text"
              [value]="displayName"
              (change)="onDisplayNameChange($event)"
-             placeholder="Validate Form Fields"
-             (click)="stopPropagation($event)"
-             (mousedown)="stopPropagation($event)" />
+             placeholder="Validate Form Fields" />
     </div>
 
     <!-- Field List -->
@@ -46,7 +42,6 @@
           <button class="field-toggle"
                   [class.active]="field.enabled"
                   (click)="onFieldToggle(field, $event)"
-                  (mousedown)="stopPropagation($event)"
                   [title]="field.enabled ? 'Disable validation' : 'Enable validation'">
             <mat-icon>{{ field.enabled ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
           </button>
@@ -60,7 +55,6 @@
                   *ngIf="field.enabled"
                   [class.active]="field.required"
                   (click)="onFieldRequiredToggle(field, $event)"
-                  (mousedown)="stopPropagation($event)"
                   [title]="field.required ? 'Required for All Valid' : 'Optional'">
             <mat-icon [style.font-size]="'14px'">{{ field.required ? 'star' : 'star_border' }}</mat-icon>
           </button>
@@ -70,8 +64,6 @@
                    type="number"
                    [value]="field.debounceMs"
                    (change)="onFieldDebounceChange(field, $event)"
-                   (click)="stopPropagation($event)"
-                   (mousedown)="stopPropagation($event)"
                    min="0" step="100" />
             <span class="debounce-unit">ms</span>
           </div>

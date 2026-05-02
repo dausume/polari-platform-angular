@@ -397,20 +397,8 @@ export class StateOverlayComponent implements OnInit, OnDestroy, OnChanges {
   // Note: No @HostListener for click/mousedown - the host has pointer-events: none
   // so D3 events can pass through to the underlying SVG elements.
   // Interactive elements inside have pointer-events: auto and handle their own events.
-
-  /**
-   * Handle right-click on the overlay to request full view popup.
-   * This is called from interactive elements within the overlay.
-   */
-  onContextMenu(event: MouseEvent): void {
-    event.preventDefault();
-    event.stopPropagation();
-    this.fullViewRequested.emit({
-      x: event.clientX,
-      y: event.clientY,
-      stateName: this.stateName
-    });
-  }
+  // Right-click on any interactive child bubbles to the appStateOverlayRoot directive
+  // on the root, which preventDefaults and emits contextRequested → fullViewRequested.
 
   /**
    * Handle click on the "open state page" button.

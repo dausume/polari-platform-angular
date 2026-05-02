@@ -90,6 +90,7 @@ import { FormValidationOverlayComponent } from '@components/custom-no-code/state
 import { FormValidationOverlayTinyComponent } from '@components/custom-no-code/states/conditionals/form-validation/form-validation-overlay/views/tiny/form-validation-overlay-tiny.component';
 import { FormValidationOverlayCompactComponent } from '@components/custom-no-code/states/conditionals/form-validation/form-validation-overlay/views/compact/form-validation-overlay-compact.component';
 import { FormValidationOverlayFullComponent } from '@components/custom-no-code/states/conditionals/form-validation/form-validation-overlay/views/full/form-validation-overlay-full.component';
+import { StateOverlayInteractionsDirective } from '@components/custom-no-code/states/_shared/state-overlay/state-overlay-interactions.directive';
 import { ValueSourceSelectorComponent } from '@components/custom-no-code/shared/value-source-selector/value-source-selector.component';
 import { ViewContextOverlayComponent } from '@components/custom-no-code/popups/view-context-overlay/view-context-overlay.component';
 import { ExecutionPanelComponent } from '@components/custom-no-code/editor/execution-panel/execution-panel.component';
@@ -221,6 +222,7 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     FormValidationOverlayTinyComponent,
     FormValidationOverlayCompactComponent,
     FormValidationOverlayFullComponent,
+    StateOverlayInteractionsDirective,
     ValueSourceSelectorComponent,
     ViewContextOverlayComponent,
     ExecutionPanelComponent,

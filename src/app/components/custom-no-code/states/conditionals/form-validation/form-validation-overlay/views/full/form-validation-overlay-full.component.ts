@@ -47,8 +47,4 @@ export class FormValidationOverlayFullComponent {
     const value = (event.target as HTMLInputElement).value;
     this.fieldDebounceChanged.emit({ field, value });
   }
-
-  stopPropagation(event: Event): void {
-    event.stopPropagation();
-  }
 }

@@ -594,19 +594,6 @@ export class ConditionalChainOverlayComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Handle right-click on the overlay to request full view popup.
-   */
-  onContextMenu(event: MouseEvent): void {
-    event.preventDefault();
-    event.stopPropagation();
-    this.fullViewRequested.emit({
-      x: event.clientX,
-      y: event.clientY,
-      stateName: this.stateName
-    });
-  }
-
-  /**
    * Handle click on the "open state page" button.
    */
   onOpenStatePage(event: MouseEvent): void {
@@ -622,21 +609,6 @@ export class ConditionalChainOverlayComponent implements OnInit, OnDestroy {
     event.stopPropagation();
     event.preventDefault();
     this.popupRequested.emit();
-  }
-
-  /**
-   * Stop event propagation to prevent triggering D3 drag behavior
-   */
-  onOverlayClick(event: MouseEvent): void {
-    event.stopPropagation();
-    event.preventDefault();
-  }
-
-  /**
-   * Handle mousedown to prevent drag from starting
-   */
-  onMouseDown(event: MouseEvent): void {
-    event.stopPropagation();
   }
 
   // ==================== Popup Management ====================

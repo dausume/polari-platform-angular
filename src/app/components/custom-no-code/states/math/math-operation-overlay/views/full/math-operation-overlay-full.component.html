@@ -1,7 +1,6 @@
 <div class="state-overlay-card full-view"
      style="--state-accent: #2196F3"
-     (click)="stopPropagation($event)"
-     (mousedown)="stopPropagation($event)">
+     appStateOverlayRoot>
 
   <div class="state-overlay-header state-overlay-header--bordered">
     <mat-icon class="state-overlay-header__icon">calculate</mat-icon>
@@ -9,7 +8,6 @@
     <button class="state-overlay-expand-btn"
             *ngIf="hasPopupView"
             (click)="onExpand($event)"
-            (mousedown)="stopPropagation($event)"
             title="Open full view">
       <mat-icon>open_in_full</mat-icon>
     </button>

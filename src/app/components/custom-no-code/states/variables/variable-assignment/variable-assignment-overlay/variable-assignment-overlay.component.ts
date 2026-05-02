@@ -540,37 +540,12 @@ export class VariableAssignmentOverlayComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Handle right-click on the overlay to request full view popup.
-   */
-  onContextMenu(event: MouseEvent): void {
-    event.preventDefault();
-    event.stopPropagation();
-    this.fullViewRequested.emit({
-      x: event.clientX,
-      y: event.clientY,
-      stateName: this.stateName
-    });
-  }
-
-  /**
    * Handle click on the "open state page" button.
    */
   onOpenStatePage(event: MouseEvent): void {
     event.stopPropagation();
     event.preventDefault();
     this.statePageRequested.emit({ stateName: this.stateName });
-  }
-
-  /**
-   * Stop event propagation for overlay interaction
-   */
-  onOverlayClick(event: MouseEvent): void {
-    event.stopPropagation();
-    event.preventDefault();
-  }
-
-  onMouseDown(event: MouseEvent): void {
-    event.stopPropagation();
   }
 
   /**

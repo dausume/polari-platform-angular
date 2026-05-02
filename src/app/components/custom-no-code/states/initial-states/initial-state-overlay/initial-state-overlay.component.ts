@@ -72,6 +72,9 @@ export class InitialStateOverlayComponent implements OnInit, OnDestroy, OnChange
   // Linked parent solutions (auto-detected for logic_flow_entry)
   @Input() linkedParentSolutions: { name: string; stateName: string; linkType: string }[] = [];
 
+  // Full view popup request (forwarded by appStateOverlayRoot directive on right-click)
+  @Output() fullViewRequested = new EventEmitter<{ x: number; y: number; stateName: string }>();
+
   // Available trigger type options (computed from runtime)
   triggerTypeOptions: TriggerTypeOption[] = [];
 
@@ -250,17 +253,11 @@ export class InitialStateOverlayComponent implements OnInit, OnDestroy, OnChange
   }
 
   /**
-   * Stop event propagation for overlay interaction
+   * Close the trigger type selector when clicking elsewhere on the overlay.
+   * (Stop-propagation is handled by appStateOverlayRoot.)
    */
   onOverlayClick(event: MouseEvent): void {
-    event.stopPropagation();
-    event.preventDefault();
-    // Close the type selector if clicking outside it
     this.showTypeSelector = false;
-  }
-
-  onMouseDown(event: MouseEvent): void {
-    event.stopPropagation();
   }
 
   /**

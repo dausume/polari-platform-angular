@@ -2,12 +2,11 @@
      style="--state-accent: #F44336"
      [class.compact]="isCompact"
      [class.small]="isSmall"
-     (click)="onOverlayClick($event)"
-     (mousedown)="onMouseDown($event)"
-     (pointerdown)="onMouseDown($event)">
+     [appStateOverlayRoot]="stateName"
+     (contextRequested)="fullViewRequested.emit($event)">
 
   <!-- Header -->
-  <div class="state-overlay-header overlay-header" (contextmenu)="onContextMenu($event)">
+  <div class="state-overlay-header overlay-header">
     <mat-icon class="state-overlay-header__icon">exit_to_app</mat-icon>
     <span class="state-overlay-header__title">Return Value</span>
   </div>

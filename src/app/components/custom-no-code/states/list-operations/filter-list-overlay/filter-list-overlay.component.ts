@@ -67,6 +67,8 @@ export class FilterListOverlayComponent implements OnInit, OnDestroy {
   }>();
   @Output() displayNameChanged = new EventEmitter<string>();
   @Output() addInputSlot = new EventEmitter<void>();
+  // Full view popup request (forwarded by appStateOverlayRoot directive on right-click)
+  @Output() fullViewRequested = new EventEmitter<{ x: number; y: number; stateName: string }>();
 
   // Visual filter builder data
   visualFilters: VisualFilterLink[] = [];
@@ -261,18 +263,4 @@ export class FilterListOverlayComponent implements OnInit, OnDestroy {
     // Custom overlays are always interactive, no toggle needed
   }
 
-  /**
-   * Stop event propagation to prevent triggering D3 drag behavior
-   */
-  onOverlayClick(event: MouseEvent): void {
-    event.stopPropagation();
-    event.preventDefault();
-  }
-
-  /**
-   * Handle mousedown to prevent drag from starting
-   */
-  onMouseDown(event: MouseEvent): void {
-    event.stopPropagation();
-  }
 }

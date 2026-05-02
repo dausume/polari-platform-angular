@@ -1,10 +1,8 @@
 <div class="math-operation-overlay"
      [attr.data-size-tier]="sizeTier"
      [ngSwitch]="sizeTier"
-     (click)="onOverlayClick($event)"
-     (mousedown)="onMouseDown($event)"
-     (pointerdown)="onMouseDown($event)"
-     (contextmenu)="onContextMenu($event)">
+     [appStateOverlayRoot]="stateName"
+     (contextRequested)="fullViewRequested.emit($event)">
 
   <math-operation-overlay-tiny
     *ngSwitchCase="'tiny'"

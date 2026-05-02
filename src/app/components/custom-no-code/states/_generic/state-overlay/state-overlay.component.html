@@ -4,15 +4,17 @@
      [class.tiny]="isTiny"
      [class.compact]="isCompact"
      [class.small]="isSmall"
-     [class.editing]="isEditing">
+     [class.editing]="isEditing"
+     [appStateOverlayRoot]="stateName"
+     (contextRequested)="fullViewRequested.emit($event)">
 
   <!-- Micro mode: just a dot/minimal indicator - no content at all -->
-  <div class="micro-indicator" *ngIf="isMicro" (contextmenu)="onContextMenu($event)">
+  <div class="micro-indicator" *ngIf="isMicro">
     <div class="micro-dot"></div>
   </div>
 
   <!-- Tiny mode: icon only -->
-  <div class="compact-indicator" *ngIf="isTiny && !isMicro" (contextmenu)="onContextMenu($event)">
+  <div class="compact-indicator" *ngIf="isTiny && !isMicro">
     <mat-icon class="compact-icon" [style.font-size.px]="getIconSize()">{{ getStateIcon() }}</mat-icon>
   </div>
 
@@ -23,8 +25,7 @@
       <!-- State Title (class name, block type, or solution name) -->
       <div class="state-title"
            [style.font-size.px]="getTitleFontSize()"
-           (click)="toggleEditMode()"
-           (contextmenu)="onContextMenu($event)">
+           (click)="toggleEditMode()">
         <span class="title-text">{{ getStateTitle() }}</span>
       </div>
 
@@ -39,8 +40,7 @@
       <!-- Subtitle (function/variable name if applicable) - hide in compact mode -->
       <div class="state-subtitle"
            *ngIf="getStateSubtitle() && !isCompact"
-           [style.font-size.px]="getSubtitleFontSize()"
-           (contextmenu)="onContextMenu($event)">
+           [style.font-size.px]="getSubtitleFontSize()">
         <span class="subtitle-text">{{ getStateSubtitle() }}</span>
       </div>
     </div>
@@ -97,10 +97,10 @@
 
     <!-- Input/Output slot indicators - hide in compact mode -->
     <div class="slot-summary" *ngIf="!isCompact && (inputSlotCount > 0 || outputSlotCount > 0)" [style.font-size.px]="getSlotFontSize()">
-      <span class="input-slots" *ngIf="inputSlotCount > 0" (contextmenu)="onContextMenu($event)">
+      <span class="input-slots" *ngIf="inputSlotCount > 0">
         <span class="slot-count">{{ inputSlotCount }}</span> in
       </span>
-      <span class="output-slots" *ngIf="outputSlotCount > 0" (contextmenu)="onContextMenu($event)">
+      <span class="output-slots" *ngIf="outputSlotCount > 0">
         <span class="slot-count">{{ outputSlotCount }}</span> out
       </span>
     </div>

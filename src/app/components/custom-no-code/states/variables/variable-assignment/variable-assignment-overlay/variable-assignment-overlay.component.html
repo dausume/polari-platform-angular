@@ -2,12 +2,11 @@
      style="--state-accent: #9C27B0"
      [class.compact]="isCompact"
      [class.small]="isSmall"
-     (click)="onOverlayClick($event)"
-     (mousedown)="onMouseDown($event)"
-     (pointerdown)="onMouseDown($event)">
+     [appStateOverlayRoot]="stateName"
+     (contextRequested)="fullViewRequested.emit($event)">
 
   <!-- Header -->
-  <div class="state-overlay-header state-overlay-header--bordered overlay-header" (contextmenu)="onContextMenu($event)">
+  <div class="state-overlay-header state-overlay-header--bordered overlay-header">
     <mat-icon class="state-overlay-header__icon">assignment</mat-icon>
     <span class="state-overlay-header__title">Variable Assignment</span>
   </div>

@@ -1,7 +1,6 @@
 <div class="state-overlay-card compact-view"
      style="--state-accent: #00BCD4"
-     (click)="stopPropagation($event)"
-     (mousedown)="stopPropagation($event)">
+     appStateOverlayRoot>
 
   <div class="state-overlay-header compact-header">
     <mat-icon class="state-overlay-header__icon">checklist</mat-icon>
@@ -10,7 +9,6 @@
     <button class="state-overlay-expand-btn state-overlay-expand-btn--compact"
             *ngIf="hasPopupView"
             (click)="onExpand($event)"
-            (mousedown)="stopPropagation($event)"
             title="Open full view">
       <mat-icon>open_in_full</mat-icon>
     </button>
@@ -21,8 +19,7 @@
             class="chip"
             [class.enabled]="field.enabled"
             [title]="field.displayName + ' — ' + (field.enabled ? 'enabled' : 'disabled')"
-            (click)="onFieldToggle(field, $event)"
-            (mousedown)="stopPropagation($event)">
+            (click)="onFieldToggle(field, $event)">
       <mat-icon class="chip-icon">{{ field.enabled ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
       <span class="chip-label">{{ field.displayName }}</span>
     </button>

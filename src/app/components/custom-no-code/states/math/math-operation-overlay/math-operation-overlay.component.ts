@@ -300,23 +300,4 @@ export class MathOperationOverlayComponent implements OnInit, OnDestroy {
     return op?.label || 'Math Operation';
   }
 
-  // Stop drag/drop bubbling on the overlay container (clicks inside should not start a state drag)
-  onOverlayClick(event: MouseEvent): void {
-    event.stopPropagation();
-    event.preventDefault();
-  }
-
-  onMouseDown(event: MouseEvent): void {
-    event.stopPropagation();
-  }
-
-  onContextMenu(event: MouseEvent): void {
-    event.preventDefault();
-    event.stopPropagation();
-    this.fullViewRequested.emit({
-      x: event.clientX,
-      y: event.clientY,
-      stateName: this.stateName
-    });
-  }
 }

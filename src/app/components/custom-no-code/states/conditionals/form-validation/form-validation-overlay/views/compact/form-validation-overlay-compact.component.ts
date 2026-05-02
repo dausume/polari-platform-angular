@@ -28,8 +28,4 @@ export class FormValidationOverlayCompactComponent {
     event.stopPropagation();
     this.expandClicked.emit();
   }
-
-  stopPropagation(event: Event): void {
-    event.stopPropagation();
-  }
 }

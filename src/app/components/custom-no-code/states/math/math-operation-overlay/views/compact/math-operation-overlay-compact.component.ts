@@ -43,8 +43,4 @@ export class MathOperationOverlayCompactComponent {
     event.stopPropagation();
     this.expandClicked.emit();
   }
-
-  stopPropagation(event: Event): void {
-    event.stopPropagation();
-  }
 }

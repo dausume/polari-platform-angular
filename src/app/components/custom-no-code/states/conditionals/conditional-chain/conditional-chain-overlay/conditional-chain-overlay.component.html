@@ -2,12 +2,11 @@
      style="--state-accent: #673AB7"
      [class.compact]="isCompact"
      [class.small]="isSmall"
-     (click)="onOverlayClick($event)"
-     (mousedown)="onMouseDown($event)"
-     (pointerdown)="onMouseDown($event)">
+     [appStateOverlayRoot]="stateName"
+     (contextRequested)="fullViewRequested.emit($event)">
 
   <!-- Header with mode tabs -->
-  <div class="state-overlay-header overlay-header" (contextmenu)="onContextMenu($event)">
+  <div class="state-overlay-header overlay-header">
     <span class="state-overlay-header__title">Conditional Chain</span>
     <div class="mode-tabs" *ngIf="!isCompact">
       <button class="tab-btn"

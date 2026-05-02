@@ -2,9 +2,8 @@
      style="--state-accent: #00BCD4"
      [class.compact]="isCompact"
      [class.small]="isSmall"
-     (click)="onOverlayClick($event)"
-     (mousedown)="onMouseDown($event)"
-     (pointerdown)="onMouseDown($event)">
+     [appStateOverlayRoot]="stateName"
+     (contextRequested)="fullViewRequested.emit($event)">
 
   <!-- Header -->
   <div class="state-overlay-header overlay-header">
