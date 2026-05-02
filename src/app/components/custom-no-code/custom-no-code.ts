@@ -16,14 +16,16 @@ import { NoCodeStateRendererManager } from '@services/no-code-services/no-code-s
 import { InteractionStateService } from '@services/no-code-services/interaction-state-service';
 import { NoCodeSolutionStateService } from '@services/no-code-services/no-code-solution-state.service';
 import { StateOverlayManager } from '@services/no-code-services/state-overlay-manager.service';
-import { StateOverlayComponent, DisplayField, ClassOption } from './states/state-overlay/state-overlay.component';
-import { ConditionalChainOverlayComponent } from './states/conditional-chain/conditional-chain-overlay/conditional-chain-overlay.component';
-import { FilterListOverlayComponent } from './states/filter-list-overlay/filter-list-overlay.component';
-import { VariableAssignmentOverlayComponent } from './states/variable-assignment/variable-assignment-overlay/variable-assignment-overlay.component';
-import { InitialStateOverlayComponent } from './states/initial-state-overlay/initial-state-overlay.component';
-import { MathOperationOverlayComponent } from './states/math-operation-overlay/math-operation-overlay.component';
-import { ReturnValueOverlayComponent } from './states/return-value-overlay/return-value-overlay.component';
-import { FormValidationOverlayComponent } from './states/form-validation/form-validation-overlay/form-validation-overlay.component';
+import { StateOverlayComponent, DisplayField, ClassOption } from './states/_generic/state-overlay/state-overlay.component';
+import { ConditionalChainOverlayComponent } from './states/conditionals/conditional-chain/conditional-chain-overlay/conditional-chain-overlay.component';
+import { ConditionalChainOverlayPopupComponent, ConditionalChainOverlayPopupData } from './states/conditionals/conditional-chain/conditional-chain-overlay/popup/conditional-chain-overlay-popup.component';
+import { FilterListOverlayComponent } from './states/list-operations/filter-list-overlay/filter-list-overlay.component';
+import { VariableAssignmentOverlayComponent } from './states/variables/variable-assignment/variable-assignment-overlay/variable-assignment-overlay.component';
+import { InitialStateOverlayComponent } from './states/initial-states/initial-state-overlay/initial-state-overlay.component';
+import { MathOperationOverlayComponent } from './states/math/math-operation-overlay/math-operation-overlay.component';
+import { MathOperationOverlayPopupComponent, MathOperationOverlayPopupData } from './states/math/math-operation-overlay/popup/math-operation-overlay-popup.component';
+import { ReturnValueOverlayComponent } from './states/end-states/return-value/return-value-overlay/return-value-overlay.component';
+import { FormValidationOverlayComponent } from './states/conditionals/form-validation/form-validation-overlay/form-validation-overlay.component';
 import { CircleStateLayer } from '@models/noCode/d3-extensions/CircleStateLayer';
 import { RectangleStateLayer } from '@models/noCode/d3-extensions/RectangleStateLayer';
 import { DiamondStateLayer } from '@models/noCode/d3-extensions/DiamondStateLayer';
@@ -1057,9 +1059,68 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
         this.showStatePage(stateInstance);
       });
 
+      componentRef.instance.popupRequested.subscribe(() => {
+        this.openConditionalChainPopup(stateName, stateInstance, slotConfig, inputSlotCount);
+      });
+
       return true;
     }
     return false;
+  }
+
+  /**
+   * Open the ConditionalChain popup as a Material Dialog. The popup hosts the
+   * existing inline overlay inside a roomier shell — see states/_shared/state-overlay/README.md.
+   */
+  private openConditionalChainPopup(
+    stateName: string,
+    stateInstance: NoCodeState,
+    slotConfig: any,
+    inputSlotCount: number
+  ): void {
+    const fieldValues = stateInstance.boundObjectFieldValues || {};
+    const dialogRef = this.dialog.open(ConditionalChainOverlayPopupComponent, {
+      data: {
+        stateName,
+        chainLinks: fieldValues.links || [],
+        defaultLogicalOperator: fieldValues.defaultLogicalOperator || 'AND',
+        availableInputFields: this.getAvailableInputFieldsForState(stateInstance),
+        availableInputs: this.getAvailableInputsForState(stateInstance),
+        sourceObjectFields: this.getSourceObjectFieldsForState(stateInstance),
+        inputSlotCount,
+        allowDynamicInputs: slotConfig?.allowDynamicInputs ?? true,
+        maxInputSlots: slotConfig?.maxInputSlots ?? 0
+      } as ConditionalChainOverlayPopupData,
+      width: '960px',
+      maxWidth: '95vw',
+      maxHeight: '90vh',
+      panelClass: 'state-overlay-popup-panel',
+      autoFocus: false
+    });
+
+    dialogRef.componentInstance.chainChanged.subscribe(
+      (event: { links: any[]; defaultOperator: string }) => {
+        if (!stateInstance.boundObjectFieldValues) {
+          stateInstance.boundObjectFieldValues = {};
+        }
+        stateInstance.boundObjectFieldValues.links = event.links;
+        stateInstance.boundObjectFieldValues.defaultLogicalOperator = event.defaultOperator;
+        if (this.selectedSolutionName) {
+          this.solutionStateService.updateStateFieldValues(
+            this.selectedSolutionName,
+            stateName,
+            { links: event.links, defaultLogicalOperator: event.defaultOperator }
+          );
+        }
+      }
+    );
+
+    dialogRef.componentInstance.syntaxChanged.subscribe((syntax: string) => {
+      if (!stateInstance.boundObjectFieldValues) {
+        stateInstance.boundObjectFieldValues = {};
+      }
+      stateInstance.boundObjectFieldValues.syntaxExpression = syntax;
+    });
   }
 
   /**
@@ -1505,9 +1566,58 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
         this.showStatePage(stateInstance);
       });
 
+      componentRef.instance.popupRequested.subscribe(() => {
+        this.openMathOperationPopup(stateName, stateInstance, availableInputs, sourceObjectFields);
+      });
+
       return true;
     }
     return false;
+  }
+
+  /**
+   * Open the MathOperation popup as a Material Dialog. Per-state popups give a richer
+   * editing surface than the inline overlay; see states/_shared/state-overlay/README.md.
+   */
+  private openMathOperationPopup(
+    stateName: string,
+    stateInstance: NoCodeState,
+    availableInputs: any[],
+    sourceObjectFields: any[]
+  ): void {
+    const dialogRef = this.dialog.open(MathOperationOverlayPopupComponent, {
+      data: {
+        stateName,
+        boundObjectFieldValues: stateInstance.boundObjectFieldValues || {},
+        availableInputs,
+        sourceObjectFields
+      } as MathOperationOverlayPopupData,
+      width: '640px',
+      maxWidth: '90vw',
+      maxHeight: '90vh',
+      panelClass: 'state-overlay-popup-panel',
+      autoFocus: false
+    });
+
+    dialogRef.componentInstance.fieldValuesChanged.subscribe((fieldValues: { [key: string]: any }) => {
+      if (!stateInstance.boundObjectFieldValues) {
+        stateInstance.boundObjectFieldValues = {};
+      }
+      Object.assign(stateInstance.boundObjectFieldValues, fieldValues);
+      if (this.selectedSolutionName) {
+        this.solutionStateService.updateStateFieldValues(
+          this.selectedSolutionName,
+          stateName,
+          fieldValues
+        );
+      }
+      // Reflect changes back into the inline overlay so the canvas stays in sync
+      const overlayRef = this.stateOverlayManager.getOverlayComponent(stateName);
+      if (overlayRef) {
+        overlayRef.setInput('boundObjectFieldValues', { ...stateInstance.boundObjectFieldValues });
+        overlayRef.changeDetectorRef.detectChanges();
+      }
+    });
   }
 
   /**

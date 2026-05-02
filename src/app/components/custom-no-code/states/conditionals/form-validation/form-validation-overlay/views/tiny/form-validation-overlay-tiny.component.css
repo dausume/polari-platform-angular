@@ -1,0 +1,22 @@
+/* Form-validation tiny view — only state-specific bits.
+   Card styles come from the global state-overlay-patterns. */
+
+.tiny-view {
+  gap: 2px;
+}
+
+.tiny-icon {
+  font-size: 22px;
+  width: 22px;
+  height: 22px;
+}
+
+.tiny-count {
+  font-size: 10px;
+  font-weight: 700;
+  color: #00838F;
+  background: rgba(0, 188, 212, 0.18);
+  border-radius: 8px;
+  padding: 0 4px;
+  line-height: 14px;
+}

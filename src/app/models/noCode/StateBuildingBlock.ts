@@ -148,7 +148,7 @@ export class StateBuildingBlockRegistry {
       className: 'DirectInvocation',
       displayName: 'Direct Invocation',
       description: 'Generic function-call entry point - defines input parameters',
-      category: 'Control Flow',
+      category: 'Initial States',
       supportedRuntimes: [],
       codeTemplates: [
         { runtime: 'python_backend', template: '# Entry point - receive input parameters' },
@@ -168,7 +168,7 @@ export class StateBuildingBlockRegistry {
       className: 'FormSubscription',
       displayName: 'Form Subscription',
       description: 'Triggered by a form/page observable - reactive frontend entry point',
-      category: 'Control Flow',
+      category: 'Initial States',
       supportedRuntimes: ['typescript_frontend'],
       codeTemplates: [
         { runtime: 'typescript_frontend', template: 'this.{sourceName}.pipe(\n    // operators\n).subscribe((value) => {\n    // Handle subscription\n});' }
@@ -187,7 +187,7 @@ export class StateBuildingBlockRegistry {
       className: 'LogicFlowEntry',
       displayName: 'Logic Flow Entry',
       description: 'Invoked by a parent solution - child solution entry point',
-      category: 'Control Flow',
+      category: 'Initial States',
       supportedRuntimes: [],
       codeTemplates: [
         { runtime: 'python_backend', template: '# Entry point (invoked by {parentSolutionName})' },
@@ -207,7 +207,7 @@ export class StateBuildingBlockRegistry {
       className: 'BackendStateChange',
       displayName: 'Backend State Change',
       description: 'Triggered by database state changes being committed',
-      category: 'Control Flow',
+      category: 'Initial States',
       supportedRuntimes: ['python_backend'],
       codeTemplates: [
         { runtime: 'python_backend', template: '# Triggered by {modelName}.{fieldName} {changeType}' }
@@ -227,7 +227,7 @@ export class StateBuildingBlockRegistry {
       className: 'InitialState',
       displayName: 'Initial State',
       description: 'Legacy initial state - maps to DirectInvocation',
-      category: 'Control Flow',
+      category: 'Initial States',
       supportedRuntimes: [],
       codeTemplates: [
         { runtime: 'python_backend', template: '# Entry point - receive input parameters' },
@@ -249,7 +249,7 @@ export class StateBuildingBlockRegistry {
       className: 'ReturnStatement',
       displayName: 'Return',
       description: 'Return a value and exit the solution flow',
-      category: 'Control Flow',
+      category: 'End States',
       supportedRuntimes: [],
       codeTemplates: [
         { runtime: 'python_backend', template: 'return {value}' },
@@ -269,7 +269,7 @@ export class StateBuildingBlockRegistry {
       className: 'BreakStatement',
       displayName: 'Break',
       description: 'Break out of current loop',
-      category: 'Control Flow',
+      category: 'Flow Control',
       supportedRuntimes: [],
       codeTemplates: [
         { runtime: 'python_backend', template: 'break' },
@@ -289,7 +289,7 @@ export class StateBuildingBlockRegistry {
       className: 'ContinueStatement',
       displayName: 'Continue',
       description: 'Skip to next loop iteration',
-      category: 'Control Flow',
+      category: 'Flow Control',
       supportedRuntimes: [],
       codeTemplates: [
         { runtime: 'python_backend', template: 'continue' },
@@ -401,7 +401,7 @@ export class StateBuildingBlockRegistry {
       className: 'VariableAssignment',
       displayName: 'Variable Assignment',
       description: 'Assign a value to a variable',
-      category: 'Data',
+      category: 'Variables & Calls',
       supportedRuntimes: [],
       codeTemplates: [
         { runtime: 'python_backend', template: '{variable} = {value}' },
@@ -423,7 +423,7 @@ export class StateBuildingBlockRegistry {
       className: 'FunctionCall',
       displayName: 'Function Call',
       description: 'Call a function and optionally store the result',
-      category: 'Data',
+      category: 'Variables & Calls',
       supportedRuntimes: [],
       codeTemplates: [
         { runtime: 'python_backend', template: '{result} = {function}({arguments})' },
@@ -445,7 +445,7 @@ export class StateBuildingBlockRegistry {
       className: 'FilterList',
       displayName: 'Filter List',
       description: 'Filter a list of objects based on type or condition',
-      category: 'Data',
+      category: 'List Operations',
       supportedRuntimes: [],
       codeTemplates: [
         { runtime: 'python_backend', template: '{result} = [x for x in {collection} if {condition}]' },
@@ -467,7 +467,7 @@ export class StateBuildingBlockRegistry {
       className: 'MapList',
       displayName: 'Map List',
       description: 'Transform each item in a list',
-      category: 'Data',
+      category: 'List Operations',
       supportedRuntimes: [],
       codeTemplates: [
         { runtime: 'python_backend', template: '{result} = [{expression} for x in {collection}]' },
@@ -489,7 +489,7 @@ export class StateBuildingBlockRegistry {
       className: 'ReduceList',
       displayName: 'Reduce List',
       description: 'Reduce a list to a single value',
-      category: 'Data',
+      category: 'List Operations',
       supportedRuntimes: [],
       codeTemplates: [
         { runtime: 'python_backend', template: '{result} = functools.reduce({function}, {collection}, {initial})', requiredImports: ['import functools'] },
@@ -511,7 +511,7 @@ export class StateBuildingBlockRegistry {
       className: 'MathOperation',
       displayName: 'Math Operation',
       description: 'Perform basic math operations: add, subtract, multiply, divide, modulo',
-      category: 'Data',
+      category: 'Math',
       supportedRuntimes: [],
       codeTemplates: [
         { runtime: 'python_backend', template: '{result} = {left} {operator} {right}' },

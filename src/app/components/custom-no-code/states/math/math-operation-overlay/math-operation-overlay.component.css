@@ -1,0 +1,134 @@
+/* Math Operation Overlay — base shell + value-source popup. */
+/* Per-tier styles live in views/{tiny,compact,full}/*.component.css. */
+
+.math-operation-overlay {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  pointer-events: auto;
+  overflow: visible;
+}
+
+.math-operation-overlay > math-operation-overlay-tiny,
+.math-operation-overlay > math-operation-overlay-compact,
+.math-operation-overlay > math-operation-overlay-full {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Value Source Popup — rendered at base level */
+.value-popup {
+  position: fixed;
+  z-index: 10000;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  min-width: 350px;
+  max-width: 450px;
+}
+
+.popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid #e0e0e0;
+  background: #f8f9fa;
+  border-radius: 8px 8px 0 0;
+}
+
+.popup-title {
+  font-weight: 600;
+  font-size: 12px;
+  color: #333;
+}
+
+.popup-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 4px;
+  color: #666;
+}
+
+.popup-close-btn:hover {
+  background: #e0e0e0;
+}
+
+.popup-close-btn mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
+.popup-content {
+  padding: 12px;
+}
+
+/* Override value-source-selector styles for light background */
+.popup-content ::ng-deep .value-source-selector {
+  background: transparent;
+}
+
+.popup-content ::ng-deep .step-label {
+  color: #666;
+}
+
+.popup-content ::ng-deep .flow-dropdown {
+  border: 1px solid #ccc;
+  background: white;
+  color: #333;
+}
+
+.popup-content ::ng-deep .flow-dropdown:focus {
+  border-color: #2196F3;
+  background: white;
+}
+
+.popup-content ::ng-deep .flow-dropdown:hover:not(:disabled) {
+  border-color: #2196F3;
+}
+
+.popup-content ::ng-deep .flow-dropdown option {
+  background: white;
+  color: #333;
+}
+
+.popup-content ::ng-deep .flow-input {
+  border: 1px solid #ccc;
+  background: white;
+  color: #333;
+}
+
+.popup-content ::ng-deep .flow-input:focus {
+  border-color: #2196F3;
+  background: white;
+}
+
+.popup-content ::ng-deep .flow-input::placeholder {
+  color: #999;
+}
+
+.popup-content ::ng-deep .no-options-hint {
+  color: #f57c00;
+}
+
+.popup-content ::ng-deep .result-preview {
+  background: rgba(33, 150, 243, 0.1);
+  border: 1px solid rgba(33, 150, 243, 0.3);
+}
+
+.popup-content ::ng-deep .preview-label {
+  color: #666;
+}
+
+.popup-content ::ng-deep .preview-value {
+  color: #2196F3;
+}

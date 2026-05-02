@@ -1,0 +1,33 @@
+<div class="form-validation-overlay" [attr.data-size-tier]="sizeTier" [ngSwitch]="sizeTier">
+
+  <form-validation-overlay-tiny
+    *ngSwitchCase="'tiny'"
+    [displayName]="displayName"
+    [enabledCount]="enabledCount">
+  </form-validation-overlay-tiny>
+
+  <form-validation-overlay-compact
+    *ngSwitchCase="'compact'"
+    [displayName]="displayName"
+    [fields]="fields"
+    [enabledCount]="enabledCount"
+    [hasPopupView]="hasPopupView"
+    (fieldToggled)="onFieldToggle($event)"
+    (expandClicked)="onExpandClicked()">
+  </form-validation-overlay-compact>
+
+  <form-validation-overlay-full
+    *ngSwitchCase="'full'"
+    [displayName]="displayName"
+    [fields]="fields"
+    [enabledCount]="enabledCount"
+    [requiredCount]="requiredCount"
+    [hasPopupView]="hasPopupView"
+    (displayNameChanged)="onDisplayNameChange($event)"
+    (fieldToggled)="onFieldToggle($event)"
+    (fieldRequiredToggled)="onFieldRequiredToggle($event)"
+    (fieldDebounceChanged)="onFieldDebounceChange($event)"
+    (expandClicked)="onExpandClicked()">
+  </form-validation-overlay-full>
+
+</div>

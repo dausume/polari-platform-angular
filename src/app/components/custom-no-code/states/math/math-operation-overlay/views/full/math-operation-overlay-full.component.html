@@ -1,0 +1,69 @@
+<div class="state-overlay-card full-view"
+     style="--state-accent: #2196F3"
+     (click)="stopPropagation($event)"
+     (mousedown)="stopPropagation($event)">
+
+  <div class="state-overlay-header state-overlay-header--bordered">
+    <mat-icon class="state-overlay-header__icon">calculate</mat-icon>
+    <span class="state-overlay-header__title">Math Operation</span>
+    <button class="state-overlay-expand-btn"
+            *ngIf="hasPopupView"
+            (click)="onExpand($event)"
+            (mousedown)="stopPropagation($event)"
+            title="Open full view">
+      <mat-icon>open_in_full</mat-icon>
+    </button>
+  </div>
+
+  <div class="overlay-content state-overlay-scrollbar">
+
+    <div class="section operation-section">
+      <div class="operation-buttons">
+        <button *ngFor="let op of operations"
+                class="op-btn"
+                [class.active]="config.operationType === op.value"
+                (click)="onOperation(op.value)"
+                [title]="op.label">
+          <span class="op-symbol">{{ op.symbol }}</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="section operands-section">
+      <div class="operand-row">
+        <button class="operand-btn"
+                [class.active]="activePopup === 'left'"
+                (click)="onPopupClick('left', $event)"
+                title="Left operand">
+          <span class="operand-value">{{ leftDisplay }}</span>
+          <mat-icon class="edit-icon">edit</mat-icon>
+        </button>
+
+        <span class="operation-symbol">{{ operationSymbol }}</span>
+
+        <button class="operand-btn"
+                [class.active]="activePopup === 'right'"
+                (click)="onPopupClick('right', $event)"
+                title="Right operand">
+          <span class="operand-value">{{ rightDisplay }}</span>
+          <mat-icon class="edit-icon">edit</mat-icon>
+        </button>
+      </div>
+    </div>
+
+    <div class="section result-section">
+      <label class="section-label">Store Result In</label>
+      <button class="operand-btn"
+              [class.active]="activePopup === 'result'"
+              (click)="onPopupClick('result', $event)"
+              title="Where to store the result">
+        <span class="operand-value">{{ resultDisplay }}</span>
+        <mat-icon class="edit-icon">edit</mat-icon>
+      </button>
+    </div>
+
+    <div class="section preview-section">
+      <code class="preview-code">{{ previewExpression }}</code>
+    </div>
+  </div>
+</div>

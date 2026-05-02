@@ -1,0 +1,13 @@
+/* Math tiny view — only state-specific symbol/icon styling.
+   Card styles come from the global state-overlay-patterns. */
+
+.tiny-view mat-icon {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+}
+
+.tiny-view .symbol {
+  font-size: 18px;
+  font-weight: 700;
+}

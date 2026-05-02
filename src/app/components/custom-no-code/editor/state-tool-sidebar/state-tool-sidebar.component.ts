@@ -475,14 +475,18 @@ export class StateToolSidebarComponent implements OnInit, OnDestroy, OnChanges {
    */
   getCategoryIcon(category: string): string {
     const iconMap: { [key: string]: string } = {
-      'Control Flow': 'call_split',
+      'Initial States': 'play_circle',
       'Conditionals': 'device_hub',
       'Loops': 'loop',
-      'Data': 'filter_list',
+      'List Operations': 'format_list_bulleted',
+      'Math': 'calculate',
+      'Variables & Calls': 'data_object',
+      'End States': 'stop_circle',
+      'Flow Control': 'call_split',
       'Debug': 'bug_report',
-      'Custom': 'extension',
       'Frontend': 'sensors',
-      'Cross-Runtime': 'cloud_sync'
+      'Cross-Runtime': 'cloud_sync',
+      'Custom': 'extension'
     };
     return iconMap[category] || 'widgets';
   }
@@ -492,14 +496,18 @@ export class StateToolSidebarComponent implements OnInit, OnDestroy, OnChanges {
    */
   getCategoryColor(category: string): string {
     const colorMap: { [key: string]: string } = {
-      'Control Flow': '#F44336',
+      'Initial States': '#FF9800',
       'Conditionals': '#4CAF50',
       'Loops': '#2196F3',
-      'Data': '#00BCD4',
+      'List Operations': '#00BCD4',
+      'Math': '#3F51B5',
+      'Variables & Calls': '#009688',
+      'End States': '#F44336',
+      'Flow Control': '#9C27B0',
       'Debug': '#607D8B',
-      'Custom': '#795548',
       'Frontend': '#E91E63',
-      'Cross-Runtime': '#FF5722'
+      'Cross-Runtime': '#FF5722',
+      'Custom': '#795548'
     };
     return colorMap[category] || '#666';
   }

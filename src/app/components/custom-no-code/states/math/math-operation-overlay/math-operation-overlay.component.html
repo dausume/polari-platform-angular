@@ -1,0 +1,70 @@
+<div class="math-operation-overlay"
+     [attr.data-size-tier]="sizeTier"
+     [ngSwitch]="sizeTier"
+     (click)="onOverlayClick($event)"
+     (mousedown)="onMouseDown($event)"
+     (pointerdown)="onMouseDown($event)"
+     (contextmenu)="onContextMenu($event)">
+
+  <math-operation-overlay-tiny
+    *ngSwitchCase="'tiny'"
+    [operationSymbol]="getOperationSymbol()">
+  </math-operation-overlay-tiny>
+
+  <math-operation-overlay-compact
+    *ngSwitchCase="'compact'"
+    [config]="config"
+    [operations]="operations"
+    [leftDisplay]="getOperandDisplayText(config.leftOperand)"
+    [rightDisplay]="getOperandDisplayText(config.rightOperand)"
+    [resultDisplay]="getResultTargetName()"
+    [operationSymbol]="getOperationSymbol()"
+    [activePopup]="activePopup"
+    [hasPopupView]="hasPopupView"
+    (operationChange)="onOperationChange($event)"
+    (popupRequested)="onPopupRequested($event)"
+    (expandClicked)="onExpandClicked()">
+  </math-operation-overlay-compact>
+
+  <math-operation-overlay-full
+    *ngSwitchCase="'full'"
+    [config]="config"
+    [operations]="operations"
+    [leftDisplay]="getOperandDisplayText(config.leftOperand)"
+    [rightDisplay]="getOperandDisplayText(config.rightOperand)"
+    [resultDisplay]="getResultTargetName()"
+    [operationSymbol]="getOperationSymbol()"
+    [previewExpression]="getPreviewExpression()"
+    [activePopup]="activePopup"
+    [hasPopupView]="hasPopupView"
+    (operationChange)="onOperationChange($event)"
+    (popupRequested)="onPopupRequested($event)"
+    (expandClicked)="onExpandClicked()">
+  </math-operation-overlay-full>
+
+  <!-- Value Source Popup — rendered at base level so it floats above whatever sub-view triggered it -->
+  <div class="value-popup"
+       *ngIf="activePopup"
+       [style.top.px]="popupPosition.top"
+       [style.left.px]="popupPosition.left"
+       (click)="$event.stopPropagation()"
+       (mousedown)="$event.stopPropagation()"
+       (pointerdown)="$event.stopPropagation()">
+    <div class="popup-header">
+      <span class="popup-title">{{ activePopup === 'left' ? 'Left Operand' : activePopup === 'right' ? 'Right Operand' : 'Store Result In' }}</span>
+      <button class="popup-close-btn" (click)="closePopup()">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+    <div class="popup-content">
+      <app-value-source-selector
+        [config]="getPopupConfig()"
+        [availableInputs]="availableInputs"
+        [sourceObjectFields]="sourceObjectFields"
+        [label]="''"
+        [compact]="false"
+        (configChange)="onPopupConfigChange($event)">
+      </app-value-source-selector>
+    </div>
+  </div>
+</div>

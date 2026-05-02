@@ -1,0 +1,33 @@
+<div class="popup-shell">
+
+  <header class="popup-header">
+    <mat-icon class="header-icon">device_hub</mat-icon>
+    <h2 class="popup-title">Conditional Chain — {{ data.stateName }}</h2>
+    <button class="close-btn" (click)="close()" title="Close">
+      <mat-icon>close</mat-icon>
+    </button>
+  </header>
+
+  <section class="popup-body">
+    <conditional-chain-overlay
+      [stateName]="data.stateName"
+      [width]="900"
+      [height]="600"
+      [chainLinks]="chainLinks"
+      [defaultLogicalOperator]="defaultLogicalOperator"
+      [availableInputFields]="data.availableInputFields"
+      [availableInputs]="data.availableInputs"
+      [sourceObjectFields]="data.sourceObjectFields"
+      [inputSlotCount]="data.inputSlotCount"
+      [allowDynamicInputs]="data.allowDynamicInputs"
+      [maxInputSlots]="data.maxInputSlots"
+      (chainChanged)="onChainChanged($event)"
+      (syntaxChanged)="onSyntaxChanged($event)">
+    </conditional-chain-overlay>
+  </section>
+
+  <footer class="popup-footer">
+    <button class="footer-btn primary" (click)="close()">Done</button>
+  </footer>
+
+</div>

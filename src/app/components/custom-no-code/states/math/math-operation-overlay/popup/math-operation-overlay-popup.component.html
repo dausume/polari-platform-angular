@@ -1,0 +1,78 @@
+<div class="popup-shell">
+
+  <header class="popup-header">
+    <mat-icon class="header-icon">calculate</mat-icon>
+    <h2 class="popup-title">Math Operation — {{ data.stateName }}</h2>
+    <button class="close-btn" (click)="close()" title="Close">
+      <mat-icon>close</mat-icon>
+    </button>
+  </header>
+
+  <section class="popup-body">
+
+    <div class="form-group">
+      <label class="form-label">Operation</label>
+      <div class="operation-grid">
+        <button *ngFor="let op of operations"
+                class="op-card"
+                [class.active]="config.operationType === op.value"
+                (click)="onOperationChange(op.value)">
+          <span class="op-card-symbol">{{ op.symbol }}</span>
+          <span class="op-card-label">{{ op.label }}</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Operands</label>
+      <div class="operand-pair">
+        <div class="operand-block">
+          <label class="operand-sub-label">Left</label>
+          <app-value-source-selector
+            [config]="config.leftOperand"
+            [availableInputs]="availableInputs"
+            [sourceObjectFields]="sourceObjectFields"
+            [label]="''"
+            [compact]="false"
+            (configChange)="onLeftOperandChange($event)">
+          </app-value-source-selector>
+        </div>
+        <div class="operator-display">{{ getOperationSymbol() }}</div>
+        <div class="operand-block">
+          <label class="operand-sub-label">Right</label>
+          <app-value-source-selector
+            [config]="config.rightOperand"
+            [availableInputs]="availableInputs"
+            [sourceObjectFields]="sourceObjectFields"
+            [label]="''"
+            [compact]="false"
+            (configChange)="onRightOperandChange($event)">
+          </app-value-source-selector>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Store Result In</label>
+      <app-value-source-selector
+        [config]="resultSourceConfig"
+        [availableInputs]="availableInputs"
+        [sourceObjectFields]="sourceObjectFields"
+        [label]="''"
+        [compact]="false"
+        (configChange)="onResultSourceChange($event)">
+      </app-value-source-selector>
+    </div>
+
+    <div class="preview-card">
+      <span class="preview-label">Expression</span>
+      <code class="preview-expression">{{ getPreviewExpression() }}</code>
+    </div>
+
+  </section>
+
+  <footer class="popup-footer">
+    <button class="footer-btn primary" (click)="close()">Done</button>
+  </footer>
+
+</div>

@@ -7,12 +7,12 @@
  * LogOutput, BreakStatement, ContinueStatement.
  */
 
-import { VariableAssignment } from '../variable-assignment/variable-assignment.model';
-import { FunctionCall } from '../function-call/function-call.model';
-import { ReturnStatement } from '../return-statement/return-statement.model';
-import { LogOutput } from '../log-output/log-output.model';
-import { BreakStatement } from '../break-statement/break-statement.model';
-import { ContinueStatement } from '../continue-statement/continue-statement.model';
+import { VariableAssignment } from '../variables/variable-assignment/variable-assignment.model';
+import { FunctionCall } from '../variables/function-call/function-call.model';
+import { ReturnStatement } from '../end-states/return-statement/return-statement.model';
+import { LogOutput } from '../debug/log-output/log-output.model';
+import { BreakStatement } from '../flow-control/break-statement/break-statement.model';
+import { ContinueStatement } from '../flow-control/continue-statement/continue-statement.model';
 
 /**
  * Data types supported for variables

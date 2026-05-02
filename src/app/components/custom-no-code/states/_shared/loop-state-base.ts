@@ -6,9 +6,9 @@
  * Shared building blocks for ForLoop, WhileLoop, ForEachLoop.
  */
 
-import { ForLoop } from '../for-loop/for-loop.model';
-import { WhileLoop } from '../while-loop/while-loop.model';
-import { ForEachLoop } from '../for-each-loop/for-each-loop.model';
+import { ForLoop } from '../loops/for-loop/for-loop.model';
+import { WhileLoop } from '../loops/while-loop/while-loop.model';
+import { ForEachLoop } from '../loops/for-each-loop/for-each-loop.model';
 
 /**
  * Base interface for all loop states

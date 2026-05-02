@@ -1,0 +1,216 @@
+/* Form-validation full view — state-specific layout.
+   Card / header / expand button / scrollbar styles come from
+   the global state-overlay-patterns. */
+
+.full-view {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  padding: 6px 8px;
+}
+
+.overlay-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.config-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.config-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #888;
+  font-weight: 600;
+}
+
+.config-input {
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  color: #333;
+  font-size: 11px;
+  padding: 4px 6px;
+  outline: none;
+}
+
+.config-input:focus {
+  border-color: #00BCD4;
+}
+
+.fields-section {
+  margin-top: 4px;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.section-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #888;
+  font-weight: 600;
+}
+
+.field-count {
+  font-size: 9px;
+  color: #00838F;
+  background: rgba(0, 188, 212, 0.18);
+  padding: 1px 6px;
+  border-radius: 8px;
+}
+
+.fields-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.field-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 4px;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 3px;
+  transition: opacity 0.15s;
+}
+
+.field-row.disabled {
+  opacity: 0.45;
+}
+
+.field-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: #999;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.field-toggle mat-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+}
+
+.field-toggle.active {
+  color: #00BCD4;
+}
+
+.field-info {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.field-name {
+  font-size: 10px;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.field-type {
+  font-size: 9px;
+  color: #666;
+  background: rgba(0, 0, 0, 0.06);
+  padding: 1px 4px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.required-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: #aaa;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.required-toggle mat-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+}
+
+.required-toggle.active {
+  color: #FFC107;
+}
+
+.debounce-control {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  flex-shrink: 0;
+}
+
+.debounce-input {
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  color: #333;
+  font-size: 9px;
+  padding: 2px 3px;
+  width: 36px;
+  outline: none;
+  text-align: right;
+}
+
+.debounce-input:focus {
+  border-color: #00BCD4;
+}
+
+.debounce-unit {
+  font-size: 8px;
+  color: #888;
+}
+
+.aggregation-summary {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  margin-top: 4px;
+  background: rgba(76, 175, 80, 0.1);
+  border-radius: 3px;
+  font-size: 9px;
+  color: #2e7d32;
+}
+
+.empty-state {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  color: #888;
+  font-style: italic;
+}
+
+.empty-state mat-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+}

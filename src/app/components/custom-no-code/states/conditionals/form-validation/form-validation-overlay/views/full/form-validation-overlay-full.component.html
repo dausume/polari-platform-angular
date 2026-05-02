@@ -1,0 +1,92 @@
+<div class="state-overlay-card full-view"
+     style="--state-accent: #00BCD4"
+     (click)="stopPropagation($event)"
+     (mousedown)="stopPropagation($event)">
+
+  <!-- Header -->
+  <div class="state-overlay-header state-overlay-header--bordered">
+    <mat-icon class="state-overlay-header__icon">checklist</mat-icon>
+    <span class="state-overlay-header__title">{{ displayName }}</span>
+    <button class="state-overlay-expand-btn"
+            *ngIf="hasPopupView"
+            (click)="onExpand($event)"
+            (mousedown)="stopPropagation($event)"
+            title="Open full view">
+      <mat-icon>open_in_full</mat-icon>
+    </button>
+  </div>
+
+  <!-- Main content -->
+  <div class="overlay-content state-overlay-scrollbar">
+
+    <!-- Display Name -->
+    <div class="config-field">
+      <label class="config-label">Display Name</label>
+      <input class="config-input"
+             type="text"
+             [value]="displayName"
+             (change)="onDisplayNameChange($event)"
+             placeholder="Validate Form Fields"
+             (click)="stopPropagation($event)"
+             (mousedown)="stopPropagation($event)" />
+    </div>
+
+    <!-- Field List -->
+    <div class="fields-section" *ngIf="fields.length > 0">
+      <div class="section-header">
+        <span class="section-label">Validation Fields</span>
+        <span class="field-count">{{ enabledCount }}/{{ fields.length }}</span>
+      </div>
+
+      <div class="fields-list">
+        <div *ngFor="let field of fields"
+             class="field-row"
+             [class.disabled]="!field.enabled">
+
+          <button class="field-toggle"
+                  [class.active]="field.enabled"
+                  (click)="onFieldToggle(field, $event)"
+                  (mousedown)="stopPropagation($event)"
+                  [title]="field.enabled ? 'Disable validation' : 'Enable validation'">
+            <mat-icon>{{ field.enabled ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
+          </button>
+
+          <div class="field-info">
+            <span class="field-name">{{ field.displayName }}</span>
+            <span class="field-type">{{ field.fieldType }}</span>
+          </div>
+
+          <button class="required-toggle"
+                  *ngIf="field.enabled"
+                  [class.active]="field.required"
+                  (click)="onFieldRequiredToggle(field, $event)"
+                  (mousedown)="stopPropagation($event)"
+                  [title]="field.required ? 'Required for All Valid' : 'Optional'">
+            <mat-icon [style.font-size]="'14px'">{{ field.required ? 'star' : 'star_border' }}</mat-icon>
+          </button>
+
+          <div class="debounce-control" *ngIf="field.enabled">
+            <input class="debounce-input"
+                   type="number"
+                   [value]="field.debounceMs"
+                   (change)="onFieldDebounceChange(field, $event)"
+                   (click)="stopPropagation($event)"
+                   (mousedown)="stopPropagation($event)"
+                   min="0" step="100" />
+            <span class="debounce-unit">ms</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="aggregation-summary">
+        <mat-icon style="color: #4CAF50; font-size: 14px; width: 14px; height: 14px;">verified</mat-icon>
+        <span>All Valid: requires {{ requiredCount }} of {{ fields.length }} fields</span>
+      </div>
+    </div>
+
+    <div class="empty-state" *ngIf="fields.length === 0">
+      <mat-icon>info_outline</mat-icon>
+      <span>Connect an upstream state to auto-detect fields</span>
+    </div>
+  </div>
+</div>

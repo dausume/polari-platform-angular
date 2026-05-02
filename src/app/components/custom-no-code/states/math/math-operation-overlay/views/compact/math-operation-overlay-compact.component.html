@@ -1,0 +1,51 @@
+<div class="state-overlay-card compact-view"
+     style="--state-accent: #2196F3"
+     (click)="stopPropagation($event)"
+     (mousedown)="stopPropagation($event)">
+
+  <div class="state-overlay-header">
+    <mat-icon class="state-overlay-header__icon">calculate</mat-icon>
+    <span class="state-overlay-header__title">Math</span>
+    <button class="state-overlay-expand-btn state-overlay-expand-btn--compact"
+            *ngIf="hasPopupView"
+            (click)="onExpand($event)"
+            (mousedown)="stopPropagation($event)"
+            title="Open full view">
+      <mat-icon>open_in_full</mat-icon>
+    </button>
+  </div>
+
+  <div class="operation-buttons">
+    <button *ngFor="let op of operations"
+            class="op-btn"
+            [class.active]="config.operationType === op.value"
+            (click)="onOperation(op.value)"
+            [title]="op.label">
+      <span class="op-symbol">{{ op.symbol }}</span>
+    </button>
+  </div>
+
+  <div class="operand-row">
+    <button class="operand-btn"
+            [class.active]="activePopup === 'left'"
+            (click)="onPopupClick('left', $event)"
+            title="Left operand">
+      <span class="operand-value">{{ leftDisplay }}</span>
+    </button>
+    <span class="operation-symbol">{{ operationSymbol }}</span>
+    <button class="operand-btn"
+            [class.active]="activePopup === 'right'"
+            (click)="onPopupClick('right', $event)"
+            title="Right operand">
+      <span class="operand-value">{{ rightDisplay }}</span>
+    </button>
+  </div>
+
+  <button class="operand-btn result"
+          [class.active]="activePopup === 'result'"
+          (click)="onPopupClick('result', $event)"
+          title="Result target">
+    <mat-icon class="result-icon">arrow_forward</mat-icon>
+    <span class="operand-value">{{ resultDisplay }}</span>
+  </button>
+</div>

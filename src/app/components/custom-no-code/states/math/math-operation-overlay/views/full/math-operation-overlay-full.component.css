@@ -1,0 +1,143 @@
+/* Math full view — state-specific layout. Card / header / expand button /
+   scrollbar styles come from the global state-overlay-patterns. */
+
+.full-view {
+  font-size: 11px;
+  padding: 8px;
+}
+
+.overlay-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.section-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.operation-buttons {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+}
+
+.op-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.op-btn:hover {
+  border-color: #2196F3;
+  background: #e3f2fd;
+}
+
+.op-btn.active {
+  border-color: #2196F3;
+  background: #2196F3;
+  color: white;
+}
+
+.op-symbol {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.operand-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+}
+
+.operand-btn {
+  flex: 1;
+  max-width: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.operand-btn:hover {
+  border-color: #2196F3;
+  background: #f5f9ff;
+}
+
+.operand-btn.active {
+  border-color: #2196F3;
+  background: #e3f2fd;
+}
+
+.operand-value {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 11px;
+  color: #333;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  text-align: left;
+}
+
+.edit-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+  color: #2196F3;
+  flex-shrink: 0;
+}
+
+.operation-symbol {
+  font-size: 20px;
+  font-weight: 600;
+  color: #2196F3;
+  width: 24px;
+  text-align: center;
+}
+
+.preview-section {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px dashed #e0e0e0;
+}
+
+.preview-code {
+  display: block;
+  padding: 6px 8px;
+  background: #f5f5f5;
+  border-radius: 4px;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 11px;
+  color: #1565c0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+}

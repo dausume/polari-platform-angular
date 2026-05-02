@@ -11,49 +11,53 @@
  * filtered to only include isStateSpaceObject=true classes.
  */
 
-import { ConditionalChain, ConditionalChainLink, createConditionLink, createNestedConditionGroup } from '../conditional-chain/conditional-chain.model';
-import { FormValidation } from '../form-validation/form-validation.model';
+import { ConditionalChain, ConditionalChainLink, createConditionLink, createNestedConditionGroup } from '../conditionals/conditional-chain/conditional-chain.model';
+import { FormValidation } from '../conditionals/form-validation/form-validation.model';
 import { ConditionType, CONDITION_TYPE_OPTIONS, CONDITION_OPTIONS_BY_CATEGORY, getConditionOptionsForType } from './condition-type-options';
-import { ForLoop, createSimpleForLoop, createRangeForLoop } from '../for-loop/for-loop.model';
-import { WhileLoop, createSimpleWhileLoop } from '../while-loop/while-loop.model';
-import { ForEachLoop, createForEachLoop } from '../for-each-loop/for-each-loop.model';
-import { VariableAssignment, createAssignment, createDeclaration } from '../variable-assignment/variable-assignment.model';
-import { FunctionCall, createFunctionCall } from '../function-call/function-call.model';
-import { ReturnStatement, createReturn } from '../return-statement/return-statement.model';
-import { LogOutput, createLog } from '../log-output/log-output.model';
-import { BreakStatement } from '../break-statement/break-statement.model';
-import { ContinueStatement } from '../continue-statement/continue-statement.model';
+import { ForLoop, createSimpleForLoop, createRangeForLoop } from '../loops/for-loop/for-loop.model';
+import { WhileLoop, createSimpleWhileLoop } from '../loops/while-loop/while-loop.model';
+import { ForEachLoop, createForEachLoop } from '../loops/for-each-loop/for-each-loop.model';
+import { VariableAssignment, createAssignment, createDeclaration } from '../variables/variable-assignment/variable-assignment.model';
+import { FunctionCall, createFunctionCall } from '../variables/function-call/function-call.model';
+import { ReturnStatement, createReturn } from '../end-states/return-statement/return-statement.model';
+import { LogOutput, createLog } from '../debug/log-output/log-output.model';
+import { BreakStatement } from '../flow-control/break-statement/break-statement.model';
+import { ContinueStatement } from '../flow-control/continue-statement/continue-statement.model';
 import { TargetRuntime } from '../../../../models/noCode/mock-NCS-data';
-import { ReactiveTransform } from '../reactive-transform/reactive-transform.model';
-import { AwaitBackendCall } from '../await-backend-call/await-backend-call.model';
+import { ReactiveTransform } from '../frontend/reactive-transform/reactive-transform.model';
+import { AwaitBackendCall } from '../cross-runtime/await-backend-call/await-backend-call.model';
 import {
   InitialStateTriggerType,
   getAvailableInitialStateTypes
 } from './initial-state-types';
-import { DirectInvocation } from '../direct-invocation/direct-invocation.model';
-import { FormSubscription } from '../form-subscription/form-subscription.model';
-import { LogicFlowEntry } from '../logic-flow-entry/logic-flow-entry.model';
-import { BackendStateChange } from '../backend-state-change/backend-state-change.model';
+import { DirectInvocation } from '../initial-states/direct-invocation/direct-invocation.model';
+import { FormSubscription } from '../initial-states/form-subscription/form-subscription.model';
+import { LogicFlowEntry } from '../initial-states/logic-flow-entry/logic-flow-entry.model';
+import { BackendStateChange } from '../initial-states/backend-state-change/backend-state-change.model';
 import {
   EndStateCompletionType,
   getAvailableEndStateTypes
 } from './end-state-types';
-import { ReturnValue } from '../return-value/return-value.model';
-import { StateChangeCommit } from '../state-change-commit/state-change-commit.model';
-import { EmitEvent } from '../emit-event/emit-event.model';
+import { ReturnValue } from '../end-states/return-value/return-value.model';
+import { StateChangeCommit } from '../end-states/state-change-commit/state-change-commit.model';
+import { EmitEvent } from '../end-states/emit-event/emit-event.model';
 
 /**
  * State-space class category for UI organization
  */
 export type StateSpaceCategory =
-  | 'Control Flow'
+  | 'Initial States'
   | 'Conditionals'
   | 'Loops'
-  | 'Data'
+  | 'List Operations'
+  | 'Math'
+  | 'Variables & Calls'
+  | 'End States'
+  | 'Flow Control'
   | 'Debug'
-  | 'Custom'
   | 'Frontend'
-  | 'Cross-Runtime';
+  | 'Cross-Runtime'
+  | 'Custom';
 
 /**
  * State-space event method definition
@@ -204,7 +208,7 @@ export class StateSpaceClassRegistry {
       className: 'DirectInvocation',
       displayName: 'Direct Invocation',
       description: 'Generic function-call entry point - defines input parameters',
-      category: 'Control Flow',
+      category: 'Initial States',
       icon: 'play_circle',
       color: '#4CAF50',
       isStateSpaceObject: true,
@@ -237,7 +241,7 @@ export class StateSpaceClassRegistry {
       className: 'FormSubscription',
       displayName: 'Form Subscription',
       description: 'Triggered by a form/page observable - reactive frontend entry point',
-      category: 'Control Flow',
+      category: 'Initial States',
       icon: 'sensors',
       color: '#E91E63',
       isStateSpaceObject: true,
@@ -271,7 +275,7 @@ export class StateSpaceClassRegistry {
       className: 'LogicFlowEntry',
       displayName: 'Logic Flow Entry',
       description: 'Invoked by a parent solution - child solution entry point',
-      category: 'Control Flow',
+      category: 'Initial States',
       icon: 'account_tree',
       color: '#673AB7',
       isStateSpaceObject: true,
@@ -303,7 +307,7 @@ export class StateSpaceClassRegistry {
       className: 'BackendStateChange',
       displayName: 'Backend State Change',
       description: 'Triggered by database state changes being committed',
-      category: 'Control Flow',
+      category: 'Initial States',
       icon: 'storage',
       color: '#FF9800',
       isStateSpaceObject: true,
@@ -340,7 +344,7 @@ export class StateSpaceClassRegistry {
       className: 'InitialState',
       displayName: 'Initial State',
       description: 'Legacy initial state - maps to DirectInvocation',
-      category: 'Control Flow',
+      category: 'Initial States',
       icon: 'play_circle',
       color: '#4CAF50',
       isStateSpaceObject: true,
@@ -595,7 +599,7 @@ export class StateSpaceClassRegistry {
       className: 'FilterList',
       displayName: 'Filter List',
       description: 'Filter a list of objects based on type or condition',
-      category: 'Data',
+      category: 'List Operations',
       icon: 'filter_list',
       color: '#00BCD4',
       isStateSpaceObject: true,
@@ -639,7 +643,7 @@ export class StateSpaceClassRegistry {
       className: 'MapList',
       displayName: 'Map List',
       description: 'Transform each item in a list',
-      category: 'Data',
+      category: 'List Operations',
       icon: 'transform',
       color: '#00BCD4',
       isStateSpaceObject: true,
@@ -670,7 +674,7 @@ export class StateSpaceClassRegistry {
       className: 'ReduceList',
       displayName: 'Reduce List',
       description: 'Reduce a list to a single value',
-      category: 'Data',
+      category: 'List Operations',
       icon: 'compress',
       color: '#00BCD4',
       isStateSpaceObject: true,
@@ -702,7 +706,7 @@ export class StateSpaceClassRegistry {
       className: 'MathOperation',
       displayName: 'Math Operation',
       description: 'Perform basic math operations: add, subtract, multiply, divide, modulo',
-      category: 'Data',
+      category: 'Math',
       icon: 'calculate',
       color: '#2196F3',
       isStateSpaceObject: true,
@@ -750,7 +754,7 @@ export class StateSpaceClassRegistry {
       className: 'VariableAssignment',
       displayName: 'Variable Assignment',
       description: 'Assign a value to a variable (declare or update)',
-      category: 'Data',
+      category: 'Variables & Calls',
       icon: 'edit',
       color: '#9C27B0',
       isStateSpaceObject: true,
@@ -795,7 +799,7 @@ export class StateSpaceClassRegistry {
       className: 'FunctionCall',
       displayName: 'Function Call',
       description: 'Call a function and optionally store the result',
-      category: 'Data',
+      category: 'Variables & Calls',
       icon: 'functions',
       color: '#9C27B0',
       isStateSpaceObject: true,
@@ -840,7 +844,7 @@ export class StateSpaceClassRegistry {
       className: 'ReturnStatement',
       displayName: 'Return',
       description: 'Return a value and exit the solution flow',
-      category: 'Control Flow',
+      category: 'End States',
       icon: 'exit_to_app',
       color: '#F44336',
       isStateSpaceObject: true,
@@ -872,7 +876,7 @@ export class StateSpaceClassRegistry {
       className: 'ReturnValue',
       displayName: 'Return Value',
       description: 'Return a value to the caller and exit the solution',
-      category: 'Control Flow',
+      category: 'End States',
       icon: 'exit_to_app',
       color: '#F44336',
       isStateSpaceObject: true,
@@ -905,7 +909,7 @@ export class StateSpaceClassRegistry {
       className: 'StateChangeCommit',
       displayName: 'Commit State Change',
       description: 'Commit object state changes to the backend and exit',
-      category: 'Control Flow',
+      category: 'End States',
       icon: 'save',
       color: '#4CAF50',
       isStateSpaceObject: true,
@@ -939,7 +943,7 @@ export class StateSpaceClassRegistry {
       className: 'EmitEvent',
       displayName: 'Emit Event',
       description: 'Emit an event for cross-solution signaling and exit',
-      category: 'Control Flow',
+      category: 'End States',
       icon: 'send',
       color: '#E91E63',
       isStateSpaceObject: true,
@@ -1006,7 +1010,7 @@ export class StateSpaceClassRegistry {
       className: 'BreakStatement',
       displayName: 'Break',
       description: 'Break out of current loop',
-      category: 'Control Flow',
+      category: 'Flow Control',
       icon: 'stop',
       color: '#F44336',
       isStateSpaceObject: true,
@@ -1033,7 +1037,7 @@ export class StateSpaceClassRegistry {
       className: 'ContinueStatement',
       displayName: 'Continue',
       description: 'Skip to next loop iteration',
-      category: 'Control Flow',
+      category: 'Flow Control',
       icon: 'skip_next',
       color: '#FF9800',
       isStateSpaceObject: true,

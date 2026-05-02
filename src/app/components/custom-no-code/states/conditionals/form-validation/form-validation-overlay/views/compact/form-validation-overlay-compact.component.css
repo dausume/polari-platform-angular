@@ -1,0 +1,87 @@
+/* Form-validation compact view — state-specific layout.
+   Card / header / expand button styles come from the global state-overlay-patterns. */
+
+.compact-view {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  gap: 3px;
+  padding: 4px 6px;
+}
+
+/* Header is styled by state-overlay-header globally; .compact-header
+   only contributes form-validation-specific tweaks (gap). */
+.compact-header {
+  gap: 4px;
+}
+
+.field-count {
+  font-size: 9px;
+  color: #00838F;
+  background: rgba(0, 188, 212, 0.18);
+  padding: 0 5px;
+  border-radius: 8px;
+  line-height: 14px;
+  flex-shrink: 0;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px 1px 2px;
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 10px;
+  color: #888;
+  font-size: 9px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  max-width: 100%;
+}
+
+.chip.enabled {
+  background: rgba(0, 188, 212, 0.12);
+  border-color: rgba(0, 188, 212, 0.45);
+  color: #00838F;
+}
+
+.chip:hover {
+  background: rgba(0, 188, 212, 0.18);
+}
+
+.chip-icon {
+  font-size: 11px;
+  width: 11px;
+  height: 11px;
+  color: inherit;
+}
+
+.chip-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 60px;
+}
+
+.empty {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #888;
+  font-style: italic;
+  font-size: 9px;
+}
+
+.empty mat-icon {
+  font-size: 12px;
+  width: 12px;
+  height: 12px;
+}

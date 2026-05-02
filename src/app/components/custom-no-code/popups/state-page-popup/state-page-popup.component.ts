@@ -8,7 +8,7 @@ import {
   StateSpaceClassRegistry,
   StateSpaceClassMetadata
 } from '@models/stateSpace';
-import { ClassOption, DisplayField } from '../../states/state-overlay/state-overlay.component';
+import { ClassOption, DisplayField } from '../../states/_generic/state-overlay/state-overlay.component';
 import { NoCodeState } from '@models/noCode/NoCodeState';
 import { TargetRuntime } from '@models/noCode/mock-NCS-data';
 

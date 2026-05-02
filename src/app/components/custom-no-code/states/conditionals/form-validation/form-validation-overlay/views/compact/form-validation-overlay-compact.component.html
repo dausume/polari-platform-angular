@@ -1,0 +1,35 @@
+<div class="state-overlay-card compact-view"
+     style="--state-accent: #00BCD4"
+     (click)="stopPropagation($event)"
+     (mousedown)="stopPropagation($event)">
+
+  <div class="state-overlay-header compact-header">
+    <mat-icon class="state-overlay-header__icon">checklist</mat-icon>
+    <span class="state-overlay-header__title" [title]="displayName">{{ displayName }}</span>
+    <span class="field-count" *ngIf="fields.length > 0">{{ enabledCount }}/{{ fields.length }}</span>
+    <button class="state-overlay-expand-btn state-overlay-expand-btn--compact"
+            *ngIf="hasPopupView"
+            (click)="onExpand($event)"
+            (mousedown)="stopPropagation($event)"
+            title="Open full view">
+      <mat-icon>open_in_full</mat-icon>
+    </button>
+  </div>
+
+  <div class="chips" *ngIf="fields.length > 0">
+    <button *ngFor="let field of fields"
+            class="chip"
+            [class.enabled]="field.enabled"
+            [title]="field.displayName + ' — ' + (field.enabled ? 'enabled' : 'disabled')"
+            (click)="onFieldToggle(field, $event)"
+            (mousedown)="stopPropagation($event)">
+      <mat-icon class="chip-icon">{{ field.enabled ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
+      <span class="chip-label">{{ field.displayName }}</span>
+    </button>
+  </div>
+
+  <div class="empty" *ngIf="fields.length === 0">
+    <mat-icon>info_outline</mat-icon>
+    <span>Connect upstream</span>
+  </div>
+</div>

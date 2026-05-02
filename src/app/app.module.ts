@@ -67,7 +67,7 @@ import { NoCodeInterfaceComponent } from '@components/custom-no-code/editor/no-c
 import { SolutionEditorComponent } from '@components/custom-no-code/editor/no-code-interface/solution-editor/solution-editor';
 import { SlotComponent } from '@components/custom-no-code/shared/slot/slot';
 import { NoCodeStateBorderComponent } from '@components/custom-no-code/editor/no-code-state-instance/no-code-state-border/no-code-state-border';
-import { StateOverlayComponent } from '@components/custom-no-code/states/state-overlay/state-overlay.component';
+import { StateOverlayComponent } from '@components/custom-no-code/states/_generic/state-overlay/state-overlay.component';
 import { StateDefinitionCreatorComponent } from '@components/custom-no-code/popups/state-definition-creator/state-definition-creator.component';
 import { StateToolSidebarComponent } from '@components/custom-no-code/editor/state-tool-sidebar/state-tool-sidebar.component';
 import { StateContextMenuComponent } from '@components/custom-no-code/editor/state-context-menu/state-context-menu.component';
@@ -75,16 +75,21 @@ import { SlotConfigurationPopupComponent } from '@components/custom-no-code/popu
 import { StateSlotManagerPopupComponent } from '@components/custom-no-code/popups/state-slot-manager-popup/state-slot-manager-popup.component';
 import { StateFullViewPopupComponent } from '@components/custom-no-code/popups/state-full-view-popup/state-full-view-popup.component';
 import { StatePagePopupComponent } from '@components/custom-no-code/popups/state-page-popup/state-page-popup.component';
-import { ConditionalChainOverlayComponent } from '@components/custom-no-code/states/conditional-chain/conditional-chain-overlay/conditional-chain-overlay.component';
-import { FilterListOverlayComponent } from '@components/custom-no-code/states/filter-list-overlay/filter-list-overlay.component';
-import { VariableAssignmentOverlayComponent } from '@components/custom-no-code/states/variable-assignment/variable-assignment-overlay/variable-assignment-overlay.component';
-import { InitialStateOverlayComponent } from '@components/custom-no-code/states/initial-state-overlay/initial-state-overlay.component';
-import { MathOperationOverlayComponent } from '@components/custom-no-code/states/math-operation-overlay/math-operation-overlay.component';
-import { ReturnValueOverlayComponent } from '@components/custom-no-code/states/return-value-overlay/return-value-overlay.component';
-import { FormValidationOverlayComponent } from '@components/custom-no-code/states/form-validation/form-validation-overlay/form-validation-overlay.component';
-import { FormValidationOverlayTinyComponent } from '@components/custom-no-code/states/form-validation/form-validation-overlay/views/form-validation-overlay-tiny/form-validation-overlay-tiny.component';
-import { FormValidationOverlayCompactComponent } from '@components/custom-no-code/states/form-validation/form-validation-overlay/views/form-validation-overlay-compact/form-validation-overlay-compact.component';
-import { FormValidationOverlayFullComponent } from '@components/custom-no-code/states/form-validation/form-validation-overlay/views/form-validation-overlay-full/form-validation-overlay-full.component';
+import { ConditionalChainOverlayComponent } from '@components/custom-no-code/states/conditionals/conditional-chain/conditional-chain-overlay/conditional-chain-overlay.component';
+import { ConditionalChainOverlayPopupComponent } from '@components/custom-no-code/states/conditionals/conditional-chain/conditional-chain-overlay/popup/conditional-chain-overlay-popup.component';
+import { FilterListOverlayComponent } from '@components/custom-no-code/states/list-operations/filter-list-overlay/filter-list-overlay.component';
+import { VariableAssignmentOverlayComponent } from '@components/custom-no-code/states/variables/variable-assignment/variable-assignment-overlay/variable-assignment-overlay.component';
+import { InitialStateOverlayComponent } from '@components/custom-no-code/states/initial-states/initial-state-overlay/initial-state-overlay.component';
+import { MathOperationOverlayComponent } from '@components/custom-no-code/states/math/math-operation-overlay/math-operation-overlay.component';
+import { MathOperationOverlayTinyComponent } from '@components/custom-no-code/states/math/math-operation-overlay/views/tiny/math-operation-overlay-tiny.component';
+import { MathOperationOverlayCompactComponent } from '@components/custom-no-code/states/math/math-operation-overlay/views/compact/math-operation-overlay-compact.component';
+import { MathOperationOverlayFullComponent } from '@components/custom-no-code/states/math/math-operation-overlay/views/full/math-operation-overlay-full.component';
+import { MathOperationOverlayPopupComponent } from '@components/custom-no-code/states/math/math-operation-overlay/popup/math-operation-overlay-popup.component';
+import { ReturnValueOverlayComponent } from '@components/custom-no-code/states/end-states/return-value/return-value-overlay/return-value-overlay.component';
+import { FormValidationOverlayComponent } from '@components/custom-no-code/states/conditionals/form-validation/form-validation-overlay/form-validation-overlay.component';
+import { FormValidationOverlayTinyComponent } from '@components/custom-no-code/states/conditionals/form-validation/form-validation-overlay/views/tiny/form-validation-overlay-tiny.component';
+import { FormValidationOverlayCompactComponent } from '@components/custom-no-code/states/conditionals/form-validation/form-validation-overlay/views/compact/form-validation-overlay-compact.component';
+import { FormValidationOverlayFullComponent } from '@components/custom-no-code/states/conditionals/form-validation/form-validation-overlay/views/full/form-validation-overlay-full.component';
 import { ValueSourceSelectorComponent } from '@components/custom-no-code/shared/value-source-selector/value-source-selector.component';
 import { ViewContextOverlayComponent } from '@components/custom-no-code/popups/view-context-overlay/view-context-overlay.component';
 import { ExecutionPanelComponent } from '@components/custom-no-code/editor/execution-panel/execution-panel.component';
@@ -202,10 +207,15 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     StateFullViewPopupComponent,
     StatePagePopupComponent,
     ConditionalChainOverlayComponent,
+    ConditionalChainOverlayPopupComponent,
     FilterListOverlayComponent,
     VariableAssignmentOverlayComponent,
     InitialStateOverlayComponent,
     MathOperationOverlayComponent,
+    MathOperationOverlayTinyComponent,
+    MathOperationOverlayCompactComponent,
+    MathOperationOverlayFullComponent,
+    MathOperationOverlayPopupComponent,
     ReturnValueOverlayComponent,
     FormValidationOverlayComponent,
     FormValidationOverlayTinyComponent,

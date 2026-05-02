@@ -1,0 +1,89 @@
+.popup-shell {
+  display: flex;
+  flex-direction: column;
+  width: 900px;
+  max-width: 95vw;
+  max-height: 90vh;
+  font-family: 'Roboto', sans-serif;
+  color: #333;
+}
+
+.popup-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  border-bottom: 1px solid #e0e0e0;
+  background: #f8f9fa;
+}
+
+.header-icon {
+  color: #673AB7;
+  font-size: 22px;
+  width: 22px;
+  height: 22px;
+}
+
+.popup-title {
+  flex: 1;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: #666;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.close-btn:hover {
+  background: #e0e0e0;
+}
+
+.popup-body {
+  display: flex;
+  flex: 1;
+  min-height: 480px;
+  overflow: hidden;
+}
+
+.popup-body conditional-chain-overlay {
+  flex: 1;
+  display: block;
+  overflow: hidden;
+}
+
+.popup-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 18px;
+  border-top: 1px solid #e0e0e0;
+  background: #fafafa;
+}
+
+.footer-btn {
+  padding: 8px 18px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.footer-btn.primary {
+  background: #673AB7;
+  color: white;
+}
+
+.footer-btn.primary:hover {
+  background: #512da8;
+}

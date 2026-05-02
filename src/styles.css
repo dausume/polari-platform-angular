@@ -314,3 +314,15 @@ body.dark-theme ::-webkit-scrollbar-thumb:hover {
 .cdk-overlay-container:has(.above-overlays-dialog) {
   z-index: 1100 !important;
 }
+
+/* Per-state popup panels (math, conditional-chain, etc.) — must appear above
+   inline state overlays which sit at z-index 1001 (set by StateOverlayManager).
+   Matches the proven z-index used by slot-configuration-popup / state-slot-manager-popup
+   (z-index: 2000) so the same value rises above any other overlays. */
+.state-overlay-popup-panel {
+  z-index: 2000 !important;
+}
+
+.cdk-overlay-container:has(.state-overlay-popup-panel) {
+  z-index: 2000 !important;
+}
