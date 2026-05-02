@@ -9,6 +9,7 @@ import {
   getSourceLabel
 } from '@models/stateSpace';
 import { AvailableInput, SourceObjectField } from '../../../../shared/value-source-selector/value-source-selector.component';
+import { StateOverlayBase } from '../../../_shared/state-overlay/state-overlay-base';
 
 @Component({
   standalone: false,
@@ -16,16 +17,9 @@ import { AvailableInput, SourceObjectField } from '../../../../shared/value-sour
   templateUrl: './return-value-overlay.component.html',
   styleUrls: ['./return-value-overlay.component.css']
 })
-export class ReturnValueOverlayComponent implements OnInit, OnDestroy {
+export class ReturnValueOverlayComponent extends StateOverlayBase implements OnInit, OnDestroy {
 
-  // Position and size (from StateOverlayManager)
-  @Input() x: number = 0;
-  @Input() y: number = 0;
-  @Input() width: number = 100;
-  @Input() height: number = 100;
-
-  // State identification
-  @Input() stateName: string = '';
+  // State-specific inputs (standard inputs come from StateOverlayBase)
   @Input() boundClassName: string = 'ReturnValue';
 
   // Available inputs for ValueSourceSelector
@@ -40,10 +34,8 @@ export class ReturnValueOverlayComponent implements OnInit, OnDestroy {
   // Legacy return value (plain string fallback)
   @Input() returnValue: string = '';
 
-  // Events
+  // State-specific outputs (popupRequested / fullViewRequested / statePageRequested come from base)
   @Output() returnValueChanged = new EventEmitter<{ returnValueSource: ValueSourceConfig; returnValue: string }>();
-  @Output() fullViewRequested = new EventEmitter<{ x: number; y: number; stateName: string }>();
-  @Output() statePageRequested = new EventEmitter<{ stateName: string }>();
 
   // The active ValueSourceConfig for the selector
   currentConfig: ValueSourceConfig = createDefaultValueSourceConfig('from_source_object');
@@ -56,9 +48,12 @@ export class ReturnValueOverlayComponent implements OnInit, OnDestroy {
   popupVisible: boolean = false;
   popupPosition: { top: number; left: number } = { top: 0, left: 0 };
 
-  constructor(private elementRef: ElementRef) {}
+  constructor(private elementRef: ElementRef) {
+    super();
+  }
 
-  ngOnInit(): void {
+  override ngOnInit(): void {
+    super.ngOnInit();
     this.updateSizeMode();
     this.initializeConfig();
   }
@@ -184,6 +179,13 @@ export class ReturnValueOverlayComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Handle click on the expand button — emits popup request via base class.
+   */
+  onExpandClick(): void {
+    this.popupRequested.emit();
+  }
+
+  /**
    * Handle document click to close popup when clicking outside
    */
   @HostListener('document:click', ['$event'])
@@ -203,7 +205,8 @@ export class ReturnValueOverlayComponent implements OnInit, OnDestroy {
   /**
    * Force update size mode (called externally)
    */
-  forceUpdateSizeMode(): void {
+  override forceUpdateSizeMode(): void {
+    super.forceUpdateSizeMode();
     this.updateSizeMode();
   }
 

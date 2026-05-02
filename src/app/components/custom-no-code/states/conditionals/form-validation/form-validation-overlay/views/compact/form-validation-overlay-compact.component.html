@@ -1,18 +1,13 @@
-<div class="state-overlay-card compact-view"
-     style="--state-accent: #00BCD4"
-     appStateOverlayRoot>
+<state-overlay-shell
+  accent="#00BCD4"
+  icon="checklist"
+  [title]="displayName"
+  [compact]="true"
+  padding="4px 6px"
+  [hasPopupView]="hasPopupView"
+  (expandClicked)="onExpand()">
 
-  <div class="state-overlay-header compact-header">
-    <mat-icon class="state-overlay-header__icon">checklist</mat-icon>
-    <span class="state-overlay-header__title" [title]="displayName">{{ displayName }}</span>
-    <span class="field-count" *ngIf="fields.length > 0">{{ enabledCount }}/{{ fields.length }}</span>
-    <button class="state-overlay-expand-btn state-overlay-expand-btn--compact"
-            *ngIf="hasPopupView"
-            (click)="onExpand($event)"
-            title="Open full view">
-      <mat-icon>open_in_full</mat-icon>
-    </button>
-  </div>
+  <span headerExtras class="field-count" *ngIf="fields.length > 0">{{ enabledCount }}/{{ fields.length }}</span>
 
   <div class="chips" *ngIf="fields.length > 0">
     <button *ngFor="let field of fields"
@@ -29,4 +24,4 @@
     <mat-icon>info_outline</mat-icon>
     <span>Connect upstream</span>
   </div>
-</div>
+</state-overlay-shell>

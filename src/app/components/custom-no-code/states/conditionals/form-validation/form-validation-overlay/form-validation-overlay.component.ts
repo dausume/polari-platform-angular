@@ -7,7 +7,7 @@
 // Convention: see states/_shared/state-overlay/README.md.
 
 import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges } from '@angular/core';
-import { SizeTier, resolveSizeTier } from '../../../_shared/state-overlay/size-tier';
+import { StateOverlayBase } from '../../../_shared/state-overlay/state-overlay-base';
 import {
   FormValidationField,
   UpstreamField
@@ -21,33 +21,21 @@ export { UpstreamField };
   templateUrl: './form-validation-overlay.component.html',
   styleUrls: ['./form-validation-overlay.component.css']
 })
-export class FormValidationOverlayComponent implements OnInit, OnChanges {
-  // Standard overlay inputs (see _shared/state-overlay/README.md)
-  @Input() x: number = 0;
-  @Input() y: number = 0;
-  @Input() width: number = 100;
-  @Input() height: number = 100;
-  @Input() stateName: string = '';
+export class FormValidationOverlayComponent extends StateOverlayBase implements OnInit, OnChanges {
+  // State-specific inputs (standard inputs come from StateOverlayBase)
   @Input() solutionName: string = '';
   @Input() boundObjectFieldValues: { [key: string]: any } = {};
-
-  // State-specific inputs
   /** Fields auto-detected from the upstream state (FormSubscription or initial state) */
   @Input() upstreamFields: UpstreamField[] = [];
 
-  // Standard overlay outputs
+  // State-specific outputs (popupRequested comes from base)
   @Output() fieldValuesChanged = new EventEmitter<{ [key: string]: any }>();
-  @Output() popupRequested = new EventEmitter<void>();
-
-  // State-specific outputs
   @Output() slotsChanged = new EventEmitter<FormValidationField[]>();
 
   displayName: string = 'Validate Form Fields';
   fields: FormValidationField[] = [];
-  sizeTier: SizeTier = 'full';
 
-  /** This state does not yet have a custom popup view. Flip to true once popup/ is wired. */
-  hasPopupView: boolean = false;
+  // hasPopupView inherited as `false` from base — flip to true once popup/ is wired.
 
   get enabledCount(): number {
     return this.fields.filter(f => f.enabled).length;
@@ -57,27 +45,17 @@ export class FormValidationOverlayComponent implements OnInit, OnChanges {
     return this.fields.filter(f => f.enabled && f.required).length;
   }
 
-  ngOnInit(): void {
+  override ngOnInit(): void {
+    super.ngOnInit();
     this.displayName = this.boundObjectFieldValues['displayName'] || 'Validate Form Fields';
-    this.sizeTier = resolveSizeTier(this.width);
     this.initializeFields();
   }
 
-  ngOnChanges(changes: SimpleChanges): void {
+  override ngOnChanges(changes: SimpleChanges): void {
+    super.ngOnChanges(changes);
     if (changes['upstreamFields'] && !changes['upstreamFields'].firstChange) {
       this.initializeFields();
     }
-    if (changes['width']) {
-      this.sizeTier = resolveSizeTier(this.width);
-    }
-  }
-
-  /**
-   * Called by StateOverlayManager when the host rect resizes (zoom/pan).
-   * Standard overlay contract — see _shared/state-overlay/README.md.
-   */
-  forceUpdateSizeMode(): void {
-    this.sizeTier = resolveSizeTier(this.width);
   }
 
   onExpandClicked(): void {

@@ -1,17 +1,10 @@
-<div class="state-overlay-card full-view"
-     style="--state-accent: #2196F3"
-     appStateOverlayRoot>
-
-  <div class="state-overlay-header state-overlay-header--bordered">
-    <mat-icon class="state-overlay-header__icon">calculate</mat-icon>
-    <span class="state-overlay-header__title">Math Operation</span>
-    <button class="state-overlay-expand-btn"
-            *ngIf="hasPopupView"
-            (click)="onExpand($event)"
-            title="Open full view">
-      <mat-icon>open_in_full</mat-icon>
-    </button>
-  </div>
+<state-overlay-shell
+  accent="#2196F3"
+  icon="calculate"
+  title="Math Operation"
+  [bordered]="true"
+  [hasPopupView]="hasPopupView"
+  (expandClicked)="onExpand()">
 
   <div class="overlay-content state-overlay-scrollbar">
 
@@ -64,4 +57,4 @@
       <code class="preview-code">{{ previewExpression }}</code>
     </div>
   </div>
-</div>
+</state-overlay-shell>

@@ -40,8 +40,7 @@ export class MathOperationOverlayFullComponent {
     this.popupRequested.emit({ side, event });
   }
 
-  onExpand(event: MouseEvent): void {
-    event.stopPropagation();
+  onExpand(): void {
     this.expandClicked.emit();
   }
 }

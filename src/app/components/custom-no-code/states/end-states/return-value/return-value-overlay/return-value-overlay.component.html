@@ -1,15 +1,13 @@
-<div class="state-overlay-card return-value-overlay"
-     style="--state-accent: #F44336"
-     [class.compact]="isCompact"
-     [class.small]="isSmall"
-     [appStateOverlayRoot]="stateName"
-     (contextRequested)="fullViewRequested.emit($event)">
-
-  <!-- Header -->
-  <div class="state-overlay-header overlay-header">
-    <mat-icon class="state-overlay-header__icon">exit_to_app</mat-icon>
-    <span class="state-overlay-header__title">Return Value</span>
-  </div>
+<state-overlay-shell
+  [appStateOverlayRoot]="stateName"
+  (contextRequested)="fullViewRequested.emit($event)"
+  accent="#F44336"
+  icon="exit_to_app"
+  title="Return Value"
+  headerBg="#F44336"
+  headerFg="white"
+  [hasPopupView]="hasPopupView"
+  (expandClicked)="onExpandClick()">
 
   <!-- Value selector area -->
   <div class="value-area" *ngIf="!isCompact">
@@ -54,4 +52,4 @@
       </app-value-source-selector>
     </div>
   </div>
-</div>
+</state-overlay-shell>

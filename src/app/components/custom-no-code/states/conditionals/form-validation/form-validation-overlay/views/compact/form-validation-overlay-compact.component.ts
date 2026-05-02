@@ -24,8 +24,7 @@ export class FormValidationOverlayCompactComponent {
     this.fieldToggled.emit(field);
   }
 
-  onExpand(event: Event): void {
-    event.stopPropagation();
+  onExpand(): void {
     this.expandClicked.emit();
   }
 }

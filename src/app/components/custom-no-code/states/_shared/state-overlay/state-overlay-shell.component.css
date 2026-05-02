@@ -1,0 +1,11 @@
+/* The shell's host element must fill its parent so the inner card box
+   ([class.state-overlay-card]) inherits the right dimensions. */
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.shell-root {
+  /* Inherits .state-overlay-card layout from the global utilities. */
+}

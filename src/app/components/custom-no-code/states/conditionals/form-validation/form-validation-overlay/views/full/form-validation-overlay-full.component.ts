@@ -23,8 +23,7 @@ export class FormValidationOverlayFullComponent {
   @Output() fieldDebounceChanged = new EventEmitter<{ field: FormValidationField; value: string }>();
   @Output() expandClicked = new EventEmitter<void>();
 
-  onExpand(event: Event): void {
-    event.stopPropagation();
+  onExpand(): void {
     this.expandClicked.emit();
   }
 

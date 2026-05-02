@@ -14,7 +14,7 @@ import {
   createDefaultValueSourceConfig,
   getSourceLabel
 } from '@models/stateSpace';
-import { SizeTier, resolveSizeTier } from '../../_shared/state-overlay/size-tier';
+import { StateOverlayBase } from '../../_shared/state-overlay/state-overlay-base';
 import { AvailableInput, SourceObjectField } from '../../../shared/value-source-selector/value-source-selector.component';
 import {
   MathOperationConfig,
@@ -35,28 +35,18 @@ export {
   templateUrl: './math-operation-overlay.component.html',
   styleUrls: ['./math-operation-overlay.component.css']
 })
-export class MathOperationOverlayComponent implements OnInit, OnDestroy {
-  // Standard overlay inputs (see _shared/state-overlay/README.md)
-  @Input() x: number = 0;
-  @Input() y: number = 0;
-  @Input() width: number = 100;
-  @Input() height: number = 100;
-  @Input() stateName: string = '';
+export class MathOperationOverlayComponent extends StateOverlayBase implements OnInit, OnDestroy {
+  // State-specific inputs (standard inputs come from StateOverlayBase)
   @Input() boundClassName: string = 'MathOperation';
   @Input() boundObjectFieldValues: { [key: string]: any } | null = null;
-
-  // State-specific inputs
   @Input() availableInputs: AvailableInput[] = [];
   @Input() sourceObjectFields: SourceObjectField[] = [];
 
-  // Standard overlay outputs
+  // State-specific outputs (popupRequested / fullViewRequested / statePageRequested come from base)
   @Output() fieldValuesChanged = new EventEmitter<{ [key: string]: any }>();
-  @Output() popupRequested = new EventEmitter<void>();
-  @Output() fullViewRequested = new EventEmitter<{ x: number; y: number; stateName: string }>();
-  @Output() statePageRequested = new EventEmitter<{ stateName: string }>();
-
-  // State-specific outputs
   @Output() operationChanged = new EventEmitter<MathOperationConfig>();
+
+  override hasPopupView: boolean = true;
 
   config: MathOperationConfig = {
     operationType: 'add',
@@ -75,11 +65,6 @@ export class MathOperationOverlayComponent implements OnInit, OnDestroy {
     { value: 'modulo', label: 'Modulo', symbol: '%' }
   ];
 
-  sizeTier: SizeTier = 'full';
-
-  /** This state has a custom popup view (see ./popup/). Drives the expand button in sub-views. */
-  hasPopupView: boolean = true;
-
   // Popup state — owned by base, rendered at root regardless of which sub-view triggered it
   activePopup: MathOperationPopupSide | null = null;
   popupPosition: { top: number; left: number } = { top: 0, left: 0 };
@@ -90,16 +75,12 @@ export class MathOperationOverlayComponent implements OnInit, OnDestroy {
   // Legacy two-step state kept for backwards compat with existing data
   resultObjectName: string = '';
 
-  ngOnInit(): void {
-    this.sizeTier = resolveSizeTier(this.width);
+  override ngOnInit(): void {
+    super.ngOnInit();
     this.initializeFromInputs();
   }
 
   ngOnDestroy(): void {}
-
-  forceUpdateSizeMode(): void {
-    this.sizeTier = resolveSizeTier(this.width);
-  }
 
   private initializeFromInputs(): void {
     if (this.boundObjectFieldValues) {
@@ -299,5 +280,4 @@ export class MathOperationOverlayComponent implements OnInit, OnDestroy {
     const op = this.operations.find(o => o.value === this.config.operationType);
     return op?.label || 'Math Operation';
   }
-
 }

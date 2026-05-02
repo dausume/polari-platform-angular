@@ -3,6 +3,7 @@
 
 import { Component, Input, Output, EventEmitter, OnInit, OnDestroy } from '@angular/core';
 import { ConditionalChainLink, LogicalOperator, ConditionType, CONDITION_TYPE_OPTIONS } from '@models/stateSpace';
+import { StateOverlayBase } from '../../_shared/state-overlay/state-overlay-base';
 
 /**
  * Filter type options
@@ -31,16 +32,9 @@ export interface VisualFilterLink {
   templateUrl: './filter-list-overlay.component.html',
   styleUrls: ['./filter-list-overlay.component.css']
 })
-export class FilterListOverlayComponent implements OnInit, OnDestroy {
+export class FilterListOverlayComponent extends StateOverlayBase implements OnInit, OnDestroy {
 
-  // Position and size (from StateOverlayManager)
-  @Input() x: number = 0;
-  @Input() y: number = 0;
-  @Input() width: number = 100;
-  @Input() height: number = 100;
-
-  // State identification
-  @Input() stateName: string = '';
+  // State-specific inputs (standard inputs come from StateOverlayBase)
   @Input() boundClassName: string = 'FilterList';
 
   // Filter configuration
@@ -59,7 +53,7 @@ export class FilterListOverlayComponent implements OnInit, OnDestroy {
   @Input() allowDynamicInputs: boolean = true;
   @Input() maxInputSlots: number = 0; // 0 = unlimited
 
-  // Events
+  // State-specific outputs (popupRequested / fullViewRequested / statePageRequested come from base)
   @Output() filterChanged = new EventEmitter<{
     filterType: FilterType;
     objectType: string;
@@ -67,8 +61,6 @@ export class FilterListOverlayComponent implements OnInit, OnDestroy {
   }>();
   @Output() displayNameChanged = new EventEmitter<string>();
   @Output() addInputSlot = new EventEmitter<void>();
-  // Full view popup request (forwarded by appStateOverlayRoot directive on right-click)
-  @Output() fullViewRequested = new EventEmitter<{ x: number; y: number; stateName: string }>();
 
   // Visual filter builder data
   visualFilters: VisualFilterLink[] = [];
@@ -91,7 +83,8 @@ export class FilterListOverlayComponent implements OnInit, OnDestroy {
   isCompact: boolean = false;
   isSmall: boolean = false;
 
-  ngOnInit(): void {
+  override ngOnInit(): void {
+    super.ngOnInit();
     this.updateSizeMode();
     this.initializeFromFilterConditions();
   }
@@ -233,7 +226,8 @@ export class FilterListOverlayComponent implements OnInit, OnDestroy {
   /**
    * Force update size mode (called externally)
    */
-  forceUpdateSizeMode(): void {
+  override forceUpdateSizeMode(): void {
+    super.forceUpdateSizeMode();
     this.updateSizeMode();
   }
 
@@ -261,6 +255,13 @@ export class FilterListOverlayComponent implements OnInit, OnDestroy {
    */
   toggleEditMode(): void {
     // Custom overlays are always interactive, no toggle needed
+  }
+
+  /**
+   * Handle click on the expand button — emits popup request via base class.
+   */
+  onExpandClick(): void {
+    this.popupRequested.emit();
   }
 
 }

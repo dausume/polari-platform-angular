@@ -1,15 +1,13 @@
-<div class="state-overlay-card filter-list-overlay"
-     style="--state-accent: #00BCD4"
-     [class.compact]="isCompact"
-     [class.small]="isSmall"
-     [appStateOverlayRoot]="stateName"
-     (contextRequested)="fullViewRequested.emit($event)">
-
-  <!-- Header -->
-  <div class="state-overlay-header overlay-header">
-    <mat-icon class="state-overlay-header__icon">{{ getFilterTypeIcon() }}</mat-icon>
-    <span class="state-overlay-header__title">{{ displayName || 'Filter List' }}</span>
-  </div>
+<state-overlay-shell
+  [appStateOverlayRoot]="stateName"
+  (contextRequested)="fullViewRequested.emit($event)"
+  accent="#00BCD4"
+  [icon]="getFilterTypeIcon()"
+  [title]="displayName || 'Filter List'"
+  headerBg="#00BCD4"
+  headerFg="white"
+  [hasPopupView]="hasPopupView"
+  (expandClicked)="onExpandClick()">
 
   <!-- Slot info bar -->
   <div class="slot-info-bar" *ngIf="!isCompact">
@@ -147,4 +145,4 @@
     <mat-icon>filter_list</mat-icon>
     <span>{{ visualFilters.length }}</span>
   </div>
-</div>
+</state-overlay-shell>

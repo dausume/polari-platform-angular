@@ -1,15 +1,12 @@
-<div class="state-overlay-card variable-assignment-overlay"
-     style="--state-accent: #9C27B0"
-     [class.compact]="isCompact"
-     [class.small]="isSmall"
-     [appStateOverlayRoot]="stateName"
-     (contextRequested)="fullViewRequested.emit($event)">
-
-  <!-- Header -->
-  <div class="state-overlay-header state-overlay-header--bordered overlay-header">
-    <mat-icon class="state-overlay-header__icon">assignment</mat-icon>
-    <span class="state-overlay-header__title">Variable Assignment</span>
-  </div>
+<state-overlay-shell
+  [appStateOverlayRoot]="stateName"
+  (contextRequested)="fullViewRequested.emit($event)"
+  accent="#9C27B0"
+  icon="assignment"
+  title="Variable Assignment"
+  [bordered]="true"
+  [hasPopupView]="hasPopupView"
+  (expandClicked)="onExpandClick()">
 
   <!-- Main content (non-compact mode) -->
   <div class="overlay-content state-overlay-scrollbar" *ngIf="!isCompact">
@@ -155,4 +152,4 @@
     <mat-icon>assignment</mat-icon>
     <span class="compact-text">{{ getTargetName() || 'Assign' }}</span>
   </div>
-</div>
+</state-overlay-shell>

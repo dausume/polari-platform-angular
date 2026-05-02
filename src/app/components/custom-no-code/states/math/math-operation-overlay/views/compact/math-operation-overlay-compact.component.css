@@ -1,10 +1,12 @@
-/* Math compact view — state-specific layout. Card / header / expand button
-   styles come from the global state-overlay-patterns. */
+/* Math compact view — body layout. Card / header / expand button styles
+   come from the shared shell + global state-overlay-patterns. */
 
-.compact-view {
-  font-size: 11px;
-  padding: 6px;
+.compact-body {
+  display: flex;
+  flex-direction: column;
   gap: 6px;
+  font-size: 11px;
+  margin-top: 4px;
 }
 
 .operation-buttons {

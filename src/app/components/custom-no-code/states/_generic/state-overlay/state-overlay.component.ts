@@ -10,6 +10,7 @@ import {
   getStateSpaceClassesByCategory,
   StateSpaceCategory
 } from '@models/stateSpace';
+import { StateOverlayBase } from '../../_shared/state-overlay/state-overlay-base';
 
 /**
  * Display field with enhanced metadata from state-space registry
@@ -63,17 +64,9 @@ export interface BoundObjectInfo {
   templateUrl: './state-overlay.component.html',
   styleUrls: ['./state-overlay.component.css']
 })
-export class StateOverlayComponent implements OnInit, OnDestroy, OnChanges {
+export class StateOverlayComponent extends StateOverlayBase implements OnInit, OnDestroy, OnChanges {
 
-  // Position and size (set by StateOverlayManager)
-  @Input() x: number = 0;
-  @Input() y: number = 0;
-  @Input() width: number = 100;
-  @Input() height: number = 100;
-
-  // State identification
-  @Input() stateName: string = '';
-
+  // State-specific inputs (standard inputs come from StateOverlayBase)
   // Bound class configuration
   @Input() boundClassName: string = '';
   @Input() availableClasses: string[] = [];
@@ -96,12 +89,10 @@ export class StateOverlayComponent implements OnInit, OnDestroy, OnChanges {
   // Used to filter these from the class selector dropdown
   @Input() existingUniqueStates: Set<string> = new Set();
 
-  // Events
+  // State-specific outputs (popupRequested / fullViewRequested / statePageRequested come from base)
   @Output() classSelected = new EventEmitter<{ className: string; metadata: StateSpaceClassMetadata | undefined }>();
   @Output() fieldChanged = new EventEmitter<{ fieldName: string; value: any }>();
   @Output() overlayClicked = new EventEmitter<void>();
-  @Output() fullViewRequested = new EventEmitter<{ x: number; y: number; stateName: string }>();
-  @Output() statePageRequested = new EventEmitter<{ stateName: string }>();
 
   // Form controls
   classSearchControl = new FormControl('');
@@ -124,10 +115,12 @@ export class StateOverlayComponent implements OnInit, OnDestroy, OnChanges {
   isSmall: boolean = false;
 
   constructor() {
+    super();
     this.registry = getStateSpaceRegistry();
   }
 
-  ngOnInit(): void {
+  override ngOnInit(): void {
+    super.ngOnInit();
     this.loadClassOptionsFromRegistry();
 
     this.classSearchControl.valueChanges.subscribe(searchTerm => {
@@ -142,7 +135,8 @@ export class StateOverlayComponent implements OnInit, OnDestroy, OnChanges {
     this.updateSizeMode();
   }
 
-  ngOnChanges(changes: SimpleChanges): void {
+  override ngOnChanges(changes: SimpleChanges): void {
+    super.ngOnChanges(changes);
     if (changes['boundClassName'] && !changes['boundClassName'].firstChange) {
       const newClassName = changes['boundClassName'].currentValue;
       if (newClassName) {
@@ -257,7 +251,8 @@ export class StateOverlayComponent implements OnInit, OnDestroy, OnChanges {
    * Force update size mode - called externally when dimensions change
    * without triggering ngOnChanges (e.g., from StateOverlayManager).
    */
-  forceUpdateSizeMode(): void {
+  override forceUpdateSizeMode(): void {
+    super.forceUpdateSizeMode();
     this.updateSizeMode();
   }
 

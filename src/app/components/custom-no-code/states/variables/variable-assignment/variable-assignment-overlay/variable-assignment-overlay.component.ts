@@ -13,6 +13,7 @@ import {
   getSourceLabel
 } from '@models/stateSpace';
 import { AvailableInput, SourceObjectField } from '../../../../shared/value-source-selector/value-source-selector.component';
+import { StateOverlayBase } from '../../../_shared/state-overlay/state-overlay-base';
 
 /**
  * Extended interface for solution object fields with additional metadata
@@ -61,16 +62,9 @@ export interface AssignmentConfig {
   templateUrl: './variable-assignment-overlay.component.html',
   styleUrls: ['./variable-assignment-overlay.component.css']
 })
-export class VariableAssignmentOverlayComponent implements OnInit, OnDestroy {
+export class VariableAssignmentOverlayComponent extends StateOverlayBase implements OnInit, OnDestroy {
 
-  // Position and size (from StateOverlayManager)
-  @Input() x: number = 0;
-  @Input() y: number = 0;
-  @Input() width: number = 100;
-  @Input() height: number = 100;
-
-  // State identification
-  @Input() stateName: string = '';
+  // State-specific inputs (standard inputs come from StateOverlayBase)
   @Input() boundClassName: string = 'VariableAssignment';
 
   // Available input fields from connected states
@@ -88,12 +82,10 @@ export class VariableAssignmentOverlayComponent implements OnInit, OnDestroy {
   // Bound field values from the state instance
   @Input() boundObjectFieldValues: { [key: string]: any } | null = null;
 
-  // Events
+  // State-specific outputs (popupRequested / fullViewRequested / statePageRequested come from base)
   @Output() assignmentChanged = new EventEmitter<AssignmentConfig>();
   @Output() fieldValuesChanged = new EventEmitter<{ [key: string]: any }>();
   @Output() newVariableCreated = new EventEmitter<{ name: string; type: string }>();
-  @Output() fullViewRequested = new EventEmitter<{ x: number; y: number; stateName: string }>();
-  @Output() statePageRequested = new EventEmitter<{ stateName: string }>();
 
   // Current assignment configuration
   config: AssignmentConfig = {
@@ -137,9 +129,12 @@ export class VariableAssignmentOverlayComponent implements OnInit, OnDestroy {
   isVariableNameUnique: boolean = true;
   private lastEmittedVariableName: string = '';
 
-  constructor(private elementRef: ElementRef) {}
+  constructor(private elementRef: ElementRef) {
+    super();
+  }
 
-  ngOnInit(): void {
+  override ngOnInit(): void {
+    super.ngOnInit();
     this.updateSizeMode();
     this.initializeFromInputs();
 
@@ -549,6 +544,13 @@ export class VariableAssignmentOverlayComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Handle click on the expand button — emits popup request via base class.
+   */
+  onExpandClick(): void {
+    this.popupRequested.emit();
+  }
+
+  /**
    * Toggle edit mode (for compatibility)
    */
   toggleEditMode(): void {
@@ -558,7 +560,8 @@ export class VariableAssignmentOverlayComponent implements OnInit, OnDestroy {
   /**
    * Force update size mode (called externally)
    */
-  forceUpdateSizeMode(): void {
+  override forceUpdateSizeMode(): void {
+    super.forceUpdateSizeMode();
     this.updateSizeMode();
   }
 

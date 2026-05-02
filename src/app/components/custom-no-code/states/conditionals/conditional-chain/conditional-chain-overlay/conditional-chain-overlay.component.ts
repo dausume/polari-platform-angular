@@ -16,6 +16,7 @@ import {
   CONDITION_TYPE_OPTIONS
 } from '@models/stateSpace';
 import { AvailableInput, SourceObjectField } from '../../../../shared/value-source-selector/value-source-selector.component';
+import { StateOverlayBase } from '../../../_shared/state-overlay/state-overlay-base';
 
 /**
  * Mode for building conditional chains
@@ -57,16 +58,9 @@ export interface VisualConditionLink {
   templateUrl: './conditional-chain-overlay.component.html',
   styleUrls: ['./conditional-chain-overlay.component.css']
 })
-export class ConditionalChainOverlayComponent implements OnInit, OnDestroy {
+export class ConditionalChainOverlayComponent extends StateOverlayBase implements OnInit, OnDestroy {
 
-  // Position and size (from StateOverlayManager)
-  @Input() x: number = 0;
-  @Input() y: number = 0;
-  @Input() width: number = 100;
-  @Input() height: number = 100;
-
-  // State identification
-  @Input() stateName: string = '';
+  // State-specific inputs (standard inputs come from StateOverlayBase)
   @Input() boundClassName: string = 'ConditionalChain';
 
   // Available input fields from connected states (for dropdown) - legacy format
@@ -87,13 +81,10 @@ export class ConditionalChainOverlayComponent implements OnInit, OnDestroy {
   @Input() allowDynamicInputs: boolean = true;
   @Input() maxInputSlots: number = 0; // 0 = unlimited
 
-  // Events
+  // State-specific outputs (popupRequested / fullViewRequested / statePageRequested come from base)
   @Output() chainChanged = new EventEmitter<{ links: ConditionalChainLink[]; defaultOperator: LogicalOperator }>();
   @Output() syntaxChanged = new EventEmitter<string>();
   @Output() addInputSlot = new EventEmitter<void>();
-  @Output() fullViewRequested = new EventEmitter<{ x: number; y: number; stateName: string }>();
-  @Output() statePageRequested = new EventEmitter<{ stateName: string }>();
-  @Output() popupRequested = new EventEmitter<void>();
 
   // Current editor mode
   editorMode: ConditionalEditorMode = 'visual';
@@ -120,7 +111,7 @@ export class ConditionalChainOverlayComponent implements OnInit, OnDestroy {
   isSmall: boolean = false;
 
   /** This state has a custom popup view (see ./popup/). Drives the expand button in the header. */
-  hasPopupView: boolean = true;
+  override hasPopupView: boolean = true;
 
   // Popup state for value source editing
   popupVisible: boolean = false;
@@ -128,9 +119,12 @@ export class ConditionalChainOverlayComponent implements OnInit, OnDestroy {
   popupEditingSide: EditingSide = null;
   popupPosition: { top: number; left: number } = { top: 0, left: 0 };
 
-  constructor(private elementRef: ElementRef) {}
+  constructor(private elementRef: ElementRef) {
+    super();
+  }
 
-  ngOnInit(): void {
+  override ngOnInit(): void {
+    super.ngOnInit();
     this.updateSizeMode();
     this.initializeFromChainLinks();
     this.generateSyntaxFromVisual();
@@ -563,7 +557,8 @@ export class ConditionalChainOverlayComponent implements OnInit, OnDestroy {
   /**
    * Force update size mode (called externally)
    */
-  forceUpdateSizeMode(): void {
+  override forceUpdateSizeMode(): void {
+    super.forceUpdateSizeMode();
     this.updateSizeMode();
   }
 
@@ -605,9 +600,7 @@ export class ConditionalChainOverlayComponent implements OnInit, OnDestroy {
   /**
    * Handle click on the expand button — open the per-state popup.
    */
-  onExpandClick(event: MouseEvent): void {
-    event.stopPropagation();
-    event.preventDefault();
+  onExpandClick(): void {
     this.popupRequested.emit();
   }
 

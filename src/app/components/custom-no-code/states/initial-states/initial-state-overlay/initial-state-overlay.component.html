@@ -1,24 +1,21 @@
-<div class="state-overlay-card initial-state-overlay"
-     style="--state-accent: #4CAF50"
-     [class.compact]="isCompact"
-     [class.small]="isSmall"
-     [appStateOverlayRoot]="stateName"
-     (click)="onOverlayClick($event)"
-     (contextRequested)="fullViewRequested.emit($event)">
+<state-overlay-shell
+  [appStateOverlayRoot]="stateName"
+  (contextRequested)="fullViewRequested.emit($event)"
+  (click)="onOverlayClick($event)"
+  accent="#4CAF50"
+  [icon]="getCurrentTriggerOption()?.icon || 'play_circle'"
+  [title]="isCompact ? '' : (getCurrentTriggerOption()?.label || 'Initial State')"
+  [bordered]="true"
+  [hasPopupView]="hasPopupView"
+  (expandClicked)="onExpandClick()">
 
-  <!-- Header with Trigger Type Selector -->
-  <div class="state-overlay-header state-overlay-header--bordered overlay-header">
-    <mat-icon class="state-overlay-header__icon" [style.color]="getCurrentTriggerOption()?.color || '#4CAF50'">
-      {{ getCurrentTriggerOption()?.icon || 'play_circle' }}
-    </mat-icon>
-    <span class="state-overlay-header__title" *ngIf="!isCompact">{{ getCurrentTriggerOption()?.label || 'Initial State' }}</span>
-    <button class="type-selector-btn"
-            *ngIf="!isCompact && triggerTypeOptions.length > 1"
-            (click)="toggleTypeSelector($event)"
-            title="Change trigger type">
-      <mat-icon>arrow_drop_down</mat-icon>
-    </button>
-  </div>
+  <button headerExtras
+          class="type-selector-btn"
+          *ngIf="!isCompact && triggerTypeOptions.length > 1"
+          (click)="toggleTypeSelector($event)"
+          title="Change trigger type">
+    <mat-icon>arrow_drop_down</mat-icon>
+  </button>
 
   <!-- Trigger Type Dropdown -->
   <div class="type-selector-dropdown" *ngIf="showTypeSelector">
@@ -197,4 +194,4 @@
     </mat-icon>
     <span class="compact-text">Start</span>
   </div>
-</div>
+</state-overlay-shell>

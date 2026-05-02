@@ -1,0 +1,22 @@
+<div class="state-overlay-card shell-root"
+     [style.--state-accent]="accent"
+     [style.padding]="padding">
+
+  <div class="state-overlay-header"
+       [class.state-overlay-header--bordered]="bordered"
+       [style.background]="headerBg"
+       [style.color]="headerFg">
+    <mat-icon class="state-overlay-header__icon">{{ icon }}</mat-icon>
+    <span class="state-overlay-header__title">{{ title }}</span>
+    <ng-content select="[headerExtras]"></ng-content>
+    <button class="state-overlay-expand-btn"
+            [class.state-overlay-expand-btn--compact]="compact"
+            *ngIf="hasPopupView"
+            (click)="onExpandClick($event)"
+            title="Open full view">
+      <mat-icon>open_in_full</mat-icon>
+    </button>
+  </div>
+
+  <ng-content></ng-content>
+</div>

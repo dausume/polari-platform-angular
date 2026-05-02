@@ -5,6 +5,7 @@
 import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, OnChanges, SimpleChanges } from '@angular/core';
 import { InitialStateTriggerType, getAvailableInitialStateTypes, StateSpaceClassRegistry } from '@models/stateSpace';
 import { TargetRuntime } from '@models/noCode/mock-NCS-data';
+import { StateOverlayBase } from '../../_shared/state-overlay/state-overlay-base';
 
 /**
  * Solution Object field definition
@@ -37,16 +38,9 @@ export interface TriggerTypeOption {
   templateUrl: './initial-state-overlay.component.html',
   styleUrls: ['./initial-state-overlay.component.css']
 })
-export class InitialStateOverlayComponent implements OnInit, OnDestroy, OnChanges {
+export class InitialStateOverlayComponent extends StateOverlayBase implements OnInit, OnDestroy, OnChanges {
 
-  // Position and size (from StateOverlayManager)
-  @Input() x: number = 0;
-  @Input() y: number = 0;
-  @Input() width: number = 100;
-  @Input() height: number = 100;
-
-  // State identification
-  @Input() stateName: string = '';
+  // State-specific inputs (standard inputs come from StateOverlayBase)
   @Input() boundClassName: string = 'DirectInvocation';
 
   // Solution information
@@ -72,8 +66,7 @@ export class InitialStateOverlayComponent implements OnInit, OnDestroy, OnChange
   // Linked parent solutions (auto-detected for logic_flow_entry)
   @Input() linkedParentSolutions: { name: string; stateName: string; linkType: string }[] = [];
 
-  // Full view popup request (forwarded by appStateOverlayRoot directive on right-click)
-  @Output() fullViewRequested = new EventEmitter<{ x: number; y: number; stateName: string }>();
+  // (fullViewRequested / popupRequested / statePageRequested come from base)
 
   // Available trigger type options (computed from runtime)
   triggerTypeOptions: TriggerTypeOption[] = [];
@@ -91,14 +84,16 @@ export class InitialStateOverlayComponent implements OnInit, OnDestroy, OnChange
 
   private registry = StateSpaceClassRegistry.getInstance();
 
-  ngOnInit(): void {
+  override ngOnInit(): void {
+    super.ngOnInit();
     this.updateSizeMode();
     this.updateTriggerTypeOptions();
   }
 
   ngOnDestroy(): void {}
 
-  ngOnChanges(changes: SimpleChanges): void {
+  override ngOnChanges(changes: SimpleChanges): void {
+    super.ngOnChanges(changes);
     if (changes['targetRuntime']) {
       this.updateTriggerTypeOptions();
     }
@@ -268,9 +263,17 @@ export class InitialStateOverlayComponent implements OnInit, OnDestroy, OnChange
   }
 
   /**
+   * Handle click on the expand button — emits popup request via base class.
+   */
+  onExpandClick(): void {
+    this.popupRequested.emit();
+  }
+
+  /**
    * Force update size mode (called externally)
    */
-  forceUpdateSizeMode(): void {
+  override forceUpdateSizeMode(): void {
+    super.forceUpdateSizeMode();
     this.updateSizeMode();
   }
 }
