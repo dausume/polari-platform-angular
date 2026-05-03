@@ -1,0 +1,10 @@
+@use '../../../styles/config-page-common';
+
+.config-icon { color: #7e57c2; }
+.class-icon  { color: #7e57c2; }
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}

@@ -1,0 +1,61 @@
+<div class="page-container">
+    <div class="page-header">
+        <h1>Equations</h1>
+        <p class="subtitle">Symbolic and numeric equations executable across the framework</p>
+    </div>
+
+    <div class="section-header">
+        <h2>Equation Definitions by Class</h2>
+        <div class="header-actions">
+            <button mat-stroked-button color="primary" (click)="createNew()" [disabled]="creating">
+                <mat-icon>add</mat-icon> New Equation
+            </button>
+            <button mat-icon-button (click)="refresh()" matTooltip="Refresh">
+                <mat-icon>refresh</mat-icon>
+            </button>
+        </div>
+    </div>
+
+    <div *ngIf="loading" class="loading-container">
+        <mat-spinner diameter="40"></mat-spinner>
+        <span>Loading equation definitions...</span>
+    </div>
+
+    <div *ngIf="!loading && allConfigs.length === 0" class="empty-state">
+        <mat-icon class="empty-icon">functions</mat-icon>
+        <p>No equation definitions found.</p>
+        <p class="hint">Click "New Equation" to create one.</p>
+    </div>
+
+    <div *ngIf="!loading && configsByClass.length > 0" class="class-groups">
+        <div class="class-group" *ngFor="let group of configsByClass">
+            <div class="class-group-header" [class.expanded]="isExpanded(group.className)"
+                 (click)="toggleExpand(group.className)">
+                <mat-icon class="class-icon">functions</mat-icon>
+                <h3>{{ group.className }}</h3>
+                <span class="config-count">{{ group.configs.length }} equation{{ group.configs.length !== 1 ? 's' : '' }}</span>
+                <mat-icon class="expand-icon">expand_more</mat-icon>
+            </div>
+
+            <div class="class-group-body" [class.expanded]="isExpanded(group.className)">
+                <div class="configs-grid">
+                    <div class="config-card" *ngFor="let config of group.configs">
+                        <div class="card-header">
+                            <mat-icon class="config-icon">functions</mat-icon>
+                            <div class="config-info">
+                                <h4>{{ config.name || 'Untitled Equation' }}</h4>
+                                <span class="config-description" *ngIf="config.description">{{ config.description }}</span>
+                            </div>
+                        </div>
+                        <div class="card-actions">
+                            <button mat-stroked-button color="primary"
+                                    (click)="editConfig(config, $event)">
+                                <mat-icon>edit</mat-icon> Edit
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

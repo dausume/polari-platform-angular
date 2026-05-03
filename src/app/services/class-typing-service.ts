@@ -39,7 +39,8 @@ export class ClassTypingService {
         new navComponent("Graphs","graphs","GraphsComponent", {}, []),
         new navComponent("Displays","displays","DisplaysComponent", {}, []),
         new navComponent("Maps","maps","MapsComponent", {}, []),
-        new navComponent("DataSets","datasets","DataSetsComponent", {}, [])
+        new navComponent("DataSets","datasets","DataSetsComponent", {}, []),
+        new navComponent("Equations","equations","EquationsComponent", {}, [])
     ]
 
     // Dynamic navigation items for object class pages WITH instances (shown in main dropdown)

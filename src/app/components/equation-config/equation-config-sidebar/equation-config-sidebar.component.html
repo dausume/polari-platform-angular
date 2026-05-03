@@ -1,0 +1,31 @@
+<div class="equation-sidebar">
+    <div class="sidebar-header">
+        <h3>Equations</h3>
+        <div class="sidebar-actions">
+            <button mat-icon-button (click)="onCreate()" matTooltip="Create new equation">
+                <mat-icon>add</mat-icon>
+            </button>
+            <button mat-icon-button (click)="refresh()" matTooltip="Refresh">
+                <mat-icon>refresh</mat-icon>
+            </button>
+        </div>
+    </div>
+
+    <div class="sidebar-loading" *ngIf="loading">
+        <mat-spinner diameter="24"></mat-spinner>
+    </div>
+
+    <ul class="sidebar-list" *ngIf="!loading">
+        <li *ngFor="let c of configs"
+            class="sidebar-item"
+            [class.selected]="c.id === selectedId"
+            (click)="onSelect(c)">
+            <mat-icon class="item-icon">functions</mat-icon>
+            <div class="item-body">
+                <div class="item-name">{{ c.name || 'Untitled' }}</div>
+                <div class="item-meta" *ngIf="c.description">{{ c.description }}</div>
+            </div>
+        </li>
+        <li class="sidebar-empty" *ngIf="configs.length === 0">No equations yet.</li>
+    </ul>
+</div>

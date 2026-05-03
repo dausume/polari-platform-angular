@@ -127,6 +127,11 @@ import { DisplaysComponent } from '@components/displays/displays.component';
 import { TablesComponent } from '@components/tables/tables.component';
 import { GraphsComponent } from '@components/graphs/graphs.component';
 import { DataSetsComponent } from '@components/datasets/datasets.component';
+import { EquationsComponent } from '@components/equations/equations.component';
+import { EquationResultDisplayComponent } from '@components/equations/equation-result-display/equation-result-display.component';
+import { EquationConfigEditComponent } from '@components/equation-config/equation-config-edit/equation-config-edit.component';
+import { EquationConfigSidebarComponent } from '@components/equation-config/equation-config-sidebar/equation-config-sidebar.component';
+import { KatexDisplayComponent } from '@components/shared/katex-display/katex-display.component';
 // Table Config Components
 import { TableConfigSidebarComponent } from '@components/table-config/table-config-sidebar/table-config-sidebar';
 // Graph Config Components
@@ -252,7 +257,12 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     DisplaysComponent,
     TablesComponent,
     GraphsComponent,
-    DataSetsComponent
+    DataSetsComponent,
+    EquationsComponent,
+    EquationResultDisplayComponent,
+    EquationConfigEditComponent,
+    EquationConfigSidebarComponent,
+    KatexDisplayComponent
   ],
   imports: [
     BrowserModule,

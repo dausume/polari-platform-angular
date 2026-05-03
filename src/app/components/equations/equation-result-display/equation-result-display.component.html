@@ -1,0 +1,45 @@
+<div class="result-display" *ngIf="loading">
+    <mat-spinner diameter="20"></mat-spinner>
+    <span class="loading-text">Running equation...</span>
+</div>
+
+<div class="result-display" *ngIf="!loading && !hasResult">
+    <span class="placeholder">No result yet. Run the equation to see output.</span>
+</div>
+
+<div class="result-display" *ngIf="!loading && hasResult && result">
+    <div class="result-error" *ngIf="!result.success || result.error">
+        <mat-icon class="error-icon">error_outline</mat-icon>
+        <div class="error-body">
+            <div class="error-title">Execution Error</div>
+            <div class="error-message">{{ result.error || 'Equation execution failed.' }}</div>
+        </div>
+    </div>
+
+    <ng-container *ngIf="result.success">
+        <div class="result-section result-latex" *ngIf="result.result_latex">
+            <div class="result-label">Result (LaTeX)</div>
+            <katex-display [latex]="result.result_latex" [displayMode]="true"></katex-display>
+        </div>
+
+        <div class="result-section result-numeric" *ngIf="numericString">
+            <div class="result-label">Numeric</div>
+            <code class="numeric-value">{{ numericString }}</code>
+        </div>
+
+        <div class="result-section result-meta" *ngIf="result.requestId || result.name">
+            <span class="meta-chip" *ngIf="result.name"><strong>Equation:</strong> {{ result.name }}</span>
+            <span class="meta-chip" *ngIf="result.requestId"><strong>Request:</strong> {{ result.requestId }}</span>
+        </div>
+    </ng-container>
+
+    <div class="result-warnings" *ngIf="result.warnings && result.warnings.length > 0">
+        <div class="warnings-label">
+            <mat-icon class="warn-icon">warning_amber</mat-icon>
+            <span>Warnings</span>
+        </div>
+        <ul>
+            <li *ngFor="let w of result.warnings">{{ w }}</li>
+        </ul>
+    </div>
+</div>

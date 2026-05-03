@@ -13,6 +13,8 @@ import { DisplaysComponent } from '@components/displays/displays.component';
 import { TablesComponent } from '@components/tables/tables.component';
 import { GraphsComponent } from '@components/graphs/graphs.component';
 import { DataSetsComponent } from '@components/datasets/datasets.component';
+import { EquationsComponent } from '@components/equations/equations.component';
+import { EquationConfigEditComponent } from '@components/equation-config/equation-config-edit/equation-config-edit.component';
 
 const routes: Routes = [
   { path: '', loadComponent: () => import('@components/home/home').then(m => m.HomeComponent) },
@@ -33,6 +35,8 @@ const routes: Routes = [
   { path: 'tables', component: TablesComponent },
   { path: 'graphs', component: GraphsComponent },
   { path: 'datasets', component: DataSetsComponent },
+  { path: 'equations', component: EquationsComponent },
+  { path: 'equations/:id', component: EquationConfigEditComponent },
   { path: 'display/:id', loadComponent: () => import('@components/dashboard/display-page/display-page').then(m => m.DisplayPageComponent) }
 ];
 
