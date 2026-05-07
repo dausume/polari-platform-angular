@@ -1,0 +1,82 @@
+<div class="equation-selector-dialog">
+
+    <div mat-dialog-title class="dialog-header">
+        <div class="header-content">
+            <mat-icon class="header-icon">functions</mat-icon>
+            <div class="header-text">
+                <span class="header-title">{{ data.title || 'Select Equation' }}</span>
+                <span class="header-subtitle" *ngIf="data.subtitle">{{ data.subtitle }}</span>
+                <span class="header-restriction" *ngIf="data.restrictToSourceClass">
+                    Showing only equations attached to <code>{{ data.restrictToSourceClass }}</code>
+                </span>
+            </div>
+        </div>
+        <button mat-icon-button (click)="onCancel()" class="close-btn" aria-label="Close">
+            <mat-icon>close</mat-icon>
+        </button>
+    </div>
+
+    <div class="search-row">
+        <mat-icon class="search-icon">search</mat-icon>
+        <input class="search-input"
+               type="text"
+               placeholder="Search by equation name, source class, or description..."
+               [value]="query"
+               (input)="onSearch($any($event.target).value)" />
+        <button *ngIf="query"
+                class="search-clear"
+                type="button"
+                (click)="clearSearch()"
+                title="Clear">
+            <mat-icon>close</mat-icon>
+        </button>
+        <span class="search-count">
+            {{ totalShown }} match<span *ngIf="totalShown !== 1">es</span>
+        </span>
+    </div>
+
+    <mat-dialog-content class="dialog-content">
+
+        <div *ngIf="loading" class="loading-state">
+            <mat-spinner diameter="28"></mat-spinner>
+            <span>Loading equations...</span>
+        </div>
+
+        <div *ngIf="!loading && groups.length === 0" class="empty-state">
+            <mat-icon>info_outline</mat-icon>
+            <span *ngIf="query">No equations match "{{ query }}".</span>
+            <span *ngIf="!query">No equations defined yet.</span>
+        </div>
+
+        <div class="group-list" *ngIf="!loading">
+            <div *ngFor="let group of groups" class="group">
+                <div class="group-header" (click)="toggleGroup(group)">
+                    <mat-icon class="group-toggle">
+                        {{ group.expanded ? 'expand_less' : 'expand_more' }}
+                    </mat-icon>
+                    <mat-icon class="group-icon">widgets</mat-icon>
+                    <span class="group-label">{{ group.sourceClass }}</span>
+                    <span class="group-count">({{ group.equations.length }})</span>
+                </div>
+
+                <div *ngIf="group.expanded" class="group-items">
+                    <div *ngFor="let e of group.equations"
+                         class="equation-item"
+                         (click)="select(e)">
+                        <mat-icon class="equation-icon">functions</mat-icon>
+                        <div class="equation-text">
+                            <span class="equation-name">{{ e.name || '(unnamed)' }}</span>
+                            <span class="equation-desc" *ngIf="e.description">{{ e.description }}</span>
+                        </div>
+                        <mat-icon class="select-arrow">chevron_right</mat-icon>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </mat-dialog-content>
+
+    <mat-dialog-actions class="dialog-actions">
+        <span class="spacer"></span>
+        <button mat-button (click)="onCancel()">Cancel</button>
+    </mat-dialog-actions>
+</div>

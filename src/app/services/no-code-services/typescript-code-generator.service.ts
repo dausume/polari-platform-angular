@@ -745,6 +745,12 @@ export class TypescriptCodeGeneratorService {
       }
       case 'from_input':
         return source.inputVariableName || fallback || '...';
+      case 'from_dataset': {
+        // e.g., this.datasetOrders.row.value
+        const id = source.datasetId || 'dataset';
+        const path = source.datasetFieldPath ? `.${source.datasetFieldPath}` : '';
+        return `this.${id}${path}`;
+      }
       case 'direct_assignment': {
         // Literal value with proper TypeScript formatting
         const val = source.directValue;

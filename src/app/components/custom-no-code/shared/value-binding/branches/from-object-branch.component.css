@@ -1,0 +1,155 @@
+/* Layout strategy: `:host` is a regular block-flex item filling the shell's
+   available space; an internal `.branch-row` wrapper does the actual flex
+   layout of the .flow-step children. Relying on `:host` alone for the flex
+   container interacted unreliably with Angular's view encapsulation. */
+:host {
+    display: block;
+    flex: 1;
+    min-width: 0;
+}
+
+.branch-row {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 12px;
+    width: 100%;
+}
+
+.flow-step {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 140px;
+}
+
+.step-label {
+    font-size: 9px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.6);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.flow-dropdown,
+.flow-input {
+    padding: 6px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    font-size: 11px;
+    width: 100%;
+}
+
+.flow-dropdown { cursor: pointer; }
+
+.flow-dropdown:focus,
+.flow-input:focus {
+    outline: none;
+    border-color: #4CAF50;
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.flow-dropdown:hover:not(:disabled) {
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+.flow-dropdown option {
+    background: #333;
+    color: #fff;
+}
+
+.flow-dropdown:disabled,
+.flow-input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.flow-input::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.potential-shape {
+    font-size: 10px;
+    color: #6db8f5;
+    font-style: italic;
+    padding: 6px 8px;
+    background: rgba(33, 150, 243, 0.12);
+    border: 1px dashed rgba(33, 150, 243, 0.35);
+    border-radius: 4px;
+}
+
+/* Potential-mode class pill: button that opens the ClassSelectorDialog. */
+.flow-step.potential-class-step {
+    flex-direction: row;
+    align-items: flex-end;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.flow-step.potential-class-step .step-label {
+    width: 100%;
+}
+
+.class-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    background: rgba(33, 150, 243, 0.15);
+    border: 1px solid rgba(33, 150, 243, 0.45);
+    border-radius: 4px;
+    color: #6db8f5;
+    font: inherit;
+    font-size: 11px;
+    cursor: pointer;
+    text-align: left;
+    flex: 1;
+    min-width: 120px;
+}
+
+.class-pill:hover:not(:disabled) {
+    background: rgba(33, 150, 243, 0.25);
+    border-color: #6db8f5;
+}
+
+.class-pill:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.class-pill .class-pill-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+}
+
+.class-pill-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.class-clear-btn {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 4px;
+    color: rgba(255, 255, 255, 0.65);
+    cursor: pointer;
+    padding: 4px;
+    line-height: 0;
+    flex-shrink: 0;
+}
+
+.class-clear-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.class-clear-btn mat-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+}

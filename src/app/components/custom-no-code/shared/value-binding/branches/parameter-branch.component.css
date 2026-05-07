@@ -1,0 +1,78 @@
+:host {
+    display: block;
+    flex: 1;
+    min-width: 0;
+}
+
+.branch-row {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 12px;
+    width: 100%;
+}
+
+.flow-step {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 120px;
+}
+
+.flow-step.parameter-type-step {
+    min-width: 90px;
+}
+
+.step-label {
+    font-size: 9px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.6);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.flow-dropdown,
+.flow-input {
+    padding: 6px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    font-size: 11px;
+    width: 100%;
+}
+
+.flow-dropdown { cursor: pointer; }
+
+.flow-dropdown:focus,
+.flow-input:focus {
+    outline: none;
+    border-color: #2196F3;
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.flow-dropdown option {
+    background: #333;
+    color: #fff;
+}
+
+.flow-dropdown:disabled,
+.flow-input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.flow-input::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.potential-shape {
+    font-size: 10px;
+    color: #6db8f5;
+    font-style: italic;
+    padding: 6px 8px;
+    background: rgba(33, 150, 243, 0.12);
+    border: 1px dashed rgba(33, 150, 243, 0.35);
+    border-radius: 4px;
+    font-family: 'Consolas', 'Monaco', monospace;
+}

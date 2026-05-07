@@ -1,0 +1,17 @@
+<div class="branch-row">
+    <div class="flow-step input-step">
+        <label class="step-label">Variable</label>
+        <select class="flow-dropdown input-dropdown"
+                [disabled]="disabled || availableInputs.length === 0"
+                [ngModel]="selectedKey()"
+                (change)="onSelectionChange($any($event.target).value)">
+            <option value="" disabled>Choose...</option>
+            <option *ngFor="let input of availableInputs" [value]="inputKey(input)">
+                {{ input.variableName }} ({{ input.type }})
+            </option>
+        </select>
+        <span class="no-options-hint" *ngIf="availableInputs.length === 0">
+            No inputs connected
+        </span>
+    </div>
+</div>

@@ -1,0 +1,143 @@
+/* value-binding-shell.component.css
+   Chrome only. Branch sub-components style their own internals; the shell
+   keeps layout + the optional header pill consistent across selectors.
+   Visual style intentionally mirrors the existing value-source-selector.css
+   so the refactor is a no-op for current call sites. */
+
+.value-binding-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px;
+    font-size: 11px;
+    background: transparent;
+}
+
+.value-binding-shell.disabled {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+/* ===== Header pill (opt-in) ===== */
+
+.binding-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+}
+
+.binding-header.header--source {
+    background: rgba(76, 175, 80, 0.18);
+    color: #6fd673;
+    border: 1px solid rgba(76, 175, 80, 0.35);
+}
+
+.binding-header.header--potential {
+    background: rgba(33, 150, 243, 0.18);
+    color: #6db8f5;
+    border: 1px solid rgba(33, 150, 243, 0.35);
+}
+
+.binding-header .header-pill {
+    flex: 1;
+}
+
+.binding-header .header-help {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+    cursor: help;
+    opacity: 0.85;
+}
+
+/* ===== Flow layout (matches existing value-source-selector chrome) ===== */
+
+.selection-flow {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 12px;
+    flex-wrap: nowrap;
+}
+
+.flow-step {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 100px;
+}
+
+.flow-step.source-type-step {
+    min-width: 110px;
+}
+
+.step-label {
+    font-size: 9px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.6);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.flow-dropdown {
+    padding: 6px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    font-size: 11px;
+    cursor: pointer;
+    width: 100%;
+}
+
+.flow-dropdown:focus {
+    outline: none;
+    border-color: #4CAF50;
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.flow-dropdown:hover:not(:disabled) {
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+.flow-dropdown option {
+    background: #333;
+    color: #fff;
+}
+
+.flow-dropdown:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ===== Compact ===== */
+
+.value-binding-shell.compact {
+    padding: 4px;
+    gap: 4px;
+}
+
+.value-binding-shell.compact .selection-flow {
+    flex-direction: column;
+    gap: 6px;
+}
+
+.value-binding-shell.compact .flow-step {
+    min-width: unset;
+    width: 100%;
+}
+
+.value-binding-shell.compact .step-label {
+    font-size: 8px;
+}
+
+.value-binding-shell.compact .flow-dropdown {
+    padding: 4px 6px;
+    font-size: 10px;
+}

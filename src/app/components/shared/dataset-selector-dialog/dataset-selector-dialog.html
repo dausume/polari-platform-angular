@@ -1,0 +1,88 @@
+<div class="dataset-selector-dialog">
+
+    <!-- Header -->
+    <div mat-dialog-title class="dialog-header">
+        <div class="header-content">
+            <mat-icon class="header-icon">table_chart</mat-icon>
+            <div class="header-text">
+                <span class="header-title">{{ data.title || 'Select DataSet' }}</span>
+                <span class="header-subtitle" *ngIf="data.subtitle">{{ data.subtitle }}</span>
+                <span class="header-restriction" *ngIf="data.restrictToSourceClass">
+                    Showing only datasets built on <code>{{ data.restrictToSourceClass }}</code>
+                </span>
+            </div>
+        </div>
+        <button mat-icon-button (click)="onCancel()" class="close-btn" aria-label="Close">
+            <mat-icon>close</mat-icon>
+        </button>
+    </div>
+
+    <!-- Search -->
+    <div class="search-row">
+        <mat-icon class="search-icon">search</mat-icon>
+        <input class="search-input"
+               type="text"
+               placeholder="Search by dataset name or source class..."
+               [value]="query"
+               (input)="onSearch($any($event.target).value)" />
+        <button *ngIf="query"
+                class="search-clear"
+                type="button"
+                (click)="clearSearch()"
+                title="Clear">
+            <mat-icon>close</mat-icon>
+        </button>
+        <span class="search-count">
+            {{ totalShown }} match<span *ngIf="totalShown !== 1">es</span>
+        </span>
+    </div>
+
+    <!-- Content -->
+    <mat-dialog-content class="dialog-content">
+
+        <div *ngIf="loading" class="loading-state">
+            <mat-spinner diameter="28"></mat-spinner>
+            <span>Loading datasets...</span>
+        </div>
+
+        <div *ngIf="!loading && groups.length === 0" class="empty-state">
+            <mat-icon>info_outline</mat-icon>
+            <span *ngIf="query">No datasets match "{{ query }}".</span>
+            <span *ngIf="!query">No datasets defined yet.</span>
+        </div>
+
+        <div class="group-list" *ngIf="!loading">
+            <div *ngFor="let group of groups" class="group">
+                <!-- Group header: source class + dataset count -->
+                <div class="group-header" (click)="toggleGroup(group)">
+                    <mat-icon class="group-toggle">
+                        {{ group.expanded ? 'expand_less' : 'expand_more' }}
+                    </mat-icon>
+                    <mat-icon class="group-icon">widgets</mat-icon>
+                    <span class="group-label">{{ group.sourceClass }}</span>
+                    <span class="group-count">({{ group.datasets.length }})</span>
+                </div>
+
+                <!-- Datasets within this source class -->
+                <div *ngIf="group.expanded" class="group-items">
+                    <div *ngFor="let d of group.datasets"
+                         class="dataset-item"
+                         (click)="select(d)">
+                        <mat-icon class="dataset-icon">table_chart</mat-icon>
+                        <div class="dataset-text">
+                            <span class="dataset-name">{{ d.name || '(unnamed)' }}</span>
+                            <span class="dataset-desc" *ngIf="d.description">{{ d.description }}</span>
+                        </div>
+                        <mat-icon class="select-arrow">chevron_right</mat-icon>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </mat-dialog-content>
+
+    <!-- Actions -->
+    <mat-dialog-actions class="dialog-actions">
+        <span class="spacer"></span>
+        <button mat-button (click)="onCancel()">Cancel</button>
+    </mat-dialog-actions>
+</div>

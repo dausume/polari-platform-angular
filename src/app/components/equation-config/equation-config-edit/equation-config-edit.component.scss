@@ -34,12 +34,182 @@
         font-size: 16px;
         font-weight: 500;
         color: var(--text-primary, #222);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .section-help-icon {
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+        color: var(--text-tertiary, #888);
+        cursor: help;
+        transition: color 0.12s;
+    }
+
+    .section-help-icon:hover {
+        color: var(--brand-blue, #1976d2);
     }
 
     .section-hint {
         margin: -4px 0 14px 0;
         color: var(--text-tertiary, #888);
         font-size: 13px;
+    }
+}
+
+/* ===== Auto-detect badge ===== */
+
+/* Subsection titles within a section (used inside the unified Equation
+   Definition card to label the Operation block + LaTeX entry block). */
+.subsection-title {
+    margin: 18px 0 10px 0;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary, #555);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    &:first-child {
+        margin-top: 6px;
+    }
+}
+
+/* Operation selector — replaces the operation-type dropdown. Acts like a
+   pill button that shows the current op and opens the selector popup. */
+.op-selector-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    border: 1px solid var(--brand-blue, #1976d2);
+    background: var(--brand-blue-light, #e3f2fd);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.12s, box-shadow 0.12s;
+    font: inherit;
+    text-align: left;
+
+    &:hover {
+        background: white;
+        box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.15);
+    }
+}
+
+.op-selector-current {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+    min-width: 0;
+}
+
+.op-selector-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--brand-blue, #1976d2);
+}
+
+.op-selector-hint {
+    font-size: 11px;
+    color: var(--text-tertiary, #888);
+    font-style: italic;
+}
+
+.op-selector-icon {
+    color: var(--brand-blue, #1976d2);
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+/* Operation block container — visually grouped inside the larger card. */
+.operation-block {
+    padding: 12px 14px;
+    background: var(--surface-secondary, #fafafa);
+    border: 1px solid var(--border-light, #e0e3e9);
+    border-radius: 6px;
+    margin-bottom: 18px;
+
+    .subsection-title {
+        margin-top: 0;
+    }
+}
+
+::ng-deep .multiline-tooltip {
+    white-space: pre-line;
+    max-width: 360px !important;
+}
+
+/* ===== References section ===== */
+
+.latex-references {
+    margin-top: 18px;
+    padding: 12px 14px;
+    background: var(--surface-secondary, #fafafa);
+    border: 1px solid var(--border-light, #e0e3e9);
+    border-radius: 6px;
+
+    .references-header {
+        display: flex;
+        align-items: baseline;
+        gap: 6px;
+        margin-bottom: 8px;
+    }
+
+    .references-icon {
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+        color: var(--brand-blue, #1976d2);
+        align-self: center;
+    }
+
+    .references-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-primary, #333);
+    }
+
+    .references-hint {
+        font-size: 12px;
+        color: var(--text-tertiary, #888);
+    }
+
+    .references-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .references-list li {
+        font-size: 12px;
+        color: var(--text-secondary, #555);
+        line-height: 1.4;
+    }
+
+    .references-list a {
+        color: var(--brand-blue, #1976d2);
+        text-decoration: none;
+        font-weight: 500;
+    }
+
+    .references-list a:hover {
+        text-decoration: underline;
+    }
+
+    .ref-desc {
+        color: var(--text-tertiary, #888);
     }
 }
 
@@ -112,27 +282,47 @@
 // ===== LaTeX section =====
 
 .latex-section {
-    .symbol-palette {
+    /* Two-column layout: editor on the left, symbol palette sidebar on the right.
+       Collapses to single column on narrow screens so the textarea + preview
+       stack above the palette. */
+    .latex-split {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 360px;
+        gap: 16px;
+        align-items: stretch;
+
+        @media (max-width: 1100px) {
+            grid-template-columns: minmax(0, 1fr);
+        }
+    }
+
+    .latex-editor {
         display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-        margin-bottom: 10px;
+        flex-direction: column;
+        min-width: 0;
+        gap: 12px;
+    }
 
-        .palette-button {
-            font-family: 'Roboto Mono', monospace;
-            font-size: 12px;
-            padding: 4px 10px;
-            background: var(--surface-secondary, #f6f7f9);
-            border: 1px solid var(--border-light, #e0e3e9);
-            border-radius: 14px;
-            cursor: pointer;
-            color: var(--text-primary, #222);
-            transition: all 0.15s;
+    /* Palette is the right column. It stretches to match the left column's
+       height (because .latex-split has align-items: stretch) so that as the
+       left column grows with bindings + Step 2, the palette grows with it.
+       An inner scroll keeps the palette content usable on tall layouts. */
+    .latex-palette {
+        display: flex;
+        min-height: 560px;
+        border: 1px solid var(--border-light, #e0e3e9);
+        border-radius: 6px;
+        overflow: hidden;
+        background: var(--surface-primary, #ffffff);
+        position: sticky;
+        top: 12px;
+        align-self: start;
+        max-height: calc(100vh - 80px);
 
-            &:hover {
-                background: var(--surface-hover, #eaeef3);
-                border-color: var(--brand-teal, #1976d2);
-            }
+        app-equation-symbol-palette {
+            flex: 1;
+            min-width: 0;
+            overflow: auto;
         }
     }
 
@@ -140,7 +330,6 @@
         width: 100%;
         font-family: 'Roboto Mono', monospace;
         font-size: 14px;
-        margin-bottom: 12px;
     }
 
     .latex-preview-wrapper {
@@ -148,6 +337,8 @@
         border: 1px solid var(--border-light, #e0e3e9);
         border-radius: 6px;
         padding: 12px 14px;
+        flex: 1;
+        min-height: 0;
 
         .preview-label {
             font-size: 12px;
@@ -156,8 +347,106 @@
             letter-spacing: 0.05em;
             color: var(--text-tertiary, #888);
             margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .preview-step-icon {
+            font-size: 16px;
+            width: 16px;
+            height: 16px;
+            color: var(--brand-blue, #1976d2);
         }
     }
+
+    /* Step 2 preview — accents the post-substitution box so it reads
+       as the "what actually runs" output. */
+    .substituted-preview {
+        background: var(--surface-primary, #ffffff);
+        border-color: var(--brand-blue, #1976d2);
+        border-left-width: 3px;
+
+        .preview-step-icon {
+            color: var(--brand-blue, #1976d2);
+        }
+    }
+
+    .substitution-note {
+        margin-top: 10px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        color: var(--text-tertiary, #888);
+        font-style: italic;
+
+        mat-icon {
+            font-size: 16px;
+            width: 16px;
+            height: 16px;
+        }
+    }
+}
+
+/* ===== Variable Potentials block (sits in the left column beside the palette) ===== */
+.bindings-block {
+    padding: 12px 14px;
+    background: var(--surface-secondary, #fafafa);
+    border: 1px solid var(--border-light, #e0e3e9);
+    border-radius: 6px;
+
+    .subsection-title {
+        margin-top: 0;
+    }
+}
+
+.potentials-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+/* Each potential row: symbol | shell selector | actions */
+.potential-row {
+    display: grid;
+    grid-template-columns: 130px minmax(0, 1fr) 40px;
+    gap: 10px;
+    align-items: stretch;
+    padding: 10px;
+    background: var(--surface-primary, #fff);
+    border: 1px solid var(--border-light, #e0e3e9);
+    border-radius: 6px;
+
+    .potential-row-symbol {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    /* The selector ships its own dark chrome; wrap it on a panel that matches
+       the rest of the equation-edit page so it doesn't look like an alien
+       implant. */
+    .potential-row-selector {
+        background: #2c2f33;
+        border-radius: 6px;
+        padding: 4px;
+        min-width: 0;
+        overflow: hidden;
+    }
+
+    .potential-row-actions {
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+    }
+}
+
+.subsection-hint {
+    margin: 0 0 10px 0;
+    font-size: 12px;
+    color: var(--text-tertiary, #888);
 }
 
 // ===== Bindings table =====

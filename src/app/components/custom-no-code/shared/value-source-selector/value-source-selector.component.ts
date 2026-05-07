@@ -1,352 +1,208 @@
 // Author: Dustin Etts
-// polari-platform-angular/src/app/components/custom-no-code/value-source-selector/value-source-selector.component.ts
-// Reusable component for selecting value sources in conditional chains and log outputs
+// value-source-selector.component.ts
+//
+// Composes the shared `value-binding-shell` + branch sub-components to render
+// the existing source-selection UI. Public API (Inputs/Outputs and the
+// ValueSourceConfig shape) is unchanged so the existing call sites
+// (math-operation, conditional-chain, return-value, variable-assignment,
+// log-output) keep working without modification.
+//
+// Internally we map between the persisted ValueSourceType vocabulary
+// ('from_input', 'from_source_object', 'from_dataset', 'direct_assignment')
+// and the shell's BranchKind vocabulary ('from_upstream', 'from_object',
+// 'from_dataset', 'literal'). The persisted token names are kept stable so
+// no migration of saved no-code solutions or code-gen logic is needed.
 
-import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core';
 import { ValueSourceConfig, ValueSourceType } from '@models/stateSpace';
+import {
+    BranchKind,
+    SelectorMode,
+    ValueTypeTag,
+} from '../value-binding/branch-types';
+import { LiteralBranchValue } from '../value-binding/branches/literal-branch.component';
+import { FromUpstreamValue } from '../value-binding/branches/from-upstream-branch.component';
+import { FromObjectValue } from '../value-binding/branches/from-object-branch.component';
+import {
+    AvailableDataset,
+    FromDatasetValue,
+} from '../value-binding/branches/from-dataset-branch.component';
 
 /**
  * Available input variable from a connected state
  */
 export interface AvailableInput {
-  slotIndex: number;
-  variableName: string;
-  type: string;
-  sourceStateName?: string;
-  label?: string;
+    slotIndex: number;
+    variableName: string;
+    type: string;
+    sourceStateName?: string;
+    label?: string;
 }
 
 /**
  * Available field from the source object (self)
  */
 export interface SourceObjectField {
-  path: string;
-  type: string;
-  displayName?: string;
+    path: string;
+    type: string;
+    displayName?: string;
 }
 
-/**
- * ValueSourceSelectorComponent - Reusable component for selecting value sources.
- *
- * Supports three source types:
- * 1. From Input - Select from available input variables connected to the state
- * 2. From Source Object - Select from properties of the source object (self)
- * 3. Direct Assignment - Enter a literal value with type
- */
+/** Persisted source-type ↔ shell branch-kind mapping. */
+const PERSISTED_TO_BRANCH: Record<ValueSourceType, BranchKind> = {
+    'from_input': 'from_upstream',
+    'from_source_object': 'from_object',
+    'from_dataset': 'from_dataset',
+    'direct_assignment': 'literal',
+};
+const BRANCH_TO_PERSISTED: Record<BranchKind, ValueSourceType | null> = {
+    'from_upstream': 'from_input',
+    'from_object': 'from_source_object',
+    'from_dataset': 'from_dataset',
+    'literal': 'direct_assignment',
+    'parameter': null, // not exposed by the source selector
+};
+
+/** The branches this selector advertises in the shell's dropdown. */
+const SOURCE_ALLOWED_BRANCHES: BranchKind[] = [
+    'from_upstream',
+    'from_object',
+    'from_dataset',
+    'literal',
+];
+
 @Component({
-  standalone: false,
-  selector: 'app-value-source-selector',
-  templateUrl: './value-source-selector.component.html',
-  styleUrls: ['./value-source-selector.component.css']
+    standalone: false,
+    selector: 'app-value-source-selector',
+    templateUrl: './value-source-selector.component.html',
+    styleUrls: ['./value-source-selector.component.css'],
 })
 export class ValueSourceSelectorComponent implements OnInit, OnChanges {
 
-  // Current configuration
-  @Input() config: ValueSourceConfig = {
-    sourceType: 'from_input',
-    inputSlotIndex: 0
-  };
-
-  // Available inputs from connected states
-  @Input() availableInputs: AvailableInput[] = [];
-
-  // Available fields from the source object (e.g., self.num_a, self.num_b).
-  // IMPORTANT: This MUST be populated by the parent component for the "From Object" source type
-  // to render as dropdown selectors. When populated, the user selects an object (e.g., "self")
-  // then picks a field from that object. If empty, a text input fallback is shown which is NOT
-  // the intended UX. If you see a text input, debug why the parent isn't passing sourceObjectFields.
-  @Input() sourceObjectFields: SourceObjectField[] = [];
-
-  // Label for this selector (e.g., "Left Side", "Right Side")
-  @Input() label: string = 'Value';
-
-  // Whether to show in compact mode
-  @Input() compact: boolean = false;
-
-  // Whether the selector is disabled
-  @Input() disabled: boolean = false;
-
-  // Event emitted when configuration changes
-  @Output() configChange = new EventEmitter<ValueSourceConfig>();
-
-  // Source type options
-  sourceTypeOptions: { value: ValueSourceType; label: string; icon: string }[] = [
-    { value: 'from_input', label: 'Variable', icon: 'data_object' },
-    { value: 'from_source_object', label: 'From Object', icon: 'account_tree' },
-    { value: 'direct_assignment', label: 'Direct Value', icon: 'edit' }
-  ];
-
-  // Direct value type options
-  directValueTypes: { value: string; label: string }[] = [
-    { value: 'int', label: 'Integer' },
-    { value: 'float', label: 'Float' },
-    { value: 'str', label: 'String' },
-    { value: 'bool', label: 'Boolean' }
-  ];
-
-  // Local state for form values
-  // Start with empty string (no selection) - will be cast as needed
-  selectedSourceType: ValueSourceType | '' = '';
-  selectedInputIndex: number = 0;
-  selectedInputVariable: string = '';
-  selectedObjectName: string = '';
-  selectedObjectPath: string = '';
-  directValue: string = '';
-  directValueType: 'int' | 'str' | 'bool' | 'float' = 'str';
-
-  ngOnInit(): void {
-    this.syncFromConfig();
-  }
-
-  ngOnChanges(changes: SimpleChanges): void {
-    if (changes['config'] && !changes['config'].firstChange) {
-      this.syncFromConfig();
-    }
-  }
-
-  /**
-   * Sync local state from input config
-   */
-  private syncFromConfig(): void {
-    if (!this.config) return;
-
-    this.selectedSourceType = this.config.sourceType || 'from_input';
-
-    switch (this.selectedSourceType) {
-      case 'from_input':
-        this.selectedInputIndex = this.config.inputSlotIndex ?? 0;
-        this.selectedInputVariable = this.config.inputVariableName || '';
-        break;
-      case 'from_source_object':
-        this.selectedObjectPath = this.config.sourceObjectPath || '';
-        // Extract object name from path (e.g., "self.num_a" → "self")
-        if (this.selectedObjectPath && this.selectedObjectPath.includes('.')) {
-          this.selectedObjectName = this.selectedObjectPath.split('.')[0];
-        } else {
-          this.selectedObjectName = '';
-        }
-        break;
-      case 'direct_assignment':
-        this.directValue = this.config.directValue !== undefined ? String(this.config.directValue) : '';
-        this.directValueType = this.config.directValueType || 'int';
-        break;
-    }
-  }
-
-  /**
-   * Handle source type selection change
-   */
-  onSourceTypeChange(newType: ValueSourceType | ''): void {
-    this.selectedSourceType = newType;
-    if (newType) {
-      this.emitConfigChange();
-    }
-  }
-
-  /**
-   * Handle input variable selection change
-   */
-  onInputChange(inputKey: string): void {
-    // inputKey format: "slotIndex:variableName"
-    const parts = inputKey.split(':');
-    if (parts.length >= 2) {
-      this.selectedInputIndex = parseInt(parts[0], 10);
-      this.selectedInputVariable = parts[1];
-    }
-    this.emitConfigChange();
-  }
-
-  /**
-   * Get unique object names from source object field paths
-   * e.g., ["self.num_a", "self.num_b", "order.total"] → ["self", "order"]
-   */
-  getUniqueObjectNames(): string[] {
-    const names = new Set<string>();
-    for (const field of this.sourceObjectFields) {
-      const dotIndex = field.path.indexOf('.');
-      if (dotIndex > 0) {
-        names.add(field.path.substring(0, dotIndex));
-      }
-    }
-    return Array.from(names);
-  }
-
-  /**
-   * Get fields belonging to a specific object
-   */
-  getFieldsForObject(objectName: string): SourceObjectField[] {
-    const prefix = objectName + '.';
-    return this.sourceObjectFields.filter(f => f.path.startsWith(prefix));
-  }
-
-  /**
-   * Get display name for a field (strip object prefix)
-   */
-  getFieldDisplayName(field: SourceObjectField): string {
-    return field.displayName || field.path.split('.').slice(1).join('.');
-  }
-
-  /**
-   * Handle object name selection change (step 2 of 3-step flow)
-   */
-  onObjectNameChange(name: string): void {
-    this.selectedObjectName = name;
-    this.selectedObjectPath = '';
-  }
-
-  /**
-   * Handle source object field selection change (step 3 of 3-step flow)
-   */
-  onObjectPathChange(path: string): void {
-    this.selectedObjectPath = path;
-    this.emitConfigChange();
-  }
-
-  /**
-   * Handle direct value change
-   */
-  onDirectValueChange(value: string): void {
-    this.directValue = value;
-    this.emitConfigChange();
-  }
-
-  /**
-   * Handle direct value type change
-   */
-  onDirectValueTypeChange(type: string): void {
-    this.directValueType = type as 'int' | 'str' | 'bool' | 'float';
-    this.emitConfigChange();
-  }
-
-  /**
-   * Emit the updated configuration
-   */
-  private emitConfigChange(): void {
-    // Don't emit if no source type selected
-    if (!this.selectedSourceType) {
-      return;
-    }
-
-    const newConfig: ValueSourceConfig = {
-      sourceType: this.selectedSourceType as ValueSourceType
+    @Input() config: ValueSourceConfig = {
+        sourceType: 'from_input',
+        inputSlotIndex: 0,
     };
 
-    switch (this.selectedSourceType) {
-      case 'from_input':
-        newConfig.inputSlotIndex = this.selectedInputIndex;
-        newConfig.inputVariableName = this.selectedInputVariable;
-        break;
-      case 'from_source_object':
-        newConfig.sourceObjectPath = this.selectedObjectPath;
-        break;
-      case 'direct_assignment':
-        newConfig.directValue = this.parseDirectValue(this.directValue, this.directValueType);
-        newConfig.directValueType = this.directValueType;
-        break;
+    @Input() availableInputs: AvailableInput[] = [];
+    @Input() sourceObjectFields: SourceObjectField[] = [];
+    @Input() availableDatasets: AvailableDataset[] = [];
+
+    @Input() label: string = 'Value';
+    @Input() compact: boolean = false;
+    @Input() disabled: boolean = false;
+
+    /** Show the "Data Source Selection" header pill (popup contexts opt in). */
+    @Input() showHeader: boolean = false;
+
+    @Output() configChange = new EventEmitter<ValueSourceConfig>();
+
+    // ── Local state, sliced from config and rebuilt for the active branch ──
+
+    activeBranch: BranchKind | '' = '';
+    readonly mode: SelectorMode = 'source';
+    readonly allowedBranches = SOURCE_ALLOWED_BRANCHES;
+
+    // Per-branch state (only the slice for the active branch is meaningful).
+    inputSlotIndex = 0;
+    inputVariableName = '';
+    objectPath = '';
+    datasetId = '';
+    datasetFieldPath = '';
+    directValue: any = '';
+    directValueType: ValueTypeTag = 'str';
+
+    ngOnInit(): void {
+        this.syncFromConfig();
     }
 
-    this.configChange.emit(newConfig);
-  }
-
-  /**
-   * Parse direct value to the appropriate type
-   */
-  private parseDirectValue(value: string, type: string): any {
-    switch (type) {
-      case 'int':
-        return parseInt(value, 10) || 0;
-      case 'float':
-        return parseFloat(value) || 0.0;
-      case 'bool':
-        return value.toLowerCase() === 'true' || value === '1';
-      case 'str':
-      default:
-        return value;
-    }
-  }
-
-  /**
-   * Get the key for an available input (for selection matching)
-   */
-  getInputKey(input: AvailableInput): string {
-    return `${input.slotIndex}:${input.variableName}`;
-  }
-
-  /**
-   * Get the currently selected input key
-   */
-  getSelectedInputKey(): string {
-    return `${this.selectedInputIndex}:${this.selectedInputVariable}`;
-  }
-
-  /**
-   * Get display text for the current configuration
-   */
-  getDisplayText(): string {
-    switch (this.selectedSourceType) {
-      case 'from_input':
-        if (this.selectedInputVariable) {
-          return this.selectedInputVariable;
+    ngOnChanges(changes: SimpleChanges): void {
+        if (changes['config'] && !changes['config'].firstChange) {
+            this.syncFromConfig();
         }
-        return `input[${this.selectedInputIndex}]`;
-      case 'from_source_object':
-        const path = this.selectedObjectPath || '';
-        if (path.startsWith('self.')) {
-          return `Object.${path.substring(5)}`;
+    }
+
+    private syncFromConfig(): void {
+        if (!this.config) return;
+        const persisted = this.config.sourceType || 'from_input';
+        this.activeBranch = PERSISTED_TO_BRANCH[persisted] ?? '';
+
+        switch (persisted) {
+            case 'from_input':
+                this.inputSlotIndex = this.config.inputSlotIndex ?? 0;
+                this.inputVariableName = this.config.inputVariableName || '';
+                break;
+            case 'from_source_object':
+                this.objectPath = this.config.sourceObjectPath || '';
+                break;
+            case 'from_dataset':
+                this.datasetId = this.config.datasetId || '';
+                this.datasetFieldPath = this.config.datasetFieldPath || '';
+                break;
+            case 'direct_assignment':
+                this.directValue = this.config.directValue ?? '';
+                this.directValueType = (this.config.directValueType as ValueTypeTag) || 'str';
+                break;
         }
-        return path ? `Object.${path}` : 'Object.(?)';
-      case 'direct_assignment':
-        if (this.directValue !== undefined && this.directValue !== '') {
-          return `[${this.directValueType}] ${this.directValue}`;
+    }
+
+    // ── Shell event ────────────────────────────────────────────────────────
+
+    onBranchChange(kind: BranchKind): void {
+        this.activeBranch = kind;
+        this.emitFromActive();
+    }
+
+    // ── Branch sub-component events ────────────────────────────────────────
+
+    onLiteralChange(v: LiteralBranchValue): void {
+        this.directValue = v.value;
+        this.directValueType = v.valueType;
+        this.emitFromActive();
+    }
+
+    onUpstreamChange(v: FromUpstreamValue): void {
+        this.inputSlotIndex = v.slotIndex;
+        this.inputVariableName = v.variableName;
+        this.emitFromActive();
+    }
+
+    onObjectChange(v: FromObjectValue): void {
+        this.objectPath = v.objectPath;
+        this.emitFromActive();
+    }
+
+    onDatasetChange(v: FromDatasetValue): void {
+        this.datasetId = v.datasetId;
+        this.datasetFieldPath = v.fieldPath;
+        this.emitFromActive();
+    }
+
+    // ── Emit ───────────────────────────────────────────────────────────────
+
+    private emitFromActive(): void {
+        if (!this.activeBranch) return;
+        const persisted = BRANCH_TO_PERSISTED[this.activeBranch as BranchKind];
+        if (!persisted) return;
+
+        const out: ValueSourceConfig = { sourceType: persisted };
+        switch (persisted) {
+            case 'from_input':
+                out.inputSlotIndex = this.inputSlotIndex;
+                out.inputVariableName = this.inputVariableName;
+                break;
+            case 'from_source_object':
+                out.sourceObjectPath = this.objectPath;
+                break;
+            case 'from_dataset':
+                out.datasetId = this.datasetId;
+                out.datasetFieldPath = this.datasetFieldPath;
+                break;
+            case 'direct_assignment':
+                out.directValue = this.directValue;
+                out.directValueType = this.directValueType;
+                break;
         }
-        return `[${this.directValueType}] (empty)`;
-      default:
-        return '(not selected)';
+        this.configChange.emit(out);
     }
-  }
-
-  /**
-   * Check if the selection is complete (all required fields filled)
-   */
-  hasCompleteSelection(): boolean {
-    if (!this.selectedSourceType) {
-      return false;
-    }
-
-    switch (this.selectedSourceType) {
-      case 'from_input':
-        return !!this.selectedInputVariable;
-      case 'from_source_object':
-        return !!this.selectedObjectPath;
-      case 'direct_assignment':
-        return this.directValue !== undefined && this.directValue !== '';
-      default:
-        return false;
-    }
-  }
-
-  /**
-   * Get placeholder text for value input based on type
-   */
-  getValuePlaceholder(): string {
-    switch (this.directValueType) {
-      case 'int':
-        return 'e.g., 42';
-      case 'float':
-        return 'e.g., 3.14';
-      case 'str':
-        return 'e.g., hello';
-      case 'bool':
-        return 'true or false';
-      default:
-        return 'Enter value...';
-    }
-  }
-
-  /**
-   * Stop event propagation (prevent drag behavior)
-   */
-  onInteractionStart(event: Event): void {
-    event.stopPropagation();
-  }
 }

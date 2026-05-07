@@ -18,8 +18,29 @@
 
     <ng-container *ngIf="result.success">
         <div class="result-section result-latex" *ngIf="result.result_latex">
-            <div class="result-label">Result (LaTeX)</div>
+            <div class="result-label">Result (rendered)</div>
             <katex-display [latex]="result.result_latex" [displayMode]="true"></katex-display>
+        </div>
+
+        <div class="result-section result-latex-raw" *ngIf="result.result_latex">
+            <div class="result-label">
+                Result (raw LaTeX)
+                <button type="button"
+                        class="copy-btn"
+                        (click)="copyResultLatex()"
+                        [matTooltip]="copied ? 'Copied!' : 'Copy raw LaTeX to clipboard'">
+                    <mat-icon>{{ copied ? 'check' : 'content_copy' }}</mat-icon>
+                </button>
+            </div>
+            <pre class="raw-latex"><code>{{ result.result_latex }}</code></pre>
+        </div>
+
+        <div class="result-section result-boolean" *ngIf="isBooleanResult">
+            <div class="result-label">Boolean</div>
+            <span class="boolean-pill" [class.is-true]="booleanValue" [class.is-false]="!booleanValue">
+                <mat-icon class="boolean-icon">{{ booleanValue ? 'check_circle' : 'cancel' }}</mat-icon>
+                {{ booleanValue ? 'True' : 'False' }}
+            </span>
         </div>
 
         <div class="result-section result-numeric" *ngIf="numericString">

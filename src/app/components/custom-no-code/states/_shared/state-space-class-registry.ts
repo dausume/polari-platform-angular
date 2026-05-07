@@ -749,6 +749,52 @@ export class StateSpaceClassRegistry {
       factory: () => ({ type: 'MathOperation', displayName: 'Math', operationType: 'add' })
     });
 
+    // === Run Equation: hosts an EquationDefinition inside a state-space ===
+    this.registerClass({
+      className: 'RunEquation',
+      displayName: 'Run Equation',
+      description: 'Execute a saved equation; per-symbol potentials are filled by sources from the state-space.',
+      category: 'Math',
+      icon: 'functions',
+      color: '#FFB74D',
+      isStateSpaceObject: true,
+      stateSpaceDisplayFields: ['displayName', 'equationName'],
+      stateSpaceFieldsPerRow: 2,
+      isBuiltIn: true,
+      slotConfiguration: {
+        defaultInputCount: 1,
+        defaultOutputCount: 1,
+        allowDynamicInputs: false,
+        allowDynamicOutputs: false,
+        maxInputSlots: 1,
+        maxOutputSlots: 1,
+        inputType: 'any',
+        outputType: 'any',
+        inputLabels: ['Input'],
+        outputLabels: ['Result']
+      },
+      eventMethods: [
+        {
+          methodName: 'execute',
+          displayName: 'Run Equation',
+          description: 'Resolve declared potentials, call the executor, return the result.',
+          category: 'Math',
+          inputParams: [],
+          output: { type: 'any', displayName: 'Result' }
+        }
+      ],
+      variables: [
+        { name: 'displayName', displayName: 'Display Name', type: 'string', isEditable: true, defaultValue: 'Run Equation' },
+        { name: 'equationId', displayName: 'Equation ID', type: 'string', isEditable: true },
+        { name: 'equationName', displayName: 'Equation Name', type: 'string', isEditable: true },
+        { name: 'bindings', displayName: 'Bindings', type: 'object', isEditable: true },
+        { name: 'resultTarget', displayName: 'Result Target', type: 'string', isEditable: true, defaultValue: 'result_variable' },
+        { name: 'resultVariableName', displayName: 'Result Variable', type: 'string', isEditable: true, defaultValue: 'result' },
+        { name: 'resultFieldPath', displayName: 'Result Field', type: 'string', isEditable: true }
+      ],
+      factory: () => ({ type: 'RunEquation', displayName: 'Run Equation', equationId: '', equationName: '', bindings: [], resultTarget: 'result_variable', resultVariableName: 'result', resultFieldPath: '' })
+    });
+
     // === Data Operations (Variable & Function) ===
     this.registerClass({
       className: 'VariableAssignment',

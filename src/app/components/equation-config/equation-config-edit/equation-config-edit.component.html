@@ -54,265 +54,318 @@
             </div>
         </section>
 
-        <!-- ===== Operation type ===== -->
-        <section class="edit-section">
-            <h2 class="section-title">Operation</h2>
-            <div class="form-row">
-                <label class="form-label">Operation Type</label>
-                <select class="form-input"
-                        [ngModel]="record.definition.operationType"
-                        (ngModelChange)="onOperationChange($event)">
-                    <option *ngFor="let op of operationTypes" [value]="op">{{ operationLabels[op] }}</option>
-                </select>
-            </div>
-
-            <!-- Operation-specific config -->
-            <div class="op-config" *ngIf="capabilities.needsBoundsVariable && !capabilities.isPde">
-                <div class="form-row">
-                    <label class="form-label">Variable</label>
-                    <input class="form-input"
-                           type="text"
-                           [ngModel]="bounds.variable || ''"
-                           (ngModelChange)="onBoundsField('variable', $event)"
-                           placeholder="x" />
-                </div>
-            </div>
-
-            <div class="op-config" *ngIf="capabilities.needsLowerUpper">
-                <div class="form-row form-row-pair">
-                    <div class="form-half">
-                        <label class="form-label">Lower</label>
-                        <input class="form-input" type="text"
-                               [ngModel]="bounds.lower || ''"
-                               (ngModelChange)="onBoundsField('lower', $event)"
-                               placeholder="0" />
-                    </div>
-                    <div class="form-half">
-                        <label class="form-label">Upper</label>
-                        <input class="form-input" type="text"
-                               [ngModel]="bounds.upper || ''"
-                               (ngModelChange)="onBoundsField('upper', $event)"
-                               placeholder="\\pi" />
-                    </div>
-                </div>
-            </div>
-
-            <div class="op-config" *ngIf="capabilities.needsLimitPoint">
-                <div class="form-row form-row-pair">
-                    <div class="form-half">
-                        <label class="form-label">Point</label>
-                        <input class="form-input" type="text"
-                               [ngModel]="bounds.point || ''"
-                               (ngModelChange)="onBoundsField('point', $event)"
-                               placeholder="0" />
-                    </div>
-                    <div class="form-half">
-                        <label class="form-label">Direction</label>
-                        <select class="form-input"
-                                [ngModel]="bounds.direction || ''"
-                                (ngModelChange)="onBoundsField('direction', $event)">
-                            <option value="">Two-sided</option>
-                            <option value="+">From above (+)</option>
-                            <option value="-">From below (-)</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <div class="op-config" *ngIf="capabilities.needsSeriesPoint">
-                <div class="form-row form-row-pair">
-                    <div class="form-half">
-                        <label class="form-label">Point</label>
-                        <input class="form-input" type="text"
-                               [ngModel]="bounds.point || ''"
-                               (ngModelChange)="onBoundsField('point', $event)"
-                               placeholder="0" />
-                    </div>
-                    <div class="form-half">
-                        <label class="form-label">Order</label>
-                        <input class="form-input" type="number"
-                               [ngModel]="bounds.order || 0"
-                               (ngModelChange)="onBoundsField('order', $event)"
-                               placeholder="6" />
-                    </div>
-                </div>
-            </div>
-
-            <div class="op-config" *ngIf="capabilities.needsFunctionDecl">
-                <div class="form-row">
-                    <label class="form-label">Function Declaration</label>
-                    <input class="form-input" type="text"
-                           [ngModel]="options['functionDecl'] || ''"
-                           (ngModelChange)="onOptionField('functionDecl', $event)"
-                           [placeholder]="capabilities.isPde ? 'u(x,t)' : 'y(x)'" />
-                </div>
-            </div>
-
-            <div class="op-config" *ngIf="capabilities.isDataSeries">
-                <div class="form-row form-row-pair">
-                    <div class="form-half">
-                        <label class="form-label">Method</label>
-                        <select class="form-input"
-                                [ngModel]="options['method'] || 'trapezoidal'"
-                                (ngModelChange)="onOptionField('method', $event)">
-                            <option value="trapezoidal">Trapezoidal</option>
-                            <option value="simpson">Simpson</option>
-                        </select>
-                    </div>
-                    <div class="form-half">
-                        <label class="form-label">DataSeries Variable</label>
-                        <input class="form-input" type="text"
-                               [ngModel]="options['dataseriesVariable'] || ''"
-                               (ngModelChange)="onOptionField('dataseriesVariable', $event)"
-                               placeholder="series" />
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- ===== LaTeX expression ===== -->
+        <!-- ===== LaTeX expression — combined: operation block + editor + palette ===== -->
         <section class="edit-section latex-section">
-            <h2 class="section-title">LaTeX Expression</h2>
-
-            <div class="symbol-palette">
-                <button type="button"
-                        class="palette-button"
-                        *ngFor="let entry of palette"
-                        [matTooltip]="entry.tooltip || entry.label"
-                        (click)="insertSymbol(entry)">
-                    {{ entry.label }}
-                </button>
-            </div>
-
-            <textarea class="form-input latex-input"
-                      rows="3"
-                      #latexInput
-                      [ngModel]="record.definition.latexExpression"
-                      (ngModelChange)="onLatexChange($event)"
-                      (focus)="onLatexTextareaInit(latexInput)"
-                      placeholder="\sin(x) + \frac{x^2}{2}"></textarea>
-
-            <div class="latex-preview-wrapper">
-                <div class="preview-label">Preview</div>
-                <katex-display
-                    [latex]="record.definition.latexExpression"
-                    [displayMode]="true"
-                    placeholder="LaTeX preview will appear here">
-                </katex-display>
-            </div>
-        </section>
-
-        <!-- ===== Variable bindings ===== -->
-        <section class="edit-section">
-            <h2 class="section-title">Variable Bindings</h2>
+            <h2 class="section-title">
+                Equation Definition
+                <mat-icon class="section-help-icon"
+                          matTooltip="Define the formula and what to compute on it. The operation block sets the verb; the LaTeX expression below is the operand. The preview at the bottom shows what the backend will actually run."
+                          matTooltipPosition="right"
+                          matTooltipClass="multiline-tooltip">help_outline</mat-icon>
+            </h2>
             <p class="section-hint">
-                Map LaTeX symbols (e.g. <code>x</code>) to runtime values.
-                Phase&nbsp;1 supports literal sources end-to-end. Other source types are persisted but disabled until the backend wiring lands.
+                Pick the action (Operation), then write the formula in LaTeX below.
+                The preview shows the wrapped expression that will be sent to the backend.
             </p>
 
-            <table class="bindings-table" *ngIf="record.definition.variableBindings.length > 0">
-                <thead>
-                    <tr>
-                        <th>Symbol</th>
-                        <th>Source</th>
-                        <th>Value</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr *ngFor="let b of record.definition.variableBindings; let i = index">
-                        <td>
-                            <input class="form-input"
-                                   type="text"
-                                   [ngModel]="b.symbol"
-                                   (ngModelChange)="onBindingSymbolChange(b, $event)"
-                                   placeholder="x" />
-                        </td>
-                        <td>
-                            <select class="form-input"
-                                    [ngModel]="b.source.type"
-                                    (ngModelChange)="onBindingSourceTypeChange(b, $event)">
-                                <option *ngFor="let t of sourceTypes" [value]="t.value">
-                                    {{ t.label }}{{ !t.supported ? ' (coming soon)' : '' }}
-                                </option>
-                            </select>
-                        </td>
-                        <td [ngSwitch]="b.source.type">
-                            <ng-container *ngSwitchCase="'literal'">
-                                <input class="form-input"
-                                       type="text"
-                                       [ngModel]="$any(b.source).value"
-                                       (ngModelChange)="onBindingLiteralChange(b, $event)"
-                                       placeholder="0" />
-                            </ng-container>
-                            <ng-container *ngSwitchCase="'parameter'">
-                                <input class="form-input"
-                                       type="text"
-                                       disabled
-                                       [value]="$any(b.source).parameterName || ''"
-                                       placeholder="(coming soon)" />
-                            </ng-container>
-                            <ng-container *ngSwitchCase="'dataset_field'">
-                                <input class="form-input"
-                                       type="text"
-                                       disabled
-                                       [value]="$any(b.source).fieldPath || ''"
-                                       placeholder="(coming soon)" />
-                            </ng-container>
-                            <ng-container *ngSwitchCase="'object_variable'">
-                                <input class="form-input"
-                                       type="text"
-                                       disabled
-                                       [value]="$any(b.source).fieldPath || ''"
-                                       placeholder="(coming soon)" />
-                            </ng-container>
-                        </td>
-                        <td class="row-actions">
-                            <button mat-icon-button (click)="removeBinding(i)" matTooltip="Remove">
-                                <mat-icon>delete_outline</mat-icon>
-                            </button>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+            <!-- ===== Operation block (moved from a separate section) ===== -->
+            <div class="operation-block">
+                <h3 class="subsection-title">
+                    Operation — what to compute on this formula
+                    <mat-icon class="section-help-icon"
+                              matTooltip="The verb the backend runs on your LaTeX expression — derivative, integral, solve, evaluate, etc. The preview below shows the wrapped expression that will actually be sent to the backend."
+                              matTooltipPosition="right"
+                              matTooltipClass="multiline-tooltip">help_outline</mat-icon>
+                </h3>
 
-            <button mat-stroked-button color="primary" (click)="addBinding()">
-                <mat-icon>add</mat-icon> Add Binding
-            </button>
+                <div class="form-row">
+                    <label class="form-label">Operation Type — what to compute</label>
+                    <button type="button"
+                            class="op-selector-btn"
+                            (click)="openOperationReference()"
+                            matTooltip="Browse all operations grouped by category. Each shows its description, example LaTeX, and the inputs it expects.">
+                        <span class="op-selector-current">
+                            <span class="op-selector-label">{{ operationLabels[record.definition.operationType] }}</span>
+                            <span class="op-selector-hint">— click to change</span>
+                        </span>
+                        <mat-icon class="op-selector-icon">tune</mat-icon>
+                    </button>
+                </div>
+
+                <!-- Operation-specific config -->
+                <div class="op-config" *ngIf="capabilities.needsBoundsVariable && !capabilities.isPde">
+                    <div class="form-row">
+                        <label class="form-label">Variable to operate on (e.g. <code>x</code> for d/dx)</label>
+                        <input class="form-input"
+                               type="text"
+                               [ngModel]="bounds.variable || ''"
+                               (ngModelChange)="onBoundsField('variable', $event)"
+                               placeholder="x" />
+                    </div>
+                </div>
+
+                <div class="op-config" *ngIf="capabilities.needsLowerUpper">
+                    <div class="form-row form-row-pair">
+                        <div class="form-half">
+                            <label class="form-label">Lower bound</label>
+                            <input class="form-input" type="text"
+                                   [ngModel]="bounds.lower || ''"
+                                   (ngModelChange)="onBoundsField('lower', $event)"
+                                   placeholder="0" />
+                        </div>
+                        <div class="form-half">
+                            <label class="form-label">Upper bound</label>
+                            <input class="form-input" type="text"
+                                   [ngModel]="bounds.upper || ''"
+                                   (ngModelChange)="onBoundsField('upper', $event)"
+                                   placeholder="\\pi" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="op-config" *ngIf="capabilities.needsLimitPoint">
+                    <div class="form-row form-row-pair">
+                        <div class="form-half">
+                            <label class="form-label">Approach point — value the variable approaches</label>
+                            <input class="form-input" type="text"
+                                   [ngModel]="bounds.point || ''"
+                                   (ngModelChange)="onBoundsField('point', $event)"
+                                   placeholder="0" />
+                        </div>
+                        <div class="form-half">
+                            <label class="form-label">Direction</label>
+                            <select class="form-input"
+                                    [ngModel]="bounds.direction || ''"
+                                    (ngModelChange)="onBoundsField('direction', $event)">
+                                <option value="">Two-sided (default)</option>
+                                <option value="+">From above (+)</option>
+                                <option value="-">From below (-)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="op-config" *ngIf="capabilities.needsSeriesPoint">
+                    <div class="form-row form-row-pair">
+                        <div class="form-half">
+                            <label class="form-label">Expansion point — value to expand around</label>
+                            <input class="form-input" type="text"
+                                   [ngModel]="bounds.point || ''"
+                                   (ngModelChange)="onBoundsField('point', $event)"
+                                   placeholder="0" />
+                        </div>
+                        <div class="form-half">
+                            <label class="form-label">Order — number of terms to keep</label>
+                            <input class="form-input" type="number"
+                                   [ngModel]="bounds.order || 0"
+                                   (ngModelChange)="onBoundsField('order', $event)"
+                                   placeholder="6" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="op-config" *ngIf="capabilities.needsFunctionDecl">
+                    <div class="form-row">
+                        <label class="form-label">Function declaration — the unknown function to solve for</label>
+                        <input class="form-input" type="text"
+                               [ngModel]="options['functionDecl'] || ''"
+                               (ngModelChange)="onOptionField('functionDecl', $event)"
+                               [placeholder]="capabilities.isPde ? 'u(x,t)' : 'y(x)'" />
+                    </div>
+                </div>
+
+                <div class="op-config" *ngIf="capabilities.isDataSeries">
+                    <div class="form-row form-row-pair">
+                        <div class="form-half">
+                            <label class="form-label">Numerical method</label>
+                            <select class="form-input"
+                                    [ngModel]="options['method'] || 'trapezoidal'"
+                                    (ngModelChange)="onOptionField('method', $event)">
+                                <option value="trapezoidal">Trapezoidal Rule</option>
+                                <option value="simpson">Simpson's Rule</option>
+                            </select>
+                        </div>
+                        <div class="form-half">
+                            <label class="form-label">DataSeries variable name</label>
+                            <input class="form-input" type="text"
+                                   [ngModel]="options['dataseriesVariable'] || ''"
+                                   (ngModelChange)="onOptionField('dataseriesVariable', $event)"
+                                   placeholder="series" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== LaTeX entry split (editor + palette) ===== -->
+            <h3 class="subsection-title">
+                LaTeX Expression — write the formula
+                <mat-icon class="section-help-icon"
+                          matTooltip="The mathematical formula in LaTeX syntax. Use the symbol palette on the right to insert common operators, or type LaTeX directly. The preview below shows the rendered result."
+                          matTooltipPosition="right"
+                          matTooltipClass="multiline-tooltip">help_outline</mat-icon>
+            </h3>
+
+            <div class="latex-split">
+                <div class="latex-editor">
+                    <textarea class="form-input latex-input"
+                              rows="4"
+                              #latexInput
+                              [ngModel]="record.definition.latexExpression"
+                              (ngModelChange)="onLatexChange($event)"
+                              (focus)="onLatexTextareaInit(latexInput)"
+                              placeholder="\sin(x) + \frac{x^2}{2}"></textarea>
+
+                    <div class="latex-preview-wrapper">
+                        <div class="preview-label">
+                            <mat-icon class="preview-step-icon">edit_note</mat-icon>
+                            Step 1 — Formula as written (before variable substitution)
+                            <mat-icon class="section-help-icon"
+                                      matTooltip="Shows the operation wrapped around the LaTeX you typed. Variable symbols are kept as symbols at this stage — useful for verifying the structure before bindings are applied."
+                                      matTooltipPosition="right"
+                                      matTooltipClass="multiline-tooltip">help_outline</mat-icon>
+                        </div>
+                        <katex-display
+                            [latex]="previewLatex"
+                            [displayMode]="true"
+                            placeholder="LaTeX preview will appear here">
+                        </katex-display>
+                    </div>
+
+                    <!-- ===== Variable Potentials (declared input shapes) ===== -->
+                    <div class="bindings-block">
+                        <h3 class="subsection-title">
+                            Variable Potentials — declare expected input shapes
+                            <mat-icon class="section-help-icon"
+                                      matTooltip="Each row declares the SHAPE of input the equation expects for a LaTeX symbol — not a concrete value. The header pill says 'Data Potential Selection' to remind you these are type signatures. When this equation is hosted in a no-code state, each potential becomes a slot the source selector must fill."
+                                      matTooltipPosition="right"
+                                      matTooltipClass="multiline-tooltip">help_outline</mat-icon>
+                        </h3>
+                        <p class="subsection-hint">
+                            Concrete test values for the Run-direct workflow live in the Run panel below — they're transient and never saved with the equation.
+                        </p>
+
+                        <div class="potentials-list" *ngIf="record.definition.variableBindings.length > 0">
+                            <div class="potential-row"
+                                 *ngFor="let b of record.definition.variableBindings; let i = index">
+                                <div class="potential-row-symbol">
+                                    <label class="form-label">Symbol</label>
+                                    <input class="form-input"
+                                           type="text"
+                                           [ngModel]="b.symbol"
+                                           (ngModelChange)="onBindingSymbolChange(b, $event)"
+                                           placeholder="x" />
+                                </div>
+                                <div class="potential-row-selector">
+                                    <app-value-potential-selector
+                                        [definition]="b.potential!"
+                                        [showHeader]="true"
+                                        label="Shape"
+                                        (definitionChange)="onBindingPotentialChange(b, $event)">
+                                    </app-value-potential-selector>
+                                </div>
+                                <div class="potential-row-actions">
+                                    <button mat-icon-button (click)="removeBinding(i)" matTooltip="Remove">
+                                        <mat-icon>delete_outline</mat-icon>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button mat-stroked-button color="primary" (click)="addBinding()">
+                            <mat-icon>add</mat-icon> Add Potential
+                        </button>
+                    </div>
+
+                    <!-- ===== Step 2 preview — post-substitution =================== -->
+                    <div class="latex-preview-wrapper substituted-preview">
+                        <div class="preview-label">
+                            <mat-icon class="preview-step-icon">play_arrow</mat-icon>
+                            Step 2 — After substituting your literal bindings (this is what actually runs)
+                            <mat-icon class="section-help-icon"
+                                      matTooltip="Same expression with every literal-sourced symbol replaced by its value. Non-literal bindings (dataset, object, parameter) are resolved by the backend at execute time and shown as their symbol here."
+                                      matTooltipPosition="right"
+                                      matTooltipClass="multiline-tooltip">help_outline</mat-icon>
+                        </div>
+                        <katex-display
+                            [latex]="previewLatexSubstituted"
+                            [displayMode]="true"
+                            placeholder="Substituted LaTeX preview will appear here">
+                        </katex-display>
+                        <div class="substitution-note" *ngIf="substitutionCount === 0">
+                            <mat-icon>info_outline</mat-icon>
+                            <span>No literal bindings have values yet — this matches Step 1 above. Add bindings to see substitution take effect.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="latex-palette">
+                    <app-equation-symbol-palette
+                        (insert)="insertSymbol($event)">
+                    </app-equation-symbol-palette>
+                </div>
+            </div>
+
+            <!-- ===== References ===== -->
+            <div class="latex-references">
+                <div class="references-header">
+                    <mat-icon class="references-icon">menu_book</mat-icon>
+                    <span class="references-title">Learn the format</span>
+                    <span class="references-hint">— LaTeX & KaTeX references for math typesetting</span>
+                </div>
+                <ul class="references-list">
+                    <li>
+                        <a href="https://katex.org/docs/supported.html" target="_blank" rel="noopener">KaTeX Supported Functions</a>
+                        <span class="ref-desc">— canonical list of every command our preview renders, organized by category.</span>
+                    </li>
+                    <li>
+                        <a href="https://en.wikibooks.org/wiki/LaTeX/Mathematics" target="_blank" rel="noopener">LaTeX/Mathematics (Wikibooks)</a>
+                        <span class="ref-desc">— free, comprehensive intro to LaTeX math syntax.</span>
+                    </li>
+                    <li>
+                        <a href="https://www.overleaf.com/learn/latex/Mathematical_expressions" target="_blank" rel="noopener">Overleaf: Mathematical Expressions</a>
+                        <span class="ref-desc">— beginner-friendly walkthrough with copy-pasteable examples.</span>
+                    </li>
+                    <li>
+                        <a href="http://detexify.kirelabs.org/classify.html" target="_blank" rel="noopener">Detexify</a>
+                        <span class="ref-desc">— draw a symbol with your mouse, get the LaTeX command.</span>
+                    </li>
+                </ul>
+            </div>
         </section>
 
         <!-- ===== Run panel ===== -->
         <section class="edit-section run-panel">
-            <h2 class="section-title">Run</h2>
+            <h2 class="section-title">
+                Run
+                <mat-icon class="section-help-icon"
+                          matTooltip="Stored bindings now describe input SHAPES, not values. Supply concrete test values per declared symbol below — they're used by both Run-direct (against the current draft) and Run-stored (against the saved record). Test values are transient and never saved."
+                          matTooltipPosition="right"
+                          matTooltipClass="multiline-tooltip">help_outline</mat-icon>
+            </h2>
             <p class="section-hint">
-                Execute this equation against the backend. "Run with stored bindings" calls
-                <code>POST /executeEquation</code> using the saved record. "Run direct" calls
-                <code>POST /executeEquationDirect</code> against the current draft (does not require save).
+                "Run direct" sends the current draft to <code>POST /executeEquationDirect</code>.
+                "Run stored" sends the saved name to <code>POST /executeEquation</code>.
+                Both use the test values supplied below.
             </p>
 
-            <!-- Override bindings toggle -->
-            <div class="form-row override-toggle">
-                <label class="checkbox-label">
-                    <input type="checkbox"
-                           [checked]="useOverrides"
-                           (change)="toggleUseOverrides()" />
-                    Override bindings at run time
-                </label>
-            </div>
-
-            <div *ngIf="useOverrides && overrideBindings.length > 0" class="overrides-table-wrapper">
+            <!-- Test values per declared potential -->
+            <div *ngIf="testableSymbols.length > 0" class="overrides-table-wrapper">
+                <h3 class="subsection-title">Test Values</h3>
+                <p class="subsection-hint">
+                    One row per <code>literal</code> / <code>parameter</code> potential. Values feed the Step 2 substituted preview and the run buttons. Object / dataset potentials are resolved by the host state-space at runtime and don't appear here.
+                </p>
                 <table class="bindings-table">
                     <thead>
-                        <tr><th>Symbol</th><th>Override Value (literal)</th></tr>
+                        <tr><th>Symbol</th><th>Test Value</th></tr>
                     </thead>
                     <tbody>
-                        <tr *ngFor="let b of overrideBindings">
-                            <td><code>{{ b.symbol }}</code></td>
+                        <tr *ngFor="let sym of testableSymbols">
+                            <td><code>{{ sym }}</code></td>
                             <td>
                                 <input class="form-input"
                                        type="text"
-                                       [ngModel]="b.source.type === 'literal' ? $any(b.source).value : ''"
-                                       (ngModelChange)="onOverrideLiteralChange(b, $event)"
+                                       [ngModel]="getTestValueDisplay(sym)"
+                                       (ngModelChange)="onTestValueChange(sym, $event)"
                                        placeholder="value" />
                             </td>
                         </tr>
@@ -320,12 +373,16 @@
                 </table>
             </div>
 
+            <p *ngIf="testableSymbols.length === 0" class="subsection-hint">
+                No literal or parameter potentials declared yet — add a Variable Potential above with kind = Literal or Parameter to supply test values.
+            </p>
+
             <div class="run-buttons">
                 <button mat-flat-button color="primary"
                         (click)="runStored()"
                         [disabled]="running || !record.name">
                     <mat-icon>play_arrow</mat-icon>
-                    <span *ngIf="!running">Run with stored bindings</span>
+                    <span *ngIf="!running">Run stored (against saved record)</span>
                     <span *ngIf="running">Running...</span>
                 </button>
 

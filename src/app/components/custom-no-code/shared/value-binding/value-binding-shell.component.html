@@ -1,0 +1,47 @@
+<div class="value-binding-shell"
+     [class.compact]="compact"
+     [class.disabled]="disabled"
+     [class.with-header]="showHeader"
+     (click)="onInteractionStart($event)"
+     (mousedown)="onInteractionStart($event)">
+
+    <!-- Optional header — flagged on by callers in popup contexts so the user
+         can tell "I'm picking a live source" from "I'm declaring an expected
+         input shape". Hidden by default to keep inline call sites unchanged. -->
+    <div class="binding-header" *ngIf="showHeader"
+         [class.header--source]="mode === 'source'"
+         [class.header--potential]="mode === 'potential'">
+        <span class="header-pill">{{ headerLabel }}</span>
+        <mat-icon class="header-help"
+                  [matTooltip]="headerTooltip"
+                  matTooltipPosition="right"
+                  matTooltipClass="multiline-tooltip">help_outline</mat-icon>
+    </div>
+
+    <!-- Selection flow: kind dropdown + projected branch content -->
+    <div class="selection-flow">
+
+        <!-- Step 1: Branch kind picker -->
+        <div class="flow-step source-type-step">
+            <label class="step-label">{{ label }}</label>
+            <select class="flow-dropdown source-type-dropdown"
+                    [disabled]="disabled"
+                    [ngModel]="selectedBranch"
+                    (ngModelChange)="onBranchKindChange($event)">
+                <option value="" disabled>Choose...</option>
+                <option *ngFor="let opt of visibleOptions" [value]="opt.kind">
+                    {{ opt.label }}
+                </option>
+            </select>
+        </div>
+
+        <!-- Step 2+: Active branch sub-component is projected here. The leaf
+             selector decides which branch component to render based on its
+             own config; this slot just lays them out side-by-side. -->
+        <ng-content></ng-content>
+
+    </div>
+
+    <!-- Optional preview slot (projected, leaf-controlled). -->
+    <ng-content select="[bindingPreview]"></ng-content>
+</div>

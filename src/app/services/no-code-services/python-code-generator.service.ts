@@ -221,6 +221,25 @@ export class PythonCodeGeneratorService {
         return `${resultName} = ${leftExpr} ${mathOp} ${rightExpr}`;
       }
 
+      case 'RunEquation': {
+        // Generates a call to the equation executor with a {symbol: value}
+        // dict built from the per-binding ValueSourceConfig list. Targets
+        // the same backend endpoint the equation-edit page uses for
+        // Run-direct (POST /executeEquation), so behavior is consistent.
+        const equationName = values['equationName'] || values['equationId'] || '';
+        const bindings: any[] = Array.isArray(values['bindings']) ? values['bindings'] : [];
+        const bindingPairs = bindings
+          .filter(b => b?.symbol)
+          .map(b => `'${b.symbol}': ${this.resolveValueSource(b.source, 'None')}`)
+          .join(', ');
+        const bindingDict = `{${bindingPairs}}`;
+        const resultTarget = values['resultTarget'] || 'result_variable';
+        const resultName = resultTarget === 'solution_field'
+          ? (values['resultFieldPath'] ? `self.${values['resultFieldPath']}` : 'result')
+          : (values['resultVariableName'] || 'result');
+        return `${resultName} = run_equation('${equationName}', ${bindingDict})`;
+      }
+
       case 'VariableAssignment':
         result = result
           .replace('{variable}', values['variableName'] || 'variable')
@@ -599,6 +618,12 @@ export class PythonCodeGeneratorService {
       case 'from_input':
         // e.g., variable name from input slot
         return source.inputVariableName || fallback || '...';
+      case 'from_dataset': {
+        // e.g., dataset_orders.row.value — accessor convention: <id>.<fieldPath>
+        const id = source.datasetId || 'dataset';
+        const path = source.datasetFieldPath ? `.${source.datasetFieldPath}` : '';
+        return `${id}${path}`;
+      }
       case 'direct_assignment': {
         // Literal value with proper Python formatting
         const val = source.directValue;

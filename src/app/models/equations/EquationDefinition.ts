@@ -19,9 +19,22 @@ export type EquationOperationType =
     | 'series'
     | 'ode_solve'
     | 'pde_solve'
+    | 'evaluate_predicate'
+    | 'is_identity'
+    | 'piecewise_evaluate'
     | 'dataseries_derivative'
     | 'dataseries_integral'
     | 'dataseries_ode_solve';
+
+/** Operation types whose result is a boolean (true/false), not a number. */
+export const BOOLEAN_RESULT_OPERATIONS: ReadonlyArray<EquationOperationType> = [
+    'evaluate_predicate',
+    'is_identity'
+];
+
+export function isBooleanResultOperation(op: EquationOperationType): boolean {
+    return (BOOLEAN_RESULT_OPERATIONS as readonly string[]).indexOf(op) >= 0;
+}
 
 export const EQUATION_OPERATION_TYPES: EquationOperationType[] = [
     'derivative',
@@ -36,6 +49,9 @@ export const EQUATION_OPERATION_TYPES: EquationOperationType[] = [
     'series',
     'ode_solve',
     'pde_solve',
+    'evaluate_predicate',
+    'is_identity',
+    'piecewise_evaluate',
     'dataseries_derivative',
     'dataseries_integral',
     'dataseries_ode_solve'
@@ -54,11 +70,20 @@ export const EQUATION_OPERATION_LABELS: Record<EquationOperationType, string> = 
     series: 'Series Expansion',
     ode_solve: 'ODE Solve',
     pde_solve: 'PDE Solve',
+    evaluate_predicate: 'Evaluate Predicate (Boolean)',
+    is_identity: 'Check Identity (Boolean)',
+    piecewise_evaluate: 'Piecewise / Conditional',
     dataseries_derivative: 'DataSeries Derivative',
     dataseries_integral: 'DataSeries Integral',
     dataseries_ode_solve: 'DataSeries ODE Solve'
 };
 
+/**
+ * Legacy source-type vocabulary, retained ONLY so we can migrate older seed
+ * equations into the new `potential` shape on load. New writes never emit a
+ * `source` field — bindings carry their `potential` (a `DataPotentialDefinition`)
+ * instead, and concrete test values live in component-local state during edit.
+ */
 export type EquationVariableSourceType =
     | 'literal'
     | 'dataset_field'
@@ -93,9 +118,23 @@ export type EquationVariableSource =
     | EquationObjectVariableSource
     | EquationParameterSource;
 
+import { DataPotentialDefinition } from '@components/custom-no-code/shared/value-binding/branch-types';
+
+/**
+ * A binding declares which symbol in the equation expects what *shape* of
+ * input. Concrete values are supplied either by the calling state-space (when
+ * the equation is hosted in a no-code state) or by the edit page's transient
+ * "test values" map (for the Run-direct workflow).
+ *
+ * `source` is kept here only so legacy seed-data records still typecheck
+ * during the migration step in equation-config-edit. New writes drop it.
+ */
 export interface EquationVariableBinding {
     symbol: string;
-    source: EquationVariableSource;
+    /** Declared input shape — set on every binding written by the new UI. */
+    potential?: DataPotentialDefinition;
+    /** Legacy concrete-source — present on pre-potentials seed records only. */
+    source?: EquationVariableSource;
 }
 
 export interface EquationBounds {
@@ -138,7 +177,12 @@ export interface EquationDefinitionRecord {
 export interface EquationExecutionResult {
     success: boolean;
     result_latex: string | null;
-    result_numeric: number | number[] | null;
+    /**
+     * For boolean-result operations (predicate / identity / piecewise), this
+     * is a Python `True`/`False` serialized as JSON `true`/`false` — NOT
+     * `1`/`0`. The frontend should render bools accordingly.
+     */
+    result_numeric: number | number[] | boolean | null;
     error: string | null;
     warnings: string[];
     requestId?: string;

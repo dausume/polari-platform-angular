@@ -529,6 +529,31 @@ export class StateBuildingBlockRegistry {
       isBuiltIn: true
     });
 
+    this.register({
+      className: 'RunEquation',
+      displayName: 'Run Equation',
+      description: 'Execute a saved EquationDefinition; declared potentials are filled by sources from the state-space.',
+      category: 'Math',
+      supportedRuntimes: [],
+      // Templates here are placeholders — the actual code-gen happens in
+      // python-code-generator.service.ts under `case 'RunEquation'` because
+      // the bindings list needs structural translation, not a flat substitute.
+      codeTemplates: [
+        { runtime: 'python_backend',     template: '{result} = run_equation()' },
+        { runtime: 'typescript_frontend', template: 'const {result} = await runEquation();' },
+      ],
+      defaultInputSlots: [
+        { name: 'input', displayName: 'Input', slotType: 'input', dataType: 'any', isRequired: true },
+      ],
+      defaultOutputSlots: [
+        { name: 'result', displayName: 'Result', slotType: 'output', dataType: 'any', isRequired: false },
+      ],
+      displayFields: [],
+      icon: 'functions',
+      color: '#FFB74D',
+      isBuiltIn: true,
+    });
+
     // === Debug ===
     this.register({
       className: 'LogOutput',

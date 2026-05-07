@@ -1,0 +1,30 @@
+<div class="branch-row">
+    <div class="flow-step parameter-name-step">
+        <label class="step-label">Parameter Name</label>
+        <input type="text"
+               class="flow-input parameter-name-input"
+               placeholder="e.g., scale_factor"
+               [disabled]="disabled"
+               [ngModel]="parameterName"
+               (ngModelChange)="onNameChange($event)">
+    </div>
+
+    <div class="flow-step parameter-type-step">
+        <label class="step-label">Type</label>
+        <select class="flow-dropdown parameter-type-dropdown"
+                [disabled]="disabled"
+                [ngModel]="parameterType"
+                (ngModelChange)="onTypeChange($event)">
+            <option *ngFor="let t of typeOptions" [value]="t.value">
+                {{ t.label }}
+            </option>
+        </select>
+    </div>
+
+    <div class="flow-step potential-marker">
+        <label class="step-label">Shape</label>
+        <span class="potential-shape">
+            param {{ parameterName || '?' }}: {{ parameterType }}
+        </span>
+    </div>
+</div>

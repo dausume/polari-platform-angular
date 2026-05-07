@@ -1,0 +1,44 @@
+<div class="branch-row">
+
+    <!-- Type dropdown — always shown -->
+    <div class="flow-step type-step">
+        <label class="step-label">Type</label>
+        <select class="flow-dropdown type-dropdown"
+                [disabled]="disabled"
+                [ngModel]="valueType"
+                (ngModelChange)="onTypeChange($event)">
+            <option *ngFor="let t of typeOptions" [value]="t.value">
+                {{ t.label }}
+            </option>
+        </select>
+    </div>
+
+    <!-- Value entry — only in source mode (potential mode declares type only) -->
+    <div class="flow-step value-step" *ngIf="mode === 'source'">
+        <label class="step-label">Value</label>
+
+        <input *ngIf="valueType !== 'bool'"
+               type="text"
+               class="flow-input value-input"
+               [placeholder]="placeholder()"
+               [disabled]="disabled"
+               [ngModel]="value"
+               (ngModelChange)="onValueChange($event)">
+
+        <select *ngIf="valueType === 'bool'"
+                class="flow-dropdown bool-dropdown"
+                [disabled]="disabled"
+                [ngModel]="value"
+                (ngModelChange)="onValueChange($event)">
+            <option [ngValue]="true">True</option>
+            <option [ngValue]="false">False</option>
+        </select>
+    </div>
+
+    <!-- Potential mode marker -->
+    <div class="flow-step potential-marker" *ngIf="mode === 'potential'">
+        <label class="step-label">Shape</label>
+        <span class="potential-shape">declared {{ valueType }}</span>
+    </div>
+
+</div>

@@ -1,0 +1,6 @@
+/* value-potential-selector.component.css
+   Layout delegated to value-binding-shell + per-branch sub-components. */
+
+:host {
+    display: block;
+}

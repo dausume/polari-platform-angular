@@ -1,0 +1,63 @@
+<div class="branch-row">
+
+    <!-- DataSet picker pill — opens DataSetSelectorDialog -->
+    <div class="flow-step dataset-step">
+        <label class="step-label">DataSet</label>
+        <button type="button"
+                class="flow-input dataset-pill"
+                [disabled]="disabled"
+                (click)="openDatasetPicker()"
+                [matTooltip]="selectedDatasetId ? 'Click to change dataset' : 'Click to pick a dataset'">
+            <ng-container *ngIf="selectedDatasetId">
+                <mat-icon class="dataset-pill-icon">table_chart</mat-icon>
+                <span class="dataset-pill-text">{{ selectedDatasetName }}</span>
+                <span class="dataset-pill-subtitle" *ngIf="selectedSourceClass">
+                    · {{ selectedSourceClass }}
+                </span>
+            </ng-container>
+            <ng-container *ngIf="!selectedDatasetId">
+                <mat-icon class="dataset-pill-icon">add</mat-icon>
+                <span class="dataset-pill-text">Pick dataset...</span>
+            </ng-container>
+        </button>
+        <button type="button"
+                class="dataset-clear-btn"
+                *ngIf="selectedDatasetId && !disabled"
+                (click)="clearDataset()"
+                matTooltip="Clear">
+            <mat-icon>close</mat-icon>
+        </button>
+    </div>
+
+    <!-- Field-within-dataset picker — source mode only, after a dataset is picked -->
+    <div class="flow-step dataset-field-step" *ngIf="mode === 'source' && selectedDatasetId">
+        <label class="step-label">Field</label>
+        <select class="flow-dropdown dataset-field-dropdown"
+                *ngIf="fieldOptions.length > 0"
+                [disabled]="disabled"
+                [ngModel]="selectedFieldPath"
+                (ngModelChange)="onFieldChange($event)">
+            <option value="" disabled>Choose...</option>
+            <option *ngFor="let f of fieldOptions; trackBy: trackByFieldName" [value]="f.name">
+                {{ f.name }} ({{ f.type }})
+            </option>
+        </select>
+        <input *ngIf="fieldOptions.length === 0"
+               type="text"
+               class="flow-input dataset-field-input"
+               placeholder="row.field or values[0]"
+               [disabled]="disabled"
+               [ngModel]="selectedFieldPath"
+               (ngModelChange)="onFieldChange($event)">
+    </div>
+
+    <!-- Potential-mode shape badge -->
+    <div class="flow-step potential-marker" *ngIf="mode === 'potential' && selectedDatasetId">
+        <label class="step-label">Shape</label>
+        <span class="potential-shape">
+            DataSet "{{ selectedDatasetName }}"
+            <ng-container *ngIf="selectedSourceClass"> of {{ selectedSourceClass }}</ng-container>
+        </span>
+    </div>
+
+</div>

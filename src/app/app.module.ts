@@ -93,6 +93,14 @@ import { FormValidationOverlayFullComponent } from '@components/custom-no-code/s
 import { StateOverlayInteractionsDirective } from '@components/custom-no-code/states/_shared/state-overlay/state-overlay-interactions.directive';
 import { StateOverlayShellComponent } from '@components/custom-no-code/states/_shared/state-overlay/state-overlay-shell.component';
 import { ValueSourceSelectorComponent } from '@components/custom-no-code/shared/value-source-selector/value-source-selector.component';
+import { ValueBindingShellComponent } from '@components/custom-no-code/shared/value-binding/value-binding-shell.component';
+import { LiteralBranchComponent } from '@components/custom-no-code/shared/value-binding/branches/literal-branch.component';
+import { FromUpstreamBranchComponent } from '@components/custom-no-code/shared/value-binding/branches/from-upstream-branch.component';
+import { FromObjectBranchComponent } from '@components/custom-no-code/shared/value-binding/branches/from-object-branch.component';
+import { FromDatasetBranchComponent } from '@components/custom-no-code/shared/value-binding/branches/from-dataset-branch.component';
+import { ParameterBranchComponent } from '@components/custom-no-code/shared/value-binding/branches/parameter-branch.component';
+import { ValuePotentialSelectorComponent } from '@components/custom-no-code/shared/value-potential-selector/value-potential-selector.component';
+import { RunEquationOverlayComponent } from '@components/custom-no-code/states/equations/run-equation-overlay/run-equation-overlay.component';
 import { ViewContextOverlayComponent } from '@components/custom-no-code/popups/view-context-overlay/view-context-overlay.component';
 import { ExecutionPanelComponent } from '@components/custom-no-code/editor/execution-panel/execution-panel.component';
 // Class Configuration Components
@@ -131,6 +139,8 @@ import { EquationsComponent } from '@components/equations/equations.component';
 import { EquationResultDisplayComponent } from '@components/equations/equation-result-display/equation-result-display.component';
 import { EquationConfigEditComponent } from '@components/equation-config/equation-config-edit/equation-config-edit.component';
 import { EquationConfigSidebarComponent } from '@components/equation-config/equation-config-sidebar/equation-config-sidebar.component';
+import { EquationSymbolPaletteComponent } from '@components/equation-config/equation-symbol-palette/equation-symbol-palette.component';
+import { OperationReferencePopupComponent } from '@components/equation-config/operation-reference-popup/operation-reference-popup.component';
 import { KatexDisplayComponent } from '@components/shared/katex-display/katex-display.component';
 // Table Config Components
 import { TableConfigSidebarComponent } from '@components/table-config/table-config-sidebar/table-config-sidebar';
@@ -231,6 +241,14 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     StateOverlayInteractionsDirective,
     StateOverlayShellComponent,
     ValueSourceSelectorComponent,
+    ValueBindingShellComponent,
+    LiteralBranchComponent,
+    FromUpstreamBranchComponent,
+    FromObjectBranchComponent,
+    FromDatasetBranchComponent,
+    ParameterBranchComponent,
+    ValuePotentialSelectorComponent,
+    RunEquationOverlayComponent,
     ViewContextOverlayComponent,
     ExecutionPanelComponent,
     ClassDataTableComponent,
@@ -262,6 +280,8 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     EquationResultDisplayComponent,
     EquationConfigEditComponent,
     EquationConfigSidebarComponent,
+    EquationSymbolPaletteComponent,
+    OperationReferencePopupComponent,
     KatexDisplayComponent
   ],
   imports: [

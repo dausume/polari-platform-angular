@@ -1,0 +1,45 @@
+<app-value-binding-shell
+    [mode]="mode"
+    [showHeader]="showHeader"
+    [label]="label"
+    [allowedBranches]="allowedBranches"
+    [selectedBranch]="activeBranch"
+    [compact]="compact"
+    [disabled]="disabled"
+    (branchChange)="onBranchChange($event)">
+
+    <app-literal-branch
+        *ngIf="activeBranch === 'literal'"
+        [mode]="mode"
+        [valueType]="valueType"
+        [disabled]="disabled"
+        (selectionChange)="onLiteralChange($event)">
+    </app-literal-branch>
+
+    <app-from-object-branch
+        *ngIf="activeBranch === 'from_object'"
+        [mode]="mode"
+        [objectPath]="objectPath"
+        [sourceObjectFields]="sourceObjectFields"
+        [disabled]="disabled"
+        (selectionChange)="onObjectChange($event)">
+    </app-from-object-branch>
+
+    <app-from-dataset-branch
+        *ngIf="activeBranch === 'from_dataset'"
+        [mode]="mode"
+        [datasetId]="datasetId"
+        [availableDatasets]="availableDatasets"
+        [disabled]="disabled"
+        (selectionChange)="onDatasetChange($event)">
+    </app-from-dataset-branch>
+
+    <app-parameter-branch
+        *ngIf="activeBranch === 'parameter'"
+        [parameterName]="parameterName"
+        [parameterType]="valueType"
+        [disabled]="disabled"
+        (selectionChange)="onParameterChange($event)">
+    </app-parameter-branch>
+
+</app-value-binding-shell>

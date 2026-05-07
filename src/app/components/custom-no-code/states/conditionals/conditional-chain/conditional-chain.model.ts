@@ -277,6 +277,11 @@ export class ConditionalChain {
         }
         return legacyValue;
 
+      case 'from_dataset':
+        // Datasets aren't materialized in the design-time evaluator yet —
+        // tooling falls back to legacyValue until runtime plumbing lands.
+        return legacyValue;
+
       case 'direct_assignment':
         // Return the direct value, with type coercion if specified
         if (source.directValue !== undefined) {

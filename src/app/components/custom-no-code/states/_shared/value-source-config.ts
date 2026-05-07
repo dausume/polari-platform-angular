@@ -7,13 +7,24 @@
 export type LogicalOperator = 'AND' | 'OR' | 'NOT' | 'XOR';
 
 /**
- * Types of value sources for conditional chain comparisons
+ * Types of value sources for conditional chain comparisons.
+ *
+ * Naming note: the persisted token `from_source_object` predates the
+ * "From DataSet" branch. It still represents the "object instance" branch in
+ * storage and code-gen — only the label was refreshed in the UI. New
+ * persisted token `from_dataset` covers the dataset/dataseries case (a
+ * collection-typed source distinct from a single object instance).
  */
-export type ValueSourceType = 'from_input' | 'from_source_object' | 'direct_assignment';
+export type ValueSourceType =
+    | 'from_input'
+    | 'from_source_object'
+    | 'from_dataset'
+    | 'direct_assignment';
 
 /**
  * Configuration for where a value comes from in a conditional comparison.
- * Supports selecting from input slots, source object properties, or direct literals.
+ * Supports selecting from input slots, source object properties, datasets,
+ * or direct literals.
  */
 export interface ValueSourceConfig {
   /** The type of source for this value */
@@ -27,6 +38,12 @@ export interface ValueSourceConfig {
 
   /** When 'from_source_object' - the property path (e.g., "self.total_amount") */
   sourceObjectPath?: string;
+
+  /** When 'from_dataset' - identifier of the dataset to read from */
+  datasetId?: string;
+
+  /** When 'from_dataset' - dotted path inside the dataset (e.g. "row.value", "values[0]") */
+  datasetFieldPath?: string;
 
   /** When 'direct_assignment' - the literal value */
   directValue?: any;
@@ -66,6 +83,11 @@ export function getSourceLabel(source: ValueSourceConfig): string {
       return `input[${source.inputSlotIndex ?? 0}]`;
     case 'from_source_object':
       return source.sourceObjectPath || 'self';
+    case 'from_dataset':
+      if (source.datasetId && source.datasetFieldPath) {
+        return `${source.datasetId}.${source.datasetFieldPath}`;
+      }
+      return source.datasetId || 'dataset';
     case 'direct_assignment':
       if (source.directValue !== undefined) {
         return String(source.directValue);

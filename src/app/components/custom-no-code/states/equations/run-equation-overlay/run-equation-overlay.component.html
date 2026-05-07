@@ -1,0 +1,115 @@
+<div class="run-equation-overlay" [class.size-tiny]="sizeTier === 'tiny'">
+
+    <!-- ===== Header / equation pick ===== -->
+    <div class="overlay-header">
+        <mat-icon class="header-icon">functions</mat-icon>
+        <button type="button"
+                class="equation-pill"
+                (click)="openEquationPicker()"
+                [matTooltip]="config.equationId ? 'Click to change equation' : 'Click to pick an equation'">
+            <ng-container *ngIf="config.equationId">
+                <span class="equation-pill-text">{{ config.equationName || config.equationId }}</span>
+            </ng-container>
+            <ng-container *ngIf="!config.equationId">
+                <mat-icon class="equation-pill-icon">add</mat-icon>
+                <span class="equation-pill-text">Pick equation...</span>
+            </ng-container>
+        </button>
+        <button type="button"
+                class="clear-btn"
+                *ngIf="config.equationId"
+                (click)="clearEquation()"
+                matTooltip="Clear equation">
+            <mat-icon>close</mat-icon>
+        </button>
+    </div>
+
+    <!-- ===== Loading / error ===== -->
+    <div class="overlay-status" *ngIf="loadingEquation">
+        <mat-spinner diameter="14"></mat-spinner>
+        <span>Loading equation...</span>
+    </div>
+
+    <div class="overlay-status overlay-error" *ngIf="loadError">
+        <mat-icon>error_outline</mat-icon>
+        <span>Failed to load: {{ loadError }}</span>
+    </div>
+
+    <!-- ===== Bindings — one source-selector per declared potential ===== -->
+    <div class="bindings-section" *ngIf="equation && declaredSymbols.length > 0">
+        <div class="bindings-header">
+            <mat-icon>tune</mat-icon>
+            <span class="bindings-title">Fill the equation's input potentials</span>
+        </div>
+
+        <div class="binding-row" *ngFor="let sym of declaredSymbols">
+            <div class="binding-symbol">
+                <code>{{ sym }}</code>
+                <span class="binding-hint">{{ getDeclaredPotentialLabel(sym) }}</span>
+            </div>
+            <div class="binding-selector">
+                <app-value-source-selector
+                    [config]="getBindingSource(sym)"
+                    [availableInputs]="availableInputs"
+                    [sourceObjectFields]="sourceObjectFields"
+                    [showHeader]="true"
+                    label="Source"
+                    [compact]="false"
+                    (configChange)="onBindingSourceChange(sym, $event)">
+                </app-value-source-selector>
+            </div>
+        </div>
+    </div>
+
+    <div class="bindings-empty"
+         *ngIf="equation && declaredSymbols.length === 0">
+        <mat-icon>info_outline</mat-icon>
+        <span>This equation has no declared variable potentials — it will run with no bindings.</span>
+    </div>
+
+    <!-- ===== Result target ===== -->
+    <div class="result-section" *ngIf="config.equationId">
+        <div class="result-header">
+            <mat-icon>arrow_forward</mat-icon>
+            <span class="result-title">Result destination</span>
+        </div>
+
+        <div class="result-target-toggle">
+            <label class="toggle-option" [class.active]="config.resultTarget === 'result_variable'">
+                <input type="radio"
+                       name="resultTarget"
+                       value="result_variable"
+                       [checked]="config.resultTarget === 'result_variable'"
+                       (change)="onResultTargetChange('result_variable')">
+                <span>Variable (flows to next state)</span>
+            </label>
+            <label class="toggle-option" [class.active]="config.resultTarget === 'solution_field'">
+                <input type="radio"
+                       name="resultTarget"
+                       value="solution_field"
+                       [checked]="config.resultTarget === 'solution_field'"
+                       (change)="onResultTargetChange('solution_field')">
+                <span>Solution field (write to source object)</span>
+            </label>
+        </div>
+
+        <div class="result-target-input" *ngIf="config.resultTarget === 'result_variable'">
+            <label>Variable name</label>
+            <input type="text"
+                   class="result-input"
+                   placeholder="result"
+                   [ngModel]="config.resultVariableName"
+                   (ngModelChange)="onResultVariableNameChange($event)" />
+        </div>
+
+        <div class="result-target-input" *ngIf="config.resultTarget === 'solution_field'">
+            <label>Field path</label>
+            <input type="text"
+                   class="result-input"
+                   placeholder="self.result"
+                   [ngModel]="config.resultFieldPath"
+                   (ngModelChange)="onResultFieldPathChange($event)" />
+        </div>
+    </div>
+
+</div>

@@ -7,6 +7,12 @@ import { EquationExecutionResult } from '@models/equations/EquationDefinition';
  *
  * Reused across the equation-config edit page, the inline calculus
  * state overlay, and any future "run-and-show-result" UI.
+ *
+ * Boolean handling:
+ *  When the backend's operation is conditional (predicate / identity /
+ *  piecewise on bool branch), `result_numeric` is a real boolean, NOT 1/0.
+ *  This component renders bool results as "True" / "False" with a coloured
+ *  pill so the user can see the result at a glance.
  */
 @Component({
     standalone: false,
@@ -18,8 +24,31 @@ export class EquationResultDisplayComponent {
     @Input() result: EquationExecutionResult | null = null;
     @Input() loading: boolean = false;
 
+    /** Tracks the "Copied!" tooltip flash on the raw-LaTeX copy button. */
+    copied: boolean = false;
+
+    copyResultLatex(): void {
+        const latex = this.result?.result_latex;
+        if (!latex) return;
+        try {
+            navigator.clipboard?.writeText(latex);
+            this.copied = true;
+            setTimeout(() => { this.copied = false; }, 1500);
+        } catch (_) {
+            this.copied = false;
+        }
+    }
+
     get hasResult(): boolean {
         return !!this.result;
+    }
+
+    get isBooleanResult(): boolean {
+        return !!this.result && typeof this.result.result_numeric === 'boolean';
+    }
+
+    get booleanValue(): boolean {
+        return !!(this.result && this.result.result_numeric);
     }
 
     get numericString(): string {
@@ -27,6 +56,10 @@ export class EquationResultDisplayComponent {
             return '';
         }
         const v = this.result.result_numeric;
+        // Booleans handled separately in the template — skip here.
+        if (typeof v === 'boolean') {
+            return '';
+        }
         if (Array.isArray(v)) {
             const max = 12;
             if (v.length <= max) return `[${v.map(n => formatNum(n)).join(', ')}]`;

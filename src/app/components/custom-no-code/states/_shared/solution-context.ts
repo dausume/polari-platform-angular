@@ -578,6 +578,8 @@ export class InstanceContext {
     objectPath?: string;
     directValue?: any;
     inputSlotIndex?: number;
+    datasetId?: string;
+    datasetFieldPath?: string;
   }): any {
     switch (sourceType) {
       case 'from_input':
@@ -592,6 +594,12 @@ export class InstanceContext {
         if (config.objectPath) {
           return this.resolveObjectPath(config.objectPath);
         }
+        return undefined;
+
+      case 'from_dataset':
+        // Datasets aren't materialized in the design-time context yet — code-gen
+        // emits a placeholder accessor. Runtime resolution will be wired up
+        // when dataset plumbing through ExecutionContext lands.
         return undefined;
 
       case 'direct_assignment':

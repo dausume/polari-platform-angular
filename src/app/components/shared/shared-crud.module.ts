@@ -47,6 +47,12 @@ import { InstancePickerDialogComponent } from './instance-picker-dialog/instance
 // Class Selector Dialog Component
 import { ClassSelectorDialogComponent } from './class-selector-dialog/class-selector-dialog';
 
+// DataSet Selector Dialog Component
+import { DataSetSelectorDialogComponent } from './dataset-selector-dialog/dataset-selector-dialog';
+
+// Equation Selector Dialog Component
+import { EquationSelectorDialogComponent } from './equation-selector-dialog/equation-selector-dialog';
+
 // Map Point Picker Dialog Component
 import { MapPointPickerDialogComponent } from './map-point-picker-dialog/map-point-picker-dialog';
 
@@ -77,6 +83,8 @@ import { DynamicDataTableComponent } from './dynamic-data-table/dynamic-data-tab
     CrudDialogComponent,
     InstancePickerDialogComponent,
     ClassSelectorDialogComponent,
+    DataSetSelectorDialogComponent,
+    EquationSelectorDialogComponent,
     MapPointPickerDialogComponent,
     CalendarViewDialogComponent,
     // Detail Display
@@ -123,6 +131,8 @@ import { DynamicDataTableComponent } from './dynamic-data-table/dynamic-data-tab
     CrudDialogComponent,
     InstancePickerDialogComponent,
     ClassSelectorDialogComponent,
+    DataSetSelectorDialogComponent,
+    EquationSelectorDialogComponent,
     MapPointPickerDialogComponent,
     CalendarViewDialogComponent,
     // Detail Display
@@ -145,6 +155,8 @@ export { EditableTimeCellComponent } from './editable-cells/editable-time-cell/e
 export { RowActionsCellComponent } from './row-actions-cell/row-actions-cell';
 export { InstancePickerDialogComponent } from './instance-picker-dialog/instance-picker-dialog';
 export { ClassSelectorDialogComponent } from './class-selector-dialog/class-selector-dialog';
+export { DataSetSelectorDialogComponent } from './dataset-selector-dialog/dataset-selector-dialog';
+export { EquationSelectorDialogComponent } from './equation-selector-dialog/equation-selector-dialog';
 export { MapPointPickerDialogComponent } from './map-point-picker-dialog/map-point-picker-dialog';
 export { DetailDisplayRendererComponent } from './detail-display-renderer/detail-display-renderer';
 export { CalendarViewDialogComponent } from './calendar-view-dialog/calendar-view-dialog';

@@ -1,0 +1,295 @@
+:host {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    box-sizing: border-box;
+}
+
+.symbol-palette-sidebar {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    background: var(--surface-primary, #ffffff);
+    box-sizing: border-box;
+    overflow: hidden;
+    font-family: 'Roboto', sans-serif;
+}
+
+/* ------------------------------------------------------------------ */
+/* Search                                                              */
+/* ------------------------------------------------------------------ */
+
+.palette-search {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--surface-hover, #e0e0e0);
+    background: var(--surface-secondary, #fafafa);
+    flex-shrink: 0;
+}
+
+.search-icon {
+    color: var(--text-tertiary, #888);
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+}
+
+.search-input {
+    flex: 1;
+    border: 1px solid var(--surface-hover, #ccc);
+    border-radius: 4px;
+    padding: 6px 8px;
+    font-size: 12px;
+    background: white;
+    color: var(--text-primary, #333);
+    outline: none;
+}
+
+.search-input:focus { border-color: var(--brand-blue, #1976d2); }
+
+.clear-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: var(--text-tertiary, #888);
+    border-radius: 4px;
+}
+
+.clear-btn:hover { background: var(--surface-hover, #eeeeee); }
+.clear-btn mat-icon { font-size: 16px; width: 16px; height: 16px; }
+
+/* ------------------------------------------------------------------ */
+/* Accordion of categories                                             */
+/* ------------------------------------------------------------------ */
+
+.palette-accordion {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    display: block;
+}
+
+.palette-accordion ::ng-deep .palette-panel {
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    border-bottom: 1px solid var(--surface-hover, #f0f0f0);
+    background: var(--surface-primary, #ffffff);
+}
+
+.palette-accordion ::ng-deep .palette-panel:last-of-type {
+    border-bottom: none;
+}
+
+.palette-accordion ::ng-deep .palette-panel-header {
+    height: 40px;
+    padding: 0 12px;
+    background: transparent;
+}
+
+.palette-accordion ::ng-deep .palette-panel-header:hover {
+    background: var(--surface-hover, #f5f5f5) !important;
+}
+
+.palette-accordion ::ng-deep .mat-expansion-panel-body {
+    padding: 4px 12px 12px !important;
+}
+
+.category-icon {
+    margin-right: 8px;
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    color: var(--brand-blue, #1976d2);
+    vertical-align: middle;
+}
+
+.category-name {
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-primary, #333);
+    line-height: 18px;
+}
+
+.category-count {
+    font-size: 10px;
+    color: var(--text-tertiary, #888);
+    background: var(--surface-hover, #eeeeee);
+    padding: 1px 6px;
+    border-radius: 8px;
+    line-height: 14px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Search results header                                               */
+/* ------------------------------------------------------------------ */
+
+.results-header {
+    padding: 8px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-tertiary, #888);
+}
+
+/* ------------------------------------------------------------------ */
+/* Button grid                                                         */
+/* ------------------------------------------------------------------ */
+
+.palette-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.palette-button {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 8px 4px 6px;
+    min-height: 56px;
+    border: 1px solid var(--surface-hover, #e0e0e0);
+    border-radius: 6px;
+    background: var(--surface-primary, #ffffff);
+    cursor: pointer;
+    transition: border-color 0.12s, background 0.12s, box-shadow 0.12s, transform 0.05s;
+    user-select: none;
+    color: var(--text-primary, #222);
+}
+
+.palette-button:hover {
+    border-color: var(--brand-blue, #2196f3);
+    background: var(--brand-blue-light, #e3f2fd);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.palette-button:active { transform: translateY(1px); }
+
+.button-symbol {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 24px;
+    overflow: hidden;
+    max-width: 100%;
+}
+
+.button-symbol ::ng-deep .katex { font-size: 1.05em; }
+
+.button-label {
+    font-size: 9.5px;
+    font-weight: 500;
+    color: var(--text-secondary, #555);
+    text-align: center;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+
+/* (i) docs link in the button corner */
+.docs-link {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    color: var(--text-tertiary, #aaa);
+    text-decoration: none;
+    transition: color 0.12s, background 0.12s;
+}
+
+.docs-link mat-icon { font-size: 12px; width: 12px; height: 12px; }
+
+.docs-link:hover {
+    color: var(--brand-blue, #1976d2);
+    background: rgba(25, 118, 210, 0.1);
+}
+
+/* Search-only padding wrapper (no panel body) */
+.palette-accordion + .palette-grid,
+.results-header + .palette-grid {
+    padding: 4px 12px 12px;
+}
+
+.palette-empty {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 16px;
+    color: var(--text-tertiary, #888);
+    font-style: italic;
+    font-size: 12px;
+}
+
+.palette-empty mat-icon { font-size: 16px; width: 16px; height: 16px; }
+
+/* ------------------------------------------------------------------ */
+/* Hover preview strip                                                  */
+/* ------------------------------------------------------------------ */
+
+.palette-hover-strip {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-top: 1px solid var(--surface-hover, #e0e0e0);
+    background: var(--surface-secondary, #fafafa);
+    min-height: 44px;
+}
+
+.hover-rendered {
+    flex: 0 0 auto;
+    min-width: 36px;
+    color: var(--text-primary, #222);
+}
+
+.hover-meta {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.hover-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-primary, #333);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.hover-latex {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 10px;
+    color: var(--text-tertiary, #888);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Tooltip with line breaks */
+::ng-deep .palette-tooltip { white-space: pre-line; }

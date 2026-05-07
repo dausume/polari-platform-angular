@@ -1,0 +1,66 @@
+:host {
+    display: block;
+    flex: 1;
+    min-width: 0;
+}
+
+.branch-row {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 12px;
+    width: 100%;
+}
+
+.flow-step {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 140px;
+}
+
+.step-label {
+    font-size: 9px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.6);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.flow-dropdown {
+    padding: 6px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    font-size: 11px;
+    cursor: pointer;
+    width: 100%;
+}
+
+.flow-dropdown:focus {
+    outline: none;
+    border-color: #4CAF50;
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.flow-dropdown:hover:not(:disabled) {
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+.flow-dropdown option {
+    background: #333;
+    color: #fff;
+}
+
+.flow-dropdown:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.no-options-hint {
+    font-size: 10px;
+    color: rgba(255, 200, 100, 0.8);
+    font-style: italic;
+    padding: 4px 0;
+}

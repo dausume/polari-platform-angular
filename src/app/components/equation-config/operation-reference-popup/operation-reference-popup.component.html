@@ -1,0 +1,142 @@
+<div class="op-popup">
+
+    <div class="op-popup__header">
+        <mat-icon class="header-icon">menu_book</mat-icon>
+        <h2 class="op-popup__title">Choose Operation</h2>
+        <button class="close-btn" mat-icon-button (click)="close()" title="Close">
+            <mat-icon>close</mat-icon>
+        </button>
+    </div>
+
+    <!-- Search ----------------------------------------------------------- -->
+    <div class="op-popup__search">
+        <mat-icon class="search-icon">search</mat-icon>
+        <input class="search-input"
+               type="text"
+               placeholder="Search operations…"
+               [(ngModel)]="query" />
+        <button *ngIf="query" class="clear-btn" type="button" (click)="clearSearch()" title="Clear">
+            <mat-icon>close</mat-icon>
+        </button>
+    </div>
+
+    <div class="op-popup__body">
+
+        <!-- Search results (flat) ---------------------------------------- -->
+        <ng-container *ngIf="query.trim() && filteredEntries.length > 0">
+            <div class="results-header">{{ filteredEntries.length }} match<span *ngIf="filteredEntries.length !== 1">es</span></div>
+            <div class="op-grid">
+                <ng-container *ngFor="let entry of filteredEntries; trackBy: trackByOp">
+                    <ng-container *ngTemplateOutlet="opCard; context: { entry: entry }"></ng-container>
+                </ng-container>
+            </div>
+        </ng-container>
+
+        <ng-container *ngIf="query.trim() && filteredEntries.length === 0">
+            <div class="op-empty">
+                <mat-icon>info_outline</mat-icon>
+                <span>No operations match "{{ query }}".</span>
+            </div>
+        </ng-container>
+
+        <!-- Categorized accordion (default view) ------------------------- -->
+        <mat-accordion *ngIf="!query.trim()" class="op-accordion" multi displayMode="flat">
+            <mat-expansion-panel
+                *ngFor="let group of groupedOperations; trackBy: trackByCategory"
+                [expanded]="isExpanded(group.name)"
+                (opened)="expanded[group.name] = true"
+                (closed)="expanded[group.name] = false"
+                class="op-panel">
+
+                <mat-expansion-panel-header class="op-panel-header">
+                    <mat-panel-title>
+                        <mat-icon class="cat-icon">{{ group.icon }}</mat-icon>
+                        <span class="cat-name">{{ group.name }}</span>
+                    </mat-panel-title>
+                    <mat-panel-description>
+                        <span class="cat-description">{{ group.description }}</span>
+                        <span class="cat-count">{{ group.entries.length }}</span>
+                    </mat-panel-description>
+                </mat-expansion-panel-header>
+
+                <div class="op-grid">
+                    <ng-container *ngFor="let entry of group.entries; trackBy: trackByOp">
+                        <ng-container *ngTemplateOutlet="opCard; context: { entry: entry }"></ng-container>
+                    </ng-container>
+                </div>
+            </mat-expansion-panel>
+        </mat-accordion>
+    </div>
+
+    <div class="op-popup__footer">
+        <button class="footer-btn" (click)="close()">Cancel</button>
+    </div>
+
+
+    <!-- Reusable operation card template -------------------------------- -->
+    <ng-template #opCard let-entry="entry">
+        <div class="op-card" [class.is-selected]="isSelected(entry)">
+
+            <!-- Card title bar — operation name + flags -->
+            <div class="op-card__title-bar">
+                <mat-icon class="op-icon">{{ entry.icon }}</mat-icon>
+                <h3 class="op-card__name">{{ entry.label }}</h3>
+                <span class="op-flag" *ngIf="entry.booleanResult">Boolean output</span>
+                <span class="selected-badge" *ngIf="isSelected(entry)">
+                    <mat-icon>check_circle</mat-icon> Selected
+                </span>
+            </div>
+
+            <p class="op-description">{{ entry.description }}</p>
+
+            <div class="op-row" *ngIf="entry.exampleLatex">
+                <span class="row-label">Example</span>
+                <div class="example-render">
+                    <katex-display [latex]="entry.exampleLatex" [displayMode]="false"></katex-display>
+                </div>
+            </div>
+
+            <div class="op-row">
+                <span class="row-label">LaTeX patterns</span>
+                <div class="cue-pills">
+                    <code class="cue-pill" *ngFor="let p of entry.latexPatterns">{{ p }}</code>
+                </div>
+            </div>
+
+            <div class="op-row" *ngIf="entry.inputs.length > 0">
+                <span class="row-label">Inputs</span>
+                <ul class="input-list">
+                    <li *ngFor="let inp of entry.inputs" class="input-spec">
+                        <div class="input-name">
+                            {{ inp.label }}
+                            <span class="optional" *ngIf="inp.optional">(optional)</span>
+                        </div>
+                        <div class="input-desc">{{ inp.description }}</div>
+                        <div class="input-implication" *ngIf="inp.implication">
+                            <mat-icon class="impl-icon">info</mat-icon>
+                            <span>{{ inp.implication }}</span>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="op-row" *ngIf="entry.notes && entry.notes.length > 0">
+                <span class="row-label">Notes</span>
+                <ul class="notes-list">
+                    <li *ngFor="let n of entry.notes">{{ n }}</li>
+                </ul>
+            </div>
+
+            <div class="op-card__footer">
+                <button type="button"
+                        class="select-btn"
+                        [class.is-selected-btn]="isSelected(entry)"
+                        (click)="selectOperation(entry)">
+                    <mat-icon>{{ isSelected(entry) ? 'check' : 'arrow_forward' }}</mat-icon>
+                    {{ isSelected(entry) ? 'Keep this' : 'Use this operation' }}
+                </button>
+            </div>
+        </div>
+    </ng-template>
+
+</div>

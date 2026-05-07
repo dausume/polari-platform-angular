@@ -2,13 +2,14 @@ import { Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatDialog } from '@angular/material/dialog';
+import { OperationReferencePopupComponent } from '../operation-reference-popup/operation-reference-popup.component';
 
 import { EquationDefinitionService } from '@services/equation/equation-definition.service';
 import { EquationExecutionService } from '@services/equation/equation-execution.service';
 import {
     EquationDefinitionRecord,
     EquationVariableBinding,
-    EquationVariableSourceType,
     EquationOperationType,
     EquationExecutionResult,
     EQUATION_OPERATION_TYPES,
@@ -17,48 +18,13 @@ import {
     OperationCapabilities,
     makeEmptyEquationDefinitionConfig
 } from '@models/equations/EquationDefinition';
+import {
+    DataPotentialDefinition,
+    createDefaultPotential,
+} from '@components/custom-no-code/shared/value-binding/branch-types';
 
-interface SymbolPaletteEntry {
-    label: string;
-    insert: string;
-    /** When inserted, position the cursor `cursorOffset` characters from the END of the inserted text */
-    cursorOffset?: number;
-    tooltip?: string;
-}
-
-const SYMBOL_PALETTE: SymbolPaletteEntry[] = [
-    { label: '\\int', insert: '\\int ', tooltip: 'Integral' },
-    { label: '\\int_a^b', insert: '\\int_{}^{} ', cursorOffset: 5, tooltip: 'Definite integral' },
-    { label: '\\frac{}{}', insert: '\\frac{}{}', cursorOffset: 3, tooltip: 'Fraction' },
-    { label: '\\sum', insert: '\\sum ', tooltip: 'Summation' },
-    { label: '\\prod', insert: '\\prod ', tooltip: 'Product' },
-    { label: '\\partial', insert: '\\partial ', tooltip: 'Partial derivative symbol' },
-    { label: '\\sqrt{}', insert: '\\sqrt{}', cursorOffset: 1, tooltip: 'Square root' },
-    { label: 'x^{}', insert: '^{}', cursorOffset: 1, tooltip: 'Superscript' },
-    { label: 'x_{}', insert: '_{}', cursorOffset: 1, tooltip: 'Subscript' },
-    { label: '\\pi', insert: '\\pi ' },
-    { label: '\\infty', insert: '\\infty ' },
-    { label: '\\to', insert: '\\to ' },
-    { label: '\\cdot', insert: '\\cdot ' },
-    { label: 'e^{}', insert: 'e^{}', cursorOffset: 1, tooltip: 'Exponential' },
-    { label: '\\sin', insert: '\\sin ' },
-    { label: '\\cos', insert: '\\cos ' },
-    { label: '\\tan', insert: '\\tan ' },
-    { label: '\\log', insert: '\\log ' },
-    { label: '\\ln', insert: '\\ln ' },
-    { label: '\\lim', insert: '\\lim_{x \\to } ', cursorOffset: 2, tooltip: 'Limit' },
-    { label: '\\alpha', insert: '\\alpha ' },
-    { label: '\\beta', insert: '\\beta ' },
-    { label: '\\theta', insert: '\\theta ' },
-    { label: '\\Delta', insert: '\\Delta ' }
-];
-
-const SOURCE_TYPES: { value: EquationVariableSourceType; label: string; supported: boolean }[] = [
-    { value: 'literal',         label: 'Literal',         supported: true },
-    { value: 'parameter',       label: 'Parameter',       supported: false },
-    { value: 'dataset_field',   label: 'Dataset Field',   supported: false },
-    { value: 'object_variable', label: 'Object Variable', supported: false }
-];
+import { SymbolPaletteEntry } from '@models/equations/SymbolPalette';
+import { buildPreviewLatex, buildSubstitutedLatex, PreviewTestValues } from '@models/equations/preview-builder';
 
 @Component({
     selector: 'app-equation-config-edit',
@@ -75,17 +41,18 @@ export class EquationConfigEditComponent implements OnInit, OnDestroy {
     runningDirect: boolean = false;
     dirty: boolean = false;
 
-    /** Working copy of run-time override bindings (parallel to record.definition.variableBindings) */
-    overrideBindings: EquationVariableBinding[] = [];
-    useOverrides: boolean = false;
+    /**
+     * Per-symbol concrete test values used by the substituted preview and the
+     * Run-direct workflow. Lives only in component state — never persisted.
+     * The persisted `variableBindings` describe shape (potentials), not values.
+     */
+    testValues: PreviewTestValues = {};
 
     storedRunResult: EquationExecutionResult | null = null;
     directRunResult: EquationExecutionResult | null = null;
 
     operationTypes = EQUATION_OPERATION_TYPES;
     operationLabels = EQUATION_OPERATION_LABELS;
-    sourceTypes = SOURCE_TYPES;
-    palette = SYMBOL_PALETTE;
 
     private latexTextarea: HTMLTextAreaElement | null = null;
     private subs: Subscription[] = [];
@@ -95,8 +62,26 @@ export class EquationConfigEditComponent implements OnInit, OnDestroy {
         private router: Router,
         private equationDefService: EquationDefinitionService,
         private equationExecutionService: EquationExecutionService,
-        private snackBar: MatSnackBar
+        private snackBar: MatSnackBar,
+        private dialog: MatDialog
     ) {}
+
+    openOperationReference(): void {
+        const ref = this.dialog.open(OperationReferencePopupComponent, {
+            width: '880px',
+            maxWidth: '95vw',
+            maxHeight: '90vh',
+            autoFocus: false,
+            data: {
+                currentOperation: this.record?.definition.operationType || null,
+            },
+        });
+        ref.afterClosed().subscribe((picked: EquationOperationType | undefined) => {
+            if (picked && this.record && picked !== this.record.definition.operationType) {
+                this.onOperationChange(picked);
+            }
+        });
+    }
 
     ngOnInit(): void {
         const id = this.route.snapshot.paramMap.get('id');
@@ -106,7 +91,6 @@ export class EquationConfigEditComponent implements OnInit, OnDestroy {
             return;
         }
         this.loadRecord(id);
-        // Lazily start STOMP subscription so that broadcast results show up too.
         this.equationExecutionService.ensureStompSubscription();
     }
 
@@ -123,6 +107,7 @@ export class EquationConfigEditComponent implements OnInit, OnDestroy {
         this.equationDefService.getById(id).subscribe({
             next: rec => {
                 this.record = rec;
+                this.migrateLegacyBindings();
                 this.loading = false;
                 this.dirty = false;
             },
@@ -132,6 +117,67 @@ export class EquationConfigEditComponent implements OnInit, OnDestroy {
                 this.snackBar.open(`Failed to load equation: ${err?.message || err}`, 'Dismiss', { duration: 4000 });
             }
         });
+    }
+
+    /**
+     * Convert legacy `{symbol, source: {type, ...}}` bindings into the new
+     * `{symbol, potential: DataPotentialDefinition}` shape. Literal source
+     * values are seeded into the local `testValues` map so the user keeps
+     * concrete data for the Run-direct workflow.
+     */
+    private migrateLegacyBindings(): void {
+        if (!this.record) return;
+        const bindings = this.record.definition.variableBindings || [];
+        for (const b of bindings) {
+            if (b.potential) continue;
+            if (!b.source) {
+                b.potential = createDefaultPotential();
+                continue;
+            }
+            const s = b.source;
+            switch (s.type) {
+                case 'literal': {
+                    const v = (s as any).value;
+                    b.potential = {
+                        kind: 'literal',
+                        valueType: this.inferValueType(v),
+                    };
+                    if (b.symbol) this.testValues[b.symbol] = v;
+                    break;
+                }
+                case 'parameter':
+                    b.potential = {
+                        kind: 'parameter',
+                        parameterName: (s as any).parameterName || b.symbol,
+                        valueType: 'float',
+                    };
+                    break;
+                case 'dataset_field':
+                    b.potential = {
+                        kind: 'from_dataset',
+                        datasetId: (s as any).datasetId || '',
+                    };
+                    break;
+                case 'object_variable':
+                    b.potential = {
+                        kind: 'from_object',
+                        className: (s as any).objectClass || '',
+                    };
+                    break;
+                default:
+                    b.potential = createDefaultPotential();
+            }
+            // Drop the legacy field on the in-memory copy so saves emit
+            // potential-only.
+            delete (b as any).source;
+        }
+    }
+
+    private inferValueType(v: any): 'int' | 'float' | 'str' | 'bool' {
+        if (typeof v === 'boolean') return 'bool';
+        if (typeof v === 'number') return Number.isInteger(v) ? 'int' : 'float';
+        if (Array.isArray(v)) return 'float';
+        return 'str';
     }
 
     save(): void {
@@ -188,12 +234,10 @@ export class EquationConfigEditComponent implements OnInit, OnDestroy {
     onOperationChange(op: EquationOperationType): void {
         if (!this.record) return;
         this.record.definition.operationType = op;
-        // Ensure bounds object exists when needed.
         const caps = this.capabilities;
         if (caps.needsBoundsVariable && !this.record.definition.bounds) {
             this.record.definition.bounds = {};
         }
-        // Initialise dataseries options if missing.
         if (caps.isDataSeries) {
             if (!this.record.definition.options) this.record.definition.options = {};
             if (!this.record.definition.options['method']) {
@@ -208,6 +252,44 @@ export class EquationConfigEditComponent implements OnInit, OnDestroy {
             return getOperationCapabilities('evaluate');
         }
         return getOperationCapabilities(this.record.definition.operationType);
+    }
+
+    /** PRE-substitution preview — the formula as written, wrapped with the
+     *  selected operation's symbol. Shows the structure before any test
+     *  values are applied. */
+    get previewLatex(): string {
+        if (!this.record) return '';
+        return buildPreviewLatex(
+            this.record.definition.latexExpression,
+            this.record.definition.operationType,
+            this.record.definition.bounds
+        );
+    }
+
+    /** POST-substitution preview — formula with test values inlined for any
+     *  symbol the user has supplied a value for. Reflects what Run-direct
+     *  will pass to the backend. */
+    get previewLatexSubstituted(): string {
+        if (!this.record) return '';
+        const { substituted } = buildSubstitutedLatex(
+            this.record.definition.latexExpression,
+            this.testValues
+        );
+        return buildPreviewLatex(
+            substituted,
+            this.record.definition.operationType,
+            this.record.definition.bounds
+        );
+    }
+
+    /** Number of test-value substitutions actually applied. Used to show an
+     *  empty-state hint when the user hasn't supplied any test values yet. */
+    get substitutionCount(): number {
+        if (!this.record) return 0;
+        return buildSubstitutedLatex(
+            this.record.definition.latexExpression,
+            this.testValues
+        ).substitutionsApplied;
     }
 
     get bounds() {
@@ -240,88 +322,100 @@ export class EquationConfigEditComponent implements OnInit, OnDestroy {
     }
 
     // --------------------------------------------------------------
-    // Variable bindings (the configured ones)
+    // Variable bindings (potentials only — no concrete values persist)
     // --------------------------------------------------------------
 
     addBinding(): void {
         if (!this.record) return;
         this.record.definition.variableBindings.push({
             symbol: '',
-            source: { type: 'literal', value: 0 }
+            potential: createDefaultPotential(),
         });
         this.markDirty();
     }
 
     removeBinding(index: number): void {
         if (!this.record) return;
+        const removed = this.record.definition.variableBindings[index];
+        if (removed?.symbol) delete this.testValues[removed.symbol];
         this.record.definition.variableBindings.splice(index, 1);
         this.markDirty();
     }
 
     onBindingSymbolChange(binding: EquationVariableBinding, value: string): void {
+        const oldSymbol = binding.symbol;
         binding.symbol = value;
-        this.markDirty();
-    }
-
-    onBindingSourceTypeChange(binding: EquationVariableBinding, sourceType: EquationVariableSourceType): void {
-        switch (sourceType) {
-            case 'literal':
-                binding.source = { type: 'literal', value: 0 };
-                break;
-            case 'parameter':
-                binding.source = { type: 'parameter', parameterName: '' };
-                break;
-            case 'dataset_field':
-                binding.source = { type: 'dataset_field', datasetId: '', fieldPath: '' };
-                break;
-            case 'object_variable':
-                binding.source = { type: 'object_variable', objectClass: '', fieldPath: '' };
-                break;
+        // Carry test value forward so renaming doesn't drop it.
+        if (oldSymbol && oldSymbol !== value && this.testValues[oldSymbol] !== undefined) {
+            this.testValues[value] = this.testValues[oldSymbol];
+            delete this.testValues[oldSymbol];
         }
         this.markDirty();
     }
 
-    onBindingLiteralChange(binding: EquationVariableBinding, value: string): void {
-        if (binding.source.type !== 'literal') return;
-        // Try to coerce to number when possible — keep string otherwise.
-        const trimmed = value.trim();
+    onBindingPotentialChange(binding: EquationVariableBinding, potential: DataPotentialDefinition): void {
+        binding.potential = potential;
+        this.markDirty();
+    }
+
+    // --------------------------------------------------------------
+    // Test values (transient — drives substituted preview + Run direct)
+    // --------------------------------------------------------------
+
+    onTestValueChange(symbol: string, raw: string): void {
+        if (!symbol) return;
+        const trimmed = (raw ?? '').trim();
         if (trimmed === '') {
-            binding.source.value = '';
-        } else {
-            const num = Number(trimmed);
-            binding.source.value = Number.isNaN(num) ? value : num;
+            delete this.testValues[symbol];
+            return;
         }
-        this.markDirty();
+        const num = Number(trimmed);
+        this.testValues[symbol] = Number.isNaN(num) ? raw : num;
     }
 
-    /** Whether the binding's source type is fully supported in this Phase 1 build. */
-    sourceTypeSupported(t: EquationVariableSourceType): boolean {
-        const meta = SOURCE_TYPES.find(s => s.value === t);
-        return !!meta?.supported;
+    getTestValueDisplay(symbol: string): string {
+        const v = this.testValues[symbol];
+        if (v === undefined || v === null) return '';
+        return String(v);
     }
 
     // --------------------------------------------------------------
     // LaTeX symbol palette
     // --------------------------------------------------------------
 
+    private lastKnownCursor: number = 0;
+
     onLatexTextareaInit(textarea: HTMLTextAreaElement): void {
         this.latexTextarea = textarea;
+        textarea.addEventListener('blur', () => {
+            this.lastKnownCursor = textarea.selectionStart ?? this.lastKnownCursor;
+        });
+        textarea.addEventListener('keyup', () => {
+            this.lastKnownCursor = textarea.selectionStart ?? this.lastKnownCursor;
+        });
+        textarea.addEventListener('mouseup', () => {
+            this.lastKnownCursor = textarea.selectionStart ?? this.lastKnownCursor;
+        });
     }
 
     insertSymbol(entry: SymbolPaletteEntry): void {
         if (!this.record || !this.latexTextarea) return;
         const ta = this.latexTextarea;
-        const start = ta.selectionStart ?? this.record.definition.latexExpression.length;
-        const end = ta.selectionEnd ?? start;
+        const live = ta.selectionStart;
+        const start = (document.activeElement === ta && live != null)
+            ? live
+            : this.lastKnownCursor;
+        const end = (document.activeElement === ta && ta.selectionEnd != null)
+            ? ta.selectionEnd
+            : start;
         const current = this.record.definition.latexExpression || '';
         const before = current.slice(0, start);
         const after = current.slice(end);
-        const newValue = before + entry.insert + after;
+        const newValue = before + entry.latex + after;
         this.record.definition.latexExpression = newValue;
-        // Restore cursor — KaTeX-friendly position
         const offset = entry.cursorOffset ?? 0;
-        const newCursor = before.length + entry.insert.length - offset;
-        // ngModel writes value asynchronously; restore caret on next tick.
+        const newCursor = before.length + entry.latex.length - offset;
+        this.lastKnownCursor = newCursor;
         setTimeout(() => {
             ta.focus();
             ta.setSelectionRange(newCursor, newCursor);
@@ -332,44 +426,6 @@ export class EquationConfigEditComponent implements OnInit, OnDestroy {
     // --------------------------------------------------------------
     // Run panel
     // --------------------------------------------------------------
-
-    /** Build a working list of override bindings derived from the configured ones. */
-    syncOverrideBindings(): void {
-        if (!this.record) return;
-        const next: EquationVariableBinding[] = [];
-        for (const b of this.record.definition.variableBindings) {
-            const existing = this.overrideBindings.find(o => o.symbol === b.symbol);
-            if (existing) {
-                next.push(existing);
-            } else {
-                next.push({
-                    symbol: b.symbol,
-                    source: { type: 'literal', value: 0 }
-                });
-            }
-        }
-        this.overrideBindings = next;
-    }
-
-    toggleUseOverrides(): void {
-        this.useOverrides = !this.useOverrides;
-        if (this.useOverrides) {
-            this.syncOverrideBindings();
-        }
-    }
-
-    onOverrideLiteralChange(binding: EquationVariableBinding, value: string): void {
-        if (binding.source.type !== 'literal') {
-            binding.source = { type: 'literal', value: 0 };
-        }
-        const trimmed = value.trim();
-        if (trimmed === '') {
-            (binding.source as any).value = '';
-        } else {
-            const num = Number(trimmed);
-            (binding.source as any).value = Number.isNaN(num) ? value : num;
-        }
-    }
 
     runStored(): void {
         if (!this.record || this.running) return;
@@ -384,12 +440,9 @@ export class EquationConfigEditComponent implements OnInit, OnDestroy {
         this.running = true;
         this.storedRunResult = null;
         const requestId = `req_${Date.now()}`;
-        const overrides = this.useOverrides
-            ? this.resolveLiteralBindings(this.overrideBindings)
-            : undefined;
         this.equationExecutionService.executeNamed({
             name: this.record.name,
-            variableBindings: overrides,
+            variableBindings: { ...this.testValues },
             requestId
         }).subscribe({
             next: result => {
@@ -415,12 +468,10 @@ export class EquationConfigEditComponent implements OnInit, OnDestroy {
         this.directRunResult = null;
         const def = this.record.definition;
         const requestId = `req_direct_${Date.now()}`;
-        // Backend expects variableBindings as a runtime dict { symbol: value }, NOT
-        // the storage-format list of { symbol, source }. Resolve literal sources here.
         this.equationExecutionService.executeDirect({
             latexExpression: def.latexExpression,
             operationType: def.operationType,
-            variableBindings: this.resolveLiteralBindings(def.variableBindings),
+            variableBindings: { ...this.testValues },
             bounds: def.bounds,
             options: def.options,
             requestId
@@ -442,19 +493,16 @@ export class EquationConfigEditComponent implements OnInit, OnDestroy {
         });
     }
 
-    /**
-     * Convert the storage-format variable-bindings list into the runtime dict
-     * the backend's equation_executor consumes ({ symbol: value }). Only literal
-     * sources are resolvable client-side; non-literal sources (dataset_field,
-     * object_variable, parameter) are skipped — caller is expected to pass them
-     * through `overrideBindings` at runtime.
-     */
-    private resolveLiteralBindings(bindings: Array<{ symbol: string; source: any }>): { [symbol: string]: any } {
-        const out: { [symbol: string]: any } = {};
-        for (const b of bindings || []) {
-            if (b?.source?.type === 'literal' && b.symbol) {
-                out[b.symbol] = b.source.value;
-            }
+    /** Symbols that benefit from a literal test value — only `literal` and
+     *  `parameter` potentials. `from_object` / `from_dataset` are resolved by
+     *  the host state-space at runtime and ignored here. */
+    get testableSymbols(): string[] {
+        if (!this.record) return [];
+        const out: string[] = [];
+        for (const b of this.record.definition.variableBindings) {
+            if (!b.symbol) continue;
+            const k = b.potential?.kind;
+            if (k === 'literal' || k === 'parameter') out.push(b.symbol);
         }
         return out;
     }

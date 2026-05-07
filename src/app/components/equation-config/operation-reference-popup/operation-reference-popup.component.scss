@@ -1,0 +1,426 @@
+// Operation Selector / Reference popup.
+// Visually mirrors the symbol-palette sidebar (search bar + accordion) so
+// users have a consistent mental model for both pickers.
+
+.op-popup {
+    display: flex;
+    flex-direction: column;
+    width: 880px;
+    max-width: 95vw;
+    max-height: 90vh;
+    font-family: 'Roboto', sans-serif;
+    background: var(--surface-primary, #ffffff);
+}
+
+/* Header / search / footer ---------------------------------------- */
+
+/* Popup title bar — deliberately light-weight (no shadow, modest padding,
+   no toolbar-feel) so it doesn't read as the app-level header. */
+.op-popup__header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--surface-hover, #e0e0e0);
+    background: var(--surface-primary, #ffffff);
+    flex-shrink: 0;
+
+    .header-icon { color: var(--brand-blue, #1976d2); font-size: 20px; width: 20px; height: 20px; }
+    .op-popup__title {
+        flex: 1;
+        margin: 0;
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-primary, #333);
+        line-height: 1.2;
+    }
+    .close-btn { color: var(--text-tertiary, #777); }
+}
+
+.op-popup__search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border-bottom: 1px solid var(--surface-hover, #e0e0e0);
+    flex-shrink: 0;
+
+    .search-icon { color: var(--text-tertiary, #888); font-size: 18px; width: 18px; height: 18px; }
+    .search-input {
+        flex: 1;
+        padding: 6px 10px;
+        border: 1px solid var(--surface-hover, #ccc);
+        border-radius: 4px;
+        font-size: 13px;
+        outline: none;
+        &:focus { border-color: var(--brand-blue, #1976d2); }
+    }
+    .clear-btn {
+        display: flex; align-items: center; justify-content: center;
+        width: 24px; height: 24px;
+        border: none; background: transparent; cursor: pointer;
+        color: var(--text-tertiary, #888); border-radius: 4px;
+        &:hover { background: var(--surface-hover, #eeeeee); }
+        mat-icon { font-size: 16px; width: 16px; height: 16px; }
+    }
+}
+
+.op-popup__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0 0 8px;
+}
+
+.op-popup__footer {
+    display: flex;
+    justify-content: flex-end;
+    padding: 10px 18px;
+    border-top: 1px solid var(--surface-hover, #e0e0e0);
+    background: var(--surface-secondary, #fafafa);
+    flex-shrink: 0;
+
+    .footer-btn {
+        padding: 6px 16px;
+        font-size: 13px;
+        font-weight: 500;
+        border: 1px solid var(--surface-hover, #ccc);
+        background: white;
+        color: var(--text-primary, #333);
+        border-radius: 4px;
+        cursor: pointer;
+        &:hover { background: var(--surface-hover, #f5f5f5); }
+    }
+}
+
+/* Accordion (mirrors symbol-palette) ------------------------------ */
+
+.op-accordion {
+    display: block;
+}
+
+.op-accordion ::ng-deep .op-panel {
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    border-bottom: 1px solid var(--surface-hover, #f0f0f0);
+    background: var(--surface-primary, #ffffff);
+
+    &:last-of-type { border-bottom: none; }
+}
+
+.op-accordion ::ng-deep .op-panel-header {
+    height: 48px;
+    padding: 0 18px;
+    background: transparent;
+
+    &:hover { background: var(--surface-hover, #f5f5f5) !important; }
+}
+
+.op-accordion ::ng-deep .mat-expansion-panel-body {
+    padding: 6px 18px 14px !important;
+}
+
+.cat-icon {
+    margin-right: 10px;
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    color: var(--brand-blue, #1976d2);
+}
+
+.cat-name {
+    font-weight: 600;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-primary, #333);
+    line-height: 18px;
+}
+
+.cat-description {
+    font-size: 12px;
+    color: var(--text-tertiary, #888);
+    margin-right: 12px;
+    text-align: right;
+}
+
+.cat-count {
+    font-size: 10px;
+    color: var(--text-tertiary, #888);
+    background: var(--surface-hover, #eeeeee);
+    padding: 1px 8px;
+    border-radius: 8px;
+    line-height: 14px;
+}
+
+/* Search results header ------------------------------------------ */
+
+.results-header {
+    padding: 12px 18px 4px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-tertiary, #888);
+}
+
+.op-empty {
+    display: flex; align-items: center; gap: 8px;
+    padding: 24px;
+    color: var(--text-tertiary, #888);
+    font-style: italic;
+    mat-icon { font-size: 16px; width: 16px; height: 16px; }
+}
+
+/* Operation cards ------------------------------------------------- */
+
+.op-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+
+    @media (max-width: 800px) {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.op-card {
+    display: flex;
+    flex-direction: column;
+    background: var(--surface-primary, #fff);
+    border: 1px solid var(--border-light, #e0e3e9);
+    border-radius: 8px;
+    padding: 12px 14px;
+    transition: border-color 0.12s, box-shadow 0.12s;
+
+    &.is-selected {
+        border-color: var(--brand-blue, #1976d2);
+        box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.15);
+    }
+}
+
+/* Card title bar — prominent so the operation name is clearly visible. */
+.op-card__title-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--surface-hover, #f0f0f0);
+}
+
+.op-icon {
+    color: var(--brand-blue, #1976d2);
+    font-size: 22px;
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+}
+
+.op-card__name {
+    flex: 1;
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary, #222);
+    line-height: 1.2;
+}
+
+.op-flag {
+    font-size: 9.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: rgba(76, 175, 80, 0.12);
+    color: #2e7d32;
+    border: 1px solid rgba(76, 175, 80, 0.4);
+}
+
+.selected-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--brand-blue, #1976d2);
+    mat-icon {
+        font-size: 14px;
+        width: 14px;
+        height: 14px;
+    }
+}
+
+.op-description {
+    margin: 4px 0 8px 0;
+    font-size: 12.5px;
+    color: var(--text-secondary, #555);
+    line-height: 1.4;
+}
+
+/* Per-row info ----------------------------------------------- */
+
+.op-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 4px 0;
+    border-top: 1px dashed var(--surface-hover, #f0f0f0);
+
+    &:first-of-type {
+        border-top: none;
+    }
+}
+
+.row-label {
+    font-size: 9.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--text-tertiary, #888);
+}
+
+.example-render {
+    background: var(--surface-secondary, #fafafa);
+    padding: 6px 10px;
+    border-radius: 4px;
+}
+
+.cue-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.cue-pill {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 10.5px;
+    background: var(--surface-secondary, #f6f7f9);
+    padding: 1px 6px;
+    border-radius: 3px;
+    color: var(--text-primary, #333);
+    border: 1px solid var(--surface-hover, #e0e0e0);
+}
+
+.input-list,
+.notes-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.input-spec {
+    background: var(--surface-secondary, #fafafa);
+    border: 1px solid var(--border-light, #e0e3e9);
+    border-radius: 6px;
+    padding: 6px 8px;
+
+    .input-name {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-primary, #333);
+    }
+
+    .optional {
+        margin-left: 4px;
+        font-size: 10px;
+        font-weight: 500;
+        color: var(--text-tertiary, #888);
+        font-style: italic;
+    }
+
+    .input-desc {
+        font-size: 11.5px;
+        color: var(--text-secondary, #555);
+        margin-top: 2px;
+        line-height: 1.4;
+    }
+
+    .input-implication {
+        display: flex;
+        align-items: flex-start;
+        gap: 4px;
+        margin-top: 4px;
+        font-size: 11px;
+        color: var(--brand-orange-dark, #e65100);
+        background: var(--brand-orange-light, #fff3e0);
+        padding: 4px 6px;
+        border-radius: 4px;
+        line-height: 1.35;
+
+        .impl-icon {
+            flex-shrink: 0;
+            font-size: 13px;
+            width: 13px;
+            height: 13px;
+            margin-top: 1px;
+        }
+    }
+}
+
+.notes-list li {
+    font-size: 11.5px;
+    color: var(--text-secondary, #555);
+    line-height: 1.4;
+    padding-left: 16px;
+    position: relative;
+
+    &::before {
+        content: '•';
+        position: absolute;
+        left: 6px;
+        color: var(--text-tertiary, #888);
+    }
+}
+
+/* Footer / select button ----------------------------------------- */
+
+.op-card__footer {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--surface-hover, #f0f0f0);
+}
+
+.select-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid var(--brand-blue, #1976d2);
+    background: white;
+    color: var(--brand-blue, #1976d2);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+
+    mat-icon {
+        font-size: 14px;
+        width: 14px;
+        height: 14px;
+    }
+
+    &:hover {
+        background: var(--brand-blue, #1976d2);
+        color: white;
+    }
+
+    &.is-selected-btn {
+        background: var(--brand-blue, #1976d2);
+        color: white;
+        cursor: default;
+        opacity: 0.8;
+        &:hover { background: var(--brand-blue, #1976d2); color: white; }
+    }
+}

@@ -1,0 +1,110 @@
+<div class="symbol-palette-sidebar">
+
+    <!-- Search bar -->
+    <div class="palette-search">
+        <mat-icon class="search-icon">search</mat-icon>
+        <input class="search-input"
+               type="text"
+               placeholder="Search symbols…"
+               [value]="query"
+               (input)="onSearchInput($any($event.target).value)" />
+        <button *ngIf="query"
+                class="clear-btn"
+                type="button"
+                (mousedown)="$event.preventDefault()"
+                (click)="clearSearch()"
+                title="Clear">
+            <mat-icon>close</mat-icon>
+        </button>
+    </div>
+
+    <!-- Search results (flat) when search is active -->
+    <ng-container *ngIf="query.trim() && filtered.length > 0">
+        <div class="results-header">{{ filtered.length }} match<span *ngIf="filtered.length !== 1">es</span></div>
+        <div class="palette-grid">
+            <ng-container *ngFor="let entry of filtered; trackBy: trackByLatex">
+                <ng-container *ngTemplateOutlet="paletteButton; context: { entry: entry }"></ng-container>
+            </ng-container>
+        </div>
+    </ng-container>
+
+    <ng-container *ngIf="query.trim() && filtered.length === 0">
+        <div class="palette-empty">
+            <mat-icon>info_outline</mat-icon>
+            <span>No symbols match "{{ query }}".</span>
+        </div>
+    </ng-container>
+
+    <!-- Categories — column of expandable rows when no search active -->
+    <mat-accordion *ngIf="!query.trim()" class="palette-accordion" multi displayMode="flat">
+        <mat-expansion-panel
+            *ngFor="let category of categories; trackBy: trackByCategory"
+            [expanded]="isExpanded(category.name)"
+            (opened)="expanded[category.name] = true"
+            (closed)="expanded[category.name] = false"
+            class="palette-panel">
+
+            <mat-expansion-panel-header class="palette-panel-header"
+                                        (mousedown)="$event.preventDefault()">
+                <mat-panel-title>
+                    <mat-icon *ngIf="category.icon" class="category-icon">{{ category.icon }}</mat-icon>
+                    <span class="category-name">{{ category.name }}</span>
+                </mat-panel-title>
+                <mat-panel-description>
+                    <span class="category-count">{{ category.entries.length }}</span>
+                </mat-panel-description>
+            </mat-expansion-panel-header>
+
+            <div class="palette-grid">
+                <ng-container *ngFor="let entry of category.entries; trackBy: trackByLatex">
+                    <ng-container *ngTemplateOutlet="paletteButton; context: { entry: entry }"></ng-container>
+                </ng-container>
+            </div>
+        </mat-expansion-panel>
+    </mat-accordion>
+
+    <!-- Hover ghost preview at the bottom -->
+    <div class="palette-hover-strip" *ngIf="hovered">
+        <div class="hover-rendered">
+            <katex-display [latex]="hovered.latex" [displayMode]="false"></katex-display>
+        </div>
+        <div class="hover-meta">
+            <div class="hover-label">{{ hovered.label }}</div>
+            <code class="hover-latex">{{ hovered.latex.trim() }}</code>
+        </div>
+    </div>
+
+
+    <!-- Reusable button template ------------------------------------------ -->
+    <!-- (mousedown)="$event.preventDefault()" on the button + its inner docs
+         link prevents the browser from moving focus AWAY from the LaTeX
+         textarea. Without this, clicking a symbol would lose the textarea's
+         caret position before our (click) insert handler reads it. -->
+    <ng-template #paletteButton let-entry="entry">
+        <div class="palette-button"
+             [matTooltip]="entry.description + '\nLaTeX: ' + entry.latex.trim()"
+             matTooltipPosition="left"
+             matTooltipClass="palette-tooltip"
+             (mousedown)="$event.preventDefault()"
+             (click)="onClickInsert(entry, $event)"
+             (mouseenter)="onHoverEnter(entry)"
+             (mouseleave)="onHoverLeave(entry)"
+             role="button"
+             tabindex="0">
+            <a class="docs-link"
+               [href]="entry.docsUrl"
+               target="_blank"
+               rel="noopener"
+               title="Open KaTeX docs"
+               (mousedown)="$event.stopPropagation()"
+               (click)="onDocsClick($event)">
+                <mat-icon>info</mat-icon>
+            </a>
+            <div class="button-symbol">
+                <katex-display [latex]="entry.latex" [displayMode]="false"></katex-display>
+            </div>
+            <div class="button-label">{{ entry.label }}</div>
+        </div>
+    </ng-template>
+
+</div>
