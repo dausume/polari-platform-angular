@@ -530,14 +530,15 @@ export class StateBuildingBlockRegistry {
     });
 
     this.register({
-      className: 'RunEquation',
-      displayName: 'Run Equation',
-      description: 'Execute a saved EquationDefinition; declared potentials are filled by sources from the state-space.',
+      className: 'CalculusOperation',
+      displayName: 'Calculus Operation',
+      description: 'Execute a saved equation as a state in a no-code flow; declared potentials are filled by sources from the state-space.',
       category: 'Math',
-      supportedRuntimes: [],
+      supportedRuntimes: ['python_backend'],
       // Templates here are placeholders — the actual code-gen happens in
-      // python-code-generator.service.ts under `case 'RunEquation'` because
-      // the bindings list needs structural translation, not a flat substitute.
+      // python-code-generator.service.ts under `case 'CalculusOperation'`
+      // because the bindings list needs structural translation, not a flat
+      // substitute.
       codeTemplates: [
         { runtime: 'python_backend',     template: '{result} = run_equation()' },
         { runtime: 'typescript_frontend', template: 'const {result} = await runEquation();' },

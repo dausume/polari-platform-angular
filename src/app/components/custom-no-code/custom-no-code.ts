@@ -24,6 +24,8 @@ import { VariableAssignmentOverlayComponent } from './states/variables/variable-
 import { InitialStateOverlayComponent } from './states/initial-states/initial-state-overlay/initial-state-overlay.component';
 import { MathOperationOverlayComponent } from './states/math/math-operation-overlay/math-operation-overlay.component';
 import { RunEquationOverlayComponent } from './states/equations/run-equation-overlay/run-equation-overlay.component';
+import { RunEquationOverlayPopupComponent } from './states/equations/run-equation-overlay/popup/run-equation-overlay-popup.component';
+import { AvailableInput, SourceObjectField } from './shared/value-source-selector/value-source-selector.component';
 import { MathOperationOverlayPopupComponent, MathOperationOverlayPopupData } from './states/math/math-operation-overlay/popup/math-operation-overlay-popup.component';
 import { ReturnValueOverlayComponent } from './states/end-states/return-value/return-value-overlay/return-value-overlay.component';
 import { FormValidationOverlayComponent } from './states/conditionals/form-validation/form-validation-overlay/form-validation-overlay.component';
@@ -853,8 +855,8 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
       return this.createInitialStateOverlay(stateName, stateGroup, stateInstance);
     } else if (stateClass === 'MathOperation') {
       return this.createMathOperationOverlay(stateName, stateGroup, stateInstance);
-    } else if (stateClass === 'RunEquation') {
-      return this.createRunEquationOverlay(stateName, stateGroup, stateInstance);
+    } else if (stateClass === 'CalculusOperation') {
+      return this.createCalculusOperationOverlay(stateName, stateGroup, stateInstance);
     } else if (stateClass === 'FormValidation') {
       return this.createFormValidationOverlay(stateName, stateGroup, stateInstance);
     } else if (stateClass === 'ReturnValue') {
@@ -1579,11 +1581,11 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   /**
-   * Create a RunEquation overlay — hosts a saved EquationDefinition inside
-   * a state-space and renders one value-source-selector per declared
+   * Create a CalculusOperation overlay — hosts a saved EquationDefinition
+   * inside a state-space and renders one value-source-selector per declared
    * variable potential.
    */
-  private createRunEquationOverlay(stateName: string, stateGroup: SVGGElement, stateInstance: NoCodeState): boolean {
+  private createCalculusOperationOverlay(stateName: string, stateGroup: SVGGElement, stateInstance: NoCodeState): boolean {
     const fieldValues = stateInstance.boundObjectFieldValues || {};
     const availableInputs = this.getAvailableInputsForSelector(stateInstance);
     const sourceObjectFields = this.getSourceObjectFieldsForState(stateInstance);
@@ -1594,7 +1596,7 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
       RunEquationOverlayComponent,
       {
         stateName,
-        boundClassName: 'RunEquation',
+        boundClassName: 'CalculusOperation',
         availableInputs,
         sourceObjectFields,
         boundObjectFieldValues: fieldValues,
@@ -1627,9 +1629,61 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
         this.showStatePage(stateInstance);
       });
 
+      // Inline expand button → open the canonical full-page popup.
+      componentRef.instance.popupRequested.subscribe(() => {
+        this.openCalculusOperationPopup(stateName, stateInstance, availableInputs, sourceObjectFields);
+      });
+
       return true;
     }
     return false;
+  }
+
+  /**
+   * Open the CalculusOperation full-page popup (Material Dialog). Hosts the
+   * same controls as the inline overlay but in a scrollable dialog that
+   * never gets clipped by the canvas-shape sizing.
+   */
+  private openCalculusOperationPopup(
+    stateName: string,
+    stateInstance: NoCodeState,
+    availableInputs: AvailableInput[],
+    sourceObjectFields: SourceObjectField[],
+  ): void {
+    const dialogRef = this.dialog.open(RunEquationOverlayPopupComponent, {
+      panelClass: 'state-overlay-popup-panel',
+      maxWidth: '95vw',
+      maxHeight: '90vh',
+      data: {
+        stateName,
+        boundObjectFieldValues: stateInstance.boundObjectFieldValues || {},
+        availableInputs,
+        sourceObjectFields,
+      },
+    });
+
+    // Persist edits made inside the popup back into the state instance +
+    // service cache so they survive the dialog closing.
+    const sub = dialogRef.componentInstance.fieldValuesChanged.subscribe(
+      (updated: { [key: string]: any }) => {
+        if (!stateInstance.boundObjectFieldValues) {
+          stateInstance.boundObjectFieldValues = {};
+        }
+        Object.assign(stateInstance.boundObjectFieldValues, updated);
+        if (this.selectedSolutionName) {
+          this.solutionStateService.updateStateFieldValues(
+            this.selectedSolutionName,
+            stateName,
+            updated,
+          );
+        }
+        this.regenerateCode();
+      },
+    );
+
+    dialogRef.afterClosed().subscribe(() => {
+      sub.unsubscribe();
+    });
   }
 
   /**

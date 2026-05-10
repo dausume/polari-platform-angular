@@ -119,20 +119,29 @@ export type EquationVariableSource =
     | EquationParameterSource;
 
 import { DataPotentialDefinition } from '@components/custom-no-code/shared/value-binding/branch-types';
+import { ValueSourceConfig } from '@models/stateSpace';
 
 /**
  * A binding declares which symbol in the equation expects what *shape* of
- * input. Concrete values are supplied either by the calling state-space (when
- * the equation is hosted in a no-code state) or by the edit page's transient
- * "test values" map (for the Run-direct workflow).
+ * input (`potential`) and ALSO carries a default `defaultSource` — a concrete
+ * `ValueSourceConfig` whose branch kind is constrained to match the potential.
  *
- * `source` is kept here only so legacy seed-data records still typecheck
- * during the migration step in equation-config-edit. New writes drop it.
+ * The default source serves two roles:
+ *   - **At edit time**: feeds the Step-2 substituted preview and the Run-
+ *     direct workflow on the equation edit page.
+ *   - **At host time** (when the equation is dropped into a no-code state):
+ *     pre-populates the host state's source-selector for that potential, which
+ *     the host can then override.
+ *
+ * `source` is kept on the type only so legacy seed-data records still parse
+ * during the migration step. New writes drop it.
  */
 export interface EquationVariableBinding {
     symbol: string;
     /** Declared input shape — set on every binding written by the new UI. */
     potential?: DataPotentialDefinition;
+    /** Concrete default source, kind-compatible with `potential`. */
+    defaultSource?: ValueSourceConfig;
     /** Legacy concrete-source — present on pre-potentials seed records only. */
     source?: EquationVariableSource;
 }

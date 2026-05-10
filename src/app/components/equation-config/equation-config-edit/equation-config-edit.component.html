@@ -241,32 +241,55 @@
                                       matTooltipClass="multiline-tooltip">help_outline</mat-icon>
                         </h3>
                         <p class="subsection-hint">
-                            Concrete test values for the Run-direct workflow live in the Run panel below — they're transient and never saved with the equation.
+                            Each row declares a potential and a default source. The default source is used as the test value for Run-direct AND as the initial value when this equation is hosted in a state-space (the host can override).
                         </p>
 
                         <div class="potentials-list" *ngIf="record.definition.variableBindings.length > 0">
                             <div class="potential-row"
                                  *ngFor="let b of record.definition.variableBindings; let i = index">
-                                <div class="potential-row-symbol">
-                                    <label class="form-label">Symbol</label>
-                                    <input class="form-input"
-                                           type="text"
-                                           [ngModel]="b.symbol"
-                                           (ngModelChange)="onBindingSymbolChange(b, $event)"
-                                           placeholder="x" />
+                                <div class="potential-row-top">
+                                    <div class="potential-row-symbol">
+                                        <label class="form-label">Symbol</label>
+                                        <input class="form-input"
+                                               type="text"
+                                               [ngModel]="b.symbol"
+                                               (ngModelChange)="onBindingSymbolChange(b, $event)"
+                                               placeholder="x" />
+                                    </div>
+                                    <div class="potential-row-selector">
+                                        <app-value-potential-selector
+                                            [definition]="b.potential!"
+                                            [showHeader]="true"
+                                            label="Shape"
+                                            (definitionChange)="onBindingPotentialChange(b, $event)">
+                                        </app-value-potential-selector>
+                                    </div>
+                                    <div class="potential-row-actions">
+                                        <button mat-icon-button (click)="removeBinding(i)" matTooltip="Remove">
+                                            <mat-icon>delete_outline</mat-icon>
+                                        </button>
+                                    </div>
                                 </div>
-                                <div class="potential-row-selector">
-                                    <app-value-potential-selector
-                                        [definition]="b.potential!"
+
+                                <!-- Dynamic value selector — re-renders when the
+                                     potential's kind changes. When the equation
+                                     declares a source_class, the selector enters
+                                     locked-mode for `from_object` bindings: the
+                                     class + field are fixed and only the
+                                     instance is the variable. allowAnyInstancePick
+                                     enables cross-class instance browsing for
+                                     unbound equations on the equations page. -->
+                                <div class="potential-row-source">
+                                    <app-value-source-selector
+                                        [config]="b.defaultSource!"
+                                        [allowedBranches]="allowedBranchesFor(b)"
+                                        [lockedClass]="lockedClassFor(b)"
+                                        [lockedField]="lockedFieldFor(b)"
+                                        [allowAnyInstancePick]="true"
                                         [showHeader]="true"
-                                        label="Shape"
-                                        (definitionChange)="onBindingPotentialChange(b, $event)">
-                                    </app-value-potential-selector>
-                                </div>
-                                <div class="potential-row-actions">
-                                    <button mat-icon-button (click)="removeBinding(i)" matTooltip="Remove">
-                                        <mat-icon>delete_outline</mat-icon>
-                                    </button>
+                                        label="Default Value"
+                                        (configChange)="onBindingSourceChange(b, $event)">
+                                    </app-value-source-selector>
                                 </div>
                             </div>
                         </div>
@@ -338,43 +361,14 @@
             <h2 class="section-title">
                 Run
                 <mat-icon class="section-help-icon"
-                          matTooltip="Stored bindings now describe input SHAPES, not values. Supply concrete test values per declared symbol below — they're used by both Run-direct (against the current draft) and Run-stored (against the saved record). Test values are transient and never saved."
+                          matTooltip="Each binding above carries a default source. Run-direct and Run-stored both use those default sources to build the runtime variable dict. Object / dataset sources are resolved at execute time."
                           matTooltipPosition="right"
                           matTooltipClass="multiline-tooltip">help_outline</mat-icon>
             </h2>
             <p class="section-hint">
                 "Run direct" sends the current draft to <code>POST /executeEquationDirect</code>.
                 "Run stored" sends the saved name to <code>POST /executeEquation</code>.
-                Both use the test values supplied below.
-            </p>
-
-            <!-- Test values per declared potential -->
-            <div *ngIf="testableSymbols.length > 0" class="overrides-table-wrapper">
-                <h3 class="subsection-title">Test Values</h3>
-                <p class="subsection-hint">
-                    One row per <code>literal</code> / <code>parameter</code> potential. Values feed the Step 2 substituted preview and the run buttons. Object / dataset potentials are resolved by the host state-space at runtime and don't appear here.
-                </p>
-                <table class="bindings-table">
-                    <thead>
-                        <tr><th>Symbol</th><th>Test Value</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr *ngFor="let sym of testableSymbols">
-                            <td><code>{{ sym }}</code></td>
-                            <td>
-                                <input class="form-input"
-                                       type="text"
-                                       [ngModel]="getTestValueDisplay(sym)"
-                                       (ngModelChange)="onTestValueChange(sym, $event)"
-                                       placeholder="value" />
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <p *ngIf="testableSymbols.length === 0" class="subsection-hint">
-                No literal or parameter potentials declared yet — add a Variable Potential above with kind = Literal or Parameter to supply test values.
+                Both use the per-binding default sources defined above.
             </p>
 
             <div class="run-buttons">

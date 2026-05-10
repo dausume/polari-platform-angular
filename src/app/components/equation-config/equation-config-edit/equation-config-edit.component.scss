@@ -408,39 +408,59 @@
     margin-bottom: 10px;
 }
 
-/* Each potential row: symbol | shell selector | actions */
+/* Each potential row stacks two pieces vertically:
+   1. potential-row-top: symbol input | potential selector (shape) | remove btn
+   2. potential-row-source: value-source-selector scoped to the potential's kind */
 .potential-row {
-    display: grid;
-    grid-template-columns: 130px minmax(0, 1fr) 40px;
-    gap: 10px;
-    align-items: stretch;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
     padding: 10px;
     background: var(--surface-primary, #fff);
     border: 1px solid var(--border-light, #e0e3e9);
     border-radius: 6px;
+}
 
-    .potential-row-symbol {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-    }
+.potential-row-top {
+    display: grid;
+    grid-template-columns: 130px minmax(0, 1fr) 40px;
+    gap: 10px;
+    align-items: stretch;
+}
 
-    /* The selector ships its own dark chrome; wrap it on a panel that matches
-       the rest of the equation-edit page so it doesn't look like an alien
-       implant. */
-    .potential-row-selector {
-        background: #2c2f33;
-        border-radius: 6px;
-        padding: 4px;
-        min-width: 0;
-        overflow: hidden;
-    }
+.potential-row-symbol {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
 
-    .potential-row-actions {
-        display: flex;
-        align-items: flex-start;
-        justify-content: center;
-    }
+/* The selector ships its own dark chrome; wrap it on a panel that matches
+   the rest of the equation-edit page so it doesn't look like an alien
+   implant. */
+.potential-row-selector {
+    background: #2c2f33;
+    border-radius: 6px;
+    padding: 4px;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.potential-row-actions {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+}
+
+/* The dynamic value-source-selector below the potential. Same dark-chrome
+   wrapper as the potential selector, indented slightly to read as a
+   subordinate row. */
+.potential-row-source {
+    margin-left: 130px + 10px;
+    background: #2c2f33;
+    border-radius: 6px;
+    padding: 4px;
+    min-width: 0;
+    overflow: hidden;
 }
 
 .subsection-hint {

@@ -101,6 +101,9 @@ import { FromDatasetBranchComponent } from '@components/custom-no-code/shared/va
 import { ParameterBranchComponent } from '@components/custom-no-code/shared/value-binding/branches/parameter-branch.component';
 import { ValuePotentialSelectorComponent } from '@components/custom-no-code/shared/value-potential-selector/value-potential-selector.component';
 import { RunEquationOverlayComponent } from '@components/custom-no-code/states/equations/run-equation-overlay/run-equation-overlay.component';
+import { RunEquationOverlayPopupComponent } from '@components/custom-no-code/states/equations/run-equation-overlay/popup/run-equation-overlay-popup.component';
+import { LatexEditDialogComponent } from '@components/shared/latex-edit-dialog/latex-edit-dialog';
+import { EditableEquationCellComponent } from '@components/shared/editable-cells/editable-equation-cell/editable-equation-cell';
 import { ViewContextOverlayComponent } from '@components/custom-no-code/popups/view-context-overlay/view-context-overlay.component';
 import { ExecutionPanelComponent } from '@components/custom-no-code/editor/execution-panel/execution-panel.component';
 // Class Configuration Components
@@ -249,6 +252,9 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     ParameterBranchComponent,
     ValuePotentialSelectorComponent,
     RunEquationOverlayComponent,
+    RunEquationOverlayPopupComponent,
+    LatexEditDialogComponent,
+    EditableEquationCellComponent,
     ViewContextOverlayComponent,
     ExecutionPanelComponent,
     ClassDataTableComponent,

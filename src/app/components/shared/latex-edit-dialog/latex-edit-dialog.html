@@ -1,0 +1,91 @@
+<div class="latex-edit-dialog">
+
+    <div mat-dialog-title class="dialog-header">
+        <div class="header-content">
+            <mat-icon class="header-icon">functions</mat-icon>
+            <div class="header-text">
+                <span class="header-title">{{ data.title || 'Edit Equation' }}</span>
+                <span class="header-subtitle" *ngIf="data.subtitle">{{ data.subtitle }}</span>
+            </div>
+        </div>
+        <button mat-icon-button (click)="onCancel()" class="close-btn" aria-label="Close">
+            <mat-icon>close</mat-icon>
+        </button>
+    </div>
+
+    <mat-dialog-content class="dialog-content">
+
+        <div class="editor-split">
+            <!-- Editor + preview column -->
+            <div class="editor-column">
+                <textarea class="latex-input"
+                          rows="6"
+                          #latexInput
+                          [ngModel]="latex"
+                          (ngModelChange)="onLatexChange($event)"
+                          (focus)="onTextareaInit(latexInput)"
+                          placeholder="\sin(x) + \frac{x^2}{2}"></textarea>
+
+                <div class="preview-card">
+                    <div class="preview-label">Preview</div>
+                    <katex-display [latex]="latex"
+                                   [displayMode]="true"
+                                   placeholder="Preview will appear here">
+                    </katex-display>
+                </div>
+
+                <div class="parse-warning" *ngIf="parseError">
+                    <mat-icon>warning_amber</mat-icon>
+                    <span>{{ parseError }}</span>
+                </div>
+
+                <div class="references-panel">
+                    <div class="references-header">
+                        <mat-icon>menu_book</mat-icon>
+                        <span class="references-title">Learn the format</span>
+                    </div>
+                    <ul class="references-list">
+                        <li>
+                            <a href="https://katex.org/docs/supported.html" target="_blank" rel="noopener">
+                                KaTeX Supported Functions
+                            </a>
+                            <span class="ref-desc">— canonical list of every command this preview renders.</span>
+                        </li>
+                        <li>
+                            <a href="https://en.wikibooks.org/wiki/LaTeX/Mathematics" target="_blank" rel="noopener">
+                                LaTeX/Mathematics (Wikibooks)
+                            </a>
+                            <span class="ref-desc">— free, comprehensive intro to LaTeX math syntax.</span>
+                        </li>
+                        <li>
+                            <a href="https://www.overleaf.com/learn/latex/Mathematical_expressions" target="_blank" rel="noopener">
+                                Overleaf: Mathematical Expressions
+                            </a>
+                            <span class="ref-desc">— beginner-friendly walkthrough.</span>
+                        </li>
+                        <li>
+                            <a href="http://detexify.kirelabs.org/classify.html" target="_blank" rel="noopener">
+                                Detexify
+                            </a>
+                            <span class="ref-desc">— draw a symbol with your mouse, get the LaTeX command.</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Symbol palette sidebar -->
+            <div class="palette-column">
+                <app-equation-symbol-palette
+                    (insert)="insertSymbol($event)">
+                </app-equation-symbol-palette>
+            </div>
+        </div>
+
+    </mat-dialog-content>
+
+    <mat-dialog-actions class="dialog-actions">
+        <span class="spacer"></span>
+        <button mat-button (click)="onCancel()">Cancel</button>
+        <button mat-flat-button color="primary" (click)="save()">Save</button>
+    </mat-dialog-actions>
+</div>

@@ -1,29 +1,22 @@
 // Author: Dustin Etts
-// run-equation-overlay.component.ts
+// Full-page popup for the CalculusOperation state. Opened via MatDialog
+// from the canvas when the user clicks the expand button on the inline
+// overlay. Hosts the same controls as the inline overlay but in a scrollable
+// dialog that can never get clipped by the canvas / SVG sizing.
 //
-// State overlay for the RunEquation no-code state. Loads the picked
-// EquationDefinition, reads its declared `variableBindings.potential`
-// list, and renders one `<app-value-source-selector>` per declared symbol.
-// Each selector fills a potential with a concrete source available in the
-// hosting state-space (upstream variable, source-object field, dataset, or
-// literal).
-//
-// Loose typecheck only — selectors don't enforce kind compatibility (e.g. a
-// `from_object` potential could in principle be filled by a `direct_assignment`
-// source). The user can wire what they want; backend validation will
-// surface mismatches at execute time.
+// Data flow: the dispatcher passes the current `boundObjectFieldValues` in
+// via MAT_DIALOG_DATA. As the user edits, this component emits
+// `fieldValuesChanged` with the merged config. The dispatcher subscribes
+// and persists each delta back into the state instance + service cache.
 
-import { Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
-import { MatDialog } from '@angular/material/dialog';
+import { Component, EventEmitter, Inject, OnDestroy, OnInit, Output } from '@angular/core';
+import { MatDialog, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { Subscription } from 'rxjs';
-
-import { StateOverlayBase } from '../../_shared/state-overlay/state-overlay-base';
+import { ValueSourceConfig, createDefaultValueSourceConfig } from '@models/stateSpace';
 import {
     AvailableInput,
     SourceObjectField,
-} from '../../../shared/value-source-selector/value-source-selector.component';
-import { ValueSourceConfig, createDefaultValueSourceConfig } from '@models/stateSpace';
-
+} from '../../../../shared/value-source-selector/value-source-selector.component';
 import {
     EquationSelectorDialogComponent,
     EquationSelectorDialogResult,
@@ -35,69 +28,81 @@ import {
 } from '@models/equations/EquationDefinition';
 import { buildPreviewLatex } from '@models/equations/preview-builder';
 import { getSourceLabel } from '@models/stateSpace';
-
 import {
     RunEquationConfig,
     RunEquationBindingEntry,
     makeEmptyRunEquationConfig,
-} from '../run-equation/run-equation.model';
+} from '../../run-equation/run-equation.model';
+
+export interface RunEquationOverlayPopupData {
+    stateName: string;
+    boundObjectFieldValues: { [key: string]: any };
+    availableInputs: AvailableInput[];
+    sourceObjectFields: SourceObjectField[];
+}
 
 @Component({
     standalone: false,
-    selector: 'run-equation-overlay',
-    templateUrl: './run-equation-overlay.component.html',
-    styleUrls: ['./run-equation-overlay.component.css'],
+    selector: 'run-equation-overlay-popup',
+    templateUrl: './run-equation-overlay-popup.component.html',
+    styleUrls: ['./run-equation-overlay-popup.component.css'],
 })
-export class RunEquationOverlayComponent extends StateOverlayBase implements OnInit, OnDestroy {
-
-    @Input() boundClassName: string = 'CalculusOperation';
-    @Input() boundObjectFieldValues: { [key: string]: any } | null = null;
-    @Input() availableInputs: AvailableInput[] = [];
-    @Input() sourceObjectFields: SourceObjectField[] = [];
+export class RunEquationOverlayPopupComponent implements OnInit, OnDestroy {
 
     @Output() fieldValuesChanged = new EventEmitter<{ [key: string]: any }>();
 
-    /** Always show the expand button — the popup view (run-equation-overlay-popup)
-     *  is the canonical edit surface; the inline overlay is just a summary
-     *  that's tolerant of being clipped by the canvas-shape sizing. */
-    override hasPopupView: boolean = true;
-
     config: RunEquationConfig = makeEmptyRunEquationConfig();
-
-    /** Loaded equation definition — used to discover declared potentials so
-     *  we can render the right number of value-source-selectors. */
     equation: EquationDefinitionRecord | null = null;
     loadingEquation: boolean = false;
     loadError: string | null = null;
 
+    availableInputs: AvailableInput[] = [];
+    sourceObjectFields: SourceObjectField[] = [];
+
     private subs: Subscription[] = [];
 
     constructor(
+        @Inject(MAT_DIALOG_DATA) public data: RunEquationOverlayPopupData,
+        private dialogRef: MatDialogRef<RunEquationOverlayPopupComponent>,
         private dialog: MatDialog,
         private equationService: EquationDefinitionService,
     ) {
-        super();
+        this.availableInputs = data.availableInputs || [];
+        this.sourceObjectFields = data.sourceObjectFields || [];
     }
 
-    override ngOnInit(): void {
-        super.ngOnInit();
-        this.initializeFromInputs();
+    ngOnInit(): void {
+        this.initializeFromData();
         if (this.config.equationId) {
             this.loadEquation(this.config.equationId);
         } else if (this.config.equationName) {
-            // Seeded states only carry the equationName (auto-generated IDs
-            // aren't known at seed time). Resolve the ID against the service's
-            // cache so reloads still pull in the bindings UI.
             this.resolveEquationIdByName();
         }
+    }
+
+    private resolveEquationIdByName(): void {
+        const name = this.config.equationName;
+        if (!name) return;
+        this.subs.push(
+            this.equationService.allConfigList$.subscribe(list => {
+                if (this.config.equationId) return;
+                const found = (list || []).find(e => e.name === name);
+                if (found) {
+                    this.config.equationId = found.id;
+                    this.loadEquation(found.id);
+                    this.emitChange();
+                }
+            }),
+        );
+        this.equationService.fetchAllConfigs();
     }
 
     ngOnDestroy(): void {
         this.subs.forEach(s => s.unsubscribe());
     }
 
-    private initializeFromInputs(): void {
-        const bofv = this.boundObjectFieldValues || {};
+    private initializeFromData(): void {
+        const bofv = this.data.boundObjectFieldValues || {};
         if (bofv['equationId']) this.config.equationId = bofv['equationId'];
         if (bofv['equationName']) this.config.equationName = bofv['equationName'];
         if (Array.isArray(bofv['bindings'])) this.config.bindings = bofv['bindings'];
@@ -107,27 +112,6 @@ export class RunEquationOverlayComponent extends StateOverlayBase implements OnI
     }
 
     // ── Equation loading ──────────────────────────────────────────────────
-
-    /** Resolve `config.equationName` to an ID via the service's cached list,
-     *  then load the full record. Falls back silently if no match — the UI
-     *  shows "Pick equation..." in that case. */
-    private resolveEquationIdByName(): void {
-        const name = this.config.equationName;
-        if (!name) return;
-        this.subs.push(
-            this.equationService.allConfigList$.subscribe(list => {
-                if (this.config.equationId) return; // already resolved
-                const found = (list || []).find(e => e.name === name);
-                if (found) {
-                    this.config.equationId = found.id;
-                    this.loadEquation(found.id);
-                    this.emitChange();
-                }
-            }),
-        );
-        // Trigger a fetch in case the cache is empty (cold start).
-        this.equationService.fetchAllConfigs();
-    }
 
     private loadEquation(id: string): void {
         this.loadingEquation = true;
@@ -148,10 +132,6 @@ export class RunEquationOverlayComponent extends StateOverlayBase implements OnI
         );
     }
 
-    /** Sync `config.bindings` to match the equation's declared potentials.
-     *  - For each declared symbol: keep the existing source if present, else
-     *    seed with a literal placeholder.
-     *  - Drop bindings for symbols no longer declared (equation was edited). */
     private reconcileBindings(): void {
         if (!this.equation) return;
         const declared = this.equation.definition.variableBindings || [];
@@ -173,6 +153,8 @@ export class RunEquationOverlayComponent extends StateOverlayBase implements OnI
     openEquationPicker(): void {
         const ref = this.dialog.open(EquationSelectorDialogComponent, {
             width: '520px',
+            // Ride above the parent state popup (z-index 2000) — see
+            // styles.css `.state-overlay-picker-popup-panel`.
             panelClass: 'state-overlay-picker-popup-panel',
             data: {
                 title: 'Pick Equation to Run',
@@ -211,9 +193,6 @@ export class RunEquationOverlayComponent extends StateOverlayBase implements OnI
         this.emitChange();
     }
 
-    /** Look up the declared potential's KIND for a given symbol — surfaced as
-     *  a hint label next to the selector so the user knows what shape the
-     *  equation expects. */
     getDeclaredPotentialLabel(symbol: string): string {
         const declared = this.equation?.definition.variableBindings.find(b => b.symbol === symbol);
         const p = declared?.potential;
@@ -249,35 +228,8 @@ export class RunEquationOverlayComponent extends StateOverlayBase implements OnI
         this.emitChange();
     }
 
-    // ── Emit ──────────────────────────────────────────────────────────────
+    // ── Completion checks ────────────────────────────────────────────────
 
-    private emitChange(): void {
-        this.fieldValuesChanged.emit({
-            displayName: this.config.equationName || 'Run Equation',
-            equationId: this.config.equationId,
-            equationName: this.config.equationName,
-            bindings: this.config.bindings,
-            resultTarget: this.config.resultTarget,
-            resultVariableName: this.config.resultVariableName,
-            resultFieldPath: this.config.resultFieldPath,
-        });
-    }
-
-    // ── Template helper ──────────────────────────────────────────────────
-
-    get declaredSymbols(): string[] {
-        return (this.equation?.definition.variableBindings || [])
-            .map(b => b.symbol)
-            .filter(s => !!s);
-    }
-
-    // ── Completion checks (loose — warn-only) ────────────────────────────
-
-    /**
-     * Whether a binding has enough information to resolve to a concrete
-     * value at runtime. Loose check — we don't enforce kind compatibility,
-     * just that the active branch is filled in enough to produce a value.
-     */
     isBindingComplete(symbol: string): boolean {
         const entry = this.config.bindings.find(b => b.symbol === symbol);
         const src = entry?.source;
@@ -296,7 +248,6 @@ export class RunEquationOverlayComponent extends StateOverlayBase implements OnI
         }
     }
 
-    /** Per-row warning text shown when the binding's source is incomplete. */
     incompleteBindingHint(symbol: string): string {
         const entry = this.config.bindings.find(b => b.symbol === symbol);
         const src = entry?.source;
@@ -313,35 +264,35 @@ export class RunEquationOverlayComponent extends StateOverlayBase implements OnI
     get filledCount(): number {
         return this.declaredSymbols.filter(s => this.isBindingComplete(s)).length;
     }
-
-    get totalDeclared(): number {
-        return this.declaredSymbols.length;
-    }
-
-    /** True when at least one declared potential isn't fully filled. Used
-     *  to drive the aggregate warning header. */
+    get totalDeclared(): number { return this.declaredSymbols.length; }
     get hasUnfilledPotentials(): boolean {
         return this.totalDeclared > 0 && this.filledCount < this.totalDeclared;
     }
+    get declaredSymbols(): string[] {
+        return (this.equation?.definition.variableBindings || [])
+            .map(b => b.symbol)
+            .filter(s => !!s);
+    }
 
-    /** Step-1 preview (operation-wrapped LaTeX) — same view as the Equations
-     *  page so the user sees the formula's shape before wiring bindings. */
+    /** Step-1 preview from the Equations page — the equation's LaTeX wrapped
+     *  by its operation symbol. Gives the user the visual context for what
+     *  the equation actually computes before they wire bindings. */
     get equationStep1Preview(): string {
         const def = this.equation?.definition;
         if (!def) return '';
         return buildPreviewLatex(def.latexExpression, def.operationType, def.bounds);
     }
 
-    /** Short summary of the source bound to a symbol — drives the variable
-     *  mapping list ("f → self.input_expression"). */
+    /** Short summary of the source bound to a symbol (e.g. "self.input_expression"
+     *  or "[int] 42"). Mirrors the existing `getSourceLabel` formatting used
+     *  across the rest of the no-code editor. */
     sourceSummary(symbol: string): string {
-        return getSourceLabel(this.getBindingSource(symbol));
+        const src = this.getBindingSource(symbol);
+        return getSourceLabel(src);
     }
 
-    /** Locked class for a per-binding selector — pulled from the equation's
-     *  declared default for that symbol (or from the equation's source_class)
-     *  so the in-state selector enters streamlined "From {ClassName} Instance"
-     *  mode automatically. */
+    /** Locked class for a per-binding selector (see equivalent on the inline
+     *  overlay component for the rationale). */
     lockedClassForSymbol(symbol: string): string {
         const declared = this.equation?.definition.variableBindings.find(b => b.symbol === symbol);
         if (!declared) return '';
@@ -354,8 +305,6 @@ export class RunEquationOverlayComponent extends StateOverlayBase implements OnI
         return '';
     }
 
-    /** Locked field for a per-binding selector — pulled from the equation's
-     *  default `self.<field>` path so the user only needs to pick the instance. */
     lockedFieldForSymbol(symbol: string): string {
         const declared = this.equation?.definition.variableBindings.find(b => b.symbol === symbol);
         const ds = declared && (declared as any).defaultSource;
@@ -364,5 +313,23 @@ export class RunEquationOverlayComponent extends StateOverlayBase implements OnI
         if (path.startsWith('self.')) return path.slice(5);
         const dot = path.lastIndexOf('.');
         return dot > 0 ? path.slice(dot + 1) : '';
+    }
+
+    // ── Emit ──────────────────────────────────────────────────────────────
+
+    close(): void {
+        this.dialogRef.close();
+    }
+
+    private emitChange(): void {
+        this.fieldValuesChanged.emit({
+            displayName: this.config.equationName || 'Calculus Operation',
+            equationId: this.config.equationId,
+            equationName: this.config.equationName,
+            bindings: this.config.bindings,
+            resultTarget: this.config.resultTarget,
+            resultVariableName: this.config.resultVariableName,
+            resultFieldPath: this.config.resultFieldPath,
+        });
     }
 }

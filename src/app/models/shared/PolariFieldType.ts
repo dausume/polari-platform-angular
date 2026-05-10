@@ -36,6 +36,7 @@ export type CanonicalFieldType =
     | 'dateTimeDuration'
     | 'schedule'
     | 'uuid'
+    | 'equation'
     | 'unknown';
 
 // ─── Type Normalization ──────────────────────────────────────────────────────
@@ -108,6 +109,10 @@ const TYPE_NORMALIZATION_MAP: Record<string, CanonicalFieldType> = {
 
     // Schedule (recurrence) type
     'schedule':          'schedule',
+
+    // Equation (LaTeX expression). The backend persists these as plain
+    // strings carrying LaTeX source; the frontend renders them via KaTeX.
+    'equation':          'equation',
 
     // Duration types
     'date_duration':     'dateDuration',
@@ -198,6 +203,7 @@ export const FIELD_TYPE_ICONS: Record<CanonicalFieldType, string> = {
     'dateTimeDuration':  '⏳',
     'schedule':          '🔄',
     'uuid':          '🔑',
+    'equation':      'ƒ',
     'unknown':       '◆',
 };
 
@@ -232,6 +238,7 @@ export const FIELD_TYPE_LABELS: Record<CanonicalFieldType, string> = {
     'dateTimeDuration':  'Date & Time Duration',
     'schedule':          'Schedule',
     'uuid':          'UUID',
+    'equation':      'Equation',
     'unknown':       'Unknown',
 };
 
@@ -262,6 +269,7 @@ export const FIELD_TYPE_COLORS: Record<CanonicalFieldType, string> = {
     'dateTimeDuration':  '#880e4f',
     'schedule':          '#6a1b9a',
     'uuid':          '#78909c',
+    'equation':      '#f57c00', /* matches the equation system's amber accent */
     'unknown':       '#78909c',
 };
 
@@ -364,6 +372,7 @@ const FILTER_OPTIONS_MAP: Record<CanonicalFieldType, readonly string[]> = {
     'dateTimeDuration':  DURATION_FILTER_OPTIONS,
     'schedule':          REFERENCE_FILTER_OPTIONS,
     'uuid':          IDENTITY_FILTER_OPTIONS,
+    'equation':      STRING_FILTER_OPTIONS,    // search by LaTeX text
     'unknown':   STRING_FILTER_OPTIONS,    // Fall back to string filters
 };
 
@@ -447,6 +456,7 @@ const INPUT_TYPE_MAP: Record<CanonicalFieldType, string> = {
     'dateTimeDuration':  'text',
     'schedule':          'text',
     'uuid':          'text',
+    'equation':      'text',  // edit dialog opens via cell-editor click, not a native input
     'unknown':       'text',
 };
 
@@ -482,6 +492,7 @@ const ALIGNMENT_MAP: Record<CanonicalFieldType, ColumnAlignment> = {
     'dateTimeDuration':  'center',
     'schedule':          'left',
     'uuid':          'left',
+    'equation':      'left',
     'unknown':       'left',
 };
 

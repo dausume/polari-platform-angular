@@ -221,7 +221,7 @@ export class PythonCodeGeneratorService {
         return `${resultName} = ${leftExpr} ${mathOp} ${rightExpr}`;
       }
 
-      case 'RunEquation': {
+      case 'CalculusOperation': {
         // Generates a call to the equation executor with a {symbol: value}
         // dict built from the per-binding ValueSourceConfig list. Targets
         // the same backend endpoint the equation-edit page uses for

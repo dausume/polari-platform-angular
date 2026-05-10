@@ -19,9 +19,11 @@ import {
     makeEmptyEquationDefinitionConfig
 } from '@models/equations/EquationDefinition';
 import {
+    BranchKind,
     DataPotentialDefinition,
     createDefaultPotential,
 } from '@components/custom-no-code/shared/value-binding/branch-types';
+import { ValueSourceConfig, createDefaultValueSourceConfig } from '@models/stateSpace';
 
 import { SymbolPaletteEntry } from '@models/equations/SymbolPalette';
 import { buildPreviewLatex, buildSubstitutedLatex, PreviewTestValues } from '@models/equations/preview-builder';
@@ -41,12 +43,7 @@ export class EquationConfigEditComponent implements OnInit, OnDestroy {
     runningDirect: boolean = false;
     dirty: boolean = false;
 
-    /**
-     * Per-symbol concrete test values used by the substituted preview and the
-     * Run-direct workflow. Lives only in component state — never persisted.
-     * The persisted `variableBindings` describe shape (potentials), not values.
-     */
-    testValues: PreviewTestValues = {};
+    // (Test values now live on each binding's `defaultSource`.)
 
     storedRunResult: EquationExecutionResult | null = null;
     directRunResult: EquationExecutionResult | null = null;
@@ -121,55 +118,76 @@ export class EquationConfigEditComponent implements OnInit, OnDestroy {
 
     /**
      * Convert legacy `{symbol, source: {type, ...}}` bindings into the new
-     * `{symbol, potential: DataPotentialDefinition}` shape. Literal source
-     * values are seeded into the local `testValues` map so the user keeps
+     * `{symbol, potential, defaultSource}` shape. Literal source values flow
+     * into the new `defaultSource` (a ValueSourceConfig) so the user keeps
      * concrete data for the Run-direct workflow.
      */
     private migrateLegacyBindings(): void {
         if (!this.record) return;
         const bindings = this.record.definition.variableBindings || [];
         for (const b of bindings) {
-            if (b.potential) continue;
-            if (!b.source) {
-                b.potential = createDefaultPotential();
-                continue;
-            }
+            if (b.potential && b.defaultSource) continue;
             const s = b.source;
-            switch (s.type) {
-                case 'literal': {
-                    const v = (s as any).value;
-                    b.potential = {
-                        kind: 'literal',
-                        valueType: this.inferValueType(v),
-                    };
-                    if (b.symbol) this.testValues[b.symbol] = v;
-                    break;
-                }
-                case 'parameter':
-                    b.potential = {
-                        kind: 'parameter',
-                        parameterName: (s as any).parameterName || b.symbol,
-                        valueType: 'float',
-                    };
-                    break;
-                case 'dataset_field':
-                    b.potential = {
-                        kind: 'from_dataset',
-                        datasetId: (s as any).datasetId || '',
-                    };
-                    break;
-                case 'object_variable':
-                    b.potential = {
-                        kind: 'from_object',
-                        className: (s as any).objectClass || '',
-                    };
-                    break;
-                default:
+            if (!b.potential) {
+                if (!s) {
                     b.potential = createDefaultPotential();
+                } else {
+                    switch (s.type) {
+                        case 'literal':
+                            b.potential = { kind: 'literal', valueType: this.inferValueType((s as any).value) };
+                            break;
+                        case 'parameter':
+                            b.potential = { kind: 'parameter', parameterName: (s as any).parameterName || b.symbol, valueType: 'float' };
+                            break;
+                        case 'dataset_field':
+                            b.potential = { kind: 'from_dataset', datasetId: (s as any).datasetId || '' };
+                            break;
+                        case 'object_variable':
+                            b.potential = { kind: 'from_object', className: (s as any).objectClass || '' };
+                            break;
+                        default:
+                            b.potential = createDefaultPotential();
+                    }
+                }
+            }
+            if (!b.defaultSource) {
+                b.defaultSource = this.makeDefaultSourceForPotential(b.potential!, s);
             }
             // Drop the legacy field on the in-memory copy so saves emit
-            // potential-only.
+            // potential + defaultSource only.
             delete (b as any).source;
+        }
+    }
+
+    /** Build a kind-compatible `ValueSourceConfig` for a potential, optionally
+     *  carrying over a value from a legacy `EquationVariableSource`. */
+    private makeDefaultSourceForPotential(
+        p: DataPotentialDefinition,
+        legacy?: any,
+    ): ValueSourceConfig {
+        switch (p.kind) {
+            case 'literal':
+            case 'parameter':
+                return {
+                    sourceType: 'direct_assignment',
+                    directValue: legacy?.type === 'literal' ? legacy.value : '',
+                    directValueType: (p.valueType as any) || 'str',
+                };
+            case 'from_object':
+                return {
+                    sourceType: 'from_source_object',
+                    sourceObjectPath: legacy?.type === 'object_variable'
+                        ? (legacy.fieldPath || legacy.objectClass || '')
+                        : (p.className || ''),
+                };
+            case 'from_dataset':
+                return {
+                    sourceType: 'from_dataset',
+                    datasetId: legacy?.type === 'dataset_field' ? legacy.datasetId : (p.datasetId || ''),
+                    datasetFieldPath: legacy?.type === 'dataset_field' ? (legacy.fieldPath || '') : '',
+                };
+            default:
+                return createDefaultValueSourceConfig('direct_assignment');
         }
     }
 
@@ -273,7 +291,7 @@ export class EquationConfigEditComponent implements OnInit, OnDestroy {
         if (!this.record) return '';
         const { substituted } = buildSubstitutedLatex(
             this.record.definition.latexExpression,
-            this.testValues
+            this.buildTestValuesFromBindings(),
         );
         return buildPreviewLatex(
             substituted,
@@ -288,7 +306,7 @@ export class EquationConfigEditComponent implements OnInit, OnDestroy {
         if (!this.record) return 0;
         return buildSubstitutedLatex(
             this.record.definition.latexExpression,
-            this.testValues
+            this.buildTestValuesFromBindings(),
         ).substitutionsApplied;
     }
 
@@ -322,61 +340,121 @@ export class EquationConfigEditComponent implements OnInit, OnDestroy {
     }
 
     // --------------------------------------------------------------
-    // Variable bindings (potentials only — no concrete values persist)
+    // Variable bindings (potential + defaultSource per row)
     // --------------------------------------------------------------
 
     addBinding(): void {
         if (!this.record) return;
+        const potential = createDefaultPotential();
         this.record.definition.variableBindings.push({
             symbol: '',
-            potential: createDefaultPotential(),
+            potential,
+            defaultSource: this.makeDefaultSourceForPotential(potential),
         });
         this.markDirty();
     }
 
     removeBinding(index: number): void {
         if (!this.record) return;
-        const removed = this.record.definition.variableBindings[index];
-        if (removed?.symbol) delete this.testValues[removed.symbol];
         this.record.definition.variableBindings.splice(index, 1);
         this.markDirty();
     }
 
     onBindingSymbolChange(binding: EquationVariableBinding, value: string): void {
-        const oldSymbol = binding.symbol;
         binding.symbol = value;
-        // Carry test value forward so renaming doesn't drop it.
-        if (oldSymbol && oldSymbol !== value && this.testValues[oldSymbol] !== undefined) {
-            this.testValues[value] = this.testValues[oldSymbol];
-            delete this.testValues[oldSymbol];
-        }
         this.markDirty();
     }
 
     onBindingPotentialChange(binding: EquationVariableBinding, potential: DataPotentialDefinition): void {
+        const previousKind = binding.potential?.kind;
         binding.potential = potential;
+        // If the new kind isn't compatible with the existing default source,
+        // reset the source so the under-potential selector re-renders for
+        // the new kind.
+        if (previousKind !== potential.kind || !this.isSourceCompatibleWithKind(binding.defaultSource, potential.kind)) {
+            binding.defaultSource = this.makeDefaultSourceForPotential(potential);
+        }
         this.markDirty();
     }
 
-    // --------------------------------------------------------------
-    // Test values (transient — drives substituted preview + Run direct)
-    // --------------------------------------------------------------
-
-    onTestValueChange(symbol: string, raw: string): void {
-        if (!symbol) return;
-        const trimmed = (raw ?? '').trim();
-        if (trimmed === '') {
-            delete this.testValues[symbol];
-            return;
-        }
-        const num = Number(trimmed);
-        this.testValues[symbol] = Number.isNaN(num) ? raw : num;
+    onBindingSourceChange(binding: EquationVariableBinding, source: ValueSourceConfig): void {
+        binding.defaultSource = source;
+        this.markDirty();
     }
 
-    getTestValueDisplay(symbol: string): string {
-        const v = this.testValues[symbol];
-        if (v === undefined || v === null) return '';
-        return String(v);
+    /** Allowed `BranchKind`s for the per-row source selector, scoped to the
+     *  potential's declared kind. Each potential maps to exactly one source
+     *  branch — the user can edit the value, not the branch type. */
+    allowedBranchesFor(binding: EquationVariableBinding): BranchKind[] {
+        const k = binding.potential?.kind;
+        switch (k) {
+            case 'literal':      return ['literal'];
+            case 'parameter':    return ['literal'];
+            case 'from_object':  return ['from_object'];
+            case 'from_dataset': return ['from_dataset'];
+            default:             return ['literal'];
+        }
+    }
+
+    /** Class to lock the from-object selector to. Pulls from the potential's
+     *  declared class first; falls back to the equation's `source_class`. */
+    lockedClassFor(binding: EquationVariableBinding): string {
+        const k = binding.potential?.kind;
+        if (k !== 'from_object') {
+            // For literal/parameter potentials whose default source happens
+            // to be a `from_source_object` path (e.g. CalcTester equations
+            // pre-wired to `self.input_expression`), still surface the
+            // equation's source_class so the instance picker is properly
+            // scoped.
+            const src = binding.defaultSource;
+            if (src?.sourceType !== 'from_source_object') return '';
+            return this.record?.source_class || '';
+        }
+        return binding.potential?.className || this.record?.source_class || '';
+    }
+
+    /** Field to lock when the source's path is a `self.<field>` shortform —
+     *  the equation has already named the field, so the user just picks
+     *  which instance to read from. Returns '' to leave the field free. */
+    lockedFieldFor(binding: EquationVariableBinding): string {
+        const src = binding.defaultSource;
+        if (src?.sourceType !== 'from_source_object') return '';
+        const path = src.sourceObjectPath || '';
+        if (path.startsWith('self.')) return path.slice(5);
+        const dot = path.lastIndexOf('.');
+        return dot > 0 ? path.slice(dot + 1) : '';
+    }
+
+    private isSourceCompatibleWithKind(src: ValueSourceConfig | undefined, kind: string | undefined): boolean {
+        if (!src) return false;
+        switch (kind) {
+            case 'literal':
+            case 'parameter':    return src.sourceType === 'direct_assignment';
+            case 'from_object':  return src.sourceType === 'from_source_object';
+            case 'from_dataset': return src.sourceType === 'from_dataset';
+            default:             return false;
+        }
+    }
+
+    /** Snapshot the literal values of every binding's defaultSource into the
+     *  legacy `PreviewTestValues` shape the preview-builder consumes. */
+    private buildTestValuesFromBindings(): PreviewTestValues {
+        const out: PreviewTestValues = {};
+        if (!this.record) return out;
+        for (const b of this.record.definition.variableBindings) {
+            if (!b.symbol) continue;
+            const src = b.defaultSource;
+            if (src?.sourceType === 'direct_assignment'
+                && src.directValue !== undefined && src.directValue !== null && src.directValue !== '') {
+                out[b.symbol] = src.directValue;
+            }
+        }
+        return out;
+    }
+
+    /** Runtime variable-bindings dict for Run-direct / Run-stored. */
+    private buildRuntimeBindings(): { [symbol: string]: any } {
+        return this.buildTestValuesFromBindings();
     }
 
     // --------------------------------------------------------------
@@ -442,7 +520,7 @@ export class EquationConfigEditComponent implements OnInit, OnDestroy {
         const requestId = `req_${Date.now()}`;
         this.equationExecutionService.executeNamed({
             name: this.record.name,
-            variableBindings: { ...this.testValues },
+            variableBindings: this.buildRuntimeBindings(),
             requestId
         }).subscribe({
             next: result => {
@@ -471,7 +549,7 @@ export class EquationConfigEditComponent implements OnInit, OnDestroy {
         this.equationExecutionService.executeDirect({
             latexExpression: def.latexExpression,
             operationType: def.operationType,
-            variableBindings: { ...this.testValues },
+            variableBindings: this.buildRuntimeBindings(),
             bounds: def.bounds,
             options: def.options,
             requestId
@@ -493,17 +571,4 @@ export class EquationConfigEditComponent implements OnInit, OnDestroy {
         });
     }
 
-    /** Symbols that benefit from a literal test value — only `literal` and
-     *  `parameter` potentials. `from_object` / `from_dataset` are resolved by
-     *  the host state-space at runtime and ignored here. */
-    get testableSymbols(): string[] {
-        if (!this.record) return [];
-        const out: string[] = [];
-        for (const b of this.record.definition.variableBindings) {
-            if (!b.symbol) continue;
-            const k = b.potential?.kind;
-            if (k === 'literal' || k === 'parameter') out.push(b.symbol);
-        }
-        return out;
-    }
 }

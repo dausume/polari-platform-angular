@@ -749,15 +749,16 @@ export class StateSpaceClassRegistry {
       factory: () => ({ type: 'MathOperation', displayName: 'Math', operationType: 'add' })
     });
 
-    // === Run Equation: hosts an EquationDefinition inside a state-space ===
+    // === Calculus Operation: hosts an EquationDefinition inside a state-space ===
     this.registerClass({
-      className: 'RunEquation',
-      displayName: 'Run Equation',
+      className: 'CalculusOperation',
+      displayName: 'Calculus Operation',
       description: 'Execute a saved equation; per-symbol potentials are filled by sources from the state-space.',
       category: 'Math',
       icon: 'functions',
       color: '#FFB74D',
       isStateSpaceObject: true,
+      supportedRuntimes: ['python_backend'],
       stateSpaceDisplayFields: ['displayName', 'equationName'],
       stateSpaceFieldsPerRow: 2,
       isBuiltIn: true,
@@ -776,7 +777,7 @@ export class StateSpaceClassRegistry {
       eventMethods: [
         {
           methodName: 'execute',
-          displayName: 'Run Equation',
+          displayName: 'Run Calculus Operation',
           description: 'Resolve declared potentials, call the executor, return the result.',
           category: 'Math',
           inputParams: [],
@@ -784,7 +785,7 @@ export class StateSpaceClassRegistry {
         }
       ],
       variables: [
-        { name: 'displayName', displayName: 'Display Name', type: 'string', isEditable: true, defaultValue: 'Run Equation' },
+        { name: 'displayName', displayName: 'Display Name', type: 'string', isEditable: true, defaultValue: 'Calculus Operation' },
         { name: 'equationId', displayName: 'Equation ID', type: 'string', isEditable: true },
         { name: 'equationName', displayName: 'Equation Name', type: 'string', isEditable: true },
         { name: 'bindings', displayName: 'Bindings', type: 'object', isEditable: true },
@@ -792,7 +793,7 @@ export class StateSpaceClassRegistry {
         { name: 'resultVariableName', displayName: 'Result Variable', type: 'string', isEditable: true, defaultValue: 'result' },
         { name: 'resultFieldPath', displayName: 'Result Field', type: 'string', isEditable: true }
       ],
-      factory: () => ({ type: 'RunEquation', displayName: 'Run Equation', equationId: '', equationName: '', bindings: [], resultTarget: 'result_variable', resultVariableName: 'result', resultFieldPath: '' })
+      factory: () => ({ type: 'CalculusOperation', displayName: 'Calculus Operation', equationId: '', equationName: '', bindings: [], resultTarget: 'result_variable', resultVariableName: 'result', resultFieldPath: '' })
     });
 
     // === Data Operations (Variable & Function) ===

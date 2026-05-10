@@ -95,13 +95,28 @@ export class ValueSourceSelectorComponent implements OnInit, OnChanges {
     /** Show the "Data Source Selection" header pill (popup contexts opt in). */
     @Input() showHeader: boolean = false;
 
+    /** Optional — restrict which source branches the user can pick. Used by
+     *  callers that want to scope the selector to compatible kinds (e.g.
+     *  the equation edit page filters to match the declared potential). */
+    @Input() allowedBranches: BranchKind[] = SOURCE_ALLOWED_BRANCHES;
+
+    /** Optional — when set, the from-object branch enters "locked" mode:
+     *  class + field are pre-determined and only the instance picker is
+     *  exposed to the user. */
+    @Input() lockedClass: string = '';
+    @Input() lockedField: string = '';
+
+    /** Allow opening the cross-class instance picker (InstancePickerDialog)
+     *  when no `sourceObjectFields` are supplied. Equations-page = true,
+     *  in-state = false. */
+    @Input() allowAnyInstancePick: boolean = false;
+
     @Output() configChange = new EventEmitter<ValueSourceConfig>();
 
     // ── Local state, sliced from config and rebuilt for the active branch ──
 
     activeBranch: BranchKind | '' = '';
     readonly mode: SelectorMode = 'source';
-    readonly allowedBranches = SOURCE_ALLOWED_BRANCHES;
 
     // Per-branch state (only the slice for the active branch is meaningful).
     inputSlotIndex = 0;

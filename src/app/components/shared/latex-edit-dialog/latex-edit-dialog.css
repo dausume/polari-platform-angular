@@ -1,0 +1,196 @@
+.latex-edit-dialog {
+    display: flex;
+    flex-direction: column;
+    min-width: 880px;
+    max-width: 95vw;
+}
+
+.dialog-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border-medium);
+    margin: 0;
+}
+
+.header-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.header-icon {
+    color: #f57c00;
+    font-size: 24px;
+    width: 24px;
+    height: 24px;
+}
+
+.header-text { display: flex; flex-direction: column; }
+
+.header-title {
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.header-subtitle {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+.close-btn { color: var(--text-tertiary); }
+
+.dialog-content {
+    padding: 16px 24px;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.editor-split {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px;
+    gap: 16px;
+    align-items: stretch;
+}
+
+@media (max-width: 1100px) {
+    .editor-split { grid-template-columns: minmax(0, 1fr); }
+}
+
+.editor-column {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+}
+
+.latex-input {
+    width: 100%;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 14px;
+    padding: 10px 12px;
+    background: var(--surface-secondary, #f6f7f9);
+    color: var(--text-primary, #222);
+    border: 1px solid var(--border-light, #e0e3e9);
+    border-radius: 6px;
+    resize: vertical;
+}
+
+.latex-input:focus {
+    outline: none;
+    border-color: #f57c00;
+}
+
+.preview-card {
+    background: var(--surface-secondary, #f6f7f9);
+    border: 1px solid var(--border-light, #e0e3e9);
+    border-radius: 6px;
+    padding: 12px 14px;
+}
+
+.preview-label {
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-tertiary, #888);
+    margin-bottom: 6px;
+}
+
+.parse-warning {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    background: rgba(255, 183, 77, 0.18);
+    border: 1px solid rgba(255, 183, 77, 0.4);
+    border-radius: 6px;
+    color: #ad6800;
+    font-size: 12px;
+}
+
+.parse-warning mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+.references-panel {
+    margin-top: 8px;
+    padding: 10px 14px;
+    background: var(--surface-secondary, #fafafa);
+    border: 1px solid var(--border-light, #e0e3e9);
+    border-radius: 6px;
+}
+
+.references-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+
+.references-header mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    color: var(--brand-blue, #1976d2);
+}
+
+.references-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary, #333);
+}
+
+.references-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.references-list li {
+    font-size: 12px;
+    color: var(--text-secondary, #555);
+    line-height: 1.4;
+}
+
+.references-list a {
+    color: var(--brand-blue, #1976d2);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.references-list a:hover { text-decoration: underline; }
+
+.ref-desc { color: var(--text-tertiary, #888); }
+
+.palette-column {
+    display: flex;
+    height: 540px;
+    border: 1px solid var(--border-light, #e0e3e9);
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--surface-primary, #ffffff);
+}
+
+.palette-column app-equation-symbol-palette {
+    flex: 1;
+    min-width: 0;
+}
+
+.dialog-actions {
+    display: flex;
+    align-items: center;
+    padding: 8px 16px;
+    border-top: 1px solid var(--border-medium);
+    gap: 8px;
+}
+
+.spacer { flex: 1; }

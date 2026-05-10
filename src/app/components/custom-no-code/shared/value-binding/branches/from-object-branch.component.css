@@ -80,6 +80,135 @@
     border-radius: 4px;
 }
 
+/* ===== Locked-mode chrome (class + field shown read-only, instance picker active) ===== */
+.locked-class-step,
+.locked-field-step {
+    min-width: 100px;
+}
+
+.locked-class-pill,
+.locked-field-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 8px;
+    background: rgba(255, 183, 77, 0.18);
+    border: 1px solid rgba(255, 183, 77, 0.4);
+    border-radius: 4px;
+    color: #ffb74d;
+    font-size: 11px;
+    font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.locked-class-icon,
+.locked-field-icon {
+    font-size: 12px;
+    width: 12px;
+    height: 12px;
+}
+
+.locked-instance-step {
+    flex: 1;
+    min-width: 180px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.locked-instance-step .browse-instances-btn {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 4px;
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    font-size: 10px;
+}
+
+.locked-instance-step .browse-instances-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.45);
+    color: #fff;
+}
+
+.locked-instance-step .browse-instances-btn mat-icon {
+    font-size: 12px;
+    width: 12px;
+    height: 12px;
+}
+
+.no-instances-warning {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 8px;
+    background: rgba(255, 183, 77, 0.15);
+    border: 1px solid rgba(255, 183, 77, 0.4);
+    border-radius: 4px;
+    color: #ffd180;
+    font-size: 10px;
+}
+
+.no-instances-warning mat-icon {
+    font-size: 12px;
+    width: 12px;
+    height: 12px;
+    flex-shrink: 0;
+}
+
+.no-instances-warning code {
+    background: rgba(0, 0, 0, 0.25);
+    padding: 0 4px;
+    border-radius: 2px;
+    font-family: 'Consolas', 'Monaco', monospace;
+}
+
+/* ===== Standalone "Browse all instances" pill (equation-page mode) ===== */
+.standalone-pick-step {
+    flex: 1;
+    min-width: 180px;
+}
+
+.browse-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    background: rgba(33, 150, 243, 0.18);
+    border: 1px solid rgba(33, 150, 243, 0.45);
+    border-radius: 4px;
+    color: #6db8f5;
+    font: inherit;
+    font-size: 11px;
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+}
+
+.browse-pill:hover {
+    background: rgba(33, 150, 243, 0.28);
+    border-color: #6db8f5;
+}
+
+.browse-pill-icon {
+    font-size: 13px;
+    width: 13px;
+    height: 13px;
+    flex-shrink: 0;
+}
+
+.browse-pill-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: 'Consolas', 'Monaco', monospace;
+}
+
 /* Potential-mode class pill: button that opens the ClassSelectorDialog. */
 .flow-step.potential-class-step {
     flex-direction: row;

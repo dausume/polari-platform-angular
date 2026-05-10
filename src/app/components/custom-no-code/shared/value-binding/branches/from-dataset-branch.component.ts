@@ -106,6 +106,7 @@ export class FromDatasetBranchComponent implements OnInit, OnChanges {
         if (this.disabled) return;
         const ref = this.dialog.open(DataSetSelectorDialogComponent, {
             width: '520px',
+            panelClass: 'state-overlay-picker-popup-panel',
             data: {
                 title: this.mode === 'potential' ? 'Pick DataSet shape' : 'Pick DataSet',
                 subtitle: this.mode === 'potential'

@@ -1,18 +1,21 @@
-<state-overlay-shell
-    [appStateOverlayRoot]="stateName"
-    (contextRequested)="fullViewRequested.emit($event)"
-    accent="#FFB74D"
-    icon="functions"
-    [title]="config.equationName ? 'Calculus Op — ' + config.equationName : 'Calculus Operation'"
-    [bordered]="true"
-    [hasPopupView]="hasPopupView"
-    (expandClicked)="popupRequested.emit()">
+<div class="popup-shell">
 
-    <div class="overlay-content state-overlay-scrollbar">
+    <div class="popup-header">
+        <mat-icon class="header-icon">functions</mat-icon>
+        <h2 class="popup-title">
+            Calculus Operation — {{ data.stateName }}
+        </h2>
+        <button class="close-btn" (click)="close()" title="Close">
+            <mat-icon>close</mat-icon>
+        </button>
+    </div>
+
+    <div class="popup-body">
 
         <!-- ===== Equation pick ===== -->
-        <div class="section equation-pick-section">
-            <label class="section-label">Equation</label>
+        <div class="form-group">
+            <label class="form-label">Equation</label>
+            <p class="form-hint">Choose which saved equation this state will execute.</p>
             <div class="equation-pick-row">
                 <button type="button"
                         class="equation-pill"
@@ -38,30 +41,37 @@
         </div>
 
         <!-- ===== Loading / error ===== -->
-        <div class="overlay-status" *ngIf="loadingEquation">
-            <mat-spinner diameter="14"></mat-spinner>
+        <div class="status-row" *ngIf="loadingEquation">
+            <mat-spinner diameter="16"></mat-spinner>
             <span>Loading equation...</span>
         </div>
-
-        <div class="overlay-status overlay-error" *ngIf="loadError">
+        <div class="status-row error" *ngIf="loadError">
             <mat-icon>error_outline</mat-icon>
             <span>Failed to load: {{ loadError }}</span>
         </div>
 
-        <!-- ===== Equation preview (Step 1 from the Equations page) ===== -->
-        <div class="section equation-preview-section" *ngIf="equation">
-            <span class="section-label">Equation preview</span>
-            <div class="equation-preview-rendered">
+        <!-- ===== Step-1 preview (from the Equations page) ===== -->
+        <div class="form-group equation-preview-group" *ngIf="equation">
+            <label class="form-label">Equation preview</label>
+            <p class="form-hint">
+                Same Step-1 view shown on the Equations page — the formula
+                wrapped by its operation symbol. Symbols below get bound to
+                concrete sources from this state.
+            </p>
+            <div class="equation-preview">
                 <katex-display [latex]="equationStep1Preview"
-                               [displayMode]="false"
+                               [displayMode]="true"
                                placeholder="(empty)"></katex-display>
             </div>
         </div>
 
         <!-- ===== Variable mapping summary ===== -->
-        <div class="section mapping-section"
-             *ngIf="equation && declaredSymbols.length > 0">
-            <span class="section-label">Variable mapping</span>
+        <div class="form-group" *ngIf="equation && declaredSymbols.length > 0">
+            <label class="form-label">Variable mapping</label>
+            <p class="form-hint">
+                Quick view of which equation symbol resolves to which source
+                in this state — what's actually being assigned to what.
+            </p>
             <ul class="mapping-list">
                 <li *ngFor="let sym of declaredSymbols"
                     class="mapping-item"
@@ -69,15 +79,18 @@
                     <code class="mapping-symbol">{{ sym }}</code>
                     <mat-icon class="mapping-arrow">arrow_forward</mat-icon>
                     <span class="mapping-source">{{ sourceSummary(sym) }}</span>
+                    <span class="mapping-shape-hint">{{ getDeclaredPotentialLabel(sym) }}</span>
                 </li>
             </ul>
         </div>
 
-        <!-- ===== Bindings — one source-selector per declared potential ===== -->
-        <div class="section bindings-section" *ngIf="equation && declaredSymbols.length > 0">
-            <div class="bindings-header">
-                <mat-icon class="bindings-header-icon">tune</mat-icon>
-                <span class="section-label">Inputs</span>
+        <!-- ===== Bindings ===== -->
+        <div class="form-group" *ngIf="equation && declaredSymbols.length > 0">
+            <div class="bindings-header-row">
+                <div>
+                    <label class="form-label">Inputs</label>
+                    <p class="form-hint">Fill each declared variable potential with a source from the state-space.</p>
+                </div>
                 <span class="bindings-progress"
                       [class.complete]="!hasUnfilledPotentials"
                       [class.warn]="hasUnfilledPotentials">
@@ -123,19 +136,15 @@
             </div>
         </div>
 
-        <div class="section bindings-empty"
-             *ngIf="equation && declaredSymbols.length === 0">
+        <div class="bindings-empty" *ngIf="equation && declaredSymbols.length === 0">
             <mat-icon>info_outline</mat-icon>
             <span>This equation has no declared variable potentials — it will run with no bindings.</span>
         </div>
 
-        <!-- ===== Result target ===== -->
-        <div class="section result-section" *ngIf="config.equationId">
-            <div class="result-header">
-                <mat-icon class="result-header-icon">arrow_forward</mat-icon>
-                <span class="section-label">Result destination</span>
-            </div>
-
+        <!-- ===== Result destination ===== -->
+        <div class="form-group" *ngIf="config.equationId">
+            <label class="form-label">Result destination</label>
+            <p class="form-hint">Where to put the value the equation returns.</p>
             <div class="result-target-toggle">
                 <label class="toggle-option" [class.active]="config.resultTarget === 'result_variable'">
                     <input type="radio"
@@ -176,4 +185,7 @@
 
     </div>
 
-</state-overlay-shell>
+    <div class="popup-footer">
+        <button class="footer-btn primary" (click)="close()">Done</button>
+    </div>
+</div>

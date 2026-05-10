@@ -1,17 +1,69 @@
-<!-- Wrapper div makes the branch a flex row regardless of how view
-     encapsulation interacts with `:host` styles. The host element has
-     display:block + flex:1 so it fills the shell's available space; this
-     inner div lays the .flow-step boxes out side-by-side. -->
 <div class="branch-row">
 
-    <!-- ===== SOURCE mode: inline two-step dropdowns ===== -->
-    <ng-container *ngIf="mode === 'source'">
+    <!-- ===== SOURCE mode + LOCKED class (streamlined) ===================== -->
+    <ng-container *ngIf="mode === 'source' && lockedClass">
 
-        <!-- Object dropdown (step 1) -->
+        <!-- "From {ClassName} Instance" header is implicit in the layout —
+             rendered by the parent shell's branch-kind label. The locked
+             field is shown read-only so users see what's being read. -->
+
+        <div class="flow-step locked-class-step">
+            <label class="step-label">Class</label>
+            <span class="locked-class-pill">
+                <mat-icon class="locked-class-icon">widgets</mat-icon>
+                {{ lockedClass }}
+            </span>
+        </div>
+
+        <div class="flow-step locked-field-step" *ngIf="displayedField">
+            <label class="step-label">Field</label>
+            <span class="locked-field-pill">
+                <mat-icon class="locked-field-icon">label</mat-icon>
+                {{ displayedField }}
+            </span>
+        </div>
+
+        <div class="flow-step locked-instance-step">
+            <label class="step-label">Instance</label>
+
+            <select class="flow-dropdown locked-instance-dropdown"
+                    *ngIf="lockedInstanceOptions.length > 0"
+                    [disabled]="disabled"
+                    [ngModel]="selectedRuntimeKey"
+                    (ngModelChange)="onLockedInstanceChange($event)">
+                <option value="" disabled>Pick instance...</option>
+                <option *ngFor="let opt of lockedInstanceOptions; trackBy: trackByOptionKey"
+                        [value]="opt.key">
+                    {{ opt.label }}
+                </option>
+            </select>
+
+            <div class="no-instances-warning" *ngIf="hasNoCompatibleInstance">
+                <mat-icon>warning_amber</mat-icon>
+                <span>
+                    No <code>{{ lockedClass }}</code> instances are reachable here.
+                    The host state must supply one (or create one before running).
+                </span>
+            </div>
+
+            <button type="button"
+                    class="browse-instances-btn"
+                    *ngIf="!disabled"
+                    (click)="openLockedInstancePicker()"
+                    matTooltip="Browse all instances of this class">
+                <mat-icon>search</mat-icon>
+                <span>Browse</span>
+            </button>
+        </div>
+
+    </ng-container>
+
+    <!-- ===== SOURCE mode + sourceObjectFields (classic two-step) ========= -->
+    <ng-container *ngIf="mode === 'source' && !lockedClass && sourceObjectFields.length > 0">
+
         <div class="flow-step object-step">
             <label class="step-label">Object</label>
             <select class="flow-dropdown object-dropdown"
-                    *ngIf="sourceObjectFields.length > 0"
                     [disabled]="disabled || objectNames.length === 0"
                     [ngModel]="selectedObjectName"
                     (ngModelChange)="onObjectNameChange($event)">
@@ -20,21 +72,10 @@
                     {{ n }}
                 </option>
             </select>
-            <!-- Fallback text input when sourceObjectFields wasn't supplied. -->
-            <input *ngIf="sourceObjectFields.length === 0"
-                   type="text"
-                   class="flow-input object-path-input"
-                   placeholder="e.g., self.property"
-                   [disabled]="disabled"
-                   [ngModel]="selectedFieldPath"
-                   (ngModelChange)="onFieldPathChange($event)">
         </div>
 
-        <!-- Field dropdown (step 2) — `fieldOptions` is cached as a class
-             property so *ngFor doesn't recreate <option> nodes on every CD
-             cycle (which would race with [ngModel] and snap to "Choose…"). -->
         <div class="flow-step field-step"
-             *ngIf="selectedObjectName && sourceObjectFields.length > 0">
+             *ngIf="selectedObjectName">
             <label class="step-label">Field</label>
             <select class="flow-dropdown field-dropdown"
                     [disabled]="disabled"
@@ -50,7 +91,32 @@
 
     </ng-container>
 
-    <!-- ===== POTENTIAL mode: class-selector dialog pill ===== -->
+    <!-- ===== SOURCE mode standalone — no lock, no fields ================ -->
+    <ng-container *ngIf="mode === 'source' && !lockedClass && sourceObjectFields.length === 0">
+
+        <div class="flow-step standalone-pick-step">
+            <label class="step-label">Instance</label>
+
+            <button type="button"
+                    class="browse-pill"
+                    *ngIf="allowAnyInstancePick && !disabled"
+                    (click)="openCrossClassInstancePicker()">
+                <mat-icon class="browse-pill-icon">search</mat-icon>
+                <span class="browse-pill-text" *ngIf="selectedFieldPath">{{ selectedFieldPath }}</span>
+                <span class="browse-pill-text" *ngIf="!selectedFieldPath">Browse all instances...</span>
+            </button>
+
+            <div class="no-instances-warning" *ngIf="!allowAnyInstancePick">
+                <mat-icon>info_outline</mat-icon>
+                <span>
+                    No object instances are available in this context.
+                </span>
+            </div>
+        </div>
+
+    </ng-container>
+
+    <!-- ===== POTENTIAL mode: class-selector dialog pill ================== -->
     <ng-container *ngIf="mode === 'potential'">
 
         <div class="flow-step potential-class-step">

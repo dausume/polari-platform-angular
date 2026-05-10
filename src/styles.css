@@ -326,3 +326,15 @@ body.dark-theme ::-webkit-scrollbar-thumb:hover {
 .cdk-overlay-container:has(.state-overlay-popup-panel) {
   z-index: 2000 !important;
 }
+
+/* Picker dialogs opened from inside a state popup (equation picker, class
+   picker, dataset picker, LaTeX edit dialog). They need to sit above the
+   state popup that spawned them (z-index 2000) — without this they'd fall
+   back to Material's default ~1000 and appear UNDER the parent popup. */
+.state-overlay-picker-popup-panel {
+  z-index: 3000 !important;
+}
+
+.cdk-overlay-container:has(.state-overlay-picker-popup-panel) {
+  z-index: 3000 !important;
+}

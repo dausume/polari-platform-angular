@@ -1,0 +1,57 @@
+.equation-cell-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: rgba(245, 124, 0, 0.08);
+    border: 1px solid rgba(245, 124, 0, 0.35);
+    border-radius: 4px;
+    color: #f57c00;
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+    text-align: left;
+    max-width: 100%;
+}
+
+.equation-cell-pill:hover:not(.disabled) {
+    background: rgba(245, 124, 0, 0.18);
+    border-color: #f57c00;
+}
+
+.equation-cell-pill.empty {
+    color: var(--text-tertiary, #888);
+    background: transparent;
+    border-color: var(--border-light, #e0e3e9);
+    font-style: italic;
+}
+
+.equation-cell-pill.disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.cell-icon, .cell-edit-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+}
+
+.cell-edit-icon {
+    color: var(--text-tertiary, #888);
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.equation-cell-pill:hover .cell-edit-icon {
+    opacity: 1;
+}
+
+.cell-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: 'Roboto Mono', monospace;
+}

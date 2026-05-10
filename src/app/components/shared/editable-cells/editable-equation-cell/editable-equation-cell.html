@@ -1,0 +1,11 @@
+<button type="button"
+        class="equation-cell-pill"
+        [class.empty]="!value"
+        [class.disabled]="disabled"
+        [disabled]="disabled"
+        (click)="openEditor()"
+        [title]="value || 'Click to enter an equation'">
+    <mat-icon class="cell-icon">functions</mat-icon>
+    <span class="cell-text">{{ getDisplayValue() }}</span>
+    <mat-icon class="cell-edit-icon" *ngIf="!disabled">edit</mat-icon>
+</button>
