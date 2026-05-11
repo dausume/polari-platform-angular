@@ -111,8 +111,22 @@ export class SolutionExecutionService {
       body['instanceFields'] = instanceFields;
     }
 
+    // console.log('[SolutionExecution] POST', execUrl, body);
+
     return this.http.post<any>(execUrl, body).pipe(
       map((response: any) => {
+        // console.log('[SolutionExecution] response success=', response?.success,
+        //             'steps=', response?.trace?.steps?.length,
+        //             'error=', response?.error);
+        // if (response?.trace?.steps) {
+        //   for (const step of response.trace.steps) {
+        //     console.log('[SolutionExecution] step',
+        //                 step.stepIndex ?? step.step_index,
+        //                 step.stateName ?? step.state_name,
+        //                 'class=', step.stateClass ?? step.state_class,
+        //                 'log=', step.logOutput ?? step.log_output);
+        //   }
+        // }
         if (!response.success || !response.trace) {
           throw new Error(response.error || 'Execution failed');
         }

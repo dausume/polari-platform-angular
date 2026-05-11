@@ -73,28 +73,36 @@ export class RunEquationOverlayPopupComponent implements OnInit, OnDestroy {
 
     ngOnInit(): void {
         this.initializeFromData();
-        if (this.config.equationId) {
+        // Name is the canonical cross-reference; ID is transient.
+        if (this.config.equationName) {
+            this.loadEquationByName(this.config.equationName);
+        } else if (this.config.equationId) {
             this.loadEquation(this.config.equationId);
-        } else if (this.config.equationName) {
-            this.resolveEquationIdByName();
         }
     }
 
-    private resolveEquationIdByName(): void {
-        const name = this.config.equationName;
-        if (!name) return;
+    private loadEquationByName(name: string): void {
+        this.loadingEquation = true;
+        this.loadError = null;
+        // console.log('[RunEquationOverlayPopup] loadEquationByName', name);
         this.subs.push(
-            this.equationService.allConfigList$.subscribe(list => {
-                if (this.config.equationId) return;
-                const found = (list || []).find(e => e.name === name);
-                if (found) {
-                    this.config.equationId = found.id;
-                    this.loadEquation(found.id);
-                    this.emitChange();
-                }
+            this.equationService.getByName(name).subscribe({
+                next: rec => {
+                    // console.log('[RunEquationOverlayPopup] loaded by name:', rec?.id, rec?.name);
+                    this.equation = rec;
+                    this.config.equationId = rec.id;
+                    this.config.equationName = rec.name;
+                    this.loadingEquation = false;
+                    this.reconcileBindings();
+                },
+                error: err => {
+                    // console.warn('[RunEquationOverlayPopup] failed to load by name:', name, err);
+                    this.equation = null;
+                    this.loadingEquation = false;
+                    this.loadError = err?.message || String(err);
+                },
             }),
         );
-        this.equationService.fetchAllConfigs();
     }
 
     ngOnDestroy(): void {

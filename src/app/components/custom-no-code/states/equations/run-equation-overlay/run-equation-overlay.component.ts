@@ -82,13 +82,14 @@ export class RunEquationOverlayComponent extends StateOverlayBase implements OnI
     override ngOnInit(): void {
         super.ngOnInit();
         this.initializeFromInputs();
-        if (this.config.equationId) {
+        // Equation NAME is the canonical cross-reference (stable across
+        // re-seeds / DB resets). The equationId is transient — resolved at
+        // runtime and never persisted. Prefer name-based lookup whenever
+        // a name is set, falling back to id only when name is missing.
+        if (this.config.equationName) {
+            this.loadEquationByName(this.config.equationName);
+        } else if (this.config.equationId) {
             this.loadEquation(this.config.equationId);
-        } else if (this.config.equationName) {
-            // Seeded states only carry the equationName (auto-generated IDs
-            // aren't known at seed time). Resolve the ID against the service's
-            // cache so reloads still pull in the bindings UI.
-            this.resolveEquationIdByName();
         }
     }
 
@@ -108,25 +109,30 @@ export class RunEquationOverlayComponent extends StateOverlayBase implements OnI
 
     // ── Equation loading ──────────────────────────────────────────────────
 
-    /** Resolve `config.equationName` to an ID via the service's cached list,
-     *  then load the full record. Falls back silently if no match — the UI
-     *  shows "Pick equation..." in that case. */
-    private resolveEquationIdByName(): void {
-        const name = this.config.equationName;
-        if (!name) return;
+    /** Load by name — the canonical cross-reference. The transient
+     *  equationId is updated for downstream consumers but never persisted. */
+    private loadEquationByName(name: string): void {
+        this.loadingEquation = true;
+        this.loadError = null;
+        // console.log('[RunEquationOverlay] loadEquationByName', name);
         this.subs.push(
-            this.equationService.allConfigList$.subscribe(list => {
-                if (this.config.equationId) return; // already resolved
-                const found = (list || []).find(e => e.name === name);
-                if (found) {
-                    this.config.equationId = found.id;
-                    this.loadEquation(found.id);
-                    this.emitChange();
-                }
+            this.equationService.getByName(name).subscribe({
+                next: rec => {
+                    // console.log('[RunEquationOverlay] loaded by name:', rec?.id, rec?.name);
+                    this.equation = rec;
+                    this.config.equationId = rec.id;
+                    this.config.equationName = rec.name;
+                    this.loadingEquation = false;
+                    this.reconcileBindings();
+                },
+                error: err => {
+                    // console.warn('[RunEquationOverlay] failed to load by name:', name, err);
+                    this.equation = null;
+                    this.loadingEquation = false;
+                    this.loadError = err?.message || String(err);
+                },
             }),
         );
-        // Trigger a fetch in case the cache is empty (cold start).
-        this.equationService.fetchAllConfigs();
     }
 
     private loadEquation(id: string): void {

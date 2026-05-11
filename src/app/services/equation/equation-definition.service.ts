@@ -86,6 +86,30 @@ export class EquationDefinitionService {
     }
 
     /**
+     * Load a single EquationDefinition by NAME. Names are stable across
+     * re-seeds / DB resets, so cross-references (e.g. from a CalculusOperation
+     * state to its target equation) should prefer this over `getById`.
+     */
+    getByName(name: string): Observable<EquationDefinitionRecord> {
+        this.loading$.next(true);
+        return this.http.get<any>(this.baseUrl, this.polariService.backendRequestOptions).pipe(
+            map((response: any) => {
+                const items = this.parseReadAllResponse(response);
+                const backendObj = items.find((item: any) => item.name === name);
+                if (!backendObj) {
+                    throw new Error(`EquationDefinition '${name}' not found`);
+                }
+                return this.deserialiseRecord(backendObj);
+            }),
+            tap(() => this.loading$.next(false)),
+            catchError((err: any) => {
+                this.loading$.next(false);
+                return throwError(() => err);
+            })
+        );
+    }
+
+    /**
      * Create a new EquationDefinition with the given metadata + initial
      * definition. Returns the newly created record (id assigned by backend).
      */
