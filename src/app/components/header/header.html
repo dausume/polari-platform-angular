@@ -3,9 +3,34 @@
         <img class="header-polari-icon" width=50 height=50 [src]="polariImgUrl">
         <span class="header-page-button" fxFlex="noshrink">{{currentComponentTitle}}</span>
         <span fxFlex="grow"></span>
+
         <button mat-icon-button (click)="toggleTheme()" class="header-theme-toggle"
                 [attr.aria-label]="(isDark ? 'Switch to light mode' : 'Switch to dark mode')">
             <mat-icon>{{ isDark ? 'light_mode' : 'dark_mode' }}</mat-icon>
         </button>
+
+        <ng-container *ngIf="!currentUser">
+            <button mat-stroked-button (click)="register()" class="header-register-button">
+                Register
+            </button>
+            <button mat-flat-button (click)="login()" class="header-login-button">
+                Login
+            </button>
+        </ng-container>
+
+        <ng-container *ngIf="currentUser">
+            <button mat-flat-button [matMenuTriggerFor]="userMenu" class="header-user-button"
+                    [matTooltip]="currentUser.email || ''">
+                <mat-icon>account_circle</mat-icon>
+                <span class="header-user-name">{{ displayName }}</span>
+                <mat-icon class="header-user-caret">arrow_drop_down</mat-icon>
+            </button>
+            <mat-menu #userMenu="matMenu">
+                <button mat-menu-item (click)="logout()">
+                    <mat-icon>logout</mat-icon>
+                    <span>Sign out</span>
+                </button>
+            </mat-menu>
+        </ng-container>
     </mat-toolbar-row>
 </mat-toolbar>

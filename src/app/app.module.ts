@@ -4,7 +4,12 @@ import { RuntimeConfigService } from '@services/runtime-config.service';
 import { BrowserModule } from '@angular/platform-browser';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
-import { HttpClientModule } from '@angular/common/http';
+import { HttpClientModule, HTTP_INTERCEPTORS } from '@angular/common/http';
+// Auth
+import { AuthSessionService } from '@services/auth/auth-session.service';
+import { OidcService } from '@services/auth/oidc.service';
+import { AuthInterceptor } from './interceptors/auth.interceptor';
+import { AuthErrorInterceptor } from './interceptors/auth-error.interceptor';
 import { DragDropModule } from '@angular/cdk/drag-drop';
 //Materials
 import { MaterialModule } from './material/material.module'
@@ -371,6 +376,18 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
       deps: [RuntimeConfigService],
       multi: true
     },
+    OidcService,
+    AuthSessionService,
+    {
+      // Second initializer — runs after runtime config has loaded, attempts
+      // a silent token restore so the first paint reflects auth state.
+      provide: APP_INITIALIZER,
+      useFactory: (auth: AuthSessionService) => () => auth.start(),
+      deps: [AuthSessionService],
+      multi: true
+    },
+    { provide: HTTP_INTERCEPTORS, useClass: AuthInterceptor, multi: true },
+    { provide: HTTP_INTERCEPTORS, useClass: AuthErrorInterceptor, multi: true },
     PolariService,
     CRUDEservicesManager,
     CertificateTrustService,

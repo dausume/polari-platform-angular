@@ -41,6 +41,18 @@
     "allowBackendChange": true
   },
 
+  "_keycloak_notes": "Dev defaults — assumes prf-keycloak is reachable on localhost:8443 (its HTTPS listener). Redirect URIs use port 4200 (Angular dev-server default) which matches the STANDALONE_REDIRECT_URIS that configure_clients.sh registers on the polari-frontend client. Staging/prod setup scripts overwrite this stanza with environment-specific URLs.",
+  "keycloak": {
+    "authority": "https://localhost:8443/realms/Polari",
+    "clientId": "polari-frontend",
+    "realm": "Polari",
+    "redirectUri": "http://localhost:4200/callback",
+    "postLogoutRedirectUri": "http://localhost:4200",
+    "responseType": "code",
+    "scope": "openid profile email roles",
+    "silentRedirectUri": "http://localhost:4200/assets/silent-refresh.html"
+  },
+
   "_security_notes": {
     "allowBackendChange": "Set to false in production to prevent users from redirecting the app to a rogue backend. This is a security feature to prevent MITM attacks.",
     "enableRuntimeConfig": "Set to false to completely disable all runtime configuration changes."

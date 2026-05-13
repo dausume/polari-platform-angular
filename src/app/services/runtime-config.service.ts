@@ -56,12 +56,25 @@ export interface FeaturesConfig {
     allowBackendChange: boolean;
 }
 
+// Interface for Keycloak / OIDC configuration
+export interface KeycloakConfig {
+    authority: string;
+    clientId: string;
+    realm: string;
+    redirectUri: string;
+    postLogoutRedirectUri: string;
+    responseType: string;
+    scope: string;
+    silentRedirectUri?: string;
+}
+
 // Complete runtime configuration interface
 export interface RuntimeConfig {
     backend: BackendConfig;
     frontend: FrontendConfig;
     connection: ConnectionConfig;
     features: FeaturesConfig;
+    keycloak?: KeycloakConfig;
 }
 
 @Injectable({
@@ -166,9 +179,15 @@ export class RuntimeConfigService {
     /**
      * Load runtime configuration from JSON file (Tier 2).
      * Falls back to build-time defaults if file doesn't exist.
+     *
+     * Appends `?_=<timestamp>` so the browser cannot serve a stale cached
+     * copy — runtime-config is environment-specific and rewritten by
+     * setup scripts at deploy time; a stale cache here breaks auth + API
+     * routing in ways that masquerade as code bugs.
      */
     private loadRuntimeConfig(): Observable<RuntimeConfig | null> {
-        return this.http.get<RuntimeConfig>('/assets/runtime-config.json').pipe(
+        const url = `/assets/runtime-config.json?_=${Date.now()}`;
+        return this.http.get<RuntimeConfig>(url).pipe(
             tap(config => {
                 // console.log('[RuntimeConfig] Loaded startup-time configuration:', config);
                 this.startupConfig = config;
@@ -446,6 +465,15 @@ export class RuntimeConfigService {
      */
     get isConfigLoaded$(): Observable<boolean> {
         return this.configLoaded.asObservable();
+    }
+
+    /**
+     * Get the Keycloak / OIDC configuration block, if present.
+     * Returns null when the runtime-config.json has no `keycloak` stanza —
+     * callers must guard before wiring login UI.
+     */
+    getKeycloakConfig(): KeycloakConfig | null {
+        return this.startupConfig?.keycloak ?? null;
     }
 
     /**

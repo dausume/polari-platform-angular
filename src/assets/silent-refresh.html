@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Silent Refresh</title>
+  <script>
+    // Loaded inside a hidden iframe by oidc-client-ts during automatic token
+    // renewal. Posts the callback URL (with the fresh authorization code)
+    // back to the parent window so the library can finish the exchange.
+    parent.postMessage(location.href, location.origin);
+  </script>
+</head>
+<body>
+  <!-- Intentionally blank. -->
+</body>
+</html>

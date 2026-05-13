@@ -24,3 +24,71 @@
 .header-theme-toggle mat-icon {
     color: #fdd835 !important;
 }
+
+/* =========================================================================
+ * Auth controls
+ * The nav bar is dark in both light and dark themes (#424242 / #1a1a1a),
+ * so all controls are tuned for white-on-dark contrast.
+ * ========================================================================= */
+
+.header-register-button,
+.header-login-button,
+.header-user-button {
+    margin-left: 8px;
+    min-width: 88px;
+    height: 36px;
+    line-height: 36px;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+}
+
+/* Register — outlined / secondary action */
+.header-register-button {
+    color: #ffffff !important;
+    border: 1.5px solid rgba(255, 255, 255, 0.85) !important;
+    background-color: transparent !important;
+}
+
+.header-register-button:hover {
+    background-color: rgba(255, 255, 255, 0.12) !important;
+    border-color: #ffffff !important;
+}
+
+/* Login — filled / primary action, sits at far right */
+.header-login-button {
+    background-color: #fdd835 !important;
+    color: #1a1a1a !important;
+    margin-right: 12px;
+}
+
+.header-login-button:hover {
+    background-color: #fbc02d !important;
+}
+
+/* Signed-in user menu trigger — keeps the same visual weight as Login */
+.header-user-button {
+    background-color: rgba(255, 255, 255, 0.12) !important;
+    color: #ffffff !important;
+    margin-right: 12px;
+    display: inline-flex;
+    align-items: center;
+}
+
+.header-user-button:hover {
+    background-color: rgba(255, 255, 255, 0.22) !important;
+}
+
+.header-user-name {
+    margin: 0 4px 0 6px;
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.header-user-caret {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    line-height: 20px;
+}
