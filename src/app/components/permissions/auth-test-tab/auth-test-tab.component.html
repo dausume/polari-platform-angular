@@ -1,0 +1,231 @@
+<div class="auth-test-tab">
+  <p class="tab-subtitle">
+    Verifies the Keycloak ↔ Polari backend ↔ frontend token chain. Each
+    card reports independently so a failure points at the exact layer.
+  </p>
+
+  <div class="diag-grid">
+
+    <!-- 1. Access Token (frontend-side) -->
+    <mat-card class="diag-card" appearance="outlined">
+      <mat-card-header>
+        <mat-card-title>
+          <mat-icon [class.ok]="!!accessToken" [class.warn]="!accessToken">
+            {{ accessToken ? 'vpn_key' : 'key_off' }}
+          </mat-icon>
+          Access Token
+        </mat-card-title>
+        <mat-card-subtitle>tracked in AuthSessionService.accessToken$</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <dl>
+          <dt>Present</dt>
+          <dd>{{ accessToken ? 'yes' : 'no' }}</dd>
+          <ng-container *ngIf="accessToken">
+            <dt>Length</dt><dd>{{ tokenLength }} chars</dd>
+            <dt>Preview</dt><dd class="mono">{{ tokenPreview }}</dd>
+            <ng-container *ngIf="decodedClaims">
+              <dt>iss</dt><dd class="mono">{{ decodedClaims.iss }}</dd>
+              <dt>kid</dt><dd class="mono">{{ decodedClaims.kid || '(in header — re-check)' }}</dd>
+              <dt>exp</dt><dd>{{ decodedClaims.exp | date:'medium' }}</dd>
+              <dt>preferred_username</dt><dd>{{ decodedClaims.preferred_username || '—' }}</dd>
+            </ng-container>
+          </ng-container>
+        </dl>
+        <div *ngIf="tokenVisible && accessToken" class="token-blob mono">{{ accessToken }}</div>
+        <p *ngIf="copyFeedback" class="copy-feedback">{{ copyFeedback }}</p>
+        <p *ngIf="!accessToken" class="muted small">
+          Sign in via the header to populate the token.
+        </p>
+      </mat-card-content>
+      <mat-card-actions>
+        <button mat-stroked-button (click)="refreshToken()" matTooltip="Re-read from oidc-client-ts storage">
+          <mat-icon>refresh</mat-icon> Refresh
+        </button>
+        <button mat-stroked-button (click)="toggleTokenVisibility()" [disabled]="!accessToken">
+          <mat-icon>{{ tokenVisible ? 'visibility_off' : 'visibility' }}</mat-icon>
+          {{ tokenVisible ? 'Hide' : 'Show' }}
+        </button>
+        <button mat-stroked-button (click)="copyToken()" [disabled]="!accessToken">
+          <mat-icon>content_copy</mat-icon> Copy
+        </button>
+      </mat-card-actions>
+    </mat-card>
+
+    <!-- 2. Backend ↔ Keycloak connectivity (JWKS + role-sync, combined) -->
+    <mat-card class="diag-card wide" appearance="outlined">
+      <mat-card-header>
+        <mat-card-title>
+          <mat-icon [class.ok]="connectivityOk"
+                   [class.err]="connectivityChecked && !connectivityOk">
+            {{ connectivityOk ? 'check_circle' : (connectivityChecked ? 'error' : 'help') }}
+          </mat-icon>
+          Backend ↔ Keycloak Connectivity
+        </mat-card-title>
+        <mat-card-subtitle>Two probes: JWKS reachability (token verification) + role-sync (service account)</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+
+        <!-- JWKS sub-section -->
+        <div class="sub-probe">
+          <div class="sub-probe-header">
+            <mat-icon [class.ok]="jwks?.reachable"
+                     [class.err]="jwks && !jwks.reachable">
+              {{ jwks?.reachable ? 'check_circle' : (jwks ? 'error' : 'help') }}
+            </mat-icon>
+            <strong>JWKS endpoint</strong>
+            <span class="probe-detail" *ngIf="jwks?.latencyMs != null">{{ jwks?.latencyMs }} ms</span>
+          </div>
+          <ng-container *ngIf="!jwks && !jwksLoading"><p class="muted">Not yet checked.</p></ng-container>
+          <mat-spinner *ngIf="jwksLoading" diameter="20"></mat-spinner>
+          <dl *ngIf="jwks">
+            <dt>Configured</dt><dd>{{ jwks.configured ? 'yes' : 'no' }}</dd>
+            <dt>JWKS URI</dt><dd class="mono">{{ jwks.jwksUri || '—' }}</dd>
+            <dt>Issuer</dt><dd class="mono">{{ jwks.issuer || '—' }}</dd>
+            <dt>HTTP status</dt><dd>{{ jwks.httpStatus ?? '—' }}</dd>
+            <dt>Key count</dt><dd>{{ jwks.keyCount ?? '—' }}</dd>
+            <dt>Key IDs (kid)</dt>
+            <dd>
+              <mat-chip-set *ngIf="jwks.kids?.length">
+                <mat-chip *ngFor="let kid of jwks.kids" class="mono-chip">{{ kid }}</mat-chip>
+              </mat-chip-set>
+              <span *ngIf="!jwks.kids?.length">—</span>
+            </dd>
+            <ng-container *ngIf="jwks.error">
+              <dt>Error</dt><dd class="err-text">{{ jwks.error }}</dd>
+            </ng-container>
+          </dl>
+        </div>
+
+        <mat-divider></mat-divider>
+
+        <!-- Role sync sub-section -->
+        <div class="sub-probe">
+          <div class="sub-probe-header">
+            <mat-icon [class.ok]="roleSync?.tokenOk && roleSync?.listOk"
+                     [class.err]="roleSync && !(roleSync.tokenOk && roleSync.listOk)">
+              {{ (roleSync?.tokenOk && roleSync?.listOk) ? 'check_circle' : (roleSync ? 'error' : 'help') }}
+            </mat-icon>
+            <strong>Role sync (service-account flow)</strong>
+            <span class="probe-detail" *ngIf="roleSync?.latencyMs != null">{{ roleSync?.latencyMs }} ms</span>
+          </div>
+          <ng-container *ngIf="!roleSync && !roleSyncLoading"><p class="muted">Not yet checked.</p></ng-container>
+          <mat-spinner *ngIf="roleSyncLoading" diameter="20"></mat-spinner>
+          <dl *ngIf="roleSync">
+            <dt>Configured</dt><dd>{{ roleSync.configured ? 'yes' : 'no' }}</dd>
+            <dt>Admin URL</dt><dd class="mono">{{ roleSync.adminUrl || '—' }}</dd>
+            <dt>Realm</dt><dd class="mono">{{ roleSync.realm || '—' }}</dd>
+            <dt>Client ID</dt><dd class="mono">{{ roleSync.clientId || '—' }}</dd>
+            <dt>Secret present</dt><dd>{{ roleSync.secretPresent ? 'yes' : 'NO — backend missing KEYCLOAK_POLARI_BACKEND_CLIENT_SECRET' }}</dd>
+            <dt>Token grant</dt><dd>{{ roleSync.tokenOk ? 'ok' : 'failed' }}</dd>
+            <dt>Role list</dt><dd>{{ roleSync.listOk ? 'ok' : 'failed' }}</dd>
+            <dt>Roles returned by KC</dt><dd>{{ roleSync.roleCount ?? '—' }}</dd>
+            <dt>Roles cached locally</dt><dd>{{ roleSync.localRoleCount }}</dd>
+            <dt>Role names</dt>
+            <dd>
+              <mat-chip-set *ngIf="roleSync.roleNames?.length">
+                <mat-chip *ngFor="let n of roleSync.roleNames">{{ n }}</mat-chip>
+              </mat-chip-set>
+              <span *ngIf="!roleSync.roleNames?.length">—</span>
+            </dd>
+            <ng-container *ngIf="roleSync.error">
+              <dt>Error</dt><dd class="err-text">{{ roleSync.error }}</dd>
+            </ng-container>
+          </dl>
+        </div>
+
+      </mat-card-content>
+      <mat-card-actions>
+        <button mat-stroked-button (click)="checkConnectivity()"
+                [disabled]="jwksLoading || roleSyncLoading">
+          <mat-icon>refresh</mat-icon> Recheck both
+        </button>
+      </mat-card-actions>
+    </mat-card>
+
+    <!-- 3. /auth/me (token validation end-to-end) -->
+    <mat-card class="diag-card" appearance="outlined">
+      <mat-card-header>
+        <mat-card-title>
+          <mat-icon [class.ok]="me?.authenticated"
+                   [class.warn]="me && !me.authenticated">
+            {{ me?.authenticated ? 'check_circle' : (me ? 'no_accounts' : 'help') }}
+          </mat-icon>
+          Token Validation (/auth/me)
+        </mat-card-title>
+        <mat-card-subtitle>backend validates *your* token against JWKS</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <ng-container *ngIf="!me && !meLoading">
+          <p class="muted">Not yet checked.</p>
+        </ng-container>
+        <ng-container *ngIf="meLoading">
+          <mat-spinner diameter="24"></mat-spinner>
+        </ng-container>
+        <ng-container *ngIf="me">
+          <dl>
+            <dt>Authenticated</dt><dd>{{ me.authenticated ? 'yes' : 'no' }}</dd>
+            <ng-container *ngIf="me.authenticated">
+              <dt>sub</dt><dd class="mono">{{ me.sub }}</dd>
+              <dt>Username</dt><dd>{{ me.username }}</dd>
+              <dt>Email</dt><dd>{{ me.email || '—' }}</dd>
+            </ng-container>
+            <dt>Roles ({{ me.roles.length }})</dt>
+            <dd>
+              <mat-chip-set *ngIf="me.roles.length">
+                <mat-chip *ngFor="let r of me.roles">{{ r }}</mat-chip>
+              </mat-chip-set>
+              <span *ngIf="!me.roles.length" class="muted">none</span>
+            </dd>
+          </dl>
+          <p *ngIf="!me.authenticated" class="muted small">
+            Sign in via the header to populate this card.
+          </p>
+        </ng-container>
+        <p *ngIf="meError" class="err-text">{{ meError }}</p>
+      </mat-card-content>
+      <mat-card-actions>
+        <button mat-stroked-button (click)="checkMe()" [disabled]="meLoading">
+          <mat-icon>refresh</mat-icon> Recheck
+        </button>
+      </mat-card-actions>
+    </mat-card>
+
+    <!-- 4. Frontend Session (oidc-client-ts) -->
+    <mat-card class="diag-card" appearance="outlined">
+      <mat-card-header>
+        <mat-card-title>
+          <mat-icon [class.ok]="frontendAuthenticated"
+                   [class.warn]="!frontendAuthenticated">
+            {{ frontendAuthenticated ? 'check_circle' : 'no_accounts' }}
+          </mat-icon>
+          Frontend Session
+        </mat-card-title>
+        <mat-card-subtitle>oidc-client-ts local view</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <dl>
+          <dt>Local session</dt>
+          <dd>{{ frontendAuthenticated ? 'present' : 'none' }}</dd>
+          <ng-container *ngIf="frontendAuthenticated">
+            <dt>Display name</dt><dd>{{ frontendName }}</dd>
+            <dt>Email</dt><dd>{{ frontendEmail || '—' }}</dd>
+            <dt>Token roles</dt>
+            <dd>
+              <mat-chip-set *ngIf="frontendRoles.length">
+                <mat-chip *ngFor="let r of frontendRoles">{{ r }}</mat-chip>
+              </mat-chip-set>
+              <span *ngIf="!frontendRoles.length" class="muted">none</span>
+            </dd>
+          </ng-container>
+        </dl>
+        <p class="muted small">
+          Compare with /auth/me to confirm frontend and backend agree on
+          roles. A mismatch usually means a stale JWKS cache or an
+          expired session not yet refreshed.
+        </p>
+      </mat-card-content>
+    </mat-card>
+
+  </div>
+</div>

@@ -117,10 +117,45 @@ export class OidcService {
   }
 
   async handleCallback(): Promise<User | null> {
+    console.log('[OidcService] handleCallback() ENTRY — url:', window.location.href);
     const um = this.ensureUserManager();
-    if (!um) return null;
-    try { return await um.signinRedirectCallback(); }
-    catch (err) { console.error('[OidcService] callback failed', err); return null; }
+    if (!um) {
+      console.error('[OidcService] handleCallback: UserManager not initialized (runtime config missing keycloak stanza?)');
+      return null;
+    }
+    try {
+      const user = await um.signinRedirectCallback();
+      console.log('[OidcService] handleCallback SUCCESS — user:', {
+        sub: user?.profile?.sub,
+        username: user?.profile?.preferred_username,
+        hasAccessToken: !!user?.access_token,
+        accessTokenLen: user?.access_token?.length || 0,
+        expired: user?.expired,
+        expiresIn: user?.expires_in,
+        scope: user?.scope,
+      });
+      return user;
+    } catch (err: any) {
+      console.error('[OidcService] handleCallback FAILED:', err);
+      console.error('[OidcService] callback error details:', {
+        name: err?.name,
+        message: err?.message,
+        stack: err?.stack,
+        error: err?.error,
+        errorDescription: err?.error_description,
+      });
+      // Persist for the diagnostics page so user can see it after navigating away.
+      try {
+        sessionStorage.setItem('__polari_auth_callback_error', JSON.stringify({
+          when: new Date().toISOString(),
+          name: err?.name,
+          message: err?.message,
+          error: err?.error,
+          errorDescription: err?.error_description,
+        }));
+      } catch {}
+      return null;
+    }
   }
 
   async logout(): Promise<void> {

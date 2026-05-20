@@ -10,6 +10,9 @@ import { AuthSessionService } from '@services/auth/auth-session.service';
 import { OidcService } from '@services/auth/oidc.service';
 import { AuthInterceptor } from './interceptors/auth.interceptor';
 import { AuthErrorInterceptor } from './interceptors/auth-error.interceptor';
+// Permissions (standalone — registered via imports so templated NgModule
+// components like class-main-page can render <class-permissions-tab>).
+import { ClassPermissionsTabComponent } from '@components/class-main-page/class-permissions-tab/class-permissions-tab.component';
 import { DragDropModule } from '@angular/cdk/drag-drop';
 //Materials
 import { MaterialModule } from './material/material.module'
@@ -357,6 +360,7 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     CreateGeocoderDialogComponent,
     GeocoderDetailDialogComponent,
     AddressSearchComponent,
+    ClassPermissionsTabComponent,
     // NgRx
     StoreModule.forRoot(rootReducers),
     EffectsModule.forRoot([PolariEffects, DynamicObjectsEffects]),

@@ -19,6 +19,8 @@ import { EquationConfigEditComponent } from '@components/equation-config/equatio
 const routes: Routes = [
   { path: '', loadComponent: () => import('@components/home/home').then(m => m.HomeComponent) },
   { path: 'callback', loadComponent: () => import('@components/auth-callback/auth-callback.component').then(m => m.AuthCallbackComponent) },
+  { path: 'permissions', loadComponent: () => import('@components/permissions/permissions.component').then(m => m.PermissionsComponent) },
+  { path: 'permissions/roles/:name', loadComponent: () => import('@components/permissions/role-detail/role-detail.component').then(m => m.RoleDetailComponent) },
   { path: 'polari-config', component: PolariConfigComponent},
   { path: 'polari-config/:polariAccessNode', component: PolariConfigComponent},
 { path: 'class-main-page/:class', component: ClassMainPageComponent},

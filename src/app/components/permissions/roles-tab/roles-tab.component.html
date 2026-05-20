@@ -1,0 +1,134 @@
+<div class="roles-tab">
+  <div class="tab-header">
+    <div>
+      <h2>Roles</h2>
+      <p class="tab-subtitle">
+        Roles reflected from Keycloak. Click any row to view + edit its CRUDE grants per object class.
+      </p>
+    </div>
+    <button mat-stroked-button (click)="load(true)" [disabled]="loading">
+      <mat-icon>refresh</mat-icon> Refresh
+    </button>
+  </div>
+
+  <!-- How permissions work — collapsible so it doesn't shout at returning admins. -->
+  <mat-card *ngIf="showIntro" appearance="outlined" class="intro-card">
+    <mat-card-content>
+      <div class="intro-head">
+        <mat-icon color="primary">school</mat-icon>
+        <h3>How permissions work in Polari</h3>
+        <button mat-icon-button (click)="showIntro = false" matTooltip="Hide">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+      <p>
+        Polari's permission model is layered on top of Keycloak's
+        <strong>group → role → policy</strong> chain. You don't grant
+        permissions to users directly — you grant them to <em>roles</em>,
+        roles get attached to <em>groups</em>, and Keycloak's policies
+        decide who is allowed to add users to which groups.
+      </p>
+      <ul>
+        <li>
+          <strong>Roles</strong> (this tab) — define the CRUDE grants
+          each role hands its holder, per object class. Editing here
+          updates the matrix Polari uses to gate every backend call.
+        </li>
+        <li>
+          <strong>Groups</strong> (configured in Keycloak) — collections
+          of users. A group's <code>realmRoles</code> list is the auto-grant:
+          drop a user into a group and they inherit those roles in their
+          token immediately.
+        </li>
+        <li>
+          <strong>Permissions / Policies</strong> (Keycloak's
+          fine-grained admin authz) — let you grant
+          <em>"can manage group X"</em> to an access-management role
+          without giving that person the keys to modify code or roles
+          themselves. Critical for onboarding in secure environments:
+          intermediate admins add people to groups, principals stay
+          locked.
+        </li>
+      </ul>
+      <div class="intro-actions">
+        <a *ngIf="rolesAdminUrl" mat-stroked-button [href]="rolesAdminUrl" target="_blank" rel="noopener">
+          <mat-icon>open_in_new</mat-icon> Keycloak — Roles
+        </a>
+        <a *ngIf="groupsAdminUrl" mat-stroked-button [href]="groupsAdminUrl" target="_blank" rel="noopener">
+          <mat-icon>open_in_new</mat-icon> Keycloak — Groups
+        </a>
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  <button *ngIf="!showIntro" mat-button class="show-intro-btn" (click)="showIntro = true">
+    <mat-icon>help_outline</mat-icon> Show explainer
+  </button>
+
+  <div *ngIf="syncWarning" class="sync-warning">
+    <mat-icon>warning</mat-icon>
+    <span>Could not sync with Keycloak — showing last-known state. {{ syncWarning }}</span>
+  </div>
+
+  <div *ngIf="errorMessage" class="err-text">
+    {{ errorMessage }}
+  </div>
+
+  <ng-container *ngIf="loading && !roles.length">
+    <div class="loading-row">
+      <mat-spinner diameter="24"></mat-spinner>
+      <span>Loading roles…</span>
+    </div>
+  </ng-container>
+
+  <mat-card *ngIf="roles.length" appearance="outlined">
+    <table mat-table [dataSource]="roles">
+
+      <ng-container matColumnDef="name">
+        <th mat-header-cell *matHeaderCellDef>Name</th>
+        <td mat-cell *matCellDef="let r"><span class="mono">{{ r.name }}</span></td>
+      </ng-container>
+
+      <ng-container matColumnDef="description">
+        <th mat-header-cell *matHeaderCellDef>Description</th>
+        <td mat-cell *matCellDef="let r">{{ r.description || '—' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="source">
+        <th mat-header-cell *matHeaderCellDef>Source</th>
+        <td mat-cell *matCellDef="let r">
+          <mat-chip [class.orphaned]="r.source === 'orphaned'"
+                    [matTooltip]="r.source === 'orphaned' ? 'This role no longer exists in Keycloak — grants preserved.' : ''">
+            {{ r.source }}
+          </mat-chip>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="grantCount">
+        <th mat-header-cell *matHeaderCellDef>Grants</th>
+        <td mat-cell *matCellDef="let r">
+          <span [class.muted]="grantCount(r) === 0">
+            {{ grantCount(r) }} op{{ grantCount(r) === 1 ? '' : 's' }} across {{ r.grants?.length || 0 }} class{{ (r.grants?.length || 0) === 1 ? '' : 'es' }}
+          </span>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef></th>
+        <td mat-cell *matCellDef="let r">
+          <button mat-icon-button (click)="open(r); $event.stopPropagation()" matTooltip="View role">
+            <mat-icon>chevron_right</mat-icon>
+          </button>
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns;"
+          class="role-row" (click)="open(row)"></tr>
+    </table>
+  </mat-card>
+
+  <p *ngIf="!loading && !roles.length && !errorMessage" class="muted">
+    No roles found. Try refreshing — the backend syncs lazily from Keycloak.
+  </p>
+</div>

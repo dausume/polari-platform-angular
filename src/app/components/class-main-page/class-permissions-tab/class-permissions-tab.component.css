@@ -1,0 +1,61 @@
+.class-perms-tab { padding: 16px; }
+
+.tab-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+h3 { margin: 0 0 4px 0; }
+
+.tab-subtitle {
+  color: var(--mat-sys-on-surface-variant, #666);
+  margin: 0;
+  max-width: 800px;
+}
+
+.grants-card { padding: 0; overflow-x: auto; }
+table { width: 100%; }
+
+.role-link {
+  cursor: pointer;
+  color: var(--mat-sys-primary, #1976d2);
+  text-decoration: none;
+}
+.role-link:hover { text-decoration: underline; }
+
+.role-desc {
+  font-size: 0.8rem;
+  color: #888;
+}
+
+.mono { font-family: monospace; }
+.muted { color: #888; }
+
+mat-checkbox.locked-by-all ::ng-deep .mdc-checkbox__background {
+  opacity: 0.55;
+}
+
+mat-icon.err-icon {
+  color: #c62828;
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
+.err-text {
+  color: #c62828;
+  padding: 12px 16px;
+  background: rgba(198, 40, 40, 0.08);
+  border-radius: 4px;
+}
+
+.loading-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 24px 0;
+  color: #888;
+}

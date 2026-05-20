@@ -21,6 +21,11 @@ import { AuthUser } from '../../classes/auth-user';
 @Injectable({ providedIn: 'root' })
 export class AuthSessionService {
   private readonly _currentUser$ = new BehaviorSubject<AuthUser | null>(null);
+  // Surfaces the raw access_token alongside currentUser. oidc-client-ts
+  // keeps the canonical copy in browser storage; we mirror it here as a
+  // BehaviorSubject so UI (e.g. Auth Diagnostics) and other services can
+  // subscribe rather than awaiting `oidc.getAccessToken()` each time.
+  private readonly _accessToken$ = new BehaviorSubject<string | null>(null);
   private started = false;
   private inFlight = false;
 
@@ -30,8 +35,16 @@ export class AuthSessionService {
     return this._currentUser$.asObservable();
   }
 
+  get accessToken$(): Observable<string | null> {
+    return this._accessToken$.asObservable();
+  }
+
   get currentUser(): AuthUser | null {
     return this._currentUser$.value;
+  }
+
+  get accessToken(): string | null {
+    return this._accessToken$.value;
   }
 
   get isAuthenticated(): boolean {
@@ -74,24 +87,35 @@ export class AuthSessionService {
     } catch (err) {
       console.error('[AuthSession] logout failed', err);
     } finally {
-      this._currentUser$.next(null);
+      this._setSession(null, null);
     }
   }
 
   /** Called by the /callback route component after Keycloak redirects back. */
   async handleOAuthCallback(): Promise<string | null> {
+    console.log('[AuthSession] handleOAuthCallback ENTRY');
     try {
       const oidcUser = await this.oidc.handleCallback();
+      console.log('[AuthSession] handleOAuthCallback — oidc.handleCallback returned:', {
+        gotUser: !!oidcUser,
+        expired: oidcUser?.expired,
+        hasAccessToken: !!oidcUser?.access_token,
+      });
       if (oidcUser && !oidcUser.expired) {
-        this._currentUser$.next(this.oidc.convertToAuthUser(oidcUser));
+        const authUser = this.oidc.convertToAuthUser(oidcUser);
+        console.log('[AuthSession] setting session — authUser:', authUser, 'tokenLen:', oidcUser.access_token?.length || 0);
+        this._setSession(authUser, oidcUser.access_token);
         const state = (oidcUser as any).state;
-        return (typeof state === 'string' && state) ? state : '/';
+        const returnTo = (typeof state === 'string' && state) ? state : '/';
+        console.log('[AuthSession] callback complete, returning to:', returnTo);
+        return returnTo;
       }
-      this._currentUser$.next(null);
+      console.warn('[AuthSession] callback returned no usable user — clearing session');
+      this._setSession(null, null);
       return '/';
     } catch (err) {
-      console.error('[AuthSession] callback failed', err);
-      this._currentUser$.next(null);
+      console.error('[AuthSession] callback exception:', err);
+      this._setSession(null, null);
       return '/';
     }
   }
@@ -103,13 +127,22 @@ export class AuthSessionService {
     try {
       const user = await this.oidc.signinSilent();
       if (user && !user.expired) {
-        this._currentUser$.next(this.oidc.convertToAuthUser(user));
+        this._setSession(this.oidc.convertToAuthUser(user), user.access_token);
       } else {
-        this._currentUser$.next(null);
+        this._setSession(null, null);
       }
     } finally {
       this.inFlight = false;
     }
+  }
+
+  /** Force-refresh the cached access token from oidc-client-ts. UI uses
+   * this after a silent renew the interceptor isn't aware of, or just to
+   * confirm the token in storage matches what we're tracking. */
+  async refreshAccessToken(): Promise<string | null> {
+    const token = await this.oidc.getAccessToken();
+    this._accessToken$.next(token);
+    return token;
   }
 
   /** Backing call for start() — kept private to discourage external invocation. */
@@ -122,15 +155,23 @@ export class AuthSessionService {
         user = await this.oidc.signinSilent();
       }
       if (user && !user.expired) {
-        this._currentUser$.next(this.oidc.convertToAuthUser(user));
+        this._setSession(this.oidc.convertToAuthUser(user), user.access_token);
       } else {
-        this._currentUser$.next(null);
+        this._setSession(null, null);
       }
     } catch (err) {
       console.debug(`[AuthSession] session restore (${reason}) failed`, err);
-      this._currentUser$.next(null);
+      this._setSession(null, null);
     } finally {
       this.inFlight = false;
     }
+  }
+
+  /** Single chokepoint for updating both subjects — guarantees they
+   * never drift (a UI subscribed to one but not the other would
+   * otherwise see inconsistent state during transitions). */
+  private _setSession(user: AuthUser | null, token: string | null): void {
+    this._currentUser$.next(user);
+    this._accessToken$.next(token);
   }
 }

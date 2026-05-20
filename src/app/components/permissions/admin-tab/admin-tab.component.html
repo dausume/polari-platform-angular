@@ -1,0 +1,156 @@
+<div class="admin-tab">
+
+  <div class="tab-header">
+    <div>
+      <h2>Admin Setup</h2>
+      <p class="tab-subtitle">
+        Guidance + deep links for configuring Keycloak so role grants
+        flow through groups, and so onboarding can be delegated safely.
+      </p>
+    </div>
+    <a *ngIf="realmHomeUrl" mat-flat-button color="primary"
+       [href]="realmHomeUrl" target="_blank" rel="noopener">
+      <mat-icon>open_in_new</mat-icon> Keycloak Admin Console
+    </a>
+  </div>
+
+  <!-- Recommended config -->
+  <mat-card appearance="outlined" class="guide-card">
+    <mat-card-header>
+      <mat-card-title>
+        <mat-icon color="primary">tips_and_updates</mat-icon>
+        Recommended Keycloak configuration
+      </mat-card-title>
+      <mat-card-subtitle>
+        How to set up auto-role-assignment via groups, with delegated onboarding
+      </mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      <ol class="guide-steps">
+        <li>
+          <strong>Define realm roles</strong> for each broad permission tier
+          your project needs (e.g. <code>polari-admin</code>,
+          <code>polari-developer</code>, <code>polari-user</code>,
+          <code>polari-viewer</code>). These come pre-seeded; new roles
+          you add in KC sync into Polari's <em>Roles</em> tab within ~60s.
+        </li>
+        <li>
+          <strong>Create a group per onboarding intent</strong>
+          (e.g. <em>Polari Administrators</em>, <em>Polari Developers</em>,
+          <em>Polari Users</em>). On each group, attach the realm roles
+          that group should grant via the group's <em>Role Mappings</em>
+          tab. New members inherit those roles in their JWT immediately.
+        </li>
+        <li>
+          <strong>Turn on fine-grained admin permissions</strong> on the
+          realm (Realm Settings → General → <em>Admin permissions</em>).
+          This creates an <code>admin-permissions</code> client whose
+          authorization tab is where per-resource policies live.
+        </li>
+        <li>
+          <strong>Create an access-management role</strong>
+          (e.g. <code>polari-onboarder</code>) and grant it
+          <em>only</em> the "manage members" permission on the
+          relevant groups via policies — not role editing, not realm
+          settings. Intermediate admins holding this role can add users
+          to groups but can't touch the code-modifying roles.
+        </li>
+        <li>
+          <strong>Configure grants on the Roles tab in Polari</strong>.
+          For each role, set which CRUDE ops it grants per object class.
+          Polari's backend reads these and enforces them on every request.
+        </li>
+      </ol>
+
+      <mat-divider></mat-divider>
+
+      <div class="quick-links">
+        <p class="muted small">Quick navigation to Keycloak admin:</p>
+        <a *ngIf="rolesAdminUrl" mat-stroked-button [href]="rolesAdminUrl" target="_blank" rel="noopener">
+          <mat-icon>open_in_new</mat-icon> Realm Roles
+        </a>
+        <a *ngIf="groupsAdminUrl" mat-stroked-button [href]="groupsAdminUrl" target="_blank" rel="noopener">
+          <mat-icon>open_in_new</mat-icon> Groups
+        </a>
+        <a *ngIf="permissionsAdminUrl" mat-stroked-button [href]="permissionsAdminUrl" target="_blank" rel="noopener">
+          <mat-icon>open_in_new</mat-icon> Fine-grained Permissions
+        </a>
+        <a *ngIf="clientsAdminUrl" mat-stroked-button [href]="clientsAdminUrl" target="_blank" rel="noopener">
+          <mat-icon>open_in_new</mat-icon> Clients
+        </a>
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Live groups -->
+  <div class="groups-header">
+    <h3>Existing groups</h3>
+    <button mat-stroked-button (click)="load()" [disabled]="loading">
+      <mat-icon>refresh</mat-icon> Refresh
+    </button>
+  </div>
+  <p class="muted small">
+    Pulled live from Keycloak. Use the per-row button to jump straight
+    into the group's settings page to add or remove members.
+  </p>
+
+  <div *ngIf="syncWarning" class="sync-warning">
+    <mat-icon>warning</mat-icon>
+    <span>{{ syncWarning }}</span>
+  </div>
+
+  <div *ngIf="errorMessage" class="err-text">{{ errorMessage }}</div>
+
+  <div *ngIf="loading && !groups.length" class="loading-row">
+    <mat-spinner diameter="24"></mat-spinner>
+    <span>Loading groups…</span>
+  </div>
+
+  <mat-card *ngIf="groups.length" appearance="outlined" class="groups-card">
+    <table mat-table [dataSource]="groups">
+      <ng-container matColumnDef="name">
+        <th mat-header-cell *matHeaderCellDef>Group</th>
+        <td mat-cell *matCellDef="let g">
+          <div class="group-name mono">{{ g.name }}</div>
+          <div class="group-path muted small">{{ g.path }}</div>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="description">
+        <th mat-header-cell *matHeaderCellDef>Description</th>
+        <td mat-cell *matCellDef="let g">
+          <span *ngIf="g.description">{{ g.description }}</span>
+          <span *ngIf="!g.description" class="muted">—</span>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="realmRoles">
+        <th mat-header-cell *matHeaderCellDef>Realm roles granted</th>
+        <td mat-cell *matCellDef="let g">
+          <mat-chip-set *ngIf="g.realmRoles?.length">
+            <mat-chip *ngFor="let r of g.realmRoles" class="role-chip">{{ r }}</mat-chip>
+          </mat-chip-set>
+          <span *ngIf="!g.realmRoles?.length" class="muted">none</span>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef></th>
+        <td mat-cell *matCellDef="let g">
+          <a *ngIf="groupAdminUrl(g)" mat-stroked-button
+             [href]="groupAdminUrl(g)" target="_blank" rel="noopener"
+             matTooltip="Open this group in the Keycloak admin console">
+            <mat-icon>open_in_new</mat-icon> Manage
+          </a>
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+    </table>
+  </mat-card>
+
+  <p *ngIf="!loading && !groups.length && !errorMessage && !syncWarning" class="muted">
+    No groups found in this realm. Use the Keycloak admin console to create some.
+  </p>
+</div>

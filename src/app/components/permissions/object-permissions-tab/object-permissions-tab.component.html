@@ -1,0 +1,80 @@
+<div class="object-perms-tab">
+
+  <div class="tab-header">
+    <div>
+      <h2>Your Effective Permissions</h2>
+      <p class="tab-subtitle">
+        Aggregated across every role you hold. Computed transiently on the
+        backend (keyed by your Keycloak <code>sub</code> — no PII stored).
+        Hover any granted op to see which role contributed it.
+      </p>
+    </div>
+    <button mat-stroked-button (click)="load()" [disabled]="loading">
+      <mat-icon>refresh</mat-icon> Refresh
+    </button>
+  </div>
+
+  <ng-container *ngIf="loading">
+    <div class="loading-row">
+      <mat-spinner diameter="24"></mat-spinner>
+      <span>Computing your matrix…</span>
+    </div>
+  </ng-container>
+
+  <div *ngIf="errorMessage" class="err-text">{{ errorMessage }}</div>
+
+  <ng-container *ngIf="perms && !loading">
+
+    <mat-card appearance="outlined" class="identity-card">
+      <mat-card-content>
+        <ng-container *ngIf="perms.authenticated; else anonBlock">
+          <dl>
+            <dt>Subject (sub)</dt><dd class="mono">{{ perms.sub }}</dd>
+            <dt>Username (from token)</dt><dd>{{ perms.username || '—' }}</dd>
+            <dt>Held roles ({{ perms.roles.length }})</dt>
+            <dd>
+              <mat-chip-set *ngIf="perms.roles.length">
+                <mat-chip *ngFor="let r of perms.roles">{{ r }}</mat-chip>
+              </mat-chip-set>
+              <span *ngIf="!perms.roles.length" class="muted">none</span>
+            </dd>
+          </dl>
+        </ng-container>
+        <ng-template #anonBlock>
+          <p class="muted">You are not signed in — no permissions to aggregate.</p>
+        </ng-template>
+      </mat-card-content>
+    </mat-card>
+
+    <ng-container *ngIf="perms.authenticated">
+      <h3>Per-class CRUDE matrix</h3>
+      <p *ngIf="!perms.effectivePermissions.length" class="empty-state">
+        <mat-icon>do_not_disturb</mat-icon>
+        Your roles have no grants assigned in Polari yet. Ask an admin to
+        configure grants on the Roles page.
+      </p>
+
+      <mat-card *ngIf="perms.effectivePermissions.length" appearance="outlined" class="matrix-card">
+        <table mat-table [dataSource]="perms.effectivePermissions">
+          <ng-container matColumnDef="className">
+            <th mat-header-cell *matHeaderCellDef>Object class</th>
+            <td mat-cell *matCellDef="let row"><span class="mono">{{ row.className }}</span></td>
+          </ng-container>
+
+          <ng-container *ngFor="let op of crudeOrder" [matColumnDef]="'op_' + op">
+            <th mat-header-cell *matHeaderCellDef [matTooltip]="crudeLabels[op]">{{ op }}</th>
+            <td mat-cell *matCellDef="let row">
+              <mat-icon *ngIf="hasOp(row.ops, op)" class="op-yes"
+                        [matTooltip]="sourceTooltip(row.className, op)">check</mat-icon>
+              <span *ngIf="!hasOp(row.ops, op)" class="muted">—</span>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="['className', 'op_C', 'op_R', 'op_U', 'op_D', 'op_E']"></tr>
+          <tr mat-row *matRowDef="let row; columns: ['className', 'op_C', 'op_R', 'op_U', 'op_D', 'op_E'];"></tr>
+        </table>
+      </mat-card>
+    </ng-container>
+
+  </ng-container>
+</div>

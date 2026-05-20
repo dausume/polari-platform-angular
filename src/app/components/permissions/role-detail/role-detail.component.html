@@ -1,0 +1,142 @@
+<div class="role-detail-page">
+
+  <div class="page-header">
+    <button mat-stroked-button (click)="back()">
+      <mat-icon>arrow_back</mat-icon> Back to Roles
+    </button>
+  </div>
+
+  <ng-container *ngIf="loading">
+    <div class="loading-row">
+      <mat-spinner diameter="32"></mat-spinner>
+      <span>Loading role…</span>
+    </div>
+  </ng-container>
+
+  <div *ngIf="errorMessage" class="err-text">
+    <mat-icon>error</mat-icon>
+    {{ errorMessage }}
+  </div>
+
+  <ng-container *ngIf="role && !loading">
+
+    <h1>
+      <span class="mono">{{ role.name }}</span>
+      <mat-chip class="source-chip" [class.orphaned]="role.source === 'orphaned'">
+        {{ role.source }}
+      </mat-chip>
+    </h1>
+    <p class="role-description">{{ role.description || 'No description.' }}</p>
+
+    <mat-card appearance="outlined" class="meta-card">
+      <mat-card-content>
+        <dl>
+          <dt>Source</dt><dd>{{ role.source }}</dd>
+          <dt>Last synced</dt><dd>{{ role.syncedAt || '—' }}</dd>
+          <dt>Classes with grants</dt><dd>{{ role.grants?.length || 0 }}</dd>
+        </dl>
+      </mat-card-content>
+    </mat-card>
+
+    <h2>Grants</h2>
+    <p class="muted small">
+      Classes are grouped by module. Each row can use <strong>All</strong>
+      to grant every CRUDE op; each module header has its own
+      <strong>All in module</strong> to blanket-grant an entire module
+      at once. Search by class name or module. Changes save automatically.
+    </p>
+
+    <mat-form-field appearance="outline" class="search-field">
+      <mat-label>Filter classes or modules</mat-label>
+      <input matInput [(ngModel)]="searchTerm" placeholder="e.g. Equation, materials">
+      <mat-icon matPrefix>search</mat-icon>
+    </mat-form-field>
+
+    <mat-accordion multi>
+      <mat-expansion-panel
+        *ngFor="let grp of filteredGroups; trackBy: trackByModuleId"
+        [expanded]="isPanelExpanded(grp)"
+        (expandedChange)="onPanelToggle(grp.moduleId, $event)"
+        class="module-panel">
+
+        <mat-expansion-panel-header>
+          <mat-panel-title class="panel-title">
+            <mat-icon class="module-icon">folder</mat-icon>
+            <span class="module-name">{{ grp.label }}</span>
+            <mat-chip class="row-count-chip">{{ matchCountFor(grp) }}</mat-chip>
+          </mat-panel-title>
+          <mat-panel-description class="panel-desc">
+            <mat-checkbox
+              [checked]="grp.groupAllChecked"
+              (click)="$event.stopPropagation()"
+              (change)="toggleGroupAll(grp, $event.checked)"
+              color="primary"
+              matTooltip="Grant every CRUDE op on every class in this module">
+              All in module
+            </mat-checkbox>
+          </mat-panel-description>
+        </mat-expansion-panel-header>
+
+        <table mat-table [dataSource]="visibleRowsFor(grp)" class="grants-table">
+
+          <ng-container matColumnDef="className">
+            <th mat-header-cell *matHeaderCellDef>Object class</th>
+            <td mat-cell *matCellDef="let row"><span class="mono">{{ row.className }}</span></td>
+          </ng-container>
+
+          <ng-container matColumnDef="module">
+            <th mat-header-cell *matHeaderCellDef>Module</th>
+            <td mat-cell *matCellDef="let row">
+              <mat-chip class="module-chip" [class.fw]="row.moduleId === 'framework'"
+                                            [class.cust]="row.moduleId === 'custom'">
+                {{ row.moduleLabel }}
+              </mat-chip>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="all">
+            <th mat-header-cell *matHeaderCellDef matTooltip="Grant all CRUDE ops">All</th>
+            <td mat-cell *matCellDef="let row">
+              <mat-checkbox
+                [checked]="isAllOps(row)"
+                [disabled]="row.saving"
+                (change)="toggleAll(row, $event.checked)"
+                color="primary">
+              </mat-checkbox>
+            </td>
+          </ng-container>
+
+          <ng-container *ngFor="let op of crudeOrder" [matColumnDef]="'op_' + op">
+            <th mat-header-cell *matHeaderCellDef [matTooltip]="crudeLabels[op]">{{ op }}</th>
+            <td mat-cell *matCellDef="let row">
+              <mat-checkbox
+                [checked]="hasOp(row, op)"
+                [disabled]="isAllOps(row) || row.saving"
+                [class.locked-by-all]="isAllOps(row)"
+                (change)="toggleOp(row, op, $event.checked)">
+              </mat-checkbox>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="status">
+            <th mat-header-cell *matHeaderCellDef></th>
+            <td mat-cell *matCellDef="let row">
+              <mat-spinner *ngIf="row.saving" diameter="16"></mat-spinner>
+              <mat-icon *ngIf="row.error" class="err-icon" [matTooltip]="row.error">error</mat-icon>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+        </table>
+
+      </mat-expansion-panel>
+    </mat-accordion>
+
+    <p *ngIf="!filteredGroups.length" class="empty-grants">
+      <mat-icon>search_off</mat-icon>
+      No classes match "{{ searchTerm }}".
+    </p>
+
+  </ng-container>
+</div>
