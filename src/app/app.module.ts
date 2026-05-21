@@ -13,6 +13,8 @@ import { AuthErrorInterceptor } from './interceptors/auth-error.interceptor';
 // Permissions (standalone — registered via imports so templated NgModule
 // components like class-main-page can render <class-permissions-tab>).
 import { ClassPermissionsTabComponent } from '@components/class-main-page/class-permissions-tab/class-permissions-tab.component';
+// SimSpace (standalone — registered for use in templated class-main-page).
+import { ClassSimSpaceTabComponent } from '@components/class-main-page/class-sim-space-tab/class-sim-space-tab.component';
 import { DragDropModule } from '@angular/cdk/drag-drop';
 //Materials
 import { MaterialModule } from './material/material.module'
@@ -361,6 +363,7 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     GeocoderDetailDialogComponent,
     AddressSearchComponent,
     ClassPermissionsTabComponent,
+    ClassSimSpaceTabComponent,
     // NgRx
     StoreModule.forRoot(rootReducers),
     EffectsModule.forRoot([PolariEffects, DynamicObjectsEffects]),

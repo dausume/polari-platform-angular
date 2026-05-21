@@ -1,0 +1,2 @@
+# Components that are 2D-renderer-specific go here (e.g. dedicated 2D-only sidebar).
+# Today most viewer UI is dimension-agnostic (under components/sim-space/).

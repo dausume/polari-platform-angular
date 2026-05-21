@@ -1779,4 +1779,14 @@
     <class-permissions-tab [className]="className"></class-permissions-tab>
   </mat-tab>
 
+  <!-- Sim Space tab: per-class binding for 2D + 3D rendering. Content
+       lazy-loaded via *matTabContent so the tab's service injections +
+       library loads only fire when the user actually clicks the tab,
+       not on every object-page mount. Eagerly instantiated otherwise. -->
+  <mat-tab label="Sim Space">
+    <ng-template matTabContent>
+      <class-sim-space-tab [className]="className"></class-sim-space-tab>
+    </ng-template>
+  </mat-tab>
+
 </mat-tab-group>

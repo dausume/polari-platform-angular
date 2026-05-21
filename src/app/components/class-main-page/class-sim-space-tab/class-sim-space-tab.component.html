@@ -1,0 +1,267 @@
+<div class="sim-space-tab">
+  <mat-tab-group [selectedIndex]="selectedSubTab" (selectedIndexChange)="selectedSubTab = $event">
+
+    <!-- ============================== 2D ============================== -->
+    <mat-tab label="2D">
+      <div class="sub-tab">
+        <p class="muted">
+          Configure how instances of <strong class="mono">{{ className }}</strong>
+          render in 2D SimSpaces. Pick the numeric fields that drive
+          X / Y placement, then a shape + style from the library.
+        </p>
+
+        <mat-slide-toggle
+          [(ngModel)]="form2D.enabled"
+          (change)="markDirty(form2D)"
+          color="primary"
+          class="enable-toggle">
+          Render this class in 2D SimSpaces
+        </mat-slide-toggle>
+
+        <!-- Connection-mode bindings are authored via seed data today;
+             editing them in this form would clobber the source/target
+             spec with an object-mode binding. Show a read-only notice
+             instead until the editor learns connection-mode. -->
+        <mat-card *ngIf="form2D.kind === 'connection'" appearance="outlined" class="section connection-notice">
+          <mat-card-content>
+            <mat-icon class="row-icon">timeline</mat-icon>
+            <strong>Connection-mode binding</strong>
+            <p class="muted">
+              This class renders as a connection (line between two endpoints).
+              The endpoint configuration lives in the binding's source / target
+              spec and isn't editable from this form yet — edit
+              <code>SimSpaceBindingDefinition</code> directly if you need to
+              change it.
+            </p>
+          </mat-card-content>
+        </mat-card>
+
+        <div *ngIf="form2D.kind !== 'connection'" [class.disabled]="!form2D.enabled">
+          <mat-card appearance="outlined" class="section">
+            <mat-card-content>
+              <h4>Position binding</h4>
+              <div class="row">
+                <mat-form-field appearance="outline">
+                  <mat-label>X field</mat-label>
+                  <mat-select [(value)]="form2D.posX" (selectionChange)="markDirty(form2D)">
+                    <mat-option *ngFor="let f of numericFields" [value]="f">{{ f }}</mat-option>
+                  </mat-select>
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>Y field</mat-label>
+                  <mat-select [(value)]="form2D.posY" (selectionChange)="markDirty(form2D)">
+                    <mat-option *ngFor="let f of numericFields" [value]="f">{{ f }}</mat-option>
+                  </mat-select>
+                </mat-form-field>
+              </div>
+            </mat-card-content>
+          </mat-card>
+
+          <mat-card appearance="outlined" class="section">
+            <mat-card-content>
+              <h4>Visual</h4>
+              <div class="row">
+                <mat-form-field appearance="outline">
+                  <mat-label>Shape</mat-label>
+                  <mat-select [(value)]="form2D.shapeRef" (selectionChange)="markDirty(form2D)">
+                    <mat-option *ngFor="let s of shapes2D" [value]="s.name">{{ s.name }}</mat-option>
+                  </mat-select>
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>Style</mat-label>
+                  <mat-select [(value)]="form2D.styleRef" (selectionChange)="markDirty(form2D)">
+                    <mat-option *ngFor="let s of styles2D" [value]="s.name">
+                      <span class="style-chip" [style.background]="s.fill_color"></span>
+                      {{ s.name }}
+                    </mat-option>
+                  </mat-select>
+                </mat-form-field>
+              </div>
+            </mat-card-content>
+          </mat-card>
+
+          <ng-container *ngTemplateOutlet="commonBehavior; context: { form: form2D }"></ng-container>
+          <ng-container *ngTemplateOutlet="temporalSection; context: { form: form2D }"></ng-container>
+        </div>
+
+        <ng-container *ngTemplateOutlet="actions; context: { form: form2D, dim: '2d' }"></ng-container>
+      </div>
+    </mat-tab>
+
+    <!-- ============================== 3D ============================== -->
+    <mat-tab label="3D">
+      <div class="sub-tab">
+        <p class="muted">
+          Configure how instances of <strong class="mono">{{ className }}</strong>
+          render in 3D SimSpaces. Pick the numeric fields driving X / Y / Z
+          placement, then a mesh + material from the 3D library.
+        </p>
+
+        <mat-slide-toggle
+          [(ngModel)]="form3D.enabled"
+          (change)="markDirty(form3D)"
+          color="primary"
+          class="enable-toggle">
+          Render this class in 3D SimSpaces
+        </mat-slide-toggle>
+
+        <mat-card *ngIf="form3D.kind === 'connection'" appearance="outlined" class="section connection-notice">
+          <mat-card-content>
+            <mat-icon class="row-icon">timeline</mat-icon>
+            <strong>Connection-mode binding</strong>
+            <p class="muted">
+              This class renders as a connection. Edit the
+              <code>SimSpaceBindingDefinition</code> row directly to change
+              its endpoints.
+            </p>
+          </mat-card-content>
+        </mat-card>
+
+        <div *ngIf="form3D.kind !== 'connection'" [class.disabled]="!form3D.enabled">
+          <mat-card appearance="outlined" class="section">
+            <mat-card-content>
+              <h4>Position binding</h4>
+              <div class="row">
+                <mat-form-field appearance="outline">
+                  <mat-label>X field</mat-label>
+                  <mat-select [(value)]="form3D.posX" (selectionChange)="markDirty(form3D)">
+                    <mat-option *ngFor="let f of numericFields" [value]="f">{{ f }}</mat-option>
+                  </mat-select>
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>Y field</mat-label>
+                  <mat-select [(value)]="form3D.posY" (selectionChange)="markDirty(form3D)">
+                    <mat-option *ngFor="let f of numericFields" [value]="f">{{ f }}</mat-option>
+                  </mat-select>
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>Z field</mat-label>
+                  <mat-select [(value)]="form3D.posZ" (selectionChange)="markDirty(form3D)">
+                    <mat-option *ngFor="let f of numericFields" [value]="f">{{ f }}</mat-option>
+                  </mat-select>
+                </mat-form-field>
+              </div>
+            </mat-card-content>
+          </mat-card>
+
+          <mat-card appearance="outlined" class="section">
+            <mat-card-content>
+              <h4>Visual</h4>
+              <div class="row">
+                <mat-form-field appearance="outline">
+                  <mat-label>Mesh</mat-label>
+                  <mat-select [(value)]="form3D.shapeRef" (selectionChange)="markDirty(form3D)">
+                    <mat-option *ngFor="let m of meshes3D" [value]="m.name">{{ m.name }}</mat-option>
+                  </mat-select>
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>Material</mat-label>
+                  <mat-select [(value)]="form3D.styleRef" (selectionChange)="markDirty(form3D)">
+                    <mat-option *ngFor="let m of materials3D" [value]="m.name">
+                      <span class="style-chip" [style.background]="m.color"></span>
+                      {{ m.name }}
+                    </mat-option>
+                  </mat-select>
+                </mat-form-field>
+              </div>
+            </mat-card-content>
+          </mat-card>
+
+          <ng-container *ngTemplateOutlet="commonBehavior; context: { form: form3D }"></ng-container>
+          <ng-container *ngTemplateOutlet="temporalSection; context: { form: form3D }"></ng-container>
+        </div>
+
+        <ng-container *ngTemplateOutlet="actions; context: { form: form3D, dim: '3d' }"></ng-container>
+      </div>
+    </mat-tab>
+
+  </mat-tab-group>
+</div>
+
+<!-- Shared sub-sections, fed via ngTemplateOutlet context above. -->
+<ng-template #commonBehavior let-form="form">
+  <mat-card appearance="outlined" class="section">
+    <mat-card-content>
+      <h4>Behavior</h4>
+      <mat-form-field appearance="outline">
+        <mat-label>Click action</mat-label>
+        <mat-select [(value)]="form.clickAction" (selectionChange)="markDirty(form)">
+          <mat-option value="navigate-to-instance">Navigate to instance page</mat-option>
+          <mat-option value="show-overlay">Show overlay</mat-option>
+          <mat-option value="none">Do nothing</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <mat-slide-toggle
+        [(ngModel)]="form.defaultVisible"
+        (change)="markDirty(form)"
+        color="primary">
+        Render by default in all SimSpaces of this dimensionality
+      </mat-slide-toggle>
+    </mat-card-content>
+  </mat-card>
+</ng-template>
+
+<ng-template #temporalSection let-form="form">
+  <mat-card appearance="outlined" class="section">
+    <mat-card-content>
+      <h4>Time / Simulation step <span class="muted small">(optional)</span></h4>
+      <p class="muted small">
+        Declare a numeric field as a time or simulation-step axis to
+        enable scrubbable playback in future viewer versions. Phase 2.5
+        stores the binding; the scrubber UI lands in Phase 3+.
+      </p>
+      <mat-slide-toggle
+        [(ngModel)]="form.enabledTemporal"
+        (change)="markDirty(form)"
+        color="primary"
+        class="enable-toggle">
+        This class has a time / step dimension
+      </mat-slide-toggle>
+
+      <div [class.disabled]="!form.enabledTemporal" class="temporal-grid">
+        <mat-form-field appearance="outline">
+          <mat-label>Kind</mat-label>
+          <mat-select [(value)]="form.temporalKind" (selectionChange)="markDirty(form)">
+            <mat-option value="time">Continuous time</mat-option>
+            <mat-option value="step">Discrete simulation step</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Field</mat-label>
+          <mat-select [(value)]="form.temporalField" (selectionChange)="markDirty(form)">
+            <mat-option *ngFor="let f of numericFields" [value]="f">{{ f }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" *ngIf="form.temporalKind === 'time'">
+          <mat-label>Unit</mat-label>
+          <mat-select [(value)]="form.temporalUnit" (selectionChange)="markDirty(form)">
+            <mat-optgroup *ngFor="let g of timeUnitGroupsMap | keyvalue" [label]="g.key">
+              <mat-option *ngFor="let u of g.value" [value]="u.id">
+                {{ u.label }} ({{ u.symbol }})
+              </mat-option>
+            </mat-optgroup>
+          </mat-select>
+        </mat-form-field>
+        <mat-slide-toggle
+          [(ngModel)]="form.temporalCumulative"
+          (change)="markDirty(form)"
+          color="primary">
+          Cumulative — past instances stay rendered
+        </mat-slide-toggle>
+      </div>
+    </mat-card-content>
+  </mat-card>
+</ng-template>
+
+<ng-template #actions let-form="form" let-dim="dim">
+  <div class="actions" *ngIf="form.kind !== 'connection'">
+    <button mat-flat-button color="primary"
+            (click)="save(dim)"
+            [disabled]="!form.dirty || form.saving">
+      <mat-icon>save</mat-icon>
+      {{ form.saving ? 'Saving…' : 'Save binding' }}
+    </button>
+    <span *ngIf="form.saved" class="muted small">Saved.</span>
+    <span *ngIf="form.error" class="err-text small">{{ form.error }}</span>
+  </div>
+</ng-template>

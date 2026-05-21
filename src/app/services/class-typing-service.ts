@@ -35,6 +35,7 @@ export class ClassTypingService {
         new navComponent("API Config","api-config","ApiConfigComponent", {}, []),
         new navComponent("System Diagnostics","system-diagnostics","SystemDiagnosticsComponent", {}, []),
         new navComponent("Permissions","permissions","PermissionsComponent", {}, []),
+        new navComponent("Sim Spaces","sim-spaces","SimSpaceListPageComponent", {}, []),
         new navComponent("Module Management","module-management","ModuleManagementComponent", {}, []),
         new navComponent("Tables","tables","TablesComponent", {}, []),
         new navComponent("Graphs","graphs","GraphsComponent", {}, []),

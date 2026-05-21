@@ -21,6 +21,8 @@ const routes: Routes = [
   { path: 'callback', loadComponent: () => import('@components/auth-callback/auth-callback.component').then(m => m.AuthCallbackComponent) },
   { path: 'permissions', loadComponent: () => import('@components/permissions/permissions.component').then(m => m.PermissionsComponent) },
   { path: 'permissions/roles/:name', loadComponent: () => import('@components/permissions/role-detail/role-detail.component').then(m => m.RoleDetailComponent) },
+  { path: 'sim-spaces', loadComponent: () => import('@components/sim-space/sim-space-list-page/sim-space-list-page.component').then(m => m.SimSpaceListPageComponent) },
+  { path: 'sim-spaces/:name', loadComponent: () => import('@components/sim-space/sim-space-detail-page/sim-space-detail-page.component').then(m => m.SimSpaceDetailPageComponent) },
   { path: 'polari-config', component: PolariConfigComponent},
   { path: 'polari-config/:polariAccessNode', component: PolariConfigComponent},
 { path: 'class-main-page/:class', component: ClassMainPageComponent},
