@@ -16,7 +16,7 @@ import katex from 'katex';
  *   <katex-display [latex]="someLatex" [displayMode]="true"></katex-display>
  */
 @Component({
-    standalone: false,
+    standalone: true,
     selector: 'katex-display',
     template: `<div #container class="katex-display-container" [class.empty]="!latex"></div>`,
     styles: [`

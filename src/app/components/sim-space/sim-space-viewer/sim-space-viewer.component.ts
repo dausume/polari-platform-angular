@@ -41,6 +41,12 @@ import { createTooltipElement, renderTooltipForObject } from './viewer-tooltip';
 import { SimSpaceLegendComponent } from './sim-space-legend.component';
 import { SimSpaceAxisLegendComponent } from './sim-space-axis-legend.component';
 import { SimSpaceScrubberComponent, ScrubberKind } from './sim-space-scrubber.component';
+import { SimSpaceEvaluationOverlayComponent } from './sim-space-evaluation-overlay.component';
+import { SimSpaceEvaluationSelectorComponent } from './sim-space-evaluation-selector.component';
+import {
+  SimSpaceEvaluationSnapshot,
+  SimSpaceEvaluationStep,
+} from '@models/sim-space/sim-space-types';
 
 @Component({
   standalone: true,
@@ -50,6 +56,8 @@ import { SimSpaceScrubberComponent, ScrubberKind } from './sim-space-scrubber.co
     SimSpaceLegendComponent,
     SimSpaceAxisLegendComponent,
     SimSpaceScrubberComponent,
+    SimSpaceEvaluationOverlayComponent,
+    SimSpaceEvaluationSelectorComponent,
   ],
   template: `
     <div class="viewer-host" #host></div>
@@ -66,12 +74,15 @@ import { SimSpaceScrubberComponent, ScrubberKind } from './sim-space-scrubber.co
     <sim-space-axis-legend *ngIf="snapshot"
       [dimensionality]="snapshot.definition.dimensionality"
       [coordinateSystem]="snapshot.definition.coordinateSystem"
-      [resolvedBindings]="snapshot.resolvedBindings || []">
+      [resolvedBindings]="snapshot.resolvedBindings || []"
+      [viewport]="snapshot.definition.viewport || null"
+      [axisLabels]="snapshot.definition.axisLabels || {}">
     </sim-space-axis-legend>
 
     <sim-space-legend
       [resolvedBindings]="snapshot?.resolvedBindings || []"
-      [objects]="snapshot?.objects || []">
+      [objects]="snapshot?.objects || []"
+      [bottomOffsetPx]="legendBottomOffsetPx">
     </sim-space-legend>
 
     <!-- Scrubber — only rendered when the snapshot has temporal bindings.
@@ -82,8 +93,25 @@ import { SimSpaceScrubberComponent, ScrubberKind } from './sim-space-scrubber.co
       [kind]="temporalKind"
       [unit]="temporalUnit"
       [currentTime]="currentTime"
-      (currentTimeChange)="onScrubberChange($event)">
+      (currentTimeChange)="onScrubberChange($event)"
+      (collapsedChange)="scrubberCollapsed = $event">
     </sim-space-scrubber>
+
+    <!-- Live-evaluation HUD — one always-visible selector pinned to
+         the top-right; at most ONE overlay rendered to its immediate
+         left. Toggling the active selection is the only way to make a
+         readout appear, so multiple readouts never overlap. -->
+    <div class="hud-stack" *ngIf="evaluations.length > 0">
+      <sim-space-evaluation-overlay *ngIf="activeEvaluation"
+        [evaluation]="activeEvaluation"
+        [currentStep]="evaluationValueFor(activeEvaluation)">
+      </sim-space-evaluation-overlay>
+      <sim-space-evaluation-selector
+        [evaluations]="evaluations"
+        [activeName]="activeEvaluationName"
+        (toggle)="onEvaluationToggle($event)">
+      </sim-space-evaluation-selector>
+    </div>
   `,
   styles: [`
     :host { display: block; position: relative; width: 100%; height: 100%; min-height: 400px; }
@@ -104,6 +132,22 @@ import { SimSpaceScrubberComponent, ScrubberKind } from './sim-space-scrubber.co
       border-left: 3px solid #ed6c02;
     }
     .warning-banner ul { margin: 4px 0 0 0; padding-left: 18px; }
+
+    /* HUD container — anchored top-right, lays the active overlay to
+       the LEFT of the selector via a row-direction flex. Selector stays
+       at the right edge regardless of whether an overlay is open. */
+    .hud-stack {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      z-index: 2;
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+      gap: 8px;
+      pointer-events: none; /* children re-enable as needed */
+    }
+    .hud-stack > * { pointer-events: auto; }
   `]
 })
 export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDestroy {
@@ -128,6 +172,70 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
   private resizeObserver?: ResizeObserver;
   private tooltipEl?: HTMLElement;
   private tooltipAttachedTo: string | null = null;
+
+  /** Latest evaluated value per overlay, keyed by evaluation name.
+   *  Populated on each debounced scrubber stop via the /evaluations/at
+   *  endpoint; transient (never persisted, never in the snapshot). */
+  evaluationValues = new Map<string, SimSpaceEvaluationStep>();
+
+  /** Name of the evaluation overlay the user has opened, or null when
+   *  no overlay is active. Owned here so the selector stays stateless. */
+  activeEvaluationName: string | null = null;
+
+  /** Mirrors the scrubber's collapse state so we can push the scene-
+   *  contents legend clear of whichever scrubber footprint is showing. */
+  scrubberCollapsed = false;
+
+  /** Bottom offset (px) for the scene-contents legend. Without temporal
+   *  bindings the scrubber doesn't render at all, so we sit at the
+   *  bottom corner. With a compact scrubber, lift ~60px; with the full
+   *  scrubber, lift ~76px. Eliminates the collision the user hit. */
+  get legendBottomOffsetPx(): number {
+    if (!this.hasTemporal) return 12;
+    return this.scrubberCollapsed ? 60 : 76;
+  }
+
+  /** Debounce timer for the on-stop evaluation fetch. */
+  private evalDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Debounce window (ms) — long enough that scrubber dragging doesn't
+   *  spam the server, short enough that a pause feels responsive. */
+  private readonly EVAL_DEBOUNCE_MS = 250;
+  /** Monotonic request token so an in-flight reply from a stale step
+   *  doesn't clobber a more recent answer. */
+  private evalRequestSeq = 0;
+
+  /** Convenience getter so the template doesn't deal with the optional
+   *  + ordering each time. */
+  get evaluations(): SimSpaceEvaluationSnapshot[] {
+    const evs = this.snapshot?.evaluations ?? [];
+    return [...evs].sort(
+      (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
+        || a.name.localeCompare(b.name)
+    );
+  }
+
+  /** The currently-open evaluation, or null if none. */
+  get activeEvaluation(): SimSpaceEvaluationSnapshot | null {
+    if (!this.activeEvaluationName) return null;
+    return this.evaluations.find(e => e.name === this.activeEvaluationName) ?? null;
+  }
+
+  /** Selector click handler — same name twice closes; different name
+   *  switches; first click opens. Triggers an immediate fetch so the
+   *  newly-opened overlay paints with the right value (the debounce
+   *  isn't needed since this is an explicit user action). */
+  onEvaluationToggle(name: string): void {
+    if (this.activeEvaluationName === name) {
+      this.activeEvaluationName = null;
+      return;
+    }
+    this.activeEvaluationName = name;
+    this.fetchEvaluationsAtCurrent();
+  }
+
+  trackEvaluation(_: number, ev: SimSpaceEvaluationSnapshot): string {
+    return ev.id;
+  }
 
   constructor(
     private simSpaceService: SimSpaceService,
@@ -160,6 +268,10 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
   }
 
   ngOnDestroy(): void {
+    if (this.evalDebounceTimer !== null) {
+      clearTimeout(this.evalDebounceTimer);
+      this.evalDebounceTimer = null;
+    }
     this.resizeObserver?.disconnect();
     this.renderer?.destroy();
     this.renderer = null;
@@ -188,10 +300,67 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
       this.renderer.loadDefinition(snap.definition);
       this.renderer.setObjects(this.visibleObjects());
       this.renderer.setConnections(this.visibleConnections());
+
+      // No overlay auto-opens on load — the user picks via the
+      // selector. So no initial evaluation fetch here; the first
+      // overlay click triggers its own fetch.
+      this.evaluationValues.clear();
+      this.activeEvaluationName = null;
     } catch (err: any) {
       this.errorMessage = err?.message || String(err);
       this.snapshot = null;
     }
+  }
+
+  /** Schedule a debounced fetch of evaluation values for the current
+   *  scrubber position. Subsequent calls within the debounce window
+   *  reset the timer — so a continuous drag fires zero requests until
+   *  the user finally settles on a value. Skips entirely when no
+   *  overlay is open; nothing would display the result anyway. */
+  private scheduleEvaluationFetch(): void {
+    if (!this.simSpaceName) return;
+    if (!this.activeEvaluationName) return;
+    if (this.evalDebounceTimer !== null) {
+      clearTimeout(this.evalDebounceTimer);
+    }
+    this.evalDebounceTimer = setTimeout(() => {
+      this.evalDebounceTimer = null;
+      this.fetchEvaluationsAtCurrent();
+    }, this.EVAL_DEBOUNCE_MS);
+  }
+
+  /** Fetch evaluation values at the current scrubber time. Tagged with
+   *  a monotonic request token so an out-of-order reply from a stale
+   *  step doesn't overwrite a fresher answer. */
+  private async fetchEvaluationsAtCurrent(): Promise<void> {
+    const name = this.simSpaceName;
+    if (!name) return;
+    const seq = ++this.evalRequestSeq;
+    const time = this.currentTime;
+    try {
+      const { evaluations } = await this.simSpaceService.evaluationsAt(
+        name, { time },
+      );
+      // Stale-reply guard.
+      if (seq !== this.evalRequestSeq || this.simSpaceName !== name) return;
+      const next = new Map<string, SimSpaceEvaluationStep>();
+      for (const ev of evaluations) {
+        const first = ev.perStep?.[0];
+        if (first) next.set(ev.name, first);
+      }
+      this.evaluationValues = next;
+    } catch {
+      // Silent — the overlay just shows "—" until a future stop succeeds.
+      // No persistent state on the server to corrupt; the user can pause
+      // again to retry.
+    }
+  }
+
+  /** Resolves the transient value to feed the overlay component. Returns
+   *  null when we haven't yet fetched a value for this overlay — the
+   *  overlay then renders a placeholder. */
+  evaluationValueFor(ev: SimSpaceEvaluationSnapshot): SimSpaceEvaluationStep | null {
+    return this.evaluationValues.get(ev.name) ?? null;
   }
 
   /**
@@ -234,6 +403,10 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
       this.renderer.setObjects(this.visibleObjects());
       this.renderer.setConnections(this.visibleConnections());
     }
+    // Equation values are recomputed only after the scrubber has been
+    // stationary for the debounce window — so live dragging doesn't
+    // hammer the server, but a deliberate stop refreshes promptly.
+    this.scheduleEvaluationFetch();
   }
 
   /**

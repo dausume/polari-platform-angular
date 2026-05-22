@@ -35,3 +35,35 @@
 .connection-notice .row-icon { color: #666; flex-shrink: 0; }
 .connection-notice strong { display: block; margin-bottom: 4px; }
 .connection-notice p { margin: 0; }
+
+/* Per-axis binding picker. Stacks vertically so the X/Y/Z labels read
+   top-to-bottom and the user always sees the axis a dropdown drives. */
+.axis-binding-group {
+  display: flex; flex-direction: column; gap: 12px;
+  margin-top: 8px;
+}
+.axis-binding-row {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 12px;
+  align-items: center;
+}
+.axis-binding-label {
+  display: flex; align-items: center; gap: 8px;
+}
+.axis-letter-chip {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px;
+  border-radius: 4px;
+  font-family: monospace; font-weight: 700; font-size: 0.95rem;
+  color: white;
+}
+/* Match the three.js AxesHelper convention used in the axis legend. */
+.axis-letter-chip.axis-x { background: #d32f2f; }
+.axis-letter-chip.axis-y { background: #388e3c; }
+.axis-letter-chip.axis-z { background: #1976d2; }
+.axis-binding-name {
+  font-weight: 600;
+  color: var(--mat-sys-on-surface, #1a1a1a);
+}
+.axis-binding-row mat-form-field { width: 100%; }

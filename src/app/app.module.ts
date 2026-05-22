@@ -298,9 +298,11 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     EquationConfigSidebarComponent,
     EquationSymbolPaletteComponent,
     OperationReferencePopupComponent,
-    KatexDisplayComponent
   ],
   imports: [
+    // KatexDisplayComponent is standalone — consumed by both legacy
+    // module-declared components and standalone sim-space overlays.
+    KatexDisplayComponent,
     BrowserModule,
     AppRoutingModule,
     BrowserAnimationsModule,

@@ -40,8 +40,25 @@ export type ScrubberKind = 'time' | 'step';
     MatSliderModule, MatTooltipModule, MatSelectModule, MatFormFieldModule,
   ],
   template: `
-    <div class="scrubber-panel" *ngIf="hasRange">
-      <div class="scrubber-row">
+    <div class="scrubber-panel" *ngIf="hasRange"
+         [class.collapsed]="collapsed"
+         [attr.data-collapsed]="collapsed">
+      <!-- Compact form: only play/pause + time + expand chevron. -->
+      <div class="scrubber-row" *ngIf="collapsed">
+        <button mat-icon-button (click)="togglePlay()"
+                [matTooltip]="playing ? 'Pause' : 'Play'">
+          <mat-icon>{{ playing ? 'pause' : 'play_arrow' }}</mat-icon>
+        </button>
+        <span class="time-display mono compact" [matTooltip]="rangeTooltip">
+          {{ formatTime(currentTime) }} / {{ formatTime(maxTime) }}
+        </span>
+        <button mat-icon-button (click)="setCollapsed(false)"
+                matTooltip="Expand scrubber" class="collapse-btn">
+          <mat-icon>expand_less</mat-icon>
+        </button>
+      </div>
+      <!-- Full form. -->
+      <div class="scrubber-row" *ngIf="!collapsed">
         <button mat-icon-button (click)="reset()" matTooltip="Jump to start">
           <mat-icon>skip_previous</mat-icon>
         </button>
@@ -71,6 +88,11 @@ export type ScrubberKind = 'time' | 'step';
             <mat-option *ngFor="let s of speeds" [value]="s">{{ s }}x</mat-option>
           </mat-select>
         </mat-form-field>
+
+        <button mat-icon-button (click)="setCollapsed(true)"
+                matTooltip="Minimize scrubber" class="collapse-btn">
+          <mat-icon>expand_more</mat-icon>
+        </button>
       </div>
     </div>
   `,
@@ -85,8 +107,14 @@ export type ScrubberKind = 'time' | 'step';
       border-radius: 6px;
       padding: 6px 12px;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-      z-index: 1;
+      z-index: 2;
     }
+    .scrubber-panel.collapsed {
+      left: auto;          /* shrink to content on the right */
+      max-width: 320px;
+    }
+    .time-display.compact { min-width: 0; }
+    .collapse-btn { margin-left: auto; }
     .scrubber-row {
       display: flex;
       align-items: center;
@@ -127,6 +155,14 @@ export class SimSpaceScrubberComponent implements OnChanges, OnDestroy {
   playbackSpeed = 1;
   readonly speeds = [0.25, 0.5, 1, 2, 4];
 
+  /** Compact-vs-full toggle. The compact form keeps play/pause + time
+   *  readout so the user can still control playback without expanding. */
+  collapsed = false;
+  /** Emits true when collapsed, false when expanded — so the viewer can
+   *  shift other absolutely-positioned panels (legend) clear of the
+   *  scrubber's current footprint. */
+  @Output() collapsedChange = new EventEmitter<boolean>();
+
   private rafId: number | null = null;
   private lastTick: number | null = null;
 
@@ -140,6 +176,12 @@ export class SimSpaceScrubberComponent implements OnChanges, OnDestroy {
 
   ngOnDestroy(): void {
     this.stop();
+  }
+
+  setCollapsed(value: boolean): void {
+    if (this.collapsed === value) return;
+    this.collapsed = value;
+    this.collapsedChange.emit(value);
   }
 
   get hasRange(): boolean {

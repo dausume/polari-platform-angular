@@ -30,14 +30,19 @@ import {
   selector: 'sim-space-legend',
   imports: [CommonModule, MatIconModule, MatChipsModule],
   template: `
-    <div class="legend-panel" *ngIf="totalCount > 0">
-      <div class="legend-header">
+    <div class="legend-panel" *ngIf="totalCount > 0" [class.collapsed]="collapsed"
+         [style.bottom.px]="bottomOffsetPx">
+      <button type="button" class="legend-header" (click)="collapsed = !collapsed"
+              [attr.aria-expanded]="!collapsed">
         <mat-icon>list_alt</mat-icon>
         <span class="legend-title">Scene contents</span>
         <span class="legend-total">{{ totalCount }}
           {{ totalCount === 1 ? 'object' : 'objects' }}
         </span>
-      </div>
+        <mat-icon class="collapse-chevron">{{ collapsed ? 'expand_more' : 'expand_less' }}</mat-icon>
+      </button>
+
+      <div class="legend-body" *ngIf="!collapsed">
 
       <ng-container *ngFor="let b of resolvedBindings">
         <div class="legend-row">
@@ -86,36 +91,67 @@ import {
           Baked into the SimSpace definition (not from a class binding).
         </div>
       </div>
+
+      </div><!-- /.legend-body -->
     </div>
   `,
   styles: [`
     .legend-panel {
       position: absolute;
       right: 12px;
-      bottom: 12px;
+      /* The 'bottom' value is driven by [style.bottom.px] on the panel
+         element so the legend lifts above the scrubber automatically. */
       background: rgba(255, 255, 255, 0.96);
       border: 1px solid #d0d0d0;
       border-radius: 6px;
-      padding: 10px 12px;
+      padding: 6px 10px 8px 10px;
       font-size: 0.8rem;
       min-width: 220px;
       max-width: 340px;
+      /* The scrubber sits at ~60px from the bottom and the HUD at top.
+         Cap to roughly 60vh and let the body scroll so the bottom never
+         drops off-screen. */
+      max-height: 60vh;
+      display: flex;
+      flex-direction: column;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
       z-index: 1;
+    }
+    .legend-panel.collapsed {
+      max-height: none;
     }
     .legend-header {
       display: flex;
       align-items: center;
       gap: 6px;
-      padding-bottom: 6px;
-      border-bottom: 1px solid #eee;
-      margin-bottom: 6px;
+      padding: 4px 4px 6px 4px;
+      border: none;
+      background: transparent;
+      width: 100%;
+      cursor: pointer;
+      color: inherit;
+      font: inherit;
+      text-align: left;
     }
+    .legend-panel:not(.collapsed) .legend-header {
+      border-bottom: 1px solid #eee;
+      margin-bottom: 4px;
+    }
+    .legend-header:hover { background: rgba(0, 0, 0, 0.03); border-radius: 4px; }
     .legend-header mat-icon {
       font-size: 18px;
       width: 18px;
       height: 18px;
       color: #555;
+    }
+    .collapse-chevron {
+      margin-left: 4px;
+      color: #888;
+    }
+    .legend-body {
+      overflow-y: auto;
+      flex: 1 1 auto;
+      padding-right: 2px;
     }
     .legend-title {
       font-weight: 600;
@@ -184,6 +220,13 @@ import {
 export class SimSpaceLegendComponent {
   @Input() resolvedBindings: SimSpaceResolvedBinding[] = [];
   @Input() objects: SimSpaceObject[] = [];
+  /** Distance from the canvas bottom. Driven by the viewer so the
+   *  legend lifts above whichever scrubber state is showing (compact or
+   *  expanded). Defaults clear the bare-corner case. */
+  @Input() bottomOffsetPx = 12;
+
+  /** Toggle for the body — header stays visible at all times. */
+  collapsed = false;
 
   /** Objects without a classRef are freestanding (baked into the definition). */
   get freestandingCount(): number {

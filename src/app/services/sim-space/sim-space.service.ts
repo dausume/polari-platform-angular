@@ -18,6 +18,7 @@ import { firstValueFrom } from 'rxjs';
 import { RuntimeConfigService } from '@services/runtime-config.service';
 import {
   SimSpaceDimensionality,
+  SimSpaceEvaluationSnapshot,
   SimSpaceSnapshot,
 } from '@models/sim-space/sim-space-types';
 
@@ -52,5 +53,34 @@ export class SimSpaceService {
       this.http.get<{ success: boolean; data: SimSpaceSnapshot }>(url)
     );
     return resp.data;
+  }
+
+  /**
+   * On-demand single-step evaluation of every SimSpaceEvaluationEquation
+   * in the scene. Fired by the viewer (debounced) when the user pauses
+   * on a particular scrubber position. Returns the same envelope shape
+   * as the snapshot's `evaluations` field, with one `perStep` entry per
+   * overlay carrying the requested step's values.
+   *
+   * Cheap on the server — leverages the LaTeX parse cache so repeated
+   * stops only pay sub-millisecond SymPy substitution + evalf.
+   */
+  async evaluationsAt(name: string, opts: { step?: number; time?: number }): Promise<{
+    evaluations: SimSpaceEvaluationSnapshot[];
+    warnings: string[];
+  }> {
+    const params = new URLSearchParams();
+    if (opts.step !== undefined) params.set('step', String(opts.step));
+    else if (opts.time !== undefined) params.set('time', String(opts.time));
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    const url = `${this.runtimeConfig.getBackendBaseUrl()}`
+      + `/api/simspace/${encodeURIComponent(name)}/evaluations/at${qs}`;
+    const resp = await firstValueFrom(
+      this.http.get<{
+        success: boolean;
+        data: { evaluations: SimSpaceEvaluationSnapshot[]; warnings: string[] };
+      }>(url)
+    );
+    return resp.data ?? { evaluations: [], warnings: [] };
   }
 }

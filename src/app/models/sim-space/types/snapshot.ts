@@ -15,6 +15,7 @@ import {
   SimSpaceViewport,
 } from './core';
 import { SimSpaceObject, SimSpaceConnection } from './object';
+import { SimSpaceEvaluationSnapshot } from './evaluation';
 
 /**
  * The persisted scene definition. Mirrors how GeoJsonDefinition stores its
@@ -47,6 +48,23 @@ export interface SimSpaceDefinitionPayload {
    * parse it through the 2D-specific type; 3D through theirs.
    */
   definition: string;
+  /**
+   * Optional per-axis label overrides. When absent or with `kind:default`
+   * the axis legend (and future in-canvas axis ticks) fall back to the
+   * dimensionality letters. `kind:text` renders the value as plain text;
+   * `kind:latex` renders via KaTeX so phase-space axes can carry
+   * symbolic notation (e.g. "\\omega" or "p_x / \\hbar").
+   */
+  axisLabels?: {
+    x?: SimSpaceAxisLabel;
+    y?: SimSpaceAxisLabel;
+    z?: SimSpaceAxisLabel;
+  };
+}
+
+export interface SimSpaceAxisLabel {
+  kind: 'default' | 'text' | 'latex';
+  value?: string;
 }
 
 /**
@@ -100,6 +118,12 @@ export interface SimSpaceSnapshot {
    * legend panel in the viewer (what's plotted, from which fields).
    */
   resolvedBindings?: SimSpaceResolvedBinding[];
+  /**
+   * Live equation readouts pre-computed at every recorded step. The
+   * viewer renders these as overlays (HTML + KaTeX above the canvas)
+   * and looks up the current-step value on every scrubber tick.
+   */
+  evaluations?: SimSpaceEvaluationSnapshot[];
   /**
    * Optional warnings — e.g. "class X is bound but has no instances",
    * "shape Y referenced but missing from library". UI shows these in a

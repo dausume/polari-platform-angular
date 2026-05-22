@@ -177,10 +177,16 @@ export class ClassSimSpaceTabComponent implements OnInit, OnChanges {
     const completeData = typing.completeVariableTypingData ?? {};
     const out: string[] = [];
     for (const [name, info] of Object.entries(completeData as Record<string, any>)) {
-      const t = (info?.varType ?? info?.type ?? '').toString().toLowerCase();
-      if (t === 'int' || t === 'float' || t === 'number' || t === 'numeric') {
-        out.push(name);
-      }
+      // Real variablePolyTyping shape — read the Python type AND the
+      // frontend-derived type. The old code looked at `varType` / `type`
+      // which don't exist on this model; the result was always empty
+      // and every binding had to be authored by hand in JSON.
+      const py = (info?.variablePythonType ?? '').toString().toLowerCase();
+      const fe = (info?.variableFrontendType ?? '').toString().toLowerCase();
+      const isNumeric =
+        py === 'int' || py === 'float' ||
+        fe === 'number' || fe === 'numeric' || fe === 'int' || fe === 'float';
+      if (isNumeric) out.push(name);
     }
     return out.sort();
   }

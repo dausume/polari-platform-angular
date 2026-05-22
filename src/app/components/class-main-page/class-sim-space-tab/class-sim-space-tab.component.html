@@ -40,19 +40,44 @@
           <mat-card appearance="outlined" class="section">
             <mat-card-content>
               <h4>Position binding</h4>
-              <div class="row">
-                <mat-form-field appearance="outline">
-                  <mat-label>X field</mat-label>
-                  <mat-select [(value)]="form2D.posX" (selectionChange)="markDirty(form2D)">
-                    <mat-option *ngFor="let f of numericFields" [value]="f">{{ f }}</mat-option>
-                  </mat-select>
-                </mat-form-field>
-                <mat-form-field appearance="outline">
-                  <mat-label>Y field</mat-label>
-                  <mat-select [(value)]="form2D.posY" (selectionChange)="markDirty(form2D)">
-                    <mat-option *ngFor="let f of numericFields" [value]="f">{{ f }}</mat-option>
-                  </mat-select>
-                </mat-form-field>
+              <p class="muted small">
+                Each axis receives the value of whichever numeric field you
+                pick on <code class="mono">{{ className }}</code>. The
+                visualization is intentionally not restricted to spatial
+                meaning — you can map <em>theta</em> to X and <em>omega</em>
+                to Y for a phase-space view, etc.
+              </p>
+              <div class="axis-binding-group">
+                <div class="axis-binding-row">
+                  <div class="axis-binding-label">
+                    <span class="axis-letter-chip axis-x">X</span>
+                    <span class="axis-binding-name">X axis</span>
+                  </div>
+                  <mat-form-field appearance="outline">
+                    <mat-label>Field driving X</mat-label>
+                    <mat-select [(value)]="form2D.posX" (selectionChange)="markDirty(form2D)">
+                      <mat-option *ngIf="numericFields.length === 0" disabled>
+                        (no numeric fields detected on this class)
+                      </mat-option>
+                      <mat-option *ngFor="let f of numericFields" [value]="f">{{ f }}</mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                </div>
+                <div class="axis-binding-row">
+                  <div class="axis-binding-label">
+                    <span class="axis-letter-chip axis-y">Y</span>
+                    <span class="axis-binding-name">Y axis</span>
+                  </div>
+                  <mat-form-field appearance="outline">
+                    <mat-label>Field driving Y</mat-label>
+                    <mat-select [(value)]="form2D.posY" (selectionChange)="markDirty(form2D)">
+                      <mat-option *ngIf="numericFields.length === 0" disabled>
+                        (no numeric fields detected on this class)
+                      </mat-option>
+                      <mat-option *ngFor="let f of numericFields" [value]="f">{{ f }}</mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                </div>
               </div>
             </mat-card-content>
           </mat-card>
@@ -121,25 +146,57 @@
           <mat-card appearance="outlined" class="section">
             <mat-card-content>
               <h4>Position binding</h4>
-              <div class="row">
-                <mat-form-field appearance="outline">
-                  <mat-label>X field</mat-label>
-                  <mat-select [(value)]="form3D.posX" (selectionChange)="markDirty(form3D)">
-                    <mat-option *ngFor="let f of numericFields" [value]="f">{{ f }}</mat-option>
-                  </mat-select>
-                </mat-form-field>
-                <mat-form-field appearance="outline">
-                  <mat-label>Y field</mat-label>
-                  <mat-select [(value)]="form3D.posY" (selectionChange)="markDirty(form3D)">
-                    <mat-option *ngFor="let f of numericFields" [value]="f">{{ f }}</mat-option>
-                  </mat-select>
-                </mat-form-field>
-                <mat-form-field appearance="outline">
-                  <mat-label>Z field</mat-label>
-                  <mat-select [(value)]="form3D.posZ" (selectionChange)="markDirty(form3D)">
-                    <mat-option *ngFor="let f of numericFields" [value]="f">{{ f }}</mat-option>
-                  </mat-select>
-                </mat-form-field>
+              <p class="muted small">
+                Each axis receives the value of whichever numeric field you
+                pick. Mappings are free — the framework doesn't assume X
+                means "horizontal in space"; this could be a phase space.
+              </p>
+              <div class="axis-binding-group">
+                <div class="axis-binding-row">
+                  <div class="axis-binding-label">
+                    <span class="axis-letter-chip axis-x">X</span>
+                    <span class="axis-binding-name">X axis</span>
+                  </div>
+                  <mat-form-field appearance="outline">
+                    <mat-label>Field driving X</mat-label>
+                    <mat-select [(value)]="form3D.posX" (selectionChange)="markDirty(form3D)">
+                      <mat-option *ngIf="numericFields.length === 0" disabled>
+                        (no numeric fields detected on this class)
+                      </mat-option>
+                      <mat-option *ngFor="let f of numericFields" [value]="f">{{ f }}</mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                </div>
+                <div class="axis-binding-row">
+                  <div class="axis-binding-label">
+                    <span class="axis-letter-chip axis-y">Y</span>
+                    <span class="axis-binding-name">Y axis</span>
+                  </div>
+                  <mat-form-field appearance="outline">
+                    <mat-label>Field driving Y</mat-label>
+                    <mat-select [(value)]="form3D.posY" (selectionChange)="markDirty(form3D)">
+                      <mat-option *ngIf="numericFields.length === 0" disabled>
+                        (no numeric fields detected on this class)
+                      </mat-option>
+                      <mat-option *ngFor="let f of numericFields" [value]="f">{{ f }}</mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                </div>
+                <div class="axis-binding-row">
+                  <div class="axis-binding-label">
+                    <span class="axis-letter-chip axis-z">Z</span>
+                    <span class="axis-binding-name">Z axis</span>
+                  </div>
+                  <mat-form-field appearance="outline">
+                    <mat-label>Field driving Z</mat-label>
+                    <mat-select [(value)]="form3D.posZ" (selectionChange)="markDirty(form3D)">
+                      <mat-option *ngIf="numericFields.length === 0" disabled>
+                        (no numeric fields detected on this class)
+                      </mat-option>
+                      <mat-option *ngFor="let f of numericFields" [value]="f">{{ f }}</mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                </div>
               </div>
             </mat-card-content>
           </mat-card>

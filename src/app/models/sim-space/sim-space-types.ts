@@ -25,3 +25,4 @@ export * from './types/core';
 export * from './types/object';
 export * from './types/binding';
 export * from './types/snapshot';
+export * from './types/evaluation';
