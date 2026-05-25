@@ -140,20 +140,25 @@ export class RunEquationOverlayPopupComponent implements OnInit, OnDestroy {
         );
     }
 
+    /** Drop host overrides for symbols the equation no longer declares.
+     *  Mirrors the inline overlay: equation `defaultSource` entries are
+     *  surfaced lazily via `getBindingSource()` rather than persisted into
+     *  the state's bindings array. See the inline overlay's docstring for
+     *  the rationale. */
     private reconcileBindings(): void {
         if (!this.equation) return;
-        const declared = this.equation.definition.variableBindings || [];
-        const next: RunEquationBindingEntry[] = [];
-        for (const b of declared as EquationVariableBinding[]) {
-            if (!b.symbol) continue;
-            const existing = this.config.bindings.find(x => x.symbol === b.symbol);
-            next.push(existing || {
-                symbol: b.symbol,
-                source: createDefaultValueSourceConfig('direct_assignment'),
-            });
-        }
-        this.config.bindings = next;
-        this.emitChange();
+        const declared = new Set(
+            (this.equation.definition.variableBindings || [])
+                .map(b => b.symbol)
+                .filter(s => !!s),
+        );
+        const before = this.config.bindings.length;
+        this.config.bindings = this.config.bindings.filter(b => declared.has(b.symbol));
+        if (this.config.bindings.length !== before) this.emitChange();
+    }
+
+    private cloneSource(src: ValueSourceConfig): ValueSourceConfig {
+        return JSON.parse(JSON.stringify(src)) as ValueSourceConfig;
     }
 
     // ── Picker ────────────────────────────────────────────────────────────
@@ -214,9 +219,16 @@ export class RunEquationOverlayPopupComponent implements OnInit, OnDestroy {
         }
     }
 
+    /** Host override if set, else fall back to the equation's `defaultSource`
+     *  (read-only view). The selector renders this exactly as if the user had
+     *  configured it; an actual override is only written when the user changes
+     *  the source via `onBindingSourceChange`. */
     getBindingSource(symbol: string): ValueSourceConfig {
         const e = this.config.bindings.find(b => b.symbol === symbol);
-        return e?.source || createDefaultValueSourceConfig('direct_assignment');
+        if (e?.source) return e.source;
+        const declared = this.equation?.definition.variableBindings.find(b => b.symbol === symbol);
+        if (declared?.defaultSource) return this.cloneSource(declared.defaultSource);
+        return createDefaultValueSourceConfig('direct_assignment');
     }
 
     // ── Result target ─────────────────────────────────────────────────────
@@ -239,8 +251,7 @@ export class RunEquationOverlayPopupComponent implements OnInit, OnDestroy {
     // ── Completion checks ────────────────────────────────────────────────
 
     isBindingComplete(symbol: string): boolean {
-        const entry = this.config.bindings.find(b => b.symbol === symbol);
-        const src = entry?.source;
+        const src = this.getBindingSource(symbol);
         if (!src) return false;
         switch (src.sourceType) {
             case 'direct_assignment':
@@ -257,8 +268,7 @@ export class RunEquationOverlayPopupComponent implements OnInit, OnDestroy {
     }
 
     incompleteBindingHint(symbol: string): string {
-        const entry = this.config.bindings.find(b => b.symbol === symbol);
-        const src = entry?.source;
+        const src = this.getBindingSource(symbol);
         if (!src) return 'Pick a source for this potential.';
         switch (src.sourceType) {
             case 'direct_assignment':  return 'Enter a literal value.';
@@ -338,6 +348,9 @@ export class RunEquationOverlayPopupComponent implements OnInit, OnDestroy {
             resultTarget: this.config.resultTarget,
             resultVariableName: this.config.resultVariableName,
             resultFieldPath: this.config.resultFieldPath,
+            // Preserve any existing codingComment so edits in the popup
+            // don't strip the per-state note set by the inline overlay.
+            codingComment: (this.data.boundObjectFieldValues || {})['codingComment'] || '',
         });
     }
 }

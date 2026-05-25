@@ -6,6 +6,8 @@
     [title]="config.equationName ? 'Calculus Op — ' + config.equationName : 'Calculus Operation'"
     [bordered]="true"
     [hasPopupView]="hasPopupView"
+    [codingComment]="(boundObjectFieldValues || {})['codingComment'] || ''"
+    (commentChanged)="onCodingCommentChange($event)"
     (expandClicked)="popupRequested.emit()">
 
     <div class="overlay-content state-overlay-scrollbar">

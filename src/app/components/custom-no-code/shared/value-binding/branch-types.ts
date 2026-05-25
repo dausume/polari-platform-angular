@@ -20,7 +20,8 @@ export type BranchKind =
     | 'from_upstream'
     | 'from_object'
     | 'from_dataset'
-    | 'parameter';
+    | 'parameter'
+    | 'inline_expression';
 
 /** Mode the parent shell is operating in. Drives header chrome + default branch set. */
 export type SelectorMode = 'source' | 'potential';
@@ -40,11 +41,12 @@ export interface BranchOption {
  * Leaf selectors filter this list to advertise only the kinds they support.
  */
 export const BRANCH_OPTIONS: BranchOption[] = [
-    { kind: 'literal',       label: 'Literal Value',          icon: 'edit' },
-    { kind: 'from_upstream', label: 'From Upstream Variable', icon: 'data_object' },
-    { kind: 'from_object',   label: 'From Object Instance',   icon: 'account_tree' },
-    { kind: 'from_dataset',  label: 'From DataSet',           icon: 'table_chart' },
-    { kind: 'parameter',     label: 'Parameter',              icon: 'tune' },
+    { kind: 'literal',           label: 'Literal Value',          icon: 'edit' },
+    { kind: 'from_upstream',     label: 'From Upstream Variable', icon: 'data_object' },
+    { kind: 'from_object',       label: 'From Object Instance',   icon: 'account_tree' },
+    { kind: 'from_dataset',      label: 'From DataSet',           icon: 'table_chart' },
+    { kind: 'parameter',         label: 'Parameter',              icon: 'tune' },
+    { kind: 'inline_expression', label: 'LaTeX Expression',       icon: 'functions' },
 ];
 
 /** Fast lookup: kind → option (label/icon). */

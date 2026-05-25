@@ -81,11 +81,11 @@ import {
         <ul class="binding-list">
           <li *ngFor="let b of evaluation?.bindings || []"
               class="binding-row"
-              [class.binding-instance]="b.source?.kind === 'simState'"
-              [class.binding-param]="b.source?.kind === 'param'"
-              [class.binding-const]="b.source?.kind === 'const'">
+              [class.binding-instance]="b.source.kind === 'simState'"
+              [class.binding-param]="b.source.kind === 'param'"
+              [class.binding-const]="b.source.kind === 'const'">
             <span class="binding-name mono">{{ b.softwareName || b.symbol }}</span>
-            <span class="binding-kind-badge">{{ kindLabel(b.source?.kind) }}</span>
+            <span class="binding-kind-badge">{{ kindLabel(b.source.kind) }}</span>
             <span class="binding-source mono">{{ sourceDescription(b.source) }}</span>
           </li>
         </ul>

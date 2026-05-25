@@ -95,6 +95,13 @@ export interface SimSpaceResolvedBinding {
   shapeRef: string;
   styleRef: string;
   /**
+   * Class-level metadata: when the bound class is a `*SimState`
+   * (declares a `simulation_definition_name` class attribute), this is
+   * its value. Lets the frontend's simulation-run panel pick the right
+   * SimulationDefinition without a separate discovery roundtrip.
+   */
+  simulationDefinitionName?: string;
+  /**
    * Temporal config from the binding, when present. Presence on any
    * resolvedBinding tells the viewer to enable a scrubber; the field +
    * unit determine slider labels.
@@ -130,4 +137,19 @@ export interface SimSpaceSnapshot {
    * non-blocking banner.
    */
   warnings?: string[];
+  /**
+   * Which SimulationRun the rendered `*SimState` rows are filtered to,
+   * or null when no filter was applied (every run's rows present).
+   * Echoes back the `?run=<name>` query the viewer sent so the run
+   * panel can confirm which dataset is on screen.
+   */
+  activeRunRef?: string | null;
+  /**
+   * Names of every SimulationDefinition whose `*SimState` classes are
+   * bound to this scene. Derived from class-level metadata, not from
+   * instance count — so a brand-new empty live run still tells the
+   * viewer "this scene participates in pendulum-2d," keeping the run
+   * panel visible.
+   */
+  participatingSimulations?: string[];
 }

@@ -18,5 +18,31 @@
     </button>
   </div>
 
+  <!-- Universal Coding Comment header strip — sits directly under the
+       title so it's the first thing the user can edit when documenting
+       state intent. Collapsed by default to keep compact displays tidy;
+       the header dot indicates a non-empty comment. -->
+  <div class="coding-comment-section coding-comment-section--top" *ngIf="showCodingComment">
+    <button type="button" class="coding-comment-toggle"
+            (click)="toggleCommentSection($event)"
+            (mousedown)="$event.stopPropagation()">
+      <mat-icon>{{ commentSectionOpen ? 'expand_less' : 'expand_more' }}</mat-icon>
+      <span class="coding-comment-label">Coding Comment</span>
+      <span class="coding-comment-indicator" *ngIf="codingComment && codingComment.length > 0">
+        ●
+      </span>
+    </button>
+    <div class="coding-comment-body" *ngIf="commentSectionOpen">
+      <textarea class="coding-comment-text"
+                rows="3"
+                placeholder="Notes about what this state does, why it's here, what to watch out for…"
+                [value]="codingComment"
+                (input)="onCommentTextChange($any($event.target).value)"
+                (click)="$event.stopPropagation()"
+                (mousedown)="$event.stopPropagation()">
+      </textarea>
+    </div>
+  </div>
+
   <ng-content></ng-content>
 </div>

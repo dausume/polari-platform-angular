@@ -9,3 +9,53 @@
 .shell-root {
   /* Inherits .state-overlay-card layout from the global utilities. */
 }
+
+/* Coding Comment strip — universal across every state overlay that
+   opts in. Visually subdued so the math/logic stays the focus, with
+   a small dot indicator when a comment exists. */
+.coding-comment-section {
+  margin-top: 8px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  padding-top: 4px;
+}
+/* Top-of-card variant: sits directly below the header strip, so we
+   replace the top border with a bottom-divider and zero the upper
+   margin so it visually reads as a continuation of the title. */
+.coding-comment-section--top {
+  margin-top: 0;
+  border-top: none;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  padding-top: 2px;
+  padding-bottom: 4px;
+  margin-bottom: 4px;
+}
+.coding-comment-toggle {
+  display: flex; align-items: center; gap: 4px;
+  width: 100%;
+  background: transparent; border: none; cursor: pointer;
+  padding: 4px 2px;
+  color: #555; font: inherit; font-size: 0.72rem;
+  text-align: left;
+}
+.coding-comment-toggle:hover { background: rgba(0, 0, 0, 0.03); border-radius: 3px; }
+.coding-comment-toggle mat-icon {
+  font-size: 16px; width: 16px; height: 16px;
+}
+.coding-comment-label {
+  flex: 1;
+  letter-spacing: 0.04em; text-transform: uppercase; font-weight: 600;
+}
+.coding-comment-indicator { color: #1976d2; font-size: 0.9em; }
+.coding-comment-body { padding: 4px 2px 2px 2px; }
+.coding-comment-text {
+  width: 100%;
+  font-size: 0.78rem;
+  padding: 6px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.4;
+  box-sizing: border-box;
+}
+.coding-comment-text:focus { outline: none; border-color: #1976d2; }

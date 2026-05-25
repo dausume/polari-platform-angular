@@ -27,6 +27,7 @@ import {
     AvailableDataset,
     FromDatasetValue,
 } from '../value-binding/branches/from-dataset-branch.component';
+import { InlineExpressionBranchValue } from '../value-binding/branches/inline-expression-branch.component';
 
 /**
  * Available input variable from a connected state
@@ -54,6 +55,7 @@ const PERSISTED_TO_BRANCH: Record<ValueSourceType, BranchKind> = {
     'from_source_object': 'from_object',
     'from_dataset': 'from_dataset',
     'direct_assignment': 'literal',
+    'from_latex': 'inline_expression',
 };
 const BRANCH_TO_PERSISTED: Record<BranchKind, ValueSourceType | null> = {
     'from_upstream': 'from_input',
@@ -61,6 +63,7 @@ const BRANCH_TO_PERSISTED: Record<BranchKind, ValueSourceType | null> = {
     'from_dataset': 'from_dataset',
     'literal': 'direct_assignment',
     'parameter': null, // not exposed by the source selector
+    'inline_expression': 'from_latex',
 };
 
 /** The branches this selector advertises in the shell's dropdown. */
@@ -69,6 +72,7 @@ const SOURCE_ALLOWED_BRANCHES: BranchKind[] = [
     'from_object',
     'from_dataset',
     'literal',
+    'inline_expression',
 ];
 
 @Component({
@@ -126,6 +130,7 @@ export class ValueSourceSelectorComponent implements OnInit, OnChanges {
     datasetFieldPath = '';
     directValue: any = '';
     directValueType: ValueTypeTag = 'str';
+    latexExpression = '';
 
     ngOnInit(): void {
         this.syncFromConfig();
@@ -157,6 +162,9 @@ export class ValueSourceSelectorComponent implements OnInit, OnChanges {
             case 'direct_assignment':
                 this.directValue = this.config.directValue ?? '';
                 this.directValueType = (this.config.directValueType as ValueTypeTag) || 'str';
+                break;
+            case 'from_latex':
+                this.latexExpression = this.config.latexExpression || '';
                 break;
         }
     }
@@ -193,6 +201,11 @@ export class ValueSourceSelectorComponent implements OnInit, OnChanges {
         this.emitFromActive();
     }
 
+    onInlineExpressionChange(v: InlineExpressionBranchValue): void {
+        this.latexExpression = v.latexExpression;
+        this.emitFromActive();
+    }
+
     // ── Emit ───────────────────────────────────────────────────────────────
 
     private emitFromActive(): void {
@@ -216,6 +229,9 @@ export class ValueSourceSelectorComponent implements OnInit, OnChanges {
             case 'direct_assignment':
                 out.directValue = this.directValue;
                 out.directValueType = this.directValueType;
+                break;
+            case 'from_latex':
+                out.latexExpression = this.latexExpression;
                 break;
         }
         this.configChange.emit(out);

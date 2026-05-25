@@ -50,4 +50,11 @@
         (selectionChange)="onDatasetChange($event)">
     </app-from-dataset-branch>
 
+    <app-inline-expression-branch
+        *ngIf="activeBranch === 'inline_expression'"
+        [latexExpression]="latexExpression"
+        [disabled]="disabled"
+        (selectionChange)="onInlineExpressionChange($event)">
+    </app-inline-expression-branch>
+
 </app-value-binding-shell>

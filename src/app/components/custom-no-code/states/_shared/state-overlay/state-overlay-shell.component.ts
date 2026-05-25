@@ -53,7 +53,42 @@ export class StateOverlayShellComponent {
   /** Inner padding applied to the card root. Override per-tier (e.g. '6px' for compact). */
   @Input() padding: string = '8px';
 
+  // ==================== Coding Comment ====================
+  // Universal "author's note" footer rendered on every state overlay
+  // that opts in. Overlays bind:
+  //
+  //   <state-overlay-shell ...
+  //     [codingComment]="boundObjectFieldValues['codingComment'] || ''"
+  //     (commentChanged)="onCodingCommentChange($event)">
+  //
+  // and patch the value into their fieldValuesChanged emit. The section
+  // is collapsed by default so it doesn't crowd compact-tier displays;
+  // a small "Comment" pill in the header signals when one is present.
+
+  /** Persisted Coding Comment text. Empty string = no comment yet. */
+  @Input() codingComment: string = '';
+
+  /** Whether this state should expose the comment section. Default
+   *  true so opt-out is per-overlay; opt-out only matters for tiers
+   *  where a footer would overflow the visible card (e.g. compact). */
+  @Input() showCodingComment: boolean = true;
+
   @Output() expandClicked = new EventEmitter<void>();
+  @Output() commentChanged = new EventEmitter<string>();
+
+  /** Local UI state — section open/closed. Independent of whether a
+   *  comment exists; users may want to hide a long comment temporarily. */
+  commentSectionOpen: boolean = false;
+
+  toggleCommentSection(event: MouseEvent): void {
+    event.stopPropagation();
+    this.commentSectionOpen = !this.commentSectionOpen;
+  }
+
+  onCommentTextChange(value: string): void {
+    this.codingComment = value;
+    this.commentChanged.emit(value);
+  }
 
   onExpandClick(event: MouseEvent): void {
     event.stopPropagation();

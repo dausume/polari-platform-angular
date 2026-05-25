@@ -15,15 +15,31 @@ import { BreakStatement } from '../flow-control/break-statement/break-statement.
 import { ContinueStatement } from '../flow-control/continue-statement/continue-statement.model';
 
 /**
- * Data types supported for variables
+ * Data types supported for variables.
+ *
+ * `equation` is a first-class type for variables that hold a LaTeX
+ * expression (NOT the numeric result of evaluating one — that's the
+ * `from_latex` value-source kind, which produces a number). When a
+ * variable's type is `equation`, the value source carries the literal
+ * LaTeX string; downstream states can pass it to a CalculusOperation
+ * for evaluation, or display it via KaTeX. Mirrors the `equation`
+ * field type already registered in PolariFieldType.
+ *
+ * `float` and `int` are aliases for `number` retained for parity with
+ * the backend's polyTyping vocabulary (where simulation field types
+ * arrive as 'float' / 'int') so the dropdown can faithfully reflect
+ * the Python-side type.
  */
 export type VariableDataType =
   | 'string'
   | 'number'
+  | 'int'
+  | 'float'
   | 'boolean'
   | 'date'
   | 'array'
   | 'object'
+  | 'equation'
   | 'any'
   | 'null';
 

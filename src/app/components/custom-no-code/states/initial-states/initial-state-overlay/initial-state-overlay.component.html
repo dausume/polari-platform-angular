@@ -7,6 +7,8 @@
   [title]="isCompact ? '' : (getCurrentTriggerOption()?.label || 'Initial State')"
   [bordered]="true"
   [hasPopupView]="hasPopupView"
+  [codingComment]="boundObjectFieldValues['codingComment'] || ''"
+  (commentChanged)="onCodingCommentChange($event)"
   (expandClicked)="onExpandClick()">
 
   <button headerExtras
@@ -143,6 +145,129 @@
       </div>
       <p class="trigger-description" *ngIf="!isSmall">
         Invoked by other solutions via cross-runtime calls.
+      </p>
+    </ng-container>
+
+    <!-- SimulationStateStep fields — shows what arrives in context at
+         the start of one timestep: the target *SimState class with its
+         fields, plus the simulations that route data into this solution. -->
+    <ng-container *ngIf="currentTriggerType === 'simulation_state_step'">
+      <!-- Step Solution Role — selects how the SimulationRunner
+           dispatches this solution against its (sim, class) group.
+              simStepComplete    → monolithic; ends at SimStepNextState.
+              simStepPartial     → emits a SimStepContribution payload;
+                                   many can coexist per class and are
+                                   merged additively (or by a
+                                   simStepComposition solution).
+              simStepComposition → reads `_step_contributions` + merged
+                                   context; ends at SimStepNextState.
+                                   At most one per class. -->
+      <div class="trigger-field sim-step-role-field">
+        <label class="trigger-field-label">Step Solution Role</label>
+        <select class="trigger-field-select"
+                [value]="boundObjectFieldValues['simStepRole'] || 'simStepComplete'"
+                (change)="onFieldValueChange('simStepRole', $any($event.target).value)"
+                (click)="$event.stopPropagation()"
+                (mousedown)="$event.stopPropagation()">
+          <option value="simStepComplete">Complete — full next-step row</option>
+          <option value="simStepPartial">Partial — sparse contribution delta</option>
+          <option value="simStepComposition">Composition — merge partials into next row</option>
+        </select>
+        <p class="trigger-description" *ngIf="!isSmall">
+          <ng-container [ngSwitch]="boundObjectFieldValues['simStepRole'] || 'simStepComplete'">
+            <span *ngSwitchCase="'simStepPartial'">
+              Ends at <strong>SimStepContribution</strong>. Many partials per class
+              are merged by the SimulationRunner via per-field op (set/add/mul/min/max).
+            </span>
+            <span *ngSwitchCase="'simStepComposition'">
+              Receives all partials' <code>_step_contributions</code> + merged context.
+              Ends at <strong>SimStepNextState</strong> to commit the final row.
+            </span>
+            <span *ngSwitchDefault>
+              Ends at <strong>SimStepNextState</strong>. One solution computes the whole next-step row.
+            </span>
+          </ng-container>
+        </p>
+      </div>
+
+      <!-- Target SimState class header -->
+      <div class="solution-info" *ngIf="boundObjectFieldValues['simStateClassName']">
+        <div class="solution-class">
+          <mat-icon>timeline</mat-icon>
+          <span class="class-name mono">{{ boundObjectFieldValues['simStateClassName'] }}</span>
+          <span class="sim-target-pill" title="Target SimState class — one new row of this class is produced per timestep">target</span>
+        </div>
+        <p class="solution-description" *ngIf="!isSmall">
+          Each timestep, the SimulationRunner merges this class's prev-step row
+          + simulation params + dt/step into context, then runs the graph below.
+        </p>
+      </div>
+
+      <!-- Incoming context — every expected field with its type from
+           the target class's polyTyping. Visually grouped so the user
+           can tell apart what came from prev-row vs. from params vs.
+           step metadata. -->
+      <div class="fields-section" *ngIf="simStepIncomingContext.length > 0">
+        <div class="section-header">
+          <span class="section-label">Incoming context</span>
+          <span class="field-count">{{ simStepIncomingContext.length }}</span>
+        </div>
+        <div class="fields-list">
+          <div *ngFor="let field of simStepIncomingContext" class="field-item">
+            <div class="field-main">
+              <span class="field-name mono">{{ field.name }}</span>
+              <span class="field-type" [ngClass]="getTypeBadgeClass(field.type)">{{ field.type }}</span>
+              <span class="origin-pill"
+                    [class.origin-prev]="field.origin === 'prev-row'"
+                    [class.origin-param]="field.origin === 'param'"
+                    [class.origin-step]="field.origin === 'step'"
+                    [title]="field.originHint">
+                {{ field.origin }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty-incoming-context fallback — surfaces when the editor
+           can't resolve typings yet (e.g. simulation not yet booted). -->
+      <div class="empty-state" *ngIf="simStepIncomingContext.length === 0">
+        <mat-icon>info_outline</mat-icon>
+        <span>No expected fields declared on this solution yet.</span>
+      </div>
+
+      <!-- Linked simulations — which SimulationDefinitions reference
+           THIS solution. A single step solution can be reused across
+           multiple simulations, so this is what tells the analyst
+           which scenes their edits flow into. -->
+      <div class="linked-parents-section" *ngIf="linkedSimulations.length > 0">
+        <div class="section-header">
+          <span class="section-label">Used by simulations</span>
+          <span class="field-count">{{ linkedSimulations.length }}</span>
+        </div>
+        <div class="linked-parents-list">
+          <div *ngFor="let link of linkedSimulations" class="linked-parent-item">
+            <mat-icon class="parent-link-icon" style="color: #1e88e5">play_circle</mat-icon>
+            <div class="parent-info">
+              <span class="parent-name mono">{{ link.simulationRef }}</span>
+              <span class="parent-state" *ngIf="!isSmall">
+                wired as <code>{{ link.bindingName }}</code>
+                <span *ngIf="link.simStateClassName"> · {{ link.simStateClassName }}</span>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="empty-state" *ngIf="linkedSimulations.length === 0 && simStepIncomingContext.length > 0">
+        <mat-icon>link_off</mat-icon>
+        <span>No SimulationDefinitions reference this solution yet.</span>
+      </div>
+
+      <p class="trigger-description" *ngIf="!isSmall && (simStepIncomingContext.length > 0 || linkedSimulations.length > 0)">
+        Runs once per simulation timestep. The graph terminates at
+        <strong>SimStepNextState</strong> (Complete / Composition) or
+        <strong>SimStepContribution</strong> (Partial) depending on the
+        role selected above.
       </p>
     </ng-container>
 

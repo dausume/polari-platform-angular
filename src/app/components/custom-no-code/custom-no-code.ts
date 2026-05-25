@@ -1458,7 +1458,8 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
       'direct_invocation': 'DirectInvocation',
       'form_subscription': 'FormSubscription',
       'logic_flow_entry': 'LogicFlowEntry',
-      'backend_state_change': 'BackendStateChange'
+      'backend_state_change': 'BackendStateChange',
+      'simulation_state_step': 'SimulationStateStep',
     };
 
     const newClassName = classNameMap[newType];
@@ -2562,31 +2563,39 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   /**
-   * Export the current solution as JSON
+   * Export the current solution as raw JSON — both downloads a file and
+   * copies the JSON to the clipboard so the user can paste it directly
+   * into a chat/issue for sharing.
    */
   exportSolution(): void {
-    if (!this.noCodeSolution) {
-      console.warn('[exportSolution] No solution to export');
+    const solutionName =
+      this.selectedSolutionName || this.noCodeSolution?.solutionName || '';
+    if (!solutionName) {
+      console.warn('[exportSolution] No solution selected');
       return;
     }
 
-    const solutionData = {
-      solutionName: this.noCodeSolution.solutionName,
-      states: this.stateInstances,
-      exportedAt: new Date().toISOString()
-    };
+    const rawData = this.solutionStateService.getSolutionData(solutionName);
+    if (!rawData) {
+      console.warn('[exportSolution] No raw data for solution:', solutionName);
+      return;
+    }
 
-    const json = JSON.stringify(solutionData, null, 2);
+    const json = JSON.stringify(rawData, null, 2);
+
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(json).catch((err) => {
+        console.warn('[exportSolution] Clipboard write failed:', err);
+      });
+    }
+
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${this.noCodeSolution.solutionName || 'solution'}.json`;
+    a.download = `${solutionName}.json`;
     a.click();
-
     URL.revokeObjectURL(url);
-    // console.log('[exportSolution] Exported solution:', this.noCodeSolution.solutionName);
   }
 
   // ==================== Version Management Methods ====================

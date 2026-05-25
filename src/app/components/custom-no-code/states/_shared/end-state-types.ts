@@ -8,12 +8,20 @@ import { TargetRuntime } from '../../../../models/noCode/mock-NCS-data';
  * Determines how a solution terminates.
  */
 export type EndStateCompletionType =
-  | 'return_value'       // Return a value to the caller
-  | 'state_change'       // Commit object state to backend
-  | 'emit_event';        // Emit event for cross-solution signaling
+  | 'return_value'              // Return a value to the caller
+  | 'state_change'              // Commit object state to backend
+  | 'emit_event'                // Emit event for cross-solution signaling
+  | 'sim_step_next_state'       // Declare the next *SimState row (simStepComplete/Composition terminator)
+  | 'sim_step_contribution';    // Emit a partial-step delta (simStepPartial terminator)
 
 /**
  * Returns the valid end state completion types for a given runtime.
+ *
+ * `sim_step_next_state` and `sim_step_contribution` are intentionally
+ * NOT listed here — they're only valid inside SimulationStateStep
+ * solutions and the Sim-Step editor offers them via dedicated pickers
+ * driven by the active `simStepRole`, not via the generic end-state
+ * dropdown.
  */
 export function getAvailableEndStateTypes(runtime: TargetRuntime): EndStateCompletionType[] {
   switch (runtime) {

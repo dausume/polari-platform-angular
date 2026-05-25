@@ -6,6 +6,25 @@ import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, OnChanges, S
 import { InitialStateTriggerType, getAvailableInitialStateTypes, StateSpaceClassRegistry } from '@models/stateSpace';
 import { TargetRuntime } from '@models/noCode/mock-NCS-data';
 import { StateOverlayBase } from '../../_shared/state-overlay/state-overlay-base';
+import { SimulationRunService } from '@services/sim-space/simulation-run.service';
+import { ClassTypingService } from '@services/class-typing-service';
+
+/** One entry of incoming-context info shown in the
+ *  SimulationStateStep overlay — what's in the engine's context
+ *  when this solution starts running. */
+export interface SimStepIncomingField {
+  name: string;
+  type: string;
+  origin: 'prev-row' | 'param' | 'step';
+  originHint: string;
+}
+
+/** One simulation that uses this step solution. */
+export interface LinkedSimulationEntry {
+  bindingName: string;
+  simulationRef: string;
+  simStateClassName: string;
+}
 
 /**
  * Solution Object field definition
@@ -84,13 +103,36 @@ export class InitialStateOverlayComponent extends StateOverlayBase implements On
 
   private registry = StateSpaceClassRegistry.getInstance();
 
+  /** Computed display lists for the SimulationStateStep branch. */
+  simStepIncomingContext: SimStepIncomingField[] = [];
+  linkedSimulations: LinkedSimulationEntry[] = [];
+
+  constructor(
+    private simRunService: SimulationRunService,
+    private typingService: ClassTypingService,
+  ) {
+    super();
+  }
+
   override ngOnInit(): void {
     super.ngOnInit();
     this.updateSizeMode();
     this.updateTriggerTypeOptions();
+    this.refreshSimulationStepLists();
   }
 
   ngOnDestroy(): void {}
+
+  /** Handle Coding Comment edits from the shared shell footer.
+   *  Persists into boundObjectFieldValues so the comment round-trips
+   *  through saves like every other field. */
+  onCodingCommentChange(value: string): void {
+    if (!this.boundObjectFieldValues) {
+      this.boundObjectFieldValues = {};
+    }
+    this.boundObjectFieldValues['codingComment'] = value;
+    this.fieldValueChanged.emit({ fieldName: 'codingComment', value });
+  }
 
   override ngOnChanges(changes: SimpleChanges): void {
     super.ngOnChanges(changes);
@@ -100,6 +142,80 @@ export class InitialStateOverlayComponent extends StateOverlayBase implements On
     if (changes['width'] || changes['height']) {
       this.updateSizeMode();
     }
+    if (changes['currentTriggerType']
+        || changes['solutionName']
+        || changes['boundObjectFieldValues']) {
+      this.refreshSimulationStepLists();
+    }
+  }
+
+  /** Build incoming-context + linked-simulations lists when the
+   *  overlay is rendering a SimulationStateStep. Quietly clears them
+   *  for other trigger types so we don't show stale data when the
+   *  user flips between types. */
+  private async refreshSimulationStepLists(): Promise<void> {
+    if (this.currentTriggerType !== 'simulation_state_step') {
+      this.simStepIncomingContext = [];
+      this.linkedSimulations = [];
+      return;
+    }
+    this.simStepIncomingContext = this.buildSimStepIncomingContext();
+    if (!this.solutionName) {
+      this.linkedSimulations = [];
+      return;
+    }
+    try {
+      const rows = await this.simRunService.simulationsUsingSolution(this.solutionName);
+      this.linkedSimulations = rows.map(r => ({
+        bindingName: r.bindingName,
+        simulationRef: r.simulationRef,
+        simStateClassName: r.simStateClassName,
+      }));
+    } catch {
+      this.linkedSimulations = [];
+    }
+  }
+
+  /** Walk the declared `expectedFields` on the SimulationStateStep
+   *  and tag each one with its likely origin. Field names that match
+   *  the target *SimState class's variable typing get a `prev-row`
+   *  badge with the resolved type; common simulation params (g, L,
+   *  mass, …) get `param`; dt / time / step get the `step` tag. */
+  private buildSimStepIncomingContext(): SimStepIncomingField[] {
+    const expected = (this.boundObjectFieldValues?.['expectedFields'] as string[]) || [];
+    if (!expected.length) return [];
+    const targetClass = this.boundObjectFieldValues?.['simStateClassName'] as string || '';
+    const classTyping = targetClass
+      ? (this.typingService.polyTyping as any)[targetClass]
+      : undefined;
+    const fieldTyping = (classTyping?.completeVariableTypingData ?? {}) as Record<string, any>;
+    const stepMetaSet = new Set(['dt', 'time', 'step']);
+    return expected.map(name => {
+      if (stepMetaSet.has(name)) {
+        return {
+          name,
+          type: name === 'step' ? 'int' : 'float',
+          origin: 'step' as const,
+          originHint: 'Set by the SimulationRunner each tick (dt, time, step).',
+        };
+      }
+      const fieldInfo = fieldTyping[name];
+      if (fieldInfo) {
+        const t = (fieldInfo.variablePythonType || fieldInfo.variableFrontendType || 'unknown').toString();
+        return {
+          name,
+          type: t,
+          origin: 'prev-row' as const,
+          originHint: `Value of ${targetClass}.${name} at the previous step (or initial conditions at step 0).`,
+        };
+      }
+      return {
+        name,
+        type: 'float',
+        origin: 'param' as const,
+        originHint: 'Simulation parameter read from SimulationDefinition.parameters_json.',
+      };
+    });
   }
 
   /**
@@ -126,7 +242,8 @@ export class InitialStateOverlayComponent extends StateOverlayBase implements On
       'direct_invocation': 'DirectInvocation',
       'form_subscription': 'FormSubscription',
       'logic_flow_entry': 'LogicFlowEntry',
-      'backend_state_change': 'BackendStateChange'
+      'backend_state_change': 'BackendStateChange',
+      'simulation_state_step': 'SimulationStateStep',
     };
     return this.registry.getClass(classNameMap[type]);
   }
@@ -139,7 +256,8 @@ export class InitialStateOverlayComponent extends StateOverlayBase implements On
       'direct_invocation': 'Direct Invocation',
       'form_subscription': 'Form Subscription',
       'logic_flow_entry': 'Logic Flow Entry',
-      'backend_state_change': 'Backend State Change'
+      'backend_state_change': 'Backend State Change',
+      'simulation_state_step': 'Simulation State Step',
     };
     return labels[type];
   }

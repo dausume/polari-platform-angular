@@ -1,3 +1,20 @@
+/* SimulationStateStep-specific pills (target class + per-field origin
+   badges). Scoped to this overlay so the rest of the editor isn't
+   touched. */
+.sim-target-pill {
+  font-size: 0.62rem; letter-spacing: 0.05em; text-transform: uppercase;
+  padding: 1px 6px; border-radius: 3px; font-weight: 700;
+  background: #1e88e5; color: #fff; margin-left: 6px;
+}
+.origin-pill {
+  font-size: 0.6rem; letter-spacing: 0.04em; text-transform: uppercase;
+  padding: 1px 5px; border-radius: 3px; font-weight: 700; margin-left: 6px;
+}
+.origin-pill.origin-prev  { background: #d3eafe; color: #1958a8; }
+.origin-pill.origin-param { background: #fce7d2; color: #944a18; }
+.origin-pill.origin-step  { background: #efe3fb; color: #5a2e93; }
+.mono { font-family: monospace; }
+
 /* Initial State Overlay — state-specific layout. Card / header / scrollbar
    styles come from the global state-overlay-patterns. */
 

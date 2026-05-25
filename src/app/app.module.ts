@@ -109,6 +109,7 @@ import { FromUpstreamBranchComponent } from '@components/custom-no-code/shared/v
 import { FromObjectBranchComponent } from '@components/custom-no-code/shared/value-binding/branches/from-object-branch.component';
 import { FromDatasetBranchComponent } from '@components/custom-no-code/shared/value-binding/branches/from-dataset-branch.component';
 import { ParameterBranchComponent } from '@components/custom-no-code/shared/value-binding/branches/parameter-branch.component';
+import { InlineExpressionBranchComponent } from '@components/custom-no-code/shared/value-binding/branches/inline-expression-branch.component';
 import { ValuePotentialSelectorComponent } from '@components/custom-no-code/shared/value-potential-selector/value-potential-selector.component';
 import { RunEquationOverlayComponent } from '@components/custom-no-code/states/equations/run-equation-overlay/run-equation-overlay.component';
 import { RunEquationOverlayPopupComponent } from '@components/custom-no-code/states/equations/run-equation-overlay/popup/run-equation-overlay-popup.component';
@@ -260,6 +261,7 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     FromObjectBranchComponent,
     FromDatasetBranchComponent,
     ParameterBranchComponent,
+    InlineExpressionBranchComponent,
     ValuePotentialSelectorComponent,
     RunEquationOverlayComponent,
     RunEquationOverlayPopupComponent,

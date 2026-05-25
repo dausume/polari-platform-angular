@@ -98,15 +98,21 @@ export class VariableAssignmentOverlayComponent extends StateOverlayBase impleme
     valueSource: createDefaultValueSourceConfig('direct_assignment')
   };
 
-  // Data types for dropdown
+  // Data types for dropdown — `int` / `float` surfaced separately so
+  // simulation-step variables (which are usually one or the other on
+  // the Python side) can be tagged accurately. `equation` is for
+  // variables that HOLD a LaTeX expression as their value.
   dataTypes: { value: VariableDataType; label: string }[] = [
-    { value: 'string', label: 'String' },
-    { value: 'number', label: 'Number' },
-    { value: 'boolean', label: 'Boolean' },
-    { value: 'date', label: 'Date' },
-    { value: 'array', label: 'Array' },
-    { value: 'object', label: 'Object' },
-    { value: 'any', label: 'Any' }
+    { value: 'string',   label: 'String' },
+    { value: 'int',      label: 'Integer' },
+    { value: 'float',    label: 'Float' },
+    { value: 'number',   label: 'Number' },
+    { value: 'boolean',  label: 'Boolean' },
+    { value: 'date',     label: 'Date' },
+    { value: 'array',    label: 'Array' },
+    { value: 'object',   label: 'Object' },
+    { value: 'equation', label: 'Equation (LaTeX)' },
+    { value: 'any',      label: 'Any' },
   ];
 
   // Target type options
@@ -185,12 +191,17 @@ export class VariableAssignmentOverlayComponent extends StateOverlayBase impleme
         this.config.dataType = bofv['dataType'] as VariableDataType;
       }
 
-      // Initialize value source from the stored value
-      if (bofv['value'] !== undefined && bofv['value'] !== null) {
+      // Prefer the structured assignmentConfig.valueSource when present —
+      // that's the canonical place the engine reads from, and it carries
+      // richer source kinds (from_latex, from_source_object, …) that
+      // the legacy top-level `value` field can't express. Fall back to
+      // the plain `value` only when no assignmentConfig exists.
+      const structured = bofv['assignmentConfig'] as { valueSource?: ValueSourceConfig } | undefined;
+      if (structured?.valueSource && structured.valueSource.sourceType) {
+        this.config.valueSource = { ...structured.valueSource };
+      } else if (bofv['value'] !== undefined && bofv['value'] !== null) {
         const value = bofv['value'];
-        // Try to detect if it's an expression or literal
         if (typeof value === 'string' && /[+\-*\/]/.test(value)) {
-          // Looks like an expression
           this.config.valueSource = {
             sourceType: 'direct_assignment',
             directValue: value,
@@ -407,6 +418,15 @@ export class VariableAssignmentOverlayComponent extends StateOverlayBase impleme
     this.emitChange();
   }
 
+  /** Handle Coding Comment edits from the shared shell footer. */
+  onCodingCommentChange(value: string): void {
+    if (!this.boundObjectFieldValues) {
+      this.boundObjectFieldValues = {};
+    }
+    this.boundObjectFieldValues['codingComment'] = value;
+    this.emitChange();
+  }
+
   /**
    * Open the value source popup
    */
@@ -458,13 +478,28 @@ export class VariableAssignmentOverlayComponent extends StateOverlayBase impleme
   private emitChange(): void {
     this.assignmentChanged.emit(this.config);
 
-    // Also emit as bound field values for state persistence
+    // Also emit as bound field values for state persistence. The
+    // canonical place the engine reads from is `assignmentConfig.
+    // valueSource` — including that here lets richer source kinds
+    // (from_latex, from_source_object, etc.) round-trip through the
+    // editor without being flattened to a plain string. `value` is
+    // kept for backward compatibility with old solutions that only
+    // looked at the top-level field.
     const fieldValues: { [key: string]: any } = {
       displayName: this.getDisplayName(),
       variableName: this.getTargetName(),
       dataType: this.config.dataType,
       value: this.getValueString(),
-      description: this.getDescription()
+      description: this.getDescription(),
+      codingComment: this.boundObjectFieldValues?.['codingComment'] || '',
+      assignmentConfig: {
+        targetType: this.config.targetType,
+        variableName: this.config.variableName,
+        dataType: this.config.dataType,
+        isConst: this.config.isConst,
+        solutionFieldPath: this.config.solutionFieldPath,
+        valueSource: { ...this.config.valueSource },
+      },
     };
     this.fieldValuesChanged.emit(fieldValues);
   }

@@ -34,6 +34,7 @@ import { DirectInvocation } from '../initial-states/direct-invocation/direct-inv
 import { FormSubscription } from '../initial-states/form-subscription/form-subscription.model';
 import { LogicFlowEntry } from '../initial-states/logic-flow-entry/logic-flow-entry.model';
 import { BackendStateChange } from '../initial-states/backend-state-change/backend-state-change.model';
+import { SimulationStateStep } from '../initial-states/simulation-state-step/simulation-state-step.model';
 import {
   EndStateCompletionType,
   getAvailableEndStateTypes
@@ -41,6 +42,8 @@ import {
 import { ReturnValue } from '../end-states/return-value/return-value.model';
 import { StateChangeCommit } from '../end-states/state-change-commit/state-change-commit.model';
 import { EmitEvent } from '../end-states/emit-event/emit-event.model';
+import { SimStepContribution } from '../end-states/sim-step-contribution/sim-step-contribution.model';
+import { SimStepNextState } from '../end-states/sim-step-next-state/sim-step-next-state.model';
 
 /**
  * State-space class category for UI organization
@@ -337,6 +340,56 @@ export class StateSpaceClassRegistry {
         { name: 'description', displayName: 'Description', type: 'string', isEditable: true, defaultValue: '' }
       ],
       factory: () => new BackendStateChange()
+    });
+
+    // Simulation State Step — entry point for solutions that run as one
+    // timestep of a simulation. Context is pre-populated by the
+    // SimulationRunner with prev-step *SimState fields + params + dt/
+    // step. Backend-only (the runner is a Python orchestrator).
+    this.registerClass({
+      className: 'SimulationStateStep',
+      displayName: 'Simulation State Step',
+      description: 'Runs once per simulation timestep — reads prev-step *SimState fields + params + dt/step from context. Ends at SimStepNextState (simStepComplete / simStepComposition) or SimStepContribution (simStepPartial).',
+      category: 'Initial States',
+      icon: 'timeline',
+      color: '#1e88e5',
+      isStateSpaceObject: true,
+      stateSpaceDisplayFields: ['displayName', 'simStateClassName', 'expectedFields'],
+      stateSpaceFieldsPerRow: 1,
+      isBuiltIn: true,
+      specialStateType: 'initial',
+      initialStateSubtype: 'simulation_state_step',
+      supportedRuntimes: ['python_backend'],
+      eventMethods: [
+        {
+          methodName: 'onTimestep',
+          displayName: 'On Timestep',
+          description: 'Invoked by SimulationRunner once per timestep with the prior step row\'s context pre-merged.',
+          category: 'Simulation',
+          inputParams: [
+            { name: 'simStateContext', displayName: 'SimState Context', type: 'object', isRequired: true },
+          ],
+          output: { type: 'object', displayName: 'New Step Context' },
+        },
+      ],
+      variables: [
+        { name: 'displayName', displayName: 'Display Name', type: 'string', isEditable: true, defaultValue: 'Simulation Step' },
+        { name: 'simStateClassName', displayName: 'Target *SimState class', type: 'string', isEditable: true, defaultValue: '' },
+        { name: 'expectedFields', displayName: 'Expected prev-step fields', type: 'list', isEditable: true, defaultValue: [] },
+        // `simStepRole` distinguishes the three step-solution variants
+        // the SimulationRunner can dispatch:
+        //   simStepComplete    — single solution producing the whole
+        //                        next row; terminates at SimStepNextState.
+        //   simStepPartial     — emits a sparse field-delta payload;
+        //                        terminates at SimStepContribution.
+        //   simStepComposition — combines partials into the next row;
+        //                        terminates at SimStepNextState.
+        // The runner refuses to dispatch a binding whose step solution
+        // doesn't declare a role — the editor must always emit one.
+        { name: 'simStepRole', displayName: 'Step Solution Role', type: 'string', isEditable: true, defaultValue: 'simStepComplete' },
+        { name: 'description', displayName: 'Description', type: 'string', isEditable: true, defaultValue: '' },
+      ],
+      factory: () => new SimulationStateStep(),
     });
 
     // Legacy alias: old solutions with stateClass='InitialState' deserialize as DirectInvocation
@@ -798,9 +851,15 @@ export class StateSpaceClassRegistry {
 
     // === Data Operations (Variable & Function) ===
     this.registerClass({
+      // className stays 'VariableAssignment' on the wire so existing
+      // saved solutions still resolve — only the display label moves.
+      // The new label reads more honestly: in practice almost every
+      // "assignment" is a value-source binding (LaTeX expression,
+      // upstream variable, object field), not a literal — so the node
+      // is functionally a "create a new variable holding this value".
       className: 'VariableAssignment',
-      displayName: 'Variable Assignment',
-      description: 'Assign a value to a variable (declare or update)',
+      displayName: 'Variable Creation',
+      description: 'Create a new variable holding the value of a configured value source (literal, LaTeX expression, upstream input, object field, or dataset).',
       category: 'Variables & Calls',
       icon: 'edit',
       color: '#9C27B0',
@@ -1018,6 +1077,88 @@ export class StateSpaceClassRegistry {
         { name: 'eventPayload', displayName: 'Event Payload', type: 'string', isEditable: true, defaultValue: '{}' }
       ],
       factory: () => new EmitEvent()
+    });
+
+    // SimStepNextState — terminator for `simStepComplete` and
+    // `simStepComposition` SimulationStateStep solutions. Declares the
+    // new *SimState row's field values that the SimulationRunner
+    // projects onto a fresh row. NOT a general-purpose end state —
+    // only valid inside a SimulationStateStep solution.
+    this.registerClass({
+      className: 'SimStepNextState',
+      displayName: 'Sim Step Next State',
+      description: 'Declares the next-step *SimState row produced by a simStepComplete or simStepComposition step solution.',
+      category: 'End States',
+      icon: 'last_page',
+      color: '#42A5F5',
+      isStateSpaceObject: true,
+      stateSpaceDisplayFields: ['displayName', 'simStateClassName'],
+      stateSpaceFieldsPerRow: 1,
+      isBuiltIn: true,
+      specialStateType: 'end',
+      endStateSubtype: 'sim_step_next_state',
+      supportedRuntimes: ['python_backend'],
+      eventMethods: [
+        {
+          methodName: 'execute',
+          displayName: 'Commit Next Row',
+          description: 'Write the next-step *SimState row fields to context and exit.',
+          category: 'Simulation',
+          inputParams: [
+            { name: 'context', displayName: 'Context', type: 'object', isRequired: true }
+          ],
+          output: { type: 'object', displayName: 'Next *SimState row' }
+        }
+      ],
+      variables: [
+        { name: 'displayName', displayName: 'Display Name', type: 'string', isEditable: true, defaultValue: 'Sim Step Next State' },
+        { name: 'simStateClassName', displayName: 'Target *SimState class', type: 'string', isEditable: true, defaultValue: '' },
+        { name: 'outputMappings', displayName: 'Field Values', type: 'list', isEditable: true, defaultValue: [] },
+        { name: 'description', displayName: 'Description', type: 'string', isEditable: true, defaultValue: '' }
+      ],
+      factory: () => new SimStepNextState()
+    });
+
+    // SimStepContribution — terminator for `simStepPartial`
+    // SimulationStateStep solutions. Emits a sparse {field → {value, op}}
+    // payload onto the engine's `_step_contributions` list; the
+    // SimulationRunner harvests it and either additively merges or
+    // routes to a `simStepComposition` solution. NOT a general-purpose
+    // end state — only valid inside a SimulationStateStep solution with
+    // simStepRole='simStepPartial'.
+    this.registerClass({
+      className: 'SimStepContribution',
+      displayName: 'Sim Step Contribution',
+      description: 'Partial step terminator — emits sparse field deltas with per-field op (set/add/mul/min/max) for SimulationRunner aggregation.',
+      category: 'End States',
+      icon: 'merge_type',
+      color: '#FF7043',
+      isStateSpaceObject: true,
+      stateSpaceDisplayFields: ['displayName', 'simStateClassName'],
+      stateSpaceFieldsPerRow: 1,
+      isBuiltIn: true,
+      specialStateType: 'end',
+      endStateSubtype: 'sim_step_contribution',
+      supportedRuntimes: ['python_backend'],
+      eventMethods: [
+        {
+          methodName: 'execute',
+          displayName: 'Emit Contribution',
+          description: 'Append a SimStepContribution payload to the trace and exit.',
+          category: 'Simulation',
+          inputParams: [
+            { name: 'context', displayName: 'Context', type: 'object', isRequired: true }
+          ],
+          output: { type: 'object', displayName: 'Step Contribution' }
+        }
+      ],
+      variables: [
+        { name: 'displayName', displayName: 'Display Name', type: 'string', isEditable: true, defaultValue: 'Sim Step Contribution' },
+        { name: 'simStateClassName', displayName: 'Target *SimState class', type: 'string', isEditable: true, defaultValue: '' },
+        { name: 'outputMappings', displayName: 'Field Deltas', type: 'list', isEditable: true, defaultValue: [] },
+        { name: 'description', displayName: 'Description', type: 'string', isEditable: true, defaultValue: '' }
+      ],
+      factory: () => new SimStepContribution()
     });
 
     // === Debug ===

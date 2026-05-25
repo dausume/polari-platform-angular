@@ -47,8 +47,11 @@ export class SimSpaceService {
     return resp.data || [];
   }
 
-  async snapshot(name: string): Promise<SimSpaceSnapshot> {
-    const url = `${this.runtimeConfig.getBackendBaseUrl()}/api/simspace/${encodeURIComponent(name)}/snapshot`;
+  async snapshot(name: string, opts?: { run?: string | null }): Promise<SimSpaceSnapshot> {
+    const params = new URLSearchParams();
+    if (opts?.run) params.set('run', opts.run);
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    const url = `${this.runtimeConfig.getBackendBaseUrl()}/api/simspace/${encodeURIComponent(name)}/snapshot${qs}`;
     const resp = await firstValueFrom(
       this.http.get<{ success: boolean; data: SimSpaceSnapshot }>(url)
     );

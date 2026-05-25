@@ -154,24 +154,27 @@ export class RunEquationOverlayComponent extends StateOverlayBase implements OnI
         );
     }
 
-    /** Sync `config.bindings` to match the equation's declared potentials.
-     *  - For each declared symbol: keep the existing source if present, else
-     *    seed with a literal placeholder.
-     *  - Drop bindings for symbols no longer declared (equation was edited). */
+    /** Sync `config.bindings` after an equation change — DROPS any host
+     *  overrides for symbols the equation no longer declares. We deliberately
+     *  do NOT pre-seed entries for undeclared-but-defaulted symbols here:
+     *  the equation's own `defaultSource` is surfaced lazily via
+     *  `getBindingSource()` instead, so the persisted state's `bindings`
+     *  array stays empty until the user explicitly overrides something —
+     *  letting the engine continue to honour equation defaults dynamically. */
     private reconcileBindings(): void {
         if (!this.equation) return;
-        const declared = this.equation.definition.variableBindings || [];
-        const next: RunEquationBindingEntry[] = [];
-        for (const b of declared as EquationVariableBinding[]) {
-            if (!b.symbol) continue;
-            const existing = this.config.bindings.find(x => x.symbol === b.symbol);
-            next.push(existing || {
-                symbol: b.symbol,
-                source: createDefaultValueSourceConfig('direct_assignment'),
-            });
-        }
-        this.config.bindings = next;
-        this.emitChange();
+        const declared = new Set(
+            (this.equation.definition.variableBindings || [])
+                .map(b => b.symbol)
+                .filter(s => !!s),
+        );
+        const before = this.config.bindings.length;
+        this.config.bindings = this.config.bindings.filter(b => declared.has(b.symbol));
+        if (this.config.bindings.length !== before) this.emitChange();
+    }
+
+    private cloneSource(src: ValueSourceConfig): ValueSourceConfig {
+        return JSON.parse(JSON.stringify(src)) as ValueSourceConfig;
     }
 
     // ── Picker ────────────────────────────────────────────────────────────
@@ -233,9 +236,17 @@ export class RunEquationOverlayComponent extends StateOverlayBase implements OnI
         }
     }
 
+    /** Effective source for a symbol: host override if present, else fall
+     *  back to the equation's declared `defaultSource` (e.g. the seeded
+     *  `self.<field>` reference). The selector renders this exactly as if
+     *  the user had typed it themselves — but it remains a *view-only* value
+     *  until `onBindingSourceChange` writes a real override. */
     getBindingSource(symbol: string): ValueSourceConfig {
         const e = this.config.bindings.find(b => b.symbol === symbol);
-        return e?.source || createDefaultValueSourceConfig('direct_assignment');
+        if (e?.source) return e.source;
+        const declared = this.equation?.definition.variableBindings.find(b => b.symbol === symbol);
+        if (declared?.defaultSource) return this.cloneSource(declared.defaultSource);
+        return createDefaultValueSourceConfig('direct_assignment');
     }
 
     // ── Result target ─────────────────────────────────────────────────────
@@ -266,7 +277,20 @@ export class RunEquationOverlayComponent extends StateOverlayBase implements OnI
             resultTarget: this.config.resultTarget,
             resultVariableName: this.config.resultVariableName,
             resultFieldPath: this.config.resultFieldPath,
+            // Preserve any in-memory codingComment so save → reload
+            // round-trips don't strip the per-state notes.
+            codingComment: (this.boundObjectFieldValues || {})['codingComment'] || '',
         });
+    }
+
+    /** Persist a user-edited codingComment back to the host. Mirrors
+     *  what the initial-state and variable-assignment overlays do so
+     *  the comment travels with the state on save. */
+    onCodingCommentChange(value: string): void {
+        const bofv = this.boundObjectFieldValues || {};
+        bofv['codingComment'] = value;
+        this.boundObjectFieldValues = bofv;
+        this.emitChange();
     }
 
     // ── Template helper ──────────────────────────────────────────────────
@@ -285,8 +309,7 @@ export class RunEquationOverlayComponent extends StateOverlayBase implements OnI
      * just that the active branch is filled in enough to produce a value.
      */
     isBindingComplete(symbol: string): boolean {
-        const entry = this.config.bindings.find(b => b.symbol === symbol);
-        const src = entry?.source;
+        const src = this.getBindingSource(symbol);
         if (!src) return false;
         switch (src.sourceType) {
             case 'direct_assignment':
@@ -304,8 +327,7 @@ export class RunEquationOverlayComponent extends StateOverlayBase implements OnI
 
     /** Per-row warning text shown when the binding's source is incomplete. */
     incompleteBindingHint(symbol: string): string {
-        const entry = this.config.bindings.find(b => b.symbol === symbol);
-        const src = entry?.source;
+        const src = this.getBindingSource(symbol);
         if (!src) return 'Pick a source for this potential.';
         switch (src.sourceType) {
             case 'direct_assignment':  return 'Enter a literal value.';

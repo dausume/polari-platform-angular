@@ -19,7 +19,8 @@ export type ValueSourceType =
     | 'from_input'
     | 'from_source_object'
     | 'from_dataset'
-    | 'direct_assignment';
+    | 'direct_assignment'
+    | 'from_latex';
 
 /**
  * Configuration for where a value comes from in a conditional comparison.
@@ -50,6 +51,12 @@ export interface ValueSourceConfig {
 
   /** When 'direct_assignment' - the type of the literal value (int, str, bool, float) */
   directValueType?: 'int' | 'str' | 'bool' | 'float';
+
+  /** When 'from_latex' - a LaTeX expression evaluated by the backend's
+   *  SymPy executor against the current engine context. Free symbols
+   *  bind to context variables by name. Used heavily by simulation step
+   *  solutions where each computation is `var = <math>`. */
+  latexExpression?: string;
 }
 
 /**
@@ -93,6 +100,8 @@ export function getSourceLabel(source: ValueSourceConfig): string {
         return String(source.directValue);
       }
       return '(value)';
+    case 'from_latex':
+      return source.latexExpression || '(LaTeX expression)';
     default:
       return '?';
   }

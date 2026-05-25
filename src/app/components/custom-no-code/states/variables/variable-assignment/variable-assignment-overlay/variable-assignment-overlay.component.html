@@ -3,9 +3,11 @@
   (contextRequested)="fullViewRequested.emit($event)"
   accent="#9C27B0"
   icon="assignment"
-  title="Variable Assignment"
+  title="Variable Creation"
   [bordered]="true"
   [hasPopupView]="hasPopupView"
+  [codingComment]="boundObjectFieldValues?.['codingComment'] || ''"
+  (commentChanged)="onCodingCommentChange($event)"
   (expandClicked)="onExpandClick()">
 
   <!-- Main content (non-compact mode) -->

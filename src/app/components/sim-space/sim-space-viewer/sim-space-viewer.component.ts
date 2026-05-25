@@ -43,6 +43,8 @@ import { SimSpaceAxisLegendComponent } from './sim-space-axis-legend.component';
 import { SimSpaceScrubberComponent, ScrubberKind } from './sim-space-scrubber.component';
 import { SimSpaceEvaluationOverlayComponent } from './sim-space-evaluation-overlay.component';
 import { SimSpaceEvaluationSelectorComponent } from './sim-space-evaluation-selector.component';
+import { SimSpaceSimulationRunPanelComponent } from './sim-space-simulation-run-panel.component';
+import { SimSpaceEditorSidebarComponent } from './sim-space-editor-sidebar.component';
 import {
   SimSpaceEvaluationSnapshot,
   SimSpaceEvaluationStep,
@@ -58,8 +60,12 @@ import {
     SimSpaceScrubberComponent,
     SimSpaceEvaluationOverlayComponent,
     SimSpaceEvaluationSelectorComponent,
+    SimSpaceSimulationRunPanelComponent,
+    SimSpaceEditorSidebarComponent,
   ],
   template: `
+    <div class="viewer-shell">
+    <div class="canvas-region">
     <div class="viewer-host" #host></div>
 
     <div *ngIf="errorMessage" class="error-banner">{{ errorMessage }}</div>
@@ -78,6 +84,17 @@ import {
       [viewport]="snapshot.definition.viewport || null"
       [axisLabels]="snapshot.definition.axisLabels || {}">
     </sim-space-axis-legend>
+
+    <!-- Simulation run controller — top-left, below the axis legend.
+         Visible only when the scene's bound *SimState classes
+         participate in a SimulationDefinition. -->
+    <div class="run-panel-anchor" *ngIf="simulationDefinitionName">
+      <sim-space-simulation-run-panel
+        [simulationDefinitionName]="simulationDefinitionName"
+        (stepCommitted)="onSimulationStepCommitted()"
+        (selectedRunChange)="onSelectedRunChange($event)">
+      </sim-space-simulation-run-panel>
+    </div>
 
     <sim-space-legend
       [resolvedBindings]="snapshot?.resolvedBindings || []"
@@ -112,9 +129,49 @@ import {
         (toggle)="onEvaluationToggle($event)">
       </sim-space-evaluation-selector>
     </div>
+    </div><!-- /.canvas-region -->
+
+    <!-- Right-side editor sidebar — push pattern (resizes the canvas
+         region via the inner flex row, not an overlay). Always rendered
+         so users can expand even on scenes without a simulation; the
+         sidebar handles the empty-simulation case internally. -->
+    <sim-space-editor-sidebar
+      [simulationDefinitionName]="simulationDefinitionName"
+      [definition]="snapshot?.definition || null">
+    </sim-space-editor-sidebar>
+    </div><!-- /.viewer-shell -->
   `,
   styles: [`
-    :host { display: block; position: relative; width: 100%; height: 100%; min-height: 400px; }
+    /* Host stays a plain block so it doesn't fight whatever the
+       embedding page already declared for the sim-space-viewer tag
+       (sim-space-detail-page sets display: block on the selector,
+       which would otherwise override a host-level display: flex).
+       The flex row layout lives one level deeper, in .viewer-shell. */
+    :host {
+      display: block;
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-height: 400px;
+    }
+    .viewer-shell {
+      display: flex;
+      flex-direction: row;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+    .canvas-region {
+      position: relative;
+      flex: 1;
+      min-width: 0;
+      height: 100%;
+    }
+    /* The d3/three renderer mounts inside .viewer-host. Constraining
+       it to .canvas-region (instead of the host) is what makes the
+       sidebar genuinely live outside the renderer — no overlap, no
+       z-index gymnastics. When the sidebar expands the canvas region
+       shrinks, the ResizeObserver fires, and the renderer reflows. */
     .viewer-host { position: absolute; inset: 0; }
     .error-banner, .warning-banner {
       position: absolute;
@@ -148,6 +205,18 @@ import {
       pointer-events: none; /* children re-enable as needed */
     }
     .hud-stack > * { pointer-events: auto; }
+
+    /* Simulation run panel — top-left, parked under the axis legend
+       (which sits at top: 12px). 320px clearance lets the legend stay
+       readable when the run panel is open; the panel itself is
+       collapsible so it stays small at rest. */
+    .run-panel-anchor {
+      position: absolute;
+      top: 12px;
+      left: 340px;
+      z-index: 2;
+      pointer-events: auto;
+    }
   `]
 })
 export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDestroy {
@@ -185,6 +254,38 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
   /** Mirrors the scrubber's collapse state so we can push the scene-
    *  contents legend clear of whichever scrubber footprint is showing. */
   scrubberCollapsed = false;
+
+  /** The first SimulationDefinition whose `*SimState` classes are bound
+   *  to this scene. Read from the snapshot's top-level
+   *  `participatingSimulations` so it stays stable regardless of run
+   *  filter / instance count — a fresh empty live run still resolves
+   *  the simulation membership and keeps the run panel visible. */
+  get simulationDefinitionName(): string | null {
+    const sims = this.snapshot?.participatingSimulations ?? [];
+    return sims[0] ?? null;
+  }
+
+  /** The run the viewer is currently scoped to. Snapshot fetches pass
+   *  this through as `?run=<name>` so multi-run scenes don't render
+   *  overlapping data. */
+  selectedRunName: string | null = null;
+
+  /** When the run panel commits a new step, refresh the snapshot so the
+   *  new *SimState rows appear in the scene + scrubber range expands. */
+  async onSimulationStepCommitted(): Promise<void> {
+    if (!this.simSpaceName) return;
+    await this.load(this.simSpaceName);
+  }
+
+  /** Run panel emitted a selection change — re-fetch the snapshot
+   *  filtered to that run so the viewer shows ONLY this run's rows. */
+  async onSelectedRunChange(runName: string | null): Promise<void> {
+    if (this.selectedRunName === runName) return;
+    this.selectedRunName = runName;
+    if (this.simSpaceName) {
+      await this.load(this.simSpaceName);
+    }
+  }
 
   /** Bottom offset (px) for the scene-contents legend. Without temporal
    *  bindings the scrubber doesn't render at all, so we sit at the
@@ -287,7 +388,9 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
     if (!name) return;
     this.errorMessage = null;
     try {
-      const snap = await this.simSpaceService.snapshot(name);
+      const snap = await this.simSpaceService.snapshot(name, {
+        run: this.selectedRunName,
+      });
       this.snapshot = snap;
       this.computeTemporalState(snap);
 
