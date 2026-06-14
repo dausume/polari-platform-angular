@@ -96,6 +96,10 @@ import { MathOperationOverlayCompactComponent } from '@components/custom-no-code
 import { MathOperationOverlayFullComponent } from '@components/custom-no-code/states/math/math-operation-overlay/views/full/math-operation-overlay-full.component';
 import { MathOperationOverlayPopupComponent } from '@components/custom-no-code/states/math/math-operation-overlay/popup/math-operation-overlay-popup.component';
 import { ReturnValueOverlayComponent } from '@components/custom-no-code/states/end-states/return-value/return-value-overlay/return-value-overlay.component';
+import { SimStepNextStateOverlayComponent } from '@components/custom-no-code/states/end-states/sim-step-next-state/sim-step-next-state-overlay/sim-step-next-state-overlay.component';
+import { SimStepContributionOverlayComponent } from '@components/custom-no-code/states/end-states/sim-step-contribution/sim-step-contribution-overlay/sim-step-contribution-overlay.component';
+import { ValidationResultOverlayComponent } from '@components/custom-no-code/states/end-states/validation-result/validation-result-overlay/validation-result-overlay.component';
+import { InitialConditionsValidatorOverlayComponent } from '@components/custom-no-code/states/initial-states/initial-conditions-validator/initial-conditions-validator-overlay/initial-conditions-validator-overlay.component';
 import { FormValidationOverlayComponent } from '@components/custom-no-code/states/conditionals/form-validation/form-validation-overlay/form-validation-overlay.component';
 import { FormValidationOverlayTinyComponent } from '@components/custom-no-code/states/conditionals/form-validation/form-validation-overlay/views/tiny/form-validation-overlay-tiny.component';
 import { FormValidationOverlayCompactComponent } from '@components/custom-no-code/states/conditionals/form-validation/form-validation-overlay/views/compact/form-validation-overlay-compact.component';
@@ -248,6 +252,10 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     MathOperationOverlayFullComponent,
     MathOperationOverlayPopupComponent,
     ReturnValueOverlayComponent,
+    SimStepNextStateOverlayComponent,
+    SimStepContributionOverlayComponent,
+    ValidationResultOverlayComponent,
+    InitialConditionsValidatorOverlayComponent,
     FormValidationOverlayComponent,
     FormValidationOverlayTinyComponent,
     FormValidationOverlayCompactComponent,

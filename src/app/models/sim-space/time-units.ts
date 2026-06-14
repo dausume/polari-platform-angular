@@ -130,17 +130,112 @@ export function convertTime(
 }
 
 /**
- * Format a value in a given unit for compact display. Uses scientific
- * notation for very small / very large magnitudes; otherwise 4 sig figs.
+ * How time values are rendered in compact displays.
+ *
+ *   'flexible'   — auto-pick the SI prefix that brings the value into
+ *                  [1, 1000): `0.001 s → 1 ms`, `0.000001 s → 1 µs`,
+ *                  `1500 s → 1.5 ks` etc. Falls back to scientific only
+ *                  when the value exceeds the yocto…yotta SI range.
+ *   'scientific' — keep the displayed unit, fall back to Unicode
+ *                  scientific notation (`1.00 × 10⁻³ s`) when |v| < 1e-6
+ *                  or |v| >= 1e6 (i.e. more than 6 digits past the
+ *                  decimal or 6+ integer digits).
+ *
+ * 'flexible' is the default. Scrubber + viewer surface the toggle.
  */
-export function formatTimeValue(value: number, unitId: TimeUnitId): string {
+export type TimeDisplayMode = 'flexible' | 'scientific';
+
+/** Threshold for falling into scientific notation — values that need
+ *  more than 3 digits either side of the decimal point. */
+const SCI_LOW = 1e-3;
+const SCI_HIGH = 1e3;
+
+/** SI prefixes the 'flexible' mode rotates through. Ordered by
+ *  factor-to-seconds so we can pick the prefix whose factor brings the
+ *  value into [1, 1000). */
+const SI_PREFIX_UNITS: TimeUnitId[] = [
+  'yoctosecond', 'zeptosecond', 'attosecond', 'femtosecond',
+  'picosecond', 'nanosecond', 'microsecond', 'millisecond',
+  'second',
+];
+
+/**
+ * Format a value in a given unit for compact display. See
+ * `TimeDisplayMode` for the two policies; default is 'flexible'.
+ */
+export function formatTimeValue(
+  value: number,
+  unitId: TimeUnitId,
+  mode: TimeDisplayMode = 'flexible',
+): string {
   const def = BY_ID.get(unitId);
-  const sym = def?.symbol ?? unitId;
-  if (!isFinite(value)) return `? ${sym}`;
+  const baseSym = def?.symbol ?? unitId;
+  if (!isFinite(value)) return `? ${baseSym}`;
+  if (value === 0) return `0 ${baseSym}`;
+
+  if (mode === 'flexible' && def?.factorToSeconds != null) {
+    const picked = pickReadableSiPrefix(value * def.factorToSeconds);
+    if (picked) {
+      const converted = (value * def.factorToSeconds) / picked.factorToSeconds!;
+      return formatInUnit(converted, picked.symbol);
+    }
+    // Value sits outside the yocto…second SI prefix range — let
+    // scientific notation handle it on the base unit.
+  }
+  return formatInUnit(value, baseSym);
+}
+
+/**
+ * Pick the SI-prefixed unit whose magnitude lands the value in
+ * [1, 1000). Returns null when no SI prefix covers the value (extreme
+ * magnitudes outside yocto…second).
+ */
+function pickReadableSiPrefix(seconds: number): TimeUnitDef | null {
+  const abs = Math.abs(seconds);
+  // Walk from smallest prefix to largest. Last unit whose factor is
+  // <= |seconds| wins — that's the one that produces a coefficient >= 1.
+  let best: TimeUnitDef | null = null;
+  for (const id of SI_PREFIX_UNITS) {
+    const u = BY_ID.get(id);
+    if (!u || u.factorToSeconds == null) continue;
+    if (u.factorToSeconds <= abs) best = u;
+    else break;
+  }
+  // Below yocto — scientific notation territory; let caller fall through.
+  if (best === null) return null;
+  // Above second — let scientific handle it (calendar units aren't SI
+  // prefixes and aren't what the user asked us to default to).
+  return best;
+}
+
+function formatInUnit(value: number, sym: string): string {
   const abs = Math.abs(value);
   if (abs === 0) return `0 ${sym}`;
-  if (abs >= 10000 || abs < 0.01) return `${value.toExponential(2)} ${sym}`;
+  if (abs >= SCI_HIGH || abs < SCI_LOW) {
+    return `${prettyScientific(value)} ${sym}`;
+  }
   return `${parseFloat(value.toPrecision(4))} ${sym}`;
+}
+
+/**
+ * Render a number in scientific notation using Unicode superscripts so
+ * it reads as physics rather than JS — `1.00 × 10⁻³` instead of `1.00e-3`.
+ */
+function prettyScientific(value: number): string {
+  const [mantissa, expRaw] = value.toExponential(2).split('e');
+  const exp = parseInt(expRaw, 10);
+  if (exp === 0) return mantissa;
+  return `${mantissa} × 10${superscript(exp)}`;
+}
+
+const SUPERSCRIPT_DIGITS: Record<string, string> = {
+  '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴',
+  '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹',
+  '-': '⁻', '+': '⁺',
+};
+
+function superscript(n: number): string {
+  return String(n).split('').map(c => SUPERSCRIPT_DIGITS[c] ?? c).join('');
 }
 
 /**

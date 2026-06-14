@@ -20,7 +20,8 @@ export type InitialStateTriggerType =
   | 'form_subscription'
   | 'logic_flow_entry'
   | 'backend_state_change'
-  | 'simulation_state_step';
+  | 'simulation_state_step'
+  | 'initial_conditions_validator';
 
 /**
  * Returns the valid initial state trigger types for a given runtime.
@@ -32,7 +33,7 @@ export function getAvailableInitialStateTypes(runtime: TargetRuntime): InitialSt
     case 'python_backend':
       return [
         'direct_invocation', 'logic_flow_entry', 'backend_state_change',
-        'simulation_state_step',
+        'simulation_state_step', 'initial_conditions_validator',
       ];
     default:
       return ['direct_invocation', 'logic_flow_entry'];

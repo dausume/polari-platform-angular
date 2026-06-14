@@ -400,3 +400,107 @@
 .result-input::placeholder {
     color: var(--text-tertiary, #aaa);
 }
+
+/* ============================================================
+   Tier wrapper — fills the host so each sub-tier can center / size
+   relative to the SVG-shape bounds the manager assigns us.
+   ============================================================ */
+.run-equation-overlay-root {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+/* ============================================================
+   TIER: tiny — equation-only, no chrome. Used at deep zoom-out
+   where labels/controls would be unreadable anyway.
+   ============================================================ */
+.tier-tiny {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    box-sizing: border-box;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1.5px solid #ffb74d;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.tier-tiny katex-display {
+    font-size: 14px;
+    line-height: 1;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tier-tiny__empty-icon {
+    color: #ffb74d;
+    opacity: 0.6;
+}
+
+/* ============================================================
+   TIER: compact — rendered equation + fill chip under the shell
+   header. No editing UI.
+   ============================================================ */
+.tier-compact {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 4px 2px;
+}
+
+.tier-compact__equation {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 32px;
+    padding: 4px 8px;
+    background: var(--surface-secondary, #f6f7f9);
+    border: 1px solid var(--border-light, #e0e3e9);
+    border-radius: 4px;
+}
+
+.tier-compact__equation katex-display {
+    font-size: 13px;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+.tier-compact__no-equation {
+    color: var(--text-tertiary, #999);
+    font-size: 11px;
+    font-style: italic;
+}
+
+.tier-compact__fill-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    align-self: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 500;
+}
+
+.tier-compact__fill-chip.complete {
+    background: #e6f4ea;
+    color: #1e7e34;
+}
+
+.tier-compact__fill-chip.warn {
+    background: #fff3e0;
+    color: #b26a00;
+}
+
+.tier-compact__fill-chip mat-icon {
+    font-size: 12px;
+    width: 12px;
+    height: 12px;
+    line-height: 12px;
+}

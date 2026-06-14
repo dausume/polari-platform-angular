@@ -35,6 +35,7 @@ import { FormSubscription } from '../initial-states/form-subscription/form-subsc
 import { LogicFlowEntry } from '../initial-states/logic-flow-entry/logic-flow-entry.model';
 import { BackendStateChange } from '../initial-states/backend-state-change/backend-state-change.model';
 import { SimulationStateStep } from '../initial-states/simulation-state-step/simulation-state-step.model';
+import { InitialConditionsValidatorEntry } from '../initial-states/initial-conditions-validator/initial-conditions-validator.model';
 import {
   EndStateCompletionType,
   getAvailableEndStateTypes
@@ -44,6 +45,7 @@ import { StateChangeCommit } from '../end-states/state-change-commit/state-chang
 import { EmitEvent } from '../end-states/emit-event/emit-event.model';
 import { SimStepContribution } from '../end-states/sim-step-contribution/sim-step-contribution.model';
 import { SimStepNextState } from '../end-states/sim-step-next-state/sim-step-next-state.model';
+import { ValidationResult } from '../end-states/validation-result/validation-result.model';
 
 /**
  * State-space class category for UI organization
@@ -390,6 +392,47 @@ export class StateSpaceClassRegistry {
         { name: 'description', displayName: 'Description', type: 'string', isEditable: true, defaultValue: '' },
       ],
       factory: () => new SimulationStateStep(),
+    });
+
+    // Initial Conditions Validator — entry point for solutions that
+    // validate a simulation's proposed initial conditions BEFORE step 0.
+    // Context at entry: `<className>.<field>` keys for each participating
+    // class's merged initial values, plus `params.<key>` for the sim
+    // constants and `participating_classes` for the class roster.
+    // Backend-only — the SimulationRunner gates step 0 on the verdict.
+    this.registerClass({
+      className: 'InitialConditionsValidatorEntry',
+      displayName: 'Validate Initial Conditions',
+      description: 'Runs once before step 0 with the merged initial conditions in context. Terminates at a ValidationResult declaring whether the proposal is physically valid.',
+      category: 'Initial States',
+      icon: 'fact_check',
+      color: '#26A69A',
+      isStateSpaceObject: true,
+      stateSpaceDisplayFields: ['displayName', 'simulationDefinitionName', 'validationSummary'],
+      stateSpaceFieldsPerRow: 1,
+      isBuiltIn: true,
+      specialStateType: 'initial',
+      initialStateSubtype: 'initial_conditions_validator',
+      supportedRuntimes: ['python_backend'],
+      eventMethods: [
+        {
+          methodName: 'validate',
+          displayName: 'Validate',
+          description: 'Invoked by the runner with the merged initial-conditions context pre-populated.',
+          category: 'Simulation',
+          inputParams: [
+            { name: 'initialConditions', displayName: 'Initial Conditions', type: 'object', isRequired: true },
+          ],
+          output: { type: 'object', displayName: 'Validation Verdict' },
+        },
+      ],
+      variables: [
+        { name: 'displayName', displayName: 'Display Name', type: 'string', isEditable: true, defaultValue: 'Validate Initial Conditions' },
+        { name: 'simulationDefinitionName', displayName: 'Target Simulation', type: 'string', isEditable: true, defaultValue: '' },
+        { name: 'validationSummary', displayName: 'What this validates', type: 'string', isEditable: true, defaultValue: '' },
+        { name: 'description', displayName: 'Description', type: 'string', isEditable: true, defaultValue: '' },
+      ],
+      factory: () => new InitialConditionsValidatorEntry(),
     });
 
     // Legacy alias: old solutions with stateClass='InitialState' deserialize as DirectInvocation
@@ -1159,6 +1202,46 @@ export class StateSpaceClassRegistry {
         { name: 'description', displayName: 'Description', type: 'string', isEditable: true, defaultValue: '' }
       ],
       factory: () => new SimStepContribution()
+    });
+
+    // ValidationResult — terminator for InitialConditionsValidator
+    // solutions. Declares whether the proposed initial conditions are
+    // physically valid, the human-readable reason on failure, and an
+    // optional dict of values to overwrite into step 0 (e.g. recompute
+    // tension from theta). The runner reads `outcome`, `reason`, and
+    // `repairedValues` off the final context.
+    this.registerClass({
+      className: 'ValidationResult',
+      displayName: 'Validation Result',
+      description: 'Verdict from an InitialConditionsValidator — outcome (valid|invalid), reason, and optional repaired values.',
+      category: 'End States',
+      icon: 'rule',
+      color: '#26A69A',
+      isStateSpaceObject: true,
+      stateSpaceDisplayFields: ['displayName'],
+      stateSpaceFieldsPerRow: 1,
+      isBuiltIn: true,
+      specialStateType: 'end',
+      endStateSubtype: 'validation_result',
+      supportedRuntimes: ['python_backend'],
+      eventMethods: [
+        {
+          methodName: 'execute',
+          displayName: 'Emit Verdict',
+          description: 'Write outcome / reason / repairedValues to context and exit.',
+          category: 'Simulation',
+          inputParams: [
+            { name: 'context', displayName: 'Context', type: 'object', isRequired: true }
+          ],
+          output: { type: 'object', displayName: 'Validation Verdict' }
+        }
+      ],
+      variables: [
+        { name: 'displayName', displayName: 'Display Name', type: 'string', isEditable: true, defaultValue: 'Validation Result' },
+        { name: 'outputMappings', displayName: 'Verdict Bindings', type: 'list', isEditable: true, defaultValue: [] },
+        { name: 'description', displayName: 'Description', type: 'string', isEditable: true, defaultValue: '' }
+      ],
+      factory: () => new ValidationResult()
     });
 
     // === Debug ===

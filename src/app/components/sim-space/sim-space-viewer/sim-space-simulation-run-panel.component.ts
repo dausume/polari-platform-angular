@@ -17,7 +17,7 @@
  *
  * Reuses the no-code engine end-to-end via the backend: clicking Step
  * triggers `POST /api/simulations/runs/{name}/step` which composes
- * each `SimStateStepBinding`'s no-code into a single tick.
+ * each per-class `SimulationExecutionSolution`'s no-code into a single tick.
  */
 
 import {
@@ -44,6 +44,15 @@ import {
   SimulationRunSummary,
   SimulationStepResult,
 } from '@services/sim-space/simulation-run.service';
+import {
+  RunInitialConditionsEditorComponent,
+  RunInitialConditionsState,
+} from './run-initial-conditions-editor.component';
+import {
+  formatTimeValue,
+  TimeDisplayMode,
+  TimeUnitId,
+} from '@models/sim-space/time-units';
 
 @Component({
   standalone: true,
@@ -52,6 +61,7 @@ import {
     CommonModule, FormsModule, MatIconModule, MatButtonModule,
     MatSelectModule, MatFormFieldModule, MatTooltipModule,
     MatProgressSpinnerModule, MatInputModule,
+    RunInitialConditionsEditorComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -64,7 +74,8 @@ import {
         <mat-icon class="collapse-chevron">{{ collapsed ? 'expand_more' : 'expand_less' }}</mat-icon>
       </button>
 
-      <div class="run-body" *ngIf="!collapsed">
+      <div class="run-body" *ngIf="!collapsed"
+           [style.max-height]="bodyMaxHeight">
         <!-- Filter + +New row, always visible. Searches over the
              run name + label so a long list stays manageable. -->
         <div class="run-list-controls">
@@ -74,15 +85,37 @@ import {
                    [(ngModel)]="runFilterText" (ngModelChange)="onFilterChange()">
           </mat-form-field>
           <button mat-stroked-button class="new-run-btn"
-                  [disabled]="newRunInFlight || !simulationDefinitionName"
-                  matTooltip="Create a fresh live run"
-                  (click)="onCreateRun()">
-            <mat-icon *ngIf="!newRunInFlight">add</mat-icon>
+                  [disabled]="newRunInFlight || !simulationDefinitionName || !icState.valid"
+                  [matTooltip]="newRunDisabledReason"
+                  (click)="onSetInitialConditions()">
+            <mat-icon *ngIf="!newRunInFlight">add_task</mat-icon>
             <mat-progress-spinner *ngIf="newRunInFlight" diameter="14" mode="indeterminate">
             </mat-progress-spinner>
-            New Run
+            Set Initial Conditions
           </button>
         </div>
+
+        <!-- Per-class initial-conditions editor for the next fresh run.
+             Debounced validation gates the New Run button. -->
+        <details class="ic-editor-wrap" *ngIf="simulationDefinitionName" open>
+          <summary class="ic-summary">
+            <mat-icon>tune</mat-icon>
+            <span>Configure initial conditions for next run</span>
+            <span class="ic-status muted small"
+                  [class.ic-status-ok]="icState.valid && icState.hasValidator"
+                  [class.ic-status-bad]="!icState.valid">
+              <ng-container *ngIf="icState.validating">checking…</ng-container>
+              <ng-container *ngIf="!icState.validating && icState.valid && icState.hasValidator">✓ valid</ng-container>
+              <ng-container *ngIf="!icState.validating && !icState.hasValidator && icState.valid">no validator</ng-container>
+              <ng-container *ngIf="!icState.validating && !icState.valid">✗ invalid</ng-container>
+            </span>
+          </summary>
+          <run-initial-conditions-editor
+            [simulationDefinitionName]="simulationDefinitionName"
+            [defaultDtSeconds]="defaultDtSeconds"
+            (stateChange)="onIcStateChange($event)">
+          </run-initial-conditions-editor>
+        </details>
 
         <ng-container *ngIf="filteredRuns.length === 0 && !runs.length">
           <div class="empty muted">
@@ -124,7 +157,7 @@ import {
 
           <div class="run-controls">
             <button mat-flat-button color="primary"
-                    [disabled]="stepInFlight || !selectedRunName || activeMode === 'REPLAY'"
+                    [disabled]="stepInFlight || batchRunInFlight || !selectedRunName || activeMode === 'REPLAY'"
                     [matTooltip]="activeMode === 'REPLAY' ? 'Precomputed / complete runs are read-only — pick or create a live run to advance.' : 'Advance this run by one timestep.'"
                     (click)="onStepOnce()">
               <mat-icon *ngIf="!stepInFlight">play_arrow</mat-icon>
@@ -132,22 +165,77 @@ import {
               </mat-progress-spinner>
               Step Once
             </button>
+            <button mat-stroked-button
+                    [disabled]="stepInFlight || batchRunInFlight || !selectedRunName || activeMode === 'REPLAY'"
+                    [matTooltip]="activeMode === 'REPLAY' ? 'Precomputed / complete runs are read-only.' : 'Open the batch-run form below.'"
+                    (click)="batchFormOpen = !batchFormOpen">
+              <mat-icon>fast_forward</mat-icon>
+              Run…
+            </button>
             <span class="muted small" *ngIf="!stepInFlight && lastResult">
               Last step:
               <span [class.ok]="lastResult.success" [class.err]="!lastResult.success">
                 {{ lastResult.success ? 'ok' : 'failed' }}
               </span>
-              <span *ngIf="lastResult.success">— step {{ lastResult.step }}, t = {{ lastResult.time }}</span>
+              <span *ngIf="lastResult.success">— step {{ lastResult.step }}, t = {{ formatTime(lastResult.time) }}</span>
             </span>
           </div>
 
-          <!-- Per-binding result rows. Skipped bindings (empty step_solution_ref)
-               show up as a yellow "skipped" pill with the reason. -->
+          <!-- Inline batch-run form. Steps + dt override; submit kicks
+               the /run endpoint. -->
+          <div class="batch-form" *ngIf="batchFormOpen && selectedRunName && activeMode !== 'REPLAY'">
+            <div class="batch-form__inputs">
+              <label class="batch-field">
+                <span class="batch-field__label">Steps</span>
+                <input type="number" min="1" step="1" class="batch-input"
+                       [(ngModel)]="batchSteps" />
+              </label>
+              <label class="batch-field">
+                <span class="batch-field__label">Step size (s)</span>
+                <input type="text" class="batch-input"
+                       [placeholder]="formatDtPlaceholder()"
+                       [(ngModel)]="batchDtOverride" />
+              </label>
+              <button mat-flat-button color="accent"
+                      [disabled]="batchRunInFlight || !batchSteps || batchSteps < 1"
+                      (click)="onRunBatch()">
+                <mat-icon *ngIf="!batchRunInFlight">play_circle</mat-icon>
+                <mat-progress-spinner *ngIf="batchRunInFlight" diameter="14" mode="indeterminate">
+                </mat-progress-spinner>
+                Run
+              </button>
+              <button mat-icon-button (click)="batchFormOpen = false"
+                      matTooltip="Hide form">
+                <mat-icon>close</mat-icon>
+              </button>
+            </div>
+            <div class="batch-result" *ngIf="!batchRunInFlight && lastBatchResult"
+                 [class.batch-ok]="!lastBatchResult.error"
+                 [class.batch-err]="lastBatchResult.error">
+              <mat-icon>{{ lastBatchResult.error ? 'error_outline' : 'done_all' }}</mat-icon>
+              <div class="batch-result__text">
+                <div>
+                  Committed <strong>{{ lastBatchResult.committedSteps }}</strong>
+                  step{{ lastBatchResult.committedSteps === 1 ? '' : 's' }}
+                  <span *ngIf="lastBatchResult.finalTime !== null">
+                    — end at step {{ lastBatchResult.finalStep }},
+                    t = {{ formatTime(lastBatchResult.finalTime) }}
+                  </span>
+                </div>
+                <div class="batch-result__err" *ngIf="lastBatchResult.error">
+                  {{ lastBatchResult.error }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Per-solution result rows. Skipped rows (empty
+               solution_definition_ref) show as a yellow "skipped" pill. -->
           <ul class="binding-list" *ngIf="lastResult">
-            <li *ngFor="let b of lastResult.bindingTraces" class="binding-row"
+            <li *ngFor="let b of lastResult.solutionTraces" class="binding-row"
                 [class.status-ok]="b.status === 'completed'"
                 [class.status-skip]="b.status === 'skipped'"
-                [class.status-err]="b.status !== 'completed' && b.status !== 'skipped'">
+                [class.status-err]="b.status !== 'completed' && b.status !== 'skipped' && b.status !== 'initial-conditions'">
               <span class="binding-class mono">{{ b.simStateClass }}</span>
               <span class="binding-status">{{ b.status }}</span>
               <span class="binding-detail muted small"
@@ -181,9 +269,19 @@ import {
       border-radius: 8px;
       box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
       padding: 6px 10px 10px 10px;
-      min-width: 280px;
-      max-width: 380px;
+      min-width: 340px;
+      max-width: 460px;
       font-size: 0.82rem;
+      display: flex;
+      flex-direction: column;
+    }
+    .run-body {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding-right: 2px;
     }
     .run-header {
       display: flex; align-items: center; gap: 6px;
@@ -219,6 +317,60 @@ import {
       white-space: nowrap;
       font-size: 0.75rem;
     }
+    .ic-editor-wrap {
+      border: 1px solid var(--border-light, #e0e3e9);
+      border-radius: 6px;
+      padding: 6px 10px;
+      background: rgba(0,0,0,0.015);
+    }
+    .ic-summary {
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.78rem;
+      font-weight: 500;
+      color: var(--text-primary, #222);
+      list-style: none;
+      padding-bottom: 4px;
+    }
+    .ic-summary::-webkit-details-marker { display: none; }
+    .ic-summary mat-icon { font-size: 16px; width: 16px; height: 16px; color: #1976d2; }
+    .ic-status { margin-left: auto; font-weight: 600; }
+    .ic-status-ok  { color: #1e7e34; }
+    .ic-status-bad { color: #b71c1c; }
+
+    .batch-form {
+      display: flex; flex-direction: column; gap: 6px;
+      padding: 8px 10px;
+      border: 1px solid var(--border-light, #e0e3e9);
+      border-radius: 6px;
+      background: rgba(0, 0, 0, 0.015);
+    }
+    .batch-form__inputs {
+      display: flex; align-items: end; gap: 8px;
+    }
+    .batch-field {
+      display: flex; flex-direction: column; gap: 2px;
+      flex: 1 1 auto; min-width: 0;
+    }
+    .batch-field__label { font-size: 10px; color: var(--text-secondary, #666); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+    .batch-input {
+      padding: 4px 6px; border: 1px solid var(--border-light, #e0e3e9);
+      border-radius: 3px; font-size: 12px; font-family: monospace;
+      box-sizing: border-box; width: 100%;
+    }
+    .batch-input:focus { outline: none; border-color: #1976d2; }
+    .batch-result {
+      display: flex; align-items: flex-start; gap: 8px;
+      padding: 6px 8px; border-radius: 4px;
+      font-size: 11px; line-height: 1.4;
+    }
+    .batch-result mat-icon { font-size: 16px; width: 16px; height: 16px; flex: 0 0 16px; margin-top: 1px; }
+    .batch-result.batch-ok  { background: #e6f4ea; color: #1e7e34; }
+    .batch-result.batch-err { background: #fdecea; color: #b71c1c; }
+    .batch-result__text { flex: 1 1 auto; }
+    .batch-result__err  { font-style: italic; opacity: 0.9; }
     .run-option-name { flex: 1; }
     .run-status-pill {
       font-size: 0.62rem;
@@ -296,6 +448,22 @@ export class SimSpaceSimulationRunPanelComponent implements OnChanges {
    *  participating SimState classes. */
   @Input() simulationDefinitionName: string | null = null;
 
+  /** Sim def's `time_step_seconds` — surfaced as the placeholder for
+   *  the IC editor's dt override. The viewer fetches this with the
+   *  rest of the snapshot. */
+  @Input() defaultDtSeconds: number = 0;
+
+  /** Display unit for batch-run result times (e.g. 'second'). Matches
+   *  whatever the scrubber is using. Default 'second'. */
+  @Input() timeUnit: TimeUnitId = 'second';
+
+  /** Display mode for batch-run result times. */
+  @Input() timeDisplayMode: TimeDisplayMode = 'flexible';
+
+  /** Pixels to lift off the bottom — viewer pushes this up when the
+   *  scrubber is showing so the panel doesn't get clipped. */
+  @Input() bottomOffsetPx: number = 12;
+
   /** Emitted when a step lands successfully so the viewer can reload
    *  the snapshot and show the new rows. */
   @Output() stepCommitted = new EventEmitter<SimulationStepResult>();
@@ -311,6 +479,36 @@ export class SimSpaceSimulationRunPanelComponent implements OnChanges {
   lastResult: SimulationStepResult | null = null;
   runFilterText = '';
   newRunInFlight = false;
+
+  // Batch-run form state.
+  batchFormOpen = false;
+  batchSteps = 100;
+  batchDtOverride: string = '';
+  batchRunInFlight = false;
+  lastBatchResult: {
+    committedSteps: number;
+    finalStep: number | null;
+    finalTime: number | null;
+    error?: string | null;
+  } | null = null;
+
+  /** Cap body height to the viewport minus the scrubber footprint
+   *  (`bottomOffsetPx` from the viewer) so the panel scrolls cleanly
+   *  instead of being clipped behind the scrubber. */
+  get bodyMaxHeight(): string {
+    return `calc(100vh - ${this.bottomOffsetPx + 80}px)`;
+  }
+
+  /** Mirror the scrubber's number formatter so batch-run readouts read
+   *  in the same units the user picked on the scrubber. */
+  formatTime(seconds: number | null): string {
+    if (seconds == null) return '?';
+    return formatTimeValue(seconds, this.timeUnit, this.timeDisplayMode);
+  }
+
+  formatDtPlaceholder(): string {
+    return this.defaultDtSeconds > 0 ? String(this.defaultDtSeconds) : 'sim default';
+  }
 
   constructor(private runService: SimulationRunService) {}
 
@@ -361,24 +559,109 @@ export class SimSpaceSimulationRunPanelComponent implements OnChanges {
 
   onFilterChange(): void { /* tracked via getter — no work needed */ }
 
-  async onCreateRun(): Promise<void> {
+  /** Latest state from the inline initial-conditions editor. Drives
+   *  the New Run button's disabled state + supplies the per-run
+   *  overrides to the create call. */
+  icState: RunInitialConditionsState = {
+    overrides: {},
+    timeStepSeconds: 0,
+    valid: true,
+    hasValidator: false,
+    reason: '',
+    error: null,
+    validating: false,
+  };
+
+  onIcStateChange(state: RunInitialConditionsState): void {
+    this.icState = state;
+  }
+
+  get newRunDisabledReason(): string {
+    if (!this.simulationDefinitionName) return 'No simulation bound to this scene.';
+    if (this.icState.validating) return 'Validating initial conditions…';
+    if (!this.icState.valid) {
+      if (this.icState.reason) return `Initial conditions invalid: ${this.icState.reason}`;
+      if (this.icState.error)  return `Validator error: ${this.icState.error}`;
+      return 'Initial conditions invalid.';
+    }
+    return 'Lock these initial conditions into a fresh run by writing the step-0 row.';
+  }
+
+  /** Create a fresh run with the editor's current overrides + dt, then
+   *  immediately write the step-0 row so the initial conditions are
+   *  committed (the run can no longer have its IC changed — to use
+   *  different values, create a new run). */
+  async onSetInitialConditions(): Promise<void> {
     if (!this.simulationDefinitionName || this.newRunInFlight) return;
+    if (!this.icState.valid) return;
     this.newRunInFlight = true;
     try {
-      const { name } = await this.runService.create(this.simulationDefinitionName);
+      const { name } = await this.runService.create(
+        this.simulationDefinitionName,
+        undefined,
+        this.icState.overrides,
+        this.icState.timeStepSeconds > 0 ? this.icState.timeStepSeconds : undefined,
+      );
       await this.reloadRuns();
-      // Auto-select the freshly created run so Step Once targets it.
       this.selectedRunName = name;
       this.selectedRunChange.emit(name);
-      this.lastResult = null;
+      // Commit step 0 now so the initial-conditions row exists and the
+      // run's IC is effectively locked.
+      const result = await this.runService.step(name, 0);
+      this.lastResult = result;
+      if (result.success) {
+        await this.reloadRuns();
+        this.stepCommitted.emit(result);
+      }
     } catch (err: any) {
       this.lastResult = {
         success: false, step: null, time: null,
-        rowsByClass: {}, bindingTraces: [], warnings: [],
-        error: `Failed to create run: ${err?.message || err}`,
+        rowsByClass: {}, solutionTraces: [], warnings: [],
+        error: `Failed to set initial conditions: ${err?.message || err}`,
       };
     } finally {
       this.newRunInFlight = false;
+    }
+  }
+
+  /** Loop the engine N times in a single backend call. Optional dt
+   *  override (sticky — updates the run for subsequent Step Once too). */
+  async onRunBatch(): Promise<void> {
+    if (!this.selectedRunName || this.batchRunInFlight) return;
+    if (this.batchSteps < 1) return;
+    this.batchRunInFlight = true;
+    this.lastBatchResult = null;
+    try {
+      const dtNum = Number(this.batchDtOverride);
+      const dt = (this.batchDtOverride && Number.isFinite(dtNum) && dtNum > 0) ? dtNum : undefined;
+      const result = await this.runService.runBatch(this.selectedRunName, this.batchSteps, dt);
+      this.lastBatchResult = {
+        committedSteps: result.committedSteps,
+        finalStep: result.finalStep,
+        finalTime: result.finalTime,
+        error: result.error ?? null,
+      };
+      // Refresh the snapshot + run row counters so the scrubber sees
+      // the new rows. We piggy-back on the existing stepCommitted output.
+      await this.reloadRuns();
+      this.stepCommitted.emit({
+        success: !result.error,
+        step: result.finalStep,
+        time: result.finalTime,
+        rowsByClass: result.lastRowsByClass || {},
+        solutionTraces: result.lastSolutionTraces || [],
+        warnings: result.warnings || [],
+        error: result.error ?? null,
+      });
+    } catch (err: any) {
+      this.lastBatchResult = {
+        committedSteps: 0,
+        finalStep: null,
+        finalTime: null,
+        error: err?.message || String(err),
+      };
+    } finally {
+      this.batchRunInFlight = false;
     }
   }
 
@@ -402,7 +685,7 @@ export class SimSpaceSimulationRunPanelComponent implements OnChanges {
     } catch (err: any) {
       this.lastResult = {
         success: false, step: null, time: null,
-        rowsByClass: {}, bindingTraces: [], warnings: [],
+        rowsByClass: {}, solutionTraces: [], warnings: [],
         error: err?.message || String(err),
       };
     } finally {

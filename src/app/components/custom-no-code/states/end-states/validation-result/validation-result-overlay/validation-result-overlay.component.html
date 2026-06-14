@@ -1,0 +1,71 @@
+<div class="vr-overlay-root"
+     [attr.data-size-tier]="sizeTier"
+     [ngSwitch]="sizeTier"
+     [appStateOverlayRoot]="stateName"
+     (contextRequested)="fullViewRequested.emit($event)">
+
+    <!-- TINY -->
+    <div *ngSwitchCase="'tiny'" class="tier-tiny">
+        <mat-icon>rule</mat-icon>
+    </div>
+
+    <!-- COMPACT -->
+    <state-overlay-shell *ngSwitchCase="'compact'"
+        accent="#26A69A"
+        icon="rule"
+        title="Validation Result"
+        [compact]="true"
+        [showCodingComment]="false"
+        [bordered]="false">
+        <div class="tier-compact">
+            <div class="tier-compact__row" *ngFor="let f of fields">
+                <code class="tier-compact__name">{{ f }}</code>
+                <span class="tier-compact__src">{{ sourceSummaryFor(f) }}</span>
+            </div>
+        </div>
+    </state-overlay-shell>
+
+    <!-- FULL -->
+    <state-overlay-shell *ngSwitchCase="'full'"
+        accent="#26A69A"
+        icon="rule"
+        title="Validation Result"
+        [bordered]="true"
+        [codingComment]="(boundObjectFieldValues || {})['codingComment'] || ''"
+        (commentChanged)="onCodingCommentChange($event)">
+
+        <div class="overlay-content state-overlay-scrollbar">
+
+            <p class="intro hint">
+                Bind each field below. The runner reads <code>outcome</code> to decide go/no-go
+                on step 0, surfaces <code>reason</code> when the verdict is invalid, and folds
+                <code>repairedValues</code> into the persisted step-0 row when present.
+            </p>
+
+            <div class="mapping-row" *ngFor="let f of fields">
+                <div class="mapping-row__top">
+                    <code class="field-name">{{ f }}</code>
+                    <span class="source-summary" [matTooltip]="sourceSummaryFor(f)">
+                        ← {{ sourceSummaryFor(f) }}
+                    </span>
+                </div>
+                <div class="mapping-row__hint">{{ fieldHint(f) }}</div>
+                <div class="mapping-row__source">
+                    <app-value-source-selector
+                        [config]="valueSourceFor(f)"
+                        [availableInputs]="availableInputs"
+                        [sourceObjectFields]="sourceObjectFields"
+                        [allowAnyInstancePick]="false"
+                        [showHeader]="false"
+                        label="Source"
+                        [compact]="true"
+                        (configChange)="onValueSourceChange(f, $event)">
+                    </app-value-source-selector>
+                </div>
+            </div>
+
+        </div>
+
+    </state-overlay-shell>
+
+</div>

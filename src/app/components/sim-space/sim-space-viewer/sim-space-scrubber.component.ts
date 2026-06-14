@@ -27,6 +27,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 
 import {
   formatTimeValue,
+  TimeDisplayMode,
   TimeUnitId,
 } from '@models/sim-space/time-units';
 
@@ -52,6 +53,11 @@ export type ScrubberKind = 'time' | 'step';
         <span class="time-display mono compact" [matTooltip]="rangeTooltip">
           {{ formatTime(currentTime) }} / {{ formatTime(maxTime) }}
         </span>
+        <button mat-icon-button class="mode-btn"
+                (click)="toggleDisplayMode()"
+                [matTooltip]="displayModeTooltip">
+          <mat-icon>{{ displayMode === 'flexible' ? 'straighten' : 'science' }}</mat-icon>
+        </button>
         <button mat-icon-button (click)="setCollapsed(false)"
                 matTooltip="Expand scrubber" class="collapse-btn">
           <mat-icon>expand_less</mat-icon>
@@ -82,6 +88,12 @@ export type ScrubberKind = 'time' | 'step';
         <span class="time-display mono" [matTooltip]="rangeTooltip">
           {{ formatTime(currentTime) }} / {{ formatTime(maxTime) }}
         </span>
+
+        <button mat-icon-button class="mode-btn"
+                (click)="toggleDisplayMode()"
+                [matTooltip]="displayModeTooltip">
+          <mat-icon>{{ displayMode === 'flexible' ? 'straighten' : 'science' }}</mat-icon>
+        </button>
 
         <mat-form-field appearance="outline" class="speed-field" subscriptSizing="dynamic">
           <mat-select [(value)]="playbackSpeed" matTooltip="Playback speed">
@@ -155,6 +167,11 @@ export class SimSpaceScrubberComponent implements OnChanges, OnDestroy {
   playbackSpeed = 1;
   readonly speeds = [0.25, 0.5, 1, 2, 4];
 
+  /** Time display format: 'flexible' auto-picks the best SI prefix
+   *  (ms, µs, ns…); 'scientific' stays on the configured base unit and
+   *  falls back to Unicode scientific notation past ±10³. */
+  displayMode: TimeDisplayMode = 'flexible';
+
   /** Compact-vs-full toggle. The compact form keeps play/pause + time
    *  readout so the user can still control playback without expanding. */
   collapsed = false;
@@ -205,7 +222,17 @@ export class SimSpaceScrubberComponent implements OnChanges, OnDestroy {
 
   formatTime(value: number): string {
     if (this.kind === 'step') return `${Math.round(value)} step${Math.round(value) === 1 ? '' : 's'}`;
-    return formatTimeValue(value, this.unit);
+    return formatTimeValue(value, this.unit, this.displayMode);
+  }
+
+  toggleDisplayMode(): void {
+    this.displayMode = this.displayMode === 'flexible' ? 'scientific' : 'flexible';
+  }
+
+  get displayModeTooltip(): string {
+    return this.displayMode === 'flexible'
+      ? 'Time display: SI prefixes (ms / µs / ns…). Click for scientific notation.'
+      : `Time display: scientific notation on ${this.unit}. Click for SI prefixes.`;
   }
 
   onSliderChange(value: number): void {

@@ -21,7 +21,7 @@ export interface SimStepIncomingField {
 
 /** One simulation that uses this step solution. */
 export interface LinkedSimulationEntry {
-  bindingName: string;
+  solutionRowName: string;
   simulationRef: string;
   simStateClassName: string;
 }
@@ -167,7 +167,7 @@ export class InitialStateOverlayComponent extends StateOverlayBase implements On
     try {
       const rows = await this.simRunService.simulationsUsingSolution(this.solutionName);
       this.linkedSimulations = rows.map(r => ({
-        bindingName: r.bindingName,
+        solutionRowName: r.solutionRowName,
         simulationRef: r.simulationRef,
         simStateClassName: r.simStateClassName,
       }));
@@ -244,6 +244,7 @@ export class InitialStateOverlayComponent extends StateOverlayBase implements On
       'logic_flow_entry': 'LogicFlowEntry',
       'backend_state_change': 'BackendStateChange',
       'simulation_state_step': 'SimulationStateStep',
+      'initial_conditions_validator': 'InitialConditionsValidatorEntry',
     };
     return this.registry.getClass(classNameMap[type]);
   }
@@ -258,6 +259,7 @@ export class InitialStateOverlayComponent extends StateOverlayBase implements On
       'logic_flow_entry': 'Logic Flow Entry',
       'backend_state_change': 'Backend State Change',
       'simulation_state_step': 'Simulation State Step',
+      'initial_conditions_validator': 'Initial Conditions Validator',
     };
     return labels[type];
   }

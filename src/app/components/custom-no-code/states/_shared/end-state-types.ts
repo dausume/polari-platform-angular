@@ -12,7 +12,8 @@ export type EndStateCompletionType =
   | 'state_change'              // Commit object state to backend
   | 'emit_event'                // Emit event for cross-solution signaling
   | 'sim_step_next_state'       // Declare the next *SimState row (simStepComplete/Composition terminator)
-  | 'sim_step_contribution';    // Emit a partial-step delta (simStepPartial terminator)
+  | 'sim_step_contribution'     // Emit a partial-step delta (simStepPartial terminator)
+  | 'validation_result';        // Pass/fail verdict from an InitialConditionsValidator solution
 
 /**
  * Returns the valid end state completion types for a given runtime.

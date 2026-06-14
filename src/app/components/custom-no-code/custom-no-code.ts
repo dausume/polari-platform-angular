@@ -28,6 +28,10 @@ import { RunEquationOverlayPopupComponent } from './states/equations/run-equatio
 import { AvailableInput, SourceObjectField } from './shared/value-source-selector/value-source-selector.component';
 import { MathOperationOverlayPopupComponent, MathOperationOverlayPopupData } from './states/math/math-operation-overlay/popup/math-operation-overlay-popup.component';
 import { ReturnValueOverlayComponent } from './states/end-states/return-value/return-value-overlay/return-value-overlay.component';
+import { SimStepNextStateOverlayComponent } from './states/end-states/sim-step-next-state/sim-step-next-state-overlay/sim-step-next-state-overlay.component';
+import { SimStepContributionOverlayComponent } from './states/end-states/sim-step-contribution/sim-step-contribution-overlay/sim-step-contribution-overlay.component';
+import { ValidationResultOverlayComponent } from './states/end-states/validation-result/validation-result-overlay/validation-result-overlay.component';
+import { InitialConditionsValidatorOverlayComponent } from './states/initial-states/initial-conditions-validator/initial-conditions-validator-overlay/initial-conditions-validator-overlay.component';
 import { FormValidationOverlayComponent } from './states/conditionals/form-validation/form-validation-overlay/form-validation-overlay.component';
 import { CircleStateLayer } from '@models/noCode/d3-extensions/CircleStateLayer';
 import { RectangleStateLayer } from '@models/noCode/d3-extensions/RectangleStateLayer';
@@ -861,6 +865,14 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
       return this.createFormValidationOverlay(stateName, stateGroup, stateInstance);
     } else if (stateClass === 'ReturnValue') {
       return this.createReturnValueOverlay(stateName, stateGroup, stateInstance);
+    } else if (stateClass === 'SimStepNextState') {
+      return this.createSimStepNextStateOverlay(stateName, stateGroup, stateInstance);
+    } else if (stateClass === 'SimStepContribution') {
+      return this.createSimStepContributionOverlay(stateName, stateGroup, stateInstance);
+    } else if (stateClass === 'InitialConditionsValidatorEntry') {
+      return this.createInitialConditionsValidatorOverlay(stateName, stateGroup, stateInstance);
+    } else if (stateClass === 'ValidationResult') {
+      return this.createValidationResultOverlay(stateName, stateGroup, stateInstance);
     } else {
       return this.createDefaultOverlay(stateName, stateGroup, stateInstance);
     }
@@ -1460,6 +1472,7 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
       'logic_flow_entry': 'LogicFlowEntry',
       'backend_state_change': 'BackendStateChange',
       'simulation_state_step': 'SimulationStateStep',
+      'initial_conditions_validator': 'InitialConditionsValidatorEntry',
     };
 
     const newClassName = classNameMap[newType];
@@ -1771,6 +1784,164 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
         this.showStatePage(stateInstance);
       });
 
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Create a SimStepNextStateOverlayComponent for SimStepNextState terminators.
+   * Renders the target *SimState class + outputMappings table so the new-row
+   * payload is visible at a glance.
+   */
+  private createSimStepNextStateOverlay(stateName: string, stateGroup: SVGGElement, stateInstance: NoCodeState): boolean {
+    const fieldValues = stateInstance.boundObjectFieldValues || {};
+
+    const componentRef = this.stateOverlayManager.createOverlayForState(
+      stateName,
+      stateGroup,
+      SimStepNextStateOverlayComponent,
+      {
+        stateName,
+        boundClassName: 'SimStepNextState',
+        boundObjectFieldValues: fieldValues,
+        availableInputs: this.getAvailableInputsForState(stateInstance),
+        sourceObjectFields: this.getSourceObjectFieldsForState(stateInstance),
+      }
+    );
+
+    if (componentRef) {
+      this.stateOverlayManager.setOverlayPointerEvents(stateName, true);
+
+      componentRef.instance.fieldValuesChanged.subscribe((updated: { [key: string]: any }) => {
+        stateInstance.boundObjectFieldValues = updated;
+        this.regenerateCode();
+      });
+
+      componentRef.instance.fullViewRequested.subscribe((event: { x: number; y: number; stateName: string }) => {
+        this.showFullViewPopup(event.x, event.y, stateInstance);
+      });
+
+      componentRef.instance.statePageRequested.subscribe(() => {
+        this.showStatePage(stateInstance);
+      });
+
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Create a SimStepContributionOverlayComponent for SimStepContribution terminators.
+   * Same shape as SimStepNextState plus a per-row `op` selector (set/add/mul/min/max)
+   * matching the backend `_apply_step_contributions` merge semantics.
+   */
+  private createSimStepContributionOverlay(stateName: string, stateGroup: SVGGElement, stateInstance: NoCodeState): boolean {
+    const fieldValues = stateInstance.boundObjectFieldValues || {};
+
+    const componentRef = this.stateOverlayManager.createOverlayForState(
+      stateName,
+      stateGroup,
+      SimStepContributionOverlayComponent,
+      {
+        stateName,
+        boundClassName: 'SimStepContribution',
+        boundObjectFieldValues: fieldValues,
+        availableInputs: this.getAvailableInputsForState(stateInstance),
+        sourceObjectFields: this.getSourceObjectFieldsForState(stateInstance),
+      }
+    );
+
+    if (componentRef) {
+      this.stateOverlayManager.setOverlayPointerEvents(stateName, true);
+
+      componentRef.instance.fieldValuesChanged.subscribe((updated: { [key: string]: any }) => {
+        stateInstance.boundObjectFieldValues = updated;
+        this.regenerateCode();
+      });
+
+      componentRef.instance.fullViewRequested.subscribe((event: { x: number; y: number; stateName: string }) => {
+        this.showFullViewPopup(event.x, event.y, stateInstance);
+      });
+
+      componentRef.instance.statePageRequested.subscribe(() => {
+        this.showStatePage(stateInstance);
+      });
+
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Create an InitialConditionsValidatorOverlay for the validator's
+   * entry state. Pure documentation/configuration surface — the
+   * runner reads the validator solution graph independently.
+   */
+  private createInitialConditionsValidatorOverlay(
+    stateName: string, stateGroup: SVGGElement, stateInstance: NoCodeState,
+  ): boolean {
+    const fieldValues = stateInstance.boundObjectFieldValues || {};
+    const componentRef = this.stateOverlayManager.createOverlayForState(
+      stateName,
+      stateGroup,
+      InitialConditionsValidatorOverlayComponent,
+      {
+        stateName,
+        boundClassName: 'InitialConditionsValidatorEntry',
+        boundObjectFieldValues: fieldValues,
+      },
+    );
+    if (componentRef) {
+      this.stateOverlayManager.setOverlayPointerEvents(stateName, true);
+      componentRef.instance.fieldValuesChanged.subscribe((updated: { [key: string]: any }) => {
+        stateInstance.boundObjectFieldValues = updated;
+        this.regenerateCode();
+      });
+      componentRef.instance.fullViewRequested.subscribe((event: { x: number; y: number; stateName: string }) => {
+        this.showFullViewPopup(event.x, event.y, stateInstance);
+      });
+      componentRef.instance.statePageRequested.subscribe(() => {
+        this.showStatePage(stateInstance);
+      });
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Create a ValidationResultOverlay for the validator's terminator
+   * state. Shows three fixed verdict bindings (outcome, reason,
+   * repairedValues) with value-source-selectors.
+   */
+  private createValidationResultOverlay(
+    stateName: string, stateGroup: SVGGElement, stateInstance: NoCodeState,
+  ): boolean {
+    const fieldValues = stateInstance.boundObjectFieldValues || {};
+    const componentRef = this.stateOverlayManager.createOverlayForState(
+      stateName,
+      stateGroup,
+      ValidationResultOverlayComponent,
+      {
+        stateName,
+        boundClassName: 'ValidationResult',
+        boundObjectFieldValues: fieldValues,
+        availableInputs: this.getAvailableInputsForState(stateInstance),
+        sourceObjectFields: this.getSourceObjectFieldsForState(stateInstance),
+      },
+    );
+    if (componentRef) {
+      this.stateOverlayManager.setOverlayPointerEvents(stateName, true);
+      componentRef.instance.fieldValuesChanged.subscribe((updated: { [key: string]: any }) => {
+        stateInstance.boundObjectFieldValues = updated;
+        this.regenerateCode();
+      });
+      componentRef.instance.fullViewRequested.subscribe((event: { x: number; y: number; stateName: string }) => {
+        this.showFullViewPopup(event.x, event.y, stateInstance);
+      });
+      componentRef.instance.statePageRequested.subscribe(() => {
+        this.showStatePage(stateInstance);
+      });
       return true;
     }
     return false;

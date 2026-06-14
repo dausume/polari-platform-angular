@@ -152,4 +152,14 @@ export interface SimSpaceSnapshot {
    * panel visible.
    */
   participatingSimulations?: string[];
+  /**
+   * Per-sim defaults (dt, time unit) keyed by SimulationDefinition
+   * name. Drives the run panel's dt-override placeholder + result-
+   * time formatting without a separate round trip. Empty / missing
+   * keys = use the sim def's hard-coded fallback (0.01 s).
+   */
+  simulationDefaultsByName?: Record<string, {
+    timeStepSeconds: number;
+    timeUnit: string;
+  }>;
 }

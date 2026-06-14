@@ -91,6 +91,9 @@ import {
     <div class="run-panel-anchor" *ngIf="simulationDefinitionName">
       <sim-space-simulation-run-panel
         [simulationDefinitionName]="simulationDefinitionName"
+        [defaultDtSeconds]="simulationDefaultDtSeconds"
+        [bottomOffsetPx]="legendBottomOffsetPx"
+        [timeUnit]="temporalUnit"
         (stepCommitted)="onSimulationStepCommitted()"
         (selectedRunChange)="onSelectedRunChange($event)">
       </sim-space-simulation-run-panel>
@@ -263,6 +266,15 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
   get simulationDefinitionName(): string | null {
     const sims = this.snapshot?.participatingSimulations ?? [];
     return sims[0] ?? null;
+  }
+
+  /** Default dt in seconds for the active sim def, surfaced as the
+   *  IC editor's dt-override placeholder. 0 = unknown (fallback to
+   *  generic "sim default" placeholder text in the editor). */
+  get simulationDefaultDtSeconds(): number {
+    const name = this.simulationDefinitionName;
+    if (!name) return 0;
+    return this.snapshot?.simulationDefaultsByName?.[name]?.timeStepSeconds ?? 0;
   }
 
   /** The run the viewer is currently scoped to. Snapshot fetches pass

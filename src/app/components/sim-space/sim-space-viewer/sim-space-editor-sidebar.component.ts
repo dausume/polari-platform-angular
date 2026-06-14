@@ -44,7 +44,7 @@ import { MatInputModule } from '@angular/material/input';
 
 import {
   SimulationRunService,
-  SimulationStepSolutionEntry,
+  SimulationExecutionSolutionEntry,
   SimulationSolutionsResponse,
 } from '@services/sim-space/simulation-run.service';
 import {
@@ -157,7 +157,7 @@ import {
                   </div>
                   <ul class="solution-list">
                     <li *ngFor="let entry of bindingsFor(cls)" class="solution-row"
-                        [class.unwired]="!entry.stepSolutionRef">
+                        [class.unwired]="!entry.solutionDefinitionRef">
                       <div class="solution-row-top">
                         <span class="order-pill"
                               [matTooltip]="'order ' + entry.orderIndex + ' — solutions run from lowest to highest within this class'">
@@ -169,12 +169,12 @@ import {
                               [matTooltip]="roleTooltipFor(entry)">
                           {{ roleLabelFor(entry) }}
                         </span>
-                        <code class="solution-name" *ngIf="entry.stepSolutionRef">{{ entry.stepSolutionRef }}</code>
-                        <em class="muted small" *ngIf="!entry.stepSolutionRef">(no solution wired)</em>
+                        <code class="solution-name" *ngIf="entry.solutionDefinitionRef">{{ entry.solutionDefinitionRef }}</code>
+                        <em class="muted small" *ngIf="!entry.solutionDefinitionRef">(no solution wired)</em>
                         <span class="status-badge"
-                              [class.status-ok]="entry.stepSolutionRef && entry.enabled"
+                              [class.status-ok]="entry.solutionDefinitionRef && entry.enabled"
                               [class.status-disabled]="!entry.enabled"
-                              [class.status-missing]="!entry.stepSolutionRef">
+                              [class.status-missing]="!entry.solutionDefinitionRef">
                           {{ statusFor(entry) }}
                         </span>
                       </div>
@@ -183,7 +183,7 @@ import {
                       </div>
                       <div class="solution-row-actions">
                         <button mat-stroked-button class="edit-btn"
-                                [disabled]="!entry.stepSolutionRef"
+                                [disabled]="!entry.solutionDefinitionRef"
                                 matTooltip="Open this solution in the no-code editor"
                                 (click)="openInEditor(entry)">
                           <mat-icon>edit</mat-icon>
@@ -495,7 +495,7 @@ export class SimSpaceEditorSidebarComponent implements OnChanges {
    *  / three.js render area. */
   @HostBinding('class.expanded') expanded = false;
   openSectionName: 'solutions' | 'axes' | 'info' | null = 'solutions';
-  solutions: SimulationStepSolutionEntry[] = [];
+  solutions: SimulationExecutionSolutionEntry[] = [];
   availableSolutions: Array<{ name: string; targetRuntime: string }> = [];
   simStateClasses: string[] = [];
   solutionsLoading = false;
@@ -546,7 +546,7 @@ export class SimSpaceEditorSidebarComponent implements OnChanges {
     this.solutionsLoading = true;
     try {
       const resp = await this.runService.solutionsFor(this.simulationDefinitionName);
-      this.solutions = resp.bindings;
+      this.solutions = resp.solutions;
       this.availableSolutions = resp.availableSolutions;
       this.simStateClasses = resp.simStateClasses;
     } catch {
@@ -571,42 +571,42 @@ export class SimSpaceEditorSidebarComponent implements OnChanges {
     return [...set].sort();
   }
 
-  bindingsFor(simStateClass: string): SimulationStepSolutionEntry[] {
+  bindingsFor(simStateClass: string): SimulationExecutionSolutionEntry[] {
     return this.solutions
       .filter(b => b.simStateClassName === simStateClass)
-      .sort((a, b) => (a.orderIndex - b.orderIndex) || a.bindingName.localeCompare(b.bindingName));
+      .sort((a, b) => (a.orderIndex - b.orderIndex) || a.name.localeCompare(b.name));
   }
 
-  statusFor(entry: SimulationStepSolutionEntry): string {
-    if (!entry.stepSolutionRef) return 'missing';
+  statusFor(entry: SimulationExecutionSolutionEntry): string {
+    if (!entry.solutionDefinitionRef) return 'missing';
     if (!entry.enabled) return 'disabled';
     return 'wired';
   }
 
   /** Short role label rendered on each binding row (next to the order
    *  pill). Returns '' for unknown so the template can hide the chip. */
-  roleLabelFor(entry: SimulationStepSolutionEntry): string {
+  roleLabelFor(entry: SimulationExecutionSolutionEntry): string {
     switch (entry.simStepRole) {
       case 'simStepComplete':    return 'Complete';
       case 'simStepPartial':     return 'Partial';
       case 'simStepComposition': return 'Composition';
-      default: return entry.stepSolutionRef ? 'no role' : '';
+      default: return entry.solutionDefinitionRef ? 'no role' : '';
     }
   }
 
   /** CSS modifier class so the role pill picks up its accent colour. */
-  roleClassFor(entry: SimulationStepSolutionEntry): string {
+  roleClassFor(entry: SimulationExecutionSolutionEntry): string {
     switch (entry.simStepRole) {
       case 'simStepComplete':    return 'role-complete';
       case 'simStepPartial':     return 'role-partial';
       case 'simStepComposition': return 'role-composition';
-      default: return entry.stepSolutionRef ? 'role-unknown' : '';
+      default: return entry.solutionDefinitionRef ? 'role-unknown' : '';
     }
   }
 
   /** Tooltip text for the role pill — surfaces the detection error
    *  when present so the user knows WHY a role is missing. */
-  roleTooltipFor(entry: SimulationStepSolutionEntry): string {
+  roleTooltipFor(entry: SimulationExecutionSolutionEntry): string {
     if (entry.simStepRole) {
       switch (entry.simStepRole) {
         case 'simStepComplete':
@@ -714,9 +714,9 @@ export class SimSpaceEditorSidebarComponent implements OnChanges {
       const nextOrder = existing.length
         ? Math.max(...existing.map(e => e.orderIndex)) + 1
         : 0;
-      await this.runService.createBinding(this.simulationDefinitionName, {
+      await this.runService.createSolutionRow(this.simulationDefinitionName, {
         simStateClassName: simStateClass,
-        stepSolutionRef: this.addFormSolution,
+        solutionDefinitionRef: this.addFormSolution,
         orderIndex: nextOrder,
       });
       this.cancelAdd();
@@ -724,19 +724,19 @@ export class SimSpaceEditorSidebarComponent implements OnChanges {
     } catch (err) {
       // Surface failure inline — a global toast would be better but
       // we don't have one wired here.
-      console.warn('[SimSpaceEditorSidebar] createBinding failed:', err);
+      console.warn('[SimSpaceEditorSidebar] createSolutionRow failed:', err);
     } finally {
       this.addInFlight = false;
     }
   }
 
-  async removeBinding(entry: SimulationStepSolutionEntry): Promise<void> {
-    if (!entry.bindingName) return;
+  async removeBinding(entry: SimulationExecutionSolutionEntry): Promise<void> {
+    if (!entry.name) return;
     try {
-      await this.runService.deleteBinding(entry.bindingName);
+      await this.runService.deleteSolutionRow(entry.name);
       await this.reloadSolutions();
     } catch (err) {
-      console.warn('[SimSpaceEditorSidebar] deleteBinding failed:', err);
+      console.warn('[SimSpaceEditorSidebar] deleteSolutionRow failed:', err);
     }
   }
 
@@ -748,13 +748,10 @@ export class SimSpaceEditorSidebarComponent implements OnChanges {
     return '—';
   }
 
-  openInEditor(entry: SimulationStepSolutionEntry): void {
-    if (!entry.stepSolutionRef) return;
-    // Open the no-code editor. v1 just navigates; the editor's solution
-    // dropdown surfaces the linked solution by name. A future enhancement
-    // can add a `?solution=<name>` preselect query param.
+  openInEditor(entry: SimulationExecutionSolutionEntry): void {
+    if (!entry.solutionDefinitionRef) return;
     this.router.navigate(['/custom-no-code'], {
-      queryParams: { focusSolution: entry.stepSolutionRef },
+      queryParams: { focusSolution: entry.solutionDefinitionRef },
     });
   }
 }

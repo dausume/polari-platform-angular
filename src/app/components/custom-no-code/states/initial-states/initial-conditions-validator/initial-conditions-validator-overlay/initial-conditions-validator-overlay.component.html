@@ -1,0 +1,82 @@
+<div class="icv-overlay-root"
+     [attr.data-size-tier]="sizeTier"
+     [ngSwitch]="sizeTier"
+     [appStateOverlayRoot]="stateName"
+     (contextRequested)="fullViewRequested.emit($event)">
+
+    <!-- TINY -->
+    <div *ngSwitchCase="'tiny'" class="tier-tiny">
+        <mat-icon>fact_check</mat-icon>
+    </div>
+
+    <!-- COMPACT -->
+    <state-overlay-shell *ngSwitchCase="'compact'"
+        accent="#26A69A"
+        icon="fact_check"
+        [title]="simulationDefinitionName || 'Validator'"
+        [compact]="true"
+        [showCodingComment]="false"
+        [bordered]="false">
+        <div class="tier-compact">
+            <div class="tier-compact__sim">{{ simulationDefinitionName || '(no simulation set)' }}</div>
+            <div class="tier-compact__summary" *ngIf="validationSummary">
+                {{ validationSummary }}
+            </div>
+        </div>
+    </state-overlay-shell>
+
+    <!-- FULL -->
+    <state-overlay-shell *ngSwitchCase="'full'"
+        accent="#26A69A"
+        icon="fact_check"
+        title="Validate Initial Conditions"
+        [bordered]="true"
+        [codingComment]="(boundObjectFieldValues || {})['codingComment'] || ''"
+        (commentChanged)="onCodingCommentChange($event)">
+
+        <div class="overlay-content state-overlay-scrollbar">
+
+            <div class="section">
+                <label class="section-label">Target simulation</label>
+                <input type="text" class="text-input"
+                       placeholder="e.g. pendulum-2d"
+                       [value]="simulationDefinitionName"
+                       (input)="onSimulationChange($any($event.target).value)" />
+                <p class="hint">
+                    The runner pulls this validator from a SimulationDefinition's
+                    <code>initial_conditions_validator_ref</code> field. The name here is
+                    informational — it documents which sim the author has in mind.
+                </p>
+            </div>
+
+            <div class="section">
+                <label class="section-label">What this validator checks</label>
+                <textarea class="text-input text-input--multiline" rows="3"
+                          placeholder="e.g. theta is within [-π, π]; bob x/y matches the taut-string projection of theta"
+                          [value]="validationSummary"
+                          (input)="onSummaryChange($any($event.target).value)"></textarea>
+                <p class="hint">
+                    Free-form summary for documentation. The actual validation logic lives
+                    in the solution graph downstream of this entry; this text is just for
+                    humans browsing the editor.
+                </p>
+            </div>
+
+            <div class="section info-section">
+                <mat-icon>info_outline</mat-icon>
+                <div>
+                    Context available downstream:
+                    <ul>
+                        <li><code>&lt;ClassName&gt;.&lt;field&gt;</code> for each participating *SimState's merged initial values</li>
+                        <li><code>params.&lt;key&gt;</code> for each entry in the simulation's parameters_json</li>
+                        <li><code>participating_classes</code> — list of class names</li>
+                    </ul>
+                    Terminate at a <code>ValidationResult</code> with <code>outcome</code> = 'valid' / 'invalid'.
+                </div>
+            </div>
+
+        </div>
+
+    </state-overlay-shell>
+
+</div>
