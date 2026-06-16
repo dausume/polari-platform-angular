@@ -59,11 +59,72 @@ export interface InitialConditionsForClass {
   simOverrides: Record<string, unknown>;
 }
 
+/** Per-field save policy decision. */
+export type FieldSavePolicy = 'core' | 'derivable' | 'skip';
+
+/** A single field's effective save rule. */
+export interface FieldSaveRule {
+  policy?: FieldSavePolicy;
+  /** Per-field recording interval; 0 / missing = inherit
+   *  sim def's recording_interval_steps. */
+  interval?: number;
+}
+
+/** Hybrid field-policy view, mirrors InitialConditionsForClass. */
+export interface FieldPoliciesForClass {
+  /** Class-declared default per field. Missing entries default to 'core'. */
+  classDefaults: Record<string, FieldSavePolicy>;
+  /** Sim-def-level overrides. Keyed by FIELD name (not <class>.<field>). */
+  simOverrides: Record<string, FieldSaveRule>;
+}
+
 export interface SimulationSolutionsResponse {
   solutions: SimulationExecutionSolutionEntry[];
   availableSolutions: Array<{ name: string; targetRuntime: string }>;
   simStateClasses: string[];
   initialConditions: Record<string, InitialConditionsForClass>;
+  fieldPolicies?: Record<string, FieldPoliciesForClass>;
+}
+
+/** Source tag on a per-field byte estimate. Drives the UI warning
+ *  when the predictor is using conservative static defaults. */
+export type StorageEstimateSource =
+  | 'static'                  // no measurements; using TYPE_BYTES table
+  | 'measured-insufficient'   // < threshold samples; still using static
+  | 'measured';               // running average from PolyTyping
+
+export interface StorageEstimateFieldEntry {
+  policy: FieldSavePolicy;
+  /** Per-field recording interval; 0 = inherit sim def's. */
+  interval: number;
+  rowsPersisted: number;
+  bytes: number;
+  minBytes: number;
+  maxBytes: number;
+  source: StorageEstimateSource;
+  sampleCount: number;
+}
+
+export interface StorageEstimateClassEntry {
+  rowOverheadBytes: number;
+  rowsPersisted: number;
+  normalCaseBytes: number;
+  minBytes: number;
+  maxBytes: number;
+  fields: Record<string, StorageEstimateFieldEntry>;
+}
+
+export interface StorageEstimate {
+  totalSteps: number;
+  normalCaseBytes: number;
+  minBytes: number;
+  maxBytes: number;
+  normalCaseHuman: string;
+  minCaseHuman: string;
+  maxCaseHuman: string;
+  usesStaticEstimates: boolean;
+  perClass: Record<string, StorageEstimateClassEntry>;
+  notes: string[];
 }
 
 export interface CreateSolutionRowRequest {
@@ -125,15 +186,20 @@ export class SimulationRunService {
     private runtimeConfig: RuntimeConfigService,
   ) {}
 
-  /** Create a fresh SimulationRun for a SimulationDefinition. Optional
-   *  `initialConditionsOverrides` is a per-class field-value map applied
-   *  on top of the sim def's defaults at step 0. Optional
-   *  `timeStepSeconds` overrides the sim def's dt for this run only. */
+  /** Create a fresh SimulationRun for a SimulationDefinition.
+   *
+   *  Optional override layers, all per-run, all applied on top of the
+   *  sim def's saved values:
+   *    - initialConditionsOverrides: per-class field-value overrides
+   *    - timeStepSeconds: dt override (0 = inherit)
+   *    - fieldSaveOverrides: per-`<class>.<field>` save-rule overrides
+   *      (policy + optional per-field interval) */
   async create(
     simulationRef: string,
     label?: string,
     initialConditionsOverrides?: Record<string, Record<string, unknown>>,
     timeStepSeconds?: number,
+    fieldSaveOverrides?: Record<string, FieldSaveRule>,
   ): Promise<{name: string; status: string}> {
     const url = `${this.runtimeConfig.getBackendBaseUrl()}/api/simulations/runs`;
     const resp = await firstValueFrom(
@@ -144,8 +210,53 @@ export class SimulationRunService {
           label: label || '',
           initialConditionsOverrides: initialConditionsOverrides || {},
           timeStepSeconds: timeStepSeconds ?? 0,
+          fieldSaveOverrides: fieldSaveOverrides || {},
         },
       )
+    );
+    return resp.data;
+  }
+
+  /** Write per-run initial conditions onto an existing, uninitialized
+   *  run (one created with no step 0 yet). Mirrors the override layers
+   *  accepted by `create`. Backend 409s if the run is already locked
+   *  (has a committed step 0). */
+  async setInitialConditions(
+    runName: string,
+    initialConditionsOverrides?: Record<string, Record<string, unknown>>,
+    timeStepSeconds?: number,
+    fieldSaveOverrides?: Record<string, FieldSaveRule>,
+  ): Promise<{ name: string; status: string }> {
+    const url = `${this.runtimeConfig.getBackendBaseUrl()}`
+      + `/api/simulations/runs/${encodeURIComponent(runName)}/initial-conditions`;
+    const resp = await firstValueFrom(
+      this.http.post<{ success: boolean; data: { name: string; status: string } }>(
+        url,
+        {
+          initialConditionsOverrides: initialConditionsOverrides || {},
+          timeStepSeconds: timeStepSeconds ?? 0,
+          fieldSaveOverrides: fieldSaveOverrides || {},
+        },
+      )
+    );
+    return resp.data;
+  }
+
+  /** Live storage estimate for a hypothetical run configuration. The
+   *  IC editor calls this on debounce so users see how their tweaks
+   *  affect persisted bytes before committing. */
+  async estimateStorage(
+    simulationRef: string,
+    fieldSaveOverrides: Record<string, FieldSaveRule>,
+    timeStepSeconds?: number,
+  ): Promise<StorageEstimate> {
+    const url = `${this.runtimeConfig.getBackendBaseUrl()}`
+      + `/api/simulations/${encodeURIComponent(simulationRef)}/storage-estimate`;
+    const resp = await firstValueFrom(
+      this.http.post<{ success: boolean; data: StorageEstimate }>(
+        url,
+        { fieldSaveOverrides, timeStepSeconds: timeStepSeconds ?? 0 },
+      ),
     );
     return resp.data;
   }
@@ -268,6 +379,24 @@ export class SimulationRunService {
     await firstValueFrom(
       this.http.delete<{ success: boolean }>(url)
     );
+  }
+
+  /** Committed row per participating *SimState class for a run. Without
+   *  `step`, returns the most-recent row (drives the live current-state
+   *  display). With `step`, returns the row at exactly that step — the
+   *  IC editor uses `step=0` to show a locked run's initial conditions. */
+  async currentStateFor(runName: string, step?: number): Promise<{
+    step: number | null;
+    time: number | null;
+    perClass: Record<string, Record<string, unknown>>;
+  }> {
+    const qs = step !== undefined ? `?step=${step}` : '';
+    const url = `${this.runtimeConfig.getBackendBaseUrl()}`
+      + `/api/simulations/runs/${encodeURIComponent(runName)}/current-state${qs}`;
+    const resp = await firstValueFrom(
+      this.http.get<{ success: boolean; data: any }>(url),
+    );
+    return resp.data ?? { step: null, time: null, perClass: {} };
   }
 
   /** List runs, optionally filtered to a SimulationDefinition. */

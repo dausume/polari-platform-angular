@@ -18,6 +18,7 @@
 
 import {
   ChangeDetectionStrategy,
+  ChangeDetectorRef,
   Component,
   EventEmitter,
   Input,
@@ -38,6 +39,10 @@ import { debounce } from 'rxjs/operators';
 import {
   SimulationRunService,
   InitialConditionsForClass,
+  FieldPoliciesForClass,
+  FieldSavePolicy,
+  FieldSaveRule,
+  StorageEstimate,
 } from '@services/sim-space/simulation-run.service';
 
 /** What the editor reports up to its parent. */
@@ -45,6 +50,14 @@ export interface RunInitialConditionsState {
   overrides: Record<string, Record<string, unknown>>;
   /** Per-run dt in seconds. 0 = inherit from the sim def. */
   timeStepSeconds: number;
+  /** Per-`<class>.<field>` save-rule overrides this run will apply on
+   *  top of the sim def's field policies. Cleared entries fall back to
+   *  the effective class/sim default. */
+  fieldSaveOverrides: Record<string, FieldSaveRule>;
+  /** Latest live estimate of how much data this configuration would
+   *  persist. `null` while loading or when the simulation has no
+   *  participating classes. */
+  storageEstimate: StorageEstimate | null;
   /** True when the validator reports valid OR the sim has no
    *  validator OR the proposed values are unchanged from class
    *  defaults (in which case validation is implicitly OK). */
@@ -79,7 +92,16 @@ export interface RunInitialConditionsState {
       </p>
 
       <ng-container *ngIf="!loadingClasses && classes.length">
-        <p class="hint">
+        <div class="locked-banner" *ngIf="locked">
+          <mat-icon>lock</mat-icon>
+          <div>
+            <strong>Initial conditions are locked.</strong>
+            They were committed to step 0 when this run was set up — create
+            a new run to use different values.
+          </div>
+        </div>
+
+        <p class="hint" *ngIf="!locked">
           Tweak any field for <em>this run only</em>. Empty values fall back
           to the class default. The simulation's validator (if any) checks
           your edits after a short pause and surfaces a verdict below.
@@ -100,9 +122,11 @@ export interface RunInitialConditionsState {
                    type="text"
                    [placeholder]="formatValue(defaultDtSeconds)"
                    [value]="dtOverride"
+                   [readonly]="locked"
+                   [class.locked]="locked"
                    (input)="onDtEdit($any($event.target).value)" />
             <button mat-icon-button class="clear-btn"
-                    *ngIf="dtOverride"
+                    *ngIf="dtOverride && !locked"
                     (click)="onDtEdit('')"
                     matTooltip="Reset to sim default">
               <mat-icon>refresh</mat-icon>
@@ -123,7 +147,7 @@ export interface RunInitialConditionsState {
               {{ Object.keys(cls.baseline).length }} field{{ Object.keys(cls.baseline).length === 1 ? '' : 's' }}
             </span>
             <span class="class-override-tag muted small"
-                  *ngIf="overrideCountFor(cls.name) > 0">
+                  *ngIf="!locked && overrideCountFor(cls.name) > 0">
               {{ overrideCountFor(cls.name) }} edited
             </span>
           </button>
@@ -141,17 +165,54 @@ export interface RunInitialConditionsState {
               <input class="field-input"
                      type="text"
                      [placeholder]="formatValue(cls.baseline[field])"
-                     [value]="overrideStringFor(cls.name, field)"
+                     [value]="fieldDisplayValue(cls.name, field)"
+                     [readonly]="locked"
+                     [class.locked]="locked"
                      (input)="onFieldEdit(cls.name, field, $any($event.target).value)" />
+              <button type="button" class="policy-chip"
+                      [class.policy-core]="effectivePolicy(cls.name, field) === 'core'"
+                      [class.policy-derivable]="effectivePolicy(cls.name, field) === 'derivable'"
+                      [class.policy-skip]="effectivePolicy(cls.name, field) === 'skip'"
+                      [class.is-overridden]="hasPolicyOverride(cls.name, field)"
+                      [disabled]="locked"
+                      (click)="cyclePolicy(cls.name, field)"
+                      [matTooltip]="policyTooltip(cls.name, field)">
+                {{ effectivePolicy(cls.name, field) }}
+              </button>
               <button mat-icon-button class="clear-btn"
-                      *ngIf="hasOverride(cls.name, field)"
+                      *ngIf="hasOverride(cls.name, field) && !locked"
                       (click)="clearOverride(cls.name, field)"
-                      matTooltip="Reset to default">
+                      matTooltip="Reset value to default">
                 <mat-icon>refresh</mat-icon>
               </button>
             </li>
           </ul>
         </section>
+
+        <div class="storage-bar"
+             *ngIf="state.storageEstimate"
+             [class.storage-static]="state.storageEstimate.usesStaticEstimates">
+          <mat-icon class="storage-icon">storage</mat-icon>
+          <div class="storage-text">
+            <div>
+              <strong>{{ state.storageEstimate.normalCaseHuman }}</strong>
+              normal case
+              <span class="muted small"
+                    *ngIf="state.storageEstimate.minCaseHuman !== state.storageEstimate.maxCaseHuman">
+                ({{ state.storageEstimate.minCaseHuman }} – {{ state.storageEstimate.maxCaseHuman }})
+              </span>
+              <span class="muted small">
+                over {{ state.storageEstimate.totalSteps }} step{{ state.storageEstimate.totalSteps === 1 ? '' : 's' }}
+              </span>
+            </div>
+            <div class="storage-static-warning"
+                 *ngIf="state.storageEstimate.usesStaticEstimates"
+                 matTooltip="No measured byte samples yet — using conservative defaults. Numbers will tighten as more runs commit.">
+              <mat-icon>info_outline</mat-icon>
+              Estimate based on default sizes
+            </div>
+          </div>
+        </div>
 
         <div class="verdict-bar"
              [class.verdict-ok]="!state.validating && state.valid && state.hasValidator"
@@ -238,10 +299,27 @@ export interface RunInitialConditionsState {
     .field-list { list-style: none; margin: 0; padding: 6px 10px; display: flex; flex-direction: column; gap: 4px; }
     .field-row {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(120px, 1fr) auto;
+      grid-template-columns: minmax(0, 1fr) minmax(120px, 1fr) auto auto;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
+    .policy-chip {
+      border: 1px solid var(--border-light, #d6d9df);
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      font-weight: 600;
+      cursor: pointer;
+      background: white;
+      font-family: inherit;
+    }
+    .policy-chip:hover { filter: brightness(0.97); }
+    .policy-chip.policy-core      { background: #e6f4ea; color: #1e7e34; border-color: #b6e0c0; }
+    .policy-chip.policy-derivable { background: #e3f2fd; color: #0d47a1; border-color: #b9d6f6; }
+    .policy-chip.policy-skip      { background: #fdecea; color: #b71c1c; border-color: #f4b4b0; }
+    .policy-chip.is-overridden    { box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.18); }
     .field-label { display: flex; flex-direction: column; min-width: 0; }
     .field-name { font-size: 12px; color: #333; font-family: monospace; }
     .default-hint { font-size: 10px; color: var(--text-tertiary, #888); }
@@ -257,6 +335,26 @@ export interface RunInitialConditionsState {
       box-sizing: border-box;
     }
     .field-input:focus { outline: none; border-color: #1976d2; }
+    .field-input.locked {
+      background: #f1f3f5;
+      color: #555;
+      cursor: default;
+    }
+    .field-input.locked:focus { border-color: var(--border-light, #e0e3e9); }
+    .policy-chip:disabled { opacity: 0.85; cursor: default; }
+    .locked-banner {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 6px;
+      background: #eef5ff;
+      color: #0d47a1;
+      border: 1px solid #b9d6f6;
+      font-size: 11px;
+      line-height: 1.4;
+    }
+    .locked-banner mat-icon { font-size: 16px; width: 16px; height: 16px; flex: 0 0 16px; margin-top: 1px; }
     .clear-btn { width: 24px; height: 24px; }
     .clear-btn mat-icon { font-size: 14px; width: 14px; height: 14px; line-height: 14px; }
     .verdict-bar {
@@ -286,6 +384,34 @@ export interface RunInitialConditionsState {
     .dt-icon  { font-size: 16px; width: 16px; height: 16px; color: #1976d2; }
     .dt-row   { display: flex; gap: 6px; align-items: center; }
     .dt-input { flex: 1 1 auto; }
+
+    .storage-bar {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      line-height: 1.4;
+      background: #eef5ff;
+      color: #0d47a1;
+      border: 1px solid #b9d6f6;
+    }
+    .storage-bar.storage-static {
+      background: #fff8e1;
+      color: #6d4c00;
+      border-color: #ffe082;
+    }
+    .storage-bar .storage-icon { font-size: 16px; width: 16px; height: 16px; flex: 0 0 16px; margin-top: 1px; }
+    .storage-text { flex: 1 1 auto; }
+    .storage-static-warning {
+      display: flex; align-items: center; gap: 4px;
+      margin-top: 2px;
+      font-size: 10px;
+      font-style: italic;
+      opacity: 0.85;
+    }
+    .storage-static-warning mat-icon { font-size: 12px; width: 12px; height: 12px; }
     .muted { color: var(--text-secondary, #888); }
     .small { font-size: 10px; }
     .mono  { font-family: monospace; }
@@ -304,6 +430,18 @@ export class RunInitialConditionsEditorComponent implements OnChanges, OnDestroy
    *  scope). 0 = unknown / not yet loaded. */
   @Input() defaultDtSeconds: number = 0;
 
+  /** When true, the IC editor renders as a read-only summary — fields,
+   *  dt, and policy chips are no longer editable. Set by the parent
+   *  once a run has been initialized (step-0 row written), at which
+   *  point the saved values are immutable and the user has to create
+   *  a new run to change them. */
+  @Input() locked: boolean = false;
+
+  /** The selected run, when one is bound. Needed (only) while locked to
+   *  fetch that run's committed step-0 values so they replace the
+   *  editable entries. Null = nothing to fetch. */
+  @Input() runName: string | null = null;
+
   /** Live state — emitted on every change so the parent can gate
    *  "Create Run" on `valid=true` and pass `overrides` into the
    *  create call. */
@@ -315,11 +453,24 @@ export class RunInitialConditionsEditorComponent implements OnChanges, OnDestroy
     name: string;
     baseline: Record<string, unknown>;
     fieldList: string[];
+    /** Per-field effective policy BEFORE per-run overrides — class
+     *  declaration merged with sim-def overrides. The user's run-level
+     *  override (when present) wins over this. */
+    effectivePolicies: Record<string, FieldSavePolicy>;
   }> = [];
+
+  /** Per-run policy overrides keyed by `<class>.<field>`. Cleared
+   *  entries fall back to the class+sim effective policy. */
+  private policyOverrides: Record<string, FieldSavePolicy> = {};
 
   /** User's per-class overrides. Strings here so we don't strip the
    *  user's "0." mid-typing — parsed on emit. */
   private overrides: Record<string, Record<string, string>> = {};
+
+  /** When locked, the run's actual committed step-0 field values per
+   *  class (fetched from the backend). Displayed read-only in place of
+   *  the editable override entries. */
+  private lockedValues: Record<string, Record<string, unknown>> = {};
 
   /** Per-class open/closed state. Defaults to open on first load so
    *  the user sees what's editable; collapses preserve across edits. */
@@ -331,6 +482,8 @@ export class RunInitialConditionsEditorComponent implements OnChanges, OnDestroy
   state: RunInitialConditionsState = {
     overrides: {},
     timeStepSeconds: 0,
+    fieldSaveOverrides: {},
+    storageEstimate: null,
     valid: true,
     hasValidator: false,
     reason: '',
@@ -342,22 +495,88 @@ export class RunInitialConditionsEditorComponent implements OnChanges, OnDestroy
   readonly Object = Object;
 
   private editPing$ = new Subject<void>();
+  private estimatePing$ = new Subject<void>();
   private editSub: Subscription;
+  private estimateSub: Subscription;
 
-  constructor(private runService: SimulationRunService) {
+  constructor(
+    private runService: SimulationRunService,
+    private cdr: ChangeDetectorRef,
+  ) {
     this.editSub = this.editPing$
       .pipe(debounce(() => timer(400)))
       .subscribe(() => this.runValidation());
+    this.estimateSub = this.estimatePing$
+      .pipe(debounce(() => timer(400)))
+      .subscribe(() => this.runEstimate());
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['simulationDefinitionName']) {
       this.reloadBaseline();
     }
+    // Once locked, swap the editable entries for the run's real step-0
+    // values. Clear them again if it ever unlocks (e.g. New Run).
+    if (changes['locked'] || changes['runName']) {
+      if (this.locked && this.runName) {
+        this.loadLockedStep0();
+      } else {
+        this.lockedValues = {};
+      }
+    }
+  }
+
+  /** Fetch the committed step-0 row per class for the locked run so the
+   *  field entries display the actual initial conditions. */
+  private async loadLockedStep0(): Promise<void> {
+    const runName = this.runName;
+    if (!runName) return;
+    try {
+      const resp = await this.runService.currentStateFor(runName, 0);
+      this.lockedValues = resp.perClass ?? {};
+    } catch (err) {
+      console.warn('[RunInitialConditionsEditor] step-0 fetch failed:', err);
+      this.lockedValues = {};
+    }
+    this.cdr.markForCheck();
+  }
+
+  /** Value shown in a field input: the run's committed step-0 value when
+   *  locked, otherwise the user's in-progress override string. */
+  fieldDisplayValue(cls: string, field: string): string {
+    if (this.locked) {
+      const v = this.lockedValues[cls]?.[field];
+      if (v !== undefined && v !== null) return this.formatValue(v);
+      return '';
+    }
+    return this.overrideStringFor(cls, field);
   }
 
   ngOnDestroy(): void {
     this.editSub.unsubscribe();
+    this.estimateSub.unsubscribe();
+  }
+
+  /** Schedule a debounced estimate refresh — every policy/dt edit
+   *  bumps this so the readout reflects the latest config. */
+  private requestEstimate(): void {
+    this.estimatePing$.next();
+  }
+
+  private async runEstimate(): Promise<void> {
+    if (!this.simulationDefinitionName) return;
+    try {
+      const est = await this.runService.estimateStorage(
+        this.simulationDefinitionName,
+        this.parsedFieldOverrides(),
+        this.parsedDt(),
+      );
+      this.state = { ...this.state, storageEstimate: est };
+    } catch (err) {
+      // Non-fatal — just leave the previous estimate visible.
+      console.warn('[RunInitialConditionsEditor] estimateStorage failed:', err);
+    }
+    this.stateChange.emit(this.state);
   }
 
   private async reloadBaseline(): Promise<void> {
@@ -370,20 +589,33 @@ export class RunInitialConditionsEditorComponent implements OnChanges, OnDestroy
     try {
       const resp = await this.runService.solutionsFor(this.simulationDefinitionName);
       const ic = resp.initialConditions || {};
+      const fp = resp.fieldPolicies || {};
       this.classes = (resp.simStateClasses || []).map(name => {
         const block: InitialConditionsForClass = ic[name] ?? { classDefaults: {}, simOverrides: {} };
         const baseline = { ...(block.classDefaults || {}), ...(block.simOverrides || {}) };
+        const polBlock: FieldPoliciesForClass = fp[name] ?? { classDefaults: {}, simOverrides: {} };
+        const effective: Record<string, FieldSavePolicy> = {};
+        for (const f of Object.keys(baseline)) {
+          // Class default (or 'core' fallback), then sim-def override
+          // policy if present.
+          effective[f] = (polBlock.classDefaults[f] as FieldSavePolicy) || 'core';
+          const ov = polBlock.simOverrides[f];
+          if (ov && ov.policy) effective[f] = ov.policy;
+        }
         return {
           name,
           baseline,
           fieldList: Object.keys(baseline).sort(),
+          effectivePolicies: effective,
         };
       });
       // Reset overrides scaffolding (preserve nothing across sim switches).
       this.overrides = Object.fromEntries(this.classes.map(c => [c.name, {}]));
+      this.policyOverrides = {};
       // Default every class to open; subsequent toggles persist.
       this.classOpen = Object.fromEntries(this.classes.map(c => [c.name, true]));
       this.runValidation();   // initial verdict for the unchanged baseline
+      this.requestEstimate(); // initial storage estimate
     } catch (err) {
       console.warn('[RunInitialConditionsEditor] solutionsFor failed:', err);
     } finally {
@@ -430,6 +662,7 @@ export class RunInitialConditionsEditorComponent implements OnChanges, OnDestroy
   }
 
   onFieldEdit(cls: string, field: string, raw: string): void {
+    if (this.locked) return;
     if (!this.overrides[cls]) this.overrides[cls] = {};
     if (raw === '') {
       delete this.overrides[cls][field];
@@ -441,6 +674,7 @@ export class RunInitialConditionsEditorComponent implements OnChanges, OnDestroy
   }
 
   clearOverride(cls: string, field: string): void {
+    if (this.locked) return;
     if (this.overrides[cls]) {
       delete this.overrides[cls][field];
     }
@@ -449,9 +683,66 @@ export class RunInitialConditionsEditorComponent implements OnChanges, OnDestroy
   }
 
   onDtEdit(raw: string): void {
+    if (this.locked) return;
     this.dtOverride = raw;
     this.emitState();
-    // dt change doesn't affect validity — no need to re-validate.
+    // dt change doesn't affect validity — but does affect the
+    // storage estimate (more steps = more rows).
+    this.requestEstimate();
+  }
+
+  // ───────────────────────── per-field save policy ─────────────────────────
+
+  private readonly POLICY_CYCLE: FieldSavePolicy[] = ['core', 'derivable', 'skip'];
+
+  effectivePolicy(cls: string, field: string): FieldSavePolicy {
+    const key = `${cls}.${field}`;
+    if (this.policyOverrides[key]) return this.policyOverrides[key];
+    return this.classes.find(c => c.name === cls)?.effectivePolicies[field] || 'core';
+  }
+
+  hasPolicyOverride(cls: string, field: string): boolean {
+    return !!this.policyOverrides[`${cls}.${field}`];
+  }
+
+  cyclePolicy(cls: string, field: string): void {
+    if (this.locked) return;
+    const current = this.effectivePolicy(cls, field);
+    const idx = this.POLICY_CYCLE.indexOf(current);
+    const next = this.POLICY_CYCLE[(idx + 1) % this.POLICY_CYCLE.length];
+    const baseline = this.classes.find(c => c.name === cls)?.effectivePolicies[field] || 'core';
+    const key = `${cls}.${field}`;
+    if (next === baseline) {
+      // Cycling back to the class/sim baseline — clear the override.
+      delete this.policyOverrides[key];
+    } else {
+      this.policyOverrides[key] = next;
+    }
+    this.emitState();
+    this.requestEstimate();
+  }
+
+  policyTooltip(cls: string, field: string): string {
+    const policy = this.effectivePolicy(cls, field);
+    const baseline = this.classes.find(c => c.name === cls)?.effectivePolicies[field] || 'core';
+    const overridden = this.hasPolicyOverride(cls, field);
+    const meaning = {
+      core: 'Persisted at every recorded step.',
+      derivable: 'Not persisted — recompute on read from core fields.',
+      skip: 'Never persisted under any condition.',
+    } as Record<FieldSavePolicy, string>;
+    const sourceHint = overridden
+      ? ` (overriding the ${baseline} default for this run)`
+      : '';
+    return `${policy} — ${meaning[policy]}${sourceHint} Click to cycle.`;
+  }
+
+  private parsedFieldOverrides(): Record<string, FieldSaveRule> {
+    const out: Record<string, FieldSaveRule> = {};
+    for (const [key, policy] of Object.entries(this.policyOverrides)) {
+      out[key] = { policy };
+    }
+    return out;
   }
 
   private parsedDt(): number {
@@ -496,8 +787,10 @@ export class RunInitialConditionsEditorComponent implements OnChanges, OnDestroy
         this.simulationDefinitionName, this.parsedOverrides(),
       );
       this.state = {
+        ...this.state,
         overrides: this.parsedOverrides(),
         timeStepSeconds: this.parsedDt(),
+        fieldSaveOverrides: this.parsedFieldOverrides(),
         valid: resp.valid,
         hasValidator: resp.hasValidator,
         reason: resp.reason || '',
@@ -522,6 +815,7 @@ export class RunInitialConditionsEditorComponent implements OnChanges, OnDestroy
       ...this.state,
       overrides: this.parsedOverrides(),
       timeStepSeconds: this.parsedDt(),
+      fieldSaveOverrides: this.parsedFieldOverrides(),
     };
     this.stateChange.emit(this.state);
   }

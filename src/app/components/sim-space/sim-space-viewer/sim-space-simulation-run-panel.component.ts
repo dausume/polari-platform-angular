@@ -48,6 +48,7 @@ import {
   RunInitialConditionsEditorComponent,
   RunInitialConditionsState,
 } from './run-initial-conditions-editor.component';
+import { RunCurrentStateDisplayComponent } from './run-current-state-display.component';
 import {
   formatTimeValue,
   TimeDisplayMode,
@@ -62,6 +63,7 @@ import {
     MatSelectModule, MatFormFieldModule, MatTooltipModule,
     MatProgressSpinnerModule, MatInputModule,
     RunInitialConditionsEditorComponent,
+    RunCurrentStateDisplayComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -84,7 +86,21 @@ import {
             <input matInput placeholder="Filter runs…"
                    [(ngModel)]="runFilterText" (ngModelChange)="onFilterChange()">
           </mat-form-field>
+          <!-- Always available: spins up a fresh, uninitialized run and
+               switches the whole panel to it. The new run has no step 0,
+               so it reads as not-initialized → IC editor unlocks and
+               Set Initial Conditions appears for it. -->
           <button mat-stroked-button class="new-run-btn"
+                  [disabled]="newRunInFlight || !simulationDefinitionName"
+                  matTooltip="Create a fresh run and configure its initial conditions"
+                  (click)="onStartNewRun()">
+            <mat-icon *ngIf="!newRunInFlight">add</mat-icon>
+            <mat-progress-spinner *ngIf="newRunInFlight" diameter="14" mode="indeterminate">
+            </mat-progress-spinner>
+            New Run
+          </button>
+          <button mat-stroked-button class="new-run-btn"
+                  *ngIf="!selectedRunInitialized && selectedRunName"
                   [disabled]="newRunInFlight || !simulationDefinitionName || !icState.valid"
                   [matTooltip]="newRunDisabledReason"
                   (click)="onSetInitialConditions()">
@@ -113,8 +129,25 @@ import {
           <run-initial-conditions-editor
             [simulationDefinitionName]="simulationDefinitionName"
             [defaultDtSeconds]="defaultDtSeconds"
+            [locked]="selectedRunInitialized"
+            [runName]="selectedRunName"
             (stateChange)="onIcStateChange($event)">
           </run-initial-conditions-editor>
+        </details>
+
+        <details class="cs-display-wrap"
+                 *ngIf="simulationDefinitionName && selectedRunInitialized"
+                 open>
+          <summary class="cs-summary">
+            <mat-icon>insights</mat-icon>
+            <span>Current state</span>
+          </summary>
+          <run-current-state-display
+            [runName]="selectedRunName"
+            [refreshKey]="currentStateRefreshKey"
+            [timeUnit]="timeUnit"
+            [timeDisplayMode]="timeDisplayMode">
+          </run-current-state-display>
         </details>
 
         <ng-container *ngIf="filteredRuns.length === 0 && !runs.length">
@@ -340,6 +373,26 @@ import {
     .ic-status-ok  { color: #1e7e34; }
     .ic-status-bad { color: #b71c1c; }
 
+    .cs-display-wrap {
+      border: 1px solid var(--border-light, #e0e3e9);
+      border-radius: 6px;
+      padding: 6px 10px;
+      background: rgba(13, 71, 161, 0.025);
+    }
+    .cs-summary {
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.78rem;
+      font-weight: 500;
+      color: var(--text-primary, #222);
+      list-style: none;
+      padding-bottom: 4px;
+    }
+    .cs-summary::-webkit-details-marker { display: none; }
+    .cs-summary mat-icon { font-size: 16px; width: 16px; height: 16px; color: #1976d2; }
+
     .batch-form {
       display: flex; flex-direction: column; gap: 6px;
       padding: 8px 10px;
@@ -480,6 +533,18 @@ export class SimSpaceSimulationRunPanelComponent implements OnChanges {
   runFilterText = '';
   newRunInFlight = false;
 
+  /** Bumped on every commit / selection change so the current-state
+   *  display refetches without polling. */
+  currentStateRefreshKey = 0;
+
+  /** True once the selected run has at least one persisted row. Drives
+   *  the IC lock + the Set Initial Conditions button visibility. */
+  get selectedRunInitialized(): boolean {
+    const r = this.activeRun;
+    if (!r) return false;
+    return (r.recordedSteps || 0) > 0 || (r.lastRecordedStep || 0) > 0;
+  }
+
   // Batch-run form state.
   batchFormOpen = false;
   batchSteps = 100;
@@ -565,6 +630,8 @@ export class SimSpaceSimulationRunPanelComponent implements OnChanges {
   icState: RunInitialConditionsState = {
     overrides: {},
     timeStepSeconds: 0,
+    fieldSaveOverrides: {},
+    storageEstimate: null,
     valid: true,
     hasValidator: false,
     reason: '',
@@ -587,30 +654,55 @@ export class SimSpaceSimulationRunPanelComponent implements OnChanges {
     return 'Lock these initial conditions into a fresh run by writing the step-0 row.';
   }
 
-  /** Create a fresh run with the editor's current overrides + dt, then
-   *  immediately write the step-0 row so the initial conditions are
-   *  committed (the run can no longer have its IC changed — to use
-   *  different values, create a new run). */
-  async onSetInitialConditions(): Promise<void> {
+  /** Spin up a fresh, uninitialized run (no step 0 yet) and switch the
+   *  whole panel to it. Because it has no committed step 0 it reads as
+   *  not-initialized → the IC editor unlocks and Set Initial Conditions
+   *  appears, scoped to this new run. */
+  async onStartNewRun(): Promise<void> {
     if (!this.simulationDefinitionName || this.newRunInFlight) return;
-    if (!this.icState.valid) return;
     this.newRunInFlight = true;
+    this.lastResult = null;
+    this.batchFormOpen = false;
     try {
-      const { name } = await this.runService.create(
-        this.simulationDefinitionName,
-        undefined,
-        this.icState.overrides,
-        this.icState.timeStepSeconds > 0 ? this.icState.timeStepSeconds : undefined,
-      );
+      const { name } = await this.runService.create(this.simulationDefinitionName);
       await this.reloadRuns();
       this.selectedRunName = name;
+      this.currentStateRefreshKey++;
       this.selectedRunChange.emit(name);
+    } catch (err: any) {
+      this.lastResult = {
+        success: false, step: null, time: null,
+        rowsByClass: {}, solutionTraces: [], warnings: [],
+        error: `Failed to create run: ${err?.message || err}`,
+      };
+    } finally {
+      this.newRunInFlight = false;
+    }
+  }
+
+  /** Write the editor's initial conditions onto the selected
+   *  (uninitialized) run, then commit step 0 so they're locked in. The
+   *  run can no longer have its IC changed afterward — start a New Run
+   *  to use different values. */
+  async onSetInitialConditions(): Promise<void> {
+    if (!this.selectedRunName || this.newRunInFlight) return;
+    if (!this.icState.valid) return;
+    const runName = this.selectedRunName;
+    this.newRunInFlight = true;
+    try {
+      await this.runService.setInitialConditions(
+        runName,
+        this.icState.overrides,
+        this.icState.timeStepSeconds > 0 ? this.icState.timeStepSeconds : undefined,
+        this.icState.fieldSaveOverrides,
+      );
       // Commit step 0 now so the initial-conditions row exists and the
       // run's IC is effectively locked.
-      const result = await this.runService.step(name, 0);
+      const result = await this.runService.step(runName, 0);
       this.lastResult = result;
       if (result.success) {
         await this.reloadRuns();
+        this.currentStateRefreshKey++;
         this.stepCommitted.emit(result);
       }
     } catch (err: any) {
@@ -644,6 +736,7 @@ export class SimSpaceSimulationRunPanelComponent implements OnChanges {
       // Refresh the snapshot + run row counters so the scrubber sees
       // the new rows. We piggy-back on the existing stepCommitted output.
       await this.reloadRuns();
+      this.currentStateRefreshKey++;
       this.stepCommitted.emit({
         success: !result.error,
         step: result.finalStep,
@@ -667,6 +760,7 @@ export class SimSpaceSimulationRunPanelComponent implements OnChanges {
 
   onSelectionChange(): void {
     this.lastResult = null;
+    this.currentStateRefreshKey++;
     this.selectedRunChange.emit(this.selectedRunName);
   }
 
@@ -680,6 +774,7 @@ export class SimSpaceSimulationRunPanelComponent implements OnChanges {
       if (result.success) {
         // Refresh the run summary so lastRecordedStep updates.
         await this.reloadRuns(/* preserve selection */);
+        this.currentStateRefreshKey++;
         this.stepCommitted.emit(result);
       }
     } catch (err: any) {
