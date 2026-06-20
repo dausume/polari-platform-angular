@@ -54,6 +54,15 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
   private clock = new THREE.Clock();
   private raycaster = new THREE.Raycaster();
   private animationFrameId: number | null = null;
+  /** Gates the render loop — set false by destroy() so the (reschedule-first)
+   *  loop stops instead of spinning forever after teardown. */
+  private looping = false;
+  /** Keeps the canvas sized to its container as the layout settles. Without
+   *  it the WebGL canvas is stuck at whatever size the host had at attach
+   *  time (often 0/wrong before the viewer finishes laying out), so the
+   *  scene only appears/animates after an interaction (orbit) happens to
+   *  fire onHostResize. */
+  private resizeObserver: ResizeObserver | null = null;
 
   private definition?: SimSpaceDefinitionPayload;
   private currentObjects = new Map<string, SimSpaceObject>();
@@ -129,11 +138,23 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
     this.renderer.domElement.addEventListener('click', this.handleClick);
     this.renderer.domElement.addEventListener('mousemove', this.handleMouseMove);
 
+    // Re-fit the canvas whenever the host element resizes — covers the
+    // initial layout settling (host starts at 0/wrong size) and later
+    // panel/sidebar/scrubber reflows, so the scene renders correctly
+    // without needing a manual orbit/scroll nudge.
+    if (typeof ResizeObserver !== 'undefined') {
+      this.resizeObserver = new ResizeObserver(() => this.onHostResize());
+      this.resizeObserver.observe(host);
+    }
+
     this.startLoop();
   }
 
   destroy(): void {
     if (!this.renderer) return;
+    this.looping = false;
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = null;
     if (this.animationFrameId !== null) {
       cancelAnimationFrame(this.animationFrameId);
       this.animationFrameId = null;
@@ -218,6 +239,7 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
     }
     for (const obj of objects) {
       let mesh = this.meshes.get(obj.id);
+      const built = !mesh;
       if (!mesh) {
         mesh = this.buildMeshFor(obj);
         this.meshes.set(obj.id, mesh);
@@ -225,6 +247,12 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
       }
       this.applyTransform(mesh, obj);
       mesh.userData['polariSimSpaceId'] = obj.id;
+      // [DIAG-3D] remove once confirmed
+      if (obj.temporalValue !== undefined) {
+        console.log('[DIAG-R] setObj id=', obj.id, 'built=', built,
+          'objPos=', obj.position, 'meshPos=', [mesh.position.x, mesh.position.y, mesh.position.z],
+          'meshes=', this.meshes.size, 'inScene=', this.scene.children.includes(mesh));
+      }
     }
     this.currentObjects = next;
     this.repositionOverlays();
@@ -371,22 +399,39 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
   };
 
   private startLoop(): void {
+    this.looping = true;
+    let frame = 0;
     const tick = () => {
-      if (!this.renderer || !this.scene || !this.camera) return;
-      const delta = this.clock.getDelta();
-      if (this.viewHelperRig?.helper.animating) {
-        this.viewHelperRig.helper.update(delta);
-      }
-      this.controls?.update();
-      // Manual clear (autoClear=false) so the main scene survives the
-      // ViewHelper's subsequent partial-viewport render.
-      this.renderer.clear();
-      this.renderer.setViewport(
-        0, 0, this.renderer.domElement.width, this.renderer.domElement.height
-      );
-      this.renderer.render(this.scene, this.camera);
-      this.viewHelperRig?.helper.render(this.renderer);
+      if (!this.looping) return;  // stopped by destroy()
+      // Reschedule FIRST so the loop can NEVER die — neither a not-ready
+      // frame nor a transient render exception below stops future frames.
+      // (Previously the reschedule was last, so any throw froze the canvas
+      // permanently — the scene-graph kept updating but nothing repainted.)
       this.animationFrameId = requestAnimationFrame(tick);
+      if (!this.renderer || !this.scene || !this.camera) return;
+      // [DIAG-3D] heartbeat — confirms the render loop is alive + canvas size
+      if (frame++ % 120 === 0) {
+        console.log('[DIAG-R] render frame=', frame,
+          'canvas=', this.renderer.domElement.width, 'x', this.renderer.domElement.height,
+          'sceneChildren=', this.scene.children.length);
+      }
+      try {
+        const delta = this.clock.getDelta();
+        if (this.viewHelperRig?.helper.animating) {
+          this.viewHelperRig.helper.update(delta);
+        }
+        this.controls?.update();
+        // Manual clear (autoClear=false) so the main scene survives the
+        // ViewHelper's subsequent partial-viewport render.
+        this.renderer.clear();
+        this.renderer.setViewport(
+          0, 0, this.renderer.domElement.width, this.renderer.domElement.height
+        );
+        this.renderer.render(this.scene, this.camera);
+        this.viewHelperRig?.helper.render(this.renderer);
+      } catch (e) {
+        console.error('[render] tick error (loop continues):', e);
+      }
     };
     tick();
   }

@@ -42,6 +42,8 @@ const routes: Routes = [
   { path: 'datasets', component: DataSetsComponent },
   { path: 'equations', component: EquationsComponent },
   { path: 'equations/:id', component: EquationConfigEditComponent },
+  { path: 'matrices', loadComponent: () => import('@components/matrices/matrices-page/matrices-page.component').then(m => m.MatricesPageComponent) },
+  { path: 'matrices/:name', loadComponent: () => import('@components/matrices/matrices-page/matrices-page.component').then(m => m.MatricesPageComponent) },
   { path: 'display/:id', loadComponent: () => import('@components/dashboard/display-page/display-page').then(m => m.DisplayPageComponent) }
 ];
 

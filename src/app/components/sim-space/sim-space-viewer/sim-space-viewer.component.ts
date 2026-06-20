@@ -515,7 +515,13 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
   onScrubberChange(t: number): void {
     this.currentTime = t;
     if (this.renderer) {
-      this.renderer.setObjects(this.visibleObjects());
+      const vo = this.visibleObjects();
+      const sample = vo.find(o => o.temporalValue !== undefined);
+      // [DIAG-3D] remove once playback confirmed
+      console.log('[DIAG] scrub t=', t, 'hasTemporal=', this.hasTemporal,
+        'visibleObjects=', vo.length, 'snapshotObjs=', this.snapshot?.objects?.length,
+        'sampleTemporal=', sample?.temporalValue, 'samplePos=', sample?.position);
+      this.renderer.setObjects(vo);
       this.renderer.setConnections(this.visibleConnections());
     }
     // Equation values are recomputed only after the scrubber has been

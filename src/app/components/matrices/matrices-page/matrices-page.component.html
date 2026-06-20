@@ -1,0 +1,145 @@
+<mat-tab-group class="top-tabs" animationDuration="0ms" mat-stretch-tabs="false">
+<mat-tab label="Matrices">
+<div class="matrices-page">
+  <!-- ───────────────────────── list rail ───────────────────────── -->
+  <aside class="rail">
+    <div class="rail-head">
+      <mat-icon>grid_on</mat-icon>
+      <span class="rail-title">Matrices</span>
+      <button mat-flat-button color="primary" class="new-btn" (click)="newMatrix()">
+        <mat-icon>add</mat-icon> New
+      </button>
+    </div>
+
+    <div class="rail-loading" *ngIf="loading">
+      <mat-progress-spinner diameter="18" mode="indeterminate"></mat-progress-spinner>
+      <span class="muted small">Loading…</span>
+    </div>
+
+    <p class="muted small empty" *ngIf="!loading && !list.length">
+      No matrices yet. Click <strong>New</strong> to author one.
+    </p>
+
+    <ul class="rail-list">
+      <li *ngFor="let m of list"
+          class="rail-item"
+          [class.active]="draft && draft.name === m.name"
+          (click)="select(m)">
+        <span class="item-name mono">{{ m.name }}</span>
+        <span class="item-meta">
+          <span class="chip">{{ m.elementType }}</span>
+          <span class="chip shape">[{{ m.shape.join(' × ') }}]</span>
+        </span>
+      </li>
+    </ul>
+  </aside>
+
+  <!-- ───────────────────────── editor ───────────────────────── -->
+  <section class="editor" *ngIf="draft as d">
+    <header class="editor-head">
+      <mat-icon>{{ isNew ? 'add_box' : 'edit' }}</mat-icon>
+      <span class="editor-title mono">{{ d.name || '(unnamed matrix)' }}</span>
+      <span class="spacer"></span>
+      <mat-progress-spinner *ngIf="busy" diameter="16" mode="indeterminate"></mat-progress-spinner>
+      <button mat-stroked-button (click)="closeEditor()">Close</button>
+    </header>
+
+    <div class="status" *ngIf="statusMessage"
+         [class.status-error]="statusIsError" [class.status-ok]="!statusIsError">
+      {{ statusMessage }}
+    </div>
+
+    <mat-tab-group animationDuration="0ms" (selectedTabChange)="onTabChange($event)">
+      <!-- ── Structure ── -->
+      <mat-tab label="Structure">
+        <div class="tab-body">
+          <label class="field">
+            <span class="field-label">Name</span>
+            <input class="text-input mono" [(ngModel)]="d.name" placeholder="my-matrix" />
+          </label>
+          <label class="field">
+            <span class="field-label">Description</span>
+            <input class="text-input" [(ngModel)]="d.description" placeholder="What this matrix represents" />
+          </label>
+
+          <label class="field">
+            <span class="field-label">
+              Shape
+              <span class="hint">comma-separated dims — e.g. <code>3, 3</code> or <code>2, 2</code> (block layout when cells are matrices)</span>
+            </span>
+            <input class="text-input mono" [ngModel]="shapeText" (ngModelChange)="onShapeTextChange($event)"
+                   placeholder="2, 2" />
+          </label>
+
+          <p class="hint" *ngIf="computationKind === 'literal'">
+            Each element's type (number / equation / matrix) is chosen per cell over in the
+            <strong>Matrix View</strong> tab. For operations between matrices, use the
+            <strong>Matrix Equations</strong> tab.
+          </p>
+        </div>
+      </mat-tab>
+
+      <!-- ── Matrix Editor ── -->
+      <mat-tab label="Matrix Editor">
+        <div class="tab-body">
+          <p class="muted small" *ngIf="!d.shape.length">Set a shape on the Structure tab first.</p>
+
+          <!-- 2-D grid layout -->
+          <table class="value-grid" *ngIf="isGrid">
+            <tr *ngFor="let r of gridRows; trackBy: trackByIndex">
+              <td *ngFor="let c of gridCols; trackBy: trackByIndex">
+                <ng-container *ngTemplateOutlet="cellEditor; context: { i: flatIndex(r, c) }"></ng-container>
+              </td>
+            </tr>
+          </table>
+
+          <!-- flat layout (vectors / tensors) -->
+          <div class="value-flat" *ngIf="!isGrid && d.shape.length">
+            <div class="flat-cell" *ngFor="let i of flatIndices; trackBy: trackByIndex">
+              <span class="flat-idx muted small">{{ i }}</span>
+              <ng-container *ngTemplateOutlet="cellEditor; context: { i: i }"></ng-container>
+            </div>
+          </div>
+        </div>
+      </mat-tab>
+
+      <!-- ── Matrix View (pretty D3 render) ── -->
+      <mat-tab label="Matrix View">
+        <div class="tab-body">
+          <matrix-d3-view [record]="matrixViewRecord || d"
+                          (launchMatrix)="onLaunchMatrix($event)"></matrix-d3-view>
+        </div>
+      </mat-tab>
+    </mat-tab-group>
+
+    <footer class="editor-foot">
+      <button mat-flat-button color="primary" [disabled]="busy" (click)="saveDraft()">
+        <mat-icon>save</mat-icon> {{ isNew ? 'Create' : 'Save' }}
+      </button>
+      <button mat-stroked-button color="warn" *ngIf="!isNew" [disabled]="busy" (click)="deleteDraft()">
+        <mat-icon>delete</mat-icon> Delete
+      </button>
+    </footer>
+  </section>
+
+  <!-- empty state -->
+  <section class="editor empty-editor" *ngIf="!draft">
+    <mat-icon>grid_on</mat-icon>
+    <p class="muted">Select a matrix or create a new one.</p>
+  </section>
+</div>
+</mat-tab>
+
+<mat-tab label="Matrix Equations">
+  <matrix-equations-page></matrix-equations-page>
+</mat-tab>
+</mat-tab-group>
+
+<!-- ───────────── per-cell editor: the Matrix Element Modifier ───────────── -->
+<ng-template #cellEditor let-i="i">
+  <matrix-element-modifier
+    [element]="cellAt(i)"
+    [matrixOptions]="referenceableNames"
+    (elementChange)="setCell(i, $event)">
+  </matrix-element-modifier>
+</ng-template>

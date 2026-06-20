@@ -1,0 +1,190 @@
+<div class="meq">
+  <!-- list rail -->
+  <aside class="rail">
+    <div class="rail-head">
+      <mat-icon>calculate</mat-icon>
+      <span class="rail-title">Matrix Equations</span>
+      <button mat-flat-button color="primary" class="new-btn" (click)="newEquation()">
+        <mat-icon>add</mat-icon> New
+      </button>
+    </div>
+    <div class="rail-loading" *ngIf="loading">
+      <mat-progress-spinner diameter="18" mode="indeterminate"></mat-progress-spinner>
+      <span class="muted small">Loading…</span>
+    </div>
+    <p class="muted small empty" *ngIf="!loading && !list.length">
+      No matrix equations yet. Click <strong>New</strong>.
+    </p>
+    <ul class="rail-list">
+      <li *ngFor="let e of list" class="rail-item" [class.active]="draft && draft.name === e.name" (click)="select(e)">
+        <span class="item-name mono">{{ e.name }}</span>
+        <span class="item-meta">
+          <span class="chip">{{ e.kind }}</span>
+          <katex-display *ngIf="e.latex" class="item-latex" [latex]="e.latex" [displayMode]="false"></katex-display>
+        </span>
+      </li>
+    </ul>
+  </aside>
+
+  <!-- editor -->
+  <section class="editor" *ngIf="draft as d; else emptyTpl">
+    <header class="editor-head">
+      <mat-icon>{{ isNew ? 'add_box' : 'edit' }}</mat-icon>
+      <span class="editor-title mono">{{ d.name || '(unnamed equation)' }}</span>
+      <span class="spacer"></span>
+      <mat-progress-spinner *ngIf="busy" diameter="16" mode="indeterminate"></mat-progress-spinner>
+      <button mat-stroked-button (click)="closeEditor()">Close</button>
+    </header>
+
+    <div class="status" *ngIf="statusMessage" [class.status-error]="statusIsError" [class.status-ok]="!statusIsError">
+      {{ statusMessage }}
+    </div>
+
+    <div class="body">
+      <label class="field">
+        <span class="field-label">Name</span>
+        <input class="text-input mono" [(ngModel)]="d.name" placeholder="my-equation" />
+      </label>
+      <label class="field">
+        <span class="field-label">Description</span>
+        <input class="text-input" [(ngModel)]="d.description" placeholder="What this equation computes" />
+      </label>
+
+      <label class="field">
+        <span class="field-label">Definition</span>
+        <select class="text-input" [ngModel]="d.operation.kind" (ngModelChange)="onKindChange($event)">
+          <optgroup label="Matrix Equation">
+            <option value="expr">{{ opMeta.expr.label }}</option>
+          </optgroup>
+          <optgroup label="Matrix Operations (single-op quick-starts)">
+            <option *ngFor="let k of operationKinds" [value]="k">{{ opMeta[k].label }}</option>
+          </optgroup>
+        </select>
+      </label>
+
+      <!-- LaTeX display -->
+      <div class="latex-box">
+        <div class="latex-render">
+          <katex-display [latex]="d.latex || ' '" [displayMode]="true"></katex-display>
+        </div>
+        <div class="latex-actions">
+          <button mat-stroked-button class="sm" (click)="regenLatex()" matTooltip="Regenerate from the operation">
+            <mat-icon>autorenew</mat-icon> Auto
+          </button>
+          <button mat-stroked-button class="sm" (click)="editLatex()" matTooltip="Edit LaTeX (symbol palette)">
+            <mat-icon>edit</mat-icon> Edit
+          </button>
+        </div>
+      </div>
+
+      <!-- elementwise extra -->
+      <div class="compute-box" *ngIf="currentMeta?.elementwise">
+        <label class="field">
+          <span class="field-label">Per-cell function (LaTeX), variable
+            <input class="inline-sym mono" [(ngModel)]="d.operation.symbol" placeholder="x" /></span>
+          <input class="text-input mono" [(ngModel)]="d.operation.latex" placeholder="x^2" />
+        </label>
+      </div>
+
+      <!-- expression editor + operation palette -->
+      <div class="compute-box" *ngIf="currentMeta?.expr">
+        <label class="field">
+          <span class="field-label">Expression</span>
+          <textarea #exprArea class="text-input mono expr-area" rows="2"
+                    [ngModel]="d.operation.expr"
+                    (ngModelChange)="onExprChange($event)"
+                    placeholder="A @ B + C"></textarea>
+          <span class="hint">click an operation below to insert it at the cursor</span>
+        </label>
+        <matrix-op-palette (insert)="insertOp($event)"></matrix-op-palette>
+        <button mat-stroked-button class="sm" (click)="addExprOperand()"><mat-icon>add</mat-icon> Add operand</button>
+      </div>
+
+      <!-- operand slots -->
+      <div class="operands">
+        <div class="operands-title field-label">Operands</div>
+        <div class="operand-row" *ngFor="let sym of operandSymbols; trackBy: trackBySym">
+          <input class="op-sym-input mono" [value]="sym"
+                 (change)="setOperandSymbol(sym, $any($event.target).value)"
+                 matTooltip="Symbol used in the equation's LaTeX & expression" />
+          <select class="op-notation" *ngIf="hasNotation(sym)"
+                  [ngModel]="operand(sym).notation || 'bold'" (ngModelChange)="setOperandNotation(sym, $event)"
+                  matTooltip="How this symbol is styled in the LaTeX">
+            <option *ngFor="let n of notations" [value]="n">{{ notationLabels[n] }}</option>
+          </select>
+          <select class="op-kind" [ngModel]="operand(sym).kind" (ngModelChange)="setOperandKind(sym, $event)">
+            <option *ngFor="let k of allowedKinds(sym)" [value]="k">{{ k }}</option>
+          </select>
+
+          <input *ngIf="operand(sym).kind === 'scalar'" class="op-scalar mono" type="number"
+                 [ngModel]="operand(sym).value" (ngModelChange)="setOperandScalar(sym, $event)" />
+
+          <select *ngIf="operand(sym).kind !== 'scalar'" class="op-ref"
+                  [ngModel]="operand(sym).ref || ''" (ngModelChange)="setOperandRef(sym, $event)">
+            <option value="">— pick {{ operand(sym).kind }} —</option>
+            <option *ngFor="let n of namesFor(operand(sym).kind)" [value]="n">{{ n }}</option>
+          </select>
+
+          <button *ngIf="operand(sym).kind === 'matrix' && operand(sym).ref" mat-icon-button class="op-edit"
+                  (click)="openMatrixEdit(sym)" matTooltip="Quick-edit this matrix">
+            <mat-icon>edit</mat-icon></button>
+
+          <button *ngIf="currentMeta?.expr" mat-icon-button class="op-del" (click)="removeExprOperand(sym)"
+                  matTooltip="Remove operand"><mat-icon>close</mat-icon></button>
+
+          <!-- embedded matrix preview for matrix operands -->
+          <div class="op-preview" *ngIf="previews[sym] as rec">
+            <matrix-d3-view [record]="rec"></matrix-d3-view>
+          </div>
+        </div>
+      </div>
+
+      <!-- evaluate / validate -->
+      <div class="actions">
+        <button mat-flat-button color="primary" [disabled]="busy" (click)="evaluate()">
+          <mat-icon>play_arrow</mat-icon> Evaluate
+        </button>
+        <button mat-stroked-button [disabled]="busy" (click)="validate()">
+          <mat-icon>rule</mat-icon> Validate
+        </button>
+      </div>
+
+      <div class="result" *ngIf="evalResult && evalResult.success">
+        <div class="result-head muted small">result · shape [{{ evalResult.shape.join(' × ') }}] · {{ evalResult.dtype }}</div>
+        <pre class="result-json" *ngIf="resultIsHigherRank">{{ evalResult.data | json }}</pre>
+        <table class="result-grid" *ngIf="!resultIsHigherRank">
+          <tr *ngFor="let row of resultRows; trackBy: trackByIndex">
+            <td *ngFor="let cell of row; trackBy: trackByIndex"><matrix-grid-cell [value]="cell"></matrix-grid-cell></td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="validation" *ngIf="validation">
+        <div class="v-line" [class.v-ok]="validation.valid" [class.v-bad]="!validation.valid">
+          <mat-icon>{{ validation.valid ? 'check_circle' : 'error_outline' }}</mat-icon>
+          <span>{{ validation.valid ? 'Valid' : 'Invalid' }}</span>
+        </div>
+        <ul class="v-list">
+          <li class="v-err" *ngFor="let e of validation.errors">{{ e }}</li>
+          <li class="v-warn" *ngFor="let w of validation.warnings">{{ w }}</li>
+        </ul>
+      </div>
+    </div>
+
+    <footer class="editor-foot">
+      <button mat-flat-button color="primary" [disabled]="busy" (click)="save()">
+        <mat-icon>save</mat-icon> {{ isNew ? 'Create' : 'Save' }}
+      </button>
+      <button mat-stroked-button color="warn" *ngIf="!isNew" [disabled]="busy" (click)="deleteEq()">
+        <mat-icon>delete</mat-icon> Delete
+      </button>
+    </footer>
+  </section>
+
+  <ng-template #emptyTpl>
+    <section class="editor empty-editor">
+      <mat-icon>calculate</mat-icon>
+      <p class="muted">Select a matrix equation or create a new one.</p>
+    </section>
+  </ng-template>
+</div>

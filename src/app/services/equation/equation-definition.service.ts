@@ -110,6 +110,18 @@ export class EquationDefinitionService {
     }
 
     /**
+     * Load ALL EquationDefinitions as fully-deserialised records (definition
+     * parsed). One GET; used e.g. by the Matrix View to resolve each
+     * equation-ref cell to its LaTeX for rendering.
+     */
+    getAllRecords(): Observable<EquationDefinitionRecord[]> {
+        return this.http.get<any>(this.baseUrl, this.polariService.backendRequestOptions).pipe(
+            map((response: any) => this.parseReadAllResponse(response).map(raw => this.deserialiseRecord(raw))),
+            catchError((err: any) => throwError(() => err))
+        );
+    }
+
+    /**
      * Create a new EquationDefinition with the given metadata + initial
      * definition. Returns the newly created record (id assigned by backend).
      */
