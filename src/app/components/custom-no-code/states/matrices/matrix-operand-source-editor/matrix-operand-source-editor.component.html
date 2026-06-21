@@ -1,0 +1,72 @@
+<div class="mos-editor">
+
+    <!-- Kind switch: Scalar vs Vector -->
+    <div class="mos-kind-toggle">
+        <button type="button"
+                class="mos-kind-btn"
+                [class.active]="kind === 'scalar'"
+                (click)="setKind('scalar')">
+            <mat-icon>tag</mat-icon>
+            <span>Scalar</span>
+        </button>
+        <button type="button"
+                class="mos-kind-btn"
+                [class.active]="kind === 'vector'"
+                (click)="setKind('vector')">
+            <mat-icon>view_column</mat-icon>
+            <span>Vector</span>
+        </button>
+    </div>
+
+    <!-- Scalar: single source selector (sim field / upstream var / literal / latex) -->
+    <div class="mos-scalar" *ngIf="kind === 'scalar'">
+        <app-value-source-selector
+            [config]="scalarConfig"
+            [availableInputs]="availableInputs"
+            [sourceObjectFields]="sourceObjectFields"
+            [allowAnyInstancePick]="false"
+            [showHeader]="true"
+            label="Source"
+            [compact]="false"
+            (configChange)="onScalarChange($event)">
+        </app-value-source-selector>
+    </div>
+
+    <!-- Vector: N scalar element sources assembled into an `array` source -->
+    <div class="mos-vector" *ngIf="kind === 'vector'">
+        <div class="mos-vector-hint">
+            <mat-icon>info_outline</mat-icon>
+            <span>Assemble a vector from per-component sources, e.g.
+                <code>[self.f_app_x, self.f_app_y, self.f_app_z]</code>.</span>
+        </div>
+
+        <div class="mos-element"
+             *ngFor="let el of elements; let i = index; trackBy: trackByIndex">
+            <div class="mos-element-head">
+                <code class="mos-element-index">[{{ i }}]</code>
+                <button type="button"
+                        class="mos-element-remove"
+                        (click)="removeElement(i)"
+                        matTooltip="Remove component">
+                    <mat-icon>close</mat-icon>
+                </button>
+            </div>
+            <app-value-source-selector
+                [config]="el"
+                [availableInputs]="availableInputs"
+                [sourceObjectFields]="sourceObjectFields"
+                [allowAnyInstancePick]="false"
+                [showHeader]="false"
+                label="Component"
+                [compact]="true"
+                (configChange)="onElementChange(i, $event)">
+            </app-value-source-selector>
+        </div>
+
+        <button type="button" class="mos-add-element" (click)="addElement()">
+            <mat-icon>add</mat-icon>
+            <span>Add component</span>
+        </button>
+    </div>
+
+</div>

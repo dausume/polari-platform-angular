@@ -1,0 +1,156 @@
+/* matrix-operand-source-editor — wraps the scalar value-source-selector and
+   adds a Vector (array) authoring mode. The scalar selector ships its own dark
+   chrome; we frame it the same way the run-equation overlay does. */
+
+.mos-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+/* ===== Kind toggle ===== */
+.mos-kind-toggle {
+    display: inline-flex;
+    gap: 4px;
+}
+
+.mos-kind-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border: 1px solid rgba(129, 199, 132, 0.5);
+    border-radius: 12px;
+    background: rgba(129, 199, 132, 0.10);
+    color: #2e7d32;
+    font: inherit;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.mos-kind-btn:hover {
+    background: rgba(129, 199, 132, 0.22);
+}
+
+.mos-kind-btn.active {
+    background: rgba(129, 199, 132, 0.30);
+    border-color: #81c784;
+    font-weight: 600;
+}
+
+.mos-kind-btn mat-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+}
+
+/* ===== Scalar / element selector framing ===== */
+.mos-scalar app-value-source-selector,
+.mos-element app-value-source-selector {
+    display: block;
+    background: #2c2f33;
+    border-radius: 4px;
+    padding: 4px;
+    min-width: 0;
+    overflow: hidden;
+}
+
+/* ===== Vector ===== */
+.mos-vector {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.mos-vector-hint {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    font-size: 10px;
+    color: var(--text-tertiary, #888);
+    font-style: italic;
+}
+
+.mos-vector-hint mat-icon {
+    font-size: 13px;
+    width: 13px;
+    height: 13px;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.mos-vector-hint code {
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-style: normal;
+    color: #2e7d32;
+}
+
+.mos-element {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 6px;
+    background: rgba(129, 199, 132, 0.06);
+    border: 1px solid rgba(129, 199, 132, 0.3);
+    border-radius: 4px;
+}
+
+.mos-element-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.mos-element-index {
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: #2e7d32;
+}
+
+.mos-element-remove {
+    margin-left: auto;
+    background: transparent;
+    border: 1px solid var(--border-light, #e0e3e9);
+    border-radius: 4px;
+    color: var(--text-tertiary, #888);
+    cursor: pointer;
+    padding: 2px;
+    line-height: 0;
+}
+
+.mos-element-remove:hover {
+    background: var(--surface-hover, #f0f0f0);
+    color: #c62828;
+}
+
+.mos-element-remove mat-icon {
+    font-size: 13px;
+    width: 13px;
+    height: 13px;
+}
+
+.mos-add-element {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    align-self: flex-start;
+    padding: 4px 10px;
+    border: 1px dashed rgba(129, 199, 132, 0.6);
+    border-radius: 4px;
+    background: transparent;
+    color: #2e7d32;
+    font: inherit;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.mos-add-element:hover {
+    background: rgba(129, 199, 132, 0.12);
+}
+
+.mos-add-element mat-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+}

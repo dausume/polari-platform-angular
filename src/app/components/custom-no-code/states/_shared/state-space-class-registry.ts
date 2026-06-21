@@ -892,6 +892,55 @@ export class StateSpaceClassRegistry {
       factory: () => ({ type: 'CalculusOperation', displayName: 'Calculus Operation', equationId: '', equationName: '', bindings: [], resultTarget: 'result_variable', resultVariableName: 'result', resultFieldPath: '' })
     });
 
+    // === Matrix Equation Operation: hosts a MatrixEquationDefinition inside a
+    //     state-space. Operand symbols are bound to RUNTIME context sources
+    //     (sim fields, upstream vars, assembled vectors via the `array` source
+    //     kind) rather than stored matrices. Sibling of CalculusOperation. ===
+    this.registerClass({
+      className: 'MatrixEquationOperation',
+      displayName: 'Matrix Equation Operation',
+      description: 'Execute a saved matrix/vector equation; operand symbols are bound to runtime context sources (sim fields, upstream variables, assembled vectors).',
+      category: 'Math',
+      icon: 'view_module',
+      color: '#81C784',
+      isStateSpaceObject: true,
+      supportedRuntimes: ['python_backend'],
+      stateSpaceDisplayFields: ['displayName', 'matrixEquationName'],
+      stateSpaceFieldsPerRow: 2,
+      isBuiltIn: true,
+      slotConfiguration: {
+        defaultInputCount: 1,
+        defaultOutputCount: 1,
+        allowDynamicInputs: false,
+        allowDynamicOutputs: false,
+        maxInputSlots: 1,
+        maxOutputSlots: 1,
+        inputType: 'any',
+        outputType: 'any',
+        inputLabels: ['Input'],
+        outputLabels: ['Result']
+      },
+      eventMethods: [
+        {
+          methodName: 'execute',
+          displayName: 'Run Matrix Equation Operation',
+          description: 'Resolve operand sources, evaluate the matrix equation, return the result.',
+          category: 'Math',
+          inputParams: [],
+          output: { type: 'any', displayName: 'Result' }
+        }
+      ],
+      variables: [
+        { name: 'displayName', displayName: 'Display Name', type: 'string', isEditable: true, defaultValue: 'Matrix Equation Operation' },
+        { name: 'matrixEquationName', displayName: 'Matrix Equation Name', type: 'string', isEditable: true },
+        { name: 'operandBindings', displayName: 'Operand Bindings', type: 'object', isEditable: true },
+        { name: 'resultTarget', displayName: 'Result Target', type: 'string', isEditable: true, defaultValue: 'result_variable' },
+        { name: 'resultVariableName', displayName: 'Result Variable', type: 'string', isEditable: true, defaultValue: 'result' },
+        { name: 'resultFieldPath', displayName: 'Result Field', type: 'string', isEditable: true }
+      ],
+      factory: () => ({ type: 'MatrixEquationOperation', displayName: 'Matrix Equation Operation', matrixEquationName: '', operandBindings: [], resultTarget: 'result_variable', resultVariableName: 'result', resultFieldPath: '' })
+    });
+
     // === Data Operations (Variable & Function) ===
     this.registerClass({
       // className stays 'VariableAssignment' on the wire so existing

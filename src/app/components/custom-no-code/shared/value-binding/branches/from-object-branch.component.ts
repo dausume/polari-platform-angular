@@ -153,6 +153,9 @@ export class FromObjectBranchComponent implements OnInit, OnChanges, OnDestroy {
             const dot = f.path.indexOf('.');
             if (dot > 0) names.add(f.path.substring(0, dot));
         }
+        // Always keep the currently-selected object pickable (e.g. 'self'),
+        // even if the source-field list hasn't surfaced a matching entry.
+        if (this.selectedObjectName) names.add(this.selectedObjectName);
         this.objectNames = Array.from(names);
 
         if (!this.selectedObjectName) {
@@ -160,7 +163,17 @@ export class FromObjectBranchComponent implements OnInit, OnChanges, OnDestroy {
             return;
         }
         const prefix = this.selectedObjectName + '.';
-        this.fieldOptions = this.sourceObjectFields.filter(f => f.path.startsWith(prefix));
+        const opts = this.sourceObjectFields.filter(f => f.path.startsWith(prefix));
+        // Fallback: if the CONFIGURED field path isn't among the available
+        // fields (an incomplete / late-loading / mismatched source-field list),
+        // surface it as a synthetic option so the dropdown still SHOWS the
+        // configured value instead of going blank. Only added when missing, so
+        // the normal case is unchanged.
+        const sel = this.selectedFieldPath;
+        if (sel && sel.startsWith(prefix) && !opts.some(f => f.path === sel)) {
+            opts.push({ path: sel, type: '', displayName: sel.substring(prefix.length) });
+        }
+        this.fieldOptions = opts;
     }
 
     // ── Live instance polling for locked-class mode ───────────────────────

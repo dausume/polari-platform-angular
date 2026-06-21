@@ -117,6 +117,9 @@ import { InlineExpressionBranchComponent } from '@components/custom-no-code/shar
 import { ValuePotentialSelectorComponent } from '@components/custom-no-code/shared/value-potential-selector/value-potential-selector.component';
 import { RunEquationOverlayComponent } from '@components/custom-no-code/states/equations/run-equation-overlay/run-equation-overlay.component';
 import { RunEquationOverlayPopupComponent } from '@components/custom-no-code/states/equations/run-equation-overlay/popup/run-equation-overlay-popup.component';
+import { RunMatrixEquationOverlayComponent } from '@components/custom-no-code/states/matrices/run-matrix-equation-overlay/run-matrix-equation-overlay.component';
+import { RunMatrixEquationOverlayPopupComponent } from '@components/custom-no-code/states/matrices/run-matrix-equation-overlay/popup/run-matrix-equation-overlay-popup.component';
+import { MatrixOperandSourceEditorComponent } from '@components/custom-no-code/states/matrices/matrix-operand-source-editor/matrix-operand-source-editor.component';
 import { LatexEditDialogComponent } from '@components/shared/latex-edit-dialog/latex-edit-dialog';
 import { EditableEquationCellComponent } from '@components/shared/editable-cells/editable-equation-cell/editable-equation-cell';
 import { ViewContextOverlayComponent } from '@components/custom-no-code/popups/view-context-overlay/view-context-overlay.component';
@@ -273,6 +276,9 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     ValuePotentialSelectorComponent,
     RunEquationOverlayComponent,
     RunEquationOverlayPopupComponent,
+    RunMatrixEquationOverlayComponent,
+    RunMatrixEquationOverlayPopupComponent,
+    MatrixOperandSourceEditorComponent,
     LatexEditDialogComponent,
     EditableEquationCellComponent,
     ViewContextOverlayComponent,

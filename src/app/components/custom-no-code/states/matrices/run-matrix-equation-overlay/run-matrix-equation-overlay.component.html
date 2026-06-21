@@ -1,0 +1,237 @@
+<div class="run-matrix-equation-overlay-root"
+     [attr.data-size-tier]="sizeTier"
+     [ngSwitch]="sizeTier"
+     [appStateOverlayRoot]="stateName"
+     (contextRequested)="fullViewRequested.emit($event)">
+
+    <!-- ============================================================
+         TIER: tiny — just the rendered equation, no chrome, no editing
+         ============================================================ -->
+    <div *ngSwitchCase="'tiny'" class="tier-tiny">
+        <katex-display *ngIf="equation && equationPreviewLatex; else tinyEmpty"
+                       [latex]="equationPreviewLatex"
+                       [displayMode]="false"
+                       placeholder="(empty)"></katex-display>
+        <ng-template #tinyEmpty>
+            <mat-icon class="tier-tiny__empty-icon" matTooltip="No matrix equation picked">view_module</mat-icon>
+        </ng-template>
+    </div>
+
+    <!-- ============================================================
+         TIER: compact — equation name + rendered LaTeX + fill chip.
+         ============================================================ -->
+    <state-overlay-shell *ngSwitchCase="'compact'"
+        accent="#81C784"
+        icon="view_module"
+        [title]="config.matrixEquationName || 'Matrix Eq'"
+        [compact]="true"
+        [bordered]="false"
+        [showCodingComment]="false"
+        [hasPopupView]="hasPopupView"
+        [padding]="'6px'"
+        (expandClicked)="popupRequested.emit()">
+
+        <div class="tier-compact">
+            <div class="tier-compact__equation">
+                <katex-display *ngIf="equation && equationPreviewLatex; else compactEmpty"
+                               [latex]="equationPreviewLatex"
+                               [displayMode]="false"
+                               placeholder="(empty)"></katex-display>
+                <ng-template #compactEmpty>
+                    <span class="tier-compact__no-equation">No matrix equation</span>
+                </ng-template>
+            </div>
+            <div class="tier-compact__fill-chip"
+                 *ngIf="equation && totalDeclared > 0"
+                 [class.complete]="!hasUnfilledOperands"
+                 [class.warn]="hasUnfilledOperands">
+                <span>{{ filledCount }} of {{ totalDeclared }} operands bound</span>
+                <mat-icon *ngIf="hasUnfilledOperands">warning_amber</mat-icon>
+            </div>
+        </div>
+
+    </state-overlay-shell>
+
+    <!-- ============================================================
+         TIER: full — picker + preview + per-operand source editors.
+         ============================================================ -->
+    <state-overlay-shell *ngSwitchCase="'full'"
+        accent="#81C784"
+        icon="view_module"
+        [title]="config.matrixEquationName ? 'Matrix Eq — ' + config.matrixEquationName : 'Matrix Equation Operation'"
+        [bordered]="true"
+        [hasPopupView]="hasPopupView"
+        [codingComment]="(boundObjectFieldValues || {})['codingComment'] || ''"
+        (commentChanged)="onCodingCommentChange($event)"
+        (expandClicked)="popupRequested.emit()">
+
+        <div class="overlay-content state-overlay-scrollbar">
+
+            <!-- ===== Matrix-equation pick ===== -->
+            <div class="section equation-pick-section">
+                <label class="section-label">Matrix equation</label>
+                <div class="equation-pick-row">
+                    <select class="equation-select"
+                            [ngModel]="config.matrixEquationName"
+                            (ngModelChange)="onPickEquation($event)">
+                        <option value="">Pick matrix equation...</option>
+                        <!-- Fallback so the pre-selected equation shows even
+                             if the async list hasn't loaded it yet. -->
+                        <option *ngIf="config.matrixEquationName && !isEquationInList(config.matrixEquationName)"
+                                [value]="config.matrixEquationName">{{ config.matrixEquationName }}</option>
+                        <option *ngFor="let eq of equations" [value]="eq.name">{{ eq.name }}</option>
+                    </select>
+                    <button type="button"
+                            class="clear-btn"
+                            *ngIf="config.matrixEquationName"
+                            (click)="clearEquation()"
+                            matTooltip="Clear matrix equation">
+                        <mat-icon>close</mat-icon>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ===== Loading / error ===== -->
+            <div class="overlay-status" *ngIf="loadingEquation">
+                <mat-spinner diameter="14"></mat-spinner>
+                <span>Loading matrix equation...</span>
+            </div>
+
+            <div class="overlay-status overlay-error" *ngIf="loadError">
+                <mat-icon>error_outline</mat-icon>
+                <span>Failed to load: {{ loadError }}</span>
+            </div>
+
+            <!-- ===== Equation preview ===== -->
+            <div class="section equation-preview-section" *ngIf="equation && equationPreviewLatex">
+                <span class="section-label">Equation preview</span>
+                <div class="equation-preview-rendered">
+                    <katex-display [latex]="equationPreviewLatex"
+                                   [displayMode]="false"
+                                   placeholder="(empty)"></katex-display>
+                </div>
+            </div>
+
+            <!-- ===== Operand mapping summary (with live values) ===== -->
+            <div class="section mapping-section"
+                 *ngIf="equation && declaredSymbols.length > 0">
+                <span class="section-label">Operand mapping</span>
+                <ul class="mapping-list">
+                    <li *ngFor="let sym of declaredSymbols"
+                        class="mapping-item"
+                        [class.mapping-item--unfilled]="!isBindingComplete(sym)">
+                        <code class="mapping-symbol">{{ sym }}</code>
+                        <mat-icon class="mapping-arrow">arrow_forward</mat-icon>
+                        <span class="mapping-source">{{ sourceSummary(sym) }}</span>
+                        <span class="mapping-value" *ngIf="hasLiveValues">= {{ liveOperandValue(sym) }}</span>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- ===== Operand bindings — one source editor per declared symbol ===== -->
+            <div class="section bindings-section" *ngIf="equation && declaredSymbols.length > 0">
+                <div class="bindings-header">
+                    <mat-icon class="bindings-header-icon">tune</mat-icon>
+                    <span class="section-label">Operands</span>
+                    <span class="bindings-progress"
+                          [class.complete]="!hasUnfilledOperands"
+                          [class.warn]="hasUnfilledOperands">
+                        {{ filledCount }} of {{ totalDeclared }} bound
+                    </span>
+                </div>
+
+                <div class="bindings-warning" *ngIf="hasUnfilledOperands">
+                    <mat-icon>warning_amber</mat-icon>
+                    <span>
+                        {{ totalDeclared - filledCount }} operand<ng-container *ngIf="totalDeclared - filledCount !== 1">s</ng-container>
+                        still need a source before this state can run.
+                    </span>
+                </div>
+
+                <div class="binding-row"
+                     *ngFor="let sym of declaredSymbols"
+                     [class.binding-row--unfilled]="!isBindingComplete(sym)">
+                    <div class="binding-symbol">
+                        <code>{{ sym }}</code>
+                        <span class="binding-arrow">&larr;</span>
+                        <span class="binding-hint">{{ getOperandKindLabel(sym) }}</span>
+                        <span class="binding-live" *ngIf="hasLiveValues">= {{ liveOperandValue(sym) }}</span>
+                    </div>
+                    <div class="binding-editor">
+                        <matrix-operand-source-editor
+                            [config]="getOperandSource(sym)"
+                            [availableInputs]="availableInputs"
+                            [sourceObjectFields]="sourceObjectFields"
+                            (sourceChange)="onOperandSourceChange(sym, $event)">
+                        </matrix-operand-source-editor>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section bindings-empty"
+                 *ngIf="equation && declaredSymbols.length === 0">
+                <mat-icon>info_outline</mat-icon>
+                <span>This matrix equation declares no operands — it will run with no bindings.</span>
+            </div>
+
+            <!-- ===== Result target ===== -->
+            <div class="section result-section" *ngIf="config.matrixEquationName">
+                <div class="result-header">
+                    <mat-icon class="result-header-icon">arrow_forward</mat-icon>
+                    <span class="section-label">Result destination</span>
+                    <span class="result-live" *ngIf="hasLiveValues">= {{ liveResultValue }}</span>
+                </div>
+
+                <div class="result-target-toggle">
+                    <label class="toggle-option" [class.active]="config.resultTarget === 'result_variable'">
+                        <input type="radio"
+                               name="matResultTarget"
+                               value="result_variable"
+                               [checked]="config.resultTarget === 'result_variable'"
+                               (change)="onResultTargetChange('result_variable')">
+                        <span>Variable (flows to next state)</span>
+                    </label>
+                    <label class="toggle-option" [class.active]="config.resultTarget === 'solution_field'">
+                        <input type="radio"
+                               name="matResultTarget"
+                               value="solution_field"
+                               [checked]="config.resultTarget === 'solution_field'"
+                               (change)="onResultTargetChange('solution_field')">
+                        <span>Solution field (write to source object)</span>
+                    </label>
+                </div>
+
+                <div class="result-target-input" *ngIf="config.resultTarget === 'result_variable'">
+                    <label class="mini-label">Variable name</label>
+                    <input type="text"
+                           class="result-input"
+                           placeholder="result"
+                           [ngModel]="config.resultVariableName"
+                           (ngModelChange)="onResultVariableNameChange($event)" />
+                </div>
+
+                <div class="result-target-input" *ngIf="config.resultTarget === 'solution_field'">
+                    <label class="mini-label">Field path</label>
+                    <input type="text"
+                           class="result-input"
+                           placeholder="self.result"
+                           [ngModel]="config.resultFieldPath"
+                           (ngModelChange)="onResultFieldPathChange($event)" />
+                </div>
+            </div>
+
+            <!-- ===== Open standalone matrix-equation editor ===== -->
+            <div class="section editor-link-section" *ngIf="config.matrixEquationName">
+                <a class="editor-link"
+                   routerLink="/matrices"
+                   matTooltip="Open the standalone Matrix-Equation editor">
+                    <mat-icon>open_in_new</mat-icon>
+                    <span>Open in Matrix-Equation editor</span>
+                </a>
+            </div>
+
+        </div>
+
+    </state-overlay-shell>
+
+</div>

@@ -43,6 +43,9 @@ import { buildMaterial } from './three-material-builders';
 import { mountViewHelper, ViewHelperRig } from './three-view-helper-setup';
 import { transformForAnchor } from '@services/sim-space-2d/d3-utils';
 
+/** Hover highlight bump — applied MULTIPLICATIVELY to a mesh's base scale. */
+const HIGHLIGHT_FACTOR = 1.15;
+
 @Injectable()
 export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
   private host?: HTMLElement;
@@ -317,6 +320,13 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
         this.connectionLines.set(key, line);
         this.scene.add(line);
       }
+      // Color the line from its binding's styleRef material (was hardcoded
+      // gray) — this is what distinguishes e.g. the rod from the red gravity
+      // and green net force arrows. Falls back to gray when the ref misses.
+      const colorHex = conn.styleRef
+        ? this.materialLib.get(conn.styleRef)?.color
+        : undefined;
+      (line.material as THREE.LineBasicMaterial).color.set(colorHex || '#888888');
       line.userData['polariSimSpaceId'] = conn.id;
       const positions = new Float32Array([
         srcPos[0] ?? 0, srcPos[1] ?? 0, srcPos[2] ?? 0,
@@ -356,9 +366,13 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
   setHighlight(id: string | null): void {
     // Meshes are keyed by trackKey, but `id` is the per-row picking id — so
     // match on the current row id stamped into userData, not the map key.
+    // Scale RELATIVE to the binding's base scale (stored in applyTransform),
+    // and persist the highlight flag so a scrub while hovered re-applies it.
     this.meshes.forEach((mesh) => {
       const hit = id !== null && mesh.userData['polariSimSpaceId'] === id;
-      mesh.scale.setScalar(hit ? 1.15 : 1);
+      mesh.userData['polariHighlighted'] = hit;
+      const base = (mesh.userData['polariBaseScale'] as number) ?? 1;
+      mesh.scale.setScalar(base * (hit ? HIGHLIGHT_FACTOR : 1));
     });
   }
 
@@ -491,7 +505,11 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
     const scale = typeof obj.scale === 'number'
       ? obj.scale
       : Array.isArray(obj.scale) ? (obj.scale[0] ?? 1) : 1;
-    node.scale.setScalar(scale);
+    // Remember the binding's base scale so the hover highlight can scale
+    // RELATIVE to it (a 15% bump), instead of slamming the mesh to an
+    // absolute scalar — which blew small bobs (~0.12) up ~8× on hover.
+    node.userData['polariBaseScale'] = scale;
+    node.scale.setScalar(scale * (node.userData['polariHighlighted'] ? HIGHLIGHT_FACTOR : 1));
   }
 
   private repositionOverlays(): void {

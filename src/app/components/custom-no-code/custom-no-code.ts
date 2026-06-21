@@ -25,6 +25,8 @@ import { InitialStateOverlayComponent } from './states/initial-states/initial-st
 import { MathOperationOverlayComponent } from './states/math/math-operation-overlay/math-operation-overlay.component';
 import { RunEquationOverlayComponent } from './states/equations/run-equation-overlay/run-equation-overlay.component';
 import { RunEquationOverlayPopupComponent } from './states/equations/run-equation-overlay/popup/run-equation-overlay-popup.component';
+import { RunMatrixEquationOverlayComponent } from './states/matrices/run-matrix-equation-overlay/run-matrix-equation-overlay.component';
+import { RunMatrixEquationOverlayPopupComponent } from './states/matrices/run-matrix-equation-overlay/popup/run-matrix-equation-overlay-popup.component';
 import { AvailableInput, SourceObjectField } from './shared/value-source-selector/value-source-selector.component';
 import { MathOperationOverlayPopupComponent, MathOperationOverlayPopupData } from './states/math/math-operation-overlay/popup/math-operation-overlay-popup.component';
 import { ReturnValueOverlayComponent } from './states/end-states/return-value/return-value-overlay/return-value-overlay.component';
@@ -87,6 +89,11 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
   // Solution selector state
   availableSolutions: { id: number; name: string }[] = [];
   selectedSolutionName: string | null = null;
+
+  /** A solution requested via the URL (focusSolution/solution query param) that
+   *  hasn't been applied yet because the backend cache hadn't loaded it.
+   *  Retried from the availableSolutions$ subscription. */
+  private pendingFocusSolution: string | null = null;
 
   // Used for binding the overlay which displays State Object UIs and their container elements to the d3 Objects.
   overlayStateSegments: { [key: number]: HTMLElement | null } = {};
@@ -284,6 +291,8 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
       .subscribe(solutions => {
         this.availableSolutions = solutions;
         this.updateObjectAndSolutionLists();
+        // A URL-requested solution may have been waiting for the cache to load.
+        this.trySelectPendingFocusSolution();
         this.changeDetectorRef.markForCheck();
       });
 
@@ -305,6 +314,11 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
           // Trigger change detection immediately so dropdown updates
           this.changeDetectorRef.detectChanges();
           this.loadSelectedSolution();
+          // Keep the URL in sync so it always reflects the loaded solution
+          // (shareable, survives refresh) — this is what makes the native
+          // selector and URL-based nav coherent both ways. The queryParams
+          // listener guards against a re-select loop.
+          this.syncUrlToSelectedSolution(solutionName);
         }
       });
 
@@ -349,6 +363,23 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
           this.solutionTargetRuntime = runtime;
         });
     }
+
+    // URL-driven navigation: a `focusSolution` (alias `solution`) query param
+    // selects that solution through the SAME selection service the native
+    // Object/Solution selector uses — so URL nav and the in-page selector stay
+    // coherent (the selectedSolutionName$ subscription above already syncs both
+    // dropdowns + the canvas). We use the queryParams OBSERVABLE (not snapshot)
+    // so navigating to a different solution while this component is already
+    // mounted still applies. `object` is optional — the object dropdown
+    // auto-syncs from the solution name.
+    this.route.queryParams
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(params => {
+        const targetSolution = params['focusSolution'] || params['solution'];
+        if (targetSolution) {
+          this.applyUrlSolutionSelection(targetSolution);
+        }
+      });
 
     // Try to load solutions from backend (will update the cache asynchronously)
     this.solutionStateService.initializeFromBackend();
@@ -861,6 +892,8 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
       return this.createMathOperationOverlay(stateName, stateGroup, stateInstance);
     } else if (stateClass === 'CalculusOperation') {
       return this.createCalculusOperationOverlay(stateName, stateGroup, stateInstance);
+    } else if (stateClass === 'MatrixEquationOperation') {
+      return this.createMatrixEquationOperationOverlay(stateName, stateGroup, stateInstance);
     } else if (stateClass === 'FormValidation') {
       return this.createFormValidationOverlay(stateName, stateGroup, stateInstance);
     } else if (stateClass === 'ReturnValue') {
@@ -1654,6 +1687,73 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   /**
+   * Create an overlay for a MatrixEquationOperation state. Sibling of
+   * createCalculusOperationOverlay: hosts a saved MatrixEquationDefinition and
+   * binds its operand symbols to runtime context sources (sim fields, upstream
+   * variables, assembled vectors via the `array` source kind). Persists edits
+   * back into the state instance + solution-state service and regenerates code.
+   */
+  private createMatrixEquationOperationOverlay(stateName: string, stateGroup: SVGGElement, stateInstance: NoCodeState): boolean {
+    const fieldValues = stateInstance.boundObjectFieldValues || {};
+    const availableInputs = this.getAvailableInputsForSelector(stateInstance);
+    const sourceObjectFields = this.getSourceObjectFieldsForState(stateInstance);
+
+    const componentRef = this.stateOverlayManager.createOverlayForState(
+      stateName,
+      stateGroup,
+      RunMatrixEquationOverlayComponent,
+      {
+        stateName,
+        boundClassName: 'MatrixEquationOperation',
+        availableInputs,
+        sourceObjectFields,
+        boundObjectFieldValues: fieldValues,
+      }
+    );
+
+    if (componentRef) {
+      this.stateOverlayManager.setOverlayPointerEvents(stateName, true);
+
+      componentRef.instance.fieldValuesChanged.subscribe((updated: { [key: string]: any }) => {
+        if (!stateInstance.boundObjectFieldValues) {
+          stateInstance.boundObjectFieldValues = {};
+        }
+        Object.assign(stateInstance.boundObjectFieldValues, updated);
+        if (this.selectedSolutionName) {
+          this.solutionStateService.updateStateFieldValues(
+            this.selectedSolutionName,
+            stateName,
+            updated,
+          );
+        }
+        this.regenerateCode();
+      });
+
+      componentRef.instance.fullViewRequested.subscribe((event: { x: number; y: number; stateName: string }) => {
+        this.showFullViewPopup(event.x, event.y, stateInstance);
+      });
+
+      componentRef.instance.statePageRequested.subscribe(() => {
+        this.showStatePage(stateInstance);
+      });
+
+      // Inline expand button → open the RICH full editor in a dialog (the
+      // inline overlay forced to its 'full' size tier). Mirrors how Calculus
+      // routes its expand button to openCalculusOperationPopup. (Previously
+      // this went to the generic showFullViewPopup — the bare class/field
+      // editor — which is why the popup looked like "the smallest view".)
+      componentRef.instance.popupRequested.subscribe(() => {
+        this.openMatrixEquationOperationPopup(
+          stateName, stateInstance, availableInputs, sourceObjectFields,
+        );
+      });
+
+      return true;
+    }
+    return false;
+  }
+
+  /**
    * Open the CalculusOperation full-page popup (Material Dialog). Hosts the
    * same controls as the inline overlay but in a scrollable dialog that
    * never gets clipped by the canvas-shape sizing.
@@ -1678,6 +1778,53 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
 
     // Persist edits made inside the popup back into the state instance +
     // service cache so they survive the dialog closing.
+    const sub = dialogRef.componentInstance.fieldValuesChanged.subscribe(
+      (updated: { [key: string]: any }) => {
+        if (!stateInstance.boundObjectFieldValues) {
+          stateInstance.boundObjectFieldValues = {};
+        }
+        Object.assign(stateInstance.boundObjectFieldValues, updated);
+        if (this.selectedSolutionName) {
+          this.solutionStateService.updateStateFieldValues(
+            this.selectedSolutionName,
+            stateName,
+            updated,
+          );
+        }
+        this.regenerateCode();
+      },
+    );
+
+    dialogRef.afterClosed().subscribe(() => {
+      sub.unsubscribe();
+    });
+  }
+
+  /**
+   * Open the MatrixEquationOperation full editor as a Material Dialog. The
+   * dialog hosts the same inline overlay forced to its 'full' size tier, so
+   * the expand button yields the complete operand-binding editor instead of
+   * the generic class/field popup. Edits are persisted back the same way the
+   * inline overlay persists them.
+   */
+  private openMatrixEquationOperationPopup(
+    stateName: string,
+    stateInstance: NoCodeState,
+    availableInputs: AvailableInput[],
+    sourceObjectFields: SourceObjectField[],
+  ): void {
+    const dialogRef = this.dialog.open(RunMatrixEquationOverlayPopupComponent, {
+      panelClass: 'state-overlay-popup-panel',
+      maxWidth: '95vw',
+      maxHeight: '90vh',
+      data: {
+        stateName,
+        boundObjectFieldValues: stateInstance.boundObjectFieldValues || {},
+        availableInputs,
+        sourceObjectFields,
+      },
+    });
+
     const sub = dialogRef.componentInstance.fieldValuesChanged.subscribe(
       (updated: { [key: string]: any }) => {
         if (!stateInstance.boundObjectFieldValues) {
@@ -2237,6 +2384,57 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
   private getAvailableClasses(): string[] {
     // TODO: Fetch from backend or state service
     return ['ExampleClass', 'UserState', 'OrderState', 'PaymentState'];
+  }
+
+  /** Select a solution requested via the URL (focusSolution/solution query
+   *  param) by driving the shared selection service — which the native
+   *  Object/Solution selector and the canvas both react to. Records the request
+   *  as pending and tries immediately; if the backend solution cache hasn't
+   *  loaded it yet, the availableSolutions$ subscription retries when it does.
+   *  No-ops when the requested solution is already selected. */
+  private applyUrlSolutionSelection(solutionName: string): void {
+    if (!solutionName || this.selectedSolutionName === solutionName) {
+      return;
+    }
+    this.pendingFocusSolution = solutionName;
+    this.trySelectPendingFocusSolution();
+  }
+
+  /** Attempt to honor a pending URL-requested solution selection. Selects only
+   *  once the solution is in the loaded cache (so selectSolution resolves);
+   *  otherwise leaves it pending for the next availableSolutions$ emission.
+   *  Robust to load ordering — no dependency on loading$ toggle timing. */
+  private trySelectPendingFocusSolution(): void {
+    const name = this.pendingFocusSolution;
+    if (!name) return;
+    if (this.selectedSolutionName === name) {
+      this.pendingFocusSolution = null;
+      return;
+    }
+    if (this.solutionStateService.getSolutionData(name)) {
+      this.solutionStateService.selectSolution(name);
+      this.pendingFocusSolution = null;
+    }
+    // else: stays pending; retried when availableSolutions$ next emits.
+  }
+
+  /** Reflect the currently-selected solution (+ its object) in the URL so the
+   *  native selector and URL-based nav stay coherent and the view is
+   *  shareable / refresh-stable. replaceUrl avoids history spam; merge
+   *  preserves other query params. The queryParams listener guards re-select
+   *  loops (it early-returns when the param already matches the selection). */
+  private syncUrlToSelectedSolution(solutionName: string): void {
+    if (!solutionName) return;
+    if (this.route.snapshot.queryParams['focusSolution'] === solutionName) return;
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: {
+        focusSolution: solutionName,
+        object: this.getObjectFromSolutionName(solutionName),
+      },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
   }
 
   /**
