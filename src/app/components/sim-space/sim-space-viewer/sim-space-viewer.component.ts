@@ -35,6 +35,7 @@ import {
   SimSpaceSnapshot,
   SimSpaceObject,
   SimSpaceConnection,
+  SimSpaceDimensionality,
 } from '@models/sim-space/sim-space-types';
 import { formatTimeValue, TimeUnitId } from '@models/sim-space/time-units';
 import { createTooltipElement, renderTooltipForObject } from './viewer-tooltip';
@@ -241,6 +242,14 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
   currentTime = 0;
 
   private renderer: SimSpaceRenderer | null = null;
+  /** In-flight renderer creation, shared across concurrent load() calls.
+   *  rendererFactory.create() is async (it dynamic-imports `three`), so a
+   *  plain `if (!this.renderer)` guard is NOT atomic across the await — two
+   *  load() calls (e.g. ngAfterViewInit racing an input change) both saw
+   *  `renderer` null and each attached a canvas, leaving an orphan renderer
+   *  frozen at t=0 visibly on top while the scrubber drove the hidden one.
+   *  Sharing one creation promise guarantees a single renderer/canvas. */
+  private rendererInit?: Promise<SimSpaceRenderer>;
   private resizeObserver?: ResizeObserver;
   private tooltipEl?: HTMLElement;
   private tooltipAttachedTo: string | null = null;
@@ -388,6 +397,7 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
     this.resizeObserver?.disconnect();
     this.renderer?.destroy();
     this.renderer = null;
+    this.rendererInit = undefined;
     this.tooltipEl = undefined;
     this.tooltipAttachedTo = null;
   }
@@ -406,15 +416,10 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
       this.snapshot = snap;
       this.computeTemporalState(snap);
 
-      const dim = snap.definition.dimensionality;
-      if (!this.renderer) {
-        this.renderer = await this.rendererFactory.create(dim);
-        this.renderer.attach(this.hostRef.nativeElement);
-        this.wireRendererEvents();
-      }
-      this.renderer.loadDefinition(snap.definition);
-      this.renderer.setObjects(this.visibleObjects());
-      this.renderer.setConnections(this.visibleConnections());
+      const renderer = await this.ensureRenderer(snap.definition.dimensionality);
+      renderer.loadDefinition(snap.definition);
+      renderer.setObjects(this.visibleObjects());
+      renderer.setConnections(this.visibleConnections());
 
       // No overlay auto-opens on load — the user picks via the
       // selector. So no initial evaluation fetch here; the first
@@ -425,6 +430,24 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
       this.errorMessage = err?.message || String(err);
       this.snapshot = null;
     }
+  }
+
+  /** Create + attach the renderer exactly once, even when load() is called
+   *  concurrently. The first caller kicks off creation and stores the promise;
+   *  every caller (including the first) awaits that same promise, so there is
+   *  ever only one renderer and one canvas. See `rendererInit`. */
+  private ensureRenderer(dim: SimSpaceDimensionality): Promise<SimSpaceRenderer> {
+    if (this.renderer) return Promise.resolve(this.renderer);
+    if (!this.rendererInit) {
+      this.rendererInit = (async () => {
+        const r = await this.rendererFactory.create(dim);
+        r.attach(this.hostRef.nativeElement);
+        this.renderer = r;
+        this.wireRendererEvents();
+        return r;
+      })();
+    }
+    return this.rendererInit;
   }
 
   /** Schedule a debounced fetch of evaluation values for the current
@@ -515,13 +538,7 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
   onScrubberChange(t: number): void {
     this.currentTime = t;
     if (this.renderer) {
-      const vo = this.visibleObjects();
-      const sample = vo.find(o => o.temporalValue !== undefined);
-      // [DIAG-3D] remove once playback confirmed
-      console.log('[DIAG] scrub t=', t, 'hasTemporal=', this.hasTemporal,
-        'visibleObjects=', vo.length, 'snapshotObjs=', this.snapshot?.objects?.length,
-        'sampleTemporal=', sample?.temporalValue, 'samplePos=', sample?.position);
-      this.renderer.setObjects(vo);
+      this.renderer.setObjects(this.visibleObjects());
       this.renderer.setConnections(this.visibleConnections());
     }
     // Equation values are recomputed only after the scrubber has been
@@ -542,9 +559,28 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
    *                          per (className, classRef.instanceId-prefix).
    *         A pendulum thus shows one bob at a time.
    */
+  /**
+   * Stamp the stable render-track key the renderer binds a persistent mesh
+   * to (see SimSpaceObject.trackKey). The rule mirrors visibleObjects'
+   * collapse:
+   *   - snapshot mode (one row on screen per class) → key by class/track, so
+   *     the renderer keeps ONE mesh and just repositions it as the scrubber
+   *     advances (no per-frame destroy + rebuild).
+   *   - cumulative/trail mode + untemporal objects → key by `id`, so every
+   *     row gets its own persistent mesh (the trail) / stable pivot etc.
+   * Mutating the transient render record in place is fine — these are not
+   * tree-objects, they're rebuilt from the snapshot each load.
+   */
+  private trackKeyFor(o: SimSpaceObject | SimSpaceConnection): string {
+    const snapshotMode = o.temporalValue !== undefined && !this.temporalCumulative;
+    return snapshotMode ? (o.classRef?.className ?? o.id) : o.id;
+  }
+
   private visibleObjects(): SimSpaceObject[] {
     if (!this.snapshot) return [];
-    if (!this.hasTemporal) return this.snapshot.objects;
+    if (!this.hasTemporal) {
+      return this.snapshot.objects.map(o => (o.trackKey = this.trackKeyFor(o), o));
+    }
 
     const cumulative = this.temporalCumulative;
     const result: SimSpaceObject[] = [];
@@ -561,7 +597,7 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
       for (const obj of temporal) {
         if (obj.temporalValue! <= this.currentTime) result.push(obj);
       }
-      return result;
+      return result.map(o => (o.trackKey = this.trackKeyFor(o), o));
     }
     // Snapshot mode: pick the most-recent-but-not-exceeding object per
     // class. Two pendulums in the same scene would each show one bob.
@@ -574,7 +610,8 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
         latestByClass.set(key, obj);
       }
     }
-    return result.concat(Array.from(latestByClass.values()));
+    return result.concat(Array.from(latestByClass.values()))
+      .map(o => (o.trackKey = this.trackKeyFor(o), o));
   }
 
   /**
@@ -589,7 +626,9 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
   private visibleConnections(): SimSpaceConnection[] {
     if (!this.snapshot) return [];
     const conns = this.snapshot.connections || [];
-    if (!this.hasTemporal) return conns;
+    if (!this.hasTemporal) {
+      return conns.map(c => (c.trackKey = this.trackKeyFor(c), c));
+    }
 
     const cumulative = this.temporalCumulative;
     const result: SimSpaceConnection[] = [];
@@ -605,7 +644,7 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
       for (const c of temporal) {
         if (c.temporalValue! <= this.currentTime) result.push(c);
       }
-      return result;
+      return result.map(c => (c.trackKey = this.trackKeyFor(c), c));
     }
     const latestByClass = new Map<string, SimSpaceConnection>();
     for (const c of temporal) {
@@ -616,7 +655,8 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
         latestByClass.set(key, c);
       }
     }
-    return result.concat(Array.from(latestByClass.values()));
+    return result.concat(Array.from(latestByClass.values()))
+      .map(c => (c.trackKey = this.trackKeyFor(c), c));
   }
 
   // -------------------------------------------------------------------
@@ -627,7 +667,10 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
     if (!this.renderer) return;
     this.renderer.setOnClick(({ id }) => {
       if (!id || !this.clickNavigates) return;
-      const obj = this.snapshot?.objects.find(o => o.id === id);
+      // Same colliding-id hazard as the hover path: prefer the visible row so
+      // navigation targets the instance actually on screen, not the t=0 row.
+      const obj = this.visibleObjects().find(o => o.id === id)
+        ?? this.snapshot?.objects.find(o => o.id === id);
       if (obj?.classRef) {
         this.router.navigate(['/class-main-page', obj.classRef.className, obj.classRef.instanceId]);
       }
@@ -645,7 +688,12 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
       this.tooltipAttachedTo = null;
     }
     if (!id) return;
-    const obj = this.snapshot?.objects.find(o => o.id === id);
+    // Resolve the hovered id against the currently-VISIBLE set first: the full
+    // snapshot.objects list holds one row PER TIMESTEP, so a plain .find() over
+    // it returns the first (t=0) row on any id collision. Fall back to the full
+    // list only if the visible set has no match.
+    const obj = this.visibleObjects().find(o => o.id === id)
+      ?? this.snapshot?.objects.find(o => o.id === id);
     if (!obj) return;
     if (!this.tooltipEl) this.tooltipEl = createTooltipElement();
     renderTooltipForObject(this.tooltipEl, obj, this.formatTemporalLabel(obj));

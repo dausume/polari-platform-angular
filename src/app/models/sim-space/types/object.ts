@@ -26,6 +26,17 @@ export interface SimSpaceObject {
    * For freestanding objects: a generated UUID. Used as the picking key.
    */
   id: string;
+  /**
+   * Render-track identity — the key a renderer binds a persistent mesh to.
+   * Unlike `id` (which is per-timestep-row), `trackKey` is STABLE across
+   * timesteps for the same logical state-object, so the renderer reuses one
+   * mesh and just applies position/transform updates as the scrubber moves,
+   * rather than destroying + rebuilding the mesh every frame. The viewer
+   * stamps it: in snapshot mode = the class/track (one mesh per pendulum);
+   * in cumulative/trail mode = `id` (one mesh per row, so the trail persists).
+   * Renderers fall back to `id` when absent. See ThreeSimSpaceRenderer.setObjects.
+   */
+  trackKey?: string;
   /** Human label — rendered as a tooltip / overlay title. */
   label?: string;
   /** Origin position in the space's coordinate system. */
@@ -78,6 +89,13 @@ export interface SimSpaceObject {
  */
 export interface SimSpaceConnection {
   id: string;
+  /**
+   * Render-track identity — connection analogue of SimSpaceObject.trackKey.
+   * Stable across timesteps so the renderer reuses one line (updating its
+   * endpoint geometry in place) instead of rebuilding it every frame. Viewer
+   * stamps it the same way; renderers fall back to `id` when absent.
+   */
+  trackKey?: string;
   sourceId?: string;
   targetId?: string;
   sourcePosition?: SimSpacePosition;

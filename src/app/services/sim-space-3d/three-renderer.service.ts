@@ -229,38 +229,53 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
 
   setObjects(objects: SimSpaceObject[]): void {
     if (!this.scene) return;
-    const next = new Map(objects.map(o => [o.id, o]));
-    for (const [id, mesh] of this.meshes) {
-      if (!next.has(id)) {
+    // Meshes are bound to a stable TRACK (trackKey), not to a per-timestep
+    // row id. A track persists across the scrubber's full range, so stepping
+    // is just a transform write on the same mesh — we destroy + rebuild only
+    // on a real event: the track left the scene, or its shape/style ref
+    // changed (a genuinely different visual). This kills the per-frame
+    // geometry/material/GPU churn that made 3D playback intermittently fail.
+    const keyOf = (o: SimSpaceObject) => o.trackKey ?? o.id;
+    const next = new Map(objects.map(o => [keyOf(o), o]));
+    for (const [key, mesh] of this.meshes) {
+      if (!next.has(key)) {
         this.scene.remove(mesh);
         this.disposeObject3D(mesh);
-        this.meshes.delete(id);
+        this.meshes.delete(key);
       }
     }
     for (const obj of objects) {
-      let mesh = this.meshes.get(obj.id);
-      const built = !mesh;
-      if (!mesh) {
+      const key = keyOf(obj);
+      const sig = `${obj.shapeRef}|${obj.styleRef}`;
+      let mesh = this.meshes.get(key);
+      if (!mesh || mesh.userData['polariRenderSig'] !== sig) {
+        // First appearance, or the track's visual changed → (re)build once.
+        if (mesh) {
+          this.scene.remove(mesh);
+          this.disposeObject3D(mesh);
+        }
         mesh = this.buildMeshFor(obj);
-        this.meshes.set(obj.id, mesh);
+        mesh.userData['polariRenderSig'] = sig;
+        this.meshes.set(key, mesh);
         this.scene.add(mesh);
       }
       this.applyTransform(mesh, obj);
+      // The CURRENT row id rides on the persistent mesh so hover/click/pick
+      // resolve to the on-screen timestep, even though the mesh itself is
+      // bound to the stable track.
       mesh.userData['polariSimSpaceId'] = obj.id;
-      // [DIAG-3D] remove once confirmed
-      if (obj.temporalValue !== undefined) {
-        console.log('[DIAG-R] setObj id=', obj.id, 'built=', built,
-          'objPos=', obj.position, 'meshPos=', [mesh.position.x, mesh.position.y, mesh.position.z],
-          'meshes=', this.meshes.size, 'inScene=', this.scene.children.includes(mesh));
-      }
     }
-    this.currentObjects = next;
+    // currentObjects stays keyed by per-row id — updateObjectTransform,
+    // overlays, and connection endpoint lookups all address objects by id.
+    this.currentObjects = new Map(objects.map(o => [o.id, o]));
     this.repositionOverlays();
   }
 
   updateObjectTransform(id: string, patch: SimSpaceTransformPatch): void {
     const obj = this.currentObjects.get(id);
-    const mesh = this.meshes.get(id);
+    // currentObjects is keyed by row id; the mesh is keyed by the track, so
+    // resolve through the object's trackKey (fall back to id).
+    const mesh = obj ? this.meshes.get(obj.trackKey ?? obj.id) : undefined;
     if (!obj || !mesh) return;
     const updated: SimSpaceObject = {
       ...obj,
@@ -275,12 +290,16 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
 
   setConnections(connections: SimSpaceConnection[]): void {
     if (!this.scene) return;
-    const next = new Map(connections.map(c => [c.id, c]));
-    for (const [id, line] of this.connectionLines) {
-      if (!next.has(id)) {
+    // Same stable-track binding as setObjects: the line persists across the
+    // scrubber range and we just rewrite its endpoint geometry each step,
+    // rather than rebuilding the THREE.Line every frame.
+    const keyOf = (c: SimSpaceConnection) => c.trackKey ?? c.id;
+    const next = new Map(connections.map(c => [keyOf(c), c]));
+    for (const [key, line] of this.connectionLines) {
+      if (!next.has(key)) {
         this.scene.remove(line);
         this.disposeObject3D(line);
-        this.connectionLines.delete(id);
+        this.connectionLines.delete(key);
       }
     }
     for (const conn of connections) {
@@ -289,14 +308,16 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
       const tgtPos = conn.targetPosition
         ?? (conn.targetId ? this.currentObjects.get(conn.targetId)?.position : undefined);
       if (!srcPos || !tgtPos) continue;
-      let line = this.connectionLines.get(conn.id);
+      const key = keyOf(conn);
+      let line = this.connectionLines.get(key);
       if (!line) {
         const geom = new THREE.BufferGeometry();
         const mat = new THREE.LineBasicMaterial({ color: 0x888888 });
         line = new THREE.Line(geom, mat);
-        this.connectionLines.set(conn.id, line);
+        this.connectionLines.set(key, line);
         this.scene.add(line);
       }
+      line.userData['polariSimSpaceId'] = conn.id;
       const positions = new Float32Array([
         srcPos[0] ?? 0, srcPos[1] ?? 0, srcPos[2] ?? 0,
         tgtPos[0] ?? 0, tgtPos[1] ?? 0, tgtPos[2] ?? 0,
@@ -328,12 +349,16 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
     while (cursor && cursor.userData['polariSimSpaceId'] === undefined) {
       cursor = cursor.parent;
     }
-    return { id: (cursor?.userData['polariSimSpaceId'] as string) ?? null, screenPos };
+    const pickedId = (cursor?.userData['polariSimSpaceId'] as string) ?? null;
+    return { id: pickedId, screenPos };
   }
 
   setHighlight(id: string | null): void {
-    this.meshes.forEach((mesh, meshId) => {
-      mesh.scale.setScalar(meshId === id ? 1.15 : 1);
+    // Meshes are keyed by trackKey, but `id` is the per-row picking id — so
+    // match on the current row id stamped into userData, not the map key.
+    this.meshes.forEach((mesh) => {
+      const hit = id !== null && mesh.userData['polariSimSpaceId'] === id;
+      mesh.scale.setScalar(hit ? 1.15 : 1);
     });
   }
 
@@ -400,7 +425,6 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
 
   private startLoop(): void {
     this.looping = true;
-    let frame = 0;
     const tick = () => {
       if (!this.looping) return;  // stopped by destroy()
       // Reschedule FIRST so the loop can NEVER die — neither a not-ready
@@ -409,12 +433,6 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
       // permanently — the scene-graph kept updating but nothing repainted.)
       this.animationFrameId = requestAnimationFrame(tick);
       if (!this.renderer || !this.scene || !this.camera) return;
-      // [DIAG-3D] heartbeat — confirms the render loop is alive + canvas size
-      if (frame++ % 120 === 0) {
-        console.log('[DIAG-R] render frame=', frame,
-          'canvas=', this.renderer.domElement.width, 'x', this.renderer.domElement.height,
-          'sceneChildren=', this.scene.children.length);
-      }
       try {
         const delta = this.clock.getDelta();
         if (this.viewHelperRig?.helper.animating) {
