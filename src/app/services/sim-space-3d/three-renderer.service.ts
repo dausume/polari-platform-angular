@@ -345,7 +345,18 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
   }
 
   setVectors(vectors: SnapshotVector[]): void {
-    if (!this.scene) return;
+    if (!this.scene) {
+      console.log('[VECDBG] setVectors called but NO scene yet — arrows dropped (%d)', vectors.length);
+      return;
+    }
+    let _drawn = 0, _skipped = 0;
+    if (vectors[0]) {
+      console.log('[VECDBG] setVectors received %d; sample key=%o origin=%o vec=%o scale=%o styleRef=%o color=%o',
+        vectors.length, vectors[0].key, vectors[0].origin, vectors[0].vec, vectors[0].scale,
+        vectors[0].styleRef, this.materialLib?.get(vectors[0].styleRef)?.color);
+    } else {
+      console.log('[VECDBG] setVectors received 0 vectors');
+    }
     // State Projections (kind='vector') follow the SAME stable-key reuse as
     // setObjects/setConnections: an arrow is bound to SnapshotVector.key
     // (bindingName:instanceName) and persists across the scrubber range, so
@@ -369,8 +380,10 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
       // zero vector, so we must bail before normalizing.
       if (length < 1e-6) {
         if (arrow) arrow.visible = false;
+        _skipped++;
         continue;
       }
+      _drawn++;
       dir.normalize();
       const origin = new THREE.Vector3(v.origin[0] ?? 0, v.origin[1] ?? 0, v.origin[2] ?? 0);
       // Same styleRef→color lookup setConnections uses (material library
@@ -390,6 +403,7 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
       arrow.setColor(new THREE.Color(colorHex || '#888888'));
       arrow.userData['polariSimSpaceId'] = v.key;
     }
+    console.log('[VECDBG] setVectors done: drawn=%d skipped(degenerate)=%d arrowsInScene=%d', _drawn, _skipped, this.vectorArrows.size);
   }
 
   // -------------------------------------------------------------------
