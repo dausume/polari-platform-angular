@@ -911,6 +911,52 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
     }
   }
 
+  // ── Shared overlay-event wiring ──────────────────────────────────────────
+  // Factored out of the per-state createXxxOverlay methods to remove repeated
+  // boilerplate. The per-state CHANGE handlers stay inline (they differ per
+  // state type); only the genuinely-identical wiring is shared here.
+
+  /** Wire the full-view + state-page buttons every state overlay exposes
+   *  (StateOverlayBase outputs). Shared by ALL overlays. */
+  private wireOverlayViewEvents(componentRef: any, stateInstance: NoCodeState): void {
+    componentRef.instance.fullViewRequested.subscribe(
+      (event: { x: number; y: number; stateName: string }) => {
+        this.showFullViewPopup(event.x, event.y, stateInstance);
+      });
+    componentRef.instance.statePageRequested.subscribe(() => {
+      this.showStatePage(stateInstance);
+    });
+  }
+
+  /** Full wiring for the "value-source" overlays (CalculusOperation /
+   *  MatrixEquationOperation, which share an identical handler set): persist
+   *  `fieldValuesChanged` into the state instance + solution-state cache and
+   *  regenerate code; route the view/page buttons; and open a per-state popup
+   *  on the expand button. */
+  private wireValueOverlayEvents(
+    componentRef: any,
+    stateName: string,
+    stateInstance: NoCodeState,
+    onPopup: () => void,
+  ): void {
+    componentRef.instance.fieldValuesChanged.subscribe((updated: { [key: string]: any }) => {
+      if (!stateInstance.boundObjectFieldValues) {
+        stateInstance.boundObjectFieldValues = {};
+      }
+      Object.assign(stateInstance.boundObjectFieldValues, updated);
+      if (this.selectedSolutionName) {
+        this.solutionStateService.updateStateFieldValues(
+          this.selectedSolutionName,
+          stateName,
+          updated,
+        );
+      }
+      this.regenerateCode();
+    });
+    this.wireOverlayViewEvents(componentRef, stateInstance);
+    componentRef.instance.popupRequested.subscribe(() => onPopup());
+  }
+
   /**
    * Create a FormValidationOverlayComponent with upstream field auto-detection
    * and dynamic per-field output slot management.
@@ -1652,35 +1698,8 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
 
     if (componentRef) {
       this.stateOverlayManager.setOverlayPointerEvents(stateName, true);
-
-      componentRef.instance.fieldValuesChanged.subscribe((updated: { [key: string]: any }) => {
-        if (!stateInstance.boundObjectFieldValues) {
-          stateInstance.boundObjectFieldValues = {};
-        }
-        Object.assign(stateInstance.boundObjectFieldValues, updated);
-        if (this.selectedSolutionName) {
-          this.solutionStateService.updateStateFieldValues(
-            this.selectedSolutionName,
-            stateName,
-            updated,
-          );
-        }
-        this.regenerateCode();
-      });
-
-      componentRef.instance.fullViewRequested.subscribe((event: { x: number; y: number; stateName: string }) => {
-        this.showFullViewPopup(event.x, event.y, stateInstance);
-      });
-
-      componentRef.instance.statePageRequested.subscribe(() => {
-        this.showStatePage(stateInstance);
-      });
-
-      // Inline expand button → open the canonical full-page popup.
-      componentRef.instance.popupRequested.subscribe(() => {
-        this.openCalculusOperationPopup(stateName, stateInstance, availableInputs, sourceObjectFields);
-      });
-
+      this.wireValueOverlayEvents(componentRef, stateName, stateInstance,
+        () => this.openCalculusOperationPopup(stateName, stateInstance, availableInputs, sourceObjectFields));
       return true;
     }
     return false;
@@ -1713,41 +1732,10 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
 
     if (componentRef) {
       this.stateOverlayManager.setOverlayPointerEvents(stateName, true);
-
-      componentRef.instance.fieldValuesChanged.subscribe((updated: { [key: string]: any }) => {
-        if (!stateInstance.boundObjectFieldValues) {
-          stateInstance.boundObjectFieldValues = {};
-        }
-        Object.assign(stateInstance.boundObjectFieldValues, updated);
-        if (this.selectedSolutionName) {
-          this.solutionStateService.updateStateFieldValues(
-            this.selectedSolutionName,
-            stateName,
-            updated,
-          );
-        }
-        this.regenerateCode();
-      });
-
-      componentRef.instance.fullViewRequested.subscribe((event: { x: number; y: number; stateName: string }) => {
-        this.showFullViewPopup(event.x, event.y, stateInstance);
-      });
-
-      componentRef.instance.statePageRequested.subscribe(() => {
-        this.showStatePage(stateInstance);
-      });
-
-      // Inline expand button → open the RICH full editor in a dialog (the
-      // inline overlay forced to its 'full' size tier). Mirrors how Calculus
-      // routes its expand button to openCalculusOperationPopup. (Previously
-      // this went to the generic showFullViewPopup — the bare class/field
-      // editor — which is why the popup looked like "the smallest view".)
-      componentRef.instance.popupRequested.subscribe(() => {
-        this.openMatrixEquationOperationPopup(
-          stateName, stateInstance, availableInputs, sourceObjectFields,
-        );
-      });
-
+      // Expand button opens the RICH full editor dialog (the inline overlay
+      // forced to its 'full' size tier), mirroring Calculus.
+      this.wireValueOverlayEvents(componentRef, stateName, stateInstance,
+        () => this.openMatrixEquationOperationPopup(stateName, stateInstance, availableInputs, sourceObjectFields));
       return true;
     }
     return false;

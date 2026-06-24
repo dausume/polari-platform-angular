@@ -27,6 +27,7 @@ import {
   SimSpaceConnection,
   SimSpaceDefinitionPayload,
   SimSpaceScreenPosition,
+  SnapshotVector,
 } from '@models/sim-space/sim-space-types';
 
 /**
@@ -99,6 +100,14 @@ export interface SimSpaceRenderer {
 
   /** Set the full connection list. Same reconciler semantics. */
   setConnections(connections: SimSpaceConnection[]): void;
+
+  /**
+   * Set the full State-Projection vector list (kind='vector' arrows). Same
+   * reconciler semantics as setObjects/setConnections — keyed by
+   * SnapshotVector.key, reused across scrubber steps. The 2D renderer may
+   * no-op until arrow parity lands (design §5b).
+   */
+  setVectors(vectors: SnapshotVector[]): void;
 
   // -------------------------------------------------------------------
   // Interaction

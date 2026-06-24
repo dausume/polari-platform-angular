@@ -34,6 +34,7 @@ import {
   SimSpaceConnection,
   SimSpaceDefinitionPayload,
   SimSpaceScreenPosition,
+  SnapshotVector,
 } from '@models/sim-space/sim-space-types';
 import {
   SimSpaceRenderer,
@@ -198,6 +199,15 @@ export class D3SimSpaceRenderer implements SimSpaceRenderer {
   setConnections(connections: SimSpaceConnection[]): void {
     this.currentConnections = new Map(connections.map(c => [c.id, c]));
     this.repaintConnections();
+  }
+
+  /**
+   * State-Projection vectors. 2D arrow parity (a <line> + SVG marker-end
+   * triangle, design §5b) is deferred — no-op for now so the shared
+   * interface stays satisfied without changing 2D behavior.
+   */
+  setVectors(_vectors: SnapshotVector[]): void {
+    // intentional no-op until 2D arrow rendering lands (design §5b)
   }
 
   // -------------------------------------------------------------------

@@ -36,6 +36,7 @@ import {
   SimSpaceObject,
   SimSpaceConnection,
   SimSpaceDimensionality,
+  SnapshotVector,
 } from '@models/sim-space/sim-space-types';
 import { formatTimeValue, TimeUnitId } from '@models/sim-space/time-units';
 import { createTooltipElement, renderTooltipForObject } from './viewer-tooltip';
@@ -420,6 +421,7 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
       renderer.loadDefinition(snap.definition);
       renderer.setObjects(this.visibleObjects());
       renderer.setConnections(this.visibleConnections());
+      renderer.setVectors(this.visibleVectors());
 
       // No overlay auto-opens on load — the user picks via the
       // selector. So no initial evaluation fetch here; the first
@@ -477,7 +479,7 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
     const time = this.currentTime;
     try {
       const { evaluations } = await this.simSpaceService.evaluationsAt(
-        name, { time },
+        name, { time, run: this.selectedRunName },
       );
       // Stale-reply guard.
       if (seq !== this.evalRequestSeq || this.simSpaceName !== name) return;
@@ -540,6 +542,7 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
     if (this.renderer) {
       this.renderer.setObjects(this.visibleObjects());
       this.renderer.setConnections(this.visibleConnections());
+      this.renderer.setVectors(this.visibleVectors());
     }
     // Equation values are recomputed only after the scrubber has been
     // stationary for the debounce window — so live dragging doesn't
@@ -657,6 +660,52 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
     }
     return result.concat(Array.from(latestByClass.values()))
       .map(c => (c.trackKey = this.trackKeyFor(c), c));
+  }
+
+  /**
+   * State-Projection analogue of visibleObjects()/visibleConnections().
+   * `vector` bindings emit one SnapshotVector per row with a temporalValue
+   * (origin + vec read off the bob's row at that step); the same cumulative
+   * / snapshot rules apply so the arrow stays pinned to the bob as the
+   * scrubber advances. Vectors without a temporalValue always render.
+   *
+   * Unlike objects/connections there is no trackKey to stamp — the renderer
+   * reuses arrows by SnapshotVector.key (bindingName:instanceName), which is
+   * already stable across timesteps for one logical projection.
+   */
+  private visibleVectors(): SnapshotVector[] {
+    if (!this.snapshot) return [];
+    const vectors = this.snapshot.vectors || [];
+    if (!this.hasTemporal) return vectors;
+
+    const cumulative = this.temporalCumulative;
+    const result: SnapshotVector[] = [];
+    const temporal: SnapshotVector[] = [];
+    for (const v of vectors) {
+      if (v.temporalValue === undefined) {
+        result.push(v);
+      } else {
+        temporal.push(v);
+      }
+    }
+    if (cumulative) {
+      for (const v of temporal) {
+        if (v.temporalValue! <= this.currentTime) result.push(v);
+      }
+      return result;
+    }
+    // Snapshot mode: most-recent-but-not-exceeding per projection. Keyed by
+    // SnapshotVector.key (one arrow per binding+instance), so two force
+    // arrows on the same bob each keep their own current row.
+    const latestByKey = new Map<string, SnapshotVector>();
+    for (const v of temporal) {
+      if (v.temporalValue! > this.currentTime) continue;
+      const prior = latestByKey.get(v.key);
+      if (!prior || v.temporalValue! > prior.temporalValue!) {
+        latestByKey.set(v.key, v);
+      }
+    }
+    return result.concat(Array.from(latestByKey.values()));
   }
 
   // -------------------------------------------------------------------

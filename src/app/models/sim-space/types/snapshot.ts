@@ -18,6 +18,34 @@ import { SimSpaceObject, SimSpaceConnection } from './object';
 import { SimSpaceEvaluationSnapshot } from './evaluation';
 
 /**
+ * A State Projection of kind `vector` — a visualization-only arrow drawn
+ * FROM `origin` along `vec`, scaled by `scale`. Owns no physics; the
+ * backend reads the fields off a real `*SimState` row at snapshot time and
+ * emits these alongside `objects` / `connections`. Renderers draw it with
+ * a single arrow primitive (THREE.ArrowHelper in 3D); the viewer scrubs it
+ * by `temporalValue` the same way it does objects.
+ */
+export interface SnapshotVector {
+  kind: 'vector';
+  /** Stable id = `<bindingName>:<instanceName>`. Used for stable-key reuse. */
+  key: string;
+  /** Arrow tail in world coordinates. */
+  origin: [number, number, number];
+  /** The vector to draw FROM origin (pre-scale). */
+  vec: [number, number, number];
+  /** World units per unit-magnitude. */
+  scale: number;
+  /** Arrowhead length as a fraction of the shaft. */
+  headScale: number;
+  /** Material name → color (same library as connection styleRefs). */
+  styleRef: string;
+  /** Backlink to the source class (for parity with objects/connections). */
+  classRef?: { className: string; instanceId?: string };
+  /** Scrubber filter value — same semantics as objects' temporalValue. */
+  temporalValue?: number;
+}
+
+/**
  * The persisted scene definition. Mirrors how GeoJsonDefinition stores its
  * config: a small metadata header + a `definition` JSON blob that's
  * dimension-specific. Coordinate system + viewport live on the header so
@@ -120,6 +148,12 @@ export interface SimSpaceSnapshot {
   definition: SimSpaceDefinitionPayload;
   objects: SimSpaceObject[];
   connections: SimSpaceConnection[];
+  /**
+   * State Projections of kind `vector` — viz-only arrows derived from real
+   * `*SimState` rows. Defaults to `[]` when absent (older snapshots predate
+   * the field). See SnapshotVector.
+   */
+  vectors: SnapshotVector[];
   /**
    * Bound classes that actually emitted at least one object. Powers the
    * legend panel in the viewer (what's plotted, from which fields).

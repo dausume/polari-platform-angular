@@ -29,6 +29,7 @@ import {
   SimSpaceConnection,
   SimSpaceDefinitionPayload,
   SimSpaceScreenPosition,
+  SnapshotVector,
 } from '@models/sim-space/sim-space-types';
 import {
   SimSpaceRenderer,
@@ -72,6 +73,8 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
   private meshes = new Map<string, THREE.Object3D>();
   private currentConnections = new Map<string, SimSpaceConnection>();
   private connectionLines = new Map<string, THREE.Line>();
+  /** State-Projection arrows, keyed by SnapshotVector.key (stable-key reuse). */
+  private vectorArrows = new Map<string, THREE.ArrowHelper>();
 
   private overlays = new Map<
     string,
@@ -169,8 +172,10 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
     this.viewHelperRig = undefined;
     this.meshes.forEach(obj => this.disposeObject3D(obj));
     this.connectionLines.forEach(line => this.disposeObject3D(line));
+    this.vectorArrows.forEach(arrow => this.disposeArrowHelper(arrow));
     this.meshes.clear();
     this.connectionLines.clear();
+    this.vectorArrows.clear();
     this.renderer.dispose();
     this.renderer.domElement.parentNode?.removeChild(this.renderer.domElement);
     this.renderer = undefined;
@@ -337,6 +342,54 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
       );
     }
     this.currentConnections = next;
+  }
+
+  setVectors(vectors: SnapshotVector[]): void {
+    if (!this.scene) return;
+    // State Projections (kind='vector') follow the SAME stable-key reuse as
+    // setObjects/setConnections: an arrow is bound to SnapshotVector.key
+    // (bindingName:instanceName) and persists across the scrubber range, so
+    // a step is just a setDirection/setLength/position write on the same
+    // ArrowHelper — never a per-frame `new ArrowHelper`. We create on first
+    // sight and dispose+remove only when a key leaves the scene.
+    const next = new Map(vectors.map(v => [v.key, v]));
+    for (const [key, arrow] of this.vectorArrows) {
+      if (!next.has(key)) {
+        this.scene.remove(arrow);
+        this.disposeArrowHelper(arrow);
+        this.vectorArrows.delete(key);
+      }
+    }
+    for (const v of vectors) {
+      const dir = new THREE.Vector3(v.vec[0] ?? 0, v.vec[1] ?? 0, v.vec[2] ?? 0);
+      const length = dir.length() * v.scale;
+      let arrow = this.vectorArrows.get(v.key);
+      // Degenerate (zero-magnitude or near-zero scaled length) arrow — hide
+      // any existing instance, and don't create one. setDirection throws on a
+      // zero vector, so we must bail before normalizing.
+      if (length < 1e-6) {
+        if (arrow) arrow.visible = false;
+        continue;
+      }
+      dir.normalize();
+      const origin = new THREE.Vector3(v.origin[0] ?? 0, v.origin[1] ?? 0, v.origin[2] ?? 0);
+      // Same styleRef→color lookup setConnections uses (material library
+      // color), falling back to gray (0x888888) when the ref misses.
+      const colorHex = v.styleRef ? this.materialLib.get(v.styleRef)?.color : undefined;
+      const headLength = length * v.headScale;
+      const headWidth = length * v.headScale * 0.6;
+      if (!arrow) {
+        arrow = new THREE.ArrowHelper(dir, origin, length, colorHex || 0x888888, headLength, headWidth);
+        this.vectorArrows.set(v.key, arrow);
+        this.scene.add(arrow);
+      }
+      arrow.visible = true;
+      arrow.position.copy(origin);
+      arrow.setDirection(dir);
+      arrow.setLength(length, headLength, headWidth);
+      arrow.setColor(new THREE.Color(colorHex || '#888888'));
+      arrow.userData['polariSimSpaceId'] = v.key;
+    }
   }
 
   // -------------------------------------------------------------------
@@ -545,6 +598,18 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
     if (!this.host) return { x: event.clientX, y: event.clientY };
     const rect = this.host.getBoundingClientRect();
     return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+  }
+
+  /** Dispose an ArrowHelper's GPU resources. ArrowHelper exposes its own
+   *  dispose() (frees the shaft line + cone head); fall back to the generic
+   *  traverse if it's ever absent. Mirrors the disposeObject3D path the
+   *  mesh/line maps use. */
+  private disposeArrowHelper(arrow: THREE.ArrowHelper): void {
+    if (typeof (arrow as any).dispose === 'function') {
+      (arrow as any).dispose();
+    } else {
+      this.disposeObject3D(arrow);
+    }
   }
 
   private disposeObject3D(node: THREE.Object3D): void {

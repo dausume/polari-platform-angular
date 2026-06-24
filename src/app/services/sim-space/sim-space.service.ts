@@ -55,7 +55,12 @@ export class SimSpaceService {
     const resp = await firstValueFrom(
       this.http.get<{ success: boolean; data: SimSpaceSnapshot }>(url)
     );
-    return resp.data;
+    const data = resp.data;
+    // Default `vectors` to [] so older snapshots (which predate the State
+    // Projection field) flow through without the viewer/renderer guarding
+    // for undefined on every access.
+    if (data && !data.vectors) data.vectors = [];
+    return data;
   }
 
   /**
@@ -68,13 +73,16 @@ export class SimSpaceService {
    * Cheap on the server — leverages the LaTeX parse cache so repeated
    * stops only pay sub-millisecond SymPy substitution + evalf.
    */
-  async evaluationsAt(name: string, opts: { step?: number; time?: number }): Promise<{
+  async evaluationsAt(name: string, opts: { step?: number; time?: number; run?: string | null }): Promise<{
     evaluations: SimSpaceEvaluationSnapshot[];
     warnings: string[];
   }> {
     const params = new URLSearchParams();
     if (opts.step !== undefined) params.set('step', String(opts.step));
     else if (opts.time !== undefined) params.set('time', String(opts.time));
+    // Scope to the same run the snapshot/renderer uses, so a stale run's
+    // rows can't pin the readouts to frozen values.
+    if (opts.run) params.set('run', opts.run);
     const qs = params.toString() ? `?${params.toString()}` : '';
     const url = `${this.runtimeConfig.getBackendBaseUrl()}`
       + `/api/simspace/${encodeURIComponent(name)}/evaluations/at${qs}`;
