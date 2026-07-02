@@ -90,7 +90,7 @@ import {
     <!-- Simulation run controller — top-left, below the axis legend.
          Visible only when the scene's bound *SimState classes
          participate in a SimulationDefinition. -->
-    <div class="run-panel-anchor" *ngIf="simulationDefinitionName">
+    <div class="run-panel-anchor" *ngIf="simulationDefinitionName && !hideRunPanel">
       <sim-space-simulation-run-panel
         [simulationDefinitionName]="simulationDefinitionName"
         [defaultDtSeconds]="simulationDefaultDtSeconds"
@@ -251,6 +251,15 @@ import {
 export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDestroy {
   @Input() simSpaceName?: string;
   @Input() clickNavigates = true;
+  /** Pin the viewer to one SimulationRun (embedding pages set this so
+   *  several viewers can show different runs side by side). When set it
+   *  seeds/overrides `selectedRunName`; unset keeps the run panel's
+   *  own selection behavior. */
+  @Input() run?: string;
+  /** Hide the embedded Live-simulation run panel — read-only embeds
+   *  (e.g. the Multi-Scale Simulation Page, which owns its own run
+   *  controls) don't want a second set of play buttons. */
+  @Input() hideRunPanel = false;
 
   @ViewChild('host', { static: true }) hostRef!: ElementRef<HTMLDivElement>;
 
@@ -412,9 +421,25 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
   }
 
   async ngOnChanges(changes: SimpleChanges): Promise<void> {
-    if (changes['simSpaceName'] && !changes['simSpaceName'].firstChange) {
+    // Pinned run: seed the selection BEFORE any load so even the first
+    // snapshot fetch is scoped to it (initial ngOnChanges fires before
+    // ngAfterViewInit's load).
+    if (changes['run']) {
+      this.selectedRunName = this.run ?? this.selectedRunName;
+    }
+    const runChanged = changes['run'] && !changes['run'].firstChange;
+    const nameChanged =
+      changes['simSpaceName'] && !changes['simSpaceName'].firstChange;
+    if (nameChanged || runChanged) {
       await this.load(this.simSpaceName);
     }
+  }
+
+  /** Re-fetch the current snapshot. Public so embedding pages that own
+   *  their own run controls (panel hidden) can refresh viewers after
+   *  committing steps. */
+  async refresh(): Promise<void> {
+    await this.load(this.simSpaceName);
   }
 
   ngOnDestroy(): void {

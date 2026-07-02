@@ -1,0 +1,155 @@
+<div class="page-container msim-page">
+    <div *ngIf="errorMessage" class="empty-state">
+        <mat-icon class="empty-icon">error_outline</mat-icon>
+        <p>{{ errorMessage }}</p>
+        <a mat-stroked-button routerLink="/multi-scale-sims">
+            <mat-icon>arrow_back</mat-icon> Back to Multi-Scale Simulations
+        </a>
+    </div>
+
+    <ng-container *ngIf="config">
+        <!-- Header: identity + member spaces (navigate-out, reuse-first) -->
+        <div class="page-header msim-header">
+            <div class="msim-title-row">
+                <a mat-icon-button routerLink="/multi-scale-sims" matTooltip="All multi-scale simulations">
+                    <mat-icon>arrow_back</mat-icon>
+                </a>
+                <h1>{{ config.name }}</h1>
+            </div>
+            <p class="subtitle">{{ config.description }}</p>
+            <div class="member-chips">
+                <span class="member-chip" *ngFor="let sim of config.members"
+                      [class.primary]="sim === config.primarySimulationRef">
+                    <mat-icon class="chip-icon">{{ sim === config.primarySimulationRef ? 'play_circle' : 'blur_on' }}</mat-icon>
+                    {{ sim }}
+                    <button mat-icon-button class="chip-config-btn"
+                            matTooltip="Configure this simulation (its own pages)"
+                            (click)="openSimConfig(sim)">
+                        <mat-icon>settings</mat-icon>
+                    </button>
+                </span>
+                <span class="coupling-note" *ngIf="config.couplings.length">
+                    <mat-icon class="chip-icon">link</mat-icon>
+                    {{ config.couplings.length }} coupling{{ config.couplings.length !== 1 ? 's' : '' }}
+                </span>
+            </div>
+        </div>
+
+        <!-- Stage progression stepper -->
+        <div class="stage-strip" *ngIf="stages.length">
+            <div class="stage-chip" *ngFor="let stage of stages; let i = index"
+                 [class.complete]="stageState(stage).complete === true"
+                 [class.blocked]="stageState(stage).complete === false">
+                <span class="stage-index">{{ i + 1 }}</span>
+                <div class="stage-body">
+                    <span class="stage-label">{{ stageLabel(stage) }}</span>
+                    <span class="stage-kind">{{ stage.kind === 'coStep' ? 'live coupled stepping' : 'runs to completion, then unlocks' }}</span>
+                    <span class="stage-reason" *ngIf="stageState(stage).reason">{{ stageState(stage).reason }}</span>
+                    <span class="stage-reason error" *ngIf="stageState(stage).error">{{ stageState(stage).error }}</span>
+                </div>
+                <mat-spinner *ngIf="stageState(stage).checking" diameter="18"></mat-spinner>
+                <mat-icon *ngIf="!stageState(stage).checking && stageState(stage).complete === true" class="stage-status ok">check_circle</mat-icon>
+                <mat-icon *ngIf="!stageState(stage).checking && stageState(stage).complete === false" class="stage-status pending">hourglass_empty</mat-icon>
+                <button *ngIf="stage.kind !== 'coStep'" mat-icon-button matTooltip="Re-check this stage's gate"
+                        (click)="checkGate(stage)" [disabled]="stageState(stage).checking">
+                    <mat-icon>refresh</mat-icon>
+                </button>
+            </div>
+        </div>
+
+        <!-- Run-set controls: ONE set of controls for the whole page -->
+        <div class="run-controls">
+            <label class="run-label">Run</label>
+            <select class="run-select" [(ngModel)]="selectedRun" (ngModelChange)="onRunSelected()" [disabled]="busy">
+                <option *ngFor="let run of runs" [value]="run.name">
+                    {{ run.label || run.name }} — step {{ run.lastRecordedStep }}
+                </option>
+            </select>
+            <label class="run-label steps-label">Steps</label>
+            <input class="steps-input" type="number" min="1" max="2000"
+                   [(ngModel)]="stepsToRun" [disabled]="busy" />
+            <button mat-flat-button color="primary" (click)="play()" [disabled]="busy || !selectedRun">
+                <mat-icon>play_arrow</mat-icon> Play
+            </button>
+            <button mat-stroked-button (click)="stepOnce()" [disabled]="busy || !selectedRun">
+                <mat-icon>skip_next</mat-icon> Step Once
+            </button>
+            <mat-spinner *ngIf="busy" diameter="22"></mat-spinner>
+            <span class="run-status" *ngIf="statusMessage">{{ statusMessage }}</span>
+            <span class="run-hint" *ngIf="comparisonRun">
+                comparison run <strong>{{ comparisonRun }}</strong> steps in tune
+            </span>
+        </div>
+
+        <!-- Panels -->
+        <div class="panel-grid">
+            <!-- Scene panels: the coupled set shares ONE scene (run scope
+                 expansion renders coupled sources' rows in the same view). -->
+            <div class="panel-card scene-panel" *ngFor="let panel of scenePanels; trackBy: trackPanel">
+                <div class="panel-title">
+                    <mat-icon>view_in_ar</mat-icon>
+                    {{ panel.simSpaceRef }}
+                    <span class="panel-run" *ngIf="resolvePanelRun(panel)">run: {{ resolvePanelRun(panel) }}</span>
+                    <button mat-icon-button matTooltip="Configure scenes (Sim Spaces page)" (click)="openScenesPage()">
+                        <mat-icon>settings</mat-icon>
+                    </button>
+                </div>
+                <div class="viewer-frame">
+                    <sim-space-viewer
+                        [simSpaceName]="panel.simSpaceRef"
+                        [run]="resolvePanelRun(panel)"
+                        [hideRunPanel]="true"
+                        [clickNavigates]="false">
+                    </sim-space-viewer>
+                </div>
+            </div>
+
+            <!-- Comparison viewer: same scene, pinned to the comparison run -->
+            <div class="panel-card scene-panel" *ngIf="comparisonRun && scenePanels.length">
+                <div class="panel-title">
+                    <mat-icon>compare</mat-icon>
+                    {{ scenePanels[0].simSpaceRef }}
+                    <span class="panel-run comparison">comparison: {{ comparisonRun }}</span>
+                </div>
+                <div class="viewer-frame">
+                    <sim-space-viewer
+                        [simSpaceName]="scenePanels[0].simSpaceRef"
+                        [run]="comparisonRun"
+                        [hideRunPanel]="true"
+                        [clickNavigates]="false">
+                    </sim-space-viewer>
+                </div>
+            </div>
+
+            <!-- IC interface panels — read-only preview (interactive in Phase 4) -->
+            <div class="panel-card ic-panel" *ngFor="let panel of icPanels; trackBy: trackPanel">
+                <ng-container *ngIf="icPreview(panel) as ic; else icLoading">
+                    <div class="panel-title">
+                        <mat-icon>tune</mat-icon>
+                        {{ ic.label }}
+                        <span class="panel-run">initial conditions · {{ ic.targetSimulationRef }}</span>
+                    </div>
+                    <p class="ic-description">{{ ic.description }}</p>
+                    <div class="ic-choices">
+                        <span class="ic-choice" *ngFor="let choice of ic.choices"
+                              [matTooltip]="choice.description || ''">
+                            {{ choice.label }}
+                            <span class="ic-choice-meta" *ngIf="choice.setParams?.['mass'] !== undefined">
+                                {{ choice.setParams?.['mass'] | number:'1.0-2' }} kg
+                            </span>
+                        </span>
+                    </div>
+                    <p class="ic-note">Interactive selection (with live validation) arrives in Phase 4.</p>
+                </ng-container>
+                <ng-template #icLoading>
+                    <div class="panel-title"><mat-icon>tune</mat-icon> {{ panel.icInterfaceRef }}</div>
+                    <p class="ic-note">Loading interface…</p>
+                </ng-template>
+            </div>
+        </div>
+
+        <p class="deferred-note" *ngIf="deferredPanelCount">
+            {{ deferredPanelCount }} configured panel(s) of kinds arriving in later phases (graphs, displays) are not shown yet.
+        </p>
+    </ng-container>
+</div>

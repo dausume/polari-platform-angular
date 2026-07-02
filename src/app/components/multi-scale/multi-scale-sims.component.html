@@ -1,0 +1,61 @@
+<div class="page-container">
+    <div class="page-header">
+        <h1>Multi-Scale Simulations</h1>
+        <p class="subtitle">Configured multi-scale simulations — spaces woven together by couplings, staged progressions, and their run pages</p>
+    </div>
+
+    <div class="section-header">
+        <h2>Multi-Scale Simulations by Primary Space</h2>
+        <button mat-icon-button (click)="refresh()" matTooltip="Refresh">
+            <mat-icon>refresh</mat-icon>
+        </button>
+    </div>
+
+    <div *ngIf="loading" class="loading-container">
+        <mat-spinner diameter="40"></mat-spinner>
+        <span>Loading multi-scale simulations...</span>
+    </div>
+
+    <div *ngIf="!loading && allConfigs.length === 0" class="empty-state">
+        <mat-icon class="empty-icon">hub</mat-icon>
+        <p>No multi-scale simulations configured.</p>
+        <p class="hint">The "pendulum-in-wind" demo seeds on a fresh database; from-scratch authoring arrives with the Configure-mode toolbars.</p>
+    </div>
+
+    <div *ngIf="!loading && configsByPrimarySim.length > 0" class="class-groups">
+        <div class="class-group" *ngFor="let group of configsByPrimarySim">
+            <div class="class-group-header" [class.expanded]="isExpanded(group.primarySim)"
+                 (click)="toggleExpand(group.primarySim)">
+                <mat-icon class="class-icon">hub</mat-icon>
+                <h3>{{ group.primarySim }}</h3>
+                <span class="config-count">{{ group.configs.length }} simulation{{ group.configs.length !== 1 ? 's' : '' }}</span>
+                <mat-icon class="expand-icon">expand_more</mat-icon>
+            </div>
+
+            <div class="class-group-body" [class.expanded]="isExpanded(group.primarySim)">
+                <div class="configs-grid">
+                    <div class="config-card" *ngFor="let config of group.configs">
+                        <div class="card-header">
+                            <mat-icon class="config-icon">hub</mat-icon>
+                            <div class="config-info">
+                                <h4>{{ config.name || 'Untitled' }}</h4>
+                                <span class="config-description" *ngIf="config.description">{{ config.description }}</span>
+                            </div>
+                        </div>
+                        <div class="card-meta">
+                            <span>{{ config.memberCount }} space{{ config.memberCount !== 1 ? 's' : '' }}</span>
+                            <span>·</span>
+                            <span>{{ config.couplingCount }} coupling{{ config.couplingCount !== 1 ? 's' : '' }}</span>
+                        </div>
+                        <div class="card-actions">
+                            <button mat-stroked-button color="primary"
+                                    (click)="openPage(config, $event)">
+                                <mat-icon>open_in_new</mat-icon> Open
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
