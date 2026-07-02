@@ -76,8 +76,12 @@
             </button>
             <mat-spinner *ngIf="busy" diameter="22"></mat-spinner>
             <span class="run-status" *ngIf="statusMessage">{{ statusMessage }}</span>
+            <!-- SCENARIO COMPARISON is a distinct concept from multi-scale:
+                 causally independent runs of the same simulation kept
+                 time-aligned for contrast (vacuum vs wind). Nothing flows
+                 between them — unlike coupled spaces, which interlink. -->
             <span class="run-hint" *ngIf="comparisonRun">
-                comparison run <strong>{{ comparisonRun }}</strong> steps in tune
+                scenario comparison: <strong>{{ comparisonRun }}</strong> steps in tune
             </span>
         </div>
 
@@ -104,12 +108,13 @@
                 </div>
             </div>
 
-            <!-- Comparison viewer: same scene, pinned to the comparison run -->
+            <!-- Scenario-comparison viewer: same scene, pinned to the
+                 causally-independent comparison run. -->
             <div class="panel-card scene-panel" *ngIf="comparisonRun && scenePanels.length">
                 <div class="panel-title">
                     <mat-icon>compare</mat-icon>
                     {{ scenePanels[0].simSpaceRef }}
-                    <span class="panel-run comparison">comparison: {{ comparisonRun }}</span>
+                    <span class="panel-run comparison">scenario comparison: {{ comparisonRun }}</span>
                 </div>
                 <div class="viewer-frame">
                     <sim-space-viewer
