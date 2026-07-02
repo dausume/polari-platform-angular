@@ -107,9 +107,9 @@ import {
       [bottomOffsetPx]="legendBottomOffsetPx">
     </sim-space-legend>
 
-    <!-- Scrubber — only rendered when the snapshot has temporal bindings.
-         hasTemporal() reads resolvedBindings + emits objects' temporalValue. -->
-    <sim-space-scrubber *ngIf="hasTemporal"
+    <!-- Scrubber — needs a temporal binding AND at least two distinct
+         recorded time points (a single step-0 row has no range to scrub). -->
+    <sim-space-scrubber *ngIf="hasTemporal && temporalSampleCount >= 2"
       [minTime]="temporalRange.min"
       [maxTime]="temporalRange.max"
       [kind]="temporalKind"
@@ -118,6 +118,13 @@ import {
       (currentTimeChange)="onScrubberChange($event)"
       (collapsedChange)="scrubberCollapsed = $event">
     </sim-space-scrubber>
+
+    <!-- Not enough recorded steps to build a timeline yet. Only nudge when a
+         simulation is actually bound to the scene (static scenes stay quiet). -->
+    <div class="scrub-hint" *ngIf="simulationDefinitionName && !(hasTemporal && temporalSampleCount >= 2)">
+      Record at least 2 steps to enable the timeline — use the
+      <strong>Live simulation</strong> panel to Step Once or Run the simulation.
+    </div>
 
     <!-- Live-evaluation HUD — one always-visible selector pinned to
          the top-right; at most ONE overlay rendered to its immediate
@@ -188,6 +195,23 @@ import {
       font-size: 0.85rem;
     }
     .error-banner { background: rgba(198, 40, 40, 0.92); color: white; }
+    .scrub-hint {
+      position: absolute;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      max-width: 520px;
+      padding: 8px 14px;
+      border-radius: 6px;
+      background: rgba(33, 33, 33, 0.82);
+      color: #f0f0f0;
+      font-size: 0.8rem;
+      line-height: 1.35;
+      text-align: center;
+      pointer-events: none;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+    }
+    .scrub-hint strong { color: #fff; }
     .warning-banner {
       background: rgba(237, 108, 2, 0.12);
       color: #6a3c00;
@@ -235,6 +259,9 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
 
   // Temporal state — driven by the scrubber when present.
   hasTemporal = false;
+  /** Distinct recorded time points in the current run. The scrubber needs
+   *  ≥2 to have a range; below that we show a "record more steps" hint. */
+  temporalSampleCount = 0;
   temporalKind: ScrubberKind = 'time';
   temporalUnit: TimeUnitId = 'second';
   temporalRange = { min: 0, max: 1 };
@@ -529,6 +556,7 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
     const temporalBinding = bindings.find(b => b.temporal)?.temporal;
     if (!temporalBinding) {
       this.hasTemporal = false;
+      this.temporalSampleCount = 0;
       return;
     }
     this.hasTemporal = true;
@@ -540,6 +568,7 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
     const values = snap.objects
       .map(o => o.temporalValue)
       .filter((v): v is number => v !== undefined);
+    this.temporalSampleCount = new Set(values).size;
     if (values.length === 0) {
       this.temporalRange = { min: 0, max: 1 };
     } else {
@@ -685,8 +714,10 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
    * scrubber advances. Vectors without a temporalValue always render.
    *
    * Unlike objects/connections there is no trackKey to stamp — the renderer
-   * reuses arrows by SnapshotVector.key (bindingName:instanceName), which is
-   * already stable across timesteps for one logical projection.
+   * reuses arrows by SnapshotVector.key, which the 3D compiler emits as
+   * `bindingName:className` (stable across timesteps for one logical
+   * projection). Keying on the per-step instanceId instead would mint a fresh
+   * key every step, so collapse-by-key below would keep them all → a trail.
    */
   private visibleVectors(): SnapshotVector[] {
     if (!this.snapshot) return [];
@@ -710,8 +741,9 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
       return result;
     }
     // Snapshot mode: most-recent-but-not-exceeding per projection. Keyed by
-    // SnapshotVector.key (one arrow per binding+instance), so two force
-    // arrows on the same bob each keep their own current row.
+    // SnapshotVector.key (bindingName:className → one arrow per projection),
+    // so two force arrows on the same bob (gravity vs net) each keep their own
+    // current row while every step of a single projection collapses to one.
     const latestByKey = new Map<string, SnapshotVector>();
     for (const v of temporal) {
       if (v.temporalValue! > this.currentTime) continue;
