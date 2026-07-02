@@ -6,6 +6,10 @@
 
     <div class="section-header">
         <h2>Multi-Scale Simulations by Primary Space</h2>
+        <button mat-flat-button color="primary" routerLink="/multi-scale-sims/new"
+                matTooltip="Guided setup — build one from scratch, no code">
+            <mat-icon>add</mat-icon> New Multi-Scale Simulation
+        </button>
         <button mat-icon-button (click)="refresh()" matTooltip="Refresh">
             <mat-icon>refresh</mat-icon>
         </button>
@@ -19,7 +23,7 @@
     <div *ngIf="!loading && allConfigs.length === 0" class="empty-state">
         <mat-icon class="empty-icon">hub</mat-icon>
         <p>No multi-scale simulations configured.</p>
-        <p class="hint">The "pendulum-in-wind" demo seeds on a fresh database; from-scratch authoring arrives with the Configure-mode toolbars.</p>
+        <p class="hint">The "pendulum-in-wind" demo seeds on a fresh database — or build one from scratch with the button above.</p>
     </div>
 
     <div *ngIf="!loading && configsByPrimarySim.length > 0" class="class-groups">

@@ -15,6 +15,16 @@
                     <mat-icon>arrow_back</mat-icon>
                 </a>
                 <h1>{{ config.name }}</h1>
+                <span class="mode-toggle">
+                    <button mat-stroked-button [color]="mode === 'run' ? 'primary' : undefined"
+                            (click)="mode = 'run'">
+                        <mat-icon>play_circle</mat-icon> Run
+                    </button>
+                    <button mat-stroked-button [color]="mode === 'configure' ? 'primary' : undefined"
+                            (click)="mode = 'configure'">
+                        <mat-icon>build</mat-icon> Configure
+                    </button>
+                </span>
             </div>
             <p class="subtitle">{{ config.description }}</p>
             <div class="member-chips">
@@ -35,6 +45,12 @@
             </div>
         </div>
 
+        <!-- CONFIGURE MODE: the authoring rail + multi-scale editors -->
+        <msim-configure *ngIf="mode === 'configure'"
+            [config]="config" (saved)="onConfigSaved()">
+        </msim-configure>
+
+        <ng-container *ngIf="mode === 'run'">
         <!-- Stage progression stepper -->
         <div class="stage-strip" *ngIf="stages.length">
             <div class="stage-chip" *ngFor="let stage of stages; let i = index"
@@ -54,6 +70,12 @@
                         (click)="checkGate(stage)" [disabled]="stageState(stage).checking">
                     <mat-icon>refresh</mat-icon>
                 </button>
+                <!-- Solution search: attempt multiple candidates to reach
+                     one valid solution (first-principles stages) -->
+                <msim-stage-search *ngIf="stageHasSearch(stage)"
+                    [msimName]="config.name" [stage]="stage"
+                    (achieved)="checkGate(stage)">
+                </msim-stage-search>
             </div>
         </div>
 
@@ -157,5 +179,6 @@
         <p class="deferred-note" *ngIf="deferredPanelCount">
             {{ deferredPanelCount }} configured panel(s) of kinds arriving in later phases (displays) are not shown yet.
         </p>
+        </ng-container><!-- /run mode -->
     </ng-container>
 </div>

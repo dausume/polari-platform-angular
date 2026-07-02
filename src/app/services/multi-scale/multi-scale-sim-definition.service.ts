@@ -22,9 +22,32 @@ export interface StageGateVerdict {
   };
 }
 
+/** One attempt of a stage's solution search. */
+export interface StageSearchAttempt {
+  run: string;
+  candidate: Record<string, number>;
+  stepped: number;
+  complete: boolean;
+  reason: string;
+  error: string | null;
+}
+
+/** Progress/result of a stage's solution search (one batch per call). */
+export interface StageSearchReport {
+  achieved: boolean;
+  winner: { run: string; candidate: Record<string, number>;
+            derivedValues: Record<string, unknown> | null } | null;
+  exhausted: boolean;
+  totalCandidates: number;
+  attempted: number;
+  advancedThisCall: number;
+  attempts: StageSearchAttempt[];
+  error: string | null;
+}
+
 /**
  * MultiScaleSimulationDefinition service — same CRUDE-backed shape as
- * GraphDefinitionService, plus the stage-gate endpoint.
+ * GraphDefinitionService, plus the stage-gate and stage-search endpoints.
  */
 @Injectable({ providedIn: 'root' })
 export class MultiScaleSimDefinitionService {
@@ -99,6 +122,24 @@ export class MultiScaleSimDefinitionService {
     const resp = await firstValueFrom(
       this.http.post<{ success: boolean; data: StageGateVerdict }>(
         url, { run: runName },
+      ),
+    );
+    return resp.data;
+  }
+
+  /** Advance a stage's solution search by ONE batch (stateless —
+   *  repeat calls continue the search until achieved/exhausted). */
+  async runStageSearch(
+    msimName: string,
+    stageKey: string,
+    batchSize?: number,
+  ): Promise<StageSearchReport> {
+    const url = `${this.polariService.getBackendBaseUrl()}`
+      + `/api/simulations/multi-scale/${encodeURIComponent(msimName)}`
+      + `/stages/${encodeURIComponent(stageKey)}/search`;
+    const resp = await firstValueFrom(
+      this.http.post<{ success: boolean; data: StageSearchReport }>(
+        url, batchSize ? { batchSize } : {},
       ),
     );
     return resp.data;

@@ -24,6 +24,7 @@ const routes: Routes = [
   { path: 'sim-spaces', loadComponent: () => import('@components/sim-space/sim-space-list-page/sim-space-list-page.component').then(m => m.SimSpaceListPageComponent) },
   { path: 'sim-spaces/:name', loadComponent: () => import('@components/sim-space/sim-space-detail-page/sim-space-detail-page.component').then(m => m.SimSpaceDetailPageComponent) },
   { path: 'multi-scale-sims', loadComponent: () => import('@components/multi-scale/multi-scale-sims.component').then(m => m.MultiScaleSimsComponent) },
+  { path: 'multi-scale-sims/new', loadComponent: () => import('@components/multi-scale/msim-wizard.component').then(m => m.MsimWizardComponent) },
   { path: 'multi-scale-sim/:name', loadComponent: () => import('@components/multi-scale/multi-scale-sim-page.component').then(m => m.MultiScaleSimPageComponent) },
   { path: 'polari-config', component: PolariConfigComponent},
   { path: 'polari-config/:polariAccessNode', component: PolariConfigComponent},

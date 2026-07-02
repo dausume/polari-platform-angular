@@ -5,6 +5,7 @@
 .msim-header .msim-title-row {
   display: flex; align-items: center; gap: 8px;
   h1 { margin: 0; }
+  .mode-toggle { margin-left: auto; display: flex; gap: 6px; }
 }
 
 .member-chips {
@@ -31,8 +32,10 @@
   display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0;
 
   .stage-chip {
-    display: flex; align-items: center; gap: 10px;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
     padding: 8px 12px; border-radius: 10px;
+
+    msim-stage-search { flex-basis: 100%; }
     background: var(--surface-primary, #fff);
     border: 1px solid var(--border-light, #ddd);
     &.complete { border-color: #43a047; }

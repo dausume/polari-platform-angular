@@ -10,6 +10,8 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { SimSpaceViewerComponent } from '@components/sim-space/sim-space-viewer/sim-space-viewer.component';
 import { MsimGraphPanelComponent } from '@components/multi-scale/msim-graph-panel.component';
 import { MsimIcPanelComponent } from '@components/multi-scale/msim-ic-panel.component';
+import { MsimStageSearchComponent } from '@components/multi-scale/msim-stage-search.component';
+import { MsimConfigureComponent } from '@components/multi-scale/configure/msim-configure.component';
 import {
   MultiScaleSimDefinitionService,
   StageGateVerdict,
@@ -52,6 +54,7 @@ interface StageState {
     CommonModule, FormsModule, RouterModule,
     MatButtonModule, MatIconModule, MatProgressSpinnerModule, MatTooltipModule,
     SimSpaceViewerComponent, MsimGraphPanelComponent, MsimIcPanelComponent,
+    MsimStageSearchComponent, MsimConfigureComponent,
   ],
   templateUrl: './multi-scale-sim-page.component.html',
   styleUrls: ['./multi-scale-sim-page.component.scss'],
@@ -59,6 +62,9 @@ interface StageState {
 export class MultiScaleSimPageComponent implements OnInit {
   config: NamedMultiScaleSimConfig | null = null;
   errorMessage: string | null = null;
+
+  /** Run mode plays it; Configure mode is the authoring rail. */
+  mode: 'run' | 'configure' = 'run';
 
   runs: SimulationRunSummary[] = [];
   selectedRun: string | null = null;
@@ -97,6 +103,23 @@ export class MultiScaleSimPageComponent implements OnInit {
       const name = params.get('name');
       if (name) this.loadAll(name);
     });
+    // The wizard lands new compositions straight in Configure mode.
+    this.route.queryParamMap.subscribe(q => {
+      if (q.get('mode') === 'configure') this.mode = 'configure';
+    });
+  }
+
+  toggleMode(): void {
+    this.mode = this.mode === 'run' ? 'configure' : 'run';
+  }
+
+  /** Configure mode saved the definition — reload everything. */
+  onConfigSaved(): void {
+    if (this.config) this.loadAll(this.config.name);
+  }
+
+  stageHasSearch(stage: MsimStage): boolean {
+    return !!stage.search?.candidates;
   }
 
   private loadAll(name: string): void {

@@ -21,6 +21,9 @@ export interface MsimStage {
   label?: string;
   /** 'runToCompletion' (precondition space + gate) | 'coStep' (live coupled stepping). */
   kind: string;
+  /** The stage's role-intent in THIS composition (observe | search | …).
+   *  Checked for compatibility against the sim's own declared intent. */
+  intent?: string;
   simulationRef?: string;
   primarySimulationRef?: string;
   couplingRefs?: string[];
@@ -28,6 +31,17 @@ export interface MsimStage {
   derive?: {
     params?: Record<string, string>;
     fields?: Record<string, string>;
+  };
+  /** Solution search: attempt multiple candidates to reach one valid
+   *  solution (grid/list of parameter points; batched; resumable). */
+  search?: {
+    candidates?: {
+      kind?: string; // 'grid' | 'list'
+      parameters?: Record<string, { from: number; to: number; steps: number }>;
+      values?: Record<string, number>[];
+    };
+    stepsPerAttempt?: number;
+    batchSize?: number;
   };
 }
 
@@ -75,6 +89,26 @@ export class NamedMultiScaleSimConfig {
       ? policy['runs'].filter((r: any) => typeof r === 'string')
       : [];
     return cfg;
+  }
+
+  /** Serialize back to the backend's field shape for a CRUDE PUT. */
+  toUpdateData(): Record<string, string | boolean> {
+    return {
+      name: this.name,
+      description: this.description,
+      member_simulation_refs_json: JSON.stringify(this.members),
+      coupling_refs_json: JSON.stringify(this.couplings),
+      primary_simulation_ref: this.primarySimulationRef,
+      stages_json: JSON.stringify(this.stages),
+      panels_json: JSON.stringify(this.panels),
+      display_ref: this.displayRef,
+      compare_run_policy_json: JSON.stringify(
+        this.compareRuns.length
+          ? { mode: 'fanOutSteps', runs: this.compareRuns }
+          : {},
+      ),
+      enabled: this.enabled,
+    };
   }
 }
 
