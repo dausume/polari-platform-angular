@@ -8,6 +8,8 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { SimSpaceViewerComponent } from '@components/sim-space/sim-space-viewer/sim-space-viewer.component';
+import { MsimGraphPanelComponent } from '@components/multi-scale/msim-graph-panel.component';
+import { MsimIcPanelComponent } from '@components/multi-scale/msim-ic-panel.component';
 import {
   MultiScaleSimDefinitionService,
   StageGateVerdict,
@@ -49,7 +51,7 @@ interface StageState {
   imports: [
     CommonModule, FormsModule, RouterModule,
     MatButtonModule, MatIconModule, MatProgressSpinnerModule, MatTooltipModule,
-    SimSpaceViewerComponent,
+    SimSpaceViewerComponent, MsimGraphPanelComponent, MsimIcPanelComponent,
   ],
   templateUrl: './multi-scale-sim-page.component.html',
   styleUrls: ['./multi-scale-sim-page.component.scss'],
@@ -78,6 +80,9 @@ export class MultiScaleSimPageComponent implements OnInit {
 
   @ViewChildren(SimSpaceViewerComponent)
   viewers!: QueryList<SimSpaceViewerComponent>;
+
+  @ViewChildren(MsimGraphPanelComponent)
+  graphPanelCmps!: QueryList<MsimGraphPanelComponent>;
 
   constructor(
     private route: ActivatedRoute,
@@ -119,12 +124,30 @@ export class MultiScaleSimPageComponent implements OnInit {
     }
     const names = new Set(this.runs.map(r => r.name));
     this.comparisonRuns = this.config.compareRuns.filter(r => names.has(r));
-    // Default to the multi-scale (non-comparison) run — for the demo
-    // that's the coupled wind run, with the vacuum run as comparison.
+    // Default to a COUPLED (multi-scale) run — the runs endpoint now
+    // carries coupledRunRefs, so prefer one directly; fall back to any
+    // non-comparison run.
     if (!this.selectedRun || !names.has(this.selectedRun)) {
-      const primary = this.runs.find(r => !this.comparisonRuns.includes(r.name));
+      const coupled = this.runs.find(
+        r => Object.keys(r.coupledRunRefs ?? {}).length > 0);
+      const primary = coupled
+        ?? this.runs.find(r => !this.comparisonRuns.includes(r.name));
       this.selectedRun = primary?.name ?? this.runs[0]?.name ?? null;
     }
+  }
+
+  /** The selected run's summary (for its coupledRunRefs etc.). */
+  get selectedRunSummary(): SimulationRunSummary | null {
+    return this.runs.find(r => r.name === this.selectedRun) ?? null;
+  }
+
+  /** A run created by an IC-interface panel: select + follow it. */
+  async onRunCreated(runName: string): Promise<void> {
+    await this.loadRuns();
+    this.selectedRun = runName;
+    this.evaluateGates();
+    await this.refreshViewers();
+    await this.refreshGraphs();
   }
 
   private loadIcPreviews(): void {
@@ -260,11 +283,17 @@ export class MultiScaleSimPageComponent implements OnInit {
     await this.loadRuns();
     this.evaluateGates();
     await this.refreshViewers();
+    await this.refreshGraphs();
   }
 
   private async refreshViewers(): Promise<void> {
     if (!this.viewers) return;
     await Promise.all(this.viewers.map(v => v.refresh()));
+  }
+
+  private async refreshGraphs(): Promise<void> {
+    if (!this.graphPanelCmps) return;
+    await Promise.all(this.graphPanelCmps.map(g => g.refresh()));
   }
 
   // ---------------------------------------------------------------
@@ -279,9 +308,13 @@ export class MultiScaleSimPageComponent implements OnInit {
     return (this.config?.panels ?? []).filter(p => p.kind === 'ic' && p.icInterfaceRef);
   }
 
+  get graphPanels(): MsimPanel[] {
+    return (this.config?.panels ?? []).filter(p => p.kind === 'graph' && p.graphRef);
+  }
+
   get deferredPanelCount(): number {
     return (this.config?.panels ?? [])
-      .filter(p => p.kind !== 'scene' && p.kind !== 'ic').length;
+      .filter(p => p.kind !== 'scene' && p.kind !== 'ic' && p.kind !== 'graph').length;
   }
 
   resolvePanelRun(panel: MsimPanel): string | undefined {

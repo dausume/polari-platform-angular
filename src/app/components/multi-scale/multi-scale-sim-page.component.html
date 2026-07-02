@@ -121,25 +121,26 @@
                 </div>
             </div>
 
-            <!-- IC interface panels — read-only preview (interactive in Phase 4) -->
+            <!-- Graph panels — data evolving over time, one chart per
+                 configured run, polling live while steps are running -->
+            <div class="panel-card graph-panel" *ngFor="let panel of graphPanels; trackBy: trackPanel">
+                <msim-graph-panel
+                    [panel]="panel"
+                    [primaryRun]="selectedRun"
+                    [compareRun]="comparisonRun"
+                    [running]="busy">
+                </msim-graph-panel>
+            </div>
+
+            <!-- IC interface panels — interactive: pick, validate (debounced), start a coupled run -->
             <div class="panel-card ic-panel" *ngFor="let panel of icPanels; trackBy: trackPanel">
                 <ng-container *ngIf="icPreview(panel) as ic; else icLoading">
-                    <div class="panel-title">
-                        <mat-icon>tune</mat-icon>
-                        {{ ic.label }}
-                        <span class="panel-run">initial conditions · {{ ic.targetSimulationRef }}</span>
-                    </div>
-                    <p class="ic-description">{{ ic.description }}</p>
-                    <div class="ic-choices">
-                        <span class="ic-choice" *ngFor="let choice of ic.choices"
-                              [matTooltip]="choice.description || ''">
-                            {{ choice.label }}
-                            <span class="ic-choice-meta" *ngIf="choice.setParams?.['mass'] !== undefined">
-                                {{ choice.setParams?.['mass'] | number:'1.0-2' }} kg
-                            </span>
-                        </span>
-                    </div>
-                    <p class="ic-note">Interactive selection (with live validation) arrives in Phase 4.</p>
+                    <msim-ic-panel
+                        [ic]="ic"
+                        [coupledRunRefs]="selectedRunSummary?.coupledRunRefs ?? {}"
+                        [busy]="busy"
+                        (runCreated)="onRunCreated($event)">
+                    </msim-ic-panel>
                 </ng-container>
                 <ng-template #icLoading>
                     <div class="panel-title"><mat-icon>tune</mat-icon> {{ panel.icInterfaceRef }}</div>
@@ -149,7 +150,7 @@
         </div>
 
         <p class="deferred-note" *ngIf="deferredPanelCount">
-            {{ deferredPanelCount }} configured panel(s) of kinds arriving in later phases (graphs, displays) are not shown yet.
+            {{ deferredPanelCount }} configured panel(s) of kinds arriving in later phases (displays) are not shown yet.
         </p>
     </ng-container>
 </div>

@@ -150,6 +150,9 @@ export interface SimulationRunSummary {
   lastRecordedStep: number;
   label: string;
   errorMessage: string;
+  /** {source_sim: source_run} — non-empty means this run is a COUPLED
+   *  (multi-scale) run whose sources lazy-pull with it. */
+  coupledRunRefs?: Record<string, string>;
 }
 
 /** One entry in the per-solution trace summary returned by /step. */
@@ -200,6 +203,8 @@ export class SimulationRunService {
     initialConditionsOverrides?: Record<string, Record<string, unknown>>,
     timeStepSeconds?: number,
     fieldSaveOverrides?: Record<string, FieldSaveRule>,
+    parameterOverrides?: Record<string, unknown>,
+    coupledRunRefs?: Record<string, string>,
   ): Promise<{name: string; status: string}> {
     const url = `${this.runtimeConfig.getBackendBaseUrl()}/api/simulations/runs`;
     const resp = await firstValueFrom(
@@ -211,6 +216,12 @@ export class SimulationRunService {
           initialConditionsOverrides: initialConditionsOverrides || {},
           timeStepSeconds: timeStepSeconds ?? 0,
           fieldSaveOverrides: fieldSaveOverrides || {},
+          // Per-run PARAMETER overrides (layered over the sim def's
+          // parameters_json) — the material-picker channel.
+          parameterOverrides: parameterOverrides || {},
+          // Coupled source runs — a new run of a multi-scale sim must
+          // name its sources or it runs uncoupled (defaults).
+          coupledRunRefs: coupledRunRefs || {},
         },
       )
     );
@@ -308,6 +319,7 @@ export class SimulationRunService {
   async validateInitialConditions(
     simulationRef: string,
     overrides: Record<string, Record<string, unknown>>,
+    parameterOverrides?: Record<string, unknown>,
   ): Promise<{
     valid: boolean;
     hasValidator: boolean;
@@ -318,8 +330,14 @@ export class SimulationRunService {
   }> {
     const url = `${this.runtimeConfig.getBackendBaseUrl()}`
       + `/api/simulations/${encodeURIComponent(simulationRef)}/validate-initial-conditions`;
+    const body: any = { overrides };
+    if (parameterOverrides && Object.keys(parameterOverrides).length) {
+      // Validated exactly as they'll run (backend layers them over the
+      // sim def's parameters before invoking the validator).
+      body.parameterOverrides = parameterOverrides;
+    }
     const resp = await firstValueFrom(
-      this.http.post<{ success: boolean; data: any }>(url, { overrides })
+      this.http.post<{ success: boolean; data: any }>(url, body)
     );
     return resp.data;
   }
