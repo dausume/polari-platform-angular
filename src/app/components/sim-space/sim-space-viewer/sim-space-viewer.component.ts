@@ -444,20 +444,11 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
       this.snapshot = snap;
       this.computeTemporalState(snap);
 
-      // [VECDBG] What did the backend actually send for this run? If vectors=0
-      // the problem is backend/binding; if vectors>0 but no arrows render, it's
-      // the filter or the renderer below.
-      console.log('[VECDBG] snapshot loaded: objects=%d connections=%d vectors=%d run=%o hasTemporal=%o sampleVector=%o',
-        snap.objects?.length ?? 0, snap.connections?.length ?? 0, snap.vectors?.length ?? 0,
-        this.selectedRunName, this.hasTemporal, snap.vectors?.[0]);
-
       const renderer = await this.ensureRenderer(snap.definition.dimensionality);
       renderer.loadDefinition(snap.definition);
       renderer.setObjects(this.visibleObjects());
       renderer.setConnections(this.visibleConnections());
-      const vv = this.visibleVectors();
-      console.log('[VECDBG] visibleVectors -> %d of %d (currentTime=%o)', vv.length, snap.vectors?.length ?? 0, this.currentTime);
-      renderer.setVectors(vv);
+      renderer.setVectors(this.visibleVectors());
 
       // No overlay auto-opens on load — the user picks via the
       // selector. So no initial evaluation fetch here; the first
@@ -517,12 +508,6 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
       const { evaluations } = await this.simSpaceService.evaluationsAt(
         name, { time, run: this.selectedRunName },
       );
-      // [EVALDBG] Sent time + run; show the step/result/symbol-values the
-      // backend picked. If step is always 0 (or result never changes) the
-      // backend is picking the wrong row; if time is always 0 it's the scrubber.
-      console.log('[EVALDBG] fetch time=%o run=%o ->', time, this.selectedRunName,
-        evaluations.map(e => ({ name: e.name, step: e.perStep?.[0]?.step, t: e.perStep?.[0]?.time,
-          result: e.perStep?.[0]?.result, values: e.perStep?.[0]?.values, error: e.perStep?.[0]?.error })));
       // Stale-reply guard.
       if (seq !== this.evalRequestSeq || this.simSpaceName !== name) return;
       const next = new Map<string, SimSpaceEvaluationStep>();
