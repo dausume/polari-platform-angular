@@ -517,14 +517,10 @@ export class ClientSolutionEngine {
             } catch (e: any) {
                 logOutput.push(`[${stateName}] MathOperation error: ${e?.message ?? e}`);
             }
-            let resultVar = fieldValues.resultVariable || ''
-                || fieldValues.resultFieldPath || ''
-                || fieldValues.resultVariableName || ''
+            const resultVar = fieldValues.resultVariable
+                || fieldValues.resultFieldPath
+                || fieldValues.resultVariableName
                 || fieldValues.variableName || '';
-            if (!resultVar) {
-                resultVar = fieldValues.resultFieldPath
-                    || fieldValues.resultVariableName || fieldValues.variableName || '';
-            }
             if (resultVar) {
                 context[resultVar] = computed;
                 if (resultVar.startsWith('self.')) context[resultVar.slice(5)] = computed;

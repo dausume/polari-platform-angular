@@ -388,7 +388,10 @@
       <div class="code-view-container">
         <div class="code-header">
           <mat-icon>code</mat-icon>
-          <span>Generated Python Code</span>
+          <span>Reference Python Code (not executed)</span>
+        </div>
+        <div class="code-info">
+          <span class="solution-label">Solutions run as stored configuration — this view is generated for reading only.</span>
         </div>
         <div class="code-info" *ngIf="solutionName">
           <span class="solution-label">Function:</span>
@@ -399,8 +402,8 @@
         </div>
         <div class="empty-state" *ngIf="!generatedPythonCode">
           <mat-icon>code_off</mat-icon>
-          <p>No code generated yet</p>
-          <span>Add blocks to your solution to see the generated Python code</span>
+          <p>No reference code yet</p>
+          <span>Add blocks to your solution to see its Python reference view</span>
         </div>
       </div>
     </div>
@@ -410,7 +413,10 @@
       <div class="code-view-container">
         <div class="code-header">
           <mat-icon>code</mat-icon>
-          <span>Generated TypeScript Code</span>
+          <span>Reference TypeScript Code (not executed)</span>
+        </div>
+        <div class="code-info">
+          <span class="solution-label">Solutions run as stored configuration — this view is generated for reading only.</span>
         </div>
         <div class="code-info" *ngIf="solutionName">
           <span class="solution-label">Function:</span>
@@ -421,8 +427,8 @@
         </div>
         <div class="empty-state" *ngIf="!generatedTypescriptCode">
           <mat-icon>code_off</mat-icon>
-          <p>No code generated yet</p>
-          <span>Add blocks to your solution to see the generated TypeScript code</span>
+          <p>No reference code yet</p>
+          <span>Add blocks to your solution to see its TypeScript reference view</span>
         </div>
       </div>
     </div>
