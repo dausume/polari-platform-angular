@@ -19,6 +19,7 @@ import { WhileLoop, createSimpleWhileLoop } from '../loops/while-loop/while-loop
 import { ForEachLoop, createForEachLoop } from '../loops/for-each-loop/for-each-loop.model';
 import { VariableAssignment, createAssignment, createDeclaration } from '../variables/variable-assignment/variable-assignment.model';
 import { FunctionCall, createFunctionCall } from '../variables/function-call/function-call.model';
+import { SolutionInvocation, createSolutionInvocation } from '../variables/solution-invocation/solution-invocation.model';
 import { ReturnStatement, createReturn } from '../end-states/return-statement/return-statement.model';
 import { LogOutput, createLog } from '../debug/log-output/log-output.model';
 import { BreakStatement } from '../flow-control/break-statement/break-statement.model';
@@ -205,8 +206,8 @@ export const EXECUTION_STATUS_BY_CLASS: {
     note: 'No engine handler yet — arrives with the display event/validation bridge.',
   },
   FunctionCall: {
-    status: 'stub',
-    note: 'Recognized but does not invoke anything — SolutionInvocation arrives next.',
+    status: 'authoring-only',
+    note: 'Retired legacy node — it never invokes anything. Use Solution Invocation instead.',
   },
   ReactiveTransform: {
     status: 'authoring-only',
@@ -214,7 +215,8 @@ export const EXECUTION_STATUS_BY_CLASS: {
   },
   AwaitBackendCall: {
     status: 'authoring-only',
-    note: 'No engine handler yet — solution composition arrives next.',
+    note: 'No engine handler yet — for calling another solution use Solution '
+        + 'Invocation; the cross-runtime await arrives with the frontend runtime.',
   },
   StateChangeCommit: {
     status: 'authoring-only',
@@ -1083,6 +1085,51 @@ export class StateSpaceClassRegistry {
     });
 
     this.registerClass({
+      className: 'SolutionInvocation',
+      displayName: 'Solution Invocation',
+      description: 'Run another solution as a single reusable step: map inputs '
+                 + 'from this context, run it in isolation, bind its outputs '
+                 + 'back. Its contract is the whole interface — internals stay '
+                 + 'its own. Recursion allowed (depth-guarded).',
+      category: 'Variables & Calls',
+      icon: 'account_tree',
+      color: '#3F51B5',
+      isStateSpaceObject: true,
+      stateSpaceDisplayFields: ['displayName', 'solutionRef'],
+      stateSpaceFieldsPerRow: 1,
+      isBuiltIn: true,
+      slotConfiguration: {
+        defaultInputCount: 1,
+        defaultOutputCount: 1,
+        allowDynamicInputs: false,
+        allowDynamicOutputs: false,
+        maxInputSlots: 1,
+        maxOutputSlots: 1,
+        inputType: 'any',
+        outputType: 'any',
+        inputLabels: ['In'],
+        outputLabels: ['Out']
+      },
+      eventMethods: [
+        {
+          methodName: 'invoke',
+          displayName: 'Invoke Solution',
+          description: 'Run the referenced solution with mapped inputs and bind its outputs',
+          category: 'Control Flow',
+          inputParams: [
+            { name: 'inputMappings', displayName: 'Input Mappings', type: 'array', isRequired: false }
+          ],
+          output: { type: 'object', displayName: 'Bound Outputs' }
+        }
+      ],
+      variables: [
+        { name: 'displayName', displayName: 'Display Name', type: 'string', isEditable: true, defaultValue: 'Invoke Solution' },
+        { name: 'solutionRef', displayName: 'Solution', type: 'string', isEditable: true, defaultValue: '' }
+      ],
+      factory: () => new SolutionInvocation()
+    });
+
+    this.registerClass({
       className: 'FunctionCall',
       displayName: 'Function Call',
       description: 'Call a function and optionally store the result',
@@ -1861,6 +1908,8 @@ export {
   createForEachLoop,
   VariableAssignment,
   FunctionCall,
+  SolutionInvocation,
+  createSolutionInvocation,
   ReturnStatement,
   LogOutput,
   BreakStatement,

@@ -21,6 +21,7 @@ import { ConditionalChainOverlayComponent } from './states/conditionals/conditio
 import { ConditionalChainOverlayPopupComponent, ConditionalChainOverlayPopupData } from './states/conditionals/conditional-chain/conditional-chain-overlay/popup/conditional-chain-overlay-popup.component';
 import { FilterListOverlayComponent } from './states/list-operations/filter-list-overlay/filter-list-overlay.component';
 import { VariableAssignmentOverlayComponent } from './states/variables/variable-assignment/variable-assignment-overlay/variable-assignment-overlay.component';
+import { SolutionInvocationOverlayComponent } from './states/variables/solution-invocation/solution-invocation-overlay/solution-invocation-overlay.component';
 import { InitialStateOverlayComponent } from './states/initial-states/initial-state-overlay/initial-state-overlay.component';
 import { MathOperationOverlayComponent } from './states/math/math-operation-overlay/math-operation-overlay.component';
 import { RunEquationOverlayComponent } from './states/equations/run-equation-overlay/run-equation-overlay.component';
@@ -886,6 +887,8 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
       return this.createFilterListOverlay(stateName, stateGroup, stateInstance);
     } else if (stateClass === 'VariableAssignment') {
       return this.createVariableAssignmentOverlay(stateName, stateGroup, stateInstance);
+    } else if (stateClass === 'SolutionInvocation') {
+      return this.createSolutionInvocationOverlay(stateName, stateGroup, stateInstance);
     } else if (this.isInitialStateClass(stateClass)) {
       return this.createInitialStateOverlay(stateName, stateGroup, stateInstance);
     } else if (stateClass === 'MathOperation') {
@@ -1286,6 +1289,48 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
   /**
    * Create a VariableAssignmentOverlayComponent for VariableAssignment states
    */
+  /**
+   * Create a SolutionInvocationOverlayComponent — the composition
+   * primitive's editor: pick a solution, map inputs, bind outputs.
+   */
+  private createSolutionInvocationOverlay(stateName: string, stateGroup: SVGGElement, stateInstance: NoCodeState): boolean {
+    const fieldValues = stateInstance.boundObjectFieldValues || {};
+
+    const componentRef = this.stateOverlayManager.createOverlayForState(
+      stateName,
+      stateGroup,
+      SolutionInvocationOverlayComponent,
+      {
+        stateName: stateName,
+        boundClassName: 'SolutionInvocation',
+        availableSolutions: this.availableSolutions,
+        boundObjectFieldValues: fieldValues,
+      }
+    );
+
+    if (componentRef) {
+      this.stateOverlayManager.setOverlayPointerEvents(stateName, true);
+
+      componentRef.instance.invocationChanged.subscribe((config: any) => {
+        if (!stateInstance.boundObjectFieldValues) {
+          stateInstance.boundObjectFieldValues = {};
+        }
+        Object.assign(stateInstance.boundObjectFieldValues, config);
+        if (this.selectedSolutionName) {
+          this.solutionStateService.updateStateFieldValues(
+            this.selectedSolutionName,
+            stateName,
+            config
+          );
+        }
+      });
+
+      this.wireOverlayViewEvents(componentRef, stateInstance);
+      return true;
+    }
+    return false;
+  }
+
   private createVariableAssignmentOverlay(stateName: string, stateGroup: SVGGElement, stateInstance: NoCodeState): boolean {
     const fieldValues = stateInstance.boundObjectFieldValues || {};
 

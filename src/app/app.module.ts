@@ -89,6 +89,7 @@ import { ConditionalChainOverlayComponent } from '@components/custom-no-code/sta
 import { ConditionalChainOverlayPopupComponent } from '@components/custom-no-code/states/conditionals/conditional-chain/conditional-chain-overlay/popup/conditional-chain-overlay-popup.component';
 import { FilterListOverlayComponent } from '@components/custom-no-code/states/list-operations/filter-list-overlay/filter-list-overlay.component';
 import { VariableAssignmentOverlayComponent } from '@components/custom-no-code/states/variables/variable-assignment/variable-assignment-overlay/variable-assignment-overlay.component';
+import { SolutionInvocationOverlayComponent } from '@components/custom-no-code/states/variables/solution-invocation/solution-invocation-overlay/solution-invocation-overlay.component';
 import { InitialStateOverlayComponent } from '@components/custom-no-code/states/initial-states/initial-state-overlay/initial-state-overlay.component';
 import { MathOperationOverlayComponent } from '@components/custom-no-code/states/math/math-operation-overlay/math-operation-overlay.component';
 import { MathOperationOverlayTinyComponent } from '@components/custom-no-code/states/math/math-operation-overlay/views/tiny/math-operation-overlay-tiny.component';
@@ -248,6 +249,7 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     ConditionalChainOverlayPopupComponent,
     FilterListOverlayComponent,
     VariableAssignmentOverlayComponent,
+    SolutionInvocationOverlayComponent,
     InitialStateOverlayComponent,
     MathOperationOverlayComponent,
     MathOperationOverlayTinyComponent,
