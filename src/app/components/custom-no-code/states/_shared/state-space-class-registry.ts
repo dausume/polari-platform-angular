@@ -180,7 +180,51 @@ export interface StateSpaceClassMetadata {
 
   // Factory function to create new instance
   factory: () => any;
+
+  // HONESTY TAG (mirrors the backend StateBuildingBlock.execution_status):
+  // what actually happens when the execution engine reaches this node.
+  //   'real'           — fully executes
+  //   'stub'           — recognized but incomplete
+  //   'authoring-only' — no engine handler yet; authorable but a no-op
+  // Applied centrally from EXECUTION_STATUS_BY_CLASS in registerClass so
+  // the palette can badge/dim nodes that would silently do nothing.
+  executionStatus?: 'real' | 'stub' | 'authoring-only';
+  executionNote?: string;
 }
+
+/**
+ * Ground truth for which node classes the backend SolutionExecutionEngine
+ * actually executes. Anything not listed defaults to 'real'.
+ * Keep in step with the engine's _evaluate_state handlers.
+ */
+export const EXECUTION_STATUS_BY_CLASS: {
+  [className: string]: { status: 'real' | 'stub' | 'authoring-only'; note: string };
+} = {
+  FormValidation: {
+    status: 'authoring-only',
+    note: 'No engine handler yet — arrives with the display event/validation bridge.',
+  },
+  FunctionCall: {
+    status: 'stub',
+    note: 'Recognized but does not invoke anything — SolutionInvocation arrives next.',
+  },
+  ReactiveTransform: {
+    status: 'authoring-only',
+    note: 'Frontend-runtime node — arrives with the frontend execution runtime.',
+  },
+  AwaitBackendCall: {
+    status: 'authoring-only',
+    note: 'No engine handler yet — solution composition arrives next.',
+  },
+  StateChangeCommit: {
+    status: 'authoring-only',
+    note: 'No engine handler yet — arrives with the display event bridge.',
+  },
+  EmitFrontendEvent: {
+    status: 'authoring-only',
+    note: 'No engine handler yet — arrives with the frontend event bridge.',
+  },
+};
 
 /**
  * State-Space Class Registry
@@ -596,6 +640,21 @@ export class StateSpaceClassRegistry {
       stateSpaceDisplayFields: ['displayName', 'iteratorVariable', 'startValue', 'endValue'],
       stateSpaceFieldsPerRow: 2,
       isBuiltIn: true,
+      // Engine loop convention: output slot 0 = Body (the loop's
+      // iteration path; it may simply end — execution auto-returns to
+      // the loop), output slot 1 = Done (taken when the loop finishes).
+      slotConfiguration: {
+        defaultInputCount: 1,
+        defaultOutputCount: 2,
+        allowDynamicInputs: false,
+        allowDynamicOutputs: false,
+        maxInputSlots: 1,
+        maxOutputSlots: 2,
+        inputType: 'any',
+        outputType: 'any',
+        inputLabels: ['Input'],
+        outputLabels: ['Body', 'Done'],
+      },
       eventMethods: [
         {
           methodName: 'execute',
@@ -637,6 +696,21 @@ export class StateSpaceClassRegistry {
       stateSpaceDisplayFields: ['displayName', 'maxIterations'],
       stateSpaceFieldsPerRow: 1,
       isBuiltIn: true,
+      // Engine loop convention: output slot 0 = Body (the loop's
+      // iteration path; it may simply end — execution auto-returns to
+      // the loop), output slot 1 = Done (taken when the loop finishes).
+      slotConfiguration: {
+        defaultInputCount: 1,
+        defaultOutputCount: 2,
+        allowDynamicInputs: false,
+        allowDynamicOutputs: false,
+        maxInputSlots: 1,
+        maxOutputSlots: 2,
+        inputType: 'any',
+        outputType: 'any',
+        inputLabels: ['Input'],
+        outputLabels: ['Body', 'Done'],
+      },
       eventMethods: [
         {
           methodName: 'execute',
@@ -668,6 +742,21 @@ export class StateSpaceClassRegistry {
       stateSpaceDisplayFields: ['displayName', 'itemVariable', 'collectionVariable'],
       stateSpaceFieldsPerRow: 2,
       isBuiltIn: true,
+      // Engine loop convention: output slot 0 = Body (the loop's
+      // iteration path; it may simply end — execution auto-returns to
+      // the loop), output slot 1 = Done (taken when the loop finishes).
+      slotConfiguration: {
+        defaultInputCount: 1,
+        defaultOutputCount: 2,
+        allowDynamicInputs: false,
+        allowDynamicOutputs: false,
+        maxInputSlots: 1,
+        maxOutputSlots: 2,
+        inputType: 'any',
+        outputType: 'any',
+        inputLabels: ['Input'],
+        outputLabels: ['Body', 'Done'],
+      },
       eventMethods: [
         {
           methodName: 'execute',
@@ -1485,6 +1574,14 @@ export class StateSpaceClassRegistry {
    * Register a new state-space class
    */
   registerClass(metadata: StateSpaceClassMetadata): void {
+    // Apply the central honesty tag unless the entry declares its own.
+    if (!metadata.executionStatus) {
+      const known = EXECUTION_STATUS_BY_CLASS[metadata.className];
+      metadata.executionStatus = known?.status ?? 'real';
+      if (known?.note) {
+        metadata.executionNote = known.note;
+      }
+    }
     this.classes.set(metadata.className, metadata);
   }
 

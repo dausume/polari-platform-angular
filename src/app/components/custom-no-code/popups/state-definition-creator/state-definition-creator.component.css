@@ -511,3 +511,23 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* HONESTY BADGES (P1): nodes the engine can't (yet) execute are dimmed
+   and labeled so nobody authors flows that silently do nothing. */
+.node-not-executable {
+  opacity: 0.55;
+}
+
+.execution-status-badge {
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 9px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  background: #fff3e0;
+  color: #b26a00;
+  border: 1px solid #ffcc80;
+  vertical-align: middle;
+}

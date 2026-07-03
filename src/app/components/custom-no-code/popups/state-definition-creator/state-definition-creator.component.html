@@ -86,10 +86,18 @@
                  placeholder="Search for a class...">
           <mat-autocomplete #classAuto="matAutocomplete">
             <mat-optgroup *ngFor="let group of getClassesByCategory()" [label]="group.category">
-              <mat-option *ngFor="let cls of group.classes" [value]="cls.className">
+              <mat-option *ngFor="let cls of group.classes" [value]="cls.className"
+                          [class.node-not-executable]="cls.executionStatus && cls.executionStatus !== 'real'"
+                          [matTooltip]="cls.executionNote || ''">
                 <mat-icon *ngIf="cls.icon">{{ cls.icon }}</mat-icon>
                 <span>{{ cls.displayName }}</span>
                 <span class="class-name-hint">({{ cls.className }})</span>
+                <!-- Honesty badge: nodes the engine can't (yet) execute
+                     say so up front instead of silently no-opping. -->
+                <span class="execution-status-badge"
+                      *ngIf="cls.executionStatus && cls.executionStatus !== 'real'">
+                  {{ cls.executionStatus === 'stub' ? 'partial' : 'not runnable yet' }}
+                </span>
               </mat-option>
             </mat-optgroup>
           </mat-autocomplete>
