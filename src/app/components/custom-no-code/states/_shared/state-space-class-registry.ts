@@ -191,42 +191,58 @@ export interface StateSpaceClassMetadata {
   // the palette can badge/dim nodes that would silently do nothing.
   executionStatus?: 'real' | 'stub' | 'authoring-only';
   executionNote?: string;
+
+  // RUNTIME-CAPABILITY TAG (P5 — mirrors StateBuildingBlock.runtime_capability):
+  // which engine(s) can actually execute this node. Applied centrally in
+  // registerClass from the solution-engine capability partition, so the
+  // palette and the display-solution-runner agree on where a graph runs.
+  //   'client-and-backend' — both engines interpret it identically
+  //   'backend-only'       — Python engine only (SymPy/numpy/DB/simulation)
+  //   'authoring-only'     — no engine handler anywhere yet
+  runtimeCapability?: 'client-and-backend' | 'backend-only' | 'authoring-only';
 }
 
 /**
- * Ground truth for which node classes the backend SolutionExecutionEngine
- * actually executes. Anything not listed defaults to 'real'.
- * Keep in step with the engine's _evaluate_state handlers.
+ * Ground truth for which node classes the execution engines actually
+ * execute. Anything not listed defaults to 'real'.
+ * Keep in step with the Python engine's _evaluate_state handlers AND the
+ * TypeScript mirror (services/no-code-services/solution-engine/) — the
+ * parity vectors hold the two to the same behavior.
  */
 export const EXECUTION_STATUS_BY_CLASS: {
   [className: string]: { status: 'real' | 'stub' | 'authoring-only'; note: string };
 } = {
-  FormValidation: {
-    status: 'authoring-only',
-    note: 'No engine handler yet — arrives with the display event/validation bridge.',
-  },
   FunctionCall: {
     status: 'authoring-only',
     note: 'Retired legacy node — it never invokes anything. Use Solution Invocation instead.',
   },
   ReactiveTransform: {
     status: 'authoring-only',
-    note: 'Frontend-runtime node — arrives with the frontend execution runtime.',
+    note: 'Frontend-runtime node — arrives with the reactive-binding layer.',
   },
   AwaitBackendCall: {
-    status: 'authoring-only',
-    note: 'No engine handler yet — for calling another solution use Solution '
-        + 'Invocation; the cross-runtime await arrives with the frontend runtime.',
-  },
-  StateChangeCommit: {
-    status: 'authoring-only',
-    note: 'No engine handler yet — arrives with the display event bridge.',
-  },
-  EmitFrontendEvent: {
-    status: 'authoring-only',
-    note: 'No engine handler yet — arrives with the frontend event bridge.',
+    status: 'real',
+    note: 'The explicit cross-runtime bridge: from a client-executing solution it '
+        + 'ships one named solution to the backend engine and binds the results '
+        + 'back; on the backend engine it is an in-process invocation.',
   },
 };
+
+/**
+ * The runtime-capability partition (P5), mirrored from
+ * services/no-code-services/solution-engine/capability.ts and from the
+ * backend's StateBuildingBlock.runtime_capability tags. Anything not
+ * listed here that executes ('real'/'stub') runs on BOTH engines.
+ */
+export const BACKEND_ONLY_RUNTIME_CLASSES = new Set<string>([
+  'CalculusOperation',        // SymPy equations
+  'MatrixEquationOperation',  // numpy matrix engine
+  'StateChangeCommit',        // persists instances via the manager/DB
+  'SimulationStateStep',      // simulation-runner entry
+  'SimStepNextState',         // simulation-runner terminators
+  'SimStepContribution',
+  'BackendStateChange',       // backend-trust entry intent
+]);
 
 /**
  * State-Space Class Registry
@@ -1627,6 +1643,16 @@ export class StateSpaceClassRegistry {
       metadata.executionStatus = known?.status ?? 'real';
       if (known?.note) {
         metadata.executionNote = known.note;
+      }
+    }
+    // Apply the central runtime-capability tag unless declared.
+    if (!metadata.runtimeCapability) {
+      if (metadata.executionStatus === 'authoring-only') {
+        metadata.runtimeCapability = 'authoring-only';
+      } else if (BACKEND_ONLY_RUNTIME_CLASSES.has(metadata.className)) {
+        metadata.runtimeCapability = 'backend-only';
+      } else {
+        metadata.runtimeCapability = 'client-and-backend';
       }
     }
     this.classes.set(metadata.className, metadata);

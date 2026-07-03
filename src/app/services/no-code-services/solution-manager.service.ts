@@ -92,6 +92,22 @@ export class SolutionManagerService {
   }
 
   /**
+   * Load the RAW SolutionDefinition rows (id / name / definition JSON /
+   * contract_json / target_runtime) without deserializing. The client
+   * execution engine needs the row-level fields that
+   * deserializeSolution drops (contract + declared runtime).
+   */
+  loadRawSolutionRows(): Observable<any[]> {
+    return this.http.get<any>(this.baseUrl, this.polariService.backendRequestOptions).pipe(
+      map((response: any) => this.parseReadAllResponse(response)),
+      catchError((err: any) => {
+        console.error('[SolutionManager] Failed to load raw solution rows:', err);
+        return of([]);
+      })
+    );
+  }
+
+  /**
    * Load ALL solutions with their full definitions
    */
   loadAllSolutions(): Observable<NoCodeSolutionRawData[]> {

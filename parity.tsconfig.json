@@ -1,0 +1,25 @@
+{
+  "_comment": "P5 engine-parity runner build: compiles the framework-free client engine core + parity/run-parity.ts to plain CommonJS so node can execute the shared vectors (polari-framework/polariNoCode/parity_vectors). Run via `npm run parity`.",
+  "compilerOptions": {
+    "outDir": "./.parity-out",
+    "rootDir": "./",
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "strict": true,
+    "noImplicitAny": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "sourceMap": false,
+    "declaration": false,
+    "types": [],
+    "lib": ["ES2022"]
+  },
+  "include": [
+    "parity/run-parity.ts",
+    "src/app/services/no-code-services/solution-engine/*.ts"
+  ],
+  "exclude": [
+    "src/app/services/no-code-services/solution-engine/client-solution-engine.service.ts"
+  ]
+}
