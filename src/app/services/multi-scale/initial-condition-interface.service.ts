@@ -11,6 +11,17 @@ export interface IcChoice {
   description?: string;
   setParams?: Record<string, number>;
   setFields?: Record<string, Record<string, unknown>>;
+  /** Milestone B: the substance's physical identity (melting line,
+   *  density behavior) — used as the material space's search
+   *  fixedParams. A choice carrying this can be PROVEN by the
+   *  first-principles stage. */
+  substanceParams?: Record<string, number>;
+}
+
+/** Milestone B: which composition + stage proves this picker's choices. */
+export interface IcProvingStage {
+  msim: string;
+  stageKey: string;
 }
 
 /** Parsed InitialConditionInterfaceDefinition. */
@@ -24,6 +35,7 @@ export interface IcInterfaceConfig {
   label: string;
   choices: IcChoice[];
   derivedParams: Record<string, string>;
+  provingStage: IcProvingStage | null;
 }
 
 /**
@@ -82,6 +94,10 @@ export class InitialConditionInterfaceService {
       choices: Array.isArray(raw.choices) ? raw.choices : [],
       derivedParams: raw.derivedParams && typeof raw.derivedParams === 'object'
         ? raw.derivedParams : {},
+      provingStage: (raw.provingStage && raw.provingStage.msim
+                     && raw.provingStage.stageKey)
+        ? { msim: raw.provingStage.msim, stageKey: raw.provingStage.stageKey }
+        : null,
     };
   }
 

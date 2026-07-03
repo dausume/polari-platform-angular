@@ -43,6 +43,12 @@ export interface StageSearchReport {
   advancedThisCall: number;
   attempts: StageSearchAttempt[];
   error: string | null;
+  /** Present when achieved: the winner's derive map resolved into
+   *  per-simulation parameter/field bundles (the PROVEN values). */
+  deriveResolved?: {
+    params: Record<string, Record<string, number>>;
+    fields: Record<string, unknown>;
+  } | null;
 }
 
 /**
@@ -128,19 +134,27 @@ export class MultiScaleSimDefinitionService {
   }
 
   /** Advance a stage's solution search by ONE batch (stateless —
-   *  repeat calls continue the search until achieved/exhausted). */
+   *  repeat calls continue the search until achieved/exhausted).
+   *  `fixedParams` pin a substance's identity under every candidate;
+   *  `attemptTag` namespaces that substance's resumable attempt set. */
   async runStageSearch(
     msimName: string,
     stageKey: string,
     batchSize?: number,
+    fixedParams?: Record<string, number>,
+    attemptTag?: string,
   ): Promise<StageSearchReport> {
     const url = `${this.polariService.getBackendBaseUrl()}`
       + `/api/simulations/multi-scale/${encodeURIComponent(msimName)}`
       + `/stages/${encodeURIComponent(stageKey)}/search`;
+    const body: Record<string, unknown> = {};
+    if (batchSize) body['batchSize'] = batchSize;
+    if (fixedParams && Object.keys(fixedParams).length) {
+      body['fixedParams'] = fixedParams;
+    }
+    if (attemptTag) body['attemptTag'] = attemptTag;
     const resp = await firstValueFrom(
-      this.http.post<{ success: boolean; data: StageSearchReport }>(
-        url, batchSize ? { batchSize } : {},
-      ),
+      this.http.post<{ success: boolean; data: StageSearchReport }>(url, body),
     );
     return resp.data;
   }

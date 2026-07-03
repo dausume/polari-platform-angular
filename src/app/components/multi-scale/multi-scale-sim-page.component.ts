@@ -1,6 +1,7 @@
 import {
-  Component, ElementRef, OnInit, QueryList, ViewChild, ViewChildren,
+  Component, ElementRef, OnDestroy, OnInit, QueryList, ViewChild, ViewChildren,
 } from '@angular/core';
+import { Subscription } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -40,6 +41,7 @@ import { DisplayRow } from '@models/dashboards/DisplayRow';
 import { DisplayColumn } from '@models/dashboards/DisplayColumn';
 import { MsimLayoutService } from '@services/multi-scale/msim-layout.service';
 import { MsimPanelBusService } from '@services/multi-scale/msim-panel-bus.service';
+import { MsimProofService } from '@services/multi-scale/msim-proof.service';
 import { registerMsimDisplayComponents } from './msim-display-components';
 
 /** One button on the layout-edit palette. */
@@ -80,9 +82,16 @@ export interface StageState {
   templateUrl: './multi-scale-sim-page.component.html',
   styleUrls: ['./multi-scale-sim-page.component.scss'],
 })
-export class MultiScaleSimPageComponent implements OnInit {
+export class MultiScaleSimPageComponent implements OnInit, OnDestroy {
   config: NamedMultiScaleSimConfig | null = null;
   errorMessage: string | null = null;
+
+  /** Milestone B: proof states from the material picker — the stage
+   *  chip reflects the CURRENTLY SELECTED substance's proof (the picker
+   *  knows better than the generic newest-run gate check). Keyed by
+   *  stage key. */
+  private proofStates = new Map<string, { complete: boolean; reason: string }>();
+  private proofSub: Subscription | null = null;
 
   /** Run mode plays it; Graph mode draws the composition as the node
    *  graph it is; Configure mode is the authoring rail. */
@@ -145,6 +154,7 @@ export class MultiScaleSimPageComponent implements OnInit {
     private runService: SimulationRunService,
     private layoutService: MsimLayoutService,
     private panelBus: MsimPanelBusService,
+    private proofService: MsimProofService,
   ) {
     // Make the msim panels placeable inside Display layouts (idempotent).
     registerMsimDisplayComponents();
@@ -162,6 +172,39 @@ export class MultiScaleSimPageComponent implements OnInit {
     this.route.queryParamMap.subscribe(q => {
       if (q.get('mode') === 'configure') this.mode = 'configure';
     });
+    // Milestone B: a material picker's proof result speaks for its
+    // stage — the chip shows the selected substance's verdict rather
+    // than the generic newest-run gate check.
+    this.proofSub = this.proofService.proofChanged$.subscribe(ev => {
+      if (!this.config || ev.msim !== this.config.name) return;
+      if (ev.report === null) {
+        this.proofStates.delete(ev.stageKey);
+      } else {
+        this.proofStates.set(ev.stageKey, {
+          complete: ev.report.achieved,
+          reason: ev.report.achieved
+            ? `Proven with ${ev.substanceLabel}.`
+            : (ev.report.attempts?.[0]?.reason
+               || `No valid solution for ${ev.substanceLabel}.`),
+        });
+      }
+      const stage = this.stages.find(s => s.key === ev.stageKey);
+      if (stage) {
+        const st = this.stageState(stage);
+        const proof = this.proofStates.get(ev.stageKey);
+        if (proof) {
+          st.complete = proof.complete;
+          st.reason = proof.reason;
+          st.error = null;
+        } else {
+          void this.checkGate(stage);
+        }
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.proofSub?.unsubscribe();
   }
 
   toggleMode(): void {
@@ -293,6 +336,16 @@ export class MultiScaleSimPageComponent implements OnInit {
   async checkGate(stage: MsimStage): Promise<void> {
     if (!this.config) return;
     const st = this.stageState(stage);
+    // A substance proof from the material picker outranks the generic
+    // newest-run check (which may land on an arbitrary search attempt).
+    const proof = this.proofStates.get(stage.key);
+    if (proof) {
+      st.complete = proof.complete;
+      st.reason = proof.reason;
+      st.error = null;
+      st.checking = false;
+      return;
+    }
     st.checking = true;
     try {
       // A runToCompletion stage evaluates against ITS OWN sim's run.
