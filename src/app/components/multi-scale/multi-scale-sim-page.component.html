@@ -79,8 +79,9 @@
             </div>
         </div>
 
-        <!-- Run-set controls: ONE set of controls for the whole page -->
-        <div class="run-controls">
+        <!-- Run-set controls: ONE set of controls for the whole page.
+             Sticky — always visible no matter where the page is scrolled. -->
+        <div class="run-controls" #runControls>
             <label class="run-label">Run</label>
             <select class="run-select" [(ngModel)]="selectedRun" (ngModelChange)="onRunSelected()" [disabled]="busy">
                 <option *ngFor="let run of runs" [value]="run.name">
@@ -109,6 +110,24 @@
 
         <!-- Panels -->
         <div class="panel-grid">
+            <!-- IC interface panels FIRST (material selection at the top,
+                 right under the always-visible run controls) — interactive:
+                 pick, validate (debounced), start a coupled run -->
+            <div class="panel-card ic-panel" *ngFor="let panel of icPanels; trackBy: trackPanel">
+                <ng-container *ngIf="icPreview(panel) as ic; else icLoading">
+                    <msim-ic-panel
+                        [ic]="ic"
+                        [coupledRunRefs]="selectedRunSummary?.coupledRunRefs ?? {}"
+                        [busy]="busy"
+                        (runCreated)="onRunCreated($event)">
+                    </msim-ic-panel>
+                </ng-container>
+                <ng-template #icLoading>
+                    <div class="panel-title"><mat-icon>tune</mat-icon> {{ panel.icInterfaceRef }}</div>
+                    <p class="ic-note">Loading interface…</p>
+                </ng-template>
+            </div>
+
             <!-- Scene panels: the coupled set shares ONE scene (run scope
                  expansion renders coupled sources' rows in the same view). -->
             <div class="panel-card scene-panel" *ngFor="let panel of scenePanels; trackBy: trackPanel">
@@ -159,21 +178,6 @@
                 </msim-graph-panel>
             </div>
 
-            <!-- IC interface panels — interactive: pick, validate (debounced), start a coupled run -->
-            <div class="panel-card ic-panel" *ngFor="let panel of icPanels; trackBy: trackPanel">
-                <ng-container *ngIf="icPreview(panel) as ic; else icLoading">
-                    <msim-ic-panel
-                        [ic]="ic"
-                        [coupledRunRefs]="selectedRunSummary?.coupledRunRefs ?? {}"
-                        [busy]="busy"
-                        (runCreated)="onRunCreated($event)">
-                    </msim-ic-panel>
-                </ng-container>
-                <ng-template #icLoading>
-                    <div class="panel-title"><mat-icon>tune</mat-icon> {{ panel.icInterfaceRef }}</div>
-                    <p class="ic-note">Loading interface…</p>
-                </ng-template>
-            </div>
         </div>
 
         <p class="deferred-note" *ngIf="deferredPanelCount">

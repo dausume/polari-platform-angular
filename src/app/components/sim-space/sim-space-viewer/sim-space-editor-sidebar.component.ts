@@ -51,6 +51,14 @@ import {
   SimSpaceDefinitionPayload,
 } from '@models/sim-space/sim-space-types';
 
+/** The on-canvas overlays managed from the sidebar's View toggles. */
+export type OverlayKey = 'axes' | 'legend' | 'evaluations';
+export interface OverlayVisibility {
+  axes: boolean;
+  legend: boolean;
+  evaluations: boolean;
+}
+
 @Component({
   standalone: true,
   selector: 'sim-space-editor-sidebar',
@@ -84,6 +92,29 @@ import {
                 (click)="openSection('info')">
           <mat-icon>info</mat-icon>
         </button>
+
+        <!-- View toggles: the canvas overlays live HERE (they crowd the
+             canvas at embed sizes) — each icon shows/hides its overlay
+             on the main view directly, expanded or not. -->
+        <div class="rail-divider"></div>
+        <button mat-icon-button class="view-toggle"
+                [class.active]="overlayVisible.axes"
+                [matTooltip]="(overlayVisible.axes ? 'Hide' : 'Show') + ' axes'"
+                (click)="toggleOverlay('axes')">
+          <mat-icon>straighten</mat-icon>
+        </button>
+        <button mat-icon-button class="view-toggle"
+                [class.active]="overlayVisible.legend"
+                [matTooltip]="(overlayVisible.legend ? 'Hide' : 'Show') + ' scene contents'"
+                (click)="toggleOverlay('legend')">
+          <mat-icon>legend_toggle</mat-icon>
+        </button>
+        <button mat-icon-button class="view-toggle"
+                [class.active]="overlayVisible.evaluations"
+                [matTooltip]="(overlayVisible.evaluations ? 'Hide' : 'Show') + ' live evaluations'"
+                (click)="toggleOverlay('evaluations')">
+          <mat-icon>functions</mat-icon>
+        </button>
       </div>
 
       <!-- EXPANDED state — accordion. -->
@@ -92,6 +123,39 @@ import {
           <mat-icon>tune</mat-icon>
           <span>SimSpace configuration</span>
         </header>
+
+        <!-- View section — the same overlay toggles as the rail, with
+             labels. What's enabled here appears on the main view. -->
+        <section class="section" [class.open]="openSectionName === 'view'">
+          <button class="section-header" (click)="toggleSection('view')">
+            <mat-icon>visibility</mat-icon>
+            <span class="section-title">View</span>
+            <mat-icon class="section-chevron">
+              {{ openSectionName === 'view' ? 'expand_less' : 'expand_more' }}
+            </mat-icon>
+          </button>
+          <div class="section-body" *ngIf="openSectionName === 'view'">
+            <p class="muted small">
+              Show or hide the on-canvas overlays. Hidden ones stay one
+              click away right here.
+            </p>
+            <div class="view-row" (click)="toggleOverlay('axes')">
+              <mat-icon [class.on]="overlayVisible.axes">straighten</mat-icon>
+              <span class="view-label">Axes</span>
+              <mat-icon class="view-state">{{ overlayVisible.axes ? 'toggle_on' : 'toggle_off' }}</mat-icon>
+            </div>
+            <div class="view-row" (click)="toggleOverlay('legend')">
+              <mat-icon [class.on]="overlayVisible.legend">legend_toggle</mat-icon>
+              <span class="view-label">Scene contents</span>
+              <mat-icon class="view-state">{{ overlayVisible.legend ? 'toggle_on' : 'toggle_off' }}</mat-icon>
+            </div>
+            <div class="view-row" (click)="toggleOverlay('evaluations')">
+              <mat-icon [class.on]="overlayVisible.evaluations">functions</mat-icon>
+              <span class="view-label">Live evaluations</span>
+              <mat-icon class="view-state">{{ overlayVisible.evaluations ? 'toggle_on' : 'toggle_off' }}</mat-icon>
+            </div>
+          </div>
+        </section>
 
         <!-- Simulation solutions section -->
         <section class="section" [class.open]="openSectionName === 'solutions'">
@@ -330,6 +394,25 @@ import {
       padding: 12px 0;
       gap: 4px;
     }
+    .rail-divider {
+      width: 24px; height: 1px; background: #ccc; margin: 6px 0;
+    }
+    /* Overlay view-toggles: dimmed when the overlay is hidden, branded
+       when it's showing on the canvas. */
+    .view-toggle mat-icon { color: #9aa3ad; }
+    .view-toggle.active mat-icon { color: #1958a8; }
+
+    .view-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 4px; border-radius: 4px; cursor: pointer;
+      user-select: none;
+    }
+    .view-row:hover { background: rgba(0, 0, 0, 0.04); }
+    .view-row mat-icon { font-size: 18px; width: 18px; height: 18px; color: #9aa3ad; }
+    .view-row mat-icon.on { color: #1958a8; }
+    .view-label { flex: 1; font-size: 0.8rem; }
+    .view-state { color: #1958a8 !important; font-size: 22px !important;
+      width: 22px !important; height: 22px !important; }
 
     .body {
       padding: 12px 14px;
@@ -482,6 +565,12 @@ export class SimSpaceEditorSidebarComponent implements OnChanges {
   /** The current scene definition — drives the Scene info + Axis labels
    *  read-only views. */
   @Input() definition: SimSpaceDefinitionPayload | null = null;
+  /** Which on-canvas overlays are showing — owned by the viewer; the
+   *  sidebar is just their switchboard (the overlays crowd the canvas
+   *  at embed sizes, so they live here and appear only when enabled). */
+  @Input() overlayVisible: OverlayVisibility =
+    { axes: true, legend: true, evaluations: true };
+  @Output() overlayToggle = new EventEmitter<OverlayKey>();
 
   /** Lets the viewer (the parent) react to expansion if it needs to
    *  reflow other overlays. Not strictly required since the push
@@ -494,7 +583,7 @@ export class SimSpaceEditorSidebarComponent implements OnChanges {
    *  what triggers the ResizeObserver in the viewer to reflow the d3
    *  / three.js render area. */
   @HostBinding('class.expanded') expanded = false;
-  openSectionName: 'solutions' | 'axes' | 'info' | null = 'solutions';
+  openSectionName: 'solutions' | 'axes' | 'info' | 'view' | null = 'solutions';
   solutions: SimulationExecutionSolutionEntry[] = [];
   availableSolutions: Array<{ name: string; targetRuntime: string }> = [];
   simStateClasses: string[] = [];
@@ -523,7 +612,7 @@ export class SimSpaceEditorSidebarComponent implements OnChanges {
     }
   }
 
-  openSection(name: 'solutions' | 'axes' | 'info'): void {
+  openSection(name: 'solutions' | 'axes' | 'info' | 'view'): void {
     this.openSectionName = name;
     if (!this.expanded) {
       this.expanded = true;
@@ -532,8 +621,12 @@ export class SimSpaceEditorSidebarComponent implements OnChanges {
     }
   }
 
-  toggleSection(name: 'solutions' | 'axes' | 'info'): void {
+  toggleSection(name: 'solutions' | 'axes' | 'info' | 'view'): void {
     this.openSectionName = this.openSectionName === name ? null : name;
+  }
+
+  toggleOverlay(key: OverlayKey): void {
+    this.overlayToggle.emit(key);
   }
 
   async reloadSolutions(): Promise<void> {

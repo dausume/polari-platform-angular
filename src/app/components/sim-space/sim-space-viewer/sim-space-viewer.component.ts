@@ -46,7 +46,11 @@ import { SimSpaceScrubberComponent, ScrubberKind } from './sim-space-scrubber.co
 import { SimSpaceEvaluationOverlayComponent } from './sim-space-evaluation-overlay.component';
 import { SimSpaceEvaluationSelectorComponent } from './sim-space-evaluation-selector.component';
 import { SimSpaceSimulationRunPanelComponent } from './sim-space-simulation-run-panel.component';
-import { SimSpaceEditorSidebarComponent } from './sim-space-editor-sidebar.component';
+import {
+  OverlayKey,
+  OverlayVisibility,
+  SimSpaceEditorSidebarComponent,
+} from './sim-space-editor-sidebar.component';
 import {
   SimSpaceEvaluationSnapshot,
   SimSpaceEvaluationStep,
@@ -79,7 +83,7 @@ import {
       </ul>
     </div>
 
-    <sim-space-axis-legend *ngIf="snapshot"
+    <sim-space-axis-legend *ngIf="snapshot && overlayVisible.axes"
       [dimensionality]="snapshot.definition.dimensionality"
       [coordinateSystem]="snapshot.definition.coordinateSystem"
       [resolvedBindings]="snapshot.resolvedBindings || []"
@@ -101,7 +105,7 @@ import {
       </sim-space-simulation-run-panel>
     </div>
 
-    <sim-space-legend
+    <sim-space-legend *ngIf="overlayVisible.legend"
       [resolvedBindings]="snapshot?.resolvedBindings || []"
       [objects]="snapshot?.objects || []"
       [bottomOffsetPx]="legendBottomOffsetPx">
@@ -130,7 +134,7 @@ import {
          the top-right; at most ONE overlay rendered to its immediate
          left. Toggling the active selection is the only way to make a
          readout appear, so multiple readouts never overlap. -->
-    <div class="hud-stack" *ngIf="evaluations.length > 0">
+    <div class="hud-stack" *ngIf="evaluations.length > 0 && overlayVisible.evaluations">
       <sim-space-evaluation-overlay *ngIf="activeEvaluation"
         [evaluation]="activeEvaluation"
         [currentStep]="evaluationValueFor(activeEvaluation)">
@@ -149,7 +153,9 @@ import {
          sidebar handles the empty-simulation case internally. -->
     <sim-space-editor-sidebar
       [simulationDefinitionName]="simulationDefinitionName"
-      [definition]="snapshot?.definition || null">
+      [definition]="snapshot?.definition || null"
+      [overlayVisible]="overlayVisible"
+      (overlayToggle)="onOverlayToggle($event)">
     </sim-space-editor-sidebar>
     </div><!-- /.viewer-shell -->
   `,
@@ -260,6 +266,16 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
    *  (e.g. the Multi-Scale Simulation Page, which owns its own run
    *  controls) don't want a second set of play buttons. */
   @Input() hideRunPanel = false;
+
+  /** Which on-canvas overlays (axes / legend / evaluations HUD) are
+   *  showing. Managed from the right sidebar's View toggles — the
+   *  overlays crowd the canvas at embed sizes, so embedded viewers
+   *  (hideRunPanel) default them OFF and the full page defaults ON.
+   *  Choices persist per scene for the session. The run panel is NOT
+   *  part of this — the menu that runs the simulation stays visible. */
+  overlayVisible: OverlayVisibility =
+    { axes: true, legend: true, evaluations: true };
+  private overlaysInitializedFor: string | null = null;
 
   @ViewChild('host', { static: true }) hostRef!: ElementRef<HTMLDivElement>;
 
@@ -407,6 +423,7 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
   ) {}
 
   async ngAfterViewInit(): Promise<void> {
+    this.initOverlayVisibility();
     await Promise.all([
       this.shapes.load(),
       this.styles.load(),
@@ -430,9 +447,45 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
     const runChanged = changes['run'] && !changes['run'].firstChange;
     const nameChanged =
       changes['simSpaceName'] && !changes['simSpaceName'].firstChange;
+    if (nameChanged) this.initOverlayVisibility();
     if (nameChanged || runChanged) {
       await this.load(this.simSpaceName);
     }
+  }
+
+  /** Defaults + per-scene session persistence for the overlay toggles.
+   *  Embedded viewers (the page owns the run controls → hideRunPanel)
+   *  start clean; the full-page viewer keeps everything on. */
+  private initOverlayVisibility(): void {
+    const key = this.overlayStorageKey();
+    if (this.overlaysInitializedFor === key) return;
+    this.overlaysInitializedFor = key;
+    const base = this.hideRunPanel ? false : true;
+    let stored: Partial<OverlayVisibility> = {};
+    try {
+      stored = JSON.parse(sessionStorage.getItem(key) ?? '{}');
+    } catch { /* corrupt entry — fall back to defaults */ }
+    this.overlayVisible = {
+      axes: stored.axes ?? base,
+      legend: stored.legend ?? base,
+      evaluations: stored.evaluations ?? base,
+    };
+  }
+
+  onOverlayToggle(overlay: OverlayKey): void {
+    this.overlayVisible = {
+      ...this.overlayVisible,
+      [overlay]: !this.overlayVisible[overlay],
+    };
+    try {
+      sessionStorage.setItem(
+        this.overlayStorageKey(), JSON.stringify(this.overlayVisible));
+    } catch { /* storage unavailable — toggles still work this page-life */ }
+  }
+
+  private overlayStorageKey(): string {
+    return `simspace-overlays:${this.simSpaceName ?? ''}:`
+      + `${this.hideRunPanel ? 'embed' : 'full'}`;
   }
 
   /** Re-fetch the current snapshot. Public so embedding pages that own

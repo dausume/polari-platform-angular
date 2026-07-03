@@ -1,4 +1,6 @@
-import { Component, OnInit, QueryList, ViewChildren } from '@angular/core';
+import {
+  Component, ElementRef, OnInit, QueryList, ViewChild, ViewChildren,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -87,6 +89,9 @@ export class MultiScaleSimPageComponent implements OnInit {
   @ViewChildren(SimSpaceViewerComponent)
   viewers!: QueryList<SimSpaceViewerComponent>;
 
+  @ViewChild('runControls')
+  runControlsRef?: ElementRef<HTMLDivElement>;
+
   @ViewChildren(MsimGraphPanelComponent)
   graphPanelCmps!: QueryList<MsimGraphPanelComponent>;
 
@@ -143,7 +148,8 @@ export class MultiScaleSimPageComponent implements OnInit {
     try {
       this.runs = await this.runService.list(this.config.primarySimulationRef);
     } catch {
-      this.runs = [];
+      // Keep whatever list we already had — a transient refresh failure
+      // must never empty the run picker (the controls would look broken).
     }
     const names = new Set(this.runs.map(r => r.name));
     this.comparisonRuns = this.config.compareRuns.filter(r => names.has(r));
@@ -164,13 +170,24 @@ export class MultiScaleSimPageComponent implements OnInit {
     return this.runs.find(r => r.name === this.selectedRun) ?? null;
   }
 
-  /** A run created by an IC-interface panel: select + follow it. */
+  /** A run created by an IC-interface panel: select + follow it. A
+   *  refresh hiccup must never break the page state — the run exists;
+   *  worst case the panels catch up on the next step. */
   async onRunCreated(runName: string): Promise<void> {
-    await this.loadRuns();
+    this.statusMessage = `Following new run ${runName} — press Play to step it.`;
+    try {
+      await this.loadRuns();
+    } catch { /* keep previous list */ }
     this.selectedRun = runName;
-    this.evaluateGates();
-    await this.refreshViewers();
-    await this.refreshGraphs();
+    try {
+      this.evaluateGates();
+      await this.refreshViewers();
+      await this.refreshGraphs();
+    } catch { /* panels catch up on the next committed step */ }
+    // Bring the (sticky) run controls into view so the user SEES the
+    // page now following their new run.
+    this.runControlsRef?.nativeElement?.scrollIntoView(
+      { behavior: 'smooth', block: 'start' });
   }
 
   private loadIcPreviews(): void {
