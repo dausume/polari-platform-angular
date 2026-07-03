@@ -34,25 +34,71 @@
             <ng-container *ngSwitchCase="'graph'">
                 <div class="graph-placeholder">Graph content</div>
             </ng-container>
+            <!-- P4: forms are REAL now — reactive fields that run the
+                 linked no-code solution through the execution path,
+                 with per-field verdicts surfaced inline. -->
             <ng-container *ngSwitchCase="'form'">
-                <div class="form-display-item">
+                <div class="form-display-item" *ngIf="getFormState(item) as fstate">
                     <div class="form-header">
                         <mat-icon>dynamic_form</mat-icon>
                         <span>{{ item.item?.boundClassName || 'Form' }}</span>
                     </div>
-                    <div class="form-placeholder">
-                        <p *ngIf="item.item?.linkedSolutionName">Linked to: {{ item.item.linkedSolutionName }}</p>
-                        <p *ngIf="!item.item?.linkedSolutionName">No solution linked</p>
-                    </div>
+                    <form class="df-form" [formGroup]="fstate.group"
+                          (ngSubmit)="submitForm(item)"
+                          [class.df-form-horizontal]="item.item?.formLayout === 'horizontal'">
+                        <div class="df-field" *ngFor="let f of fstate.fields">
+                            <label class="df-label">
+                                {{ f.label }}<span class="df-required" *ngIf="f.required">*</span>
+                            </label>
+                            <input *ngIf="f.inputType !== 'checkbox'"
+                                   class="df-input"
+                                   [class.df-input-invalid]="(fstate.fieldErrors[f.key] || []).length"
+                                   [type]="f.inputType"
+                                   [formControlName]="f.key"
+                                   [placeholder]="f.placeholder" />
+                            <input *ngIf="f.inputType === 'checkbox'"
+                                   class="df-checkbox" type="checkbox"
+                                   [formControlName]="f.key" />
+                            <div class="df-field-errors" *ngIf="(fstate.fieldErrors[f.key] || []).length">
+                                <span *ngFor="let err of fstate.fieldErrors[f.key]">{{ err }}</span>
+                            </div>
+                        </div>
+                        <div class="df-actions">
+                            <button *ngIf="item.item?.submissionMode !== 'debounce'"
+                                    mat-raised-button color="primary" type="submit"
+                                    [disabled]="fstate.running || editMode">
+                                {{ item.item?.submitLabel || 'Submit' }}
+                            </button>
+                            <span class="df-running" *ngIf="fstate.running">Running…</span>
+                        </div>
+                        <div class="df-banner" *ngIf="fstate.banner"
+                             [class.df-banner-ok]="fstate.banner.kind === 'ok'"
+                             [class.df-banner-error]="fstate.banner.kind === 'error'">
+                            {{ fstate.banner.text }}
+                        </div>
+                        <p class="df-no-solution" *ngIf="!item.item?.linkedSolutionName">
+                            No solution linked — configure one in the display editor.
+                        </p>
+                    </form>
                 </div>
             </ng-container>
+            <!-- P4: buttons actually fire their linked solution. -->
             <ng-container *ngSwitchCase="'button'">
-                <button mat-raised-button
-                        [style.background-color]="item.item?.color || '#1976d2'"
-                        style="color: white">
-                    <mat-icon *ngIf="item.item?.iconName">{{ item.item.iconName }}</mat-icon>
-                    {{ item.item?.label || 'Button' }}
-                </button>
+                <div class="button-display-item" *ngIf="getButtonState(item) as bstate">
+                    <button mat-raised-button
+                            [style.background-color]="item.item?.color || '#1976d2'"
+                            style="color: white"
+                            [disabled]="bstate.running || editMode"
+                            (click)="onButtonClick(item)">
+                        <mat-icon *ngIf="item.item?.iconName">{{ item.item.iconName }}</mat-icon>
+                        {{ item.item?.label || 'Button' }}
+                    </button>
+                    <div class="df-banner" *ngIf="bstate.banner"
+                         [class.df-banner-ok]="bstate.banner.kind === 'ok'"
+                         [class.df-banner-error]="bstate.banner.kind === 'error'">
+                        {{ bstate.banner.text }}
+                    </div>
+                </div>
             </ng-container>
             <ng-container *ngSwitchCase="'container'">
                 <div class="nested-row-container" *ngIf="item.nestedRows?.length">

@@ -90,14 +90,22 @@ export class SolutionInvokeButtonComponent {
     this.lastResult = '';
     this.cdr.markForCheck();
 
-    this.solutionManager.executeSolution(
+    // P4 fix: this used to call the codegen-only /executeSolution
+    // (which "succeeds" while executing nothing) — the EXECUTION path
+    // is /executeSolutionStepped.
+    this.solutionManager.executeSolutionStepped(
       this.solutionName,
       this.inputParams,
       this.targetRuntime
     ).subscribe({
       next: (result: any) => {
         this.loading = false;
-        this.lastResult = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
+        const summary = result?.displaySummary;
+        this.lastResult = summary
+          ? `status: ${summary.status}`
+            + (summary.finalReturnValue !== null && summary.finalReturnValue !== undefined
+               ? ` | returned: ${JSON.stringify(summary.finalReturnValue)}` : '')
+          : (typeof result === 'string' ? result : JSON.stringify(result, null, 2));
         this.executionComplete.emit(result);
         this.cdr.markForCheck();
       },

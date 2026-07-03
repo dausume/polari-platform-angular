@@ -1,12 +1,37 @@
 import { Component, Input, Output, EventEmitter, OnInit, OnChanges, OnDestroy, AfterViewInit, SimpleChanges, Type, ElementRef, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
+import { ReactiveFormsModule, FormControl, FormGroup } from '@angular/forms';
+import { Subscription } from 'rxjs';
+import { debounceTime } from 'rxjs/operators';
 import { Display } from '@models/dashboards/Display';
 import { DisplayRow } from '@models/dashboards/DisplayRow';
 import { DisplayColumn } from '@models/dashboards/DisplayColumn';
-import { DisplayItem, DisplayItemType, MetricData } from '@models/dashboards/DisplayItem';
+import { DisplayItem, DisplayItemType, MetricData, FormDisplayConfig, ButtonDisplayConfig } from '@models/dashboards/DisplayItem';
 import { DISPLAY_COMPONENT_REGISTRY } from '@models/dashboards/ComponentRegistry';
 import { DisplayMetricCardComponent } from '@components/dashboard/dashboard-metric-card/dashboard-metric-card';
+import { DisplaySolutionRunnerService } from '@services/no-code-services/display-solution-runner.service';
+
+/**
+ * Runtime state for a 'form' display item (P4 — forms now actually
+ * execute their linked no-code solution instead of rendering a
+ * placeholder). Keyed by DisplayItem.id.
+ */
+interface FormRuntimeState {
+    group: FormGroup;
+    fields: Array<{ key: string; label: string; inputType: 'text' | 'number' | 'checkbox'; required: boolean; placeholder: string }>;
+    running: boolean;
+    banner: { kind: 'ok' | 'error'; text: string } | null;
+    fieldErrors: Record<string, string[]>;
+    debounceSub?: Subscription;
+}
+
+/** Runtime state for a 'button' display item. */
+interface ButtonRuntimeState {
+    running: boolean;
+    banner: { kind: 'ok' | 'error'; text: string } | null;
+}
 
 /**
  * Context data passed to child components within the dashboard
@@ -38,7 +63,7 @@ export interface GridCell {
     selector: 'dashboard-renderer',
     templateUrl: './dashboard-renderer.html',
     styleUrls: ['./dashboard-renderer.css'],
-    imports: [CommonModule, MatIconModule, DisplayMetricCardComponent]
+    imports: [CommonModule, MatIconModule, MatButtonModule, ReactiveFormsModule, DisplayMetricCardComponent]
 })
 export class DisplayRendererComponent implements OnInit, OnChanges, AfterViewInit, OnDestroy {
     /** The dashboard model to render */
@@ -89,7 +114,8 @@ export class DisplayRendererComponent implements OnInit, OnChanges, AfterViewIni
 
     private resizeObserver?: ResizeObserver;
 
-    constructor(private elementRef: ElementRef, private ngZone: NgZone) {}
+    constructor(private elementRef: ElementRef, private ngZone: NgZone,
+                private solutionRunner: DisplaySolutionRunnerService) {}
 
     ngOnInit(): void {}
 
@@ -121,6 +147,157 @@ export class DisplayRendererComponent implements OnInit, OnChanges, AfterViewIni
 
     ngOnDestroy(): void {
         this.resizeObserver?.disconnect();
+        for (const state of this.formStates.values()) {
+            state.debounceSub?.unsubscribe();
+        }
+    }
+
+    // ================================================================
+    // Form / button runtime (P4 — the display event/validation bridge)
+    // ================================================================
+
+    private formStates = new Map<string, FormRuntimeState>();
+    private buttonStates = new Map<string, ButtonRuntimeState>();
+
+    /** Lazily build (and cache) the reactive form for a 'form' item. */
+    getFormState(item: DisplayItem): FormRuntimeState {
+        let state = this.formStates.get(item.id);
+        if (state) return state;
+
+        const config = (item.item || {}) as FormDisplayConfig;
+        const fields: FormRuntimeState['fields'] = [];
+        const controls: Record<string, FormControl> = {};
+
+        const sorted = [...(config.formFields || [])]
+            .filter(f => f.visible !== false)
+            .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
+        for (const f of sorted) {
+            const ftype = (f.fieldType || '').toLowerCase();
+            const inputType = ['int', 'integer', 'float', 'number', 'num'].includes(ftype)
+                ? 'number' : ['bool', 'boolean'].includes(ftype) ? 'checkbox' : 'text';
+            fields.push({
+                key: f.fieldName,
+                label: f.displayName || f.fieldName,
+                inputType,
+                required: !!f.required,
+                placeholder: f.placeholder || '',
+            });
+            controls[f.fieldName] = new FormControl(inputType === 'checkbox' ? false : '');
+        }
+        for (const v of config.extraVariables || []) {
+            const inputType = v.dataType === 'number' ? 'number'
+                : v.dataType === 'boolean' ? 'checkbox' : 'text';
+            fields.push({
+                key: v.variableName,
+                label: v.displayName || v.variableName,
+                inputType,
+                required: !!v.required,
+                placeholder: v.placeholder || '',
+            });
+            controls[v.variableName] = new FormControl(
+                v.defaultValue ?? (inputType === 'checkbox' ? false : ''));
+        }
+
+        state = {
+            group: new FormGroup(controls),
+            fields,
+            running: false,
+            banner: null,
+            fieldErrors: {},
+        };
+        // Debounce mode: value changes auto-submit after quiet time
+        // (mirrors the IC editor's debounce pattern).
+        if (config.submissionMode === 'debounce') {
+            state.debounceSub = state.group.valueChanges
+                .pipe(debounceTime(config.debounceDelayMs || 400))
+                .subscribe(() => this.submitForm(item));
+        }
+        this.formStates.set(item.id, state);
+        return state;
+    }
+
+    /** Submit a form item: run its linked solution through the
+     *  EXECUTION path and surface verdicts inline. */
+    async submitForm(item: DisplayItem): Promise<void> {
+        if (this.editMode) return;   // edit mode never fires solutions
+        const config = (item.item || {}) as FormDisplayConfig;
+        const state = this.getFormState(item);
+        if (state.running) return;
+        if (!config.linkedSolutionName) {
+            state.banner = { kind: 'error', text: 'No solution is linked to this form.' };
+            return;
+        }
+        state.running = true;
+        state.banner = null;
+        state.fieldErrors = {};
+        try {
+            const result = await this.solutionRunner.run(
+                config.linkedSolutionName, state.group.value);
+            const summary = result.summary;
+            if (summary?.validation) {
+                for (const [fname, verdict] of Object.entries(summary.validation)) {
+                    if (verdict && !verdict.valid) {
+                        state.fieldErrors[fname] = verdict.errors || ['Invalid.'];
+                    }
+                }
+            }
+            if (result.success && summary?.formValid !== false) {
+                const committed = summary?.committed?.length ?? 0;
+                state.banner = {
+                    kind: 'ok',
+                    text: committed > 0 ? 'Saved.' : 'Done.',
+                };
+            } else if (summary?.formValid === false) {
+                state.banner = {
+                    kind: 'error',
+                    text: 'Please fix the highlighted fields.',
+                };
+            } else {
+                state.banner = {
+                    kind: 'error',
+                    text: result.error || 'The linked solution failed.',
+                };
+            }
+        } finally {
+            state.running = false;
+        }
+    }
+
+    getButtonState(item: DisplayItem): ButtonRuntimeState {
+        let state = this.buttonStates.get(item.id);
+        if (!state) {
+            state = { running: false, banner: null };
+            this.buttonStates.set(item.id, state);
+        }
+        return state;
+    }
+
+    /** Click a button item: run its linked solution with params mapped
+     *  from the display context. */
+    async onButtonClick(item: DisplayItem): Promise<void> {
+        if (this.editMode) return;
+        const config = (item.item || {}) as ButtonDisplayConfig;
+        const state = this.getButtonState(item);
+        if (state.running) return;
+        if (!config.linkedSolutionName) {
+            state.banner = { kind: 'error', text: 'No solution is linked to this button.' };
+            return;
+        }
+        const params: Record<string, any> = {};
+        for (const [paramName, contextKey] of Object.entries(config.paramMappings || {})) {
+            params[paramName] = (this.context as any)?.[contextKey];
+        }
+        state.running = true;
+        state.banner = null;
+        try {
+            const result = await this.solutionRunner.run(
+                config.linkedSolutionName, params);
+            state.banner = result.success
+                ? { kind: 'ok', text: 'Done.' }
+                : { kind: 'error', text: result.error || 'The linked solution failed.' };
+        } finally {
+            state.running = false;
+        }
     }
 
     // ================================================================

@@ -229,7 +229,12 @@ export class DisplayManagerService {
       collapsed: item.collapsed,
       cssClass: item.cssClass || '',
       componentProps: item.componentProps || {},
-      item: item.type === 'metric' || item.type === 'text' ? item.item : null,
+      // P4 fix: form/button configs are plain JSON and MUST round-trip
+      // (they were silently dropped here, so a saved Display lost its
+      // form fields + linked solution). Graph/table items keep the
+      // null policy — their `item` holds live class instances.
+      item: ['metric', 'text', 'form', 'button'].includes(item.type)
+          ? item.item : null,
       nestedRows: (item.nestedRows || []).map(r => this.serializeRow(r))
     };
   }

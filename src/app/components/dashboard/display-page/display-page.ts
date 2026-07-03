@@ -8,6 +8,7 @@ import { Display } from '@models/dashboards/Display';
 import { DisplayRendererComponent } from '@components/dashboard/dashboard-renderer/dashboard-renderer';
 import { Subscription } from 'rxjs';
 import { registerMsimDisplayComponents } from '@components/multi-scale/msim-display-components';
+import { DisplayEventsService } from '@services/no-code-services/display-events.service';
 
 @Component({
   standalone: true,
@@ -76,10 +77,13 @@ export class DisplayPageComponent implements OnInit, OnDestroy {
   error: string | null = null;
 
   private sub?: Subscription;
+  private eventsSub?: Subscription;
+  private currentId: string | null = null;
 
   constructor(
     private route: ActivatedRoute,
-    private displayManager: DisplayManagerService
+    private displayManager: DisplayManagerService,
+    private displayEvents: DisplayEventsService
   ) {}
 
   ngOnInit(): void {
@@ -89,11 +93,18 @@ export class DisplayPageComponent implements OnInit, OnDestroy {
     this.sub = this.route.paramMap.subscribe(params => {
       const id = params.get('id');
       if (id) {
+        this.currentId = id;
         this.loadDisplay(id);
       } else {
         this.loading = false;
         this.error = 'No display ID provided.';
       }
+    });
+    // First consumer of the display event bus (P4): a no-code solution
+    // emitting an event named 'refreshDisplay' re-fetches this display's
+    // data — form saves can refresh what the page shows, no code.
+    this.eventsSub = this.displayEvents.on('refreshDisplay').subscribe(() => {
+      if (this.currentId) this.loadDisplay(this.currentId);
     });
   }
 
@@ -115,5 +126,6 @@ export class DisplayPageComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.sub?.unsubscribe();
+    this.eventsSub?.unsubscribe();
   }
 }

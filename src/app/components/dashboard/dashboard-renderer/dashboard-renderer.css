@@ -497,3 +497,29 @@
     font-size: 13px;
     text-align: center;
 }
+/* ================================================================
+   P4 — real display forms/buttons (the event/validation bridge)
+   ================================================================ */
+.df-form { display: flex; flex-direction: column; gap: 10px; padding: 10px 12px; }
+.df-form-horizontal { flex-direction: row; flex-wrap: wrap; align-items: flex-end; }
+.df-field { display: flex; flex-direction: column; gap: 4px; min-width: 160px; }
+.df-label { font-size: 12px; color: var(--text-secondary, #666); font-weight: 500; }
+.df-required { color: #e53935; margin-left: 2px; }
+.df-input {
+    padding: 7px 10px; border: 1px solid var(--border-light, #d0d0d0);
+    border-radius: 6px; font-size: 13px; background: var(--surface-primary, #fff);
+}
+.df-input:focus { outline: none; border-color: var(--brand-teal, #1976d2); }
+.df-input-invalid { border-color: #e53935; background: #fff6f6; }
+.df-checkbox { width: 18px; height: 18px; }
+.df-field-errors { display: flex; flex-direction: column; gap: 2px; }
+.df-field-errors span { color: #c62828; font-size: 11.5px; }
+.df-actions { display: flex; align-items: center; gap: 10px; }
+.df-running { font-size: 12px; color: var(--text-secondary, #666); }
+.df-banner {
+    padding: 7px 10px; border-radius: 6px; font-size: 12.5px; margin-top: 2px;
+}
+.df-banner-ok { background: #e8f5e9; color: #1b5e20; border: 1px solid #a5d6a7; }
+.df-banner-error { background: #ffebee; color: #b71c1c; border: 1px solid #ef9a9a; }
+.df-no-solution { font-size: 12px; color: #b26a00; margin: 4px 0 0; }
+.button-display-item { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; padding: 6px; }
