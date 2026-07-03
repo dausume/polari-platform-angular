@@ -22,6 +22,26 @@ import { MsimAuthoringService } from '@services/multi-scale/msim-authoring.servi
       What the page shows, in order. Every panel is a link to another
       configured object — a 3D scene, a graph, or an initial-conditions
       interface.
+      <span *ngIf="hasCustomLayout"> A <strong>custom layout</strong> is
+      active — this list is only the DEFAULT layout's starting point.</span>
+    </div>
+
+    <div class="item-card layout-actions">
+      <ng-container *ngIf="!hasCustomLayout; else customActive">
+        <button mat-stroked-button (click)="convertLayoutRequested.emit()"
+                matTooltip="Turn these panels into a Display with nestable rows & columns, edited live while everything runs">
+          <mat-icon>dashboard_customize</mat-icon>
+          Convert to custom layout (rows &amp; columns)
+        </button>
+      </ng-container>
+      <ng-template #customActive>
+        <button mat-stroked-button (click)="editLayoutRequested.emit()">
+          <mat-icon>edit</mat-icon> Edit layout live
+        </button>
+        <button mat-stroked-button (click)="revertLayoutRequested.emit()">
+          <mat-icon>undo</mat-icon> Revert to default layout
+        </button>
+      </ng-template>
     </div>
 
     <div class="item-card" *ngFor="let p of panels; let i = index">
@@ -67,6 +87,11 @@ import { MsimAuthoringService } from '@services/multi-scale/msim-authoring.servi
 export class MsimPanelsEditorComponent implements OnInit {
   @Input() panels: MsimPanel[] = [];
   @Output() panelsChange = new EventEmitter<MsimPanel[]>();
+  /** Whether the composition currently uses a custom Display layout. */
+  @Input() hasCustomLayout = false;
+  @Output() convertLayoutRequested = new EventEmitter<void>();
+  @Output() editLayoutRequested = new EventEmitter<void>();
+  @Output() revertLayoutRequested = new EventEmitter<void>();
 
   sceneNames: string[] = [];
   graphNames: string[] = [];

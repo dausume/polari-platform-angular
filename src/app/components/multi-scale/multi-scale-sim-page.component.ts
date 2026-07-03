@@ -34,6 +34,21 @@ import {
   MsimStage,
   NamedMultiScaleSimConfig,
 } from '@models/multi-scale/NamedMultiScaleSimConfig';
+import { DisplayRendererComponent } from '@components/dashboard/dashboard-renderer/dashboard-renderer';
+import { Display } from '@models/dashboards/Display';
+import { DisplayRow } from '@models/dashboards/DisplayRow';
+import { DisplayColumn } from '@models/dashboards/DisplayColumn';
+import { MsimLayoutService } from '@services/multi-scale/msim-layout.service';
+import { MsimPanelBusService } from '@services/multi-scale/msim-panel-bus.service';
+import { registerMsimDisplayComponents } from './msim-display-components';
+
+/** One button on the layout-edit palette. */
+interface PaletteOption {
+  label: string;
+  icon: string;
+  componentName: string;
+  inputs: Record<string, any>;
+}
 
 export interface StageState {
   checking: boolean;
@@ -60,6 +75,7 @@ export interface StageState {
     MatButtonModule, MatIconModule, MatProgressSpinnerModule, MatTooltipModule,
     SimSpaceViewerComponent, MsimGraphPanelComponent, MsimIcPanelComponent,
     MsimStageSearchComponent, MsimConfigureComponent, MsimGraphViewComponent,
+    DisplayRendererComponent,
   ],
   templateUrl: './multi-scale-sim-page.component.html',
   styleUrls: ['./multi-scale-sim-page.component.scss'],
@@ -92,6 +108,23 @@ export class MultiScaleSimPageComponent implements OnInit {
   stageStates = new Map<string, StageState>();
   icPreviews = new Map<string, IcInterfaceConfig>();
 
+  // --- Custom layout (the Display grid as THE layout system) ---------
+  /** The composition's layout Display when display_ref is set. */
+  customDisplay: Display | null = null;
+  customDisplayError: string | null = null;
+  /** Live layout editing (dashboard-renderer edit mode) on this page,
+   *  so modification happens while looking at the WORKING components. */
+  layoutEditMode = false;
+  layoutSaving = false;
+  layoutDirty = false;
+  private selectedCell: { row: DisplayRow, startSegment: number,
+    spanSegments: number, availableWidth: number } | null = null;
+  private selectedColumnCell: { column: DisplayColumn, startSegment: number,
+    spanSegments: number, availableHeight: number } | null = null;
+
+  @ViewChild(DisplayRendererComponent)
+  layoutRenderer?: DisplayRendererComponent;
+
   @ViewChildren(SimSpaceViewerComponent)
   viewers!: QueryList<SimSpaceViewerComponent>;
 
@@ -110,9 +143,17 @@ export class MultiScaleSimPageComponent implements OnInit {
     private msimService: MultiScaleSimDefinitionService,
     private icService: InitialConditionInterfaceService,
     private runService: SimulationRunService,
-  ) {}
+    private layoutService: MsimLayoutService,
+    private panelBus: MsimPanelBusService,
+  ) {
+    // Make the msim panels placeable inside Display layouts (idempotent).
+    registerMsimDisplayComponents();
+  }
 
   ngOnInit(): void {
+    // IC panels inside a custom Display layout report new runs via the
+    // panel bus (the renderer instantiates them dynamically).
+    this.panelBus.runCreated$.subscribe(name => this.onRunCreated(name));
     this.route.paramMap.subscribe(params => {
       const name = params.get('name');
       if (name) this.loadAll(name);
@@ -150,6 +191,7 @@ export class MultiScaleSimPageComponent implements OnInit {
         await this.loadRuns();
         this.loadIcPreviews();
         this.evaluateGates();
+        this.loadCustomLayout();
       },
       error: (err) => {
         this.errorMessage = err?.message || String(err);
@@ -286,6 +328,7 @@ export class MultiScaleSimPageComponent implements OnInit {
   async onRunSelected(): Promise<void> {
     this.evaluateGates();
     await this.refreshViewers();
+    this.panelBus.refresh$.next();
   }
 
   async play(): Promise<void> {
@@ -339,6 +382,9 @@ export class MultiScaleSimPageComponent implements OnInit {
     this.evaluateGates();
     await this.refreshViewers();
     await this.refreshGraphs();
+    // Panels living inside a custom Display layout refresh via the bus
+    // (the renderer instantiates them, so @ViewChildren can't see them).
+    this.panelBus.refresh$.next();
     // Graph-view live badges follow committed steps too.
     if (this.graphViews) {
       await Promise.all(this.graphViews.map(g => g.refresh()));
@@ -374,6 +420,202 @@ export class MultiScaleSimPageComponent implements OnInit {
   get deferredPanelCount(): number {
     return (this.config?.panels ?? [])
       .filter(p => p.kind !== 'scene' && p.kind !== 'ic' && p.kind !== 'graph').length;
+  }
+
+  // ---------------------------------------------------------------
+  // Custom layout — the Display grid as THE layout system
+  // ---------------------------------------------------------------
+
+  /** Live context the dashboard renderer merges into every msim panel
+   *  it instantiates (item inputs carry the refs; this carries the
+   *  page's current run-following state). */
+  get displayContext(): Record<string, any> {
+    return {
+      msimName: this.config?.name ?? '',
+      primaryRun: this.selectedRun,
+      comparisonRun: this.comparisonRun,
+      running: this.busy,
+      coupledRunRefs: this.selectedRunSummary?.coupledRunRefs ?? {},
+    };
+  }
+
+  private loadCustomLayout(): void {
+    this.customDisplay = null;
+    this.customDisplayError = null;
+    this.layoutEditMode = false;
+    this.layoutDirty = false;
+    const ref = this.config?.displayRef;
+    if (!ref) return;
+    this.layoutService.loadLayout(ref).subscribe({
+      next: (display) => (this.customDisplay = display),
+      error: () => {
+        this.customDisplayError =
+          'The saved custom layout could not be loaded — showing the '
+          + 'default layout instead.';
+      },
+    });
+  }
+
+  /** Build a real Display from the current panels and switch to it. */
+  async convertLayout(): Promise<void> {
+    if (!this.config || this.busy) return;
+    this.statusMessage = 'Creating your custom layout…';
+    try {
+      await this.layoutService.convertToCustomLayout(
+        this.config, !!this.comparisonRun);
+      this.loadCustomLayout();
+      this.statusMessage =
+        'Custom layout created — use "Edit layout live" to rearrange it.';
+    } catch (err: any) {
+      this.statusMessage = `Could not create the layout: ${err?.message || err}`;
+    }
+  }
+
+  toggleLayoutEdit(): void {
+    if (this.layoutEditMode && this.layoutDirty) {
+      // Leaving edit mode without saving discards draft changes.
+      this.loadCustomLayout();
+      this.statusMessage = 'Layout changes discarded.';
+      return;
+    }
+    this.layoutEditMode = !this.layoutEditMode;
+  }
+
+  async saveLayout(): Promise<void> {
+    if (!this.customDisplay || this.layoutSaving) return;
+    this.layoutSaving = true;
+    try {
+      await new Promise<void>((resolve, reject) =>
+        this.layoutService.saveLayout(this.customDisplay!).subscribe({
+          next: () => resolve(), error: reject,
+        }));
+      this.layoutDirty = false;
+      this.layoutEditMode = false;
+      this.statusMessage = 'Layout saved.';
+    } catch (err: any) {
+      this.statusMessage = `Could not save the layout: ${err?.message || err}`;
+    } finally {
+      this.layoutSaving = false;
+    }
+  }
+
+  async revertLayout(): Promise<void> {
+    if (!this.config) return;
+    try {
+      await this.layoutService.revertToDefault(this.config);
+      this.customDisplay = null;
+      this.layoutEditMode = false;
+      this.statusMessage =
+        'Back to the default layout (the custom layout is kept and can '
+        + 'be re-created).';
+    } catch (err: any) {
+      this.statusMessage = `Could not revert: ${err?.message || err}`;
+    }
+  }
+
+  /** What can be placed into a selected empty cell. */
+  get paletteOptions(): PaletteOption[] {
+    const opts: PaletteOption[] = [];
+    for (const p of this.scenePanels) {
+      opts.push({
+        label: `Scene: ${p.simSpaceRef}`, icon: 'view_in_ar',
+        componentName: 'msim-scene-panel',
+        inputs: { simSpaceRef: p.simSpaceRef, run: p.run || 'primary' },
+      });
+    }
+    if (this.scenePanels[0] && this.comparisonRun) {
+      opts.push({
+        label: 'Scenario-comparison scene', icon: 'compare',
+        componentName: 'msim-scene-panel',
+        inputs: { simSpaceRef: this.scenePanels[0].simSpaceRef, run: 'compare' },
+      });
+    }
+    for (const p of this.graphPanels) {
+      opts.push({
+        label: `Graph: ${p.graphRef}`, icon: 'show_chart',
+        componentName: 'msim-graph-panel',
+        inputs: { graphRef: p.graphRef, sourceClass: p.sourceClass || '',
+                  runs: p.runs || ['primary'] },
+      });
+    }
+    for (const p of this.icPanels) {
+      opts.push({
+        label: `Picker: ${p.icInterfaceRef}`, icon: 'tune',
+        componentName: 'msim-ic-panel',
+        inputs: { icInterfaceRef: p.icInterfaceRef },
+      });
+    }
+    return opts;
+  }
+
+  onLayoutCellSelected(ev: { row: DisplayRow, startSegment: number,
+      spanSegments: number, availableWidth: number } | null): void {
+    this.selectedCell = ev;
+    if (ev) this.selectedColumnCell = null;
+  }
+
+  onLayoutColumnCellSelected(ev: { column: DisplayColumn, startSegment: number,
+      spanSegments: number, availableHeight: number } | null): void {
+    this.selectedColumnCell = ev;
+    if (ev) this.selectedCell = null;
+  }
+
+  onLayoutItemRemoved(ev: { row: DisplayRow, itemIndex: number }): void {
+    ev.row.removeItem(ev.itemIndex);
+    this.layoutDirty = true;
+    this.layoutRenderer?.clearSelection();
+  }
+
+  onLayoutColumnItemRemoved(ev: { column: DisplayColumn, itemIndex: number }): void {
+    ev.column.removeItem(ev.itemIndex);
+    this.layoutDirty = true;
+    this.layoutRenderer?.clearColumnSelection();
+  }
+
+  /** Rail action: convert, then land in Run mode looking at the layout. */
+  async onConvertLayoutFromRail(): Promise<void> {
+    await this.convertLayout();
+    this.mode = 'run';
+  }
+
+  /** Rail action: jump to Run mode with live layout editing on. */
+  onEditLayoutFromRail(): void {
+    this.mode = 'run';
+    if (this.customDisplay) {
+      this.layoutEditMode = true;
+    } else if (this.config?.displayRef) {
+      // Layout exists but wasn't loaded yet (e.g. entered straight into
+      // Configure mode) — load it, then enter edit mode.
+      this.layoutService.loadLayout(this.config.displayRef).subscribe({
+        next: (d) => { this.customDisplay = d; this.layoutEditMode = true; },
+        error: () => (this.customDisplayError =
+          'The saved custom layout could not be loaded.'),
+      });
+    }
+  }
+
+  placeFromPalette(opt: PaletteOption): void {
+    if (this.selectedCell) {
+      const { row, startSegment, spanSegments } = this.selectedCell;
+      this.layoutService.placeItem(
+        row, startSegment, spanSegments, opt.componentName, opt.inputs,
+        opt.label);
+      this.selectedCell = null;
+      this.layoutRenderer?.clearSelection();
+      this.layoutDirty = true;
+      return;
+    }
+    if (this.selectedColumnCell) {
+      const { column, startSegment, spanSegments } = this.selectedColumnCell;
+      column.addItem(this.layoutService.buildItem(
+        startSegment, spanSegments, opt.componentName, opt.inputs, opt.label));
+      this.selectedColumnCell = null;
+      this.layoutRenderer?.clearColumnSelection();
+      this.layoutDirty = true;
+      return;
+    }
+    this.statusMessage =
+      'Click an empty cell in the grid first, then pick what goes there.';
   }
 
   resolvePanelRun(panel: MsimPanel): string | undefined {

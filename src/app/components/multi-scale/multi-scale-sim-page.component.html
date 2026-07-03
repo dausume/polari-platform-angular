@@ -52,7 +52,10 @@
         <!-- CONFIGURE MODE: the authoring rail + multi-scale editors -->
         <msim-configure *ngIf="mode === 'configure'"
             [config]="config" [initialPart]="configureInitialPart"
-            (saved)="onConfigSaved()">
+            (saved)="onConfigSaved()"
+            (convertLayoutRequested)="onConvertLayoutFromRail()"
+            (editLayoutRequested)="onEditLayoutFromRail()"
+            (revertLayoutRequested)="revertLayout()">
         </msim-configure>
 
         <!-- Run + Graph modes share the always-visible run controls (the
@@ -128,6 +131,68 @@
         </msim-graph-view>
 
         <ng-container *ngIf="mode === 'run'">
+
+        <!-- Layout mode: the Display grid (nestable rows & columns) is
+             THE layout system; the flat panel grid below is the default
+             starting point until the user customizes. -->
+        <div class="layout-toolbar">
+            <ng-container *ngIf="customDisplay; else defaultLayoutActions">
+                <span class="layout-chip">
+                    <mat-icon>dashboard_customize</mat-icon> Custom layout
+                </span>
+                <button mat-stroked-button
+                        [color]="layoutEditMode ? 'accent' : undefined"
+                        (click)="toggleLayoutEdit()">
+                    <mat-icon>edit</mat-icon>
+                    {{ layoutEditMode ? (layoutDirty ? 'Discard changes' : 'Stop editing') : 'Edit layout live' }}
+                </button>
+                <button mat-flat-button color="primary" *ngIf="layoutEditMode"
+                        (click)="saveLayout()" [disabled]="layoutSaving || !layoutDirty">
+                    <mat-icon>save</mat-icon> Save layout
+                </button>
+                <button mat-stroked-button (click)="revertLayout()"
+                        [disabled]="layoutEditMode"
+                        matTooltip="Show the default layout again (the custom one is kept)">
+                    <mat-icon>undo</mat-icon> Revert to default
+                </button>
+            </ng-container>
+            <ng-template #defaultLayoutActions>
+                <button mat-stroked-button (click)="convertLayout()" [disabled]="busy"
+                        matTooltip="Turn these panels into a Display you can rearrange live — nestable rows and columns, edited while everything keeps running">
+                    <mat-icon>dashboard_customize</mat-icon> Customize layout (rows &amp; columns)
+                </button>
+            </ng-template>
+            <span class="layout-note" *ngIf="customDisplayError">{{ customDisplayError }}</span>
+        </div>
+
+        <!-- Palette shown while editing the layout: click an empty grid
+             cell, then pick what to place there. -->
+        <div class="layout-palette" *ngIf="customDisplay && layoutEditMode">
+            <span class="palette-hint">Click an empty cell, then place:</span>
+            <button mat-stroked-button *ngFor="let opt of paletteOptions"
+                    (click)="placeFromPalette(opt)">
+                <mat-icon>{{ opt.icon }}</mat-icon> {{ opt.label }}
+            </button>
+        </div>
+
+        <!-- CUSTOM layout: the composition's Display rendered with the
+             page's live context — the same working components, arranged
+             by the user's own rows/columns. -->
+        <div class="custom-layout" *ngIf="customDisplay">
+            <dashboard-renderer
+                [dashboard]="customDisplay"
+                [context]="displayContext"
+                [editMode]="layoutEditMode"
+                [showGridlines]="layoutEditMode"
+                (cellSelected)="onLayoutCellSelected($event)"
+                (itemRemoved)="onLayoutItemRemoved($event)"
+                (columnCellSelected)="onLayoutColumnCellSelected($event)"
+                (columnItemRemoved)="onLayoutColumnItemRemoved($event)">
+            </dashboard-renderer>
+        </div>
+
+        <!-- DEFAULT layout: the flat panel grid. -->
+        <ng-container *ngIf="!customDisplay">
         <!-- Panels -->
         <div class="panel-grid">
             <!-- IC interface panels FIRST (material selection at the top,
@@ -203,6 +268,7 @@
         <p class="deferred-note" *ngIf="deferredPanelCount">
             {{ deferredPanelCount }} configured panel(s) of kinds arriving in later phases (displays) are not shown yet.
         </p>
+        </ng-container><!-- /default layout -->
         </ng-container><!-- /run-mode panels -->
         </ng-container><!-- /run+graph modes -->
     </ng-container>

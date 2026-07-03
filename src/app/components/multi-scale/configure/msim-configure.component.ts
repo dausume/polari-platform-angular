@@ -81,7 +81,11 @@ export type RailPart = 'spaces' | 'stages' | 'couplings' | 'ics'
           </msim-ic-editor>
 
           <msim-panels-editor *ngSwitchCase="'panels'"
-              [panels]="config.panels" (panelsChange)="markDirty()">
+              [panels]="config.panels" (panelsChange)="markDirty()"
+              [hasCustomLayout]="!!config.displayRef"
+              (convertLayoutRequested)="convertLayoutRequested.emit()"
+              (editLayoutRequested)="editLayoutRequested.emit()"
+              (revertLayoutRequested)="revertLayoutRequested.emit()">
           </msim-panels-editor>
 
           <div *ngSwitchCase="'runs'" class="editor-intro">
@@ -149,6 +153,10 @@ export class MsimConfigureComponent implements OnInit {
   /** Open on a specific rail part (graph-view drill-ins set this). */
   @Input() initialPart: RailPart | null = null;
   @Output() saved = new EventEmitter<void>();
+  /** Custom-layout actions (handled by the page, which owns Run mode). */
+  @Output() convertLayoutRequested = new EventEmitter<void>();
+  @Output() editLayoutRequested = new EventEmitter<void>();
+  @Output() revertLayoutRequested = new EventEmitter<void>();
 
   parts: Array<{ key: RailPart; label: string; icon: string; external?: boolean }> = [
     { key: 'spaces', label: 'Spaces', icon: 'blur_on' },

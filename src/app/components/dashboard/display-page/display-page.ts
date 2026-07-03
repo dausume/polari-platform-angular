@@ -7,6 +7,7 @@ import { DisplayManagerService } from '@services/dashboard/display-manager.servi
 import { Display } from '@models/dashboards/Display';
 import { DisplayRendererComponent } from '@components/dashboard/dashboard-renderer/dashboard-renderer';
 import { Subscription } from 'rxjs';
+import { registerMsimDisplayComponents } from '@components/multi-scale/msim-display-components';
 
 @Component({
   standalone: true,
@@ -82,6 +83,9 @@ export class DisplayPageComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    // Displays may contain multi-scale panels (scene/graph/IC pickers);
+    // make sure their components are registered before rendering.
+    registerMsimDisplayComponents();
     this.sub = this.route.paramMap.subscribe(params => {
       const id = params.get('id');
       if (id) {
