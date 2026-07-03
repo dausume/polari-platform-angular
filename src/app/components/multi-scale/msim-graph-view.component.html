@@ -1,0 +1,78 @@
+<div class="graph-shell">
+    <div class="graph-canvas">
+        <div class="graph-legend">
+            <span class="legend-item coupling"><span class="swatch"></span> coupling (sampled data)</span>
+            <span class="legend-item ic"><span class="swatch"></span> sets initial conditions</span>
+            <span class="legend-item stage"><span class="swatch dashed"></span> stage order</span>
+            <span class="legend-hint">scroll to zoom · drag to pan · click a node for details</span>
+        </div>
+        <div *ngIf="loadError" class="graph-error">
+            <mat-icon>error_outline</mat-icon> {{ loadError }}
+        </div>
+        <svg #svgHost class="graph-svg"></svg>
+    </div>
+
+    <!-- Drill-in drawer: lightweight details + jumps into Configure or
+         the detailed pages. -->
+    <aside class="graph-drawer" *ngIf="selected">
+        <div class="drawer-title">
+            <mat-icon>{{ selected.type === 'ic' ? 'tune' : 'blur_on' }}</mat-icon>
+            <span>{{ selected.label }}</span>
+            <button mat-icon-button (click)="closeDrawer()" matTooltip="Close">
+                <mat-icon>close</mat-icon>
+            </button>
+        </div>
+
+        <ng-container *ngIf="selected.type === 'sim'">
+            <p class="drawer-sub" *ngIf="selectedIntentQuestion">
+                <strong>{{ selected.intent }}</strong> — {{ selectedIntentQuestion }}
+            </p>
+            <p class="drawer-sub" *ngIf="selectedDt">time step: {{ selectedDt }}</p>
+
+            <div class="drawer-section" *ngIf="selected.gate">
+                <h4>Gate</h4>
+                <p class="gate-line" [class.ok]="selected.gate.complete === true">
+                    <mat-icon>{{ selected.gate.complete === true ? 'check_circle' : 'hourglass_empty' }}</mat-icon>
+                    {{ selected.gate.complete === true ? 'Achieved' : (selected.gate.reason || 'Not achieved yet') }}
+                </p>
+            </div>
+
+            <div class="drawer-section" *ngIf="selected.live">
+                <h4>Live state <span class="muted">({{ selected.live.run }})</span></h4>
+                <p class="drawer-sub">step {{ selected.live.step ?? '—' }}<span *ngIf="selected.live.time != null"> · t = {{ selected.live.time }}s</span></p>
+                <table class="kv-table">
+                    <tr *ngFor="let row of selectedState">
+                        <td class="k">{{ row.k }}</td><td class="v">{{ row.v }}</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="drawer-section" *ngIf="selectedParams.length">
+                <h4>Parameters</h4>
+                <table class="kv-table">
+                    <tr *ngFor="let row of selectedParams">
+                        <td class="k">{{ row.k }}</td><td class="v">{{ row.v }}</td>
+                    </tr>
+                </table>
+            </div>
+        </ng-container>
+
+        <ng-container *ngIf="selected.type === 'ic' && selectedIc">
+            <p class="drawer-sub">{{ selectedIc.label }} — feeds
+                <strong>{{ selectedIc.targetSimulationRef }}</strong></p>
+            <div class="drawer-section">
+                <h4>Choices</h4>
+                <span class="choice-chip" *ngFor="let c of selectedIc.choices">{{ c.label }}</span>
+            </div>
+        </ng-container>
+
+        <div class="drawer-actions">
+            <button mat-flat-button color="primary" (click)="configureSelected()">
+                <mat-icon>build</mat-icon> Configure
+            </button>
+            <button mat-stroked-button *ngIf="selected.type === 'sim'" (click)="openSelectedPages()">
+                <mat-icon>open_in_new</mat-icon> Open its pages
+            </button>
+        </div>
+    </aside>
+</div>

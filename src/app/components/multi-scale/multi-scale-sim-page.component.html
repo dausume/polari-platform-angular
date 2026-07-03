@@ -20,6 +20,10 @@
                             (click)="mode = 'run'">
                         <mat-icon>play_circle</mat-icon> Run
                     </button>
+                    <button mat-stroked-button [color]="mode === 'graph' ? 'primary' : undefined"
+                            (click)="mode = 'graph'">
+                        <mat-icon>account_tree</mat-icon> Graph
+                    </button>
                     <button mat-stroked-button [color]="mode === 'configure' ? 'primary' : undefined"
                             (click)="mode = 'configure'">
                         <mat-icon>build</mat-icon> Configure
@@ -47,12 +51,16 @@
 
         <!-- CONFIGURE MODE: the authoring rail + multi-scale editors -->
         <msim-configure *ngIf="mode === 'configure'"
-            [config]="config" (saved)="onConfigSaved()">
+            [config]="config" [initialPart]="configureInitialPart"
+            (saved)="onConfigSaved()">
         </msim-configure>
 
-        <ng-container *ngIf="mode === 'run'">
-        <!-- Stage progression stepper -->
-        <div class="stage-strip" *ngIf="stages.length">
+        <!-- Run + Graph modes share the always-visible run controls (the
+             menu needed for running never hides). -->
+        <ng-container *ngIf="mode !== 'configure'">
+        <!-- Stage progression stepper (run mode; the graph draws gates
+             as badges on the nodes instead) -->
+        <div class="stage-strip" *ngIf="mode === 'run' && stages.length">
             <div class="stage-chip" *ngFor="let stage of stages; let i = index"
                  [class.complete]="stageState(stage).complete === true"
                  [class.blocked]="stageState(stage).complete === false">
@@ -108,6 +116,18 @@
             </span>
         </div>
 
+        <!-- GRAPH MODE: the composition drawn as the node graph it is —
+             spaces + logic spaces as nodes, what flows between them as
+             labeled edges, live state on the nodes while stepping. -->
+        <msim-graph-view *ngIf="mode === 'graph'"
+            [config]="config"
+            [selectedRunSummary]="selectedRunSummary"
+            [stageStates]="stageStates"
+            [running]="busy"
+            (configureRequested)="onConfigureRequested($event)">
+        </msim-graph-view>
+
+        <ng-container *ngIf="mode === 'run'">
         <!-- Panels -->
         <div class="panel-grid">
             <!-- IC interface panels FIRST (material selection at the top,
@@ -183,6 +203,7 @@
         <p class="deferred-note" *ngIf="deferredPanelCount">
             {{ deferredPanelCount }} configured panel(s) of kinds arriving in later phases (displays) are not shown yet.
         </p>
-        </ng-container><!-- /run mode -->
+        </ng-container><!-- /run-mode panels -->
+        </ng-container><!-- /run+graph modes -->
     </ng-container>
 </div>

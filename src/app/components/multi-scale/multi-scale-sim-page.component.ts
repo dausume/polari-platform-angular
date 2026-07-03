@@ -13,7 +13,10 @@ import { SimSpaceViewerComponent } from '@components/sim-space/sim-space-viewer/
 import { MsimGraphPanelComponent } from '@components/multi-scale/msim-graph-panel.component';
 import { MsimIcPanelComponent } from '@components/multi-scale/msim-ic-panel.component';
 import { MsimStageSearchComponent } from '@components/multi-scale/msim-stage-search.component';
-import { MsimConfigureComponent } from '@components/multi-scale/configure/msim-configure.component';
+import { MsimGraphViewComponent } from '@components/multi-scale/msim-graph-view.component';
+import {
+  MsimConfigureComponent, RailPart,
+} from '@components/multi-scale/configure/msim-configure.component';
 import {
   MultiScaleSimDefinitionService,
   StageGateVerdict,
@@ -32,7 +35,7 @@ import {
   NamedMultiScaleSimConfig,
 } from '@models/multi-scale/NamedMultiScaleSimConfig';
 
-interface StageState {
+export interface StageState {
   checking: boolean;
   complete: boolean | null; // null = not evaluated yet
   reason: string;
@@ -56,7 +59,7 @@ interface StageState {
     CommonModule, FormsModule, RouterModule,
     MatButtonModule, MatIconModule, MatProgressSpinnerModule, MatTooltipModule,
     SimSpaceViewerComponent, MsimGraphPanelComponent, MsimIcPanelComponent,
-    MsimStageSearchComponent, MsimConfigureComponent,
+    MsimStageSearchComponent, MsimConfigureComponent, MsimGraphViewComponent,
   ],
   templateUrl: './multi-scale-sim-page.component.html',
   styleUrls: ['./multi-scale-sim-page.component.scss'],
@@ -65,8 +68,11 @@ export class MultiScaleSimPageComponent implements OnInit {
   config: NamedMultiScaleSimConfig | null = null;
   errorMessage: string | null = null;
 
-  /** Run mode plays it; Configure mode is the authoring rail. */
-  mode: 'run' | 'configure' = 'run';
+  /** Run mode plays it; Graph mode draws the composition as the node
+   *  graph it is; Configure mode is the authoring rail. */
+  mode: 'run' | 'graph' | 'configure' = 'run';
+  /** Rail part Configure mode should open on (set by graph drill-ins). */
+  configureInitialPart: RailPart | null = null;
 
   runs: SimulationRunSummary[] = [];
   selectedRun: string | null = null;
@@ -95,6 +101,9 @@ export class MultiScaleSimPageComponent implements OnInit {
   @ViewChildren(MsimGraphPanelComponent)
   graphPanelCmps!: QueryList<MsimGraphPanelComponent>;
 
+  @ViewChildren(MsimGraphViewComponent)
+  graphViews!: QueryList<MsimGraphViewComponent>;
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -116,6 +125,12 @@ export class MultiScaleSimPageComponent implements OnInit {
 
   toggleMode(): void {
     this.mode = this.mode === 'run' ? 'configure' : 'run';
+  }
+
+  /** A graph-view drill-in asked to configure something specific. */
+  onConfigureRequested(part: string): void {
+    this.configureInitialPart = part as RailPart;
+    this.mode = 'configure';
   }
 
   /** Configure mode saved the definition — reload everything. */
@@ -324,6 +339,10 @@ export class MultiScaleSimPageComponent implements OnInit {
     this.evaluateGates();
     await this.refreshViewers();
     await this.refreshGraphs();
+    // Graph-view live badges follow committed steps too.
+    if (this.graphViews) {
+      await Promise.all(this.graphViews.map(g => g.refresh()));
+    }
   }
 
   private async refreshViewers(): Promise<void> {

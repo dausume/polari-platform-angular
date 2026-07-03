@@ -17,7 +17,7 @@ import { MsimCouplingEditorComponent } from './msim-coupling-editor.component';
 import { MsimIcEditorComponent } from './msim-ic-editor.component';
 import { MsimPanelsEditorComponent } from './msim-panels-editor.component';
 
-type RailPart = 'spaces' | 'stages' | 'couplings' | 'ics'
+export type RailPart = 'spaces' | 'stages' | 'couplings' | 'ics'
   | 'scenes' | 'graphs' | 'panels' | 'runs';
 
 /**
@@ -146,6 +146,8 @@ type RailPart = 'spaces' | 'stages' | 'couplings' | 'ics'
 })
 export class MsimConfigureComponent implements OnInit {
   @Input({ required: true }) config!: NamedMultiScaleSimConfig;
+  /** Open on a specific rail part (graph-view drill-ins set this). */
+  @Input() initialPart: RailPart | null = null;
   @Output() saved = new EventEmitter<void>();
 
   parts: Array<{ key: RailPart; label: string; icon: string; external?: boolean }> = [
@@ -168,7 +170,13 @@ export class MsimConfigureComponent implements OnInit {
 
   constructor(private authoring: MsimAuthoringService, private router: Router) {}
 
-  ngOnInit(): void { this.validate(); }
+  ngOnInit(): void {
+    if (this.initialPart && this.initialPart !== 'scenes'
+        && this.initialPart !== 'graphs') {
+      this.activePart = this.initialPart;
+    }
+    this.validate();
+  }
 
   get firstIcRef(): string {
     return this.config.panels.find(p => p.kind === 'ic')?.icInterfaceRef ?? '';
