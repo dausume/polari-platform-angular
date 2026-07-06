@@ -11,6 +11,9 @@ import { DisplayColumn } from '@models/dashboards/DisplayColumn';
 import { DisplayItem, DisplayItemType, MetricData, FormDisplayConfig, ButtonDisplayConfig } from '@models/dashboards/DisplayItem';
 import { DISPLAY_COMPONENT_REGISTRY } from '@models/dashboards/ComponentRegistry';
 import { DisplayMetricCardComponent } from '@components/dashboard/dashboard-metric-card/dashboard-metric-card';
+import {
+  ScreenSupportNoticeComponent, SupportedScreen,
+} from '@components/shared/screen-support-notice/screen-support-notice.component';
 import { DisplaySolutionRunnerService } from '@services/no-code-services/display-solution-runner.service';
 
 /**
@@ -63,7 +66,7 @@ export interface GridCell {
     selector: 'dashboard-renderer',
     templateUrl: './dashboard-renderer.html',
     styleUrls: ['./dashboard-renderer.css'],
-    imports: [CommonModule, MatIconModule, MatButtonModule, ReactiveFormsModule, DisplayMetricCardComponent]
+    imports: [CommonModule, MatIconModule, MatButtonModule, ReactiveFormsModule, DisplayMetricCardComponent, ScreenSupportNoticeComponent]
 })
 export class DisplayRendererComponent implements OnInit, OnChanges, AfterViewInit, OnDestroy {
     /** The dashboard model to render */
@@ -757,8 +760,18 @@ export class DisplayRendererComponent implements OnInit, OnChanges, AfterViewIni
         const componentName = item.componentProps?.componentName;
         const entry = componentName ? DISPLAY_COMPONENT_REGISTRY.getComponent(componentName) : null;
         const defaultInputs = entry?.defaultInputs || {};
-        const itemInputs = item.componentProps?.inputs || {};
+        // `supportedScreen` is the renderer-level disclaimer knob, not a
+        // component input — consumed by screen-support-notice instead.
+        const { supportedScreen, ...itemInputs } =
+            item.componentProps?.inputs || {};
         return { ...this.context, ...defaultInputs, ...itemInputs };
+    }
+
+    /** The item's declared supported-screen range (disclaimer knob). */
+    supportedScreenOf(item: DisplayItem): SupportedScreen | null {
+        const support = item.componentProps?.inputs?.['supportedScreen'];
+        return support && typeof support === 'object'
+            ? support as SupportedScreen : null;
     }
 
     // ================================================================

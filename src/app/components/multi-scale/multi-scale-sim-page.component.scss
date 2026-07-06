@@ -84,6 +84,22 @@
   grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
 }
 
+// PHONE ADAPTATION: config is authored for desktop; below tablet width
+// automation takes over — one full-width panel column (the 480px grid
+// minimum would overflow), tighter chrome, full-width run picker. The
+// 3D scenes adapt themselves (fixed-camera auto-fit + screenProfiles).
+@media (max-width: 700px) {
+  .panel-grid { grid-template-columns: 1fr; gap: 12px; }
+  .run-controls {
+    gap: 6px; padding: 8px 10px;
+    .run-select { min-width: 0; width: 100%; }
+    .run-status, .run-hint { flex-basis: 100%; }
+  }
+  .stage-strip { flex-direction: column; }
+  .msim-title-row h1 { font-size: 1.25rem; }
+  .member-chips { gap: 4px; }
+}
+
 .panel-card {
   border-radius: 12px; overflow: hidden;
   background: var(--surface-primary, #fff);

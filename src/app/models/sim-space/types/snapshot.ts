@@ -104,6 +104,12 @@ export interface SimSpaceCameraConfig {
   up?: [number, number, number];
   projection?: 'perspective' | 'orthographic';
   fov?: number;
+  /** Fixed cameras auto-fit the scene extent to the live host aspect
+   *  by default (the authored pose is the desktop baseline; phones zoom
+   *  out along the same view direction). 'off' pins the exact pose. */
+  fit?: 'auto' | 'off';
+  /** Auto-fit breathing room (default 1.15). */
+  fitMargin?: number;
 }
 
 export interface SimSpaceAxisLabel {

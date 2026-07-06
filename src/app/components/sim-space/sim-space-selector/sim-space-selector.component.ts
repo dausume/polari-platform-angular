@@ -28,6 +28,12 @@ import {
 import {
   MaterialChoicePopupComponent, MaterialChoicePopupData,
 } from '@components/sim-space/selection-overlays/material-choice-overlay/material-choice-popup.component';
+import {
+  ElementChoiceOverlayComponent,
+} from '@components/sim-space/selection-overlays/element-choice-overlay/element-choice-overlay.component';
+import {
+  ElementChoicePopupComponent, ElementChoicePopupData, ElementChoiceResult,
+} from '@components/sim-space/selection-overlays/element-choice-overlay/element-choice-popup.component';
 
 /** One selectable object of the space (all knobs — pure config). */
 export interface SelectorItem {
@@ -40,6 +46,12 @@ export interface SelectorItem {
   description?: string;
   /** Open the details popup from the overlay's expand button. */
   popup?: boolean;
+  /** VARIANTS of this choice (e.g. an element's ions) — offered in the
+   *  popup; picking one publishes {key, variant} instead of key. */
+  variants?: string[];
+  /** Extra inputs forwarded verbatim to the overlay component (e.g.
+   *  atomicNumber/elementName for element-choice) — pure config. */
+  overlayInputs?: Record<string, unknown>;
 }
 
 /**
@@ -105,8 +117,9 @@ export class SimSpaceSelectorComponent implements AfterViewInit, OnDestroy {
     private selectionContext: DisplaySelectionContextService,
     private proofService: MsimProofService,
   ) {
-    // Idempotent — the built-in material-choice overlay kind.
+    // Idempotent — the built-in overlay kinds.
     registerSelectionOverlay('material-choice', MaterialChoiceOverlayComponent);
+    registerSelectionOverlay('element-choice', ElementChoiceOverlayComponent);
     this.orchestrator = new SelectorOverlayOrchestrator(overlayManager);
   }
 
@@ -134,14 +147,24 @@ export class SimSpaceSelectorComponent implements AfterViewInit, OnDestroy {
   onObjectClicked(objectId: string | null): void {
     const item = this.items.find(i => i.objectId === objectId);
     if (!item) return;
+    // Items WITH variants (an element's ions) open the popup on click —
+    // the selection needs the variant decision; plain items select
+    // directly.
+    if (item.variants?.length && item.popup !== false) {
+      this.select(item.key);
+      this.openPopup(item.key);
+      return;
+    }
     this.select(item.key);
   }
 
-  select(key: string): void {
+  select(key: string, variant?: string): void {
     if (!this.items.some(i => i.key === key)) return;
     this.selectedKey = key;
     // Publish for siblings (the IC picker follows via followContextKey).
-    this.selectionContext.publish(this.contextKey, key);
+    // A variant selection (an ion) publishes the pair.
+    this.selectionContext.publish(
+      this.contextKey, variant ? { key, variant } : key);
     const selected = this.items.find(i => i.key === key);
     this.viewer.getRenderer()?.setSelection(
       selected ? [selected.objectId] : []);
@@ -160,6 +183,7 @@ export class SimSpaceSelectorComponent implements AfterViewInit, OnDestroy {
         description: item.description ?? '',
         proofState: this.proofStateOf(item.key),
         selected: false,
+        ...(item.overlayInputs ?? {}),
       },
     })));
 
@@ -221,6 +245,22 @@ export class SimSpaceSelectorComponent implements AfterViewInit, OnDestroy {
   private openPopup(key: string): void {
     const item = this.items.find(i => i.key === key);
     if (!item || item.popup === false) return;
+    // Popup kind follows the overlay kind (the item's overlayRef knob).
+    // Both use the SAME MatDialog wiring the 2D state overlays use.
+    if ((item.overlayRef || 'material-choice') === 'element-choice') {
+      const data: ElementChoicePopupData = {
+        key: item.key,
+        label: `${item.label}${item.description ? ' — ' + item.description : ''}`,
+        description: item.description ?? '',
+        variants: item.variants ?? [],
+      };
+      this.dialog.open(ElementChoicePopupComponent, {
+        data, panelClass: 'state-overlay-popup-panel', maxWidth: '480px',
+      }).afterClosed().subscribe((result?: ElementChoiceResult) => {
+        if (result?.select) this.select(key, result.variant);
+      });
+      return;
+    }
     const data: MaterialChoicePopupData = {
       key: item.key,
       label: item.label,
@@ -230,7 +270,6 @@ export class SimSpaceSelectorComponent implements AfterViewInit, OnDestroy {
       msimName: this.msimName,
       stageKey: this.stageKey,
     };
-    // Same panel class the 2D state-overlay popups use.
     this.dialog.open(MaterialChoicePopupComponent, {
       data, panelClass: 'state-overlay-popup-panel', maxWidth: '640px',
     }).afterClosed().subscribe(result => {

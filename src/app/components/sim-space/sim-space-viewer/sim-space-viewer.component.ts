@@ -29,6 +29,10 @@ import { Router } from '@angular/router';
 import { SimSpaceRendererFactory } from '@services/sim-space/sim-space-renderer-factory.service';
 import { SimSpaceRenderer } from '@services/sim-space/sim-space-renderer.interface';
 import { SimSpaceService } from '@services/sim-space/sim-space.service';
+import {
+  ScreenProfile, applyProfileToDefinition, applyProfileToObjects,
+  parseScreenProfiles, resolveScreenProfile,
+} from '@services/sim-space/screen-profiles';
 import { Shape2DLibraryService } from '@services/sim-space-2d/shape-2d-library.service';
 import { Style2DLibraryService } from '@services/sim-space-2d/style-2d-library.service';
 import { Mesh3DLibraryService } from '@services/sim-space-3d/mesh-3d-library.service';
@@ -302,6 +306,10 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
   temporalCumulative = false;
   currentTime = 0;
 
+  /** Screen-profile adaptation (definition blob `screenProfiles`). */
+  private screenProfiles: ScreenProfile[] = [];
+  private activeScreenProfile: ScreenProfile | null = null;
+
   private renderer: SimSpaceRenderer | null = null;
   /** In-flight renderer creation, shared across concurrent load() calls.
    *  rendererFactory.create() is async (it dynamic-imports `three`), so a
@@ -442,7 +450,10 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
     ]);
     if (this.simSpaceName) await this.load(this.simSpaceName);
     if (typeof ResizeObserver !== 'undefined') {
-      this.resizeObserver = new ResizeObserver(() => this.renderer?.onHostResize());
+      this.resizeObserver = new ResizeObserver(() => {
+        this.renderer?.onHostResize();
+        this.onHostWidthChanged();
+      });
       this.resizeObserver.observe(this.hostRef.nativeElement);
     }
   }
@@ -532,8 +543,15 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
       this.snapshot = snap;
       this.computeTemporalState(snap);
 
+      // Screen profiles: the authored config is the desktop baseline;
+      // a narrow host activates the matching profile's overrides.
+      this.screenProfiles = parseScreenProfiles(snap.definition.definition);
+      this.activeScreenProfile = resolveScreenProfile(
+        this.screenProfiles, this.hostRef.nativeElement.clientWidth);
+
       const renderer = await this.ensureRenderer(snap.definition.dimensionality);
-      renderer.loadDefinition(snap.definition);
+      renderer.loadDefinition(applyProfileToDefinition(
+        snap.definition, this.activeScreenProfile));
       renderer.setObjects(this.visibleObjects());
       renderer.setConnections(this.visibleConnections());
       renderer.setVectors(this.visibleVectors());
@@ -696,10 +714,16 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
     return snapshotMode ? (o.classRef?.className ?? o.id) : o.id;
   }
 
+  /** Active screen profile's per-object patches (no profile = as-is). */
+  private withProfile(objects: SimSpaceObject[]): SimSpaceObject[] {
+    return applyProfileToObjects(objects, this.activeScreenProfile);
+  }
+
   private visibleObjects(): SimSpaceObject[] {
     if (!this.snapshot) return [];
     if (!this.hasTemporal) {
-      return this.snapshot.objects.map(o => (o.trackKey = this.trackKeyFor(o), o));
+      return this.withProfile(
+        this.snapshot.objects.map(o => (o.trackKey = this.trackKeyFor(o), o)));
     }
 
     const cumulative = this.temporalCumulative;
@@ -717,7 +741,8 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
       for (const obj of temporal) {
         if (obj.temporalValue! <= this.currentTime) result.push(obj);
       }
-      return result.map(o => (o.trackKey = this.trackKeyFor(o), o));
+      return this.withProfile(
+        result.map(o => (o.trackKey = this.trackKeyFor(o), o)));
     }
     // Snapshot mode: pick the most-recent-but-not-exceeding object per
     // class. Two pendulums in the same scene would each show one bob.
@@ -730,8 +755,9 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
         latestByClass.set(key, obj);
       }
     }
-    return result.concat(Array.from(latestByClass.values()))
-      .map(o => (o.trackKey = this.trackKeyFor(o), o));
+    return this.withProfile(
+      result.concat(Array.from(latestByClass.values()))
+        .map(o => (o.trackKey = this.trackKeyFor(o), o)));
   }
 
   /**
@@ -837,6 +863,19 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
    *  the first load completes. */
   getRenderer(): SimSpaceRenderer | null {
     return this.renderer;
+  }
+
+  /** A host resize may cross a screen-profile breakpoint — re-apply the
+   *  (possibly different) profile's camera + object overrides. */
+  private onHostWidthChanged(): void {
+    if (!this.screenProfiles.length || !this.renderer || !this.snapshot) return;
+    const next = resolveScreenProfile(
+      this.screenProfiles, this.hostRef.nativeElement.clientWidth);
+    if (next?.name === this.activeScreenProfile?.name) return;
+    this.activeScreenProfile = next;
+    this.renderer.loadDefinition(applyProfileToDefinition(
+      this.snapshot.definition, next));
+    this.renderer.setObjects(this.visibleObjects());
   }
 
   /** The canvas host element — overlay anchors need its viewport rect. */

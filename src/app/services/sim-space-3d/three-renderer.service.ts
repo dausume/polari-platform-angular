@@ -201,10 +201,11 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
   loadDefinition(def: SimSpaceDefinitionPayload): void {
     this.definition = def;
     // Explicit camera config wins over the viewport framing heuristic;
-    // a FIXED camera also locks navigation (selection spaces).
+    // a FIXED camera also locks navigation (selection spaces) and
+    // auto-fits the scene extent to the live host aspect.
     if (this.camera && def.camera
         && (def.camera.mode === 'fixed' || hasExplicitPose(def.camera))) {
-      applyCameraConfig(this.camera, this.controls, def.camera);
+      this.applyConfiguredCamera();
       this.onViewChange?.();
       this.repositionOverlays();
       return;
@@ -231,6 +232,26 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
     this.onViewChange?.();
   }
 
+  /** (Re)apply the definition's camera config at the CURRENT host
+   *  aspect — called on load and on every host resize so fixed cameras
+   *  keep the whole scene visible on any screen. */
+  private applyConfiguredCamera(): void {
+    if (!this.camera || !this.definition?.camera) return;
+    const { width, height } = this.hostBox();
+    const viewport = this.definition.viewport;
+    applyCameraConfig(
+      this.camera, this.controls, this.definition.camera,
+      viewport
+        ? {
+            center: [viewport.center[0] ?? 0, viewport.center[1] ?? 0,
+                     viewport.center[2] ?? 0],
+            extent: [viewport.extent[0] ?? 1, viewport.extent[1] ?? 1,
+                     viewport.extent[2] ?? 1],
+          }
+        : null,
+      width / Math.max(height, 1));
+  }
+
   onHostResize(): void {
     if (!this.renderer || !this.camera) return;
     const { width, height } = this.hostBox();
@@ -246,6 +267,11 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
       this.camera.bottom = -halfH;
     }
     this.camera.updateProjectionMatrix();
+    // A FIXED camera re-fits to the new aspect (responsive auto-fit).
+    if (this.definition?.camera?.mode === 'fixed') {
+      this.applyConfiguredCamera();
+      this.onViewChange?.();
+    }
     this.repositionOverlays();
   }
 

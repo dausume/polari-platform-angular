@@ -17,6 +17,12 @@
                  let-spanSegments="spanSegments" let-parentSegments="parentSegments">
         <ng-container [ngSwitch]="item.type">
             <ng-container *ngSwitchCase="'component'">
+                <!-- supportedScreen knob: a component declares the width
+                     range it was built for; outside it a disclaimer shows
+                     instead of silently degrading. -->
+                <screen-support-notice *ngIf="supportedScreenOf(item)"
+                    [support]="supportedScreenOf(item)">
+                </screen-support-notice>
                 <ng-container *ngIf="getComponent(item) as component">
                     <ng-container *ngComponentOutlet="component; inputs: getComponentInputs(item)"></ng-container>
                 </ng-container>
