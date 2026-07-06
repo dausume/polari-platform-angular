@@ -116,6 +116,20 @@
         <input matInput type="number" [ngModel]="config.graphConfig.options.height" (ngModelChange)="onHeightChange($event)" min="100" max="1200">
       </mat-form-field>
 
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>X-axis label (units)</mat-label>
+        <input matInput type="text" placeholder="e.g. time (s)"
+               [ngModel]="config.graphConfig.options.xLabel"
+               (ngModelChange)="onXLabelChange($event)">
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Y-axis label (units)</mat-label>
+        <input matInput type="text" placeholder="e.g. temperature (K)"
+               [ngModel]="config.graphConfig.options.yLabel"
+               (ngModelChange)="onYLabelChange($event)">
+      </mat-form-field>
+
       <mat-slide-toggle
         [checked]="config.graphConfig.options.showLegend"
         (change)="onLegendToggle($event.checked)">

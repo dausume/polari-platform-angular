@@ -9,6 +9,10 @@ export interface ProofEvent {
   stageKey: string;
   substanceKey: string;
   substanceLabel: string;
+  /** The substance's physical identity (melting line etc.) — lets
+   *  explainability views draw the analytic melt line the attempts
+   *  were judged against. */
+  substanceParams?: Record<string, number>;
   /** null = proof was cleared ("Try again"). */
   report: StageSearchReport | null;
 }
@@ -40,9 +44,12 @@ export class MsimProofService {
   }
 
   set(msim: string, stageKey: string, substanceKey: string,
-      substanceLabel: string, report: StageSearchReport): void {
+      substanceLabel: string, report: StageSearchReport,
+      substanceParams?: Record<string, number>): void {
     this.cache.set(this.key(msim, stageKey, substanceKey), report);
-    this.proofChanged$.next({ msim, stageKey, substanceKey, substanceLabel, report });
+    this.proofChanged$.next({
+      msim, stageKey, substanceKey, substanceLabel, substanceParams, report,
+    });
   }
 
   clear(msim: string, stageKey: string, substanceKey: string,

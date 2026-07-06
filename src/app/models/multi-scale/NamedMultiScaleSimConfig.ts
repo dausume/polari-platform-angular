@@ -27,7 +27,7 @@ export interface MsimStage {
   simulationRef?: string;
   primarySimulationRef?: string;
   couplingRefs?: string[];
-  gate?: { solutionRef?: string };
+  gate?: { solutionRef?: string; failReason?: string };
   derive?: {
     params?: Record<string, string>;
     fields?: Record<string, string>;
@@ -47,14 +47,36 @@ export interface MsimStage {
 
 /** One entry of panels_json — a ref to another definition object. */
 export interface MsimPanel {
-  kind: string; // 'scene' | 'graph' | 'ic' | 'display'
+  kind: string; // 'scene' | 'graph' | 'ic' | 'explainer' | 'display'
   simSpaceRef?: string;
-  run?: string; // 'primary' | a run name
+  /** 'primary' | 'stage:<stageKey>' | a run name. */
+  run?: string;
   graphRef?: string;
   sourceClass?: string;
+  /** 'primary' | 'compare' | 'stage:<stageKey>' | run names. */
   runs?: string[];
   icInterfaceRef?: string;
   displayId?: string;
+  /** kind:'graph' only — pivot this graph across a FAMILY of materials
+   *  (the IC interface's choices) tied to a stage: per-material tabs +
+   *  an all-materials comparison chart. */
+  family?: {
+    icInterfaceRef: string;
+    stageKey: string;
+    /** Fields joining the combined chart (default: the graph's own
+     *  yDimensions). */
+    combineFields?: string[];
+  };
+  // --- kind:'explainer' — a stage's narrative + live config facts.
+  // All show* flags are knobs (default true); body is editable config.
+  stageKey?: string;
+  title?: string;
+  body?: string;
+  showSearchSpace?: boolean;
+  showGate?: boolean;
+  showDerive?: boolean;
+  showConditionMap?: boolean;
+  showMeltLine?: boolean;
 }
 
 export class NamedMultiScaleSimConfig {

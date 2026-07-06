@@ -112,6 +112,16 @@ export class GraphConfigSidebarComponent implements OnChanges {
     }
   }
 
+  onXLabelChange(value: string): void {
+    this.config.graphConfig.options.xLabel = value || undefined;
+    this.emitChange();
+  }
+
+  onYLabelChange(value: string): void {
+    this.config.graphConfig.options.yLabel = value || undefined;
+    this.emitChange();
+  }
+
   onLegendToggle(value: boolean): void {
     this.config.graphConfig.options.showLegend = value;
     this.emitChange();

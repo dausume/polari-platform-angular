@@ -42,6 +42,11 @@ import { DisplayColumn } from '@models/dashboards/DisplayColumn';
 import { MsimLayoutService } from '@services/multi-scale/msim-layout.service';
 import { MsimPanelBusService } from '@services/multi-scale/msim-panel-bus.service';
 import { MsimProofService } from '@services/multi-scale/msim-proof.service';
+import { MsimStageRunService } from '@services/multi-scale/msim-stage-run.service';
+import { MsimMemberInfoService } from '@services/multi-scale/msim-member-info.service';
+import { MsimMemberInfoComponent } from './msim-member-info.component';
+import { MsimExplainerPanelComponent } from './msim-explainer-panel.component';
+import { MsimFamilyGraphPanelComponent } from './msim-family-graph-panel.component';
 import { registerMsimDisplayComponents } from './msim-display-components';
 
 /** One button on the layout-edit palette. */
@@ -77,6 +82,8 @@ export interface StageState {
     MatButtonModule, MatIconModule, MatProgressSpinnerModule, MatTooltipModule,
     SimSpaceViewerComponent, MsimGraphPanelComponent, MsimIcPanelComponent,
     MsimStageSearchComponent, MsimConfigureComponent, MsimGraphViewComponent,
+    MsimMemberInfoComponent, MsimExplainerPanelComponent,
+    MsimFamilyGraphPanelComponent,
     DisplayRendererComponent,
   ],
   templateUrl: './multi-scale-sim-page.component.html',
@@ -92,6 +99,12 @@ export class MultiScaleSimPageComponent implements OnInit, OnDestroy {
    *  stage key. */
   private proofStates = new Map<string, { complete: boolean; reason: string }>();
   private proofSub: Subscription | null = null;
+  private stageRunSub: Subscription | null = null;
+
+  /** Concrete run per stage key — the sync lookup behind the
+   *  'stage:<key>' run token in scene panels (graph panels resolve
+   *  their own tokens). */
+  private stageRunByKey = new Map<string, string>();
 
   /** Run mode plays it; Graph mode draws the composition as the node
    *  graph it is; Configure mode is the authoring rail. */
@@ -155,6 +168,8 @@ export class MultiScaleSimPageComponent implements OnInit, OnDestroy {
     private layoutService: MsimLayoutService,
     private panelBus: MsimPanelBusService,
     private proofService: MsimProofService,
+    private stageRunService: MsimStageRunService,
+    private memberInfoService: MsimMemberInfoService,
   ) {
     // Make the msim panels placeable inside Display layouts (idempotent).
     registerMsimDisplayComponents();
@@ -175,6 +190,11 @@ export class MultiScaleSimPageComponent implements OnInit, OnDestroy {
     // Milestone B: a material picker's proof result speaks for its
     // stage — the chip shows the selected substance's verdict rather
     // than the generic newest-run gate check.
+    // A landed/cleared proof re-pins scene panels using 'stage:<key>'.
+    this.stageRunSub = this.stageRunService.stageRunChanged$.subscribe(ev => {
+      if (!this.config || ev.msim !== this.config.name) return;
+      void this.resolveStagePanelRuns().then(() => this.refreshViewers());
+    });
     this.proofSub = this.proofService.proofChanged$.subscribe(ev => {
       if (!this.config || ev.msim !== this.config.name) return;
       if (ev.report === null) {
@@ -205,6 +225,7 @@ export class MultiScaleSimPageComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.proofSub?.unsubscribe();
+    this.stageRunSub?.unsubscribe();
   }
 
   toggleMode(): void {
@@ -219,6 +240,7 @@ export class MultiScaleSimPageComponent implements OnInit, OnDestroy {
 
   /** Configure mode saved the definition — reload everything. */
   onConfigSaved(): void {
+    this.memberInfoService.invalidate();
     if (this.config) this.loadAll(this.config.name);
   }
 
@@ -232,6 +254,7 @@ export class MultiScaleSimPageComponent implements OnInit, OnDestroy {
       next: async (cfg) => {
         this.config = cfg;
         await this.loadRuns();
+        await this.resolveStagePanelRuns();
         this.loadIcPreviews();
         this.evaluateGates();
         this.loadCustomLayout();
@@ -374,6 +397,37 @@ export class MultiScaleSimPageComponent implements OnInit, OnDestroy {
     return stage.label || stage.key;
   }
 
+  /** The member sim's role in THIS composition (for its info popover). */
+  memberRole(sim: string): string {
+    if (!this.config) return '';
+    if (sim === this.config.primarySimulationRef) {
+      return 'Primary — the simulation you drive with Play/Step.';
+    }
+    const stage = this.stages.find(
+      s => s.kind !== 'coStep' && s.simulationRef === sim);
+    if (stage) {
+      return `Precondition stage "${this.stageLabel(stage)}" — runs to `
+        + 'completion and must pass its gate before the pendulum swings.';
+    }
+    return 'Coupled source — advances itself; the primary simulation '
+      + 'samples it while stepping.';
+  }
+
+  /** Resolve every 'stage:<key>' scene-panel run token to a concrete
+   *  run (sync-readable by resolvePanelRun). */
+  private async resolveStagePanelRuns(): Promise<void> {
+    if (!this.config) return;
+    const tokens = (this.config.panels ?? [])
+      .map(p => p.run)
+      .filter((r): r is string => this.stageRunService.isStageToken(r));
+    for (const token of new Set(tokens)) {
+      const stageKey = this.stageRunService.stageKeyOf(token);
+      const run = await this.stageRunService.resolve(this.config.name, stageKey);
+      if (run) this.stageRunByKey.set(stageKey, run);
+      else this.stageRunByKey.delete(stageKey);
+    }
+  }
+
   // ---------------------------------------------------------------
   // Run controls — one set of controls for the whole page.
   // ---------------------------------------------------------------
@@ -467,12 +521,25 @@ export class MultiScaleSimPageComponent implements OnInit, OnDestroy {
   }
 
   get graphPanels(): MsimPanel[] {
-    return (this.config?.panels ?? []).filter(p => p.kind === 'graph' && p.graphRef);
+    return (this.config?.panels ?? [])
+      .filter(p => p.kind === 'graph' && p.graphRef && !p.family);
+  }
+
+  /** Graph panels pivoted across a material family (tabs + combined). */
+  get familyGraphPanels(): MsimPanel[] {
+    return (this.config?.panels ?? [])
+      .filter(p => p.kind === 'graph' && p.graphRef && !!p.family);
+  }
+
+  get explainerPanels(): MsimPanel[] {
+    return (this.config?.panels ?? [])
+      .filter(p => p.kind === 'explainer' && p.stageKey);
   }
 
   get deferredPanelCount(): number {
+    const shownKinds = ['scene', 'ic', 'graph', 'explainer'];
     return (this.config?.panels ?? [])
-      .filter(p => p.kind !== 'scene' && p.kind !== 'ic' && p.kind !== 'graph').length;
+      .filter(p => !shownKinds.includes(p.kind)).length;
   }
 
   // ---------------------------------------------------------------
@@ -598,6 +665,20 @@ export class MultiScaleSimPageComponent implements OnInit, OnDestroy {
         inputs: { icInterfaceRef: p.icInterfaceRef },
       });
     }
+    for (const p of this.explainerPanels) {
+      opts.push({
+        label: `Explainer: ${p.stageKey}`, icon: 'psychology',
+        componentName: 'msim-explainer-panel',
+        inputs: {
+          stageKey: p.stageKey, title: p.title ?? '', body: p.body ?? '',
+          showSearchSpace: p.showSearchSpace !== false,
+          showGate: p.showGate !== false,
+          showDerive: p.showDerive !== false,
+          showConditionMap: p.showConditionMap !== false,
+          showMeltLine: p.showMeltLine !== false,
+        },
+      });
+    }
     return opts;
   }
 
@@ -673,6 +754,10 @@ export class MultiScaleSimPageComponent implements OnInit, OnDestroy {
 
   resolvePanelRun(panel: MsimPanel): string | undefined {
     if (!panel.run || panel.run === 'primary') return this.selectedRun ?? undefined;
+    if (this.stageRunService.isStageToken(panel.run)) {
+      return this.stageRunByKey.get(
+        this.stageRunService.stageKeyOf(panel.run));
+    }
     return panel.run;
   }
 

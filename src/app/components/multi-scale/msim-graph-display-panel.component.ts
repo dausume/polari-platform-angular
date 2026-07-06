@@ -21,6 +21,7 @@ import { MsimPanelBusService } from '@services/multi-scale/msim-panel-bus.servic
       [panel]="panelObj"
       [primaryRun]="primaryRun"
       [compareRun]="comparisonRun"
+      [msimName]="msimName"
       [running]="running">
     </msim-graph-panel>
   `,
@@ -29,7 +30,7 @@ export class MsimGraphDisplayPanelComponent implements OnInit, OnDestroy {
   /** Per-item inputs (stored in the Display definition). */
   @Input() graphRef = '';
   @Input() sourceClass = '';
-  /** Which runs to chart: entries are 'primary' | 'compare'. */
+  /** Which runs to chart: 'primary' | 'compare' | 'stage:<stageKey>'. */
   @Input() runs: string[] | string = ['primary'];
 
   /** Context inputs (merged in by the dashboard renderer). */

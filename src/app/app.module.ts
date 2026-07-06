@@ -169,6 +169,7 @@ import { TableConfigSidebarComponent } from '@components/table-config/table-conf
 // Graph Config Components
 import { GraphConfigSidebarComponent } from '@components/graph-config/graph-config-sidebar/graph-config-sidebar';
 import { GraphRendererComponent } from '@components/graph-config/graph-renderer/graph-renderer';
+import { RunScopeSelectComponent } from '@components/graph-config/run-scope-select/run-scope-select.component';
 // DataSet Config Components
 import { DataSetConfigSidebarComponent } from '@components/dataset-config/dataset-config-sidebar/dataset-config-sidebar';
 import { FieldProfileSidebarComponent } from '@components/dataset-config/field-profile-sidebar/field-profile-sidebar';
@@ -370,6 +371,7 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     DisplayMetricCardComponent,
     DisplayRendererComponent,
     GraphRendererComponent,
+    RunScopeSelectComponent,
     CertificateTrustPromptComponent,
     EmbeddedGraphComponent,
     MapRendererComponent,

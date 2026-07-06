@@ -36,6 +36,8 @@
                       [class.primary]="sim === config.primarySimulationRef">
                     <mat-icon class="chip-icon">{{ sim === config.primarySimulationRef ? 'play_circle' : 'blur_on' }}</mat-icon>
                     {{ sim }}
+                    <msim-member-info [simName]="sim" [role]="memberRole(sim)">
+                    </msim-member-info>
                     <button mat-icon-button class="chip-config-btn"
                             matTooltip="Configure this simulation (its own pages)"
                             (click)="openSimConfig(sim)">
@@ -70,7 +72,7 @@
                 <span class="stage-index">{{ i + 1 }}</span>
                 <div class="stage-body">
                     <span class="stage-label">{{ stageLabel(stage) }}</span>
-                    <span class="stage-kind">{{ stage.kind === 'coStep' ? 'live coupled stepping' : 'runs to completion, then unlocks' }}</span>
+                    <span class="stage-kind">{{ stage.kind === 'coStep' ? 'live coupled stepping' : 'runs to completion, then unlocks' }}<ng-container *ngIf="stage.intent"> · intent: {{ stage.intent }}</ng-container></span>
                     <span class="stage-reason" *ngIf="stageState(stage).reason">{{ stageState(stage).reason }}</span>
                     <span class="stage-reason error" *ngIf="stageState(stage).error">{{ stageState(stage).error }}</span>
                 </div>
@@ -213,6 +215,25 @@
                 </ng-template>
             </div>
 
+            <!-- Explainer panels: a stage's narrative + live config facts
+                 (what the search sweeps, the gate, the derive flow) and
+                 the tried-conditions map — right after the picker, so
+                 the material stage explains itself before its data. -->
+            <div class="panel-card explainer-panel" *ngFor="let panel of explainerPanels">
+                <msim-explainer-panel
+                    [msimName]="config.name"
+                    [config]="config"
+                    [stageKey]="panel.stageKey || ''"
+                    [title]="panel.title || ''"
+                    [body]="panel.body || ''"
+                    [showSearchSpace]="panel.showSearchSpace !== false"
+                    [showGate]="panel.showGate !== false"
+                    [showDerive]="panel.showDerive !== false"
+                    [showConditionMap]="panel.showConditionMap !== false"
+                    [showMeltLine]="panel.showMeltLine !== false">
+                </msim-explainer-panel>
+            </div>
+
             <!-- Scene panels: the coupled set shares ONE scene (run scope
                  expansion renders coupled sources' rows in the same view). -->
             <div class="panel-card scene-panel" *ngFor="let panel of scenePanels; trackBy: trackPanel">
@@ -252,6 +273,21 @@
                 </div>
             </div>
 
+            <!-- Family graph panels — the same graph pivoted across the
+                 material family: per-material tabs + an all-materials
+                 comparison chart. -->
+            <div class="panel-card graph-panel" *ngFor="let panel of familyGraphPanels; trackBy: trackPanel">
+                <msim-family-graph-panel
+                    [graphRef]="panel.graphRef!"
+                    [sourceClass]="panel.sourceClass || ''"
+                    [msimName]="config.name"
+                    [stageKey]="panel.family!.stageKey"
+                    [icInterfaceRef]="panel.family!.icInterfaceRef"
+                    [combineFields]="panel.family!.combineFields || []"
+                    [running]="busy">
+                </msim-family-graph-panel>
+            </div>
+
             <!-- Graph panels — data evolving over time, one chart per
                  configured run, polling live while steps are running -->
             <div class="panel-card graph-panel" *ngFor="let panel of graphPanels; trackBy: trackPanel">
@@ -259,6 +295,7 @@
                     [panel]="panel"
                     [primaryRun]="selectedRun"
                     [compareRun]="comparisonRun"
+                    [msimName]="config.name"
                     [running]="busy">
                 </msim-graph-panel>
             </div>

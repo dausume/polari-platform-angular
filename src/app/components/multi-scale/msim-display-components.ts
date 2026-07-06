@@ -2,6 +2,8 @@ import { registerDisplayComponent } from '@models/dashboards/ComponentRegistry';
 import { MsimScenePanelComponent } from './msim-scene-panel.component';
 import { MsimGraphDisplayPanelComponent } from './msim-graph-display-panel.component';
 import { MsimIcDisplayPanelComponent } from './msim-ic-display-panel.component';
+import { MsimExplainerPanelComponent } from './msim-explainer-panel.component';
+import { MsimFamilyGraphPanelComponent } from './msim-family-graph-panel.component';
 
 let registered = false;
 
@@ -39,5 +41,26 @@ export function registerMsimDisplayComponents(): void {
       + 'material picker) that validates choices and starts runs '
       + '(input: icInterfaceRef)',
     defaultInputs: {},
+  });
+
+  registerDisplayComponent('msim-family-graph-panel', MsimFamilyGraphPanelComponent, {
+    displayName: 'Material-Family Graph',
+    description: 'A simulation graph pivoted across a family of materials '
+      + '(per-material tabs + an all-materials comparison chart) '
+      + '(inputs: graphRef, sourceClass, stageKey, icInterfaceRef, '
+      + 'combineFields; msimName arrives from the display context)',
+    defaultInputs: { combineFields: [] },
+  });
+
+  registerDisplayComponent('msim-explainer-panel', MsimExplainerPanelComponent, {
+    displayName: 'Stage Explainer',
+    description: 'A stage\'s plain-language narrative plus live facts from '
+      + 'its config (search space, gate, derive flow) and the '
+      + 'tried-conditions map (inputs: stageKey, title, body, show* knobs; '
+      + 'msimName arrives from the display context)',
+    defaultInputs: {
+      showSearchSpace: true, showGate: true, showDerive: true,
+      showConditionMap: true, showMeltLine: true,
+    },
   });
 }

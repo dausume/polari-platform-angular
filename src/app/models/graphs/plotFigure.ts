@@ -27,6 +27,11 @@ export interface PlotFigureOptions {
     marginLeft?: number;
     showLegend?: boolean;
     showGrid?: boolean;
+    /** Axis labels — the place to carry UNITS so readers know what the
+     *  numbers are (e.g. 'time (s)', 'temperature (K)'). Default: the
+     *  dimension (field) name Observable Plot infers. */
+    xLabel?: string;
+    yLabel?: string;
 }
 
 /**
@@ -198,7 +203,9 @@ export class PlotFigure {
                 marginRight: this.options.marginRight || 30,
                 marginBottom: this.options.marginBottom || 40,
                 marginLeft: this.options.marginLeft || 50,
-                grid: this.options.showGrid ?? true
+                grid: this.options.showGrid ?? true,
+                ...(this.options.xLabel ? { x: { label: this.options.xLabel } } : {}),
+                ...(this.options.yLabel ? { y: { label: this.options.yLabel } } : {})
             });
         } catch (e) {
             console.error('[PlotFigure] Rendering failed:', e);

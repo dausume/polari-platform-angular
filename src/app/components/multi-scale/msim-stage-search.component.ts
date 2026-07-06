@@ -31,21 +31,42 @@ import {
           <mat-icon>manage_search</mat-icon>
           {{ report ? 'Continue the search' : 'Search for a solution' }}
         </button>
+        <!-- The first winner short-circuits by design; this keeps asking. -->
+        <button mat-stroked-button *ngIf="!searching && canFindMore"
+                (click)="start(true)">
+          <mat-icon>travel_explore</mat-icon> Find more solutions
+        </button>
         <button mat-stroked-button *ngIf="searching" (click)="stopRequested = true">
           <mat-icon>stop</mat-icon> Stop
         </button>
         <mat-spinner *ngIf="searching" diameter="18"></mat-spinner>
         <span class="search-progress" *ngIf="report">
           attempted {{ report.attempted }} of {{ report.totalCandidates }} candidates
+          <ng-container *ngIf="solutions.length > 1">
+            · {{ solutions.length }} solutions
+          </ng-container>
         </span>
       </div>
 
       <div class="search-result ok" *ngIf="report?.achieved && report?.winner as w">
         <mat-icon>check_circle</mat-icon>
         <div>
-          <strong>Solution found</strong> — {{ candidateText(w.candidate) }}
+          <strong>{{ solutions.length > 1 ? 'Solutions found' : 'Solution found' }}</strong>
+          <ng-container *ngIf="solutions.length <= 1">
+            — {{ candidateText(w.candidate) }}
+          </ng-container>
           <div class="derived" *ngIf="w.derivedValues && (w.derivedValues | json) !== '{}'">
             proves: {{ derivedText(w.derivedValues) }}
+          </div>
+          <table class="attempts-table" *ngIf="solutions.length > 1">
+            <tr *ngFor="let s of solutions; let i = index">
+              <td>{{ i === 0 ? '★' : '' }}</td>
+              <td>{{ candidateText(s.candidate) }}</td>
+              <td class="derived" *ngIf="s.derivedValues">{{ derivedText(s.derivedValues) }}</td>
+            </tr>
+          </table>
+          <div class="derived" *ngIf="solutions.length > 1">
+            ★ = the solution whose values flow downstream.
           </div>
         </div>
       </div>
@@ -100,21 +121,40 @@ export class MsimStageSearchComponent {
 
   constructor(private msimService: MultiScaleSimDefinitionService) {}
 
-  async start(): Promise<void> {
+  /** Every valid solution found so far (winner first). */
+  get solutions() {
+    return this.report?.winners?.length
+      ? this.report.winners
+      : (this.report?.winner ? [this.report.winner] : []);
+  }
+
+  /** More candidates remain beyond the found solution(s). */
+  get canFindMore(): boolean {
+    return !!this.report?.achieved && !this.report?.searchComplete;
+  }
+
+  async start(findMore = false): Promise<void> {
     if (this.searching) return; // double-click guard
     this.searching = true;
     this.stopRequested = false;
     this.errorMessage = null;
     try {
       // One call per batch; the endpoint is stateless/resumable, so we
-      // just keep calling until done or the user stops.
+      // just keep calling until done or the user stops. `findMore`
+      // sweeps PAST already-found solutions and accumulates the rest.
       for (let i = 0; i < 500; i++) {
         const report = await this.msimService.runStageSearch(
-          this.msimName, this.stage.key, this.stage.search?.batchSize);
+          this.msimName, this.stage.key, this.stage.search?.batchSize,
+          undefined, undefined, findMore);
         this.report = report;
         if (report.error) { this.errorMessage = report.error; break; }
-        if (report.achieved) { this.achieved.emit(); break; }
-        if (report.exhausted || this.stopRequested) break;
+        if (report.achieved && !findMore) { this.achieved.emit(); break; }
+        if (report.achieved && report.searchComplete) {
+          this.achieved.emit();
+          break;
+        }
+        if (report.exhausted || report.searchComplete
+            || this.stopRequested) break;
       }
     } catch (err: any) {
       this.errorMessage = err?.message || String(err);

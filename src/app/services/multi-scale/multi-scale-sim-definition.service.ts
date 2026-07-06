@@ -32,11 +32,23 @@ export interface StageSearchAttempt {
   error: string | null;
 }
 
+/** One valid solution a stage search found. */
+export interface StageSearchWinner {
+  run: string;
+  candidate: Record<string, number>;
+  derivedValues: Record<string, unknown> | null;
+}
+
 /** Progress/result of a stage's solution search (one batch per call). */
 export interface StageSearchReport {
   achieved: boolean;
-  winner: { run: string; candidate: Record<string, number>;
-            derivedValues: Record<string, unknown> | null } | null;
+  /** The FIRST valid solution (what derive flows consume). */
+  winner: StageSearchWinner | null;
+  /** EVERY valid solution found so far (grows under
+   *  continueAfterWinner / search.stopPolicy 'exhaustive'). */
+  winners?: StageSearchWinner[];
+  /** True once every candidate has been attempted. */
+  searchComplete?: boolean;
   exhausted: boolean;
   totalCandidates: number;
   attempted: number;
@@ -143,6 +155,7 @@ export class MultiScaleSimDefinitionService {
     batchSize?: number,
     fixedParams?: Record<string, number>,
     attemptTag?: string,
+    continueAfterWinner?: boolean,
   ): Promise<StageSearchReport> {
     const url = `${this.polariService.getBackendBaseUrl()}`
       + `/api/simulations/multi-scale/${encodeURIComponent(msimName)}`
@@ -153,6 +166,7 @@ export class MultiScaleSimDefinitionService {
       body['fixedParams'] = fixedParams;
     }
     if (attemptTag) body['attemptTag'] = attemptTag;
+    if (continueAfterWinner) body['continueAfterWinner'] = true;
     const resp = await firstValueFrom(
       this.http.post<{ success: boolean; data: StageSearchReport }>(url, body),
     );

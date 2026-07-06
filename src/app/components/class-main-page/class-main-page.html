@@ -224,11 +224,16 @@
         </div>
 
         <div class="editor-body">
-          <!-- Preview area -->
+          <!-- Preview area (simulation classes get a run scope: one run's
+               timeline instead of every run pooled) -->
           <div class="editor-preview" [class.with-config-panel]="graphConfigPanelOpen">
+            <run-scope-select
+              [rows]="graphPreviewData"
+              (scopedRows)="graphScopedPreviewData = $event">
+            </run-scope-select>
             <graph-renderer
               [config]="selectedGraphConfig"
-              [instanceData]="graphPreviewData"
+              [instanceData]="graphScopedPreviewData"
               [classTypeData]="classTypeData">
             </graph-renderer>
           </div>

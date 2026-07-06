@@ -8,10 +8,13 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterModule } from '@angular/router';
 
+import { Subscription } from 'rxjs';
+
 import { GraphRendererComponent } from '@components/graph-config/graph-renderer/graph-renderer';
 import { NamedGraphConfig } from '@models/graphs/NamedGraphConfig';
 import { MsimPanel } from '@models/multi-scale/NamedMultiScaleSimConfig';
 import { MsimGraphDataService } from '@services/multi-scale/msim-graph-data.service';
+import { MsimStageRunService } from '@services/multi-scale/msim-stage-run.service';
 
 /** Per-run live series state feeding one graph-renderer. */
 interface RunSeries {
@@ -27,9 +30,12 @@ interface RunSeries {
  * A `kind:'graph'` panel of the Multi-Scale Simulation Page: one
  * GraphDefinition (by name) rendered ONCE PER CONFIGURED RUN
  * ('primary' → the page's selected run, 'compare' → the comparison
- * run), fed from GET /runs/{run}/series. While the page is running it
- * polls incrementally (`sinceStep`) so the charts grow live; when the
- * run stops it takes one final full refresh and goes quiet.
+ * run, 'stage:<key>' → the run that currently speaks for that stage —
+ * its proof winner, else its sim's newest run), fed from
+ * GET /runs/{run}/series. While the page is running it polls
+ * incrementally (`sinceStep`) so the charts grow live; when the run
+ * stops it takes one final full refresh and goes quiet. A new proof
+ * landing re-pins stage-token series automatically.
  */
 @Component({
   standalone: true,
@@ -44,7 +50,15 @@ interface RunSeries {
       <mat-icon>show_chart</mat-icon>
       {{ graphConfig?.name || panel.graphRef }}
       <span class="panel-run" *ngIf="graphConfig?.source_class">{{ graphConfig?.source_class }}</span>
-      <a mat-icon-button routerLink="/graphs" matTooltip="Configure graphs (Graphs page)">
+      <span class="panel-run substance" *ngIf="provingSubstance">
+        proving: {{ provingSubstance }}
+      </span>
+      <!-- Configure ON THE OBJECT the graph is made for (graphs live on
+           their source class in the object tree), not the global browser. -->
+      <a mat-icon-button
+         [routerLink]="configTarget ? ['/class-main-page', configTarget] : ['/graphs']"
+         [queryParams]="configTarget ? { tab: 'graphs' } : null"
+         matTooltip="Configure this graph on its object ({{ configTarget || 'Graphs page' }})">
         <mat-icon>settings</mat-icon>
       </a>
     </div>
@@ -53,7 +67,7 @@ interface RunSeries {
       <div class="graph-run" *ngFor="let series of runSeries; trackBy: trackRun">
         <div class="graph-run-title">
           <span class="run-dot" [class.comparison]="series.run !== primaryRun"></span>
-          {{ series.run }}
+          <span [attr.title]="series.run">{{ runDisplay(series.run) }}</span>
           <span class="graph-run-meta" *ngIf="series.lastStep !== null">step {{ series.lastStep }}</span>
           <span class="graph-run-meta error" *ngIf="series.error">{{ series.error }}</span>
         </div>
@@ -76,6 +90,9 @@ interface RunSeries {
     .panel-title mat-icon { font-size: 18px; width: 18px; height: 18px; }
     .panel-title .panel-run {
       font-weight: 400; font-size: 12px; color: var(--text-secondary, #777);
+    }
+    .panel-title .panel-run.substance {
+      color: var(--brand-teal, #159588); font-weight: 500;
     }
     .panel-title a { margin-left: auto; }
     .graph-runs { display: flex; flex-direction: column; gap: 12px; padding: 8px 12px; }
@@ -101,6 +118,8 @@ export class MsimGraphPanelComponent implements OnInit, OnChanges, OnDestroy {
   @Input() primaryRun: string | null = null;
   /** The page's comparison run (compare_run_policy). */
   @Input() compareRun: string | null = null;
+  /** The composition's name — needed to resolve 'stage:<key>' tokens. */
+  @Input() msimName: string | null = null;
   /** True while the page is committing steps — turns on live polling. */
   @Input() running = false;
   @Output() seriesError = new EventEmitter<string>();
@@ -112,19 +131,30 @@ export class MsimGraphPanelComponent implements OnInit, OnChanges, OnDestroy {
   private pollTimer: any = null;
   private readonly POLL_MS = 1500;
   private destroyed = false;
+  private stageRunSub: Subscription | null = null;
 
-  constructor(private graphData: MsimGraphDataService) {}
+  constructor(
+    private graphData: MsimGraphDataService,
+    private stageRun: MsimStageRunService,
+  ) {}
 
   async ngOnInit(): Promise<void> {
+    // A landed/cleared proof re-pins any stage-token series live.
+    this.stageRunSub = this.stageRun.stageRunChanged$.subscribe(ev => {
+      if (ev.msim !== this.msimName || !this.panelTokens
+            .some(t => this.stageRun.isStageToken(t)
+                       && this.stageRun.stageKeyOf(t) === ev.stageKey)) return;
+      void this.rebuildRunList().then(() => this.refresh());
+    });
     await this.loadGraph();
-    this.rebuildRunList();
+    await this.rebuildRunList();
     await this.refresh();
   }
 
   async ngOnChanges(changes: SimpleChanges): Promise<void> {
     if ((changes['primaryRun'] && !changes['primaryRun'].firstChange)
         || (changes['compareRun'] && !changes['compareRun'].firstChange)) {
-      this.rebuildRunList();
+      await this.rebuildRunList();
       await this.refresh();
     }
     if (changes['running']) {
@@ -135,10 +165,35 @@ export class MsimGraphPanelComponent implements OnInit, OnChanges, OnDestroy {
 
   ngOnDestroy(): void {
     this.destroyed = true;
+    this.stageRunSub?.unsubscribe();
     if (this.pollTimer) clearInterval(this.pollTimer);
   }
 
   trackRun(_i: number, s: RunSeries): string { return s.run; }
+
+  /** The object (source class) this graph lives on — the gear's target. */
+  get configTarget(): string {
+    return this.panel?.sourceClass || this.graphConfig?.source_class || '';
+  }
+
+  /** Human run label when known ('Paraffin wax — held at 260 K…'),
+   *  else the raw run name (full name always in the hover title). */
+  runDisplay(run: string): string {
+    return this.stageRun.labelFor(run) ?? run;
+  }
+
+  /** The substance the stage proof speaks for, when this panel is
+   *  pinned to a stage token — says WHAT MATERIAL the data is about. */
+  get provingSubstance(): string | null {
+    if (!this.msimName) return null;
+    for (const token of this.panelTokens) {
+      if (!this.stageRun.isStageToken(token)) continue;
+      const substance = this.stageRun.substanceFor(
+        this.msimName, this.stageRun.stageKeyOf(token));
+      if (substance) return substance;
+    }
+    return null;
+  }
 
   /** Full refetch for every run (also the page's after-steps hook). */
   async refresh(): Promise<void> {
@@ -161,13 +216,21 @@ export class MsimGraphPanelComponent implements OnInit, OnChanges, OnDestroy {
     }
   }
 
-  /** Map the panel's configured runs ('primary'/'compare'/literal) to
-   *  concrete run names, keeping any already-fetched series. */
-  private rebuildRunList(): void {
+  private get panelTokens(): string[] {
+    return this.panel?.runs?.length ? this.panel.runs : ['primary'];
+  }
+
+  /** Map the panel's configured runs ('primary'/'compare'/'stage:<key>'/
+   *  literal) to concrete run names, keeping any already-fetched series. */
+  private async rebuildRunList(): Promise<void> {
     const wanted: string[] = [];
-    for (const token of (this.panel?.runs?.length ? this.panel.runs : ['primary'])) {
+    for (const token of this.panelTokens) {
       const run = token === 'primary' ? this.primaryRun
         : token === 'compare' ? this.compareRun
+        : this.stageRun.isStageToken(token)
+          ? (this.msimName
+             ? await this.stageRun.resolveToken(token, this.msimName)
+             : null)
         : token;
       if (run && !wanted.includes(run)) wanted.push(run);
     }

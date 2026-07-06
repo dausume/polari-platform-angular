@@ -357,7 +357,8 @@ export class MsimIcPanelComponent implements OnDestroy {
       this.proving = false;
     }
     if (report && (report.achieved || report.exhausted)) {
-      this.proofService.set(ps.msim, ps.stageKey, choice.key, choice.label, report);
+      this.proofService.set(ps.msim, ps.stageKey, choice.key, choice.label,
+                            report, choice.substanceParams);
       if (this.selectedKey === choice.key) this.applyProof(choice, report);
     }
   }

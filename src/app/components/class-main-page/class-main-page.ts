@@ -72,6 +72,10 @@ export class ClassMainPageComponent implements OnDestroy {
 
   /** Current tab index */
   selectedTabIndex: number = 0;
+  /** A deep-linked ?tab=… that arrived before the class route param —
+   *  applied once className resolves (the tab loads are class-guarded,
+   *  so firing them early rendered empty "no configs" states). */
+  private pendingTabFromQuery: number | null = null;
 
   /** Display management state */
   displayList: DisplaySummary[] = [];
@@ -95,6 +99,9 @@ export class ClassMainPageComponent implements OnDestroy {
   graphConfigPanelOpen: boolean = false;
   graphConfigsLoading: boolean = false;
   graphPreviewData: any[] = [];
+  /** graphPreviewData scoped by the run-scope-select (simulation
+   *  classes) — what the preview chart actually renders. */
+  graphScopedPreviewData: any[] = [];
 
   /** GeoJSON config management state */
   geoJsonConfigList: GeoJsonDefinitionSummary[] = [];
@@ -421,8 +428,14 @@ export class ClassMainPageComponent implements OnDestroy {
         };
         const idx = tabMap[tab.toLowerCase()];
         if (idx !== undefined) {
-          this.selectedTabIndex = idx;
-          this.onTabChange(idx);
+          if (this.className) {
+            this.selectedTabIndex = idx;
+            this.onTabChange(idx);
+          } else {
+            // Query params fire before the class param on a fresh
+            // navigation — defer until className exists.
+            this.pendingTabFromQuery = idx;
+          }
         }
       }
     });
@@ -493,6 +506,14 @@ export class ClassMainPageComponent implements OnDestroy {
           // Set new className
           this.className = newClassName;
           this.previousClassName = newClassName;
+
+          // Apply a deep-linked tab that arrived before the class param
+          // (e.g. /class-main-page/X?tab=graphs from the Graphs pages).
+          if (this.pendingTabFromQuery !== null) {
+            this.selectedTabIndex = this.pendingTabFromQuery;
+            this.onTabChange(this.pendingTabFromQuery);
+            this.pendingTabFromQuery = null;
+          }
 
           // Initialize CRUDE service for this class
           if (this.className) {
@@ -1039,9 +1060,13 @@ export class ClassMainPageComponent implements OnDestroy {
     this.crudeService.readAll().subscribe({
       next: (data: any) => {
         this.graphPreviewData = this.parseCrudeInstances(data);
+        // run-scope-select re-emits the scoped subset on rows change;
+        // seed the scoped copy so the chart never renders stale rows.
+        this.graphScopedPreviewData = this.graphPreviewData;
       },
       error: () => {
         this.graphPreviewData = [];
+        this.graphScopedPreviewData = [];
       }
     });
   }
@@ -1054,6 +1079,7 @@ export class ClassMainPageComponent implements OnDestroy {
     this.hasGraphDraftChanges = false;
     this.graphConfigPanelOpen = false;
     this.graphPreviewData = [];
+    this.graphScopedPreviewData = [];
     this.graphDefService.draftConfig$.next(null);
     this.graphDefService.hasDraftChanges$.next(false);
     if (this.className) {
