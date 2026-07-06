@@ -106,18 +106,24 @@ export interface SimSpaceBinding {
     | { kind: 'euler'; fields: { x: string; y: string; z: string }; units: 'radians' | 'degrees' }
     | { kind: 'quaternion'; quatField: string };
 
-  /** Optional scale binding. */
+  /** Optional scale binding. `factor` multiplies a field-driven uniform
+   *  scale (e.g. a RADIUS field × 2 sizes the shared unit sphere, r=0.5,
+   *  so the rendered radius equals the field's metric value). */
   scale?:
-    | { kind: 'uniform'; field: string }
+    | { kind: 'constant'; value: number }
+    | { kind: 'uniform'; field: string; factor?: number }
     | { kind: 'per-axis'; fields: { x: string; y: string; z?: string } };
 
   /**
-   * Mesh/shape reference — either a fixed library name or a field on the
-   * class instance that holds the name (per-instance variation).
+   * Mesh/shape reference — a fixed library name, a field on the class
+   * instance that holds the name (per-instance variation), or a
+   * field-value → name MAP (the per-phase appearance primitive, e.g.
+   * phase_solid 1 → 'wax-solid'). Type-level mirror only — the scene
+   * compiler is backend-only (simSpace/compilers/common.resolve_ref).
    */
   visual: {
-    shapeRef: string | { fromField: string };
-    styleRef: string | { fromField: string };
+    shapeRef: string | { fromField: string; map?: Record<string, string>; default?: string };
+    styleRef: string | { fromField: string; map?: Record<string, string>; default?: string };
   };
 
   /**

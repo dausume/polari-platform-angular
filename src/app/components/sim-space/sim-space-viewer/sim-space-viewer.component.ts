@@ -31,6 +31,7 @@ import { Shape2DLibraryService } from '@services/sim-space-2d/shape-2d-library.s
 import { Style2DLibraryService } from '@services/sim-space-2d/style-2d-library.service';
 import { Mesh3DLibraryService } from '@services/sim-space-3d/mesh-3d-library.service';
 import { Material3DLibraryService } from '@services/sim-space-3d/material-3d-library.service';
+import { Texture3DLibraryService } from '@services/sim-space-3d/texture-3d-library.service';
 import {
   SimSpaceSnapshot,
   SimSpaceObject,
@@ -419,6 +420,7 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
     private styles: Style2DLibraryService,
     private meshes3D: Mesh3DLibraryService,
     private materials3D: Material3DLibraryService,
+    private textures3D: Texture3DLibraryService,
     private router: Router
   ) {}
 
@@ -429,6 +431,7 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
       this.styles.load(),
       this.meshes3D.load(),
       this.materials3D.load(),
+      this.textures3D.load(),
     ]);
     if (this.simSpaceName) await this.load(this.simSpaceName);
     if (typeof ResizeObserver !== 'undefined') {

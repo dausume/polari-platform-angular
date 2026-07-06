@@ -5,9 +5,11 @@
  *   - ThreeSimSpaceRenderer
  * @see /OVERLAP_MAP.md
  *
- * Three.js material builders. Phase 2 supports the standard set of
- * MeshXxxMaterial variants — Standard (PBR) is the default. Textures
- * land in a later phase via Texture3DDefinition + UV mapping.
+ * Three.js material builders: the standard set of MeshXxxMaterial
+ * variants — Standard (PBR) is the default — plus an optional albedo
+ * TEXTURE (Texture3DDefinition via three-texture-builders; the caller
+ * resolves the def's map_texture_ref and passes the built texture in,
+ * keeping this module a pure sync function).
  */
 
 import * as THREE from 'three';
@@ -29,13 +31,17 @@ export const FALLBACK_MATERIAL_DEF: Material3DDef = {
   double_sided: false,
   flat_shading: false,
   wireframe: false,
+  map_texture_ref: '',
 };
 
 /**
  * Build a Three.js material from a Material3DDef. Always returns a
  * fresh material — callers own its lifetime (must dispose on teardown).
+ * `texture` is the def's resolved albedo map, when it has one (textures
+ * themselves are cached/shared by three-texture-builders).
  */
-export function buildMaterial(materialDef: Material3DDef | undefined): THREE.Material {
+export function buildMaterial(materialDef: Material3DDef | undefined,
+                              texture?: THREE.Texture | null): THREE.Material {
   const def = materialDef ?? FALLBACK_MATERIAL_DEF;
   const side = def.double_sided ? THREE.DoubleSide : THREE.FrontSide;
   const common = {
@@ -44,6 +50,7 @@ export function buildMaterial(materialDef: Material3DDef | undefined): THREE.Mat
     transparent: def.transparent || def.opacity < 1,
     side,
     wireframe: def.wireframe,
+    ...(texture ? { map: texture } : {}),
   };
   switch (def.material_type) {
     case 'basic':   return new THREE.MeshBasicMaterial(common);

@@ -28,6 +28,8 @@ export interface Material3DDef {
   double_sided: boolean;
   flat_shading: boolean;
   wireframe: boolean;
+  /** Optional albedo map — a Texture3DDefinition name ('' = untextured). */
+  map_texture_ref: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -65,6 +67,7 @@ export class Material3DLibraryService {
         double_sided: !!(r.double_sided ?? r.doubleSided ?? false),
         flat_shading: !!(r.flat_shading ?? r.flatShading ?? false),
         wireframe: !!(r.wireframe ?? false),
+        map_texture_ref: r.map_texture_ref ?? r.mapTextureRef ?? '',
       }));
       this.byName = new Map(mats.map(m => [m.name, m]));
       this._materials$.next(mats);
