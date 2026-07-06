@@ -159,6 +159,16 @@ export interface SimSpaceRenderer {
   /** Detach the overlay for one object. */
   detachOverlay(objectId: string): void;
 
+  /**
+   * The object's projected screen-space bounding rect in host-local CSS
+   * pixels — the "shell shape" the shared overlay machinery anchors
+   * tiered overlay components on (3D: bounding box through the camera;
+   * 2D may implement from the SVG node box). Optional: consumers must
+   * tolerate absence; null = unknown id or not currently projectable.
+   */
+  getObjectScreenRect?(id: string):
+      { x: number; y: number; width: number; height: number } | null;
+
   // -------------------------------------------------------------------
   // Event subscriptions — simple callback registration, not Observables.
   // Keeps the interface library-agnostic (no rxjs dep on shared layer).

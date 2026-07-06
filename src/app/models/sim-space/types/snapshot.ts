@@ -88,6 +88,22 @@ export interface SimSpaceDefinitionPayload {
     y?: SimSpaceAxisLabel;
     z?: SimSpaceAxisLabel;
   };
+  /**
+   * Optional camera config (3D). Absent → orbit controls + initial
+   * framing from `viewport` (today's behavior). mode:'fixed' locks the
+   * camera at the configured pose — selection spaces use this so their
+   * framing (and projected overlay anchors) stay stable.
+   */
+  camera?: SimSpaceCameraConfig | null;
+}
+
+export interface SimSpaceCameraConfig {
+  mode?: 'fixed' | 'orbit';
+  position?: [number, number, number];
+  target?: [number, number, number];
+  up?: [number, number, number];
+  projection?: 'perspective' | 'orthographic';
+  fov?: number;
 }
 
 export interface SimSpaceAxisLabel {

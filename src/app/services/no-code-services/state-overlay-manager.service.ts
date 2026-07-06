@@ -26,14 +26,23 @@ export interface CanvasBounds {
 }
 
 /**
- * StateOverlayManager manages the lifecycle of Angular components overlaid on D3 state groups.
+ * StateOverlayManager manages the lifecycle of Angular components overlaid on
+ * anchor rects — originally D3 state groups (2D no-code canvas); the same
+ * machinery now also anchors on projected 3D "shell shapes" via the
+ * rect-based entry points (createOverlayAt / updateOverlayPositionAt), so 3D
+ * selection spaces get tiered overlays + popups exactly like 2D states.
  *
  * Key responsibilities:
- * - Create overlay components positioned over D3 state group inner rects
- * - Track active overlays by state name
- * - Update overlay positions on zoom/pan
+ * - Create overlay components positioned over anchor rects (VIEWPORT coords —
+ *   SVG groups derive theirs via getBoundingClientRect; 3D anchors project
+ *   host-local rects and add the host's own client rect)
+ * - Track active overlays by name
+ * - Update overlay positions on zoom/pan (2D) / camera-view change (3D)
  * - Hide/show overlays during drag operations
  * - Destroy overlays when states are removed or solutions change
+ *
+ * Root singleton: overlay names are the key space — non-canvas consumers
+ * namespace theirs (e.g. 'matsel:…') so surfaces can't collide.
  */
 @Injectable({
   providedIn: 'root',
@@ -149,10 +158,29 @@ export class StateOverlayManager {
   /**
    * Create an overlay component for a state.
    * The component will be positioned over the state's inner rect.
+   * (SVG wrapper — derives the rect, then delegates to createOverlayAt.)
    */
   createOverlayForState<T>(
     stateName: string,
     stateGroup: SVGGElement,
+    component: Type<T>,
+    inputData?: Partial<T>
+  ): ComponentRef<T> | null {
+    const position = this.getOverlayPosition(stateGroup);
+    if (!position) {
+      return null;
+    }
+    return this.createOverlayAt(stateName, position, component, inputData);
+  }
+
+  /**
+   * Create an overlay component anchored on an arbitrary VIEWPORT-space
+   * rect — the generalized entry point (2D SVG rects and projected 3D
+   * shell shapes are both just rects here).
+   */
+  createOverlayAt<T>(
+    stateName: string,
+    position: OverlayPosition,
     component: Type<T>,
     inputData?: Partial<T>
   ): ComponentRef<T> | null {
@@ -165,11 +193,6 @@ export class StateOverlayManager {
     // Destroy existing overlay for this state if any
     if (this.activeOverlays.has(stateName)) {
       this.destroyOverlayForState(stateName);
-    }
-
-    const position = this.getOverlayPosition(stateGroup);
-    if (!position) {
-      return null;
     }
 
     // console.log(`[StateOverlayManager] Creating overlay for ${stateName} at position:`, position);
@@ -290,15 +313,28 @@ export class StateOverlayManager {
   /**
    * Update the position of an overlay based on the current state group position.
    * Call this after drag ends or during zoom/pan.
-   * Handles clipping to canvas bounds and triggers change detection for size mode updates.
+   * (SVG wrapper — derives the rect, then delegates to updateOverlayPositionAt.)
    */
   updateOverlayPosition(stateName: string, stateGroup: SVGGElement): void {
+    if (!this.activeOverlays.has(stateName)) {
+      return;
+    }
+    this.updateOverlayPositionAt(stateName, this.getOverlayPosition(stateGroup));
+  }
+
+  /**
+   * Update an overlay's position from an arbitrary VIEWPORT-space rect —
+   * the generalized entry point. `position: null` hides the overlay (the
+   * anchor is currently unprojectable, e.g. behind the 3D camera).
+   * Handles clipping to canvas bounds and triggers change detection for
+   * size mode updates.
+   */
+  updateOverlayPositionAt(stateName: string, position: OverlayPosition | null): void {
     const overlay = this.activeOverlays.get(stateName);
     if (!overlay) {
       return;
     }
 
-    const position = this.getOverlayPosition(stateGroup);
     if (!position) {
       // If we can't get position, hide the overlay
       overlay.hostElement.style.visibility = 'hidden';

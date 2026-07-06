@@ -38,14 +38,22 @@ import {
 } from '@services/sim-space/sim-space-renderer.interface';
 import { Mesh3DLibraryService } from './mesh-3d-library.service';
 import { Material3DLibraryService } from './material-3d-library.service';
+import { Texture3DLibraryService } from './texture-3d-library.service';
 import { CADControls } from './controls/cad-controls';
+import { applyCameraConfig, hasExplicitPose } from './camera-config';
+import { projectObjectRect } from './three-projection';
 import { buildGeometry } from './three-geometry-builders';
 import { buildMaterial } from './three-material-builders';
+import { buildTexture } from './three-texture-builders';
 import { mountViewHelper, ViewHelperRig } from './three-view-helper-setup';
 import { transformForAnchor } from '@services/sim-space-2d/d3-utils';
 
 /** Hover highlight bump — applied MULTIPLICATIVELY to a mesh's base scale. */
 const HIGHLIGHT_FACTOR = 1.15;
+/** Selection bump — one notch above hover, also base-scale-relative. */
+const SELECTION_FACTOR = 1.1;
+/** Selection emissive tint (teal — the brand accent). */
+const SELECTION_EMISSIVE = 0x159588;
 
 @Injectable()
 export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
@@ -89,7 +97,8 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
 
   constructor(
     private meshLib: Mesh3DLibraryService,
-    private materialLib: Material3DLibraryService
+    private materialLib: Material3DLibraryService,
+    private textureLib: Texture3DLibraryService
   ) {}
 
   // -------------------------------------------------------------------
@@ -191,6 +200,15 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
 
   loadDefinition(def: SimSpaceDefinitionPayload): void {
     this.definition = def;
+    // Explicit camera config wins over the viewport framing heuristic;
+    // a FIXED camera also locks navigation (selection spaces).
+    if (this.camera && def.camera
+        && (def.camera.mode === 'fixed' || hasExplicitPose(def.camera))) {
+      applyCameraConfig(this.camera, this.controls, def.camera);
+      this.onViewChange?.();
+      this.repositionOverlays();
+      return;
+    }
     if (this.camera && def.viewport) {
       const ex = def.viewport.extent[0] ?? 5;
       const ey = def.viewport.extent[1] ?? 5;
@@ -425,12 +443,62 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
       const hit = id !== null && mesh.userData['polariSimSpaceId'] === id;
       mesh.userData['polariHighlighted'] = hit;
       const base = (mesh.userData['polariBaseScale'] as number) ?? 1;
-      mesh.scale.setScalar(base * (hit ? HIGHLIGHT_FACTOR : 1));
+      const sel = mesh.userData['polariSelected'] ? SELECTION_FACTOR : 1;
+      mesh.scale.setScalar(base * sel * (hit ? HIGHLIGHT_FACTOR : 1));
     });
   }
 
-  setSelection(_ids: string[]): void {
-    // Phase 2 placeholder — multi-select styling lands later.
+  setSelection(ids: string[]): void {
+    // Selected meshes get an emissive lift + a scale bump one notch above
+    // hover — same base-scale-relative pattern as setHighlight (matching
+    // on the per-row id stamped in userData, not the map key).
+    const selected = new Set(ids);
+    this.meshes.forEach((mesh) => {
+      const hit = selected.has(mesh.userData['polariSimSpaceId'] as string);
+      mesh.userData['polariSelected'] = hit;
+      const base = (mesh.userData['polariBaseScale'] as number) ?? 1;
+      const hover = mesh.userData['polariHighlighted'] ? HIGHLIGHT_FACTOR : 1;
+      mesh.scale.setScalar(base * hover * (hit ? SELECTION_FACTOR : 1));
+      mesh.traverse(child => {
+        const material = (child as THREE.Mesh).material as
+          THREE.MeshStandardMaterial | undefined;
+        if (!material || !('emissiveIntensity' in material)) return;
+        if (hit) {
+          if (material.userData['polariBaseEmissive'] === undefined) {
+            material.userData['polariBaseEmissive'] = material.emissiveIntensity;
+            material.userData['polariBaseEmissiveColor'] = material.emissive.getHex();
+          }
+          material.emissive.setHex(SELECTION_EMISSIVE);
+          material.emissiveIntensity = Math.max(
+            0.35, material.userData['polariBaseEmissive'] as number);
+        } else if (material.userData['polariBaseEmissive'] !== undefined) {
+          material.emissiveIntensity =
+            material.userData['polariBaseEmissive'] as number;
+          material.emissive.setHex(
+            material.userData['polariBaseEmissiveColor'] as number);
+          delete material.userData['polariBaseEmissive'];
+          delete material.userData['polariBaseEmissiveColor'];
+        }
+      });
+    });
+  }
+
+  /**
+   * The object's projected "shell shape": its bounding box through the
+   * camera as a HOST-LOCAL rect — the anchor the shared overlay
+   * machinery positions tiered overlay components on (3D analogue of
+   * the 2D canvas's SVG state rects). Null = unknown id or fully behind
+   * the camera.
+   */
+  getObjectScreenRect(id: string):
+      { x: number; y: number; width: number; height: number } | null {
+    if (!this.camera || !this.host) return null;
+    let target: THREE.Object3D | undefined;
+    this.meshes.forEach(mesh => {
+      if (mesh.userData['polariSimSpaceId'] === id) target = mesh;
+    });
+    if (!target) return null;
+    return projectObjectRect(target, this.camera, this.hostBox());
   }
 
   zoomToFit(): void {
@@ -539,7 +607,13 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
     // returns null. Return type accordingly.
     const meshDef = this.meshLib.get(obj.shapeRef);
     const materialDef = this.materialLib.get(obj.styleRef);
-    return new THREE.Mesh(buildGeometry(meshDef), buildMaterial(materialDef));
+    // Albedo texture, when the material declares one (textures are
+    // cached/shared by name inside three-texture-builders).
+    const texture = materialDef?.map_texture_ref
+      ? buildTexture(this.textureLib.get(materialDef.map_texture_ref))
+      : null;
+    return new THREE.Mesh(buildGeometry(meshDef),
+                          buildMaterial(materialDef, texture));
   }
 
   private applyTransform(node: THREE.Object3D, obj: SimSpaceObject): void {
@@ -562,7 +636,10 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
     // RELATIVE to it (a 15% bump), instead of slamming the mesh to an
     // absolute scalar — which blew small bobs (~0.12) up ~8× on hover.
     node.userData['polariBaseScale'] = scale;
-    node.scale.setScalar(scale * (node.userData['polariHighlighted'] ? HIGHLIGHT_FACTOR : 1));
+    node.scale.setScalar(
+      scale
+      * (node.userData['polariHighlighted'] ? HIGHLIGHT_FACTOR : 1)
+      * (node.userData['polariSelected'] ? SELECTION_FACTOR : 1));
   }
 
   private repositionOverlays(): void {

@@ -43,6 +43,7 @@ export class CADControls {
   readonly orbit: OrbitControls;
   private raycaster = new THREE.Raycaster();
   private host: CADControlsHost;
+  private _enabled = true;
   private perspective: THREE.PerspectiveCamera;
   private orthographic: THREE.OrthographicCamera;
   private isOrthographic = false;
@@ -93,6 +94,15 @@ export class CADControls {
   }
 
   update(): void { this.orbit.update(); }
+
+  /** Navigation gate — false = FIXED camera (selection spaces): orbit,
+   *  view-snap keys and double-click focus all inert; pointer events
+   *  still reach the canvas for picking/hover. */
+  get enabled(): boolean { return this._enabled; }
+  set enabled(value: boolean) {
+    this._enabled = value;
+    this.orbit.enabled = value;
+  }
 
   dispose(): void {
     this.orbit.dispose();
@@ -165,6 +175,7 @@ export class CADControls {
   }
 
   private handleKey(e: KeyboardEvent): void {
+    if (!this._enabled) return;
     // Only react to numpad keys to avoid stomping on regular text input.
     const numpad = e.code && e.code.startsWith('Numpad');
     if (!numpad) return;
@@ -180,6 +191,7 @@ export class CADControls {
   }
 
   private handleDoubleClick(event: MouseEvent): void {
+    if (!this._enabled) return;
     const rect = this.host.domElement.getBoundingClientRect();
     const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
