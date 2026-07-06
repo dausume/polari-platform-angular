@@ -109,6 +109,8 @@ export class SimSpaceSelectorComponent implements AfterViewInit, OnDestroy {
   private orchestrator: SelectorOverlayOrchestrator;
   private subs: Subscription[] = [];
   private hostResizeObserver: ResizeObserver | null = null;
+  /** Stable ref so removeEventListener can match the capture listener. */
+  private onAnyScroll = () => this.orchestrator.reposition();
 
   constructor(
     overlayManager: StateOverlayManager,
@@ -141,6 +143,7 @@ export class SimSpaceSelectorComponent implements AfterViewInit, OnDestroy {
   ngOnDestroy(): void {
     this.subs.forEach(s => s.unsubscribe());
     this.hostResizeObserver?.disconnect();
+    window.removeEventListener('scroll', this.onAnyScroll, { capture: true });
     this.orchestrator.destroy();
   }
 
@@ -195,6 +198,12 @@ export class SimSpaceSelectorComponent implements AfterViewInit, OnDestroy {
         new ResizeObserver(() => this.orchestrator.reposition());
       this.hostResizeObserver.observe(this.viewer.getViewerHost());
     }
+    // Overlays are viewport-fixed while the host lives in the page flow —
+    // scrolling moves the tiles under the overlays without any camera or
+    // resize event. Capture-phase because scroll doesn't bubble, so this
+    // also catches nested scrollable ancestors.
+    window.addEventListener(
+      'scroll', this.onAnyScroll, { capture: true, passive: true });
     // Snapshot loads settle async — a short reposition tail covers the
     // first paint without a visible jump.
     setTimeout(() => this.orchestrator.reposition(), 500);
