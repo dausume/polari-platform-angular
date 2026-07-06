@@ -1,6 +1,7 @@
 import {
-  Component, EventEmitter, Input, OnDestroy, Output,
+  Component, EventEmitter, Input, OnDestroy, OnInit, Output,
 } from '@angular/core';
+import { Subscription } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -14,6 +15,7 @@ import {
   MultiScaleSimDefinitionService, StageSearchReport,
 } from '@services/multi-scale/multi-scale-sim-definition.service';
 import { MsimProofService } from '@services/multi-scale/msim-proof.service';
+import { DisplaySelectionContextService } from '@services/dashboard/display-selection-context.service';
 import { SimulationRunService } from '@services/sim-space/simulation-run.service';
 import { evaluateExpression } from '@models/multi-scale/safe-expression';
 
@@ -224,13 +226,17 @@ type ChoiceProofState = 'plain' | 'unproven' | 'proving' | 'proven' | 'impossibl
     .ic-status { font-size: 0.8rem; color: var(--text-secondary, #666); }
   `],
 })
-export class MsimIcPanelComponent implements OnDestroy {
+export class MsimIcPanelComponent implements OnInit, OnDestroy {
   @Input() ic!: IcInterfaceConfig;
   /** Coupled sources of the page's SELECTED run — copied onto runs this
    *  panel creates so a material-picked run still couples (e.g. to the
    *  wind field). */
   @Input() coupledRunRefs: Record<string, string> = {};
   @Input() busy = false;
+  /** Opt-in: follow selections other components publish under this
+   *  display-context key (e.g. the 3D material selection space) — the
+   *  runtime selection channel, configured, never implicit. */
+  @Input() followContextKey = '';
   /** Emits the new run's name once created + step-0 committed. */
   @Output() runCreated = new EventEmitter<string>();
 
@@ -264,11 +270,25 @@ export class MsimIcPanelComponent implements OnDestroy {
     private runService: SimulationRunService,
     private msimService: MultiScaleSimDefinitionService,
     private proofService: MsimProofService,
+    private selectionContext: DisplaySelectionContextService,
   ) {}
+
+  ngOnInit(): void {
+    if (!this.followContextKey) return;
+    this.contextSub = this.selectionContext
+      .select$(this.followContextKey).subscribe(value => {
+        if (typeof value !== 'string' || value === this.selectedKey) return;
+        const choice = this.ic?.choices?.find(c => c.key === value);
+        if (choice) this.select(choice);
+      });
+  }
+
+  private contextSub: Subscription | null = null;
 
   ngOnDestroy(): void {
     if (this.debounceTimer) clearTimeout(this.debounceTimer);
     if (this.proofTimer) clearTimeout(this.proofTimer);
+    this.contextSub?.unsubscribe();
     this.stopProofRequested = true;
   }
 

@@ -4,6 +4,7 @@ import { MsimGraphDisplayPanelComponent } from './msim-graph-display-panel.compo
 import { MsimIcDisplayPanelComponent } from './msim-ic-display-panel.component';
 import { MsimExplainerPanelComponent } from './msim-explainer-panel.component';
 import { MsimFamilyGraphPanelComponent } from './msim-family-graph-panel.component';
+import { SimSpaceSelectorComponent } from '@components/sim-space/sim-space-selector/sim-space-selector.component';
 
 let registered = false;
 
@@ -41,6 +42,15 @@ export function registerMsimDisplayComponents(): void {
       + 'material picker) that validates choices and starts runs '
       + '(input: icInterfaceRef)',
     defaultInputs: {},
+  });
+
+  registerDisplayComponent('sim-space-selector', SimSpaceSelectorComponent, {
+    displayName: '3D Selection Space',
+    description: 'A fixed-camera 3D scene whose objects are selectable '
+      + 'choices — overlays with proof badges + detail popups, publishing '
+      + 'the selection into the display context (inputs: simSpaceRef, '
+      + 'items, contextKey, stageKey; msimName arrives from context)',
+    defaultInputs: { contextKey: 'selectedMaterialKey', items: [] },
   });
 
   registerDisplayComponent('msim-family-graph-panel', MsimFamilyGraphPanelComponent, {

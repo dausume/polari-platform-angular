@@ -197,6 +197,24 @@
         <ng-container *ngIf="!customDisplay">
         <!-- Panels -->
         <div class="panel-grid">
+            <!-- 3D SELECTION SPACE (the solid-material selector): click a
+                 preview ball; its overlay carries the proof badge; the
+                 picker below follows via the shared context key. -->
+            <div class="panel-card selector-panel" *ngFor="let panel of selectorPanels">
+                <div class="panel-title">
+                    <mat-icon>touch_app</mat-icon>
+                    {{ panel.simSpaceRef }}
+                    <span class="panel-run">pick a material by clicking its ball</span>
+                </div>
+                <sim-space-selector
+                    [simSpaceRef]="panel.simSpaceRef!"
+                    [items]="panel.items || []"
+                    [contextKey]="panel.contextKey || 'selectedMaterialKey'"
+                    [msimName]="config.name"
+                    [stageKey]="panel.stageKey || ''">
+                </sim-space-selector>
+            </div>
+
             <!-- IC interface panels FIRST (material selection at the top,
                  right under the always-visible run controls) — interactive:
                  pick, validate (debounced), start a coupled run -->
@@ -206,6 +224,7 @@
                         [ic]="ic"
                         [coupledRunRefs]="selectedRunSummary?.coupledRunRefs ?? {}"
                         [busy]="busy"
+                        [followContextKey]="panel.followContextKey || ''"
                         (runCreated)="onRunCreated($event)">
                     </msim-ic-panel>
                 </ng-container>

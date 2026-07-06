@@ -47,6 +47,7 @@ import { MsimMemberInfoService } from '@services/multi-scale/msim-member-info.se
 import { MsimMemberInfoComponent } from './msim-member-info.component';
 import { MsimExplainerPanelComponent } from './msim-explainer-panel.component';
 import { MsimFamilyGraphPanelComponent } from './msim-family-graph-panel.component';
+import { SimSpaceSelectorComponent } from '@components/sim-space/sim-space-selector/sim-space-selector.component';
 import { registerMsimDisplayComponents } from './msim-display-components';
 
 /** One button on the layout-edit palette. */
@@ -83,7 +84,7 @@ export interface StageState {
     SimSpaceViewerComponent, MsimGraphPanelComponent, MsimIcPanelComponent,
     MsimStageSearchComponent, MsimConfigureComponent, MsimGraphViewComponent,
     MsimMemberInfoComponent, MsimExplainerPanelComponent,
-    MsimFamilyGraphPanelComponent,
+    MsimFamilyGraphPanelComponent, SimSpaceSelectorComponent,
     DisplayRendererComponent,
   ],
   templateUrl: './multi-scale-sim-page.component.html',
@@ -536,8 +537,14 @@ export class MultiScaleSimPageComponent implements OnInit, OnDestroy {
       .filter(p => p.kind === 'explainer' && p.stageKey);
   }
 
+  /** 3D selection spaces (the solid-material selector). */
+  get selectorPanels(): MsimPanel[] {
+    return (this.config?.panels ?? [])
+      .filter(p => p.kind === 'selector' && p.simSpaceRef);
+  }
+
   get deferredPanelCount(): number {
-    const shownKinds = ['scene', 'ic', 'graph', 'explainer'];
+    const shownKinds = ['scene', 'ic', 'graph', 'explainer', 'selector'];
     return (this.config?.panels ?? [])
       .filter(p => !shownKinds.includes(p.kind)).length;
   }

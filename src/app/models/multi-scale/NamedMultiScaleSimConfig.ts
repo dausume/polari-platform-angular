@@ -45,9 +45,19 @@ export interface MsimStage {
   };
 }
 
+/** One item of a `kind:'selector'` panel — a selectable 3D object. */
+export interface MsimSelectorItem {
+  key: string;
+  label: string;
+  objectId: string;
+  description?: string;
+  overlayRef?: string;
+  popup?: boolean;
+}
+
 /** One entry of panels_json — a ref to another definition object. */
 export interface MsimPanel {
-  kind: string; // 'scene' | 'graph' | 'ic' | 'explainer' | 'display'
+  kind: string; // 'scene' | 'graph' | 'ic' | 'explainer' | 'selector' | 'display'
   simSpaceRef?: string;
   /** 'primary' | 'stage:<stageKey>' | a run name. */
   run?: string;
@@ -57,6 +67,13 @@ export interface MsimPanel {
   runs?: string[];
   icInterfaceRef?: string;
   displayId?: string;
+  // --- kind:'ic' — opt-in: follow selections published under this
+  // display-context key (e.g. by a 'selector' panel).
+  followContextKey?: string;
+  // --- kind:'selector' — the 3D selection space (uses simSpaceRef +
+  // stageKey above, plus these).
+  items?: MsimSelectorItem[];
+  contextKey?: string;
   /** kind:'graph' only — pivot this graph across a FAMILY of materials
    *  (the IC interface's choices) tied to a stage: per-material tabs +
    *  an all-materials comparison chart. */

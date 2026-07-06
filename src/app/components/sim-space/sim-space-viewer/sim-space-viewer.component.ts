@@ -15,9 +15,11 @@ import {
   AfterViewInit,
   Component,
   ElementRef,
+  EventEmitter,
   Input,
   OnChanges,
   OnDestroy,
+  Output,
   SimpleChanges,
   ViewChild,
 } from '@angular/core';
@@ -267,6 +269,11 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
    *  (e.g. the Multi-Scale Simulation Page, which owns its own run
    *  controls) don't want a second set of play buttons. */
   @Input() hideRunPanel = false;
+
+  /** Fired on every canvas click with the picked object id (null =
+   *  empty space) — selection hosts (sim-space-selector) consume this;
+   *  independent of clickNavigates. */
+  @Output() objectClicked = new EventEmitter<string | null>();
 
   /** Which on-canvas overlays (axes / legend / evaluations HUD) are
    *  showing. Managed from the right sidebar's View toggles — the
@@ -825,9 +832,22 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
   // Renderer events — click + hover
   // -------------------------------------------------------------------
 
+  /** The live renderer — selection hosts anchor overlays through it
+   *  (getObjectScreenRect / setSelection / setOnViewChange). Null until
+   *  the first load completes. */
+  getRenderer(): SimSpaceRenderer | null {
+    return this.renderer;
+  }
+
+  /** The canvas host element — overlay anchors need its viewport rect. */
+  getViewerHost(): HTMLElement {
+    return this.hostRef.nativeElement;
+  }
+
   private wireRendererEvents(): void {
     if (!this.renderer) return;
     this.renderer.setOnClick(({ id }) => {
+      this.objectClicked.emit(id);
       if (!id || !this.clickNavigates) return;
       // Same colliding-id hazard as the hover path: prefer the visible row so
       // navigation targets the instance actually on screen, not the t=0 row.
