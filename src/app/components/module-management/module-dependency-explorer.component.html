@@ -1,0 +1,100 @@
+<div class="dep-explorer">
+    <h3><mat-icon>account_tree</mat-icon> Module boundaries &amp; dependencies</h3>
+    <p class="hint">
+        Each framework boundary is a coherent module; arrows list the
+        TRACKED import edges between boundaries. Expand a boundary to
+        see its external python imports as full requires-trees —
+        <span class="shared-chip">shared</span> nodes are expanded once
+        elsewhere in the tree and must never be installed twice.
+    </p>
+
+    <div class="loading" *ngIf="loading">Scanning boundaries…</div>
+
+    <!-- Install plan: suggestion first, knob second. -->
+    <div class="plan-card" *ngIf="plan">
+        <ng-container *ngIf="plan.packages?.length; else nothingMissing">
+            <mat-icon>lightbulb_outline</mat-icon>
+            <div class="plan-body">
+                <strong>{{ plan.packages.length }} missing package(s)</strong>
+                — one pip run installs them (and their shared downstream
+                deps) exactly once:
+                <code>{{ plan.command.join(' ') }}</code>
+                <div class="plan-needed" *ngFor="let pkg of plan.packages">
+                    <code>{{ pkg }}</code> needed by
+                    {{ plan.neededBy[pkg].join(', ') }}
+                </div>
+                <span class="durability">{{ plan.suggestion?.durability }}</span>
+            </div>
+            <button mat-stroked-button color="primary"
+                    [disabled]="installing" (click)="installPlan()">
+                <mat-icon>download</mat-icon> Install (one pip run)
+            </button>
+            <mat-spinner *ngIf="installing" diameter="18"></mat-spinner>
+        </ng-container>
+        <ng-template #nothingMissing>
+            <mat-icon class="ok">check_circle</mat-icon>
+            <span>{{ plan.note }}</span>
+        </ng-template>
+    </div>
+    <div class="install-report" *ngIf="installReport"
+         [class.bad]="!installReport.ok">
+        {{ installReport.ok ? 'Installed.' : (installReport.error || 'refused') }}
+        <span class="durability" *ngIf="installReport.durability">
+            {{ installReport.durability }}</span>
+    </div>
+
+    <!-- The boundary tree. -->
+    <div class="boundary" *ngFor="let b of boundaries">
+        <div class="boundary-head" (click)="toggle(b)">
+            <mat-icon>{{ b.expanded ? 'expand_more' : 'chevron_right' }}</mat-icon>
+            <span class="bname">{{ b.name }}</span>
+            <span class="bdesc">{{ b.description }}</span>
+            <span class="edges" *ngIf="b.boundaryImports.length"
+                  matTooltip="Boundary edges: which other coherent
+                    modules this one imports">
+                → {{ b.boundaryImports.join(', ') }}
+            </span>
+            <span class="pycount" *ngIf="b.pythonImports.length">
+                {{ b.pythonImports.length }} python dep(s)
+            </span>
+        </div>
+        <div class="boundary-body" *ngIf="b.expanded">
+            <div class="loading" *ngIf="b.loadingTrees">
+                expanding requires-trees…</div>
+            <ng-container *ngIf="b.pythonTrees?.length">
+                <ng-container
+                    *ngTemplateOutlet="pyTree; context: {nodes: b.pythonTrees, depth: 0}">
+                </ng-container>
+            </ng-container>
+            <p class="hint" *ngIf="!b.pythonImports.length">
+                No external python imports — this boundary only uses
+                other polari boundaries and the standard library.</p>
+        </div>
+    </div>
+
+    <!-- Recursive python requires-tree template. -->
+    <ng-template #pyTree let-nodes="nodes" let-depth="depth">
+        <div class="py-node" *ngFor="let n of nodes"
+             [style.margin-left.px]="depth * 18">
+            <mat-icon class="leaf-icon"
+                      [class.missing]="!n.installed">
+                {{ n.installed ? 'inventory_2' : 'help_outline' }}
+            </mat-icon>
+            <code>{{ n.name }}</code>
+            <span class="version" *ngIf="n.resolvedVersion">
+                {{ n.resolvedVersion }}</span>
+            <span class="missing-chip" *ngIf="!n.installed">missing</span>
+            <span class="shared-chip" *ngIf="n.shared"
+                  matTooltip="Expanded elsewhere in this tree — an
+                    install must not duplicate it">shared</span>
+            <span class="cond-chip" *ngIf="n.conditional"
+                  matTooltip="Guarded by an environment marker — applies
+                    conditionally">conditional</span>
+            <ng-container *ngIf="n.children?.length">
+                <ng-container
+                    *ngTemplateOutlet="pyTree; context: {nodes: n.children, depth: depth + 1}">
+                </ng-container>
+            </ng-container>
+        </div>
+    </ng-template>
+</div>

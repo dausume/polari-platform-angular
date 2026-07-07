@@ -14,6 +14,7 @@ import { PolariService } from '@services/polari-service';
 import { ClassTypingService } from '@services/class-typing-service';
 import { ModuleDisableConfirmDialogComponent, ModuleDisableConfirmData } from './module-disable-confirm-dialog';
 import { CreateModuleDialogComponent, CreateModuleDialogResult } from './create-module-dialog';
+import { ModuleDependencyExplorerComponent } from './module-dependency-explorer.component';
 
 interface ModuleInfo {
   id: string;
@@ -105,6 +106,10 @@ interface ModuleInfo {
         <mat-icon>{{ toggleError ? 'warning' : 'info' }}</mat-icon>
         <span>{{ toggleMessage }}</span>
       </div>
+
+      <!-- Boundary + dependency explorer (msci-21): the coherent-module
+           map, requires-trees, and the union install plan. -->
+      <module-dependency-explorer></module-dependency-explorer>
     </div>
   `,
   styles: [`
@@ -161,7 +166,8 @@ interface ModuleInfo {
   `],
   imports: [
     CommonModule, MatCardModule, MatIconModule, MatButtonModule,
-    MatSlideToggleModule, MatProgressSpinnerModule, MatChipsModule, MatDialogModule
+    MatSlideToggleModule, MatProgressSpinnerModule, MatChipsModule, MatDialogModule,
+    ModuleDependencyExplorerComponent
   ]
 })
 export class ModuleManagementComponent implements OnInit, OnDestroy {
