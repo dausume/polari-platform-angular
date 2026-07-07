@@ -792,4 +792,30 @@ export class MultiScaleSimPageComponent implements OnInit, OnDestroy {
   trackPanel(index: number, panel: MsimPanel): string {
     return `${panel.kind}:${panel.simSpaceRef ?? panel.icInterfaceRef ?? index}`;
   }
+
+  // ---------------------------------------------------------------
+  // Panel reveal gating — a panel with a `reveal` config renders
+  // collapsed behind a labeled disclosure until its condition holds
+  // (stageActivity: the named stage has a resolved run). The user can
+  // always expand it by hand; nothing is ever silently hidden.
+  // ---------------------------------------------------------------
+
+  /** Panels the user expanded despite an unmet reveal condition. */
+  private revealOverrides = new Set<string>();
+
+  panelRevealPending(panel: MsimPanel): boolean {
+    const reveal = panel.reveal;
+    if (!reveal || reveal.when !== 'stageActivity') return false;
+    if (this.revealOverrides.has(this.trackPanel(0, panel))) return false;
+    return !this.stageRunByKey.has(reveal.stageKey);
+  }
+
+  revealLabel(panel: MsimPanel): string {
+    return panel.reveal?.label
+      || `${panel.simSpaceRef ?? panel.kind} (waits for stage "${panel.reveal?.stageKey}")`;
+  }
+
+  expandRevealAnyway(panel: MsimPanel): void {
+    this.revealOverrides.add(this.trackPanel(0, panel));
+  }
 }

@@ -94,6 +94,15 @@ export interface MsimPanel {
   showDerive?: boolean;
   showConditionMap?: boolean;
   showMeltLine?: boolean;
+  /** Optional disclosure gating: the panel renders collapsed behind a
+   *  labeled header until the condition holds (currently
+   *  when:'stageActivity' — the named stage has a run). Always
+   *  user-expandable ("Show anyway") — a knob, never a silent hide. */
+  reveal?: {
+    when: 'stageActivity';
+    stageKey: string;
+    label?: string;
+  };
 }
 
 export class NamedMultiScaleSimConfig {

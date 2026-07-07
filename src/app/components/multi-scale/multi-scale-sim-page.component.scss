@@ -115,6 +115,14 @@
       &.comparison { color: #b26a00; }
     }
     button { margin-left: auto; }
+
+    // Reveal-gated: just a quiet disclosure header until the stage runs.
+    &.reveal-pending {
+      border-bottom: none;
+      color: var(--text-secondary, #777); font-weight: 400;
+      .reveal-label { font-size: 13px; }
+      .reveal-expand { margin-left: auto; font-size: 12px; }
+    }
   }
 }
 

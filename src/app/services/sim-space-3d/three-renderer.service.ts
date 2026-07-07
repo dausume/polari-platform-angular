@@ -632,6 +632,12 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
     // defaults (cube / magenta material) when refs miss, so this never
     // returns null. Return type accordingly.
     const meshDef = this.meshLib.get(obj.shapeRef);
+    if (!meshDef) {
+      // Honest gap: the library has no such mesh (bad ref or rows not
+      // seeded) — say so instead of silently showing a cube.
+      console.warn(
+        `[ThreeSimSpaceRenderer] shapeRef "${obj.shapeRef}" not in the mesh library — rendering a fallback cube (object ${obj.id})`);
+    }
     const materialDef = this.materialLib.get(obj.styleRef);
     // Albedo texture, when the material declares one (textures are
     // cached/shared by name inside three-texture-builders).

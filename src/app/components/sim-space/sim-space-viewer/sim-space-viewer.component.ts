@@ -694,7 +694,7 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
    *       cumulative=true  → visible when temporalValue ≤ currentTime
    *       cumulative=false → visible only when this is the row whose
    *                          temporalValue is the latest ≤ currentTime
-   *                          per (className, classRef.instanceId-prefix).
+   *                          per binding-class track (classTrackOf).
    *         A pendulum thus shows one bob at a time.
    */
   /**
@@ -711,7 +711,23 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
    */
   private trackKeyFor(o: SimSpaceObject | SimSpaceConnection): string {
     const snapshotMode = o.temporalValue !== undefined && !this.temporalCumulative;
-    return snapshotMode ? (o.classRef?.className ?? o.id) : o.id;
+    return snapshotMode ? this.classTrackOf(o) : o.id;
+  }
+
+  /**
+   * The per-binding class track — the identity BOTH the snapshot-mode
+   * collapse and trackKey use. `bindingName|className` when the compiler
+   * stamped the binding's name into userData (mirrors the vector
+   * emitter's `bindingName:className` keying), plain className for older
+   * snapshots without it. Without the binding name, two bindings on the
+   * SAME class collapse to one track and one of their objects silently
+   * vanishes each frame.
+   */
+  private classTrackOf(o: SimSpaceObject | SimSpaceConnection): string {
+    const cls = o.classRef?.className;
+    if (!cls) return o.id;
+    const binding = (o.userData?.['bindingName'] as string) || '';
+    return binding ? `${binding}|${cls}` : cls;
   }
 
   /** Active screen profile's per-object patches (no profile = as-is). */
@@ -745,11 +761,12 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
         result.map(o => (o.trackKey = this.trackKeyFor(o), o)));
     }
     // Snapshot mode: pick the most-recent-but-not-exceeding object per
-    // class. Two pendulums in the same scene would each show one bob.
+    // binding-class track (so two bindings on one class each keep their
+    // own object on screen).
     const latestByClass = new Map<string, SimSpaceObject>();
     for (const obj of temporal) {
       if (obj.temporalValue! > this.currentTime) continue;
-      const key = obj.classRef?.className ?? obj.id;
+      const key = this.classTrackOf(obj);
       const prior = latestByClass.get(key);
       if (!prior || obj.temporalValue! > prior.temporalValue!) {
         latestByClass.set(key, obj);
@@ -795,7 +812,7 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
     const latestByClass = new Map<string, SimSpaceConnection>();
     for (const c of temporal) {
       if (c.temporalValue! > this.currentTime) continue;
-      const key = c.classRef?.className ?? c.id;
+      const key = this.classTrackOf(c);
       const prior = latestByClass.get(key);
       if (!prior || c.temporalValue! > prior.temporalValue!) {
         latestByClass.set(key, c);

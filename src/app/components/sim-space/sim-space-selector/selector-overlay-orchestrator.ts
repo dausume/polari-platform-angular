@@ -99,9 +99,12 @@ export class SelectorOverlayOrchestrator {
       { popupRequested?: { subscribe: (fn: () => void) => unknown } };
     instance.popupRequested?.subscribe(() =>
       this.popupRequested$.next(item.key));
-    // Interactive overlay: its buttons need pointer events (the chip
-    // body stays pass-through via its own CSS).
-    this.overlayManager.setOverlayPointerEvents(this.overlayName(item), true);
+    // The host stays pointer-events:none (the manager's default) so the
+    // 3D canvas underneath receives clicks; a transparent host set to
+    // 'auto' hit-tests across its whole rect and swallows them. The
+    // chips' interactive children (e.g. the expand button) opt back in
+    // with their own pointer-events:auto, which works under a 'none'
+    // parent.
   }
 
   private overlayName(item: OrchestratedItem): string {

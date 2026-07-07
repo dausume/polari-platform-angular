@@ -67,6 +67,11 @@ const BUILDERS: Record<string, PrimitiveBuilder> = {
  */
 export function buildGeometry(meshDef: Mesh3DDef | undefined): THREE.BufferGeometry {
   const name = meshDef?.builtin_name || 'cube';
+  if (meshDef && !BUILDERS[name]) {
+    // Honest gap instead of a silently wrong shape on screen.
+    console.warn(
+      `[buildGeometry] mesh "${meshDef.name}" names unknown builtin "${name}" — falling back to a unit cube`);
+  }
   const params = parseJsonSafe(meshDef?.primitive_params_json);
   const builder = BUILDERS[name] ?? BUILDERS['cube'];
   return builder(params);

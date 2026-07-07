@@ -256,6 +256,19 @@
             <!-- Scene panels: the coupled set shares ONE scene (run scope
                  expansion renders coupled sources' rows in the same view). -->
             <div class="panel-card scene-panel" *ngFor="let panel of scenePanels; trackBy: trackPanel">
+                <!-- Reveal-gated panel: collapsed disclosure until its
+                     stage has actually run — always expandable by hand. -->
+                <ng-container *ngIf="panelRevealPending(panel); else scenePanelBody">
+                    <div class="panel-title reveal-pending">
+                        <mat-icon>visibility_off</mat-icon>
+                        <span class="reveal-label">{{ revealLabel(panel) }}</span>
+                        <button mat-stroked-button class="reveal-expand"
+                                (click)="expandRevealAnyway(panel)">
+                            Show anyway
+                        </button>
+                    </div>
+                </ng-container>
+                <ng-template #scenePanelBody>
                 <div class="panel-title">
                     <mat-icon>view_in_ar</mat-icon>
                     {{ panel.simSpaceRef }}
@@ -272,6 +285,7 @@
                         [clickNavigates]="false">
                     </sim-space-viewer>
                 </div>
+                </ng-template>
             </div>
 
             <!-- Scenario-comparison viewer: same scene, pinned to the
