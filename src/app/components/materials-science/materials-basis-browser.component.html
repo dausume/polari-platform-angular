@@ -1,0 +1,66 @@
+<div class="basis-browser">
+    <!-- Engine capability banner — honest about what can execute NOW. -->
+    <div class="capability" [class.warn]="!capabilitySummary.ok">
+        <mat-icon>{{ capabilitySummary.ok ? 'memory' : 'cloud_off' }}</mat-icon>
+        <span>{{ capabilitySummary.text }}</span>
+    </div>
+
+    <p class="hint">
+        Each cell is a material's definition at one scale level
+        (hover for lineage). Absence is data — piecemeal definitions
+        are first-class. Click a material to see its level rows and
+        stored engine results.
+    </p>
+
+    <div class="loading" *ngIf="loading">Loading the materials basis…</div>
+    <div class="error" *ngIf="errorMessage">{{ errorMessage }}</div>
+
+    <table class="basis-grid" *ngIf="!loading && materials.length">
+        <thead>
+            <tr>
+                <th class="mat-col">Material</th>
+                <th *ngFor="let l of levels">
+                    L{{ l.level }}<span class="lvl-label">{{ l.label }}</span>
+                </th>
+                <th class="thermal-col">Thermal window</th>
+            </tr>
+        </thead>
+        <tbody>
+            <ng-container *ngFor="let mat of materials">
+                <tr class="mat-row" (click)="toggle(mat)">
+                    <td class="mat-col">
+                        <mat-icon class="expander">
+                            {{ expanded.has(mat) ? 'expand_more' : 'chevron_right' }}
+                        </mat-icon>
+                        {{ mat }}
+                    </td>
+                    <td *ngFor="let l of levels">
+                        <scale-level-cell [row]="cell(mat, l.level)"></scale-level-cell>
+                    </td>
+                    <td class="thermal-col">
+                        <thermal-window-strip [profile]="thermal(mat)"></thermal-window-strip>
+                    </td>
+                </tr>
+                <tr class="detail-row" *ngIf="expanded.has(mat)">
+                    <td [attr.colspan]="levels.length + 2">
+                        <div class="detail" *ngFor="let row of definedRows(mat)">
+                            <span class="detail-name">L{{ row.scale_level }}
+                                · {{ row.name }}</span>
+                            <span class="detail-class">{{ row.definition_class }}</span>
+                            <span class="detail-lineage" *ngIf="row.derived_from_name">
+                                ← {{ row.derived_from_name }}
+                                <em *ngIf="row.derivation_method">({{ row.derivation_method }})</em>
+                            </span>
+                            <code class="detail-result" *ngIf="resultText(row)">{{ resultText(row) }}</code>
+                        </div>
+                    </td>
+                </tr>
+            </ng-container>
+        </tbody>
+    </table>
+
+    <div class="empty" *ngIf="!loading && !materials.length && !errorMessage">
+        No MaterialScaleDefinition rows yet — the basis is empty on this
+        instance.
+    </div>
+</div>

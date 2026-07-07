@@ -253,6 +253,19 @@
                 </msim-explainer-panel>
             </div>
 
+            <!-- Formulation-search panels: the wax-derivation workbench
+                 pieces (run controls, trajectory, winners) — the SAME
+                 components the standalone formulation-search page uses. -->
+            <div class="panel-card formulation-panel"
+                 *ngFor="let panel of formulationSearchPanels; trackBy: trackPanel">
+                <div class="panel-title">
+                    <mat-icon>science</mat-icon>
+                    Formulation search — {{ panel.searchRef }}
+                </div>
+                <msim-formulation-search-panel [searchRef]="panel.searchRef!">
+                </msim-formulation-search-panel>
+            </div>
+
             <!-- Scene panels: the coupled set shares ONE scene (run scope
                  expansion renders coupled sources' rows in the same view). -->
             <div class="panel-card scene-panel" *ngFor="let panel of scenePanels; trackBy: trackPanel">

@@ -8,6 +8,7 @@ import { Display } from '@models/dashboards/Display';
 import { DisplayRendererComponent } from '@components/dashboard/dashboard-renderer/dashboard-renderer';
 import { Subscription } from 'rxjs';
 import { registerMsimDisplayComponents } from '@components/multi-scale/msim-display-components';
+import { registerMsciDisplayComponents } from '@components/materials-science/msci-display-components';
 import { DisplayEventsService } from '@services/no-code-services/display-events.service';
 
 @Component({
@@ -87,9 +88,11 @@ export class DisplayPageComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    // Displays may contain multi-scale panels (scene/graph/IC pickers);
-    // make sure their components are registered before rendering.
+    // Displays may contain multi-scale panels (scene/graph/IC pickers)
+    // or materials-science pages (basis browser, formulation-search
+    // workbench); register their components before rendering.
     registerMsimDisplayComponents();
+    registerMsciDisplayComponents();
     this.sub = this.route.paramMap.subscribe(params => {
       const id = params.get('id');
       if (id) {

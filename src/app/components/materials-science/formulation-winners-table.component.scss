@@ -1,0 +1,56 @@
+.winners {
+  font-size: 12.5px;
+
+  .run-facts {
+    display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 8px;
+    color: var(--text-secondary, #666);
+    .warn { color: #b26a00; }
+  }
+
+  .gaps {
+    display: flex; gap: 8px; background: #e3f2fd; color: #114b7a;
+    border-radius: 8px; padding: 8px 10px; margin-bottom: 8px;
+    font-size: 12px;
+    mat-icon { font-size: 18px; width: 18px; height: 18px; flex-shrink: 0; }
+    .gap-line { padding: 1px 0; }
+  }
+
+  .cand-table {
+    width: 100%; border-collapse: collapse;
+    th, td { padding: 6px 8px; text-align: left; vertical-align: top; }
+    thead th {
+      font-size: 11px; color: var(--text-secondary, #777);
+      border-bottom: 2px solid var(--border-light, #ddd);
+    }
+    tbody tr td { border-top: 1px solid var(--border-light, #eee); }
+    tr.winner { background: rgba(21, 149, 136, 0.06); }
+    .star { font-size: 14px; width: 14px; height: 14px; color: #b8860b;
+            vertical-align: -2px; }
+    .formulation { font-weight: 600; max-width: 220px; }
+    .predicted .pred {
+      display: inline-block; margin-right: 8px; white-space: nowrap;
+    }
+    .unpredicted {
+      color: #b26a00; font-style: italic; cursor: help; margin-right: 8px;
+    }
+    .violations { color: #8d2f23; cursor: help; }
+    .thermal .bad { color: #8d2f23; cursor: help; }
+    .badges .badge {
+      display: inline-block; font-size: 10.5px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.3px;
+      padding: 1px 7px; border-radius: 8px; margin: 0 4px 3px 0;
+      background: #eceff1; color: #607d8b; cursor: help;
+      &.ok { background: #e8f5e9; color: #1b5e20; }
+      &.warn { background: #fff8e1; color: #8d6e00; }
+      &.bad { background: #fbe9e7; color: #8d2f23; }
+      &.skip { background: #eceff1; color: #90a4ae; }
+      &.dft { background: #ede7f6; color: #4527a0; }
+    }
+    .actions .promoted {
+      color: #1b5e20; display: inline-flex; align-items: center; gap: 3px;
+      mat-icon { font-size: 16px; width: 16px; height: 16px; }
+    }
+  }
+
+  .promote-error { color: #8d2f23; font-size: 12px; margin-top: 6px; }
+}

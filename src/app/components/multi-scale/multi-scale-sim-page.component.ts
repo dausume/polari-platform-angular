@@ -36,6 +36,9 @@ import {
   NamedMultiScaleSimConfig,
 } from '@models/multi-scale/NamedMultiScaleSimConfig';
 import { DisplayRendererComponent } from '@components/dashboard/dashboard-renderer/dashboard-renderer';
+import {
+  MsimFormulationSearchPanelComponent,
+} from '@components/multi-scale/msim-formulation-search-panel.component';
 import { Display } from '@models/dashboards/Display';
 import { DisplayRow } from '@models/dashboards/DisplayRow';
 import { DisplayColumn } from '@models/dashboards/DisplayColumn';
@@ -85,6 +88,7 @@ export interface StageState {
     MsimStageSearchComponent, MsimConfigureComponent, MsimGraphViewComponent,
     MsimMemberInfoComponent, MsimExplainerPanelComponent,
     MsimFamilyGraphPanelComponent, SimSpaceSelectorComponent,
+    MsimFormulationSearchPanelComponent,
     DisplayRendererComponent,
   ],
   templateUrl: './multi-scale-sim-page.component.html',
@@ -529,6 +533,11 @@ export class MultiScaleSimPageComponent implements OnInit, OnDestroy {
     return (this.config?.panels ?? []).filter(p => p.kind === 'scene' && p.simSpaceRef);
   }
 
+  get formulationSearchPanels(): MsimPanel[] {
+    return (this.config?.panels ?? [])
+      .filter(p => p.kind === 'formulationSearch' && p.searchRef);
+  }
+
   get icPanels(): MsimPanel[] {
     return (this.config?.panels ?? []).filter(p => p.kind === 'ic' && p.icInterfaceRef);
   }
@@ -556,7 +565,8 @@ export class MultiScaleSimPageComponent implements OnInit, OnDestroy {
   }
 
   get deferredPanelCount(): number {
-    const shownKinds = ['scene', 'ic', 'graph', 'explainer', 'selector'];
+    const shownKinds = ['scene', 'ic', 'graph', 'explainer', 'selector',
+                        'formulationSearch'];
     return (this.config?.panels ?? [])
       .filter(p => !shownKinds.includes(p.kind)).length;
   }

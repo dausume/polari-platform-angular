@@ -1,0 +1,64 @@
+<div class="workbench">
+    <div class="loading" *ngIf="loading">Loading formulation searches…</div>
+    <div class="error" *ngIf="errorMessage">{{ errorMessage }}</div>
+
+    <ng-container *ngIf="!loading && selected">
+        <div class="header">
+            <label class="def-picker" *ngIf="definitions.length > 1">
+                Search:
+                <select [ngModel]="selected.name"
+                        (ngModelChange)="select($event)">
+                    <option *ngFor="let d of definitions" [value]="d.name">
+                        {{ d.display_name || d.name }}
+                    </option>
+                </select>
+            </label>
+            <h3 *ngIf="definitions.length <= 1">
+                {{ selected.display_name || selected.name }}
+            </h3>
+            <p class="description">{{ selected.description }}</p>
+        </div>
+
+        <!-- Knobs: the definition IS the configuration surface. -->
+        <details class="knobs" [open]="knobsOpen">
+            <summary><mat-icon>tune</mat-icon> Configure
+                ({{ selected.mode }} mode ·
+                {{ selected.sourcing_policy }} ·
+                process: {{ selected.process || 'none' }})</summary>
+            <formulation-knobs-form [definition]="selected">
+            </formulation-knobs-form>
+        </details>
+
+        <formulation-run-controls [searchRef]="selected.name"
+                                  (runCompleted)="refreshRuns()">
+        </formulation-run-controls>
+
+        <ng-container *ngIf="latestRun as run">
+            <h4>Refinement trajectory</h4>
+            <formulation-trajectory-graph [trajectory]="run.trajectory">
+            </formulation-trajectory-graph>
+
+            <h4>Candidates — run {{ run.name }}</h4>
+            <formulation-winners-table [run]="run">
+            </formulation-winners-table>
+
+            <details class="older-runs" *ngIf="runs.length > 1">
+                <summary>{{ runs.length - 1 }} earlier run(s)</summary>
+                <div class="old-run" *ngFor="let old of runs.slice(1)">
+                    <strong>{{ old.name }}</strong> — {{ old.outcome }},
+                    {{ old.candidates.length }} candidate(s),
+                    finished {{ old.finishedAt }}
+                </div>
+            </details>
+        </ng-container>
+
+        <p class="no-runs" *ngIf="!latestRun">
+            No runs yet — every run persists as an inspectable object
+            (trajectory, gaps, fidelity, candidates).
+        </p>
+    </ng-container>
+
+    <div class="empty" *ngIf="!loading && !selected && !errorMessage">
+        No FormulationSearchDefinition rows exist on this instance.
+    </div>
+</div>

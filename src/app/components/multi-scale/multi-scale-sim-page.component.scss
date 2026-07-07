@@ -131,6 +131,11 @@
   sim-space-viewer { display: block; height: 100%; }
 }
 
+.formulation-panel {
+  // The derivation workbench wants the full row (its table is wide).
+  grid-column: 1 / -1;
+}
+
 .ic-panel {
   padding-bottom: 8px;
   // Material selection sits at the top of the grid, full width.

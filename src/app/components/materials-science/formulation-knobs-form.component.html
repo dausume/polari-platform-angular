@@ -1,0 +1,77 @@
+<div class="knobs-form" *ngIf="draft">
+    <div class="grid">
+        <label>
+            <span>Target profile id
+                <mat-icon matTooltip="A seeded TargetMaterialProfile id
+                  (e.g. profile-min-viable-wax-filament). Inline targets
+                  in targets_json override it when non-empty."
+                  >info_outline</mat-icon></span>
+            <input [(ngModel)]="draft.target_profile_id">
+        </label>
+        <label>
+            <span>Base material</span>
+            <input [(ngModel)]="draft.base_material_name">
+        </label>
+        <label>
+            <span>Mode
+                <mat-icon matTooltip="'grid' sweeps additive combinations;
+                  'refine' batch-steps from the base toward the targets
+                  with adaptive step halving.">info_outline</mat-icon></span>
+            <select [(ngModel)]="draft.mode">
+                <option value="grid">grid</option>
+                <option value="refine">refine</option>
+            </select>
+        </label>
+        <label>
+            <span>Thermal process gate</span>
+            <select [(ngModel)]="draft.process">
+                <option value="">(none)</option>
+                <option value="3d-print">3d-print</option>
+                <option value="cnc-machine">cnc-machine</option>
+            </select>
+        </label>
+        <label>
+            <span>Sourcing policy
+                <mat-icon matTooltip="fossil-free-local (default) excludes
+                  fossil-derived additives, always naming the exclusions.
+                  'any' opts in the fossil rows as reference BENCHMARKS
+                  only.">info_outline</mat-icon></span>
+            <select [(ngModel)]="draft.sourcing_policy">
+                <option value="fossil-free-local">fossil-free-local (default)</option>
+                <option value="any">any (fossil benchmarks opt-in)</option>
+            </select>
+        </label>
+        <label>
+            <span>Results kept (top N)
+                <mat-icon matTooltip="Row-count realism: only the top N
+                  candidates (plus every winner and FEM-shortlist member)
+                  persist as rows; the run keeps the honest totals."
+                  >info_outline</mat-icon></span>
+            <input type="number" [(ngModel)]="draft.results_keep_top_n">
+        </label>
+    </div>
+
+    <label class="blob">
+        <span>Base properties (manually entered — echoed into every run's
+            assumptions)</span>
+        <textarea rows="5" [(ngModel)]="basePropertiesText"></textarea>
+    </label>
+    <label class="blob">
+        <span>Mode knobs (loadingStep / caps / maxBatches / stopPolicy …)</span>
+        <textarea rows="5" [(ngModel)]="knobsText"></textarea>
+    </label>
+    <label class="blob">
+        <span>Staged fidelity ladder (screening → FEM verify → DFT
+            evidence; evidence never auto-runs)</span>
+        <textarea rows="8" [(ngModel)]="fidelityText"></textarea>
+    </label>
+
+    <div class="form-footer">
+        <button mat-stroked-button color="primary" (click)="save()"
+                [disabled]="saving">
+            <mat-icon>save</mat-icon> Save knobs
+        </button>
+        <span class="json-error" *ngIf="jsonError">{{ jsonError }}</span>
+        <span class="save-result" *ngIf="saveResult">{{ saveResult }}</span>
+    </div>
+</div>

@@ -1,0 +1,106 @@
+<div class="winners" *ngIf="run">
+    <div class="run-facts">
+        <span>outcome: <strong>{{ run.outcome }}</strong></span>
+        <span>evaluated: {{ run.evaluated }}</span>
+        <span *ngIf="run.sweepCapped" class="warn">sweep capped</span>
+        <span>sourcing: {{ run.sourcingPolicy }}</span>
+        <span *ngIf="run.excludedBySourcing?.length"
+              [matTooltip]="run.excludedBySourcing.join(', ')">
+            {{ run.excludedBySourcing.length }} excluded by policy
+        </span>
+    </div>
+
+    <!-- Honest unpredictability: targets no effect data can move. -->
+    <div class="gaps" *ngIf="run.gapAnalysis?.length">
+        <mat-icon>info_outline</mat-icon>
+        <div>
+            <div *ngFor="let gap of run.gapAnalysis" class="gap-line">
+                <strong>{{ gap.propertyName }}</strong>
+                <ng-container *ngIf="gap.status === 'unpredicted'">
+                    — unpredicted: {{ gap.evidence }}
+                </ng-container>
+                <ng-container *ngIf="gap.status !== 'unpredicted'">
+                    — {{ gap.evidence || gap.status }}
+                    <span *ngIf="gap.movers?.length">· movers:
+                        {{ gap.movers.join(', ') }}</span>
+                </ng-container>
+            </div>
+        </div>
+    </div>
+
+    <table class="cand-table" *ngIf="run.candidates?.length">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Formulation</th>
+                <th>Predicted</th>
+                <th>Score</th>
+                <th>Thermal</th>
+                <th>Fidelity</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr *ngFor="let cand of run.candidates"
+                [class.winner]="cand.isWinner">
+                <td>{{ cand.rank }}<mat-icon *ngIf="cand.isWinner"
+                    class="star" matTooltip="Meets every predictable target"
+                    >star</mat-icon></td>
+                <td class="formulation">{{ componentText(cand) }}</td>
+                <td class="predicted">
+                    <span *ngFor="let e of predictedEntries(cand)" class="pred">
+                        {{ e[0] }}: {{ e[1] | number:'1.0-3' }}
+                    </span>
+                    <span class="unpredicted" *ngIf="cand.unpredicted?.length"
+                          [matTooltip]="'No quantified effect data moves: '
+                            + cand.unpredicted.join(', ')">
+                        {{ cand.unpredicted.length }} unpredicted
+                    </span>
+                    <span class="violations" *ngIf="violationText(cand)"
+                          [matTooltip]="violationText(cand)">
+                        {{ cand.violations.length }} violation(s)
+                    </span>
+                </td>
+                <td>{{ cand.score | number:'1.3-3' }}</td>
+                <td class="thermal">
+                    <ng-container *ngIf="cand.thermalVerdict?.windowC as w">
+                        [{{ w[0] }}, {{ w[1] }}]°C
+                    </ng-container>
+                    <span class="bad" *ngIf="cand.thermalVerdict?.refusal"
+                          [matTooltip]="cand.thermalVerdict.refusal">
+                        refused
+                    </span>
+                </td>
+                <td class="badges">
+                    <span class="badge" [ngClass]="femBadge(cand).cls"
+                          [matTooltip]="femBadge(cand).tip">
+                        {{ femBadge(cand).text }}
+                    </span>
+                    <span class="badge dft" *ngIf="dftBadge(cand)">
+                        {{ dftBadge(cand) }}
+                    </span>
+                </td>
+                <td class="actions">
+                    <ng-container *ngIf="!cand.promotedScaleDef; else promotedRef">
+                        <button mat-stroked-button
+                                matTooltip="EXPLICIT promotion: creates a
+                                  level-1 MaterialScaleDefinition with
+                                  lineage from the base material. Never
+                                  automatic."
+                                [disabled]="promoting.has(cand.name)"
+                                (click)="promote(cand)">
+                            <mat-icon>upgrade</mat-icon> Promote to L1
+                        </button>
+                    </ng-container>
+                    <ng-template #promotedRef>
+                        <span class="promoted"
+                              [matTooltip]="cand.promotedScaleDef">
+                            <mat-icon>check</mat-icon> L1 row created
+                        </span>
+                    </ng-template>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <p class="promote-error" *ngIf="promoteError">{{ promoteError }}</p>
+</div>

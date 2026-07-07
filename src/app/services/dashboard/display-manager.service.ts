@@ -94,7 +94,11 @@ export class DisplayManagerService {
     return this.http.get<any>(this.baseUrl, this.polariService.backendRequestOptions).pipe(
       map((response: any) => {
         const items = this.parseReadAllResponse(response);
-        const backendObj = items.find((item: any) => item.id === id);
+        // /display/<id> accepts either the row id or a page's declared
+        // pageRoute (so seeded pages have stable human URLs, e.g.
+        // /display/materials-basis).
+        const backendObj = items.find((item: any) => item.id === id)
+          ?? items.find((item: any) => item.isPage && item.pageRoute === id);
         if (!backendObj) {
           throw new Error(`Display ${id} not found`);
         }
