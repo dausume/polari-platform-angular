@@ -39,6 +39,16 @@ export interface EngineCapability {
   dft: Record<string, unknown>;
 }
 
+/** One MaterialsScienceMaterial identity row (msci-22 fields). */
+export interface MaterialIdentityRow {
+  name: string;
+  display_name: string;
+  description: string;
+  material_kind: string;
+  category: string;
+  tags_json: string;
+}
+
 /**
  * Read access for the materials-basis browser: MaterialScaleDefinition
  * / MaterialsScienceMaterial / ThermalProcessingProfile rows via
@@ -60,6 +70,10 @@ export class MaterialsBasisService {
 
   scaleDefinitions(): Promise<ScaleDefinitionRow[]> {
     return this.crude<ScaleDefinitionRow>('MaterialScaleDefinition');
+  }
+
+  materialIdentities(): Promise<MaterialIdentityRow[]> {
+    return this.crude<MaterialIdentityRow>('MaterialsScienceMaterial');
   }
 
   thermalProfiles(): Promise<ThermalProfileRow[]> {

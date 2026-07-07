@@ -3,8 +3,11 @@ import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
+import { FormsModule } from '@angular/forms';
+
 import {
   EngineCapability,
+  MaterialIdentityRow,
   MaterialsBasisService,
   ScaleDefinitionRow,
   ThermalProfileRow,
@@ -31,7 +34,7 @@ const SCALE_LEVELS: { level: number; label: string }[] = [
 @Component({
   standalone: true,
   selector: 'materials-basis-browser',
-  imports: [CommonModule, MatIconModule, MatTooltipModule,
+  imports: [CommonModule, FormsModule, MatIconModule, MatTooltipModule,
             ScaleLevelCellComponent, ThermalWindowStripComponent],
   templateUrl: './materials-basis-browser.component.html',
   styleUrls: ['./materials-basis-browser.component.scss'],
@@ -44,18 +47,22 @@ export class MaterialsBasisBrowserComponent implements OnInit {
   errorMessage = '';
   capability: EngineCapability | null = null;
   materials: string[] = [];
+  /** Free-text filter matching name, category, or any tag (msci-22). */
+  filterText = '';
   private rowsByMaterial = new Map<string, Map<number, ScaleDefinitionRow>>();
   private thermalByMaterial = new Map<string, ThermalProfileRow>();
+  private identityByMaterial = new Map<string, MaterialIdentityRow>();
   expanded = new Set<string>();
 
   constructor(private basisService: MaterialsBasisService) {}
 
   async ngOnInit(): Promise<void> {
     try {
-      const [defs, profiles, capability] = await Promise.all([
+      const [defs, profiles, capability, identities] = await Promise.all([
         this.basisService.scaleDefinitions(),
         this.basisService.thermalProfiles(),
         this.basisService.engineCapability(),
+        this.basisService.materialIdentities(),
       ]);
       this.capability = capability;
       for (const row of defs) {
@@ -68,12 +75,47 @@ export class MaterialsBasisBrowserComponent implements OnInit {
       for (const p of profiles) {
         this.thermalByMaterial.set(p.material_name, p);
       }
+      for (const identity of identities) {
+        this.identityByMaterial.set(identity.name, identity);
+        // Identities without scale rows still deserve a browser row
+        // (their absence of levels is data).
+        if (!this.rowsByMaterial.has(identity.name)) {
+          this.rowsByMaterial.set(identity.name, new Map());
+        }
+      }
       this.materials = Array.from(this.rowsByMaterial.keys()).sort();
     } catch (err: any) {
       this.errorMessage = err?.message || String(err);
     } finally {
       this.loading = false;
     }
+  }
+
+  category(material: string): string {
+    return this.identityByMaterial.get(material)?.category ?? '';
+  }
+
+  tags(material: string): string[] {
+    try {
+      return JSON.parse(
+        this.identityByMaterial.get(material)?.tags_json || '[]');
+    } catch {
+      return [];
+    }
+  }
+
+  /** Materials passing the free-text filter (name/category/tag). */
+  get visibleMaterials(): string[] {
+    const q = this.filterText.trim().toLowerCase();
+    if (!q) return this.materials;
+    return this.materials.filter(m =>
+      m.toLowerCase().includes(q)
+      || this.category(m).toLowerCase().includes(q)
+      || this.tags(m).some(t => t.toLowerCase().includes(q)));
+  }
+
+  filterByTag(tag: string): void {
+    this.filterText = tag;
   }
 
   cell(material: string, level: number): ScaleDefinitionRow | null {

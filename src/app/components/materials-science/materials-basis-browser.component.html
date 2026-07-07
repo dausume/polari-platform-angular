@@ -9,8 +9,12 @@
         Each cell is a material's definition at one scale level
         (hover for lineage). Absence is data — piecemeal definitions
         are first-class. Click a material to see its level rows and
-        stored engine results.
+        stored engine results; click a tag to filter by it.
     </p>
+
+    <input class="filter-box" placeholder="Filter by name, category, or
+        tag (e.g. magnetic, matrix, ferrite, fossil-free)…"
+        [(ngModel)]="filterText">
 
     <div class="loading" *ngIf="loading">Loading the materials basis…</div>
     <div class="error" *ngIf="errorMessage">{{ errorMessage }}</div>
@@ -19,6 +23,7 @@
         <thead>
             <tr>
                 <th class="mat-col">Material</th>
+                <th class="cat-col">Category / tags</th>
                 <th *ngFor="let l of levels">
                     L{{ l.level }}<span class="lvl-label">{{ l.label }}</span>
                 </th>
@@ -26,13 +31,20 @@
             </tr>
         </thead>
         <tbody>
-            <ng-container *ngFor="let mat of materials">
+            <ng-container *ngFor="let mat of visibleMaterials">
                 <tr class="mat-row" (click)="toggle(mat)">
                     <td class="mat-col">
                         <mat-icon class="expander">
                             {{ expanded.has(mat) ? 'expand_more' : 'chevron_right' }}
                         </mat-icon>
                         {{ mat }}
+                    </td>
+                    <td class="cat-col" (click)="$event.stopPropagation()">
+                        <span class="cat-chip" *ngIf="category(mat)"
+                              (click)="filterByTag(category(mat))">
+                            {{ category(mat) }}</span>
+                        <span class="tag-chip" *ngFor="let t of tags(mat)"
+                              (click)="filterByTag(t)">{{ t }}</span>
                     </td>
                     <td *ngFor="let l of levels">
                         <scale-level-cell [row]="cell(mat, l.level)"></scale-level-cell>
@@ -42,7 +54,7 @@
                     </td>
                 </tr>
                 <tr class="detail-row" *ngIf="expanded.has(mat)">
-                    <td [attr.colspan]="levels.length + 2">
+                    <td [attr.colspan]="levels.length + 3">
                         <div class="detail" *ngFor="let row of definedRows(mat)">
                             <span class="detail-name">L{{ row.scale_level }}
                                 · {{ row.name }}</span>
