@@ -43,6 +43,18 @@ export class FormulationWinnersTableComponent {
     return (materialId || '').replace(/^additive-/, '').replace(/-/g, ' ');
   }
 
+  /** Gap movers arrive as {additiveId, effectPerWeightPercent} dicts —
+   *  render them readably instead of [object Object]. */
+  moversText(movers: any[]): string {
+    return (movers || []).map(m => {
+      if (typeof m !== 'object' || m === null) return String(m);
+      const name = this.additiveLabel(m.additiveId || m.name || '?');
+      const slope = m.effectPerWeightPercent;
+      return typeof slope === 'number'
+        ? `${name} (${slope > 0 ? '+' : ''}${slope}/wt%)` : name;
+    }).join(', ');
+  }
+
   predictedEntries(cand: FormulationCandidate): [string, number][] {
     return Object.entries(cand.predicted || {}) as [string, number][];
   }

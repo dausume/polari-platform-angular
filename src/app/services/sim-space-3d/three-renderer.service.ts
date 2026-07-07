@@ -468,9 +468,10 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
     this.meshes.forEach((mesh) => {
       const hit = id !== null && mesh.userData['polariSimSpaceId'] === id;
       mesh.userData['polariHighlighted'] = hit;
-      const base = (mesh.userData['polariBaseScale'] as number) ?? 1;
+      const base = this.baseScaleOf(mesh);
       const sel = mesh.userData['polariSelected'] ? SELECTION_FACTOR : 1;
-      mesh.scale.setScalar(base * sel * (hit ? HIGHLIGHT_FACTOR : 1));
+      const f = sel * (hit ? HIGHLIGHT_FACTOR : 1);
+      mesh.scale.set(base[0] * f, base[1] * f, base[2] * f);
     });
   }
 
@@ -482,9 +483,10 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
     this.meshes.forEach((mesh) => {
       const hit = selected.has(mesh.userData['polariSimSpaceId'] as string);
       mesh.userData['polariSelected'] = hit;
-      const base = (mesh.userData['polariBaseScale'] as number) ?? 1;
+      const base = this.baseScaleOf(mesh);
       const hover = mesh.userData['polariHighlighted'] ? HIGHLIGHT_FACTOR : 1;
-      mesh.scale.setScalar(base * hover * (hit ? SELECTION_FACTOR : 1));
+      const f = hover * (hit ? SELECTION_FACTOR : 1);
+      mesh.scale.set(base[0] * f, base[1] * f, base[2] * f);
       mesh.traverse(child => {
         const material = (child as THREE.Mesh).material as
           THREE.MeshStandardMaterial | undefined;
@@ -661,17 +663,35 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
         obj.rotation[2] ?? 0
       );
     }
-    const scale = typeof obj.scale === 'number'
-      ? obj.scale
-      : Array.isArray(obj.scale) ? (obj.scale[0] ?? 1) : 1;
+    // Per-axis scale support: a seeded [sx, sy, sz] must NOT collapse to
+    // its x component (that rendered the thin chamber-plate disc
+    // [0.4, 0.02, 0.4] as a fat cylinder and the selector shelf as a
+    // giant box swallowing the choice balls).
+    const base: [number, number, number] =
+      typeof obj.scale === 'number'
+        ? [obj.scale, obj.scale, obj.scale]
+        : Array.isArray(obj.scale)
+          ? [obj.scale[0] ?? 1, obj.scale[1] ?? obj.scale[0] ?? 1,
+             obj.scale[2] ?? obj.scale[0] ?? 1]
+          : [1, 1, 1];
     // Remember the binding's base scale so the hover highlight can scale
     // RELATIVE to it (a 15% bump), instead of slamming the mesh to an
     // absolute scalar — which blew small bobs (~0.12) up ~8× on hover.
-    node.userData['polariBaseScale'] = scale;
-    node.scale.setScalar(
-      scale
-      * (node.userData['polariHighlighted'] ? HIGHLIGHT_FACTOR : 1)
-      * (node.userData['polariSelected'] ? SELECTION_FACTOR : 1));
+    node.userData['polariBaseScale'] = base;
+    const factor =
+      (node.userData['polariHighlighted'] ? HIGHLIGHT_FACTOR : 1)
+      * (node.userData['polariSelected'] ? SELECTION_FACTOR : 1);
+    node.scale.set(base[0] * factor, base[1] * factor, base[2] * factor);
+  }
+
+  /** The stored per-axis base scale (legacy number values tolerated). */
+  private baseScaleOf(mesh: THREE.Object3D): [number, number, number] {
+    const stored = mesh.userData['polariBaseScale'];
+    if (typeof stored === 'number') return [stored, stored, stored];
+    if (Array.isArray(stored)) {
+      return [stored[0] ?? 1, stored[1] ?? 1, stored[2] ?? 1];
+    }
+    return [1, 1, 1];
   }
 
   private repositionOverlays(): void {

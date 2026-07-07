@@ -395,14 +395,22 @@ export class MultiScaleSimPageComponent implements OnInit, OnDestroy {
     }
     st.checking = true;
     try {
-      // A runToCompletion stage evaluates against ITS OWN sim's run.
-      const simRef = stage.simulationRef || this.config.primarySimulationRef;
-      const stageRuns = await this.runService.list(simRef);
-      const runName = stageRuns[0]?.name;
-      if (!runName) {
-        st.complete = false;
-        st.reason = 'No run exists for this stage yet.';
-        return;
+      // formulationSearch stages own their runs backend-side
+      // (FormulationSearchRun rows) — pass NO run and let the backend
+      // resolve the newest one (or answer the honest not-run-yet
+      // verdict). Resolving a SimulationRun here handed the gate a
+      // name from the wrong world and produced a raw 404.
+      let runName = '';
+      if (stage.kind !== 'formulationSearch') {
+        // A runToCompletion stage evaluates against ITS OWN sim's run.
+        const simRef = stage.simulationRef || this.config.primarySimulationRef;
+        const stageRuns = await this.runService.list(simRef);
+        runName = stageRuns[0]?.name ?? '';
+        if (!runName) {
+          st.complete = false;
+          st.reason = 'No run exists for this stage yet.';
+          return;
+        }
       }
       const verdict: StageGateVerdict =
         await this.msimService.evaluateStageGate(this.config.name, stage.key, runName);
@@ -543,6 +551,14 @@ export class MultiScaleSimPageComponent implements OnInit, OnDestroy {
   get formulationSearchPanels(): MsimPanel[] {
     return (this.config?.panels ?? [])
       .filter(p => p.kind === 'formulationSearch' && p.searchRef);
+  }
+
+  /** The scene pinned to the PRIMARY run — the only scene a
+   *  scenario-comparison run (a run of the primary simulation) belongs
+   *  in. Null when the page has no primary scene. */
+  get primaryScenePanel(): MsimPanel | null {
+    return this.scenePanels.find(p => (p.run ?? 'primary') === 'primary')
+      ?? null;
   }
 
   get icPanels(): MsimPanel[] {

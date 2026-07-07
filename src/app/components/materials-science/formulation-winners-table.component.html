@@ -22,7 +22,7 @@
                 <ng-container *ngIf="gap.status !== 'unpredicted'">
                     — {{ gap.evidence || gap.status }}
                     <span *ngIf="gap.movers?.length">· movers:
-                        {{ gap.movers.join(', ') }}</span>
+                        {{ moversText(gap.movers) }}</span>
                 </ng-container>
             </div>
         </div>

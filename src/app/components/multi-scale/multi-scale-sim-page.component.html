@@ -98,8 +98,11 @@
         </div>
 
         <!-- Run-set controls: ONE set of controls for the whole page.
-             Sticky — always visible no matter where the page is scrolled. -->
-        <div class="run-controls" #runControls>
+             Sticky — always visible no matter where the page is scrolled.
+             Hidden when the msim has no stepping runs to drive (e.g. a
+             pure formulation-search msim — its stages own their runs). -->
+        <div class="run-controls" #runControls
+             *ngIf="runs.length || config.members.length">
             <label class="run-label">Run</label>
             <select class="run-select" [(ngModel)]="selectedRun" (ngModelChange)="onRunSelected()" [disabled]="busy">
                 <option *ngFor="let run of runs" [value]="run.name">
@@ -306,17 +309,20 @@
                 </ng-template>
             </div>
 
-            <!-- Scenario-comparison viewer: same scene, pinned to the
-                 causally-independent comparison run. -->
-            <div class="panel-card scene-panel" *ngIf="comparisonRun && scenePanels.length">
+            <!-- Scenario-comparison viewer: the PRIMARY scene, pinned to
+                 the causally-independent comparison run (the comparison
+                 run is a run of the primary simulation — showing it in a
+                 stage scene like the condensation chamber was a
+                 mismatch). -->
+            <div class="panel-card scene-panel" *ngIf="comparisonRun && primaryScenePanel as cmpPanel">
                 <div class="panel-title">
                     <mat-icon>compare</mat-icon>
-                    {{ scenePanels[0].simSpaceRef }}
+                    {{ cmpPanel.simSpaceRef }}
                     <span class="panel-run comparison">scenario comparison: {{ comparisonRun }}</span>
                 </div>
                 <div class="viewer-frame">
                     <sim-space-viewer
-                        [simSpaceName]="scenePanels[0].simSpaceRef"
+                        [simSpaceName]="cmpPanel.simSpaceRef"
                         [run]="comparisonRun"
                         [hideRunPanel]="true"
                         [clickNavigates]="false">
