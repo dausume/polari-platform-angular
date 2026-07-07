@@ -19,12 +19,16 @@ export interface MultiScaleSimSummary {
 export interface MsimStage {
   key: string;
   label?: string;
-  /** 'runToCompletion' (precondition space + gate) | 'coStep' (live coupled stepping). */
+  /** 'runToCompletion' (precondition space + gate) | 'coStep' (live
+   *  coupled stepping) | 'formulationSearch' (drives a
+   *  FormulationSearchDefinition through the same search contract). */
   kind: string;
   /** The stage's role-intent in THIS composition (observe | search | …).
    *  Checked for compatibility against the sim's own declared intent. */
   intent?: string;
   simulationRef?: string;
+  /** kind:'formulationSearch' — the FormulationSearchDefinition name. */
+  formulationSearchRef?: string;
   primarySimulationRef?: string;
   couplingRefs?: string[];
   gate?: { solutionRef?: string; failReason?: string };
@@ -57,7 +61,9 @@ export interface MsimSelectorItem {
 
 /** One entry of panels_json — a ref to another definition object. */
 export interface MsimPanel {
-  kind: string; // 'scene' | 'graph' | 'ic' | 'explainer' | 'selector' | 'display'
+  kind: string; // 'scene' | 'graph' | 'ic' | 'explainer' | 'selector' | 'display' | 'formulationSearch'
+  /** kind:'formulationSearch' — the search definition the panel drives. */
+  searchRef?: string;
   simSpaceRef?: string;
   /** 'primary' | 'stage:<stageKey>' | a run name. */
   run?: string;

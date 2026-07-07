@@ -246,7 +246,19 @@ export class MultiScaleSimPageComponent implements OnInit, OnDestroy {
   }
 
   stageHasSearch(stage: MsimStage): boolean {
-    return !!stage.search?.candidates;
+    // formulationSearch stages carry their candidate space in the
+    // referenced FormulationSearchDefinition — the same search UI
+    // drives them (the backend reshapes into the same contract).
+    return !!stage.search?.candidates
+      || stage.kind === 'formulationSearch';
+  }
+
+  stageKindLabel(stage: MsimStage): string {
+    if (stage.kind === 'coStep') return 'live coupled stepping';
+    if (stage.kind === 'formulationSearch') {
+      return 'formulation search over the configured definition';
+    }
+    return 'runs to completion, then unlocks';
   }
 
   private loadAll(name: string): void {

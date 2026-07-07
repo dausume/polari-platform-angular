@@ -72,7 +72,7 @@
                 <span class="stage-index">{{ i + 1 }}</span>
                 <div class="stage-body">
                     <span class="stage-label">{{ stageLabel(stage) }}</span>
-                    <span class="stage-kind">{{ stage.kind === 'coStep' ? 'live coupled stepping' : 'runs to completion, then unlocks' }}<ng-container *ngIf="stage.intent"> · intent: {{ stage.intent }}</ng-container></span>
+                    <span class="stage-kind">{{ stageKindLabel(stage) }}<ng-container *ngIf="stage.intent"> · intent: {{ stage.intent }}</ng-container></span>
                     <span class="stage-reason" *ngIf="stageState(stage).reason">{{ stageState(stage).reason }}</span>
                     <span class="stage-reason error" *ngIf="stageState(stage).error">{{ stageState(stage).error }}</span>
                 </div>
