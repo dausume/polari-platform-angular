@@ -121,6 +121,8 @@ import { RunEquationOverlayPopupComponent } from '@components/custom-no-code/sta
 import { RunMatrixEquationOverlayComponent } from '@components/custom-no-code/states/matrices/run-matrix-equation-overlay/run-matrix-equation-overlay.component';
 import { RunMatrixEquationOverlayPopupComponent } from '@components/custom-no-code/states/matrices/run-matrix-equation-overlay/popup/run-matrix-equation-overlay-popup.component';
 import { MatrixOperandSourceEditorComponent } from '@components/custom-no-code/states/matrices/matrix-operand-source-editor/matrix-operand-source-editor.component';
+import { RunEngineModelOverlayComponent } from '@components/custom-no-code/states/engine-model/run-engine-model-overlay/run-engine-model-overlay.component';
+import { RunEngineModelOverlayPopupComponent } from '@components/custom-no-code/states/engine-model/run-engine-model-overlay/popup/run-engine-model-overlay-popup.component';
 import { LatexEditDialogComponent } from '@components/shared/latex-edit-dialog/latex-edit-dialog';
 import { EditableEquationCellComponent } from '@components/shared/editable-cells/editable-equation-cell/editable-equation-cell';
 import { ViewContextOverlayComponent } from '@components/custom-no-code/popups/view-context-overlay/view-context-overlay.component';
@@ -282,6 +284,8 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     RunMatrixEquationOverlayComponent,
     RunMatrixEquationOverlayPopupComponent,
     MatrixOperandSourceEditorComponent,
+    RunEngineModelOverlayComponent,
+    RunEngineModelOverlayPopupComponent,
     LatexEditDialogComponent,
     EditableEquationCellComponent,
     ViewContextOverlayComponent,

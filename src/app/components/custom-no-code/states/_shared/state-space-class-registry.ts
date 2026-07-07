@@ -57,6 +57,7 @@ export type StateSpaceCategory =
   | 'Loops'
   | 'List Operations'
   | 'Math'
+  | 'Physics/Chemistry'
   | 'Variables & Calls'
   | 'End States'
   | 'Flow Control'
@@ -237,6 +238,7 @@ export const EXECUTION_STATUS_BY_CLASS: {
 export const BACKEND_ONLY_RUNTIME_CLASSES = new Set<string>([
   'CalculusOperation',        // SymPy equations
   'MatrixEquationOperation',  // numpy matrix engine
+  'EngineModelOperation',     // FEM/DFT model solve via materialsScience engines
   'StateChangeCommit',        // persists instances via the manager/DB
   'SimulationStateStep',      // simulation-runner entry
   'SimStepNextState',         // simulation-runner terminators
@@ -1046,6 +1048,58 @@ export class StateSpaceClassRegistry {
         { name: 'resultFieldPath', displayName: 'Result Field', type: 'string', isEditable: true }
       ],
       factory: () => ({ type: 'MatrixEquationOperation', displayName: 'Matrix Equation Operation', matrixEquationName: '', operandBindings: [], resultTarget: 'result_variable', resultVariableName: 'result', resultFieldPath: '' })
+    });
+
+    // === Engine Model Operation: runs a configured FEM/DFT model definition
+    //     (a real engine solve via materialsScience) and writes its outputs
+    //     into the solution context as model.<key> plus any mapped variables.
+    //     Backend-only runtime. Sibling of MatrixEquationOperation: input
+    //     symbols ('<stage>.<key>' stageDerived binding keys) are bound to
+    //     runtime context sources via the same ValueSourceConfig shape. ===
+    this.registerClass({
+      className: 'EngineModelOperation',
+      displayName: 'Engine Model (FEM/DFT)',
+      description: 'Runs a configured FEM/DFT model definition (a real engine solve via materialsScience) and writes its outputs into the solution context as model.<key> plus any mapped variables. Backend-only runtime.',
+      category: 'Physics/Chemistry',
+      icon: 'science',
+      color: '#7986CB',
+      isStateSpaceObject: true,
+      supportedRuntimes: ['python_backend'],
+      stateSpaceDisplayFields: ['displayName', 'modelRef'],
+      stateSpaceFieldsPerRow: 2,
+      isBuiltIn: true,
+      slotConfiguration: {
+        defaultInputCount: 1,
+        defaultOutputCount: 1,
+        allowDynamicInputs: false,
+        allowDynamicOutputs: false,
+        maxInputSlots: 1,
+        maxOutputSlots: 1,
+        inputType: 'any',
+        outputType: 'any',
+        inputLabels: ['Input'],
+        outputLabels: ['Result']
+      },
+      eventMethods: [
+        {
+          methodName: 'execute',
+          displayName: 'Run Engine Model',
+          description: 'Resolve input bindings, run the FEM/DFT engine solve, map result keys into the context.',
+          category: 'Physics/Chemistry',
+          inputParams: [],
+          output: { type: 'any', displayName: 'Result' }
+        }
+      ],
+      variables: [
+        { name: 'displayName', displayName: 'Display Name', type: 'string', isEditable: true, defaultValue: 'Engine Model (FEM/DFT)' },
+        { name: 'modelRef', displayName: 'Model Definition', type: 'string', isEditable: true },
+        { name: 'inputBindings', displayName: 'Input Bindings', type: 'object', isEditable: true },
+        { name: 'resultKeyMap', displayName: 'Result Key Map', type: 'object', isEditable: true },
+        { name: 'resultTarget', displayName: 'Result Target', type: 'string', isEditable: true, defaultValue: 'result_variable' },
+        { name: 'resultVariableName', displayName: 'Result Variable', type: 'string', isEditable: true, defaultValue: 'model_result' },
+        { name: 'resultFieldPath', displayName: 'Result Field', type: 'string', isEditable: true }
+      ],
+      factory: () => ({ type: 'EngineModelOperation', displayName: 'Engine Model (FEM/DFT)', modelRef: '', inputBindings: [], resultKeyMap: [], resultTarget: 'result_variable', resultVariableName: 'model_result', resultFieldPath: '' })
     });
 
     // === Data Operations (Variable & Function) ===

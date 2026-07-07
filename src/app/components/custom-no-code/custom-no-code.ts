@@ -28,6 +28,8 @@ import { RunEquationOverlayComponent } from './states/equations/run-equation-ove
 import { RunEquationOverlayPopupComponent } from './states/equations/run-equation-overlay/popup/run-equation-overlay-popup.component';
 import { RunMatrixEquationOverlayComponent } from './states/matrices/run-matrix-equation-overlay/run-matrix-equation-overlay.component';
 import { RunMatrixEquationOverlayPopupComponent } from './states/matrices/run-matrix-equation-overlay/popup/run-matrix-equation-overlay-popup.component';
+import { RunEngineModelOverlayComponent } from './states/engine-model/run-engine-model-overlay/run-engine-model-overlay.component';
+import { RunEngineModelOverlayPopupComponent } from './states/engine-model/run-engine-model-overlay/popup/run-engine-model-overlay-popup.component';
 import { AvailableInput, SourceObjectField } from './shared/value-source-selector/value-source-selector.component';
 import { MathOperationOverlayPopupComponent, MathOperationOverlayPopupData } from './states/math/math-operation-overlay/popup/math-operation-overlay-popup.component';
 import { ReturnValueOverlayComponent } from './states/end-states/return-value/return-value-overlay/return-value-overlay.component';
@@ -897,6 +899,8 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
       return this.createCalculusOperationOverlay(stateName, stateGroup, stateInstance);
     } else if (stateClass === 'MatrixEquationOperation') {
       return this.createMatrixEquationOperationOverlay(stateName, stateGroup, stateInstance);
+    } else if (stateClass === 'EngineModelOperation') {
+      return this.createEngineModelOperationOverlay(stateName, stateGroup, stateInstance);
     } else if (stateClass === 'FormValidation') {
       return this.createFormValidationOverlay(stateName, stateGroup, stateInstance);
     } else if (stateClass === 'ReturnValue') {
@@ -1787,6 +1791,43 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   /**
+   * Create an overlay for an EngineModelOperation state. Sibling of
+   * createMatrixEquationOperationOverlay: hosts a FEM/DFT model definition
+   * reference (FEMModelDefinition / DFTModelDefinition row, by name) and binds
+   * its stageDerived input symbols ('<stage>.<key>') to runtime context
+   * sources. Persists edits back into the state instance + solution-state
+   * service and regenerates code. Backend-only runtime.
+   */
+  private createEngineModelOperationOverlay(stateName: string, stateGroup: SVGGElement, stateInstance: NoCodeState): boolean {
+    const fieldValues = stateInstance.boundObjectFieldValues || {};
+    const availableInputs = this.getAvailableInputsForSelector(stateInstance);
+    const sourceObjectFields = this.getSourceObjectFieldsForState(stateInstance);
+
+    const componentRef = this.stateOverlayManager.createOverlayForState(
+      stateName,
+      stateGroup,
+      RunEngineModelOverlayComponent,
+      {
+        stateName,
+        boundClassName: 'EngineModelOperation',
+        availableInputs,
+        sourceObjectFields,
+        boundObjectFieldValues: fieldValues,
+      }
+    );
+
+    if (componentRef) {
+      this.stateOverlayManager.setOverlayPointerEvents(stateName, true);
+      // Expand button opens the RICH full editor dialog (the inline overlay
+      // forced to its 'full' size tier), mirroring MatrixEquationOperation.
+      this.wireValueOverlayEvents(componentRef, stateName, stateInstance,
+        () => this.openEngineModelOperationPopup(stateName, stateInstance, availableInputs, sourceObjectFields));
+      return true;
+    }
+    return false;
+  }
+
+  /**
    * Open the CalculusOperation full-page popup (Material Dialog). Hosts the
    * same controls as the inline overlay but in a scrollable dialog that
    * never gets clipped by the canvas-shape sizing.
@@ -1847,6 +1888,53 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
     sourceObjectFields: SourceObjectField[],
   ): void {
     const dialogRef = this.dialog.open(RunMatrixEquationOverlayPopupComponent, {
+      panelClass: 'state-overlay-popup-panel',
+      maxWidth: '95vw',
+      maxHeight: '90vh',
+      data: {
+        stateName,
+        boundObjectFieldValues: stateInstance.boundObjectFieldValues || {},
+        availableInputs,
+        sourceObjectFields,
+      },
+    });
+
+    const sub = dialogRef.componentInstance.fieldValuesChanged.subscribe(
+      (updated: { [key: string]: any }) => {
+        if (!stateInstance.boundObjectFieldValues) {
+          stateInstance.boundObjectFieldValues = {};
+        }
+        Object.assign(stateInstance.boundObjectFieldValues, updated);
+        if (this.selectedSolutionName) {
+          this.solutionStateService.updateStateFieldValues(
+            this.selectedSolutionName,
+            stateName,
+            updated,
+          );
+        }
+        this.regenerateCode();
+      },
+    );
+
+    dialogRef.afterClosed().subscribe(() => {
+      sub.unsubscribe();
+    });
+  }
+
+  /**
+   * Open the EngineModelOperation full editor as a Material Dialog. The
+   * dialog hosts the same inline overlay forced to its 'full' size tier, so
+   * the expand button yields the complete model-ref / input-binding /
+   * result-key-map editor instead of the generic class/field popup. Edits are
+   * persisted back the same way the inline overlay persists them.
+   */
+  private openEngineModelOperationPopup(
+    stateName: string,
+    stateInstance: NoCodeState,
+    availableInputs: AvailableInput[],
+    sourceObjectFields: SourceObjectField[],
+  ): void {
+    const dialogRef = this.dialog.open(RunEngineModelOverlayPopupComponent, {
       panelClass: 'state-overlay-popup-panel',
       maxWidth: '95vw',
       maxHeight: '90vh',

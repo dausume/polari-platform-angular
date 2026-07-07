@@ -1,0 +1,261 @@
+<div class="run-engine-model-overlay-root"
+     [attr.data-size-tier]="sizeTier"
+     [ngSwitch]="sizeTier"
+     [appStateOverlayRoot]="stateName"
+     (contextRequested)="fullViewRequested.emit($event)">
+
+    <!-- ============================================================
+         TIER: tiny — just the model reference, no chrome, no editing
+         ============================================================ -->
+    <div *ngSwitchCase="'tiny'" class="tier-tiny">
+        <code *ngIf="config.modelRef; else tinyEmpty" class="tier-tiny__model-ref">{{ config.modelRef }}</code>
+        <ng-template #tinyEmpty>
+            <mat-icon class="tier-tiny__empty-icon" matTooltip="No model definition picked">science</mat-icon>
+        </ng-template>
+    </div>
+
+    <!-- ============================================================
+         TIER: compact — model ref + binding-count fill chip.
+         ============================================================ -->
+    <state-overlay-shell *ngSwitchCase="'compact'"
+        accent="#7986CB"
+        icon="science"
+        [title]="config.modelRef || 'Engine Model'"
+        [compact]="true"
+        [bordered]="false"
+        [showCodingComment]="false"
+        [hasPopupView]="hasPopupView"
+        [padding]="'6px'"
+        (expandClicked)="popupRequested.emit()">
+
+        <div class="tier-compact">
+            <div class="tier-compact__model">
+                <code *ngIf="config.modelRef; else compactEmpty" class="tier-compact__model-ref">{{ config.modelRef }}</code>
+                <ng-template #compactEmpty>
+                    <span class="tier-compact__no-model">No model definition</span>
+                </ng-template>
+            </div>
+            <div class="tier-compact__fill-chip"
+                 *ngIf="totalBindings > 0"
+                 [class.complete]="!hasUnfilledBindings"
+                 [class.warn]="hasUnfilledBindings">
+                <span>{{ filledCount }} of {{ totalBindings }} inputs bound</span>
+                <mat-icon *ngIf="hasUnfilledBindings">warning_amber</mat-icon>
+            </div>
+        </div>
+
+    </state-overlay-shell>
+
+    <!-- ============================================================
+         TIER: full — model ref + input bindings + result key map + result.
+         ============================================================ -->
+    <state-overlay-shell *ngSwitchCase="'full'"
+        accent="#7986CB"
+        icon="science"
+        [title]="config.modelRef ? 'Engine Model — ' + config.modelRef : 'Engine Model (FEM/DFT)'"
+        [bordered]="true"
+        [hasPopupView]="hasPopupView"
+        [codingComment]="(boundObjectFieldValues || {})['codingComment'] || ''"
+        (commentChanged)="onCodingCommentChange($event)"
+        (expandClicked)="popupRequested.emit()">
+
+        <div class="overlay-content state-overlay-scrollbar">
+
+            <!-- ===== Model definition reference ===== -->
+            <div class="section model-pick-section">
+                <label class="section-label">Model definition</label>
+                <div class="model-pick-row">
+                    <input type="text"
+                           class="model-ref-input"
+                           placeholder="FEM/DFT model definition name..."
+                           [ngModel]="config.modelRef"
+                           (ngModelChange)="onModelRefChange($event)" />
+                    <button type="button"
+                            class="clear-btn"
+                            *ngIf="config.modelRef"
+                            (click)="clearModelRef()"
+                            matTooltip="Clear model definition">
+                        <mat-icon>close</mat-icon>
+                    </button>
+                </div>
+                <span class="model-ref-hint">
+                    Names a FEMModelDefinition or DFTModelDefinition row. Runs a configured
+                    FEM/DFT model definition (a real engine solve via materialsScience) and
+                    writes its outputs into the solution context as model.&lt;key&gt; plus any
+                    mapped variables. Backend-only runtime.
+                </span>
+            </div>
+
+            <!-- ===== Input mapping summary (with live values) ===== -->
+            <div class="section mapping-section"
+                 *ngIf="config.inputBindings.length > 0">
+                <span class="section-label">Input mapping</span>
+                <ul class="mapping-list">
+                    <li *ngFor="let binding of config.inputBindings"
+                        class="mapping-item"
+                        [class.mapping-item--unfilled]="!isBindingComplete(binding)">
+                        <code class="mapping-symbol">{{ binding.symbol || '(unnamed)' }}</code>
+                        <mat-icon class="mapping-arrow">arrow_forward</mat-icon>
+                        <span class="mapping-source">{{ sourceSummary(binding) }}</span>
+                        <span class="mapping-value" *ngIf="hasLiveValues">= {{ liveBindingValue(binding.symbol) }}</span>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- ===== Input bindings — user-managed rows ===== -->
+            <div class="section bindings-section">
+                <div class="bindings-header">
+                    <mat-icon class="bindings-header-icon">tune</mat-icon>
+                    <span class="section-label">Input bindings</span>
+                    <span class="bindings-progress"
+                          *ngIf="totalBindings > 0"
+                          [class.complete]="!hasUnfilledBindings"
+                          [class.warn]="hasUnfilledBindings">
+                        {{ filledCount }} of {{ totalBindings }} bound
+                    </span>
+                </div>
+
+                <span class="bindings-hint">
+                    Each symbol must match one of the model's stageDerived binding keys
+                    ('&lt;stage&gt;.&lt;key&gt;', e.g. thermal.k_solid).
+                </span>
+
+                <div class="bindings-warning" *ngIf="hasUnfilledBindings">
+                    <mat-icon>warning_amber</mat-icon>
+                    <span>
+                        {{ totalBindings - filledCount }} input<ng-container *ngIf="totalBindings - filledCount !== 1">s</ng-container>
+                        still need a symbol and source before this state can run.
+                    </span>
+                </div>
+
+                <div class="binding-row"
+                     *ngFor="let binding of config.inputBindings; let i = index"
+                     [class.binding-row--unfilled]="!isBindingComplete(binding)">
+                    <div class="binding-symbol">
+                        <input type="text"
+                               class="binding-symbol-input"
+                               placeholder="<stage>.<key>"
+                               [ngModel]="binding.symbol"
+                               (ngModelChange)="onBindingSymbolChange(i, $event)" />
+                        <span class="binding-arrow">&larr;</span>
+                        <span class="binding-live" *ngIf="hasLiveValues">= {{ liveBindingValue(binding.symbol) }}</span>
+                        <button type="button"
+                                class="row-remove-btn"
+                                (click)="removeBinding(i)"
+                                matTooltip="Remove input binding">
+                            <mat-icon>close</mat-icon>
+                        </button>
+                    </div>
+                    <div class="binding-editor">
+                        <matrix-operand-source-editor
+                            [config]="getBindingSource(i)"
+                            [availableInputs]="availableInputs"
+                            [sourceObjectFields]="sourceObjectFields"
+                            (sourceChange)="onBindingSourceChange(i, $event)">
+                        </matrix-operand-source-editor>
+                    </div>
+                </div>
+
+                <div class="bindings-empty" *ngIf="config.inputBindings.length === 0">
+                    <mat-icon>info_outline</mat-icon>
+                    <span>No input bindings — the model will run with its stored stage inputs only.</span>
+                </div>
+
+                <button type="button" class="row-add-btn" (click)="addBinding()">
+                    <mat-icon>add</mat-icon>
+                    <span>Add input binding</span>
+                </button>
+            </div>
+
+            <!-- ===== Result key map — user-managed rows ===== -->
+            <div class="section keymap-section">
+                <div class="bindings-header">
+                    <mat-icon class="bindings-header-icon">alt_route</mat-icon>
+                    <span class="section-label">Result key map</span>
+                </div>
+
+                <span class="bindings-hint">
+                    Optional: map engine result keys (e.g. effectiveK, totalEnergyHa) to
+                    friendly context variables. Unmapped keys still land as model.&lt;key&gt;.
+                </span>
+
+                <div class="keymap-row"
+                     *ngFor="let entry of config.resultKeyMap; let i = index"
+                     [class.keymap-row--unfilled]="!isResultKeyMapEntryComplete(entry)">
+                    <input type="text"
+                           class="keymap-input"
+                           placeholder="result key (e.g. effectiveK)"
+                           [ngModel]="entry.resultKey"
+                           (ngModelChange)="onResultKeyChange(i, $event)" />
+                    <mat-icon class="mapping-arrow">arrow_forward</mat-icon>
+                    <input type="text"
+                           class="keymap-input"
+                           placeholder="context variable"
+                           [ngModel]="entry.contextVar"
+                           (ngModelChange)="onContextVarChange(i, $event)" />
+                    <span class="binding-live" *ngIf="hasLiveValues && entry.contextVar">= {{ liveMappedValue(entry.contextVar) }}</span>
+                    <button type="button"
+                            class="row-remove-btn"
+                            (click)="removeResultKeyMapEntry(i)"
+                            matTooltip="Remove mapping">
+                        <mat-icon>close</mat-icon>
+                    </button>
+                </div>
+
+                <button type="button" class="row-add-btn" (click)="addResultKeyMapEntry()">
+                    <mat-icon>add</mat-icon>
+                    <span>Add result mapping</span>
+                </button>
+            </div>
+
+            <!-- ===== Result target ===== -->
+            <div class="section result-section" *ngIf="config.modelRef">
+                <div class="result-header">
+                    <mat-icon class="result-header-icon">arrow_forward</mat-icon>
+                    <span class="section-label">Result destination</span>
+                    <span class="result-live" *ngIf="hasLiveValues">= {{ liveResultValue }}</span>
+                </div>
+
+                <div class="result-target-toggle">
+                    <label class="toggle-option" [class.active]="config.resultTarget === 'result_variable'">
+                        <input type="radio"
+                               name="engineModelResultTarget"
+                               value="result_variable"
+                               [checked]="config.resultTarget === 'result_variable'"
+                               (change)="onResultTargetChange('result_variable')">
+                        <span>Variable (flows to next state)</span>
+                    </label>
+                    <label class="toggle-option" [class.active]="config.resultTarget === 'solution_field'">
+                        <input type="radio"
+                               name="engineModelResultTarget"
+                               value="solution_field"
+                               [checked]="config.resultTarget === 'solution_field'"
+                               (change)="onResultTargetChange('solution_field')">
+                        <span>Solution field (write to source object)</span>
+                    </label>
+                </div>
+
+                <div class="result-target-input" *ngIf="config.resultTarget === 'result_variable'">
+                    <label class="mini-label">Variable name</label>
+                    <input type="text"
+                           class="result-input"
+                           placeholder="model_result"
+                           [ngModel]="config.resultVariableName"
+                           (ngModelChange)="onResultVariableNameChange($event)" />
+                </div>
+
+                <div class="result-target-input" *ngIf="config.resultTarget === 'solution_field'">
+                    <label class="mini-label">Field path</label>
+                    <input type="text"
+                           class="result-input"
+                           placeholder="self.result"
+                           [ngModel]="config.resultFieldPath"
+                           (ngModelChange)="onResultFieldPathChange($event)" />
+                </div>
+            </div>
+
+        </div>
+
+    </state-overlay-shell>
+
+</div>
