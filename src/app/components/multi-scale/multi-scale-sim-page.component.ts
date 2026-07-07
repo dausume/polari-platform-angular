@@ -39,6 +39,12 @@ import { DisplayRendererComponent } from '@components/dashboard/dashboard-render
 import {
   MsimFormulationSearchPanelComponent,
 } from '@components/multi-scale/msim-formulation-search-panel.component';
+import {
+  MsimProfileChipComponent,
+} from '@components/multi-scale/msim-profile-chip.component';
+import {
+  MsimConformancePanelComponent,
+} from '@components/multi-scale/msim-conformance-panel.component';
 import { Display } from '@models/dashboards/Display';
 import { DisplayRow } from '@models/dashboards/DisplayRow';
 import { DisplayColumn } from '@models/dashboards/DisplayColumn';
@@ -89,6 +95,7 @@ export interface StageState {
     MsimMemberInfoComponent, MsimExplainerPanelComponent,
     MsimFamilyGraphPanelComponent, SimSpaceSelectorComponent,
     MsimFormulationSearchPanelComponent,
+    MsimProfileChipComponent, MsimConformancePanelComponent,
     DisplayRendererComponent,
   ],
   templateUrl: './multi-scale-sim-page.component.html',

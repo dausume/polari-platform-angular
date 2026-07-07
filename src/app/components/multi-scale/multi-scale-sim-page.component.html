@@ -31,6 +31,11 @@
                 </span>
             </div>
             <p class="subtitle">{{ config.description }}</p>
+            <!-- The FAMILY this msim instantiates + its conformance -->
+            <msim-profile-chip [profileRef]="config.profileRef">
+            </msim-profile-chip>
+            <msim-conformance-panel [msimName]="config.name">
+            </msim-conformance-panel>
             <div class="member-chips">
                 <span class="member-chip" *ngFor="let sim of config.members"
                       [class.primary]="sim === config.primarySimulationRef">

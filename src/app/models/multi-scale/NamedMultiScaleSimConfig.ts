@@ -123,6 +123,9 @@ export class NamedMultiScaleSimConfig {
   displayRef = '';
   compareRuns: string[] = [];
   enabled = true;
+  /** The MultiScaleSimulationProfile (family) this msim instantiates;
+   *  '' = no declared family (an honest gap, not an error). */
+  profileRef = '';
 
   static fromBackend(obj: any): NamedMultiScaleSimConfig {
     const cfg = new NamedMultiScaleSimConfig();
@@ -131,6 +134,7 @@ export class NamedMultiScaleSimConfig {
     cfg.description = obj.description ?? '';
     cfg.primarySimulationRef = obj.primary_simulation_ref ?? '';
     cfg.displayRef = obj.display_ref ?? '';
+    cfg.profileRef = obj.profile_ref ?? '';
     cfg.enabled = obj.enabled !== false;
     cfg.members = parseJsonArray(obj.member_simulation_refs_json);
     cfg.couplings = parseJsonArray(obj.coupling_refs_json);
