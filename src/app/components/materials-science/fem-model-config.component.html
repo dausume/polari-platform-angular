@@ -1,0 +1,179 @@
+<div class="model-config">
+    <div class="loading" *ngIf="loading">Loading FEM models…</div>
+
+    <ng-container *ngIf="!loading && selected">
+        <div class="header">
+            <label class="picker" *ngIf="models.length > 1">
+                Model:
+                <select [ngModel]="selected!.name"
+                        (ngModelChange)="selectByName($event)">
+                    <option *ngFor="let m of models" [value]="m.name">
+                        {{ m.display_name || m.name }}
+                    </option>
+                </select>
+            </label>
+            <h3 *ngIf="models.length <= 1">
+                {{ selected!.display_name || selected!.name }}</h3>
+            <p class="description">{{ selected!.description }}</p>
+        </div>
+
+        <!-- Physics / study — the template catalog row this problem
+             instantiates. -->
+        <section>
+            <h4><mat-icon>science</mat-icon> Physics</h4>
+            <select [ngModel]="selected!.physics_ref"
+                    (ngModelChange)="setPhysics($event)">
+                <option *ngFor="let t of templates" [value]="t.name">
+                    {{ t.displayName }} ({{ t.costClass }})
+                </option>
+            </select>
+            <p class="section-note" *ngIf="template">
+                {{ template!.description }}</p>
+        </section>
+
+        <model-run-bar [template]="template" [busy]="busy"
+                       [outcome]="outcome" [outcomeBad]="outcomeBad"
+                       (validate)="validate()" (run)="run()">
+        </model-run-bar>
+
+        <div class="findings" *ngIf="findings.length">
+            <div class="finding" *ngFor="let f of findings"
+                 [class.err]="f.level === 'error'"
+                 [class.note]="f.level === 'note'">
+                <mat-icon>{{ f.level === 'error' ? 'cancel'
+                    : f.level === 'note' ? 'info_outline'
+                    : 'warning_amber' }}</mat-icon>
+                <span><strong>{{ f.param }}</strong> — {{ f.message }}</span>
+            </div>
+        </div>
+
+        <!-- Domain & Geometry -->
+        <section>
+            <h4><mat-icon>crop_square</mat-icon> Domain &amp; Geometry</h4>
+            <div class="field-row">
+                <label>Shape
+                    <select [(ngModel)]="domain.shape">
+                        <option value="unit-square">unit square</option>
+                        <option value="rectangle" disabled>rectangle
+                            (not supported by the current engines)</option>
+                        <option value="custom-3d" disabled>custom 3D
+                            (not supported yet)</option>
+                    </select>
+                </label>
+                <label *ngIf="domain.inclusion">Inclusion shape
+                    <select [(ngModel)]="domain.inclusion.shape">
+                        <option value="circle">circle</option>
+                        <option value="ellipse" disabled>ellipse
+                            (not supported yet)</option>
+                    </select>
+                </label>
+                <label *ngIf="domain.inclusion">Volume fraction
+                    <model-binding-editor
+                        [value]="domain.inclusion.volumeFraction"
+                        placeholder="0 – 0.6"
+                        (valueChange)="domain.inclusion.volumeFraction = $event">
+                    </model-binding-editor>
+                </label>
+            </div>
+        </section>
+
+        <!-- Materials (per region) — the bindable heart -->
+        <section>
+            <h4><mat-icon>texture</mat-icon> Materials (per region)</h4>
+            <p class="section-note">Bind a property to a live object row
+                and every execution reads the CURRENT value — edit the
+                source row, the model follows.</p>
+            <div class="region" *ngFor="let region of regionNames">
+                <span class="region-name">{{ region }}</span>
+                <div class="field-row" *ngFor="let prop of regionProps(region)">
+                    <label class="prop-label">{{ prop }}</label>
+                    <model-binding-editor
+                        [value]="materials[region][prop]"
+                        (valueChange)="materials[region][prop] = $event">
+                    </model-binding-editor>
+                </div>
+            </div>
+        </section>
+
+        <!-- Boundary conditions -->
+        <section>
+            <h4><mat-icon>border_outer</mat-icon> Boundary Conditions</h4>
+            <div class="field-row bc-row"
+                 *ngFor="let bc of boundaryConditions; let i = index">
+                <input class="bc-boundary" placeholder="boundary"
+                       [(ngModel)]="bc.boundary">
+                <select [(ngModel)]="bc.type">
+                    <option value="dirichlet">Dirichlet (fixed value)</option>
+                    <option value="neumann" disabled>Neumann (flux —
+                        not supported yet)</option>
+                    <option value="robin" disabled>Robin (convective —
+                        not supported yet)</option>
+                </select>
+                <input class="bc-value" placeholder="value"
+                       [(ngModel)]="bc.value">
+            </div>
+            <p class="section-note" *ngIf="!boundaryConditions.length">
+                Engine defaults apply (homogeneous Dirichlet /
+                unit-gradient per the chosen physics).</p>
+        </section>
+
+        <!-- Source terms -->
+        <section *ngIf="sourceTermKeys.length">
+            <h4><mat-icon>local_fire_department</mat-icon> Source terms</h4>
+            <div class="field-row" *ngFor="let key of sourceTermKeys">
+                <label class="prop-label">{{ key }}</label>
+                <model-binding-editor [value]="sourceTerms[key]"
+                    (valueChange)="sourceTerms[key] = $event">
+                </model-binding-editor>
+            </div>
+        </section>
+
+        <!-- Mesh -->
+        <section>
+            <h4><mat-icon>grid_4x4</mat-icon> Mesh</h4>
+            <div class="field-row">
+                <label>Refinement level
+                    <input type="number" min="1" max="8"
+                           [(ngModel)]="mesh.refine">
+                </label>
+                <span class="section-note" *ngIf="lastResult?.elements">
+                    last solve: {{ lastResult.elements }} elements</span>
+            </div>
+        </section>
+
+        <!-- Solver — recorded, honestly not consumed yet -->
+        <section class="muted">
+            <h4><mat-icon>settings_suggest</mat-icon> Solver</h4>
+            <p class="section-note">The current engines use their
+                internal defaults; knobs declared here are recorded on
+                the model (and flagged by validation) until the engines
+                grow solver options.</p>
+        </section>
+
+        <!-- Results -->
+        <section>
+            <h4><mat-icon>insights</mat-icon> Results</h4>
+            <p class="section-note" *ngIf="selected!.last_executed_at">
+                last executed {{ selected!.last_executed_at }}</p>
+            <table class="result-table" *ngIf="resultEntries().length">
+                <tr *ngFor="let e of resultEntries()">
+                    <td class="rk">{{ e[0] }}</td>
+                    <td>{{ e[1] }}</td>
+                </tr>
+            </table>
+            <p class="section-note" *ngIf="!resultEntries().length">
+                Not executed yet — Run stores the result on this model
+                object.</p>
+            <div class="outputs-legend" *ngIf="declaredOutputs.length">
+                <span class="legend-item" *ngFor="let o of declaredOutputs"
+                      [matTooltip]="o.description || ''">
+                    {{ o.key }}<em *ngIf="o.unit"> [{{ o.unit }}]</em>
+                </span>
+            </div>
+        </section>
+    </ng-container>
+
+    <div class="loading" *ngIf="!loading && !selected">
+        No FEMModelDefinition rows on this instance yet.
+    </div>
+</div>

@@ -1,0 +1,190 @@
+<div class="model-config">
+    <div class="loading" *ngIf="loading">Loading DFT models…</div>
+
+    <ng-container *ngIf="!loading && selected">
+        <div class="header">
+            <label class="picker" *ngIf="models.length > 1">
+                Model:
+                <select [ngModel]="selected!.name"
+                        (ngModelChange)="selectByName($event)">
+                    <option *ngFor="let m of models" [value]="m.name">
+                        {{ m.display_name || m.name }}
+                    </option>
+                </select>
+            </label>
+            <h3 *ngIf="models.length <= 1">
+                {{ selected!.display_name || selected!.name }}</h3>
+            <p class="description">{{ selected!.description }}</p>
+        </div>
+
+        <!-- Calculation type (QE &CONTROL analog) -->
+        <section>
+            <h4><mat-icon>calculate</mat-icon> Calculation</h4>
+            <select [ngModel]="selected!.calculation_ref"
+                    (ngModelChange)="setCalculation($event)">
+                <option *ngFor="let t of templates" [value]="t.name">
+                    {{ t.displayName }} ({{ t.costClass }})
+                </option>
+            </select>
+            <p class="section-note" *ngIf="template">
+                {{ template!.description }}</p>
+        </section>
+
+        <model-run-bar [template]="template" [busy]="busy"
+                       [outcome]="outcome" [outcomeBad]="outcomeBad"
+                       (validate)="validate()" (run)="run()">
+        </model-run-bar>
+
+        <div class="findings" *ngIf="findings.length">
+            <div class="finding" *ngFor="let f of findings"
+                 [class.err]="f.level === 'error'"
+                 [class.note]="f.level === 'note'">
+                <mat-icon>{{ f.level === 'error' ? 'cancel'
+                    : f.level === 'note' ? 'info_outline'
+                    : 'warning_amber' }}</mat-icon>
+                <span><strong>{{ f.param }}</strong> — {{ f.message }}</span>
+            </div>
+        </div>
+
+        <!-- Structure (QE &SYSTEM / ATOMIC_POSITIONS analog) -->
+        <section>
+            <h4><mat-icon>hub</mat-icon> Structure</h4>
+            <div class="field-row">
+                <label>Kind
+                    <select [(ngModel)]="structure.kind">
+                        <option value="molecule">molecule</option>
+                        <option value="bulk">bulk crystal</option>
+                    </select>
+                </label>
+            </div>
+            <ng-container *ngIf="!isBulk">
+                <div class="field-row">
+                    <label class="prop-label">Atoms (geometry)</label>
+                    <model-binding-editor [value]="structure.atoms"
+                        placeholder="C 0 0 0; H 0.63 0.63 0.63; …"
+                        (valueChange)="structure.atoms = $event">
+                    </model-binding-editor>
+                </div>
+                <p class="section-note">pyscf geometry string —
+                    'Element x y z' separated by semicolons. Bind it to
+                    a material row's stored fragment to keep structure
+                    and provenance in one place.</p>
+            </ng-container>
+            <ng-container *ngIf="isBulk">
+                <div class="field-row">
+                    <label>Symbol
+                        <input [(ngModel)]="structure.symbol"
+                               placeholder="Al">
+                    </label>
+                    <label>Crystal
+                        <input [(ngModel)]="structure.crystal"
+                               placeholder="fcc">
+                    </label>
+                    <label>Lattice a (Å)
+                        <input type="number" step="0.01"
+                               [(ngModel)]="structure.latticeA">
+                    </label>
+                </div>
+            </ng-container>
+        </section>
+
+        <!-- Method (basis / XC / charge / spin / pseudos) -->
+        <section>
+            <h4><mat-icon>functions</mat-icon> Method</h4>
+            <div class="field-row" *ngIf="usesMolecularMethod">
+                <label>Basis set
+                    <input list="basis-presets" [(ngModel)]="method.basis"
+                           placeholder="6-31g">
+                    <datalist id="basis-presets">
+                        <option *ngFor="let b of basisPresets"
+                                [value]="b"></option>
+                    </datalist>
+                </label>
+                <label>XC functional
+                    <input list="xc-presets" [(ngModel)]="method.xc"
+                           placeholder="b3lyp">
+                    <datalist id="xc-presets">
+                        <option *ngFor="let x of xcPresets"
+                                [value]="x"></option>
+                    </datalist>
+                </label>
+                <label>Charge
+                    <input type="number" [(ngModel)]="method.charge">
+                </label>
+                <label>Spin (2S)
+                    <input type="number" min="0"
+                           [(ngModel)]="method.spin">
+                </label>
+            </div>
+            <p class="section-note" *ngIf="!usesMolecularMethod">
+                Gaussian basis / XC knobs apply to molecular SCF; this
+                calculation type uses plane waves (see Accuracy) or no
+                SCF at all.</p>
+            <p class="section-note">
+                <mat-icon class="inline-icon">lock</mat-icon>
+                Pseudopotentials apply only to the Quantum ESPRESSO
+                execution layer (periodic total energy with a WITH_QE
+                engine build) — declaring them elsewhere earns a
+                validation note, never silent acceptance.</p>
+        </section>
+
+        <!-- Accuracy (cutoffs + k-mesh) -->
+        <section [class.muted]="!usesAccuracy">
+            <h4><mat-icon>tune</mat-icon> Accuracy</h4>
+            <div class="field-row">
+                <label>ecutwfc (Ry)
+                    <input type="number" [(ngModel)]="accuracy.ecutwfc"
+                           [disabled]="!usesAccuracy">
+                </label>
+                <label>k-points
+                    <span class="kpts">
+                        <input type="number" min="1" style="width:52px"
+                               [ngModel]="accuracy.kpts?.[0] ?? 3"
+                               (ngModelChange)="setKpt(0, $event)"
+                               [disabled]="!usesAccuracy">
+                        <input type="number" min="1" style="width:52px"
+                               [ngModel]="accuracy.kpts?.[1] ?? 3"
+                               (ngModelChange)="setKpt(1, $event)"
+                               [disabled]="!usesAccuracy">
+                        <input type="number" min="1" style="width:52px"
+                               [ngModel]="accuracy.kpts?.[2] ?? 3"
+                               (ngModelChange)="setKpt(2, $event)"
+                               [disabled]="!usesAccuracy">
+                    </span>
+                </label>
+            </div>
+            <p class="section-note" *ngIf="!usesAccuracy">
+                Consumed by the periodic total-energy calculation only —
+                molecular SCF notes-and-ignores these (stated, not
+                silent).</p>
+        </section>
+
+        <!-- Results -->
+        <section>
+            <h4><mat-icon>insights</mat-icon> Results</h4>
+            <p class="section-note" *ngIf="selected!.last_executed_at">
+                last executed {{ selected!.last_executed_at }}</p>
+            <p class="energy" *ngIf="energyLine">
+                <strong>E = {{ energyLine }}</strong>
+                <span *ngIf="lastResult?.converged === true"
+                      class="converged">converged</span>
+                <span *ngIf="lastResult?.converged === false"
+                      class="not-converged">NOT converged</span>
+            </p>
+            <table class="result-table" *ngIf="resultEntries().length">
+                <tr *ngFor="let e of resultEntries()">
+                    <td class="rk">{{ e[0] }}</td>
+                    <td>{{ e[1] }}</td>
+                </tr>
+            </table>
+            <p class="section-note" *ngIf="!resultEntries().length">
+                Not executed yet — Run stores the result on this model
+                object (local library or the msci-engines worker,
+                whichever the ladder reaches).</p>
+        </section>
+    </ng-container>
+
+    <div class="loading" *ngIf="!loading && !selected">
+        No DFTModelDefinition rows on this instance yet.
+    </div>
+</div>

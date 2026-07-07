@@ -1,6 +1,8 @@
 import { registerDisplayComponent } from '@models/dashboards/ComponentRegistry';
 import { MaterialsBasisBrowserComponent } from './materials-basis-browser.component';
 import { FormulationSearchWorkbenchComponent } from './formulation-search-workbench.component';
+import { FemModelConfigComponent } from './fem-model-config.component';
+import { DftModelConfigComponent } from './dft-model-config.component';
 
 let registered = false;
 
@@ -31,5 +33,25 @@ export function registerMsciDisplayComponents(): void {
         + 'fidelity badges, explicit promote-to-L1 '
         + '(input: defaultSearchRef)',
       defaultInputs: { defaultSearchRef: '' },
+    });
+
+  registerDisplayComponent(
+    'fem-model-config', FemModelConfigComponent, {
+      displayName: 'FEM Model Configuration',
+      description: 'The FEM-specific simulation interface: physics, '
+        + 'domain/geometry, per-region materials (bindable to live '
+        + 'rows), boundary conditions, mesh, solver, results '
+        + '(input: defaultModelRef)',
+      defaultInputs: { defaultModelRef: '' },
+    });
+
+  registerDisplayComponent(
+    'dft-model-config', DftModelConfigComponent, {
+      displayName: 'DFT Model Configuration',
+      description: 'The DFT-specific simulation interface: calculation '
+        + 'type, structure (molecule/bulk), method (basis/XC/charge/'
+        + 'spin), accuracy (cutoff/k-points), results '
+        + '(input: defaultModelRef)',
+      defaultInputs: { defaultModelRef: '' },
     });
 }
