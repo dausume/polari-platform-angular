@@ -29,6 +29,10 @@ export interface MsimStage {
   simulationRef?: string;
   /** kind:'formulationSearch' — the FormulationSearchDefinition name. */
   formulationSearchRef?: string;
+  /** kind:'engineModel' — the FEM/DFT model definition name. */
+  modelRef?: string;
+  /** kind:'subModel' — the nested MultiScaleSimulationDefinition. */
+  msimRef?: string;
   primarySimulationRef?: string;
   couplingRefs?: string[];
   gate?: { solutionRef?: string; failReason?: string };

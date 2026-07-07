@@ -257,11 +257,14 @@ export class MultiScaleSimPageComponent implements OnInit, OnDestroy {
   }
 
   stageHasSearch(stage: MsimStage): boolean {
-    // formulationSearch stages carry their candidate space in the
-    // referenced FormulationSearchDefinition — the same search UI
-    // drives them (the backend reshapes into the same contract).
+    // Non-stepping stage kinds carry their candidate space in the
+    // referenced object (search definition / model definition / nested
+    // msim) — the same search UI drives them all (the backend reshapes
+    // each into the same report contract).
     return !!stage.search?.candidates
-      || stage.kind === 'formulationSearch';
+      || stage.kind === 'formulationSearch'
+      || stage.kind === 'engineModel'
+      || stage.kind === 'subModel';
   }
 
   stageKindLabel(stage: MsimStage): string {
@@ -269,7 +272,18 @@ export class MultiScaleSimPageComponent implements OnInit, OnDestroy {
     if (stage.kind === 'formulationSearch') {
       return 'formulation search over the configured definition';
     }
+    if (stage.kind === 'engineModel') {
+      return 'one-shot engine solve over the configured model';
+    }
+    if (stage.kind === 'subModel') {
+      return 'nested multi-scale sub-model';
+    }
     return 'runs to completion, then unlocks';
+  }
+
+  /** subModel stages link out to the child msim's own page. */
+  stageChildMsim(stage: MsimStage): string {
+    return stage.kind === 'subModel' ? (stage.msimRef ?? '') : '';
   }
 
   private loadAll(name: string): void {
@@ -395,13 +409,15 @@ export class MultiScaleSimPageComponent implements OnInit, OnDestroy {
     }
     st.checking = true;
     try {
-      // formulationSearch stages own their runs backend-side
-      // (FormulationSearchRun rows) — pass NO run and let the backend
-      // resolve the newest one (or answer the honest not-run-yet
-      // verdict). Resolving a SimulationRun here handed the gate a
-      // name from the wrong world and produced a raw 404.
+      // Non-stepping stage kinds own their artifacts backend-side
+      // (formulation runs / model rows / the nested msim) — pass NO
+      // run and let the backend resolve. Resolving a SimulationRun
+      // here handed the gate a name from the wrong world and produced
+      // a raw 404.
+      const ownsItsRuns = ['formulationSearch', 'engineModel',
+                           'subModel'].includes(stage.kind);
       let runName = '';
-      if (stage.kind !== 'formulationSearch') {
+      if (!ownsItsRuns) {
         // A runToCompletion stage evaluates against ITS OWN sim's run.
         const simRef = stage.simulationRef || this.config.primarySimulationRef;
         const stageRuns = await this.runService.list(simRef);

@@ -88,6 +88,11 @@
                         (click)="checkGate(stage)" [disabled]="stageState(stage).checking">
                     <mat-icon>refresh</mat-icon>
                 </button>
+                <a *ngIf="stageChildMsim(stage)" mat-icon-button
+                   matTooltip="Open the nested sub-model's own page"
+                   [routerLink]="['/multi-scale-sim', stageChildMsim(stage)]">
+                    <mat-icon>open_in_new</mat-icon>
+                </a>
                 <!-- Solution search: attempt multiple candidates to reach
                      one valid solution (first-principles stages) -->
                 <msim-stage-search *ngIf="stageHasSearch(stage)"
