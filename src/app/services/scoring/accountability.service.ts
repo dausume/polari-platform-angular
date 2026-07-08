@@ -195,6 +195,72 @@ export interface ContributorRecord {
   note: string;
 }
 
+/** GET /api/scoring/outlets/{name}/accuracy (scr-15). */
+export interface OutletAccuracyReport {
+  ok: boolean;
+  error?: string;
+  outlet: string;
+  displayName: string;
+  claimsTotal: number;
+  checked: number;
+  unverifiable: number;
+  verdicts: Record<string, number>;
+  meanRelativeError: number | null;
+  perTerm: Record<string, {
+    claims: number; meanRelativeError: number | null;
+  }>;
+  checks: {
+    claim: string; statement: string; verdict: string;
+    claimedValue: number | null; measuredValue: number | null;
+    relativeError: number | null; reason: string | null;
+  }[];
+  note: string;
+}
+
+/** GET /api/scoring/groups/{name}/bias (scr-16). */
+export interface GroupBiasReport {
+  ok: boolean;
+  error?: string;
+  group: string;
+  displayName: string;
+  memberContributors: string[];
+  biasPolicy: string | null;
+  stanceSkew: {
+    terms: {
+      key: string; groupStance: number; consensusStance: number;
+      groupShare: number; consensusShare: number; shareGap: number;
+      reading: string;
+    }[];
+    opposedTerms: number;
+    vsConsensusOf: number | null;
+  };
+  oneSidedness: {
+    targetKind: string; supports: number; harms: number;
+    dominantFraction: number; band: string; smallSample: boolean;
+    assertions: string[];
+  }[];
+  voteAlignment: {
+    decisiveVotes: number; selfServing: number; counterStance: number;
+    alignmentRate: number | null; band: string; smallSample: boolean;
+    votes: {
+      voter: string; assertion: string; direction: string;
+      term: string; favorableToGroup: boolean; castVote: string;
+      selfServing: boolean;
+    }[];
+    skipped: { vote: string; reason: string }[];
+    reading: string;
+  };
+  sourceQuality: {
+    gradeDistribution: Record<string, number>;
+    unevidencedAssertions: number;
+    outletsCited: Record<string, {
+      citations: number; meanRelativeError: number | null;
+      verdicts: Record<string, number> | null; note: string | null;
+    }>;
+  };
+  note: string;
+}
+
 /** GET /api/scoring/elections/{name}/tally. */
 export interface ElectionTally {
   ok: boolean;
@@ -327,6 +393,16 @@ export class AccountabilityService {
   contributorRecord(name: string): Promise<ContributorRecord | null> {
     return this.get(`/api/scoring/contributors/`
       + `${encodeURIComponent(name)}/record`);
+  }
+
+  outletAccuracy(name: string): Promise<OutletAccuracyReport | null> {
+    return this.get(`/api/scoring/outlets/`
+      + `${encodeURIComponent(name)}/accuracy`);
+  }
+
+  groupBias(name: string): Promise<GroupBiasReport | null> {
+    return this.get(`/api/scoring/groups/`
+      + `${encodeURIComponent(name)}/bias`);
   }
 
   electionTally(name: string): Promise<ElectionTally | null> {

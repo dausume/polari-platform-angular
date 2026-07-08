@@ -6,8 +6,9 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 
 import {
   AccountabilityService, AssertionRow, CohortReport, ContributorRow,
-  ContributorRecord, ElectionRow, ElectionTally, PolicyScoreReport,
-  PoliticianScoreReport, SubjectRow, SuggestionReport, ValidityReport,
+  ContributorRecord, ElectionRow, ElectionTally, GroupBiasReport,
+  OutletAccuracyReport, PolicyScoreReport, PoliticianScoreReport,
+  SubjectRow, SuggestionReport, ValidityReport,
 } from '@services/scoring/accountability.service';
 import {
   ScoreConceptSummary, ScoreGroupRow, ScoringService,
@@ -57,6 +58,14 @@ export class PolicyAccountabilityComponent implements OnInit {
   contributors: ContributorRow[] = [];
   records = new Map<string, ContributorRecord>();
 
+  outlets: SubjectRow[] = [];
+  outletRecords = new Map<string, OutletAccuracyReport>();
+  expandedOutlets = new Set<string>();
+
+  biasGroups: ScoreGroupRow[] = [];
+  biasReports = new Map<string, GroupBiasReport>();
+  expandedBias = new Set<string>();
+
   /** Lifecycle moves the transition endpoint will accept. */
   private static readonly NEXT_STATUSES: Record<string, string[]> = {
     'asserted': ['under-review', 'confirmed', 'rejected'],
@@ -81,6 +90,15 @@ export class PolicyAccountabilityComponent implements OnInit {
     this.concepts = concepts;
     this.policies = subjects.filter(s => s.kind === 'policy');
     this.politicians = subjects.filter(s => s.kind === 'politician');
+    this.outlets = subjects.filter(s => s.kind === 'media-outlet');
+    this.biasGroups = groups.filter(g => {
+      try {
+        return JSON.parse(
+          (g as unknown as {
+            member_contributor_names_json?: string;
+          }).member_contributor_names_json || '[]').length > 0;
+      } catch { return false; }
+    });
     this.assertions = assertions;
     this.cohorts = groups.filter(g => {
       try {
@@ -97,6 +115,49 @@ export class PolicyAccountabilityComponent implements OnInit {
     if (this.activeConcept) { await this.rescore(); }
     void this.loadElections();
     void this.loadContributors();
+    void this.loadOutlets();
+    void this.loadBias();
+  }
+
+  private async loadOutlets(): Promise<void> {
+    await Promise.all(this.outlets.map(async o => {
+      const record = await this.accountability.outletAccuracy(o.name);
+      if (record) { this.outletRecords.set(o.name, record); }
+    }));
+  }
+
+  private async loadBias(): Promise<void> {
+    await Promise.all(this.biasGroups.map(async g => {
+      const report = await this.accountability.groupBias(g.name);
+      if (report?.ok) { this.biasReports.set(g.name, report); }
+    }));
+  }
+
+  toggleOutlet(name: string): void {
+    this.toggleIn(this.expandedOutlets, name);
+  }
+
+  toggleBias(name: string): void {
+    this.toggleIn(this.expandedBias, name);
+  }
+
+  errorPercent(error: number | null): string {
+    return error === null || error === undefined
+      ? '—' : `${(error * 100).toFixed(2)}%`;
+  }
+
+  outletEntries(cited: Record<string, {
+    citations: number; meanRelativeError: number | null;
+  }>): { name: string; citations: number;
+         meanRelativeError: number | null }[] {
+    return Object.entries(cited)
+      .map(([name, v]) => ({ name, ...v }));
+  }
+
+  gradeEntries(grades: Record<string, number>):
+      { grade: string; count: number }[] {
+    return Object.entries(grades)
+      .map(([grade, count]) => ({ grade, count }));
   }
 
   async selectConcept(name: string): Promise<void> {

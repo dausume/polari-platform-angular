@@ -319,6 +319,169 @@
     </div>
   </section>
 
+  <!-- Media accuracy (scr-15) -->
+  <section *ngIf="outlets.length">
+    <h3>Media accuracy</h3>
+    <p class="intro">
+      Outlets held accountable for accuracy TO THE DATA: each logged
+      claim is checked against the measured value through the same
+      context+time matching scores use. Accuracy is computed, not
+      voted; what the data cannot check reads 'unverifiable', never a
+      penalty. Bands are the editable AccuracyPolicy row.
+    </p>
+    <div class="card" *ngFor="let outlet of outlets">
+      <div class="card-row" (click)="toggleOutlet(outlet.name)">
+        <span class="expander">
+          {{ expandedOutlets.has(outlet.name) ? '▾' : '▸' }}</span>
+        <span class="card-name">{{ outlet.display_name }}</span>
+        <ng-container
+            *ngIf="outletRecords.get(outlet.name) as record">
+          <ng-container *ngIf="record.ok; else outletRefused">
+            <span class="chip">{{ record.checked }} checked ·
+              {{ record.unverifiable }} unverifiable</span>
+            <span class="score"
+                  matTooltip="mean relative error over checked claims">
+              {{ errorPercent(record.meanRelativeError) }} off</span>
+          </ng-container>
+          <ng-template #outletRefused>
+            <span class="refusal">{{ record.error }}</span>
+          </ng-template>
+        </ng-container>
+      </div>
+      <div class="card-body"
+           *ngIf="expandedOutlets.has(outlet.name)">
+        <ng-container
+            *ngIf="outletRecords.get(outlet.name) as record">
+          <ng-container *ngIf="record.ok">
+            <table>
+              <thead><tr><th>statement</th><th>claimed</th>
+                <th>measured</th><th>error</th><th>verdict</th></tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let c of record.checks"
+                    [class.not-found]="c.verdict === 'unverifiable'">
+                  <td class="quote">“{{ c.statement }}”</td>
+                  <td>{{ c.claimedValue ?? '—' }}</td>
+                  <td>{{ c.measuredValue ?? '—' }}</td>
+                  <td>{{ errorPercent(c.relativeError) }}</td>
+                  <td>
+                    <span class="chip"
+                          [class]="'chip verdict-' + c.verdict"
+                          [matTooltip]="c.reason ?? ''">
+                      {{ c.verdict }}</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <p class="aggregation-note">{{ record.note }}</p>
+          </ng-container>
+        </ng-container>
+      </div>
+    </div>
+  </section>
+
+  <!-- Per-group bias (scr-16) -->
+  <section *ngIf="biasGroups.length">
+    <h3>Group bias analysis</h3>
+    <p class="intro">
+      Four independent reads of each group's recorded behavior against
+      its OWN stances: skew vs the all-groups consensus, assertion
+      one-sidedness, vote alignment (self-serving vs evidence-driven
+      validity votes), and the quality of what they cite. Small
+      samples are flagged; bands are the editable BiasPolicy row.
+    </p>
+    <div class="card" *ngFor="let group of biasGroups">
+      <div class="card-row" (click)="toggleBias(group.name)">
+        <span class="expander">
+          {{ expandedBias.has(group.name) ? '▾' : '▸' }}</span>
+        <span class="card-name">{{ group.display_name }}</span>
+        <ng-container *ngIf="biasReports.get(group.name) as report">
+          <span class="chip"
+                *ngIf="report.stanceSkew.opposedTerms">
+            {{ report.stanceSkew.opposedTerms }} opposed vs consensus
+          </span>
+          <span class="chip band"
+                [class]="'chip band bias-' + report.voteAlignment.band"
+                [matTooltip]="report.voteAlignment.reading">
+            votes: {{ report.voteAlignment.band }}
+            <ng-container *ngIf="report.voteAlignment.smallSample">
+              (small sample)</ng-container></span>
+        </ng-container>
+      </div>
+      <div class="card-body" *ngIf="expandedBias.has(group.name)">
+        <ng-container *ngIf="biasReports.get(group.name) as report">
+          <h4>Vote alignment</h4>
+          <p class="desc">
+            {{ report.voteAlignment.selfServing }} self-serving ·
+            {{ report.voteAlignment.counterStance }} counter-stance
+            (evidence-driven) over
+            {{ report.voteAlignment.decisiveVotes }} decisive votes
+            <ng-container
+                *ngIf="report.voteAlignment.alignmentRate !== null">
+              — alignment rate
+              <b>{{ report.voteAlignment.alignmentRate }}</b>
+            </ng-container>
+          </p>
+          <div class="excluded-row"
+               *ngFor="let v of report.voteAlignment.votes">
+            {{ v.voter }} voted <b>{{ v.castVote }}</b> on
+            {{ v.assertion }} ({{ v.direction }} {{ v.term }},
+            {{ v.favorableToGroup ? 'favorable' : 'unfavorable' }}
+            to the group) —
+            <span [class.self-serving]="v.selfServing">
+              {{ v.selfServing ? 'self-serving' : 'counter-stance' }}
+            </span>
+          </div>
+
+          <h4>Assertion one-sidedness</h4>
+          <div class="excluded-row"
+               *ngFor="let r of report.oneSidedness">
+            {{ r.targetKind }}: {{ r.supports }} supports ·
+            {{ r.harms }} harms
+            <span class="chip band"
+                  [class]="'chip band bias-' + r.band">
+              {{ r.band }}</span>
+            <span class="chip" *ngIf="r.smallSample">small sample
+            </span>
+          </div>
+
+          <h4>Stance skew vs consensus
+            (of {{ report.stanceSkew.vsConsensusOf }} worldviews)</h4>
+          <div class="excluded-row"
+               *ngFor="let t of report.stanceSkew.terms">
+            {{ t.key }}: group {{ t.groupStance > 0 ? '+' :
+              t.groupStance < 0 ? '−' : '·' }} vs consensus
+            {{ t.consensusStance > 0 ? '+' :
+              t.consensusStance < 0 ? '−' : '·' }}
+            (share {{ t.groupShare }} vs {{ t.consensusShare }})
+            <span class="chip band"
+                  [class]="'chip band bias-' + t.reading">
+              {{ t.reading }}</span>
+          </div>
+
+          <h4>Source quality</h4>
+          <p class="desc">
+            <span class="chip"
+                  *ngFor="let g of gradeEntries(
+                    report.sourceQuality.gradeDistribution)">
+              {{ g.grade }} × {{ g.count }}</span>
+            <span class="chip"
+                  *ngIf="report.sourceQuality.unevidencedAssertions">
+              unevidenced ×
+              {{ report.sourceQuality.unevidencedAssertions }}</span>
+          </p>
+          <div class="excluded-row"
+               *ngFor="let o of outletEntries(
+                 report.sourceQuality.outletsCited)">
+            cites {{ o.name }} ({{ o.citations }}×) — outlet mean
+            error {{ errorPercent(o.meanRelativeError) }}
+          </div>
+          <p class="aggregation-note">{{ report.note }}</p>
+        </ng-container>
+      </div>
+    </div>
+  </section>
+
   <!-- Contributors -->
   <section *ngIf="contributors.length">
     <h3>Contributors</h3>

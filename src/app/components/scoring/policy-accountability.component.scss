@@ -225,6 +225,38 @@
   .apply-result { margin-left: 8px; font-size: 11.5px;
     color: var(--text-secondary, #607d8b); }
 
+  .chip.verdict-exact, .chip.verdict-accurate {
+    background: var(--color-success-bg, #e8f5e9);
+    color: var(--color-success-text, #1b5e20);
+  }
+  .chip.verdict-close {
+    background: var(--color-warn-bg, #fff8e1);
+    color: var(--color-warn-text, #8d6e00);
+  }
+  .chip.verdict-wrong {
+    background: var(--color-error-bg, #fbe9e7);
+    color: var(--color-error-text, #bf360c);
+  }
+  .chip.verdict-unverifiable {
+    background: var(--surface-hover, #eceff1);
+    color: var(--text-tertiary, #78909c);
+  }
+  .chip.band.bias-balanced, .chip.band.bias-aligned-emphasis {
+    background: var(--color-success-bg, #e8f5e9);
+    color: var(--color-success-text, #1b5e20);
+  }
+  .chip.band.bias-leaning, .chip.band.bias-emphasis-gap {
+    background: var(--color-warn-bg, #fff8e1);
+    color: var(--color-warn-text, #8d6e00);
+  }
+  .chip.band.bias-one-sided, .chip.band.bias-echo-chamber,
+  .chip.band.bias-opposed, .chip.band.bias-strong-emphasis-gap {
+    background: var(--color-error-bg, #fbe9e7);
+    color: var(--color-error-text, #bf360c);
+  }
+  .self-serving { color: var(--color-error-text, #bf360c);
+    font-weight: 600; }
+
   .contributor-cards {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
