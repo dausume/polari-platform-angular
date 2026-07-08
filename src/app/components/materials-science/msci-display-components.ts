@@ -3,6 +3,8 @@ import { MaterialsBasisBrowserComponent } from './materials-basis-browser.compon
 import { FormulationSearchWorkbenchComponent } from './formulation-search-workbench.component';
 import { FemModelConfigComponent } from './fem-model-config.component';
 import { DftModelConfigComponent } from './dft-model-config.component';
+import { MaterialsHomeComponent } from './materials-home.component';
+import { MaterialLevelPageComponent } from './material-level-page.component';
 
 let registered = false;
 
@@ -43,6 +45,26 @@ export function registerMsciDisplayComponents(): void {
         + 'rows), boundary conditions, mesh, solver, results '
         + '(input: defaultModelRef)',
       defaultInputs: { defaultModelRef: '' },
+    });
+
+  registerDisplayComponent(
+    'materials-home', MaterialsHomeComponent, {
+      displayName: 'Materials Home',
+      description: 'The materials accountability overview: level cards '
+        + 'with defined/partial/missing counts, the full materials × '
+        + 'levels matrix, and links to every materials tool '
+        + '(no inputs — reads the scale-presence endpoint)',
+      defaultInputs: {},
+    });
+
+  registerDisplayComponent(
+    'material-level-page', MaterialLevelPageComponent, {
+      displayName: 'Material Scale-Level Page',
+      description: 'One scale level: what it means, what earning a '
+        + 'definition takes, and every material sorted into defined / '
+        + 'partial / missing — each absence with the evidence-bearing '
+        + 'suggestion (input: level 0-4)',
+      defaultInputs: { level: 0 },
     });
 
   registerDisplayComponent(

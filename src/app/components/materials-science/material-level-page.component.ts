@@ -1,0 +1,60 @@
+import { Component, Input, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
+import { MatTooltipModule } from '@angular/material/tooltip';
+
+import {
+  LevelAccountability, LevelEntry, MaterialsBasisService,
+} from '@services/materials-science/materials-basis.service';
+
+/**
+ * One scale level's page (/display/materials-level-{0..4}): what this
+ * level MEANS (range, methods, what earning a definition takes, which
+ * engines serve it), then the accountability three-way — materials
+ * DEFINED here (with their rows and lineage), PARTIAL (declared and
+ * executable, result not yet stored), and MISSING, where every absence
+ * carries the evidence-bearing suggestion: the exact row to create and
+ * where the definition would come from. Suggestions are shown, never
+ * auto-applied.
+ */
+@Component({
+  standalone: true,
+  selector: 'material-level-page',
+  imports: [CommonModule, RouterModule, MatTooltipModule],
+  templateUrl: './material-level-page.component.html',
+  styleUrls: ['./material-level-page.component.scss'],
+})
+export class MaterialLevelPageComponent implements OnInit {
+  @Input() level = 0;
+
+  report: LevelAccountability | null = null;
+  loading = true;
+  loadError = '';
+
+  constructor(private basis: MaterialsBasisService) {}
+
+  async ngOnInit(): Promise<void> {
+    this.report = await this.basis.levelAccountability(
+      Number(this.level));
+    this.loading = false;
+    if (!this.report) {
+      this.loadError = 'The level endpoint did not answer — is the '
+        + `backend up? (GET /api/msci/scale-presence/level/${this.level})`;
+    } else if (!this.report.ok) {
+      this.loadError = this.report.error ?? 'unknown level';
+    }
+  }
+
+  get otherLevels(): number[] {
+    return [0, 1, 2, 3, 4].filter(l => l !== Number(this.level));
+  }
+
+  rowLineage(entry: LevelEntry): string {
+    return entry.rows
+      .map(r => r.derivedFrom
+        ? `${r.name} ← ${r.derivedFrom}`
+          + (r.derivationMethod ? ` (${r.derivationMethod})` : '')
+        : r.name)
+      .join('; ');
+  }
+}

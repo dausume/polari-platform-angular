@@ -1,0 +1,79 @@
+<div class="materials-home">
+  <div *ngIf="loading" class="status-line">Loading the presence matrix…</div>
+  <div *ngIf="loadError" class="status-line error">{{ loadError }}</div>
+
+  <ng-container *ngIf="matrix">
+    <!-- One card per scale level: taxonomy + accountability counts -->
+    <div class="level-cards">
+      <a *ngFor="let level of matrix.levels"
+         class="level-card"
+         [routerLink]="['/display', 'materials-level-' + level.level]">
+        <div class="level-head">
+          <span class="level-num">L{{ level.level }}</span>
+          <span class="level-name">{{ level.name }}</span>
+          <span class="level-range">{{ level.lengthRange }}</span>
+        </div>
+        <div class="level-methods">{{ level.methods }}</div>
+        <div class="level-counts">
+          <span class="count defined"
+                matTooltip="materials with an earned definition here">
+            {{ level.defined }} defined</span>
+          <span class="count partial"
+                matTooltip="declared and executable, result not yet stored">
+            {{ level.partial }} partial</span>
+          <span class="count missing"
+                matTooltip="no definition — the level page says what earning one takes">
+            {{ level.missing }} missing</span>
+        </div>
+      </a>
+    </div>
+
+    <!-- The full accountability matrix -->
+    <div class="matrix-bar">
+      <h3>Every material × every level</h3>
+      <input type="text" placeholder="filter by name / category / tag"
+             (input)="onFilter($event)" />
+    </div>
+    <div class="matrix-scroll">
+      <table class="presence-matrix">
+        <thead>
+          <tr>
+            <th class="mat-col">material</th>
+            <th *ngFor="let level of matrix.levels">
+              <a [routerLink]="['/display', 'materials-level-' + level.level]">
+                L{{ level.level }} {{ level.name }}
+              </a>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let mat of visibleMaterials">
+            <td class="mat-col">
+              <span class="mat-name">{{ mat.displayName }}</span>
+              <span class="mat-category" *ngIf="mat.category">
+                {{ mat.category }}</span>
+            </td>
+            <td *ngFor="let level of matrix.levels">
+              <a class="cell"
+                 [class.defined]="cellStatus(mat, level.level) === 'defined'"
+                 [class.partial]="cellStatus(mat, level.level) === 'partial'"
+                 [class.missing]="cellStatus(mat, level.level) === 'missing'"
+                 [routerLink]="['/display', 'materials-level-' + level.level]"
+                 [matTooltip]="cellTooltip(mat, level.level)">
+                {{ cellStatus(mat, level.level) }}
+              </a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Tools -->
+    <div class="tools">
+      <a *ngFor="let tool of tools" class="tool-link"
+         [routerLink]="tool.route" [matTooltip]="tool.hint">
+        {{ tool.label }}
+      </a>
+    </div>
+  </ng-container>
+</div>

@@ -1,0 +1,116 @@
+<div class="level-page">
+  <div *ngIf="loading" class="status-line">Loading level accountability…</div>
+  <div *ngIf="loadError" class="status-line error">{{ loadError }}</div>
+
+  <ng-container *ngIf="report && report.ok">
+    <!-- What this level means -->
+    <div class="level-intro">
+      <div class="intro-line">
+        <span class="range">{{ report.detail.lengthRange }}</span>
+        <span class="methods">{{ report.detail.methods }}</span>
+      </div>
+      <p class="earned-by">
+        <strong>A definition here is earned by:</strong>
+        {{ report.detail.earnedBy }}
+      </p>
+      <div class="engines" *ngIf="report.detail.engines.length; else noEngines">
+        <span class="engines-label">engines serving this level:</span>
+        <code *ngFor="let engine of report.detail.engines">{{ engine }}</code>
+      </div>
+      <ng-template #noEngines>
+        <div class="engines none">
+          No engine is wired for this level yet — every material is
+          honestly missing or planned here until one is.
+        </div>
+      </ng-template>
+      <nav class="level-nav">
+        <a routerLink="/display/materials">← all materials</a>
+        <a *ngFor="let other of otherLevels"
+           [routerLink]="['/display', 'materials-level-' + other]">
+          L{{ other }}</a>
+      </nav>
+    </div>
+
+    <!-- Defined -->
+    <section>
+      <h3 class="defined-h">
+        Defined here ({{ report.defined.length }})</h3>
+      <p *ngIf="!report.defined.length" class="empty-note">
+        Nothing has earned a definition at this level yet.</p>
+      <div class="entry defined" *ngFor="let entry of report.defined">
+        <div class="entry-head">
+          <span class="mat-name">{{ entry.displayName }}</span>
+          <span class="mat-category" *ngIf="entry.category">
+            {{ entry.category }}</span>
+        </div>
+        <div class="rows">
+          <div class="row" *ngFor="let row of entry.rows">
+            <code>{{ row.name }}</code>
+            <span class="chip" [class.has-result]="row.hasResult"
+                  [matTooltip]="row.notes">
+              {{ row.status }}{{ row.hasResult ? ' · result stored' : '' }}
+            </span>
+            <span class="lineage" *ngIf="row.derivedFrom">
+              ← {{ row.derivedFrom }}
+              <ng-container *ngIf="row.derivationMethod">
+                ({{ row.derivationMethod }})</ng-container>
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Partial -->
+    <section>
+      <h3 class="partial-h">
+        Partial ({{ report.partial.length }}) — declared and executable,
+        result not yet stored</h3>
+      <div class="entry partial" *ngFor="let entry of report.partial">
+        <div class="entry-head">
+          <span class="mat-name">{{ entry.displayName }}</span>
+          <span class="mat-category" *ngIf="entry.category">
+            {{ entry.category }}</span>
+        </div>
+        <div class="rows">
+          <div class="row" *ngFor="let row of entry.rows">
+            <code>{{ row.name }}</code>
+            <span class="exec-ref" *ngIf="row.definitionRef">
+              runs {{ row.definitionClass }} / {{ row.definitionRef }}
+            </span>
+            <span class="lineage" *ngIf="row.derivedFrom">
+              ← {{ row.derivedFrom }}</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Missing: the accountability half -->
+    <section>
+      <h3 class="missing-h">
+        Missing ({{ report.missing.length }}) — absence is data</h3>
+      <div class="entry missing" *ngFor="let entry of report.missing">
+        <div class="entry-head">
+          <span class="mat-name">{{ entry.displayName }}</span>
+          <span class="mat-category" *ngIf="entry.category">
+            {{ entry.category }}</span>
+          <span class="planned-flag" *ngIf="entry.rows.length">
+            planned, not yet earned</span>
+        </div>
+        <div class="rows" *ngIf="entry.rows.length">
+          <div class="row" *ngFor="let row of entry.rows">
+            <code>{{ row.name }}</code>
+            <span class="planned-notes">{{ row.notes }}</span>
+          </div>
+        </div>
+        <div class="suggestion" *ngIf="entry.suggestion">
+          <div class="evidence">{{ entry.suggestion.evidence }}</div>
+          <div class="action">
+            <span class="knob-label">knob:</span>
+            <code>{{ entry.suggestion.knob }}</code>
+            — {{ entry.suggestion.action }}
+          </div>
+        </div>
+      </div>
+    </section>
+  </ng-container>
+</div>

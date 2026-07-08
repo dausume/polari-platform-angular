@@ -1,0 +1,84 @@
+.level-page {
+  padding: 12px;
+  font-size: 13px;
+
+  .status-line { color: #607d8b; }
+  .status-line.error { color: #b71c1c; }
+
+  .level-intro {
+    border: 1px solid #cfd8dc; border-radius: 8px;
+    padding: 10px 14px; background: #fafafa; margin-bottom: 16px;
+
+    .intro-line {
+      display: flex; gap: 12px; align-items: baseline;
+      .range { font-weight: 700; color: #37474f; }
+      .methods { color: #607d8b; }
+    }
+    .earned-by { margin: 8px 0; }
+    .engines {
+      display: flex; gap: 6px; flex-wrap: wrap; align-items: center;
+      .engines-label { font-size: 11px; color: #78909c; }
+      code {
+        font-size: 11px; background: #eceff1; padding: 1px 6px;
+        border-radius: 6px;
+      }
+      &.none { color: #8d6e00; font-size: 12px; }
+    }
+    .level-nav {
+      margin-top: 10px; display: flex; gap: 10px;
+      a { font-size: 12px; color: #1565c0; text-decoration: none; }
+      a:hover { text-decoration: underline; }
+    }
+  }
+
+  section { margin-bottom: 18px; }
+  h3 { font-size: 14px; margin: 0 0 8px; }
+  .defined-h { color: #1b5e20; }
+  .partial-h { color: #8d6e00; }
+  .missing-h { color: #bf360c; }
+  .empty-note { color: #78909c; font-size: 12px; }
+
+  .entry {
+    border-left: 3px solid #cfd8dc; padding: 6px 12px; margin-bottom: 8px;
+
+    &.defined { border-left-color: #66bb6a; }
+    &.partial { border-left-color: #ffca28; }
+    &.missing { border-left-color: #ff7043; }
+
+    .entry-head {
+      display: flex; gap: 8px; align-items: baseline;
+      .mat-name { font-weight: 600; }
+      .mat-category {
+        font-size: 10px; padding: 1px 6px; border-radius: 8px;
+        background: #eceff1; color: #607d8b;
+      }
+      .planned-flag {
+        font-size: 10px; padding: 1px 6px; border-radius: 8px;
+        background: #e3f2fd; color: #1565c0;
+      }
+    }
+
+    .rows .row {
+      margin-top: 4px; display: flex; gap: 8px; flex-wrap: wrap;
+      align-items: baseline;
+      code { font-size: 11px; }
+      .chip {
+        font-size: 10px; padding: 1px 6px; border-radius: 8px;
+        background: #fff8e1; color: #8d6e00;
+        &.has-result { background: #e8f5e9; color: #1b5e20; }
+      }
+      .exec-ref, .lineage, .planned-notes {
+        font-size: 11px; color: #78909c;
+      }
+    }
+
+    .suggestion {
+      margin-top: 6px; padding: 6px 10px; border-radius: 6px;
+      background: #fff3e0; font-size: 12px;
+      .evidence { color: #6d4c41; }
+      .action { margin-top: 3px; }
+      .knob-label { font-size: 10px; color: #8d6e63; }
+      code { font-size: 11px; }
+    }
+  }
+}
