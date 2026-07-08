@@ -38,6 +38,7 @@ export class ClassTypingService {
         new navComponent("Sim Spaces","sim-spaces","SimSpaceListPageComponent", {}, []),
         new navComponent("Multi-Scale Sims","multi-scale-sims","MultiScaleSimsComponent", {}, []),
         new navComponent("Materials","display/materials","MaterialsHomeComponent", {}, []),
+        new navComponent("Scoring","scoring","ScoringHomeComponent", {}, []),
         new navComponent("Module Management","module-management","ModuleManagementComponent", {}, []),
         new navComponent("Tables","tables","TablesComponent", {}, []),
         new navComponent("Graphs","graphs","GraphsComponent", {}, []),

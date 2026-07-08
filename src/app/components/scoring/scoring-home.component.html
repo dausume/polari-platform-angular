@@ -1,0 +1,111 @@
+<div class="scoring-home">
+  <h2>Scoring</h2>
+  <p class="intro">
+    Context-based scoring: weighted, normalized term bundles evaluated
+    over subjects — the Political Scorecard's system generalized so a
+    score concept can draw on any data in Polari. Every number below is
+    traceable: raw value → normalization spec → weighted contribution;
+    missing measurements are named, never guessed. Definitions are
+    plain objects (ScoreTerm / ScoreContext / ScoreSubject /
+    ContextualizedValue / ScoreConcept) editable like any other rows.
+  </p>
+
+  <div *ngIf="loading" class="status-line">Loading score concepts…</div>
+  <div *ngIf="loadError" class="status-line error">{{ loadError }}</div>
+
+  <!-- Concept picker -->
+  <div class="concept-cards" *ngIf="concepts.length">
+    <button class="concept-card" *ngFor="let concept of concepts"
+            [class.active]="concept.name === activeConcept"
+            (click)="select(concept.name)">
+      <span class="concept-name">{{ concept.displayName }}</span>
+      <span class="concept-meta">
+        {{ concept.termWeights.length }} terms ·
+        {{ concept.subjectKind || 'any subject' }}
+        <ng-container *ngIf="concept.levelize"> · levelized
+        </ng-container>
+      </span>
+      <span class="concept-desc">{{ concept.description }}</span>
+    </button>
+  </div>
+
+  <!-- Scoreboard -->
+  <div *ngIf="scoring" class="status-line">Scoring…</div>
+  <ng-container *ngIf="report?.ok && !scoring">
+    <div class="board-head">
+      <h3>{{ report!.displayName }}</h3>
+      <span class="chip" *ngFor="let ctx of report!.requiredContexts"
+            matTooltip="required context — every value used must hold under it">
+        {{ ctx }}</span>
+      <span class="chip weight"
+            matTooltip="sum of all term weights (the denominator)">
+        total weight {{ report!.totalWeight }}</span>
+    </div>
+
+    <div class="subject" *ngFor="let subject of report!.subjects">
+      <div class="subject-row" (click)="toggle(subject.subject)">
+        <span class="expander">{{ expanded.has(subject.subject)
+          ? '▾' : '▸' }}</span>
+        <span class="subject-name">{{ subject.displayName }}</span>
+        <span class="missing-flag" *ngIf="subject.termsMissing.length"
+              [matTooltip]="'missing: '
+                + subject.termsMissing.join(', ')">
+          {{ subject.termsMissing.length }} missing</span>
+        <div class="bar-track">
+          <div class="bar" [style.width]="barWidth(subject)"></div>
+        </div>
+        <span class="score">{{ scoreLabel(subject) }}</span>
+      </div>
+
+      <div class="breakdown" *ngIf="expanded.has(subject.subject)">
+        <table>
+          <thead>
+            <tr><th>term</th><th>raw</th><th>normalized</th>
+                <th>weight</th><th>weighted</th><th>source</th></tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let entry of subject.breakdown"
+                [class.not-found]="!entry.found">
+              <td>
+                {{ entry.label || entry.term }}
+                <span class="invert-flag"
+                      *ngIf="entry.isPositive === false"
+                      matTooltip="anti-competitive: lower raw value scores higher">
+                  inverted</span>
+              </td>
+              <ng-container *ngIf="entry.found; else notFound">
+                <td>{{ entry.raw }} {{ entry.unit }}</td>
+                <td [matTooltip]="normalizationLabel(entry)">
+                  {{ entry.normalized }}</td>
+                <td>× {{ entry.weight }}</td>
+                <td class="weighted">{{ entry.weighted }}</td>
+                <td class="source" [matTooltip]="entry.provenance ?? ''">
+                  {{ entry.source }}</td>
+              </ng-container>
+              <ng-template #notFound>
+                <td colspan="4" class="absence">
+                  {{ entry.error || 'no value under the required contexts' }}
+                  (weight {{ entry.weight }} stays in the denominator)
+                </td>
+                <td></td>
+              </ng-template>
+            </tr>
+          </tbody>
+        </table>
+        <p class="sum-line">
+          weighted sum {{ subject.weightedSum }} ÷
+          {{ report!.totalWeight }} = initial score
+          {{ subject.initialScore }}
+          <ng-container *ngIf="subject.levelizedScore !== null">
+            → levelized {{ subject.levelizedScore }} / 100
+          </ng-container>
+        </p>
+      </div>
+    </div>
+
+    <p class="aggregation-note">{{ report!.aggregationNote }}</p>
+  </ng-container>
+  <div *ngIf="report && !report.ok && !scoring" class="status-line error">
+    {{ report.error }}
+  </div>
+</div>
