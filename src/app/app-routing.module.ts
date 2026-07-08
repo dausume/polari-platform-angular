@@ -49,6 +49,7 @@ const routes: Routes = [
   { path: 'matrices/:name', loadComponent: () => import('@components/matrices/matrices-page/matrices-page.component').then(m => m.MatricesPageComponent) },
   { path: 'materials/:name', loadComponent: () => import('@components/materials-science/material-detail.component').then(m => m.MaterialDetailComponent) },
   { path: 'scoring', loadComponent: () => import('@components/scoring/scoring-home.component').then(m => m.ScoringHomeComponent) },
+  { path: 'scoring/accountability', loadComponent: () => import('@components/scoring/policy-accountability.component').then(m => m.PolicyAccountabilityComponent) },
   { path: 'display/:id', loadComponent: () => import('@components/dashboard/display-page/display-page').then(m => m.DisplayPageComponent) }
 ];
 

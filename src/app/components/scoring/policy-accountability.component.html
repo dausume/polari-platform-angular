@@ -1,0 +1,355 @@
+<div class="accountability">
+  <h2>Policy accountability</h2>
+  <p class="intro">
+    The accountability chain: text spans of policies are ASSERTED to
+    impact score concepts (evidence-graded, validity-voted); confirmed
+    assertions compose a policy's score; recorded votes carry policy
+    scores onto politicians and cohorts; worldview elections derive
+    what a group's definition IS. Every number travels with its
+    evidence — exclusions and refusals are named, never hidden.
+    <a routerLink="/scoring">← concept scoreboards</a>
+  </p>
+
+  <div *ngIf="loading" class="status-line">Loading…</div>
+
+  <!-- Concept picker -->
+  <div class="concept-tabs" *ngIf="concepts.length">
+    <span class="tabs-label"
+          matTooltip="policies and politicians are scored FOR a concept — pick which">
+      score against:</span>
+    <button *ngFor="let concept of concepts"
+            [class.active]="concept.name === activeConcept"
+            (click)="selectConcept(concept.name)">
+      {{ concept.displayName }}</button>
+  </div>
+
+  <!-- Policies -->
+  <section *ngIf="policies.length">
+    <h3>Policies</h3>
+    <div class="card" *ngFor="let policy of policies">
+      <div class="card-row" (click)="togglePolicy(policy.name)">
+        <span class="expander">{{ expandedPolicies.has(policy.name)
+          ? '▾' : '▸' }}</span>
+        <span class="card-name">{{ policy.display_name }}</span>
+        <ng-container *ngIf="policyReports.get(policy.name) as report">
+          <ng-container *ngIf="report.ok; else policyRefused">
+            <div class="bar-track">
+              <div class="bar" [style.width]="scorePercent(report.score)"></div>
+            </div>
+            <span class="score"
+                  [matTooltip]="'stance ' + report.stance
+                    + ' — ' + report.note">
+              {{ report.score }}</span>
+          </ng-container>
+          <ng-template #policyRefused>
+            <span class="refusal" [matTooltip]="report.error ?? ''">
+              not scoreable — {{ report.error }}</span>
+          </ng-template>
+        </ng-container>
+      </div>
+      <div class="card-body" *ngIf="expandedPolicies.has(policy.name)">
+        <p class="desc">{{ policy.description }}</p>
+        <ng-container *ngIf="policyReports.get(policy.name) as report">
+          <ng-container *ngIf="report.ok">
+            <table>
+              <thead><tr><th>assertion</th><th>span</th>
+                <th>direction</th><th>evidence</th><th>weight</th></tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let used of report.assertionsUsed">
+                  <td [matTooltip]="used.intent">
+                    {{ used.assertion }}
+                    <span class="chip" *ngIf="used.dependsOn"
+                          [matTooltip]="'score carry-over from '
+                            + used.dependsOn + ' (child score '
+                            + used.childScore + ')'">
+                      dependency</span></td>
+                  <td class="quote">“{{ used.quote }}”</td>
+                  <td>{{ used.direction || 'carry-over' }}
+                    × {{ used.strength }}</td>
+                  <td><span class="chip grade">
+                    {{ used.evidence.grade }}</span></td>
+                  <td>{{ used.weight }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="excluded" *ngIf="report.excluded.length">
+              <h4>Excluded (visible, never counted)</h4>
+              <div class="excluded-row"
+                   *ngFor="let ex of report.excluded">
+                <span class="chip" [class]="statusChipClass(ex.status)">
+                  {{ ex.status }}</span>
+                <span>{{ ex.assertion }} — {{ ex.reason }}</span>
+              </div>
+            </div>
+          </ng-container>
+        </ng-container>
+      </div>
+    </div>
+  </section>
+
+  <!-- Assertions -->
+  <section *ngIf="assertions.length">
+    <h3>Assertions</h3>
+    <p class="intro">
+      Claims binding policy text to concepts. Status moves are explicit
+      and history-logged; validity votes SUGGEST moves, never make
+      them. Unbound assertions get abstraction-matched suggestions.
+    </p>
+    <div class="transition-by">
+      acting as
+      <input [(ngModel)]="transitionBy"
+             placeholder="contributor name (accountability)"
+             matTooltip="status transitions are attributed — name your contributor row">
+    </div>
+    <div class="status-line error" *ngIf="transitionError">
+      {{ transitionError }}</div>
+    <div class="card" *ngFor="let assertion of assertions">
+      <div class="card-row" (click)="toggleAssertion(assertion.name)">
+        <span class="expander">
+          {{ expandedAssertions.has(assertion.name) ? '▾' : '▸' }}</span>
+        <span class="card-name">{{ assertion.displayName
+          || assertion.name }}</span>
+        <span class="chip">{{ assertion.type }}</span>
+        <span class="chip" [class]="statusChipClass(assertion.status)">
+          {{ assertion.status }}</span>
+        <span class="asserted-by"
+              matTooltip="the accountable contributor">
+          by {{ assertion.assertedBy || '(unattributed)' }}</span>
+      </div>
+      <div class="card-body"
+           *ngIf="expandedAssertions.has(assertion.name)">
+        <p class="quote" *ngIf="assertion.span?.quote">
+          “{{ assertion.span!.quote }}”</p>
+        <p class="desc">intent: {{ assertion.intent }}
+          <ng-container *ngIf="assertion.termName">
+            · bound to term <b>{{ assertion.termName }}</b>
+          </ng-container>
+          <ng-container *ngIf="assertion.conceptName">
+            · bound to concept <b>{{ assertion.conceptName }}</b>
+          </ng-container>
+          <ng-container *ngIf="assertion.dependsOn">
+            · depends on <b>{{ assertion.dependsOn }}</b>
+          </ng-container>
+        </p>
+
+        <div class="transitions" *ngIf="nextStatuses(assertion).length">
+          move status:
+          <button *ngFor="let next of nextStatuses(assertion)"
+                  (click)="transition(assertion, next)">
+            → {{ next }}</button>
+        </div>
+        <div class="history" *ngIf="assertion.statusHistory.length">
+          <span class="history-entry"
+                *ngFor="let h of assertion.statusHistory"
+                [matTooltip]="h.note + ' (' + h.at + ')'">
+            {{ h.from }} → {{ h.to }} by {{ h.by || '?' }}</span>
+        </div>
+
+        <ng-container *ngIf="validity.get(assertion.name) as tally">
+          <div class="validity" *ngIf="tally.rounds.length">
+            <h4>Validity voting</h4>
+            <div class="round" *ngFor="let round of tally.rounds">
+              round {{ round.round }}:
+              {{ round.valid }} valid · {{ round.invalid }} invalid ·
+              {{ round.abstain }} abstain
+              <span class="chip band" [class]="'chip band ' + round.band"
+                    [matTooltip]="'voters: ' + round.voters.join(', ')">
+                {{ round.band }}</span>
+            </div>
+            <p class="suggestion" *ngIf="tally.suggestion">
+              suggests: {{ tally.suggestion.action }}
+              <span class="evidence">({{ tally.suggestion.evidence }})
+              </span></p>
+          </div>
+        </ng-container>
+
+        <ng-container
+            *ngIf="suggestions.get(assertion.name) as suggested">
+          <div class="suggestions" *ngIf="suggested.suggestions.length">
+            <h4>Suggested bindings (never auto-applied)</h4>
+            <div class="suggestion-row"
+                 *ngFor="let s of suggested.suggestions">
+              <span class="chip">{{ s.kind }}</span>
+              <b>{{ s.displayName }}</b>
+              <span class="match">match {{ s.matchScore }}</span>
+              <span class="action"
+                    [matTooltip]="'knob: ' + s.knob">
+                {{ s.action }}</span>
+            </div>
+            <p class="aggregation-note">{{ suggested.note }}</p>
+          </div>
+        </ng-container>
+      </div>
+    </div>
+  </section>
+
+  <!-- Politicians -->
+  <section *ngIf="politicians.length">
+    <h3>Politicians</h3>
+    <div class="card" *ngFor="let politician of politicians">
+      <div class="card-row" (click)="togglePolitician(politician.name)">
+        <span class="expander">
+          {{ expandedPoliticians.has(politician.name) ? '▾' : '▸' }}</span>
+        <span class="card-name">{{ politician.display_name }}</span>
+        <ng-container
+            *ngIf="politicianReports.get(politician.name) as report">
+          <ng-container *ngIf="report.ok; else politicianRefused">
+            <span class="chip"
+                  matTooltip="decisive votes ÷ (decisive + abstentions)">
+              participation {{ report.participation }}</span>
+            <div class="bar-track">
+              <div class="bar" [style.width]="scorePercent(report.score)"></div>
+            </div>
+            <span class="score" [matTooltip]="report.note">
+              {{ report.score }}</span>
+          </ng-container>
+          <ng-template #politicianRefused>
+            <span class="refusal">{{ report.error }}</span>
+          </ng-template>
+        </ng-container>
+      </div>
+      <div class="card-body"
+           *ngIf="expandedPoliticians.has(politician.name)">
+        <ng-container
+            *ngIf="politicianReports.get(politician.name) as report">
+          <ng-container *ngIf="report.ok">
+            <table>
+              <thead><tr><th>policy</th><th>vote</th><th>date</th>
+                <th>policy stance</th><th>contribution</th></tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let vote of report.voteBreakdown">
+                  <td>{{ vote.policy }}</td>
+                  <td><span class="chip">{{ vote.vote }}</span></td>
+                  <td>{{ vote.voteDate }}</td>
+                  <td>{{ vote.policyStance }}</td>
+                  <td>{{ vote.contribution }}</td>
+                </tr>
+                <tr class="not-found" *ngFor="let gap of report.abstains">
+                  <td>{{ gap.policy }}</td>
+                  <td><span class="chip">abstain</span></td>
+                  <td>{{ gap.voteDate }}</td>
+                  <td colspan="2" class="absence">
+                    participation gap — outside the math</td>
+                </tr>
+                <tr class="not-found"
+                    *ngFor="let gap of report.unscoreablePolicies">
+                  <td>{{ gap.policy }}</td>
+                  <td colspan="4" class="absence">{{ gap.error }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </ng-container>
+        </ng-container>
+      </div>
+    </div>
+
+    <div class="cohort" *ngFor="let cohort of cohorts">
+      <ng-container *ngIf="cohortReports.get(cohort.name) as report">
+        <h4>{{ cohort.display_name }}
+          <span class="chip" *ngIf="report.ok"
+                matTooltip="mean of member scores">
+            cohort mean {{ report.cohortMeanScore }}</span></h4>
+        <div class="cohesion" *ngIf="report.ok">
+          <div class="cohesion-row"
+               *ngFor="let c of report.voteCohesion">
+            {{ c.policy }}: {{ c.yea }} yea · {{ c.nay }} nay ·
+            {{ c.abstain }} abstain
+            <span class="chip band" [class]="'chip band ' + c.band">
+              {{ c.band }}</span>
+          </div>
+          <p class="aggregation-note">{{ report.note }}</p>
+        </div>
+      </ng-container>
+    </div>
+  </section>
+
+  <!-- Elections -->
+  <section *ngIf="elections.length">
+    <h3>Worldview elections</h3>
+    <p class="intro">
+      Groups elect their definition: approval / sole / ranked-condorcet
+      over member worldviews. Applying a CLOSED election writes
+      vote-derived member weights onto the group (provenance-stamped);
+      open elections refuse to apply.
+    </p>
+    <div class="card" *ngFor="let election of elections">
+      <div class="card-row static">
+        <span class="card-name">{{ election.display_name }}</span>
+        <span class="chip">{{ election.mode }}</span>
+        <span class="chip" [class]="statusChipClass(election.status)">
+          {{ election.status }}</span>
+        <span class="chip">group: {{ election.group_name }}</span>
+      </div>
+      <div class="card-body">
+        <ng-container *ngIf="tallies.get(election.name) as tally">
+          <ng-container *ngIf="tally.ok; else tallyRefused">
+            <p class="desc">
+              {{ tally.ballotsCounted }}/{{ tally.ballotsCast }}
+              ballots counted · winner(s):
+              <b>{{ tally.winners.join(', ') || 'none' }}</b></p>
+            <div class="weight-row"
+                 *ngFor="let w of weightEntries(tally.electedWeights)">
+              <span class="weight-name">{{ w.name }}</span>
+              <div class="bar-track">
+                <div class="bar" [style.width]="scorePercent(w.weight)"></div>
+              </div>
+              <span class="score">{{ w.weight }}</span>
+            </div>
+            <div class="excluded" *ngIf="tally.refusedBallots.length">
+              <div class="excluded-row"
+                   *ngFor="let r of tally.refusedBallots">
+                ballot {{ r.ballot }} refused: {{ r.error }}</div>
+            </div>
+            <p class="aggregation-note">{{ tally.note }}</p>
+            <button class="apply"
+                    (click)="applyElection(election)"
+                    matTooltip="writes vote-derived member weights onto the group — closed elections only">
+              apply elected weights to {{ election.group_name }}</button>
+            <span class="apply-result"
+                  *ngIf="applyResults.get(election.name) as result">
+              {{ result }}</span>
+          </ng-container>
+          <ng-template #tallyRefused>
+            <span class="refusal">{{ tally.error }}</span>
+          </ng-template>
+        </ng-container>
+      </div>
+    </div>
+  </section>
+
+  <!-- Contributors -->
+  <section *ngIf="contributors.length">
+    <h3>Contributors</h3>
+    <p class="intro">
+      Who contributes — individuals, orgs, lobbies — trackable or
+      pseudonymous by their own knob. A contributor's confirmation
+      rate is how their claims survived validity review.
+    </p>
+    <div class="contributor-cards">
+      <div class="contributor-card" *ngFor="let c of contributors">
+        <div class="card-row static">
+          <span class="card-name">{{ c.display_name }}</span>
+          <span class="chip">{{ c.kind }}</span>
+          <span class="chip pseudo" *ngIf="c.pseudonymous"
+                matTooltip="no legal identity attached — the track record still accrues to this pseudonym">
+            pseudonymous</span>
+        </div>
+        <ng-container *ngIf="records.get(c.name) as record">
+          <p class="desc">
+            {{ record.assertions.total }} assertions
+            <ng-container
+                *ngIf="record.assertions.confirmationRate !== null">
+              · confirmation rate
+              <b>{{ record.assertions.confirmationRate }}</b>
+            </ng-container>
+            · {{ record.validityVotesCast }} validity votes
+            · {{ record.evidenceSubmitted.length }} evidence items
+            · {{ record.valuesContributed }} values ingested
+          </p>
+        </ng-container>
+      </div>
+    </div>
+  </section>
+</div>

@@ -8,6 +8,7 @@
     missing measurements are named, never guessed. Definitions are
     plain objects (ScoreTerm / ScoreContext / ScoreSubject /
     ContextualizedValue / ScoreConcept) editable like any other rows.
+    <a routerLink="/scoring/accountability">policy accountability →</a>
   </p>
 
   <div *ngIf="loading" class="status-line">Loading score concepts…</div>
@@ -117,6 +118,47 @@
     </div>
 
     <p class="aggregation-note">{{ report!.aggregationNote }}</p>
+
+    <!-- Specificity conformance + critical contexts (scr-5) -->
+    <div class="findings" *ngIf="findingsCount() > 0">
+      <button class="findings-toggle"
+              (click)="showFindings = !showFindings"
+              matTooltip="specificity conformance + critical-context suggestions — diagnosis, never a block">
+        {{ showFindings ? '▾' : '▸' }} {{ findingsCount() }}
+        contextualization finding(s)</button>
+      <div *ngIf="showFindings">
+        <div class="finding"
+             *ngFor="let finding of specificity?.findings ?? []">
+          <span class="chip finding-kind">{{ finding.kind }}</span>
+          <span class="finding-target">{{ finding.term }}
+            <ng-container *ngIf="finding.subject">
+              &#64; {{ finding.subject }}</ng-container></span>
+          <span class="finding-evidence">
+            {{ findingEvidence(finding) }}</span>
+          <span class="finding-action" *ngIf="finding.suggestion"
+                [matTooltip]="'knob: ' + finding.suggestion.knob">
+            → {{ finding.suggestion.action }}</span>
+        </div>
+        <div class="finding"
+             *ngFor="let s of criticalContexts?.suggestions ?? []">
+          <span class="chip finding-kind critical">critical-context</span>
+          <span class="finding-target">{{ s.displayName }}
+            ({{ s.term }})</span>
+          <span class="finding-evidence">divergence ratio
+            {{ s.divergenceRatio }} over {{ s.sampleCount }} values</span>
+          <span class="finding-action"
+                [matTooltip]="'knob: ' + s.knob">→ {{ s.action }}</span>
+        </div>
+        <p class="aggregation-note" *ngIf="specificity?.note">
+          {{ specificity!.note }}</p>
+      </div>
+    </div>
+    <div class="findings clean"
+         *ngIf="findingsCount() === 0 && specificity?.ok">
+      <span class="chip clean-chip"
+            matTooltip="every term serves measured values at the asked-for specificity">
+        contextualization clean</span>
+    </div>
   </ng-container>
   <div *ngIf="report && !report.ok && !scoring" class="status-line error">
     {{ report.error }}

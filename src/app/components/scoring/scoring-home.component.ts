@@ -7,6 +7,9 @@ import {
   ConceptScoreReport, GroupAggregateReport, GroupCompareReport,
   ScoreConceptSummary, ScoreGroupRow, ScoringService,
 } from '@services/scoring/scoring.service';
+import {
+  AccountabilityService, CriticalContextReport, SpecificityReport,
+} from '@services/scoring/accountability.service';
 
 /**
  * The Scoring home (/scoring, scr-1): context-based scoring as a
@@ -41,7 +44,12 @@ export class ScoringHomeComponent implements OnInit {
   comparison: GroupCompareReport | null = null;
   aggregating = false;
 
-  constructor(private scoringService: ScoringService) {}
+  specificity: SpecificityReport | null = null;
+  criticalContexts: CriticalContextReport | null = null;
+  showFindings = false;
+
+  constructor(private scoringService: ScoringService,
+              private accountability: AccountabilityService) {}
 
   async ngOnInit(): Promise<void> {
     [this.concepts, this.groupRows] = await Promise.all([
@@ -84,8 +92,24 @@ export class ScoringHomeComponent implements OnInit {
     this.activeConcept = name;
     this.scoring = true;
     this.expanded.clear();
-    this.report = await this.scoringService.score(name);
+    this.showFindings = false;
+    [this.report, this.specificity, this.criticalContexts] =
+      await Promise.all([
+        this.scoringService.score(name),
+        this.accountability.specificity(name),
+        this.accountability.criticalContexts(name),
+      ]);
     this.scoring = false;
+  }
+
+  findingsCount(): number {
+    return (this.specificity?.findings?.length ?? 0)
+      + (this.criticalContexts?.suggestions?.length ?? 0);
+  }
+
+  findingEvidence(finding: { evidence: unknown }): string {
+    return typeof finding.evidence === 'string'
+      ? finding.evidence : JSON.stringify(finding.evidence);
   }
 
   toggle(subject: string): void {
