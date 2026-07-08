@@ -101,6 +101,18 @@
           color: var(--color-success-text, #1b5e20); }
         .source { font-size: 11px;
           color: var(--text-tertiary, #78909c); }
+        .nested-chip {
+          font-size: 11px; padding: 2px 8px; border-radius: 10px;
+          border: 1px solid var(--brand-indigo, #3f51b5);
+          background: var(--color-info-bg, #e3f2fd);
+          color: var(--color-info-text, #1565c0); cursor: pointer;
+        }
+        .child-missing {
+          font-size: 9px; padding: 0 5px; border-radius: 6px;
+          background: var(--color-warn-bg, #fff8e1);
+          color: var(--color-warn-text, #8d6e00);
+          margin-left: 4px;
+        }
         .invert-flag {
           font-size: 9px; padding: 0 5px; border-radius: 6px;
           background: var(--color-warn-bg, #fff8e1);

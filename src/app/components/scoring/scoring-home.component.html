@@ -67,14 +67,27 @@
             <tr *ngFor="let entry of subject.breakdown"
                 [class.not-found]="!entry.found">
               <td>
-                {{ entry.label || entry.term }}
+                <button class="nested-chip" *ngIf="entry.kind === 'concept'"
+                        (click)="select(entry.concept!)"
+                        matTooltip="a whole score concept nested as one entry — click to open its board">
+                  ⊞ {{ entry.label || entry.concept }}</button>
+                <ng-container *ngIf="entry.kind !== 'concept'">
+                  {{ entry.label || entry.term }}
+                </ng-container>
                 <span class="invert-flag"
                       *ngIf="entry.isPositive === false"
                       matTooltip="anti-competitive: lower raw value scores higher">
                   inverted</span>
+                <span class="child-missing"
+                      *ngIf="entry.childTermsMissing?.length"
+                      [matTooltip]="'inside the nested concept, missing: '
+                        + entry.childTermsMissing!.join(', ')">
+                  {{ entry.childTermsMissing!.length }} missing inside
+                </span>
               </td>
               <ng-container *ngIf="entry.found; else notFound">
-                <td>{{ entry.raw }} {{ entry.unit }}</td>
+                <td>{{ entry.kind === 'concept'
+                  ? 'nested score' : entry.raw + ' ' + (entry.unit || '') }}</td>
                 <td [matTooltip]="normalizationLabel(entry)">
                   {{ entry.normalized }}</td>
                 <td>× {{ entry.weight }}</td>

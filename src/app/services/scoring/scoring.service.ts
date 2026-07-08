@@ -19,6 +19,9 @@ export interface ScoreConceptSummary {
 /** One term's line in a subject's breakdown. */
 export interface ScoreBreakdownEntry {
   term: string;
+  kind?: 'concept';
+  concept?: string;
+  childTermsMissing?: string[];
   label?: string;
   weight: number;
   isPositive?: boolean;
