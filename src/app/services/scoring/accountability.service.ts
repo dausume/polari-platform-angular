@@ -261,6 +261,61 @@ export interface GroupBiasReport {
   note: string;
 }
 
+/** GET /api/scoring/survival/walkthrough (scr-12a). */
+export interface SurvivalWalkthrough {
+  ok: boolean;
+  error?: string;
+  householdKnobs: { knob: string; prompt: string }[];
+  method: string;
+  steps: {
+    category: string; displayName: string; kind: string;
+    guidance: string; examples: string; required: boolean;
+    description: string;
+  }[];
+  note: string;
+}
+
+/** POST /api/scoring/survival/submit result. */
+export interface SurvivalSubmitResult {
+  ok: boolean;
+  error?: string;
+  profile?: string;
+  totalMonthly?: number;
+  entered?: string[];
+  skipped?: string[];
+  requiredGaps?: string[];
+  refused?: { category: string; error: string }[];
+  suggestion?: { knob: string; action: string };
+  note?: string;
+}
+
+/** GET /api/scoring/survival/report. */
+export interface SurvivalReport {
+  ok: boolean;
+  error?: string;
+  location: string;
+  month: string;
+  profiles: number;
+  smallSample: boolean;
+  totalMonthly: { n: number; mean: number; median: number };
+  categories: {
+    category: string; displayName: string; kind: string; n: number;
+    mean: number; median: number; enteredBy: number;
+    ofProfiles: number;
+  }[];
+  subtotalsByKind: Record<string, number>;
+  pseudoTaxShare: number | null;
+  note: string;
+  suggestion?: { knob: string; action: string };
+}
+
+/** One ScoreContext row (CRUDE shape). */
+export interface ContextRow {
+  name: string;
+  display_name: string;
+  context_type: string;
+}
+
 /** GET /api/scoring/elections/{name}/tally. */
 export interface ElectionTally {
   ok: boolean;
@@ -393,6 +448,29 @@ export class AccountabilityService {
   contributorRecord(name: string): Promise<ContributorRecord | null> {
     return this.get(`/api/scoring/contributors/`
       + `${encodeURIComponent(name)}/record`);
+  }
+
+  contexts(type?: string): Promise<ContextRow[]> {
+    return this.crudeAll<ContextRow>('ScoreContext')
+      .then(rows => type
+        ? rows.filter(r => r.context_type === type) : rows);
+  }
+
+  survivalWalkthrough(): Promise<SurvivalWalkthrough | null> {
+    return this.get('/api/scoring/survival/walkthrough');
+  }
+
+  survivalSubmit(payload: unknown):
+      Promise<SurvivalSubmitResult | null> {
+    return this.post('/api/scoring/survival/submit', payload);
+  }
+
+  survivalReport(location: string, month: string):
+      Promise<SurvivalReport | null> {
+    const monthQuery = month
+      ? `&month=${encodeURIComponent(month)}` : '';
+    return this.get(`/api/scoring/survival/report`
+      + `?location=${encodeURIComponent(location)}${monthQuery}`);
   }
 
   outletAccuracy(name: string): Promise<OutletAccuracyReport | null> {

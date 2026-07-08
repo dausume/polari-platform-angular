@@ -1,0 +1,210 @@
+<div class="survival">
+  <h2>Survival costs — one month, for real</h2>
+  <p class="intro">
+    What does it actually cost you to survive and stay employable for
+    a month? This walkthrough goes category by category — the steps
+    come from editable CostCategory rows, so what counts (and what
+    counts as a pseudo-tax) is visible and changeable, never baked
+    in. <a routerLink="/scoring/accountability">← accountability</a>
+  </p>
+
+  <div *ngIf="loading" class="status-line">Loading walkthrough…</div>
+  <div *ngIf="!loading && !walkthrough?.ok" class="status-line error">
+    {{ walkthrough?.error || 'walkthrough unavailable' }}</div>
+
+  <ng-container *ngIf="walkthrough?.ok">
+    <!-- Setup page -->
+    <div class="panel" *ngIf="stepIndex === -1 && !result">
+      <p class="method">{{ walkthrough!.method }}</p>
+      <div class="field">
+        <label>Contributing as
+          <select [(ngModel)]="contributor">
+            <option value="">— pick your contributor row —</option>
+            <option *ngFor="let c of contributors" [value]="c.name">
+              {{ c.display_name }}</option>
+          </select>
+        </label>
+        <span class="hint">pseudonyms are fine — the record accrues
+          to the name, not your identity</span>
+      </div>
+      <div class="field">
+        <label>Where
+          <select [(ngModel)]="location">
+            <option *ngFor="let l of locations" [value]="l.name">
+              {{ l.display_name }}</option>
+          </select>
+        </label>
+        <label>Which month
+          <select [(ngModel)]="month">
+            <option *ngFor="let m of months" [value]="m.name">
+              {{ m.display_name }}</option>
+          </select>
+        </label>
+      </div>
+      <div class="field">
+        <label>How many people live in your household?
+          <input type="number" min="1" [(ngModel)]="householdSize">
+        </label>
+        <label>How many of them work (or need to)?
+          <input type="number" min="0" [(ngModel)]="workers">
+        </label>
+        <label matTooltip="not own — NEED, to get to work">
+          How many cars does the household need?
+          <input type="number" min="0" [(ngModel)]="carsNeeded">
+        </label>
+      </div>
+      <button class="primary" [disabled]="!contributor"
+              (click)="begin()">Start the walkthrough</button>
+      <span class="hint" *ngIf="!contributor">pick a contributor row
+        first — create one under Contributors if needed</span>
+    </div>
+
+    <!-- One category step -->
+    <div class="panel" *ngIf="currentStep as step">
+      <div class="step-head">
+        <span class="step-count">step {{ stepIndex + 1 }} /
+          {{ steps.length }}</span>
+        <h3>{{ step.displayName }}</h3>
+        <span class="chip" [class]="'chip kind-' + step.kind"
+              matTooltip="the category's kind knob — editable, contestable">
+          {{ step.kind }}</span>
+        <span class="chip" *ngIf="!step.required">optional</span>
+      </div>
+      <p class="guidance">{{ step.guidance }}</p>
+      <p class="examples">examples: {{ step.examples }}</p>
+      <div class="field">
+        <label>What you actually paid this month ($)
+          <input type="number" min="0"
+                 [(ngModel)]="entry(step.category).amount">
+        </label>
+        <label>notes
+          <input type="text"
+                 [(ngModel)]="entry(step.category).notes"
+                 placeholder="optional">
+        </label>
+      </div>
+      <div class="wizard-nav">
+        <button (click)="back()">← back</button>
+        <button (click)="skipCurrent()"
+                matTooltip="skips are recorded as gaps, never guessed">
+          skip</button>
+        <button class="primary" (click)="next()"
+                [disabled]="entry(step.category).amount === null">
+          next →</button>
+        <span class="running">running total:
+          ${{ runningTotal() }}</span>
+      </div>
+    </div>
+
+    <!-- Review + submit -->
+    <div class="panel" *ngIf="atReview && !result">
+      <h3>Review</h3>
+      <table>
+        <thead><tr><th>category</th><th>kind</th><th>$/month</th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let e of enteredSteps()">
+            <td>{{ e.displayName }}</td>
+            <td><span class="chip" [class]="'chip kind-' + e.kind">
+              {{ e.kind }}</span></td>
+            <td>{{ e.amount }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="desc">total: <b>${{ runningTotal() }}</b> / month
+        <ng-container *ngIf="skippedSteps().length">
+          · skipped (recorded as gaps):
+          {{ skippedSteps().join(', ') }}</ng-container>
+      </p>
+      <div class="wizard-nav">
+        <button (click)="back()">← back</button>
+        <button class="primary" [disabled]="submitting"
+                (click)="submit()">
+          {{ submitting ? 'Submitting…' : 'Submit my month' }}</button>
+      </div>
+    </div>
+
+    <!-- Result -->
+    <div class="panel" *ngIf="result">
+      <ng-container *ngIf="result.ok; else submitFailed">
+        <h3>Recorded</h3>
+        <p class="desc">
+          {{ result.profile }} — total
+          <b>${{ result.totalMonthly }}</b>/month.
+          {{ result.note }}
+          <ng-container *ngIf="result.requiredGaps?.length">
+            Missing required: {{ result.requiredGaps!.join(', ') }}.
+          </ng-container>
+        </p>
+      </ng-container>
+      <ng-template #submitFailed>
+        <p class="status-line error">{{ result.error }}
+          <ng-container *ngIf="result.suggestion">
+            — {{ result.suggestion.action }}</ng-container>
+        </p>
+      </ng-template>
+    </div>
+
+    <!-- Area report -->
+    <section class="report">
+      <h3>What surviving costs around you</h3>
+      <div class="field">
+        <label>area
+          <select [(ngModel)]="reportLocation">
+            <option *ngFor="let l of locations" [value]="l.name">
+              {{ l.display_name }}</option>
+          </select>
+        </label>
+        <label>month
+          <select [(ngModel)]="reportMonth">
+            <option value="">all months</option>
+            <option *ngFor="let m of months" [value]="m.name">
+              {{ m.display_name }}</option>
+          </select>
+        </label>
+        <button (click)="loadReport()">show</button>
+      </div>
+      <ng-container *ngIf="report">
+        <ng-container *ngIf="report.ok; else reportEmpty">
+          <p class="desc">
+            {{ report.profiles }} household profile(s)
+            <span class="chip" *ngIf="report.smallSample"
+                  matTooltip="statistics over few profiles are hints, not readings">
+              small sample</span>
+            · mean total <b>${{ report.totalMonthly.mean }}</b> ·
+            median <b>${{ report.totalMonthly.median }}</b>
+          </p>
+          <div class="kind-subtotals">
+            <span class="chip"
+                  *ngFor="let k of kindEntries(report.subtotalsByKind)"
+                  [class]="'chip kind-' + k.kind">
+              {{ k.kind }}: ${{ k.amount }}</span>
+            <span class="chip pseudo-share"
+                  *ngIf="report.pseudoTaxShare !== null"
+                  matTooltip="share of the mean monthly total classified pseudo-tax — the classification is the editable CostCategory kind knob">
+              pseudo-tax share {{ percent(report.pseudoTaxShare) }}
+            </span>
+          </div>
+          <table>
+            <thead><tr><th>category</th><th>kind</th><th>entered by</th>
+              <th>mean</th><th>median</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let c of report.categories">
+                <td>{{ c.displayName }}</td>
+                <td><span class="chip" [class]="'chip kind-' + c.kind">
+                  {{ c.kind }}</span></td>
+                <td>{{ c.enteredBy }}/{{ c.ofProfiles }}</td>
+                <td>${{ c.mean }}</td>
+                <td>${{ c.median }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="aggregation-note">{{ report.note }}</p>
+        </ng-container>
+        <ng-template #reportEmpty>
+          <p class="status-line">{{ report.error }}</p>
+        </ng-template>
+      </ng-container>
+    </section>
+  </ng-container>
+</div>

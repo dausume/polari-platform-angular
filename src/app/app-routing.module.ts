@@ -50,6 +50,7 @@ const routes: Routes = [
   { path: 'materials/:name', loadComponent: () => import('@components/materials-science/material-detail.component').then(m => m.MaterialDetailComponent) },
   { path: 'scoring', loadComponent: () => import('@components/scoring/scoring-home.component').then(m => m.ScoringHomeComponent) },
   { path: 'scoring/accountability', loadComponent: () => import('@components/scoring/policy-accountability.component').then(m => m.PolicyAccountabilityComponent) },
+  { path: 'scoring/survival', loadComponent: () => import('@components/scoring/survival-costs.component').then(m => m.SurvivalCostsComponent) },
   { path: 'display/:id', loadComponent: () => import('@components/dashboard/display-page/display-page').then(m => m.DisplayPageComponent) }
 ];
 
