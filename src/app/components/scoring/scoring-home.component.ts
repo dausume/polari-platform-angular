@@ -4,7 +4,8 @@ import { RouterModule } from '@angular/router';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
 import {
-  ConceptScoreReport, ScoreConceptSummary, ScoringService,
+  ConceptScoreReport, GroupAggregateReport, GroupCompareReport,
+  ScoreConceptSummary, ScoreGroupRow, ScoringService,
 } from '@services/scoring/scoring.service';
 
 /**
@@ -34,10 +35,19 @@ export class ScoringHomeComponent implements OnInit {
   loadError = '';
   expanded = new Set<string>();
 
+  groupRows: ScoreGroupRow[] = [];
+  aggregate: GroupAggregateReport | null = null;
+  activeGroup = '';
+  comparison: GroupCompareReport | null = null;
+  aggregating = false;
+
   constructor(private scoringService: ScoringService) {}
 
   async ngOnInit(): Promise<void> {
-    this.concepts = await this.scoringService.concepts();
+    [this.concepts, this.groupRows] = await Promise.all([
+      this.scoringService.concepts(),
+      this.scoringService.groups(),
+    ]);
     this.loading = false;
     if (!this.concepts.length) {
       this.loadError = 'No score concepts answered — is the backend '
@@ -45,6 +55,29 @@ export class ScoringHomeComponent implements OnInit {
       return;
     }
     void this.select(this.concepts[0].name);
+    if (this.groupRows.length) {
+      void this.selectGroup('');
+      if (this.groupRows.length >= 2) {
+        this.comparison = await this.scoringService.compareGroups(
+          this.groupRows.map(g => g.name));
+      }
+    }
+  }
+
+  async selectGroup(name: string): Promise<void> {
+    this.activeGroup = name;
+    this.aggregating = true;
+    this.aggregate = name
+      ? await this.scoringService.groupAggregate(name)
+      : await this.scoringService.groupsConsensus();
+    this.aggregating = false;
+  }
+
+  stanceLabel(term: { dominantStance: string;
+                      dominantFraction: number }): string {
+    if (term.dominantStance === 'split') { return 'split 50/50'; }
+    return `${term.dominantStance} `
+      + `${Math.round(term.dominantFraction * 100)}%`;
   }
 
   async select(name: string): Promise<void> {

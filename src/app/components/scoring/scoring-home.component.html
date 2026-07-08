@@ -121,4 +121,81 @@
   <div *ngIf="report && !report.ok && !scoring" class="status-line error">
     {{ report.error }}
   </div>
+
+  <!-- Group agreement -->
+  <section class="groups" *ngIf="groupRows.length">
+    <h3>Group agreement</h3>
+    <p class="intro">
+      Member worldviews aggregated per group: is each term divisive or
+      consensus (direction), do members weight it similarly, and do
+      GROUPS share a definition of good performance. Bands are the
+      editable AgreementPolicy settings — the label reads the number,
+      the number stays shown.
+    </p>
+    <div class="group-tabs">
+      <button [class.active]="activeGroup === ''"
+              (click)="selectGroup('')"
+              matTooltip="the union of every group's members, aggregated as one body">
+        All groups — consensus</button>
+      <button *ngFor="let group of groupRows"
+              [class.active]="activeGroup === group.name"
+              (click)="selectGroup(group.name)"
+              [matTooltip]="group.description">
+        {{ group.display_name }}
+        <span class="chip">{{ group.group_type }}</span>
+      </button>
+    </div>
+
+    <div *ngIf="aggregating" class="status-line">Aggregating…</div>
+    <ng-container *ngIf="aggregate?.ok && !aggregating">
+      <div class="agg-head">
+        <span class="chip">{{ aggregate!.memberCount }} members</span>
+        <span class="chip weight"
+              matTooltip="participation-weighted mean of dominant-stance fractions">
+          agreement index {{ aggregate!.agreementIndex }}</span>
+        <span class="chip" matTooltip="the AgreementPolicy row whose bands classified this — edit it to recalibrate">
+          policy: {{ aggregate!.policy }}</span>
+      </div>
+      <table class="agreement-table">
+        <thead>
+          <tr><th>term</th><th>stance</th><th>direction</th>
+              <th>weighting</th><th>participation</th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let term of aggregate!.terms">
+            <td>{{ term.label }}</td>
+            <td [matTooltip]="'positive: ' + term.positiveMembers.join(', ')
+                  + (term.negativeMembers.length ? ' · negative: '
+                  + term.negativeMembers.join(', ') : '')">
+              {{ stanceLabel(term) }}</td>
+            <td>
+              <span class="chip band" [class]="'chip band ' + term.directionClass">
+                {{ term.directionClass }}</span>
+            </td>
+            <td [matTooltip]="'mean weight share '
+                  + term.meanWeightShare + ', spread '
+                  + term.weightShareSpread">
+              <span class="chip">{{ term.weightClass }}</span>
+            </td>
+            <td>{{ term.holders }}/{{ aggregate!.memberCount }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </ng-container>
+
+    <div class="comparison" *ngIf="comparison?.ok">
+      <h4>Do groups share a definition?</h4>
+      <div class="pair" *ngFor="let pair of comparison!.pairs">
+        <span class="pair-names">{{ pair.groups.join(' vs ') }}</span>
+        <span class="chip band" [class]="'chip band sim-' + pair.similarityClass">
+          {{ pair.similarityClass }}</span>
+        <span class="sim-value">similarity {{ pair.similarity }}</span>
+        <span class="disagreements"
+              *ngIf="pair.topDisagreements.length">
+          biggest gap: {{ pair.topDisagreements[0].key }}
+          ({{ pair.topDisagreements[0].gap }})</span>
+      </div>
+      <p class="aggregation-note">{{ comparison!.note }}</p>
+    </div>
+  </section>
 </div>
