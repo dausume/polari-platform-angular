@@ -47,6 +47,7 @@ const routes: Routes = [
   { path: 'equations/:id', component: EquationConfigEditComponent },
   { path: 'matrices', loadComponent: () => import('@components/matrices/matrices-page/matrices-page.component').then(m => m.MatricesPageComponent) },
   { path: 'matrices/:name', loadComponent: () => import('@components/matrices/matrices-page/matrices-page.component').then(m => m.MatricesPageComponent) },
+  { path: 'materials/:name', loadComponent: () => import('@components/materials-science/material-detail.component').then(m => m.MaterialDetailComponent) },
   { path: 'display/:id', loadComponent: () => import('@components/dashboard/display-page/display-page').then(m => m.DisplayPageComponent) }
 ];
 

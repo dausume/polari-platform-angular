@@ -1,0 +1,192 @@
+<div class="material-detail">
+  <div *ngIf="loading" class="status-line">Loading material detail…</div>
+  <div *ngIf="loadError && !loading" class="status-line error">
+    {{ loadError }}
+    <span *ngIf="detail?.knownMaterials?.length">
+      — known: {{ detail?.knownMaterials?.join(', ') }}</span>
+  </div>
+
+  <ng-container *ngIf="detail?.ok">
+    <!-- Identity header -->
+    <header class="identity">
+      <nav class="crumbs">
+        <a routerLink="/display/materials">← all materials</a>
+      </nav>
+      <div class="title-row">
+        <h2>{{ detail!.material.displayName }}</h2>
+        <span class="chip category" *ngIf="detail!.material.category">
+          {{ detail!.material.category }}</span>
+        <span class="chip kind">{{ detail!.material.kind }}</span>
+        <span class="chip tag" *ngFor="let tag of detail!.material.tags">
+          {{ tag }}</span>
+      </div>
+      <p class="description">{{ detail!.material.description }}</p>
+      <div class="elements" *ngIf="detail!.material.elements.length">
+        <span class="label">elements:</span>
+        <code *ngFor="let el of detail!.material.elements">{{ el }}</code>
+      </div>
+    </header>
+
+    <!-- Properties: value + meaning + scenario -->
+    <section class="properties">
+      <h3>Properties — what we hold, what it means</h3>
+      <p *ngIf="!detail!.properties.length" class="empty-note">
+        No property values are stored for this material yet — earn one
+        via a measurement (&#64;L0 parameters), a thermal profile, or an
+        executed model.</p>
+      <div class="property" *ngFor="let prop of detail!.properties">
+        <div class="prop-head">
+          <span class="prop-label">{{ prop.label }}</span>
+          <span class="prop-value">
+            {{ prop.value }}<span class="units" *ngIf="prop.units">
+              {{ prop.units }}</span>
+          </span>
+          <span class="chip source" [matTooltip]="prop.provenance">
+            {{ prop.source }}</span>
+        </div>
+        <p class="prop-meaning" *ngIf="prop.meaning">{{ prop.meaning }}</p>
+        <p class="prop-scenario" *ngIf="prop.scenarioContext">
+          <span class="scenario-label">per scenario:</span>
+          {{ prop.scenarioContext }}</p>
+        <p class="prop-meaning missing" *ngIf="!prop.meaning">
+          No meaning row covers '{{ prop.key }}' yet.</p>
+      </div>
+    </section>
+
+    <!-- Thermal processing scenario -->
+    <section class="thermal" *ngIf="detail!.thermal as thermal">
+      <h3>Processing scenario — thermal window</h3>
+      <div class="window-row" *ngIf="thermal.melts; else noMelt">
+        <span class="chip melt">melts {{ thermal.meltLowC }}–{{
+          thermal.meltHighC }} °C</span>
+        <span class="chip smoke">smokes {{ thermal.smokeLowC }}–{{
+          thermal.smokeHighC }} °C</span>
+      </div>
+      <ng-template #noMelt>
+        <span class="chip inert">inert in the processing range —
+          smokes {{ thermal.smokeLowC }}–{{ thermal.smokeHighC }} °C
+        </span>
+      </ng-template>
+      <p class="scenario-note">{{ thermal.scenarioNote }}</p>
+      <p class="provenance" *ngIf="thermal.provenance">
+        provenance: {{ thermal.provenance }}</p>
+    </section>
+
+    <!-- Blend scenario: quantified additive effects -->
+    <section class="blend"
+             *ngIf="detail!.blendEffects?.available">
+      <h3>Blend scenario — what this material does as an additive</h3>
+      <p class="scenario-note">{{ detail!.blendEffects!.note }}</p>
+      <table class="effects">
+        <thead>
+          <tr><th>property</th><th>direction</th><th>per wt%</th>
+              <th>conditions</th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let effect of detail!.blendEffects!.effects"
+              [matTooltip]="effect.meaning ?? ''">
+            <td>{{ effect.label }}</td>
+            <td>
+              <span class="chip" [class.raises]="effect.intent === '+'"
+                    [class.lowers]="effect.intent === '-'">
+                {{ intentLabel(effect.intent) }}</span>
+            </td>
+            <td>{{ effect.perWtPercent }} {{ effect.unit }}</td>
+            <td class="conditions">{{ effect.conditions }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Per-level detail tabs FOR THIS material -->
+    <section class="levels">
+      <h3>Definition levels — this material, level by level</h3>
+      <div class="level-tabs">
+        <button *ngFor="let lvl of detail!.levels"
+                [class.active]="lvl.level === activeLevel"
+                [class.missing-tab]="lvl.status === 'missing'"
+                (click)="activeLevel = lvl.level">
+          L{{ lvl.level }} {{ lvl.name }}
+          <span class="chip status" [class]="'chip status ' + lvl.status">
+            {{ lvl.status }}</span>
+        </button>
+      </div>
+
+      <div class="level-panel" *ngIf="level as lvl">
+        <div class="taxonomy">
+          <span class="range">{{ lvl.lengthRange }}</span>
+          <span class="methods">{{ lvl.methods }}</span>
+        </div>
+        <p class="earned-by"><strong>Earned by:</strong>
+          {{ lvl.earnedBy }}</p>
+        <div class="engines" *ngIf="lvl.engines.length">
+          <span class="label">engines:</span>
+          <code *ngFor="let engine of lvl.engines">{{ engine }}</code>
+        </div>
+
+        <div class="row-card" *ngFor="let row of lvl.rows">
+          <div class="row-head">
+            <code class="row-name">{{ row.name }}</code>
+            <span class="chip status" [class]="'chip status ' + row.status">
+              {{ row.status }}</span>
+            <span class="home" *ngIf="row.definitionClass">
+              lives in {{ row.definitionClass }}<ng-container
+                *ngIf="row.definitionRef"> /
+                {{ row.definitionRef }}</ng-container>
+            </span>
+          </div>
+          <div class="lineage" *ngIf="row.derivedFrom">
+            derived from
+            <a [routerLink]="['/materials', materialOf(row.derivedFrom)]">
+              {{ row.derivedFrom }}</a>
+            <ng-container *ngIf="row.derivationMethod">
+              ({{ row.derivationMethod }})</ng-container>
+          </div>
+          <div class="result" *ngIf="row.result">
+            <span class="label">result:</span>
+            <span class="result-kv"
+                  *ngFor="let entry of resultEntries(row)">
+              {{ entry.key }} = {{ entry.value }}</span>
+          </div>
+          <details *ngIf="paramKeys(row).length">
+            <summary>parameters</summary>
+            <pre>{{ asJson(row.parameters) }}</pre>
+          </details>
+          <p class="notes" *ngIf="row.notes">{{ row.notes }}</p>
+        </div>
+
+        <div class="suggestion" *ngIf="lvl.earnHint as hint">
+          <div class="evidence">{{ hint.evidence }}</div>
+          <div class="action">
+            <span class="knob-label">knob:</span>
+            <code>{{ hint.knob }}</code> — {{ hint.action }}
+          </div>
+        </div>
+      </div>
+
+      <p class="hidden-levels" *ngIf="detail!.hiddenLevels">
+        L{{ detail!.hiddenLevels!.levels.join(' / L') }}:
+        {{ detail!.hiddenLevels!.note }}</p>
+    </section>
+
+    <!-- Raw-material facts (legacy bridge) -->
+    <section class="raw-facts" *ngIf="detail!.rawFacts as facts">
+      <h3>Raw-material facts</h3>
+      <div class="fact" *ngFor="let entry of facts | keyvalue">
+        <span class="label">{{ entry.key }}</span>
+        <span class="value">{{ entry.value }}</span>
+      </div>
+    </section>
+
+    <!-- Meaning gaps: suggestions, never auto-applied -->
+    <section class="suggestions" *ngIf="detail!.suggestions.length">
+      <div class="suggestion" *ngFor="let s of detail!.suggestions">
+        <div class="evidence">{{ s.evidence }}</div>
+        <div class="action">
+          <span class="knob-label">knob:</span>
+          <code>{{ s.knob }}</code> — {{ s.action }}
+        </div>
+      </div>
+    </section>
+  </ng-container>
+</div>

@@ -12,6 +12,12 @@
 
   .hint { font-size: 12px; color: var(--text-secondary, #777); margin: 4px 0 10px; }
 
+  .detail-link {
+    vertical-align: middle; margin-left: 4px;
+    color: var(--color-info-text, #1565c0);
+    mat-icon { font-size: 14px; width: 14px; height: 14px; }
+  }
+
   .filter-box {
     width: 100%; max-width: 460px; margin-bottom: 10px;
     border: 1px solid var(--border-light, #ccc); border-radius: 8px;

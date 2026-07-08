@@ -38,6 +38,11 @@
                             {{ expanded.has(mat) ? 'expand_more' : 'chevron_right' }}
                         </mat-icon>
                         {{ mat }}
+                        <a class="detail-link" [routerLink]="['/materials', mat]"
+                           (click)="$event.stopPropagation()"
+                           title="open material detail">
+                            <mat-icon>open_in_new</mat-icon>
+                        </a>
                     </td>
                     <td class="cat-col" (click)="$event.stopPropagation()">
                         <span class="cat-chip" *ngIf="category(mat)"

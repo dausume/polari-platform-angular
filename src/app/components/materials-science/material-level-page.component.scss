@@ -52,6 +52,11 @@
 
     .entry-head {
       display: flex; gap: 8px; align-items: baseline;
+      .detail-link {
+        text-decoration: none;
+        &:hover .mat-name { text-decoration: underline;
+          color: var(--color-info-text, #1565c0); }
+      }
       .mat-name { font-weight: 600; color: var(--text-primary, #263238); }
       .mat-category {
         font-size: 10px; padding: 1px 6px; border-radius: 8px;

@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
@@ -34,7 +35,8 @@ const SCALE_LEVELS: { level: number; label: string }[] = [
 @Component({
   standalone: true,
   selector: 'materials-basis-browser',
-  imports: [CommonModule, FormsModule, MatIconModule, MatTooltipModule,
+  imports: [CommonModule, FormsModule, RouterModule, MatIconModule,
+            MatTooltipModule,
             ScaleLevelCellComponent, ThermalWindowStripComponent],
   templateUrl: './materials-basis-browser.component.html',
   styleUrls: ['./materials-basis-browser.component.scss'],

@@ -113,6 +113,89 @@ export interface LevelAccountability {
   error?: string;
 }
 
+/** One property value on the material detail view (msci-28). */
+export interface MaterialProperty {
+  key: string;
+  label: string;
+  value: string | number | boolean | null;
+  units: string;
+  source: string;
+  sourceRow?: string;
+  level?: number;
+  provenance: string;
+  meaning: string | null;
+  scenarioContext: string | null;
+}
+
+/** One quantified blend effect (the additive scenario). */
+export interface BlendEffect {
+  property: string;
+  label: string;
+  meaning: string | null;
+  intent: string;
+  perWtPercent: number;
+  unit: string;
+  normalizedStrength: number | null;
+  conditions: string;
+  provenance: string;
+}
+
+/** One scale row, fully opened, on the detail view. */
+export interface DetailLevelRow {
+  name: string;
+  status: string;
+  definitionClass: string;
+  definitionRef: string;
+  derivedFrom: string;
+  derivationMethod: string;
+  parameters: Record<string, unknown>;
+  result: Record<string, unknown> | null;
+  provenance: string;
+  notes: string;
+}
+
+/** One level's detail (taxonomy + this material's rows there). */
+export interface DetailLevel {
+  level: number;
+  name: string;
+  lengthRange: string;
+  methods: string;
+  earnedBy: string;
+  engines: string[];
+  status: 'defined' | 'partial' | 'missing';
+  rows: DetailLevelRow[];
+  earnHint?: {
+    evidence: string; knob: string; action: string;
+  };
+}
+
+/** GET /api/msci/materials/{name}/detail (msci-28). */
+export interface MaterialDetail {
+  ok: boolean;
+  error?: string;
+  knownMaterials?: string[];
+  material: {
+    name: string; displayName: string; description: string;
+    kind: string; category: string; tags: string[];
+    elements: string[]; notes: string;
+  };
+  properties: MaterialProperty[];
+  thermal: {
+    melts: boolean;
+    meltLowC: number | null; meltHighC: number | null;
+    smokeLowC: number | null; smokeHighC: number | null;
+    mfiNote: string; provenance: string; scenarioNote: string;
+  } | null;
+  rawFacts: Record<string, unknown> | null;
+  blendEffects: {
+    available: boolean; additiveName?: string; note?: string;
+    effects?: BlendEffect[];
+  } | null;
+  levels: DetailLevel[];
+  hiddenLevels: { levels: number[]; note: string } | null;
+  suggestions: { evidence: string; knob: string; action: string }[];
+}
+
 /**
  * Read access for the materials-basis browser: MaterialScaleDefinition
  * / MaterialsScienceMaterial / ThermalProcessingProfile rows via
@@ -167,5 +250,13 @@ export class MaterialsBasisService {
     return firstValueFrom(this.http.get<LevelAccountability>(
       url, this.polariService.backendRequestOptions))
       .catch(() => null);
+  }
+
+  materialDetail(name: string): Promise<MaterialDetail | null> {
+    const url = `${this.polariService.getBackendBaseUrl()}`
+      + `/api/msci/materials/${encodeURIComponent(name)}/detail`;
+    return firstValueFrom(this.http.get<MaterialDetail>(
+      url, this.polariService.backendRequestOptions))
+      .catch((err) => err?.error?.ok === false ? err.error : null);
   }
 }

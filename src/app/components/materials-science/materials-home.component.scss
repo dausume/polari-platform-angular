@@ -65,6 +65,11 @@
     tbody tr { border-bottom: 1px solid var(--border-light, #eceff1); }
 
     .mat-col { min-width: 180px; }
+    .detail-link {
+      text-decoration: none;
+      &:hover .mat-name { text-decoration: underline;
+        color: var(--color-info-text, #1565c0); }
+    }
     .mat-name { font-weight: 600; color: var(--text-primary, #263238); }
     .mat-category {
       margin-left: 6px; font-size: 10px; padding: 1px 6px;

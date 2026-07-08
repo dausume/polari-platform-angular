@@ -49,7 +49,11 @@
         <tbody>
           <tr *ngFor="let mat of visibleMaterials">
             <td class="mat-col">
-              <span class="mat-name">{{ mat.displayName }}</span>
+              <a class="detail-link" [routerLink]="['/materials', mat.name]"
+                 matTooltip="open the material detail — properties,
+ meanings, per-level views">
+                <span class="mat-name">{{ mat.displayName }}</span>
+              </a>
               <span class="mat-category" *ngIf="mat.category">
                 {{ mat.category }}</span>
             </td>

@@ -39,7 +39,10 @@
         Nothing has earned a definition at this level yet.</p>
       <div class="entry defined" *ngFor="let entry of report.defined">
         <div class="entry-head">
-          <span class="mat-name">{{ entry.displayName }}</span>
+          <a class="detail-link"
+             [routerLink]="['/materials', entry.material]">
+            <span class="mat-name">{{ entry.displayName }}</span>
+          </a>
           <span class="mat-category" *ngIf="entry.category">
             {{ entry.category }}</span>
         </div>
@@ -67,7 +70,10 @@
         result not yet stored</h3>
       <div class="entry partial" *ngFor="let entry of report.partial">
         <div class="entry-head">
-          <span class="mat-name">{{ entry.displayName }}</span>
+          <a class="detail-link"
+             [routerLink]="['/materials', entry.material]">
+            <span class="mat-name">{{ entry.displayName }}</span>
+          </a>
           <span class="mat-category" *ngIf="entry.category">
             {{ entry.category }}</span>
         </div>
@@ -90,7 +96,10 @@
         Missing ({{ report.missing.length }}) — absence is data</h3>
       <div class="entry missing" *ngFor="let entry of report.missing">
         <div class="entry-head">
-          <span class="mat-name">{{ entry.displayName }}</span>
+          <a class="detail-link"
+             [routerLink]="['/materials', entry.material]">
+            <span class="mat-name">{{ entry.displayName }}</span>
+          </a>
           <span class="mat-category" *ngIf="entry.category">
             {{ entry.category }}</span>
           <span class="planned-flag" *ngIf="entry.rows.length">
