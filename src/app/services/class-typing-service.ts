@@ -39,6 +39,7 @@ export class ClassTypingService {
         new navComponent("Multi-Scale Sims","multi-scale-sims","MultiScaleSimsComponent", {}, []),
         new navComponent("Materials","display/materials","MaterialsHomeComponent", {}, []),
         new navComponent("Scoring","scoring","ScoringHomeComponent", {}, []),
+        new navComponent("Topology","topology","TopologyHomeComponent", {}, []),
         new navComponent("Module Management","module-management","ModuleManagementComponent", {}, []),
         new navComponent("Tables","tables","TablesComponent", {}, []),
         new navComponent("Graphs","graphs","GraphsComponent", {}, []),

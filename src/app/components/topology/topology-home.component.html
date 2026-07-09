@@ -1,0 +1,225 @@
+<div class="topology-home">
+  <h2>Topology</h2>
+  <p class="intro">
+    The deployment topology as data: instances, machines, module
+    assignments, dependency edges and interconnect connections — plain
+    rows read from /api/topology. Drag a module chip between instance
+    cards to reassign it (rows change, edges re-resolve); deploying is
+    always your move — every suggestion below is a pol command shown
+    as text, never run for you.
+  </p>
+
+  <div *ngIf="loading" class="status-line">Loading topology…</div>
+  <div *ngIf="loadError && !loading" class="status-line error">
+    {{ loadError }}</div>
+
+  <!-- Topology picker -->
+  <div class="topo-tabs" *ngIf="summary?.ok">
+    <button *ngFor="let topo of summary!.topologies"
+            [class.active]="topo.name === activeTopology"
+            (click)="select(topo.name)"
+            [matTooltip]="topo.description">
+      {{ topo.name }}
+      <span class="chip" *ngIf="topo.isActive">active</span>
+      <span class="chip">{{ topo.status }}</span>
+    </button>
+  </div>
+
+  <ng-container *ngIf="graph?.ok && !loading">
+    <!-- Header: the topology row itself + Validate -->
+    <div class="board-head">
+      <h3>{{ graph!.topology.name }}</h3>
+      <span class="chip">{{ graph!.topology.status }}</span>
+      <span class="chip active-chip" *ngIf="graph!.topology.isActive"
+            matTooltip="the topology pol commands act on by default">
+        active</span>
+      <span class="chip"
+            matTooltip="where instances land unless a row says otherwise">
+        target: {{ graph!.topology.defaultTarget }}</span>
+      <span class="chip">schema {{ graph!.topology.schemaVersion }}</span>
+      <span class="chip" *ngIf="graph!.topology.validatedAt"
+            matTooltip="last time POST /api/topology/validate ran">
+        validated {{ graph!.topology.validatedAt }}</span>
+      <span class="chip edge-ok" *ngIf="edgeCounts.resolved">
+        {{ edgeCounts.resolved }} resolved</span>
+      <span class="chip edge-bad" *ngIf="edgeCounts.unresolved">
+        {{ edgeCounts.unresolved }} unresolved</span>
+      <span class="chip edge-warn" *ngIf="edgeCounts.degraded">
+        {{ edgeCounts.degraded }} degraded</span>
+      <button class="validate-btn" (click)="validate()"
+              [disabled]="validating"
+              matTooltip="run every topology check now — diagnosis only, nothing is changed">
+        {{ validating ? 'Validating…' : 'Validate' }}</button>
+    </div>
+    <p class="topo-desc" *ngIf="graph!.topology.description">
+      {{ graph!.topology.description }}</p>
+
+    <!-- Drift banner: intended rows vs observed reality -->
+    <div class="drift-banner"
+         [class.in-drift]="drift?.ok && drift!.inDrift"
+         *ngIf="drift?.ok">
+      <button class="drift-toggle" (click)="showDrift = !showDrift">
+        {{ showDrift ? '▾' : '▸' }}
+        <ng-container *ngIf="drift!.inDrift">
+          drift: {{ drift!.rows.length }} difference(s) between the
+          topology rows and what {{ drift!.observedNodes }} observed
+          node(s) actually run
+        </ng-container>
+        <ng-container *ngIf="!drift!.inDrift">
+          no drift — {{ drift!.observedNodes }} observed node(s) match
+          the topology rows
+        </ng-container>
+      </button>
+      <div *ngIf="showDrift && drift!.rows.length" class="drift-rows">
+        <div class="drift-row" *ngFor="let row of drift!.rows">
+          <span class="chip drift-kind" [class]="'chip drift-kind ' + row.kind">
+            {{ row.kind }}</span>
+          <span class="drift-subject">{{ row.subject }}
+            <ng-container *ngIf="row.serviceKind">
+              · {{ row.serviceKind }}</ng-container>
+            <ng-container *ngIf="row.machine">
+              on {{ row.machine }}</ng-container></span>
+          <span class="drift-evidence">{{ row.evidence }}</span>
+          <code class="suggested-command" *ngIf="row.suggestedCommand"
+                matTooltip="the suggested fix — yours to run, never run for you">
+            {{ row.suggestedCommand }}</code>
+        </div>
+      </div>
+    </div>
+
+    <!-- Validation findings (after pressing Validate) -->
+    <div class="findings" *ngIf="validation?.ok">
+      <div class="findings-head">
+        <span class="chip clean-chip" *ngIf="validation!.valid">
+          topology valid — {{ validation!.warnCount }} warning(s)</span>
+        <span class="chip invalid-chip" *ngIf="!validation!.valid">
+          {{ validation!.errorCount }} error(s) ·
+          {{ validation!.warnCount }} warning(s)</span>
+      </div>
+      <div class="finding" *ngFor="let finding of validation!.findings">
+        <span class="chip severity" [class]="'chip severity ' + finding.severity">
+          {{ finding.severity }}</span>
+        <span class="finding-check">{{ finding.check }}</span>
+        <span class="finding-target">{{ finding.subject }}</span>
+        <span class="finding-evidence">{{ finding.evidence }}</span>
+        <span class="finding-action" *ngIf="finding.action"
+              [matTooltip]="finding.knob ? 'knob: ' + finding.knob : ''">
+          → {{ finding.action }}</span>
+      </div>
+    </div>
+    <div *ngIf="validation && !validation.ok" class="status-line error">
+      {{ validation.error }}</div>
+
+    <!-- Assign result banner (top-6) -->
+    <div class="assign-banner" *ngIf="assignNotice">
+      <span class="chip clean-chip">rows updated</span>
+      <span>{{ assignNotice.moduleName }} moved
+        {{ assignNotice.fromInstance }} → {{ assignNotice.toInstance }}
+        <ng-container *ngIf="assignNotice.edgesChanged">
+          · {{ assignNotice.edgesChanged }} edge(s) re-resolved
+        </ng-container>
+        <ng-container *ngIf="assignNotice.disabled.length">
+          · disabled: {{ assignNotice.disabled.join(', ') }}
+        </ng-container></span>
+      <span class="deploy-note">deploy stays yours:</span>
+      <code class="suggested-command">
+        {{ assignNotice.suggestedCommand }}</code>
+      <button class="dismiss" (click)="assignNotice = null">×</button>
+    </div>
+    <div class="status-line error" *ngIf="assignError">
+      {{ assignError }}</div>
+    <div class="status-line" *ngIf="assigning">Writing assignment…</div>
+
+    <!-- The topology as the node graph it is -->
+    <topology-graph-view [graph]="graph"></topology-graph-view>
+
+    <!-- Instance cards: drag module chips between cards -->
+    <h3 class="section-head">Instances</h3>
+    <p class="section-hint">
+      Drag a module chip onto another card to reassign it — the drop
+      writes ModuleAssignment rows and re-resolves dependency edges.
+    </p>
+    <div class="instance-cards" cdkDropListGroup>
+      <div class="instance-card" *ngFor="let instance of graph!.instances">
+        <div class="card-head">
+          <span class="instance-name">{{ instance.name }}</span>
+          <span class="chip kind-badge">{{ instance.kind }}</span>
+          <span class="chip target-badge"
+                matTooltip="orchestration target for this instance">
+            {{ instance.orchestrationTarget }}</span>
+        </div>
+        <div class="card-meta">
+          <span class="chip" *ngIf="instance.dbBackend"
+                matTooltip="database backend">
+            {{ instance.dbBackend }}</span>
+          <span class="chip">{{ instance.envTier }}</span>
+          <span class="chip" *ngIf="instance.machineName"
+                [matTooltip]="machineTip(instance.machineName)">
+            {{ instance.machineName }}</span>
+          <span class="chip">x{{ instance.replicas }}</span>
+        </div>
+        <div class="card-services" *ngIf="instance.serviceKinds.length">
+          <span class="chip service" *ngFor="let kind of instance.serviceKinds">
+            {{ kind }}</span>
+        </div>
+        <div class="module-list"
+             cdkDropList
+             [cdkDropListData]="instance"
+             (cdkDropListDropped)="onModuleDrop($event)">
+          <span class="chip module-chip"
+                *ngFor="let assignment of modulesFor(instance)"
+                cdkDrag [cdkDragData]="assignment"
+                [class.disabled]="assignment.state === 'disabled'"
+                [matTooltip]="assignment.state
+                  + (assignment.notes ? ' · ' + assignment.notes : '')">
+            {{ assignment.moduleName }}</span>
+          <span class="no-modules" *ngIf="!modulesFor(instance).length">
+            no modules — drop one here</span>
+        </div>
+        <p class="card-notes" *ngIf="instance.notes">
+          {{ instance.notes }}</p>
+      </div>
+    </div>
+
+    <!-- Connections: what config makes each link -->
+    <h3 class="section-head">Connections</h3>
+    <p class="section-hint">
+      Every instance-to-instance link and the artifact (the actual
+      config) that makes it — click a row to see it.
+    </p>
+    <table class="connections-table">
+      <thead>
+        <tr><th>interconnect</th><th>link</th><th>from → to</th>
+            <th>notes</th></tr>
+      </thead>
+      <tbody>
+        <ng-container *ngFor="let conn of graph!.connections">
+          <tr class="conn-row" (click)="toggleConnection(conn.name)">
+            <td>
+              <span class="expander">{{ expandedConnections.has(conn.name)
+                ? '▾' : '▸' }}</span>
+              <span class="chip">{{ conn.interconnectKey }}</span>
+            </td>
+            <td class="kinds">{{ conn.fromKind }} → {{ conn.toKind }}</td>
+            <td>{{ conn.fromInstanceName }} →
+              {{ conn.toInstanceName }}</td>
+            <td class="notes">{{ conn.notes }}</td>
+          </tr>
+          <tr class="artifact-row"
+              *ngIf="expandedConnections.has(conn.name)">
+            <td colspan="4">
+              <div class="artifact-label">what config makes this link:</div>
+              <pre class="artifact">{{ conn.artifact || '(no artifact recorded)' }}</pre>
+            </td>
+          </tr>
+        </ng-container>
+      </tbody>
+    </table>
+
+    <p class="aggregation-note">
+      This page writes rows via /api/topology only — it never shells
+      out. Applying the topology to real machines is always a pol
+      command you run yourself.
+    </p>
+  </ng-container>
+</div>

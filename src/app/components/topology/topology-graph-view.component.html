@@ -1,0 +1,90 @@
+<div class="graph-shell">
+    <div class="graph-canvas">
+        <div class="graph-legend">
+            <span class="legend-item resolved"><span class="swatch"></span> resolved</span>
+            <span class="legend-item unresolved"><span class="swatch"></span> unresolved</span>
+            <span class="legend-item degraded"><span class="swatch"></span> degraded</span>
+            <button class="legend-toggle" [class.off]="!showConnections"
+                    (click)="toggleConnections()"
+                    matTooltip="lighter dashed edges — the interconnect connections">
+                <span class="swatch dashed"></span> connections</button>
+            <ng-container *ngIf="showConnections">
+                <button class="legend-toggle key"
+                        *ngFor="let key of interconnectKeys"
+                        [class.off]="hiddenInterconnects.has(key)"
+                        (click)="toggleInterconnect(key)"
+                        matTooltip="toggle this interconnect kind">
+                    {{ key }}</button>
+            </ng-container>
+            <span class="legend-hint">scroll to zoom · drag to pan · click an instance for details</span>
+        </div>
+        <svg #svgHost class="graph-svg"></svg>
+    </div>
+
+    <!-- Drill-in drawer: the instance's rows, nothing hidden. -->
+    <aside class="graph-drawer" *ngIf="selected">
+        <div class="drawer-title">
+            <mat-icon>dns</mat-icon>
+            <span>{{ selected.instance.name }}</span>
+            <button mat-icon-button (click)="closeDrawer()" matTooltip="Close">
+                <mat-icon>close</mat-icon>
+            </button>
+        </div>
+        <p class="drawer-sub">{{ selected.instance.kind }}
+            · {{ selected.instance.envTier }}
+            · replicas {{ selected.instance.replicas }}</p>
+
+        <div class="drawer-section">
+            <h4>Placement</h4>
+            <table class="kv-table">
+                <tr><td class="k">machine</td>
+                    <td class="v">{{ selected.instance.machineName || '—' }}</td></tr>
+                <tr><td class="k">target</td>
+                    <td class="v">{{ selected.instance.orchestrationTarget }}</td></tr>
+                <tr *ngIf="selected.instance.placementConstraint">
+                    <td class="k">constraint</td>
+                    <td class="v">{{ selected.instance.placementConstraint }}</td></tr>
+                <tr><td class="k">db</td>
+                    <td class="v">{{ selected.instance.dbBackend || '—' }}</td></tr>
+                <tr *ngIf="selected.instance.imageTag">
+                    <td class="k">image</td>
+                    <td class="v">{{ selected.instance.imageTag }}</td></tr>
+            </table>
+        </div>
+
+        <div class="drawer-section" *ngIf="selected.instance.serviceKinds.length">
+            <h4>Service kinds</h4>
+            <span class="drawer-chip" *ngFor="let kind of selected.instance.serviceKinds">
+                {{ kind }}</span>
+        </div>
+
+        <div class="drawer-section" *ngIf="selectedAssignments.length">
+            <h4>Modules</h4>
+            <div class="drawer-line" *ngFor="let assignment of selectedAssignments">
+                <span class="drawer-chip module">{{ assignment.moduleName }}</span>
+                <span class="muted">{{ assignment.state }}</span>
+            </div>
+        </div>
+
+        <div class="drawer-section" *ngIf="selectedEdges.length">
+            <h4>Dependency edges</h4>
+            <div class="drawer-line" *ngFor="let edge of selectedEdges">
+                <span class="drawer-chip status" [class]="'drawer-chip status ' + edge.status">
+                    {{ edge.status }}</span>
+                <span [matTooltip]="edge.evidence">{{ edgeDirection(edge) }}</span>
+            </div>
+        </div>
+
+        <div class="drawer-section" *ngIf="selectedConnections.length">
+            <h4>Connections</h4>
+            <div class="drawer-line" *ngFor="let conn of selectedConnections">
+                <span class="drawer-chip">{{ conn.interconnectKey }}</span>
+                <span [matTooltip]="conn.artifact ? 'artifact: ' + conn.artifact : ''">
+                    {{ connDirection(conn) }}</span>
+            </div>
+        </div>
+
+        <p class="drawer-sub" *ngIf="selected.instance.notes">
+            {{ selected.instance.notes }}</p>
+    </aside>
+</div>
