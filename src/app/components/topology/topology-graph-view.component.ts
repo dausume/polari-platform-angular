@@ -187,7 +187,10 @@ export class TopologyGraphViewComponent implements OnChanges {
       if (!columns.has(n.depth)) columns.set(n.depth, []);
       columns.get(n.depth)!.push(n);
     }
-    const colGap = 310, rowGap = 150, x0 = 40, y0 = 40;
+    // compact autoplacement: cards are 230x112, so ~40px gutters keep
+    // the whole graph in one eyeful (the fit-to-view pass below
+    // guarantees it regardless of node count)
+    const colGap = 270, rowGap = 136, x0 = 40, y0 = 40;
     const maxRows = Math.max(1,
       ...[...columns.values()].map(c => c.length));
     for (const [d, col] of columns) {
@@ -224,11 +227,30 @@ export class TopologyGraphViewComponent implements OnChanges {
     }
 
     const root = svg.append('g').attr('class', 'zoom-root');
-    svg.call(
-      d3.zoom<SVGSVGElement, unknown>()
-        .scaleExtent([0.4, 2.5])
-        .on('zoom', (ev) => root.attr('transform', ev.transform)) as any,
-    );
+    const zoom = d3.zoom<SVGSVGElement, unknown>()
+      .scaleExtent([0.2, 2.5])
+      .on('zoom', (ev) => root.attr('transform', ev.transform));
+    svg.call(zoom as any);
+
+    // fit-to-view: start with the whole graph centered and visible
+    // (never zoomed IN past 1:1 — small graphs stay life-size)
+    if (this.nodes.length) {
+      const pad = 24;
+      const minX = Math.min(...this.nodes.map(n => n.x)) - pad;
+      const minY = Math.min(...this.nodes.map(n => n.y)) - pad;
+      const maxX = Math.max(...this.nodes.map(n => n.x + n.w)) + pad;
+      const maxY = Math.max(...this.nodes.map(n => n.y + n.h)) + pad;
+      const host = this.svgHost.nativeElement as SVGSVGElement;
+      const vw = host.clientWidth || 800;
+      const vh = host.clientHeight || 520;
+      const scale = Math.min(1, vw / (maxX - minX), vh / (maxY - minY));
+      const tx = (vw - (maxX - minX) * scale) / 2 - minX * scale;
+      const ty = (vh - (maxY - minY) * scale) / 2 - minY * scale;
+      svg.call(
+        (zoom as any).transform,
+        d3.zoomIdentity.translate(tx, ty).scale(scale),
+      );
+    }
 
     const byId = new Map(this.nodes.map(n => [n.id, n]));
 
