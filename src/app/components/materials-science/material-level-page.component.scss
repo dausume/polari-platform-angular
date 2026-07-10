@@ -27,6 +27,8 @@
         border-radius: 6px;
       }
       &.none { color: var(--color-warn-text, #8d6e00); font-size: 12px; }
+      a { text-decoration: none; }
+      a:hover code { background: var(--color-info-bg, #e3f2fd); }
     }
     .level-nav {
       margin-top: 10px; display: flex; gap: 10px;
@@ -41,6 +43,12 @@
   .partial-h { color: var(--color-warn-text, #8d6e00) !important; }
   .missing-h { color: var(--color-error-text, #bf360c) !important; }
   .empty-note { color: var(--text-tertiary, #78909c); font-size: 12px; }
+  .configure-links {
+    display: flex; gap: 14px; flex-wrap: wrap; margin: 0 0 8px;
+    a { font-size: 12px; color: var(--color-info-text, #1565c0);
+        text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  }
 
   .entry {
     border-left: 3px solid var(--border-medium, #cfd8dc);

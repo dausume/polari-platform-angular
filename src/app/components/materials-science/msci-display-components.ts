@@ -3,6 +3,8 @@ import { MaterialsBasisBrowserComponent } from './materials-basis-browser.compon
 import { FormulationSearchWorkbenchComponent } from './formulation-search-workbench.component';
 import { FemModelConfigComponent } from './fem-model-config.component';
 import { DftModelConfigComponent } from './dft-model-config.component';
+import { MdModelConfigComponent } from './md-model-config.component';
+import { MesoModelConfigComponent } from './meso-model-config.component';
 import { MaterialsHomeComponent } from './materials-home.component';
 import { MaterialLevelPageComponent } from './material-level-page.component';
 
@@ -65,6 +67,30 @@ export function registerMsciDisplayComponents(): void {
         + 'partial / missing — each absence with the evidence-bearing '
         + 'suggestion (input: level 0-4)',
       defaultInputs: { level: 0 },
+    });
+
+  registerDisplayComponent(
+    'md-model-config', MdModelConfigComponent, {
+      displayName: 'MD Model Configuration',
+      description: 'The MD-specific simulation interface: system '
+        + '(LJ fluid / bead-spring chains, reduced units with optional '
+        + 'bindable real-material mapping), interactions (force-field '
+        + 'MD shown as the named gap), ensemble/thermostat, integration '
+        + 'with the O(N²) cost line, results with measured-vs-target '
+        + 'honesty badges (input: defaultModelRef)',
+      defaultInputs: { defaultModelRef: '' },
+    });
+
+  registerDisplayComponent(
+    'meso-model-config', MesoModelConfigComponent, {
+      displayName: 'Mesoscale Model Configuration',
+      description: 'The mesoscale simulation interface: rod-network '
+        + 'percolation (MC bisection sampling) and dipolar chaining '
+        + '(Brownian dynamics with the λ-from-physics helper and the '
+        + 'kinetics-limited warning); verdicts with the derived-vf_c '
+        + 'vs Balberg-limit bars and the explicit use-as-threshold '
+        + 'binding knob (input: defaultModelRef)',
+      defaultInputs: { defaultModelRef: '' },
     });
 
   registerDisplayComponent(

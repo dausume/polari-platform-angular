@@ -15,7 +15,12 @@
       </p>
       <div class="engines" *ngIf="report.detail.engines.length; else noEngines">
         <span class="engines-label">engines serving this level:</span>
-        <code *ngFor="let engine of report.detail.engines">{{ engine }}</code>
+        <ng-container *ngFor="let engine of report.detail.engines">
+          <a *ngIf="configRouteFor(engine) as route" [routerLink]="route"
+             matTooltip="open the config page for this engine's models">
+            <code>{{ engine }}</code></a>
+          <code *ngIf="!configRouteFor(engine)">{{ engine }}</code>
+        </ng-container>
       </div>
       <ng-template #noEngines>
         <div class="engines none">
@@ -94,6 +99,10 @@
     <section>
       <h3 class="missing-h">
         Missing ({{ report.missing.length }}) — absence is data</h3>
+      <p class="configure-links" *ngIf="configPages.length">
+        <a *ngFor="let page of configPages" [routerLink]="page.route">
+          configure a {{ page.label }} model for this level →</a>
+      </p>
       <div class="entry missing" *ngFor="let entry of report.missing">
         <div class="entry-head">
           <a class="detail-link"

@@ -40,6 +40,10 @@ export class MaterialsHomeComponent implements OnInit {
       hint: 'configure and solve continuum models' },
     { label: 'DFT Models', route: '/display/dft-models',
       hint: 'configure and compute quantum models' },
+    { label: 'MD Models', route: '/display/md-models',
+      hint: 'configure and run atomistic (L3) melts' },
+    { label: 'Meso Models', route: '/display/meso-models',
+      hint: 'configure and run mesoscale (L2) studies' },
     { label: 'Periodic Table', route: '/display/periodic-table',
       hint: 'element reference data' },
   ];

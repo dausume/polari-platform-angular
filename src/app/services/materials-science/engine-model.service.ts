@@ -29,13 +29,18 @@ export interface EngineTemplate {
   enabled: boolean;
 }
 
-/** A FEM/DFT model definition row (backend field names). */
+/** The specialized model-definition classes this layer routes to. */
+export type EngineModelClass =
+  'FEMModelDefinition' | 'DFTModelDefinition'
+  | 'MDModelDefinition' | 'MesoModelDefinition';
+
+/** A FEM/DFT/MD/Meso model definition row (backend field names). */
 export interface EngineModelRow {
   id?: string;
   name: string;
   display_name: string;
   description: string;
-  physics_ref?: string;       // FEMModelDefinition
+  physics_ref?: string;       // FEM/MD/Meso ModelDefinition
   calculation_ref?: string;   // DFTModelDefinition
   domain_json?: string;
   materials_json?: string;
@@ -46,10 +51,20 @@ export interface EngineModelRow {
   structure_json?: string;
   method_json?: string;
   accuracy_json?: string;
+  system_json?: string;                 // MD + Meso
+  thermodynamic_state_json?: string;    // MD
+  integration_json?: string;            // MD + Meso
+  sampling_json?: string;               // Meso
   last_result_json: string;
   last_executed_at: string;
   notes: string;
   enabled: boolean;
+}
+
+/** One engine root from GET /api/msci/engines/capability. */
+export interface EngineCapability {
+  available?: boolean;
+  [key: string]: unknown;
 }
 
 /**
@@ -75,12 +90,20 @@ export class EngineModelService {
     return res?.data ?? [];
   }
 
-  async models(className: 'FEMModelDefinition' | 'DFTModelDefinition'
-               ): Promise<EngineModelRow[]> {
+  async models(className: EngineModelClass): Promise<EngineModelRow[]> {
     const res = await firstValueFrom(this.http.get<any>(
       `${this.base}/${className}`,
       this.polariService.backendRequestOptions));
     return parseCrudeReadAllResponse(res, className) as EngineModelRow[];
+  }
+
+  /** The honest per-root capability map (fem/dft/md/meso) — the
+   *  named-gap rows (forceFieldMD, dpd) ride inside each root. */
+  async capability(): Promise<Record<string, EngineCapability>> {
+    return firstValueFrom(this.http.get<Record<string, EngineCapability>>(
+      `${this.base}/api/msci/engines/capability`,
+      this.polariService.backendRequestOptions))
+      .catch(() => ({}));
   }
 
   /** Standard CRUDE update (polariId + updateData FormData). */

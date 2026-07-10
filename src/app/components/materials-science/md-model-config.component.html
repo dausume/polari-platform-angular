@@ -1,0 +1,239 @@
+<div class="model-config">
+    <div class="loading" *ngIf="loading">Loading MD models…</div>
+
+    <ng-container *ngIf="!loading && selected">
+        <div class="header">
+            <label class="picker" *ngIf="models.length > 1">
+                Model:
+                <select [ngModel]="selected!.name"
+                        (ngModelChange)="selectByName($event)">
+                    <option *ngFor="let m of models" [value]="m.name">
+                        {{ m.display_name || m.name }}
+                    </option>
+                </select>
+            </label>
+            <h3 *ngIf="models.length <= 1">
+                {{ selected!.display_name || selected!.name }}</h3>
+            <p class="description">{{ selected!.description }}</p>
+        </div>
+
+        <!-- System: what is being simulated -->
+        <section>
+            <h4><mat-icon>scatter_plot</mat-icon> System</h4>
+            <div class="field-row">
+                <label>Simulation type
+                    <select [ngModel]="selected!.physics_ref"
+                            (ngModelChange)="setPhysics($event)">
+                        <option *ngFor="let t of templates" [value]="t.name">
+                            {{ t.displayName }} ({{ t.costClass }})
+                        </option>
+                    </select>
+                </label>
+            </div>
+            <p class="section-note" *ngIf="template">
+                {{ template!.description }}</p>
+
+            <span class="explainer-chip"
+                  matTooltip="Every number below is dimensionless. To map
+ this run to a real material, choose epsilon and sigma WITH provenance
+ in the fields at the right — recorded on the model, never assumed.">
+                <mat-icon class="inline-icon">straighten</mat-icon>
+                reduced units: ε = σ = m = k_B = 1
+            </span>
+
+            <!-- Composition: LJ fluid vs bead-spring chains -->
+            <div class="field-row" *ngIf="!isChainModel">
+                <label>Particles (N)
+                    <input type="number" min="32" max="2048"
+                           [(ngModel)]="system.nParticles">
+                </label>
+                <label class="slider-label">Density ρ*
+                    <span class="slider-wrap">
+                        <input type="range" min="0.01" max="1.2" step="0.01"
+                               [(ngModel)]="thermodynamicState.density">
+                        <input type="number" class="slider-num" min="0.01"
+                               max="1.2" step="0.01"
+                               [(ngModel)]="thermodynamicState.density">
+                    </span>
+                </label>
+                <span class="annotation" *ngIf="densityAnnotation">
+                    {{ densityAnnotation }}</span>
+            </div>
+            <div class="field-row" *ngIf="isChainModel">
+                <label>Beads per chain
+                    <input type="number" min="2" max="100"
+                           [(ngModel)]="system.chainLength">
+                </label>
+                <label>Chains
+                    <input type="number" min="2" max="200"
+                           [(ngModel)]="system.nChains">
+                </label>
+                <label class="slider-label">Bead density ρ*
+                    <span class="slider-wrap">
+                        <input type="range" min="0.4" max="1.2" step="0.01"
+                               [(ngModel)]="thermodynamicState.density">
+                        <input type="number" class="slider-num" min="0.4"
+                               max="1.2" step="0.01"
+                               [(ngModel)]="thermodynamicState.density">
+                    </span>
+                </label>
+                <span class="annotation" *ngIf="densityAnnotation">
+                    {{ densityAnnotation }}</span>
+            </div>
+            <p class="section-note" *ngIf="isChainModel">
+                The engine refuses below ρ* = 0.4 — the snake-lattice
+                initializer needs melt-like packing; melts sit near 0.85.
+            </p>
+
+            <!-- Optional real-material mapping (bindable) -->
+            <div class="field-row mapping-row">
+                <label class="prop-label"
+                       matTooltip="optional — carries provenance; bindable
+ to a live material row so the mapping follows the source">
+                    ε mapping [eV]</label>
+                <model-binding-editor
+                    [value]="system.unitMapping.epsilonEv"
+                    placeholder="e.g. 0.0104 (argon)"
+                    (valueChange)="system.unitMapping.epsilonEv = $event">
+                </model-binding-editor>
+            </div>
+            <div class="field-row mapping-row">
+                <label class="prop-label">σ mapping [nm]</label>
+                <model-binding-editor
+                    [value]="system.unitMapping.sigmaNm"
+                    placeholder="e.g. 0.34 (argon)"
+                    (valueChange)="system.unitMapping.sigmaNm = $event">
+                </model-binding-editor>
+            </div>
+        </section>
+
+        <model-run-bar [template]="template" [busy]="busy"
+                       [outcome]="outcome" [outcomeBad]="outcomeBad"
+                       (validate)="validate()" (run)="run()">
+        </model-run-bar>
+
+        <div class="findings" *ngIf="findings.length">
+            <div class="finding" *ngFor="let f of findings"
+                 [class.err]="f.level === 'error'"
+                 [class.note]="f.level === 'note'">
+                <mat-icon>{{ f.level === 'error' ? 'cancel'
+                    : f.level === 'note' ? 'info_outline'
+                    : 'warning_amber' }}</mat-icon>
+                <span><strong>{{ f.param }}</strong> — {{ f.message }}</span>
+            </div>
+        </div>
+
+        <!-- Interactions: the potential, constants visible, read-only -->
+        <section>
+            <h4><mat-icon>timeline</mat-icon> Interactions</h4>
+            <div class="potential" *ngIf="!isChainModel">
+                <code>Lennard-Jones (shifted, r_c = 2.5σ)</code>
+                <span class="section-note">pair potential — constants
+                    fixed in the engine, shown for honesty</span>
+            </div>
+            <div class="potential" *ngIf="isChainModel">
+                <code>FENE bonds (k = 30, R₀ = 1.5σ) + WCA beads</code>
+                <span class="section-note">Kremer-Grest chain model —
+                    a CHAIN model, not a chemical force field</span>
+            </div>
+            <div class="gap-row" *ngIf="forceFieldGapNote">
+                <label class="disabled-choice">
+                    <input type="checkbox" disabled>
+                    force-field MD (TraPPE / GAFF) — unavailable
+                </label>
+                <span class="gap-note">{{ forceFieldGapNote }}</span>
+            </div>
+        </section>
+
+        <!-- Ensemble / thermostat -->
+        <section>
+            <h4><mat-icon>device_thermostat</mat-icon> Ensemble</h4>
+            <div class="field-row">
+                <label>Thermostat
+                    <select [(ngModel)]="integration.thermostat">
+                        <option value="langevin">Langevin (NVT)</option>
+                        <option value="none">none (NVE)</option>
+                    </select>
+                </label>
+                <label>Temperature T*
+                    <input type="number" min="0.1" max="10" step="0.05"
+                           [(ngModel)]="thermodynamicState.temperature">
+                </label>
+            </div>
+            <p class="section-note" *ngIf="isNve">
+                NVE conserves energy instead of holding T — the drift per
+                particle in the results IS the integrator honesty check
+                (the selftest band is &lt; 5e-3 per particle).
+            </p>
+        </section>
+
+        <!-- Integration -->
+        <section>
+            <h4><mat-icon>update</mat-icon> Integration</h4>
+            <div class="field-row">
+                <label>Timestep dt
+                    <input type="number" min="0.0005" max="0.01"
+                           step="0.0005" [(ngModel)]="integration.dt">
+                </label>
+                <label>Steps
+                    <input type="number" min="200" max="50000"
+                           [(ngModel)]="integration.steps">
+                </label>
+                <label>Equilibration (discarded)
+                    <input type="number" min="0" max="20000"
+                           [(ngModel)]="integration.equilibration">
+                </label>
+                <label>Seed
+                    <input type="number" [(ngModel)]="integration.seed">
+                </label>
+            </div>
+            <p class="cost-line" *ngIf="costLine">
+                <mat-icon class="inline-icon">speed</mat-icon>
+                {{ costLine }}</p>
+        </section>
+
+        <!-- Outputs / Results -->
+        <section>
+            <h4><mat-icon>insights</mat-icon> Results</h4>
+            <p class="section-note" *ngIf="selected!.last_executed_at">
+                last executed {{ selected!.last_executed_at }}</p>
+
+            <div class="verdict-badge" *ngIf="thermostatVerdict"
+                 [class.ok]="thermostatVerdict!.ok"
+                 [class.bad]="!thermostatVerdict!.ok">
+                <mat-icon class="inline-icon">{{ thermostatVerdict!.ok
+                    ? 'check_circle' : 'error' }}</mat-icon>
+                {{ thermostatVerdict!.text }}
+            </div>
+            <div class="verdict-badge" *ngIf="bondVerdict"
+                 [class.ok]="bondVerdict!.ok"
+                 [class.bad]="!bondVerdict!.ok">
+                <mat-icon class="inline-icon">{{ bondVerdict!.ok
+                    ? 'check_circle' : 'error' }}</mat-icon>
+                {{ bondVerdict!.text }}
+            </div>
+            <p class="section-note" *ngIf="pressureLine">
+                {{ pressureLine }}</p>
+
+            <table class="result-table" *ngIf="resultEntries().length">
+                <tr *ngFor="let e of resultEntries()">
+                    <td class="rk">{{ e[0] }}</td>
+                    <td>{{ e[1] }}</td>
+                </tr>
+            </table>
+            <p class="section-note" *ngIf="!resultEntries().length">
+                Not executed yet — Run stores the result on this model
+                object.</p>
+            <div class="outputs-legend" *ngIf="declaredOutputs.length">
+                <span class="legend-item" *ngFor="let o of declaredOutputs"
+                      [matTooltip]="o.description || ''">
+                    {{ o.key }}<em *ngIf="o.unit"> [{{ o.unit }}]</em>
+                </span>
+            </div>
+        </section>
+    </ng-container>
+
+    <div class="loading" *ngIf="!loading && !selected">
+        No MDModelDefinition rows on this instance yet.
+    </div>
+</div>

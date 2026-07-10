@@ -1,0 +1,115 @@
+/* Shared additions for the MD + meso config surfaces (msci-27) —
+ * layered on top of model-config.shared.scss. */
+.model-config {
+
+  .explainer-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11.5px; padding: 3px 10px; border-radius: 10px;
+    background: #e3f2fd; color: #1565c0; cursor: help; margin: 4px 0;
+  }
+
+  .slider-label .slider-wrap {
+    display: inline-flex; gap: 8px; align-items: center;
+    input[type='range'] { width: 160px; }
+    .slider-num { width: 70px; }
+  }
+  .annotation {
+    font-size: 11px; font-style: italic; align-self: center;
+    color: var(--text-secondary, #888); padding-bottom: 6px;
+  }
+
+  .mapping-row .prop-label { min-width: 120px; }
+
+  .potential {
+    display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap;
+    code { background: #f5f5f5; border-radius: 6px; padding: 3px 8px;
+           font-size: 12px; }
+  }
+  .gap-row {
+    margin-top: 8px; opacity: 0.8;
+    .disabled-choice {
+      flex-direction: row; align-items: center; gap: 6px;
+      color: var(--text-secondary, #999); font-size: 12px;
+    }
+    .gap-note { display: block; font-size: 11.5px; margin-top: 2px;
+                color: #8d6e00; max-width: 640px; }
+  }
+
+  .cost-line {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 12px; color: #4527a0; margin: 6px 0 0;
+  }
+
+  .verdict-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 12px; padding: 3px 10px; border-radius: 10px;
+    margin: 2px 6px 4px 0;
+    &.ok { background: #e8f5e9; color: #1b5e20; }
+    &.bad { background: #fbe9e7; color: #8d2f23; }
+  }
+
+  .warn-banner {
+    display: flex; align-items: baseline; gap: 6px;
+    font-size: 12px; color: #8d6e00; background: #fff8e1;
+    border-radius: 8px; padding: 6px 10px; margin: 6px 0;
+    mat-icon { font-size: 15px; width: 15px; height: 15px;
+               align-self: center; }
+  }
+
+  /* Two-bar derived-vs-reference comparison (rod percolation). */
+  .compare-bars {
+    max-width: 560px; margin: 6px 0;
+    .bar-row {
+      display: grid; grid-template-columns: 190px 1fr 90px;
+      align-items: center; gap: 8px; padding: 2px 0; font-size: 12px;
+      .bar-track { background: #eceff1; border-radius: 5px; height: 14px; }
+      .bar-fill { height: 100%; border-radius: 5px; min-width: 2px;
+                  background: #90a4ae; }
+      &.derived .bar-fill { background: #1565c0; }
+      .bar-val { font-family: monospace; }
+    }
+  }
+
+  /* 0..1 gauges with a threshold tick (dipolar chaining). */
+  .gauge-row {
+    display: grid; grid-template-columns: 190px 1fr 130px;
+    align-items: center; gap: 8px; max-width: 560px;
+    padding: 2px 0; font-size: 12px;
+    .gauge-track { position: relative; background: #eceff1;
+                   border-radius: 5px; height: 14px; }
+    .gauge-fill { height: 100%; border-radius: 5px;
+                  background: #7e57c2; min-width: 2px; }
+    .gauge-tick { position: absolute; top: -2px; bottom: -2px;
+                  width: 2px; background: #37474f; }
+    .gauge-val { font-family: monospace; }
+  }
+  .verdict-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 12.5px; font-weight: 600; padding: 4px 12px;
+    border-radius: 12px; margin: 6px 0;
+    &.formed { background: #e8f5e9; color: #1b5e20; }
+    &.not-formed { background: #eceff1; color: #546e7a; }
+  }
+
+  /* The explicit use-as-threshold knob (never auto-applied). */
+  .suggestion-box {
+    border: 1px dashed #1565c0; border-radius: 10px;
+    padding: 8px 12px; margin: 8px 0; max-width: 640px;
+    .suggestion-evidence { font-size: 12px; color: #1565c0;
+                           margin-bottom: 6px; }
+    .suggestion-action { display: flex; gap: 10px; align-items: center;
+                         flex-wrap: wrap; }
+  }
+
+  .section-note.error { color: #8d2f23; }
+
+  .helper-toggle { align-self: center; }
+
+  .helper-pop {
+    border: 1px solid var(--border-light, #e0e0e0); border-radius: 10px;
+    background: #fafafa; padding: 8px 12px; margin: 6px 0;
+    max-width: 640px;
+    .helper-out { font-size: 12.5px; margin-top: 4px;
+                  font-family: monospace; }
+  }
+}

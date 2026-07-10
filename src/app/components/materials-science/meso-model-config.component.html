@@ -1,0 +1,304 @@
+<div class="model-config">
+    <div class="loading" *ngIf="loading">Loading mesoscale models…</div>
+
+    <ng-container *ngIf="!loading && selected">
+        <div class="header">
+            <label class="picker" *ngIf="models.length > 1">
+                Model:
+                <select [ngModel]="selected!.name"
+                        (ngModelChange)="selectByName($event)">
+                    <option *ngFor="let m of models" [value]="m.name">
+                        {{ m.display_name || m.name }}
+                    </option>
+                </select>
+            </label>
+            <h3 *ngIf="models.length <= 1">
+                {{ selected!.display_name || selected!.name }}</h3>
+            <p class="description">{{ selected!.description }}</p>
+        </div>
+
+        <!-- System / Structure -->
+        <section>
+            <h4><mat-icon>grain</mat-icon> System / Structure</h4>
+            <div class="field-row">
+                <label>Study type
+                    <select [ngModel]="selected!.physics_ref"
+                            (ngModelChange)="setPhysics($event)">
+                        <option *ngFor="let t of templates" [value]="t.name">
+                            {{ t.displayName }} ({{ t.costClass }})
+                        </option>
+                    </select>
+                </label>
+            </div>
+            <p class="section-note" *ngIf="template">
+                {{ template!.description }}</p>
+
+            <!-- Rod mode -->
+            <div class="field-row" *ngIf="isRodModel">
+                <label>Aspect ratio (L/d)
+                    <input type="number" min="2" max="200"
+                           [(ngModel)]="system.aspectRatio">
+                </label>
+                <label>Rods per trial
+                    <input type="number" min="50" max="2000"
+                           [(ngModel)]="system.nRods">
+                </label>
+            </div>
+            <p class="section-note" *ngIf="isRodModel">
+                Validated range 2–200. Real CNTs run aspect ~1000 —
+                beyond the finite-size-validated range; vf_c scales as
+                1/aspect, so a derived threshold here is an UPPER bound
+                for real tubes.
+            </p>
+
+            <!-- Dipolar mode -->
+            <div class="field-row" *ngIf="!isRodModel">
+                <label matTooltip="chaining onsets near lambda ~ 2 —
+ below it thermal motion wins and chains do not survive">
+                    Coupling λ (onset ~2)
+                    <input type="number" min="0" max="20" step="0.5"
+                           [(ngModel)]="system.couplingLambda">
+                </label>
+                <label>Volume fraction
+                    <input type="number" min="0.005" max="0.3"
+                           step="0.005"
+                           [(ngModel)]="system.volumeFraction">
+                </label>
+                <label>Particles
+                    <input type="number" min="20" max="600"
+                           [(ngModel)]="system.nParticles">
+                </label>
+                <button mat-stroked-button class="helper-toggle"
+                        (click)="helperOpen = !helperOpen">
+                    <mat-icon>calculate</mat-icon> λ from particle physics
+                </button>
+            </div>
+            <div class="helper-pop" *ngIf="!isRodModel && helperOpen">
+                <div class="field-row">
+                    <label>Particle diameter [nm]
+                        <input type="number" min="1" max="200"
+                               [(ngModel)]="helperDiameterNm">
+                    </label>
+                    <label>Saturation magnetization Ms [A/m]
+                        <input type="number"
+                               [(ngModel)]="helperMsAPerM">
+                    </label>
+                    <label>Temperature [K]
+                        <input type="number" min="1"
+                               [(ngModel)]="helperTemperatureK">
+                    </label>
+                </div>
+                <div class="helper-out" *ngIf="helperLambda !== null">
+                    λ = μ₀m²/(4πd³kT) = {{ helperLambda | number:'1.1-2' }}
+                    — m = Ms·πd³/6 [prov: standard ferrofluid estimate;
+                    magnetite Ms 4.8e5 A/m]
+                </div>
+                <button mat-stroked-button color="primary"
+                        [disabled]="helperLambda === null"
+                        (click)="applyHelperLambda()">
+                    use this λ
+                </button>
+            </div>
+            <div class="warn-banner" *ngIf="kineticsWarning">
+                <mat-icon>warning_amber</mat-icon>
+                <span>{{ kineticsWarning }}</span>
+            </div>
+            <div class="gap-row" *ngIf="dpdGapNote">
+                <label class="disabled-choice">
+                    <input type="checkbox" disabled>
+                    DPD / hydrodynamics — unavailable
+                </label>
+                <span class="gap-note">{{ dpdGapNote }}</span>
+            </div>
+        </section>
+
+        <model-run-bar [template]="template" [busy]="busy"
+                       [outcome]="outcome" [outcomeBad]="outcomeBad"
+                       (validate)="validate()" (run)="run()">
+        </model-run-bar>
+
+        <div class="findings" *ngIf="findings.length">
+            <div class="finding" *ngFor="let f of findings"
+                 [class.err]="f.level === 'error'"
+                 [class.note]="f.level === 'note'">
+                <mat-icon>{{ f.level === 'error' ? 'cancel'
+                    : f.level === 'note' ? 'info_outline'
+                    : 'warning_amber' }}</mat-icon>
+                <span><strong>{{ f.param }}</strong> — {{ f.message }}</span>
+            </div>
+        </div>
+
+        <!-- Sampling (rods: Monte-Carlo bisection) -->
+        <section *ngIf="isRodModel">
+            <h4><mat-icon>casino</mat-icon> Sampling</h4>
+            <div class="field-row">
+                <label>Trials per point
+                    <input type="number" min="2" max="32"
+                           [(ngModel)]="sampling.trials">
+                </label>
+                <label>Bisection iterations
+                    <input type="number" min="4" max="16"
+                           [(ngModel)]="sampling.iterations">
+                </label>
+                <label>Seed
+                    <input type="number" [(ngModel)]="sampling.seed">
+                </label>
+            </div>
+            <p class="section-note">
+                Bisection on volume fraction to the 50%-spanning point:
+                each iteration runs the trials at the midpoint and halves
+                the interval — iterations set the threshold's resolution,
+                trials its statistical confidence.
+            </p>
+            <p class="cost-line" *ngIf="costLine">
+                <mat-icon class="inline-icon">speed</mat-icon>
+                {{ costLine }}</p>
+        </section>
+
+        <!-- Integration (dipolar: Brownian dynamics) -->
+        <section *ngIf="!isRodModel">
+            <h4><mat-icon>update</mat-icon> Integration</h4>
+            <div class="field-row">
+                <label>BD steps
+                    <input type="number" min="500" max="40000"
+                           [(ngModel)]="integration.steps">
+                </label>
+                <label>Timestep dt
+                    <input type="number" min="0.0002" max="0.005"
+                           step="0.0002" [(ngModel)]="integration.dt">
+                </label>
+                <label>Seed
+                    <input type="number" [(ngModel)]="integration.seed">
+                </label>
+            </div>
+            <p class="cost-line" *ngIf="costLine">
+                <mat-icon class="inline-icon">speed</mat-icon>
+                {{ costLine }}</p>
+        </section>
+
+        <!-- Results / Verdicts -->
+        <section>
+            <h4><mat-icon>insights</mat-icon> Results / Verdicts</h4>
+            <p class="section-note" *ngIf="selected!.last_executed_at">
+                last executed {{ selected!.last_executed_at }}</p>
+
+            <!-- Rod verdict: derived vf_c vs the Balberg limit -->
+            <ng-container *ngIf="isRodModel && derivedThreshold !== null">
+                <div class="compare-bars">
+                    <div class="bar-row derived">
+                        <span>derived vf_c</span>
+                        <span class="bar-track">
+                            <span class="bar-fill"
+                                  [style.width.%]="barWidth(derivedThreshold)">
+                            </span>
+                        </span>
+                        <span class="bar-val">{{ derivedThreshold }}</span>
+                    </div>
+                    <div class="bar-row">
+                        <span>slender-rod limit (0.7/aspect)</span>
+                        <span class="bar-track">
+                            <span class="bar-fill"
+                                  [style.width.%]="barWidth(slenderLimit)">
+                            </span>
+                        </span>
+                        <span class="bar-val">{{ slenderLimit }}</span>
+                    </div>
+                </div>
+                <p class="section-note">
+                    ratio to limit: {{ lastResult?.ratioToLimit }}
+                    [prov: Balberg 1984 — finite aspect keeps the ratio
+                    above 1]
+                </p>
+            </ng-container>
+
+            <!-- Dipolar verdicts: gauges + the chainsFormed chip -->
+            <ng-container *ngIf="!isRodModel && chainedFraction !== null">
+                <div class="gauge-row">
+                    <span>chained fraction (kinetics)</span>
+                    <span class="gauge-track">
+                        <span class="gauge-fill"
+                              [style.width.%]="100 * chainedFraction!">
+                        </span>
+                        <span class="gauge-tick" [style.left.%]="50"
+                              matTooltip="chainsFormed threshold 0.5">
+                        </span>
+                    </span>
+                    <span class="gauge-val">{{ chainedFraction }}</span>
+                </div>
+                <div class="gauge-row" *ngIf="fieldAlignment !== null">
+                    <span>field alignment (structure)</span>
+                    <span class="gauge-track">
+                        <span class="gauge-fill"
+                              [style.width.%]="100 * fieldAlignment!">
+                        </span>
+                        <span class="gauge-tick" [style.left.%]="60"
+                              matTooltip="chainsFormed threshold 0.6">
+                        </span>
+                    </span>
+                    <span class="gauge-val">{{ fieldAlignment }}</span>
+                </div>
+                <span class="verdict-chip" *ngIf="chainsFormed !== null"
+                      [class.formed]="chainsFormed"
+                      [class.not-formed]="!chainsFormed"
+                      matTooltip="chainedFraction > 0.5 AND alignment > 0.6
+ — both thresholds shown on the gauges">
+                    <mat-icon class="inline-icon">{{ chainsFormed
+                        ? 'link' : 'link_off' }}</mat-icon>
+                    {{ chainsFormed ? 'chains formed'
+                                    : 'chains not formed' }}
+                </span>
+            </ng-container>
+
+            <!-- THE KNOB: feed the derived threshold to a chosen L1
+                 model — explicit, evidence-bearing, never automatic. -->
+            <div class="suggestion-box" *ngIf="isRodModel">
+                <div class="suggestion-evidence">
+                    {{ thresholdSuggestion }}
+                </div>
+                <div class="suggestion-action"
+                     *ngIf="femModels.length; else noTargets">
+                    <label>L1 percolation model
+                        <select [(ngModel)]="thresholdTargetName">
+                            <option *ngFor="let m of femModels"
+                                    [value]="m.name">
+                                {{ m.display_name || m.name }}
+                            </option>
+                        </select>
+                    </label>
+                    <button mat-stroked-button color="primary"
+                            [disabled]="derivedThreshold === null"
+                            (click)="bindThresholdToTarget()">
+                        <mat-icon>link</mat-icon>
+                        use as percolationThreshold
+                    </button>
+                </div>
+                <ng-template #noTargets>
+                    <p class="section-note">No L1 percolation-conductivity
+                        models on this instance to bind into.</p>
+                </ng-template>
+                <p class="section-note" *ngIf="bindOutcome"
+                   [class.error]="bindOutcomeBad">{{ bindOutcome }}</p>
+            </div>
+
+            <table class="result-table" *ngIf="resultEntries().length">
+                <tr *ngFor="let e of resultEntries()">
+                    <td class="rk">{{ e[0] }}</td>
+                    <td>{{ e[1] }}</td>
+                </tr>
+            </table>
+            <p class="section-note" *ngIf="!resultEntries().length">
+                Not executed yet — Run stores the result on this model
+                object.</p>
+            <div class="outputs-legend" *ngIf="declaredOutputs.length">
+                <span class="legend-item" *ngFor="let o of declaredOutputs"
+                      [matTooltip]="o.description || ''">
+                    {{ o.key }}<em *ngIf="o.unit"> [{{ o.unit }}]</em>
+                </span>
+            </div>
+        </section>
+    </ng-container>
+
+    <div class="loading" *ngIf="!loading && !selected">
+        No MesoModelDefinition rows on this instance yet.
+    </div>
+</div>

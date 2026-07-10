@@ -49,6 +49,31 @@ export class MaterialLevelPageComponent implements OnInit {
     return [0, 1, 2, 3, 4].filter(l => l !== Number(this.level));
   }
 
+  /** The config page serving an engine key ('meso.rod-percolation'
+   *  → /display/meso-models) — the accountability page is the
+   *  on-ramp to configuring a model that closes the gap. */
+  configRouteFor(engine: string): string | null {
+    const route = ({ fem: 'fem-models', dft: 'dft-models',
+                     md: 'md-models', meso: 'meso-models' } as
+                   Record<string, string>)[engine.split('.')[0] ?? ''];
+    return route ? `/display/${route}` : null;
+  }
+
+  /** Unique config pages for this level's engines (missing-section
+   *  on-ramp: "configure a model for this level"). */
+  get configPages(): { label: string; route: string }[] {
+    const engines = this.report?.detail?.engines ?? [];
+    const seen = new Map<string, string>();
+    for (const engine of engines) {
+      const route = this.configRouteFor(engine);
+      if (route && !seen.has(route)) {
+        seen.set(route, engine.split('.')[0].toUpperCase());
+      }
+    }
+    return [...seen.entries()].map(([route, label]) =>
+      ({ label, route }));
+  }
+
   rowLineage(entry: LevelEntry): string {
     return entry.rows
       .map(r => r.derivedFrom
