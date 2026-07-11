@@ -18,6 +18,7 @@ import { IMessage } from '@stomp/stompjs';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { RuntimeConfigService } from './runtime-config.service';
+import { ClassDirectoryService } from './class-directory.service';
 
 export type StompConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
 
@@ -35,10 +36,43 @@ export interface StompChangeNotification {
 export class StompService {
 
     private rxStomp: RxStomp;
+    // modsplit-3: change notifications come from the backend that
+    // OWNS a class, so watch subscriptions route per class through
+    // the directory — one extra RxStomp client per remote broker,
+    // created lazily and reused. Core stays this.rxStomp.
+    private remoteClients: Map<string, RxStomp> = new Map();
     public connectionStatus$ = new BehaviorSubject<StompConnectionStatus>('disconnected');
 
-    constructor(private runtimeConfig: RuntimeConfigService) {
+    constructor(
+        private runtimeConfig: RuntimeConfigService,
+        private classDirectory: ClassDirectoryService
+    ) {
         this.rxStomp = new RxStomp();
+    }
+
+    /**
+     * The RxStomp client for a class: the owning backend's broker
+     * when the directory routes it elsewhere, core otherwise.
+     * Remote clients activate lazily and auto-reconnect like core.
+     */
+    private clientForClass(className: string): RxStomp {
+        const wsUrl = this.classDirectory.wsUrlForClass(className);
+        if (!wsUrl) {
+            return this.rxStomp;
+        }
+        let client = this.remoteClients.get(wsUrl);
+        if (!client) {
+            client = new RxStomp();
+            client.configure({
+                brokerURL: wsUrl,
+                heartbeatIncoming: 0,
+                heartbeatOutgoing: 20000,
+                reconnectDelay: 5000,
+            });
+            client.activate();
+            this.remoteClients.set(wsUrl, client);
+        }
+        return client;
     }
 
     /**
@@ -91,6 +125,8 @@ export class StompService {
      */
     disconnect(): void {
         this.rxStomp.deactivate();
+        this.remoteClients.forEach(client => client.deactivate());
+        this.remoteClients.clear();
         this.connectionStatus$.next('disconnected');
         // console.log('[STOMP] Deactivated');
     }
@@ -107,7 +143,7 @@ export class StompService {
             ? `/topic/${className}/${formatType}`
             : `/topic/${className}`;
         // console.log(`[STOMP] Subscribing to ${topic}`);
-        return this.rxStomp.watch(topic);
+        return this.clientForClass(className).watch(topic);
     }
 
     /**

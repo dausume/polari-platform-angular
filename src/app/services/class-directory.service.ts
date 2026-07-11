@@ -65,4 +65,16 @@ export class ClassDirectoryService {
     const entry = this.directory$.value[className];
     return entry && entry.baseUrl ? entry.baseUrl : '';
   }
+
+  // modsplit-3: the websocket broker URL for a class's change
+  // notifications — each backend publishes STOMP for ITS OWN classes,
+  // so subscriptions must land on the owning backend. '' = core.
+  wsUrlForClass(className: string): string {
+    const entry = this.directory$.value[className];
+    if (!entry || !entry.module) {
+      return '';
+    }
+    const provider = this.modules$.value[entry.module] as any;
+    return provider && provider.wsUrl ? provider.wsUrl : '';
+  }
 }
