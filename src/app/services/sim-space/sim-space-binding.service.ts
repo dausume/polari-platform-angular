@@ -80,14 +80,20 @@ export class SimSpaceBindingService {
       enabled,
       binding_json: JSON.stringify(binding),
     };
+    // CRUDE writes are the multipart form protocol (polariId +
+    // updateData / initParamSets) PUT|POST to /{ClassName} — the
+    // previous REST-style per-id JSON calls 404'd, so the binding
+    // tab's Save never persisted (found by the 2026-07-11 API audit).
     if (existing) {
-      // CRUDE PUT — pass the row id.
       const id = (existing as any).id ?? key;
-      await firstValueFrom(
-        this.http.put(`${this.url()}/${encodeURIComponent(id)}`, payload)
-      );
+      const formData = new FormData();
+      formData.append('polariId', id);
+      formData.append('updateData', JSON.stringify(payload));
+      await firstValueFrom(this.http.put(this.url(), formData));
     } else {
-      await firstValueFrom(this.http.post(this.url(), payload));
+      const formData = new FormData();
+      formData.append('initParamSets', JSON.stringify([payload]));
+      await firstValueFrom(this.http.post(this.url(), formData));
     }
   }
 

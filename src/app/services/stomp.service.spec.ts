@@ -4,7 +4,8 @@
  * is opened (isolation mode).
  */
 import { TestBed } from '@angular/core/testing';
-import { of } from 'rxjs';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { BehaviorSubject, of } from 'rxjs';
 import { StompService } from './stomp.service';
 import { RuntimeConfigService } from './runtime-config.service';
 
@@ -14,8 +15,14 @@ describe('StompService', () => {
   beforeEach(() => {
     const runtimeStub: Partial<RuntimeConfigService> = {
       getWebSocketUrl: () => 'ws://test.local/ws',
+      // ClassDirectoryService (pulled in via modsplit-3 routing)
+      // subscribes to this on construction; false = never fetches.
+      isConfigLoaded$: new BehaviorSubject<boolean>(false) as any,
     };
     TestBed.configureTestingModule({
+      // StompService pulls ClassDirectoryService (modsplit-3
+      // per-backend routing), which needs HttpClient.
+      imports: [HttpClientTestingModule],
       providers: [
         StompService,
         { provide: RuntimeConfigService, useValue: runtimeStub },

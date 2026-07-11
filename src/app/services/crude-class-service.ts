@@ -2,6 +2,7 @@
 import { Injectable, EventEmitter } from "@angular/core";
 import { HttpClient, HttpHeaders } from '@angular/common/http'
 import { Observable, throwError } from "rxjs";
+import { map } from "rxjs/operators";
 import { PolariService } from "./polari-service"
 import { StompService, StompChangeNotification } from "./stomp.service";
 
@@ -26,34 +27,51 @@ export class CRUDEclassService {
         this.serviceUtilizers = {};
     }
 
+    // The backend's CRUDE protocol (polariCRUDE): all routes live at
+    // /{ClassName} (per-id paths DO NOT exist and 404), and every write
+    // is multipart form-data — POST expects initParamSets, PUT expects
+    // polariId + updateData, DELETE expects targetInstance. The
+    // previous REST-style per-id JSON variants here never worked
+    // against the real server (2026-07-11 API audit); the backend's
+    // tests/test_api_sweep.py pins the protocol server-side.
+
+    private classUrl(): string {
+        return `${this.polariService.getBackendBaseUrlForClass(this.className)}/${this.className}`;
+    }
+
     create(data: any): Observable<any> {
-        const url = `${this.polariService.getBackendBaseUrlForClass(this.className)}/${this.className}`;
-        // console.log(`[CRUDEclassService] CREATE ${this.className} url: ${url}`);
-        return this.http.post(url, data, this.polariService.backendRequestOptions);
+        const formData = new FormData();
+        formData.append('initParamSets', JSON.stringify([data]));
+        return this.http.post(this.classUrl(), formData);
       }
 
+      /** There is no per-id GET route — fetch the class table and
+       *  resolve the instance client-side (same data, one request). */
       read(id: string): Observable<any> {
-        const url = `${this.polariService.getBackendBaseUrlForClass(this.className)}/${this.className}/${id}`;
-        // console.log(`[CRUDEclassService] READ ${this.className}/${id} url: ${url}`);
-        return this.http.get(url, this.polariService.backendRequestOptions);
+        return this.readAll().pipe(
+          map((envelope: any) => {
+            const rows =
+              envelope?.[0]?.[this.className]?.[0]?.data ?? [];
+            return rows.find((row: any) => row?.id === id) ?? null;
+          })
+        );
       }
 
       readAll(): Observable<any> {
-        const url = `${this.polariService.getBackendBaseUrlForClass(this.className)}/${this.className}`;
-        // console.log(`[CRUDEclassService] READ_ALL ${this.className} url: ${url}`);
-        return this.http.get(url, this.polariService.backendRequestOptions);
+        return this.http.get(this.classUrl(), this.polariService.backendRequestOptions);
       }
 
       update(id: string, data: any): Observable<any> {
-        const url = `${this.polariService.getBackendBaseUrlForClass(this.className)}/${this.className}/${id}`;
-        // console.log(`[CRUDEclassService] UPDATE ${this.className}/${id} url: ${url}`);
-        return this.http.put(url, data, this.polariService.backendRequestOptions);
+        const formData = new FormData();
+        formData.append('polariId', id);
+        formData.append('updateData', JSON.stringify(data));
+        return this.http.put(this.classUrl(), formData);
       }
 
       delete(id: string): Observable<any> {
-        const url = `${this.polariService.getBackendBaseUrlForClass(this.className)}/${this.className}/${id}`;
-        // console.log(`[CRUDEclassService] DELETE ${this.className}/${id} url: ${url}`);
-        return this.http.delete(url, this.polariService.backendRequestOptions);
+        const formData = new FormData();
+        formData.append('targetInstance', JSON.stringify({ id }));
+        return this.http.request('DELETE', this.classUrl(), { body: formData });
       }
 
       /**
