@@ -14,7 +14,6 @@ import { HttpClient } from '@angular/common/http';
 import { Subject, firstValueFrom } from 'rxjs';
 
 import { RuntimeConfigService } from '@services/runtime-config.service';
-import { CRUDEservicesManager } from '@services/crude-services-manager';
 import {
   XrFramingValue, XrModeValue, XrResolution,
 } from '@models/xr/xr-types';
@@ -29,7 +28,6 @@ export class XrSettingsService {
   constructor(
     private http: HttpClient,
     private runtimeConfig: RuntimeConfigService,
-    private crudeManager: CRUDEservicesManager,
   ) {}
 
   /** Resolve one space's XR presentation, optionally through a
@@ -51,13 +49,19 @@ export class XrSettingsService {
 
   /** Set the INDIVIDUAL rung on one SimSpaceDefinition (the sidebar
    *  knob). 'unset' hands control back up the ladder. Callers
-   *  re-resolve() afterward — the server stays the source of truth. */
+   *  re-resolve() afterward — the server stays the source of truth.
+   *  Uses the CRUDE multipart update protocol (polariId + updateData
+   *  form fields PUT to /{ClassName} — the table/equation services'
+   *  proven idiom). */
   async setSpaceXr(definitionId: string, patch: {
     xr_mode?: XrModeValue; xr_framing?: XrFramingValue;
   }): Promise<void> {
-    const service =
-      this.crudeManager.getCRUDEclassService('SimSpaceDefinition');
-    await firstValueFrom(service.update(definitionId, patch));
+    const url =
+      `${this.runtimeConfig.getBackendBaseUrl()}/SimSpaceDefinition`;
+    const formData = new FormData();
+    formData.append('polariId', definitionId);
+    formData.append('updateData', JSON.stringify(patch));
+    await firstValueFrom(this.http.put(url, formData));
   }
 
   /** Announce a completed knob write so open resolutions refresh. */
