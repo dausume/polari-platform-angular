@@ -27,31 +27,31 @@ export class CRUDEclassService {
     }
 
     create(data: any): Observable<any> {
-        const url = `${this.polariService.getBackendBaseUrl()}/${this.className}`;
+        const url = `${this.polariService.getBackendBaseUrlForClass(this.className)}/${this.className}`;
         // console.log(`[CRUDEclassService] CREATE ${this.className} url: ${url}`);
         return this.http.post(url, data, this.polariService.backendRequestOptions);
       }
 
       read(id: string): Observable<any> {
-        const url = `${this.polariService.getBackendBaseUrl()}/${this.className}/${id}`;
+        const url = `${this.polariService.getBackendBaseUrlForClass(this.className)}/${this.className}/${id}`;
         // console.log(`[CRUDEclassService] READ ${this.className}/${id} url: ${url}`);
         return this.http.get(url, this.polariService.backendRequestOptions);
       }
 
       readAll(): Observable<any> {
-        const url = `${this.polariService.getBackendBaseUrl()}/${this.className}`;
+        const url = `${this.polariService.getBackendBaseUrlForClass(this.className)}/${this.className}`;
         // console.log(`[CRUDEclassService] READ_ALL ${this.className} url: ${url}`);
         return this.http.get(url, this.polariService.backendRequestOptions);
       }
 
       update(id: string, data: any): Observable<any> {
-        const url = `${this.polariService.getBackendBaseUrl()}/${this.className}/${id}`;
+        const url = `${this.polariService.getBackendBaseUrlForClass(this.className)}/${this.className}/${id}`;
         // console.log(`[CRUDEclassService] UPDATE ${this.className}/${id} url: ${url}`);
         return this.http.put(url, data, this.polariService.backendRequestOptions);
       }
 
       delete(id: string): Observable<any> {
-        const url = `${this.polariService.getBackendBaseUrl()}/${this.className}/${id}`;
+        const url = `${this.polariService.getBackendBaseUrlForClass(this.className)}/${this.className}/${id}`;
         // console.log(`[CRUDEclassService] DELETE ${this.className}/${id} url: ${url}`);
         return this.http.delete(url, this.polariService.backendRequestOptions);
       }

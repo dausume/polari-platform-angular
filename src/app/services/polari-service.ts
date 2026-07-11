@@ -18,6 +18,7 @@ import { classPolyTyping } from "@models/polyTyping/classPolyTyping";
 import { DataSetCollection } from "@models/objectData/dataSetCollection";
 import { CRUDEclassService } from "./crude-class-service";
 import { RuntimeConfigService } from "./runtime-config.service";
+import { ClassDirectoryService } from "./class-directory.service";
 import { environment } from "src/environments/environment-dev";
 
 @Injectable({
@@ -98,7 +99,8 @@ export class PolariService {
 
     constructor(
         private http: HttpClient,
-        private runtimeConfig: RuntimeConfigService
+        private runtimeConfig: RuntimeConfigService,
+        private classDirectory: ClassDirectoryService
     ) {
         // console.log("Starting PolariService with tiered configuration");
         this.http = http;
@@ -189,6 +191,18 @@ export class PolariService {
      */
     getBackendBaseUrl(): string {
         return this.runtimeConfig.getBackendBaseUrl();
+    }
+
+    /**
+     * modsplit-2: the backend base URL serving a PARTICULAR class.
+     * Core's /api/refs/directory says which backend owns each class's
+     * module; classes core doesn't route (or an unavailable
+     * directory) fall back to core — routing only ever redirects,
+     * never blocks.
+     */
+    getBackendBaseUrlForClass(className: string): string {
+        return this.classDirectory.baseUrlForClass(className)
+            || this.getBackendBaseUrl();
     }
 
     /**
