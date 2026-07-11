@@ -60,3 +60,82 @@ export interface XrInterfaceVariantRow {
   config_json: string;
   notes: string;
 }
+
+// ---------------------------------------------------------------------
+// xr-2: navigation — rig poses, knobs, and the variant config blob
+// ---------------------------------------------------------------------
+
+/** A saveable rig viewpoint. Yaw-only rotation by design: navigation
+ *  never tilts the horizon (nausea-safe), so a pose is fully described
+ *  by position + yaw + scale. */
+export interface XrRigPose {
+  position: [number, number, number];
+  yaw: number;
+  scale: number;
+}
+
+/** A named, persisted viewpoint (bookmarks live per mode in
+ *  XrInterfaceVariant.config_json). */
+export interface XrViewpointBookmark {
+  name: string;
+  pose: XrRigPose;
+}
+
+/** Navigation tuning — every one of these is a knob (Q8 defaults). */
+export interface XrNavKnobs {
+  /** ms a single grip must be held before the shift arms. */
+  shiftDebounceMs: number;
+  /** meters of hand travel ignored around the shift origin. */
+  deadZoneM: number;
+  /** shift response curve — linear to start, expo as the other value. */
+  responseCurve: 'linear' | 'expo';
+  /** drive gain: user-space m/s per meter of offset past the dead zone. */
+  speedGain: number;
+  /** comfort vignette during shifts/grabs — default ON. */
+  vignetteOnShift: boolean;
+  /** thumbstick/touchpad snap turn (seated use). */
+  snapTurn: boolean;
+  snapTurnDegrees: number;
+  /** which wrist carries the exit/reset UI ('left' assumes a
+   *  right-hand pointer — must be flippable). */
+  wristHandedness: 'left' | 'right';
+  /** soft zoom clamps, RELATIVE to the entry scale (10^±exponent). */
+  scaleRangeExponent: number;
+}
+
+export const XR_NAV_DEFAULTS: XrNavKnobs = {
+  shiftDebounceMs: 250,
+  deadZoneM: 0.05,
+  responseCurve: 'linear',
+  speedGain: 2.0,
+  vignetteOnShift: true,
+  snapTurn: true,
+  snapTurnDegrees: 30,
+  wristHandedness: 'left',
+  scaleRangeExponent: 3,
+};
+
+/** What the engine hands the (lazy-chunk) session runtime at
+ *  enter/switch: the resolved framing plus this space's variant
+ *  configuration. Plain data — the runtime stays the only three-side
+ *  code. */
+export interface XrEnterContext {
+  framing: Exclude<XrFramingValue, 'unset'>;
+  variantConfig: XrVariantConfig;
+  /** Fired when the runtime AUTO-DERIVES the entry scale (no
+   *  entry_scale in the variant yet) — the engine persists it so the
+   *  derived value becomes an editable knob. */
+  onDerivedEntryScale?: (scale: number) => void;
+}
+
+/** The parsed shape of XrInterfaceVariant.config_json for a 'vr'
+ *  variant (xr-2 keys; xr-3 adds panel placements alongside). */
+export interface XrVariantConfig {
+  /** Initial rig scale — auto-derived from the space extent × framing
+   *  on first entry, then editable (knob over magic). */
+  entry_scale?: number;
+  nav?: Partial<XrNavKnobs>;
+  bookmarks?: XrViewpointBookmark[];
+  /** xr-3+ keys ride along untouched. */
+  [key: string]: unknown;
+}

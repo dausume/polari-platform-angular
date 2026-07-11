@@ -174,6 +174,7 @@ import {
       [simulationDefinitionName]="simulationDefinitionName"
       [definition]="snapshot?.definition || null"
       [xrMultiscaleName]="xrMultiscaleName || null"
+      [xrEntryId]="xrEntryId"
       [overlayVisible]="overlayVisible"
       (overlayToggle)="onOverlayToggle($event)">
     </sim-space-editor-sidebar>

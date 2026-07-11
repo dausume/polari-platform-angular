@@ -2,17 +2,27 @@
  * @xr
  * @module services/sim-space-3d/xr/xr-session-runtime
  *
- * The three.js side of the XR engine (xr-1). This file is the ONLY
- * place XR touches three — it is reached exclusively via dynamic
- * import from XrEngineService, so it rides the sim-space-3d lazy
- * chunk and ZERO XR code loads until someone actually enters.
+ * The three.js side of the XR engine (xr-1 + xr-2). This module tree
+ * is the ONLY place XR touches three — reached exclusively via dynamic
+ * import from XrEngineService, so it rides the sim-space-3d lazy chunk
+ * and ZERO XR code loads until someone actually enters.
  *
- * Owns AT MOST ONE XR-capable WebGLRenderer + ONE XRSession
- * (a device allows one immersive session by construction). Binding a
- * registered scene = rendering that LIVE scene with a session-owned
- * camera rig; the flat viewer's renderer/camera/controls are never
- * mutated, so exit restores the flat view byte-identically — the only
- * scene mutation is the rig group, removed on exit/switch.
+ * Owns AT MOST ONE XR-capable WebGLRenderer + ONE XRSession. The
+ * session RIG (camera + controllers + hands + wrist UI + comfort
+ * visuals + mirror ghost) is created once per session and moved
+ * between scenes on switch; it is the only scene mutation, so exit
+ * restores the flat view byte-identically. xr-2 adds: input
+ * visualization (xr-input-rig), grip navigation (xr-navigation),
+ * comfort + evidence visuals (xr-nav-visuals), the ring-0 wrist seed
+ * (xr-wrist-ui), the desktop-mirror headset ghost (xr-mirror-ghost),
+ * and framing-aware scale-relative entry (xr-entry-placement).
+ *
+ * Exit is always reachable, three independent paths, ONE exit
+ * mechanism: the wrist EXIT button and the engine's exit() both call
+ * session.end(); the headset system button ends the session directly;
+ * every path funnels through the session 'end' event handler.
+ * Headset removal (visibilitychange ≠ visible) interrupts any live
+ * navigation gesture — a blurred session never keeps driving.
  *
  * Q5 (Dustin): DISPOSED on exit — resources freed between sessions,
  * re-entry pays the setup moment.
@@ -21,13 +31,25 @@
 import * as THREE from 'three';
 
 import type { XrSceneEntry } from '@services/xr/xr-scene-registry.service';
+import type {
+  XrEnterContext, XrRigPose,
+} from '@models/xr/xr-types';
+import { XR_NAV_DEFAULTS } from '@models/xr/xr-types';
+import {
+  deriveEntryScale, placeRigForFraming, sceneBoundingSphere,
+} from './xr-entry-placement';
+import { XrInputRig } from './xr-input-rig';
+import { XrNavigation } from './xr-navigation';
+import { XrNavVisuals } from './xr-nav-visuals';
+import { XrWristUi } from './xr-wrist-ui';
+import { XrMirrorGhost, XR_MIRROR_GHOST_LAYER } from './xr-mirror-ghost';
 
 export type XrRuntimeEndReason = 'exit' | 'device' | 'error';
 
 export interface XrRuntimeCallbacks {
   /** Fired exactly once when the session is gone (any path — our
-   *  exit(), the headset system button, device sleep). The runtime
-   *  has already cleaned up + disposed when this fires. */
+   *  exit(), the wrist button, the headset system button, device
+   *  sleep). The runtime has already cleaned up + disposed. */
   onEnded: (reason: XrRuntimeEndReason) => void;
 }
 
@@ -43,6 +65,17 @@ export class XrSessionRuntime {
   private endReason: XrRuntimeEndReason = 'device';
   private callbacks: XrRuntimeCallbacks;
 
+  // xr-2 members (all session-lifetime; wrist UI is per-bind because
+  // its handedness is a per-space knob).
+  private inputRig: XrInputRig | null = null;
+  private navigation: XrNavigation | null = null;
+  private visuals: XrNavVisuals | null = null;
+  private ghost: XrMirrorGhost | null = null;
+  private wristUi: XrWristUi | null = null;
+  private flatCameraRestore:
+    { camera: THREE.Camera; mask: number } | null = null;
+  private lastFrameTime: number | null = null;
+
   constructor(callbacks: XrRuntimeCallbacks) {
     this.callbacks = callbacks;
   }
@@ -55,7 +88,8 @@ export class XrSessionRuntime {
   /** Request the immersive session and bind the entry's live scene.
    *  Reference space: local-floor with fallback to local (headsets
    *  without floor tracking still enter, just seated-origin). */
-  async enter(entry: XrSceneEntry): Promise<void> {
+  async enter(entry: XrSceneEntry, context: XrEnterContext):
+      Promise<void> {
     if (this.session) {
       throw new Error('XR session already active — switch, don\'t re-enter.');
     }
@@ -74,7 +108,7 @@ export class XrSessionRuntime {
     let referenceSpace: 'local-floor' | 'local' = 'local-floor';
     try {
       session = await xr.requestSession('immersive-vr', {
-        optionalFeatures: ['local-floor'],
+        optionalFeatures: ['local-floor', 'hand-tracking'],
       });
     } catch (err) {
       this.disposeRenderer();
@@ -99,17 +133,21 @@ export class XrSessionRuntime {
     this.session = session;
     this.endReason = 'device';
     session.addEventListener('end', this.handleSessionEnd);
+    session.addEventListener('visibilitychange',
+      this.handleVisibilityChange);
 
-    this.bind(entry);
+    this.buildRig();
+    this.bind(entry, context);
     this.renderer.setAnimationLoop(this.renderFrame);
   }
 
   /** Swap the bound scene without ending the session — entering
-   *  another interface never means a second session. */
-  switchTo(entry: XrSceneEntry): void {
+   *  another interface never means a second session. The rig (and the
+   *  user's hands) ride along. */
+  switchTo(entry: XrSceneEntry, context: XrEnterContext): void {
     if (!this.session) throw new Error('No active XR session to switch.');
     this.unbind();
-    this.bind(entry);
+    this.bind(entry, context);
   }
 
   /** User-initiated exit — ends the session; cleanup runs in the
@@ -130,12 +168,42 @@ export class XrSessionRuntime {
   }
 
   // ------------------------------------------------------------------
+  // Navigation API (engine passthrough: wrist UI already wires these
+  // in-session; the engine exposes them to the flat UI + bookmarks)
+  // ------------------------------------------------------------------
+
+  resetView(): void { this.navigation?.resetView(); }
+  back(): boolean { return this.navigation?.back() ?? false; }
+  currentPose(): XrRigPose | null {
+    return this.navigation?.currentPose() ?? null;
+  }
+  jumpTo(pose: XrRigPose): void { this.navigation?.jumpTo(pose); }
+
+  // ------------------------------------------------------------------
   // Internals
   // ------------------------------------------------------------------
 
-  private renderFrame = (): void => {
+  private renderFrame = (time: number): void => {
     if (!this.renderer || !this.boundScene || !this.camera) return;
+    const dt = this.lastFrameTime === null
+      ? 0
+      : Math.min((time - this.lastFrameTime) / 1000, 0.1);
+    this.lastFrameTime = time;
     try {
+      const navigation = this.navigation;
+      if (navigation) {
+        navigation.update(dt);
+        this.wristUi?.update(navigation.zoomFactor());
+        this.visuals?.update(dt, {
+          vignetteActive: navigation.vignetteActive(),
+          shiftArmed: navigation.isShiftArmed(),
+          shiftOrigin: navigation.isShiftArmed()
+            ? navigation.shiftOrigin() : null,
+          shiftHand: navigation.shiftHand(),
+          limitHit: navigation.consumeLimitHit(),
+        });
+      }
+      this.ghost?.update();
       this.renderer.render(this.boundScene, this.camera);
     } catch (e) {
       // Never let one bad frame kill the session loop.
@@ -143,25 +211,73 @@ export class XrSessionRuntime {
     }
   };
 
-  private bind(entry: XrSceneEntry): void {
+  /** Session-lifetime rig: camera + input + visuals + ghost. three's
+   *  WebXRManager overwrites the camera pose from the headset every
+   *  frame IN REFERENCE SPACE, so the rig carries the world placement
+   *  and scale — the flat viewer's camera is never touched. */
+  private buildRig(): void {
+    this.camera = new THREE.PerspectiveCamera(60, 1, 0.05, 1000);
+    this.rig = new THREE.Group();
+    this.rig.name = RIG_NAME;
+    this.rig.add(this.camera);
+    this.inputRig = new XrInputRig(this.renderer!, this.rig);
+    this.visuals = new XrNavVisuals(this.rig, this.camera);
+    this.ghost = new XrMirrorGhost(this.rig, this.camera);
+    this.navigation = new XrNavigation(this.rig, this.inputRig,
+      () => !(this.wristUi?.uiEngaged() ?? false));
+  }
+
+  private bind(entry: XrSceneEntry, context: XrEnterContext): void {
     const handle = entry.getHandle();
     if (!handle) {
       throw new Error(
         `XR scene "${entry.label}" is not ready (renderer re-mounting).`);
     }
     const scene = handle.scene as THREE.Scene;
+    const rig = this.rig!;
+    const navigation = this.navigation!;
 
-    // Session-owned camera in a rig group. three's WebXRManager
-    // overwrites the camera pose from the headset every frame, so the
-    // rig carries the world-placement (and later, xr-2's scale) —
-    // the flat viewer's camera is never touched.
-    this.camera = new THREE.PerspectiveCamera(60, 1, 0.05, 1000);
-    this.rig = new THREE.Group();
-    this.rig.name = RIG_NAME;
-    this.rig.add(this.camera);
-    this.placeRig(scene, handle.camera as THREE.Camera | null);
-    scene.add(this.rig);
+    // Space extent BEFORE the rig (and its controller models) joins.
+    const sphere = sceneBoundingSphere(scene);
 
+    // Scale-relative entry: the variant's entry_scale wins; otherwise
+    // derive from extent × framing and report it up for persistence
+    // (knob over magic — the derived value becomes editable data).
+    let entryScale = context.variantConfig.entry_scale;
+    if (!(typeof entryScale === 'number' && entryScale > 0)) {
+      entryScale = deriveEntryScale(sphere.radius, context.framing);
+      context.onDerivedEntryScale?.(entryScale);
+    }
+    const placement = placeRigForFraming(
+      sphere.center, entryScale, context.framing);
+    rig.position.copy(placement.position);
+    rig.quaternion.identity();
+    rig.scale.setScalar(placement.scale);
+
+    navigation.knobs = {
+      ...XR_NAV_DEFAULTS, ...(context.variantConfig.nav ?? {}),
+    };
+    navigation.setHome(sphere.center, sphere.radius);
+
+    // Wrist UI is per-bind: its handedness is a per-space knob.
+    this.wristUi = new XrWristUi(
+      this.inputRig!, this.camera!, navigation.knobs.wristHandedness, {
+        exit: () => { void this.exit(); },
+        resetView: () => navigation.resetView(),
+        back: () => navigation.back(),
+      });
+
+    // The mirror ghost renders on a dedicated layer only the FLAT
+    // camera gets — the wearer never sees their own headset. The
+    // exact mask is restored on unbind (byte-identical exit).
+    const flatCamera = handle.camera as THREE.Camera | null;
+    if (flatCamera) {
+      this.flatCameraRestore =
+        { camera: flatCamera, mask: flatCamera.layers.mask };
+      flatCamera.layers.enable(XR_MIRROR_GHOST_LAYER);
+    }
+
+    scene.add(rig);
     this.boundScene = scene;
     this.boundEntryId = entry.id;
   }
@@ -169,46 +285,53 @@ export class XrSessionRuntime {
   /** Remove every trace of the session from the bound scene — the
    *  byte-identical-exit guarantee is exactly this. */
   private unbind(): void {
-    if (this.rig) {
-      this.rig.parent?.remove(this.rig);
-      this.rig = null;
+    if (this.wristUi) {
+      this.wristUi.dispose();
+      this.wristUi = null;
     }
-    this.camera = null;
+    if (this.flatCameraRestore) {
+      this.flatCameraRestore.camera.layers.mask =
+        this.flatCameraRestore.mask;
+      this.flatCameraRestore = null;
+    }
+    if (this.rig) this.rig.parent?.remove(this.rig);
     this.boundScene = null;
     this.boundEntryId = null;
   }
 
-  /** Initial rig placement: stand at the flat camera's position when
-   *  it has one (the view you were just looking at), else back off
-   *  the scene's bounding sphere. Framing-aware entry scale is xr-2
-   *  (scale-relative everything); xr-1 places, never scales. */
-  private placeRig(scene: THREE.Scene, flatCamera: THREE.Camera | null): void {
-    if (!this.rig) return;
-    if (flatCamera) {
-      this.rig.position.copy(
-        (flatCamera as THREE.PerspectiveCamera).position);
-      return;
+  private handleVisibilityChange = (): void => {
+    // Headset removal / system overlay: interrupt any live gesture.
+    // Frames stop arriving on their own; what must never happen is a
+    // gesture resuming with stale state when frames return.
+    if (this.session && this.session.visibilityState !== 'visible') {
+      this.navigation?.interrupt();
     }
-    const bounds = new THREE.Box3().setFromObject(scene);
-    if (bounds.isEmpty()) {
-      this.rig.position.set(0, 1.6, 3);
-      return;
-    }
-    const sphere = bounds.getBoundingSphere(new THREE.Sphere());
-    this.rig.position.set(
-      sphere.center.x,
-      sphere.center.y,
-      sphere.center.z + Math.max(sphere.radius * 1.5, 2));
-  }
+  };
 
   private handleSessionEnd = (): void => {
     const reason = this.endReason;
     this.session?.removeEventListener('end', this.handleSessionEnd);
+    this.session?.removeEventListener('visibilitychange',
+      this.handleVisibilityChange);
     this.session = null;
     this.unbind();
+    this.disposeRig();
     this.disposeRenderer();
     this.callbacks.onEnded(reason);
   };
+
+  private disposeRig(): void {
+    this.visuals?.dispose();
+    this.visuals = null;
+    this.ghost?.dispose();
+    this.ghost = null;
+    this.inputRig?.dispose();
+    this.inputRig = null;
+    this.navigation = null;
+    this.camera = null;
+    this.rig = null;
+    this.lastFrameTime = null;
+  }
 
   private disposeRenderer(): void {
     if (!this.renderer) return;

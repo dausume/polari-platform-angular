@@ -51,6 +51,7 @@ import {
   SimSpaceDefinitionPayload,
 } from '@models/sim-space/sim-space-types';
 import { SimSpaceXrSectionComponent } from './sim-space-xr-section.component';
+import { SimSpaceXrNavSectionComponent } from './sim-space-xr-nav-section.component';
 
 /** The on-canvas overlays managed from the sidebar's View toggles. */
 export type OverlayKey = 'axes' | 'legend' | 'evaluations';
@@ -68,6 +69,7 @@ export interface OverlayVisibility {
     MatTooltipModule, MatProgressSpinnerModule,
     MatFormFieldModule, MatSelectModule, MatInputModule,
     SimSpaceXrSectionComponent,
+    SimSpaceXrNavSectionComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -346,6 +348,12 @@ export interface OverlayVisibility {
               [spaceName]="definition?.name"
               [multiscaleName]="xrMultiscaleName ?? undefined">
             </sim-space-xr-section>
+            <!-- xr-2: navigation knobs + viewpoint bookmarks (the
+                 space's 'vr' XrInterfaceVariant). -->
+            <sim-space-xr-nav-section
+              [spaceName]="definition?.name"
+              [entryId]="xrEntryId ?? undefined">
+            </sim-space-xr-nav-section>
           </div>
         </section>
 
@@ -594,6 +602,11 @@ export class SimSpaceEditorSidebarComponent implements OnChanges {
   /** Multiscale context for the XR section's cascade resolution —
    *  forwarded from the viewer's xrMultiscaleName input. */
   @Input() xrMultiscaleName: string | null = null;
+
+  /** The viewer's XR scene-registry entry id (xr-2) — the nav section
+   *  gates its live actions (reset/back/bookmark-save) on the session
+   *  being bound to THIS viewer. */
+  @Input() xrEntryId: string | null = null;
   /** Which on-canvas overlays are showing — owned by the viewer; the
    *  sidebar is just their switchboard (the overlays crowd the canvas
    *  at embed sizes, so they live here and appear only when enabled). */

@@ -190,6 +190,7 @@ export class SimSpaceXrButtonComponent
       await this.engine.exit();
       return;
     }
-    await this.engine.enter(this.entryId);
+    await this.engine.enter(this.entryId,
+      { multiscaleName: this.multiscaleName });
   }
 }

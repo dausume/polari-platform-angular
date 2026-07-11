@@ -17,6 +17,7 @@
     },
     "outDir": "./dist/out-tsc",
     "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
     "strict": true,
     "noImplicitAny": false,
     "noImplicitReturns": true,

@@ -15,6 +15,8 @@ import * as THREE from 'three';
 import { XrEngineService } from './xr-engine.service';
 import { XrSceneRegistryService } from './xr-scene-registry.service';
 import { XrCapabilityService } from './xr-capability.service';
+import { XrSettingsService } from './xr-settings.service';
+import { XrVariantService } from './xr-variant.service';
 
 /** WebGL is required for the session tests (three's XR binding needs
  *  a real context). Headless Chrome ships SwiftShader so this should
@@ -40,7 +42,26 @@ describe('XrEngineService (iwer)', () => {
   });
 
   function services() {
-    TestBed.configureTestingModule({});
+    // The engine resolves framing + variant config on enter (xr-2);
+    // stub both at their honest-degradation defaults — no backend in
+    // karma, entry proceeds on 'exhibit' + {}.
+    TestBed.configureTestingModule({
+      providers: [
+        {
+          provide: XrSettingsService,
+          useValue: {
+            resolve: () => Promise.reject(new Error('no backend')),
+          },
+        },
+        {
+          provide: XrVariantService,
+          useValue: {
+            getConfig: () => Promise.resolve({}),
+            mergeConfig: () => Promise.resolve({}),
+          },
+        },
+      ],
+    });
     return {
       engine: TestBed.inject(XrEngineService),
       registry: TestBed.inject(XrSceneRegistryService),
