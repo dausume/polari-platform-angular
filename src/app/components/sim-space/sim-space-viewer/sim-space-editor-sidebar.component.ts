@@ -50,6 +50,7 @@ import {
 import {
   SimSpaceDefinitionPayload,
 } from '@models/sim-space/sim-space-types';
+import { SimSpaceXrSectionComponent } from './sim-space-xr-section.component';
 
 /** The on-canvas overlays managed from the sidebar's View toggles. */
 export type OverlayKey = 'axes' | 'legend' | 'evaluations';
@@ -66,6 +67,7 @@ export interface OverlayVisibility {
     CommonModule, FormsModule, MatIconModule, MatButtonModule,
     MatTooltipModule, MatProgressSpinnerModule,
     MatFormFieldModule, MatSelectModule, MatInputModule,
+    SimSpaceXrSectionComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -87,6 +89,10 @@ export interface OverlayVisibility {
         <button mat-icon-button matTooltip="Axis labels"
                 (click)="openSection('axes')">
           <mat-icon>straighten</mat-icon>
+        </button>
+        <button mat-icon-button matTooltip="XR"
+                (click)="openSection('xr')">
+          <mat-icon>view_in_ar</mat-icon>
         </button>
         <button mat-icon-button matTooltip="Scene info"
                 (click)="openSection('info')">
@@ -320,6 +326,26 @@ export interface OverlayVisibility {
                 <dd>{{ axisLabelDescription(axis) }}</dd>
               </ng-container>
             </dl>
+          </div>
+        </section>
+
+        <!-- XR (xr-1) — resolved mode/framing + provenance, and the
+             per-space override knobs. The "why is there no VR button"
+             answer lives here. -->
+        <section class="section" [class.open]="openSectionName === 'xr'">
+          <button class="section-header" (click)="toggleSection('xr')">
+            <mat-icon>view_in_ar</mat-icon>
+            <span class="section-title">XR</span>
+            <mat-icon class="section-chevron">
+              {{ openSectionName === 'xr' ? 'expand_less' : 'expand_more' }}
+            </mat-icon>
+          </button>
+          <div class="section-body" *ngIf="openSectionName === 'xr'">
+            <sim-space-xr-section
+              [definitionId]="definition?.id"
+              [spaceName]="definition?.name"
+              [multiscaleName]="xrMultiscaleName ?? undefined">
+            </sim-space-xr-section>
           </div>
         </section>
 
@@ -565,6 +591,9 @@ export class SimSpaceEditorSidebarComponent implements OnChanges {
   /** The current scene definition — drives the Scene info + Axis labels
    *  read-only views. */
   @Input() definition: SimSpaceDefinitionPayload | null = null;
+  /** Multiscale context for the XR section's cascade resolution —
+   *  forwarded from the viewer's xrMultiscaleName input. */
+  @Input() xrMultiscaleName: string | null = null;
   /** Which on-canvas overlays are showing — owned by the viewer; the
    *  sidebar is just their switchboard (the overlays crowd the canvas
    *  at embed sizes, so they live here and appear only when enabled). */
@@ -583,7 +612,8 @@ export class SimSpaceEditorSidebarComponent implements OnChanges {
    *  what triggers the ResizeObserver in the viewer to reflow the d3
    *  / three.js render area. */
   @HostBinding('class.expanded') expanded = false;
-  openSectionName: 'solutions' | 'axes' | 'info' | 'view' | null = 'solutions';
+  openSectionName: 'solutions' | 'axes' | 'info' | 'view' | 'xr' | null =
+    'solutions';
   solutions: SimulationExecutionSolutionEntry[] = [];
   availableSolutions: Array<{ name: string; targetRuntime: string }> = [];
   simStateClasses: string[] = [];
@@ -612,7 +642,7 @@ export class SimSpaceEditorSidebarComponent implements OnChanges {
     }
   }
 
-  openSection(name: 'solutions' | 'axes' | 'info' | 'view'): void {
+  openSection(name: 'solutions' | 'axes' | 'info' | 'view' | 'xr'): void {
     this.openSectionName = name;
     if (!this.expanded) {
       this.expanded = true;
@@ -621,7 +651,7 @@ export class SimSpaceEditorSidebarComponent implements OnChanges {
     }
   }
 
-  toggleSection(name: 'solutions' | 'axes' | 'info' | 'view'): void {
+  toggleSection(name: 'solutions' | 'axes' | 'info' | 'view' | 'xr'): void {
     this.openSectionName = this.openSectionName === name ? null : name;
   }
 

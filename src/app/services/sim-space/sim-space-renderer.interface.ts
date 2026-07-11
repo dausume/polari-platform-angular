@@ -169,6 +169,18 @@ export interface SimSpaceRenderer {
   getObjectScreenRect?(id: string):
       { x: number; y: number; width: number; height: number } | null;
 
+  /**
+   * Opaque handle to the renderer's LIVE scene + camera for the XR
+   * engine's scene registry (xr-1). Types are `unknown` ON PURPOSE —
+   * this interface stays library-agnostic; only the dynamically
+   * imported XR session runtime (sim-space-3d/xr/) casts them back.
+   * Optional: 2D renderers have nothing XR-bindable and omit it;
+   * consumers treat absence/null as "not enterable". The camera is a
+   * pose SEED only — the XR session builds its own rig and never
+   * mutates the flat camera.
+   */
+  getXrSceneHandle?(): { scene: unknown; camera: unknown } | null;
+
   // -------------------------------------------------------------------
   // Event subscriptions — simple callback registration, not Observables.
   // Keeps the interface library-agnostic (no rxjs dep on shared layer).

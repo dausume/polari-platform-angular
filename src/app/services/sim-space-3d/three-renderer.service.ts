@@ -533,6 +533,13 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
     if (this.definition) this.loadDefinition(this.definition);
   }
 
+  /** Live scene handle for the XR registry (xr-1). Null until
+   *  attach() — the viewer registers after the renderer is live. */
+  getXrSceneHandle(): { scene: unknown; camera: unknown } | null {
+    if (!this.scene || !this.camera) return null;
+    return { scene: this.scene, camera: this.camera };
+  }
+
   // -------------------------------------------------------------------
   // Overlays
   // -------------------------------------------------------------------

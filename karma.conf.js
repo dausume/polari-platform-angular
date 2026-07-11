@@ -62,7 +62,11 @@ module.exports = function (config) {
           '--disable-gpu',
           '--no-sandbox',
           '--disable-dev-shm-usage',
-          '--disable-software-rasterizer',
+          // Software WebGL (SwiftShader) stays ON — the XR engine
+          // specs bind real three.js scenes into emulated sessions
+          // (xr-1); Chrome 128+ additionally requires the explicit
+          // unsafe-swiftshader opt-in for software GL.
+          '--enable-unsafe-swiftshader',
           '--disable-extensions',
           '--remote-debugging-port=9222'
         ]

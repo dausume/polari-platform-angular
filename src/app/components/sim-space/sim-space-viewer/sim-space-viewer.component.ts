@@ -58,6 +58,9 @@ import {
   OverlayVisibility,
   SimSpaceEditorSidebarComponent,
 } from './sim-space-editor-sidebar.component';
+import { SimSpaceXrButtonComponent } from './sim-space-xr-button.component';
+import { XrSceneRegistryService } from '@services/xr/xr-scene-registry.service';
+import { XrEngineService } from '@services/xr/xr-engine.service';
 import {
   SimSpaceEvaluationSnapshot,
   SimSpaceEvaluationStep,
@@ -75,6 +78,7 @@ import {
     SimSpaceEvaluationSelectorComponent,
     SimSpaceSimulationRunPanelComponent,
     SimSpaceEditorSidebarComponent,
+    SimSpaceXrButtonComponent,
   ],
   template: `
     <div class="viewer-shell">
@@ -152,6 +156,14 @@ import {
         (toggle)="onEvaluationToggle($event)">
       </sim-space-evaluation-selector>
     </div>
+    <!-- Enter-XR (xr-1) — only rendered once the 3D renderer has
+         registered its live scene; the button component applies the
+         resolved-mode × capability honesty matrix internally. -->
+    <sim-space-xr-button *ngIf="xrEntryId"
+      [spaceName]="simSpaceName"
+      [multiscaleName]="xrMultiscaleName"
+      [entryId]="xrEntryId">
+    </sim-space-xr-button>
     </div><!-- /.canvas-region -->
 
     <!-- Right-side editor sidebar — push pattern (resizes the canvas
@@ -161,6 +173,7 @@ import {
     <sim-space-editor-sidebar
       [simulationDefinitionName]="simulationDefinitionName"
       [definition]="snapshot?.definition || null"
+      [xrMultiscaleName]="xrMultiscaleName || null"
       [overlayVisible]="overlayVisible"
       (overlayToggle)="onOverlayToggle($event)">
     </sim-space-editor-sidebar>
@@ -273,6 +286,16 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
    *  (e.g. the Multi-Scale Simulation Page, which owns its own run
    *  controls) don't want a second set of play buttons. */
   @Input() hideRunPanel = false;
+  /** Multiscale context for the XR cascade (xr-1): the msim page
+   *  passes its definition name so this space's XR resolution honors
+   *  the msim-level xr_mode/xr_framing rung. Standalone viewers leave
+   *  it unset — that rung then reads as unset. */
+  @Input() xrMultiscaleName?: string;
+
+  /** This viewer's XR scene-registry entry id — set once a 3D
+   *  renderer is attached and its live scene registered; null for 2D
+   *  (nothing XR-bindable). Drives the Enter-XR button's presence. */
+  xrEntryId: string | null = null;
 
   /** Fired on every canvas click with the picked object id (null =
    *  empty space) — selection hosts (sim-space-selector) consume this;
@@ -436,7 +459,9 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
     private meshes3D: Mesh3DLibraryService,
     private materials3D: Material3DLibraryService,
     private textures3D: Texture3DLibraryService,
-    private router: Router
+    private router: Router,
+    private xrRegistry: XrSceneRegistryService,
+    private xrEngine: XrEngineService
   ) {}
 
   async ngAfterViewInit(): Promise<void> {
@@ -521,6 +546,7 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
       clearTimeout(this.evalDebounceTimer);
       this.evalDebounceTimer = null;
     }
+    this.unregisterXrScene();
     this.resizeObserver?.disconnect();
     this.renderer?.destroy();
     this.renderer = null;
@@ -579,6 +605,7 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
         r.attach(this.hostRef.nativeElement);
         this.renderer = r;
         this.wireRendererEvents();
+        this.registerXrScene(r);
         return r;
       })();
     }
@@ -898,6 +925,29 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
   /** The canvas host element — overlay anchors need its viewport rect. */
   getViewerHost(): HTMLElement {
     return this.hostRef.nativeElement;
+  }
+
+  /** Register this viewer's live 3D scene with the XR registry
+   *  (xr-1) — the ~5-line addition the plan promised. 2D renderers
+   *  (no getXrSceneHandle) simply never register. */
+  private registerXrScene(renderer: SimSpaceRenderer): void {
+    if (!renderer.getXrSceneHandle || !this.simSpaceName) return;
+    this.xrEntryId = this.xrRegistry.register({
+      label: this.simSpaceName,
+      spaceName: this.simSpaceName,
+      getHandle: () => renderer.getXrSceneHandle?.() ?? null,
+    });
+  }
+
+  /** Unregister on teardown; if OUR scene is the one bound into the
+   *  live XR session, the engine exits first (never renders a
+   *  torn-down scene). */
+  private unregisterXrScene(): void {
+    if (!this.xrEntryId) return;
+    const id = this.xrEntryId;
+    this.xrEntryId = null;
+    void this.xrEngine.onEntryUnregistering(id)
+      .finally(() => this.xrRegistry.unregister(id));
   }
 
   private wireRendererEvents(): void {
