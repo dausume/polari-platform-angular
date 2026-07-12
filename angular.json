@@ -45,6 +45,7 @@
               "src/styles/_typography-patterns.css",
               "src/styles/_form-patterns.css",
               "src/styles/_state-overlay-patterns.css",
+              "src/styles/_xr-panel-context.css",
               "src/styles.css"
             ],
             "scripts": [],
@@ -131,6 +132,7 @@
               "src/styles/_typography-patterns.css",
               "src/styles/_form-patterns.css",
               "src/styles/_state-overlay-patterns.css",
+              "src/styles/_xr-panel-context.css",
               "src/styles.css"
             ],
             "scripts": []

@@ -1,0 +1,42 @@
+/*
+ * .xr-panel-context — the XR page-panel constraint lift (xr-3-min).
+ *
+ * Components mounted under this class are rasterized onto floating
+ * XR quads (HTMLMesh) where display space is infinite: the flat
+ * webview's cramping rules (max-heights, scroll containers) stop
+ * making sense — a tall panel is simply tall. This is the CSS half of
+ * the two-level context (WEBXR_PLAN.md); deliberate structural
+ * changes go through the XR_PANEL_CONTEXT DI token instead.
+ *
+ * !important is the point here: these override component-scoped
+ * styles, which otherwise win the cascade against global sheets.
+ * Scroll containers become fully expanded — the HTMLMesh rasterizer
+ * can only draw what is laid out.
+ */
+
+.xr-panel-context .run-panel {
+  max-width: none !important;
+  box-shadow: none !important;
+}
+
+.xr-panel-context .run-body {
+  overflow-y: visible !important;
+  overflow-x: visible !important;
+}
+
+.xr-panel-context .editor {
+  max-height: none !important;
+  overflow-y: visible !important;
+}
+
+/* Rasterized text is texture pixels — a slightly larger base wins
+ * legibility at panel viewing distance. */
+.xr-panel-context {
+  font-size: 15px;
+}
+
+/* Spinner animations mutate no DOM attributes HTMLMesh observes and
+ * mid-frame captures look broken on the quad — show a static ring. */
+.xr-panel-context mat-progress-spinner circle {
+  animation: none !important;
+}

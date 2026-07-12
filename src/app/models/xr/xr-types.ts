@@ -119,7 +119,7 @@ export interface XrNavKnobs {
  *  HELP panel — bumped on every XR deploy so a headset running a
  *  CACHED/RESUMED old app is identifiable at a glance (a resumed
  *  Wolvic tab never reloads; it burned a whole debugging cycle). */
-export const XR_BUILD_TAG = 'nav-8 visuals';
+export const XR_BUILD_TAG = 'xr3min panels';
 
 export const XR_NAV_DEFAULTS: XrNavKnobs = {
   shiftDebounceMs: 250,
@@ -138,6 +138,10 @@ export const XR_NAV_DEFAULTS: XrNavKnobs = {
   scaleRangeExponent: 1.5,
 };
 
+import type {
+  XrPanelPlacement, XrSurfaceProvider,
+} from './xr-surface-model';
+
 /** What the engine hands the (lazy-chunk) session runtime at
  *  enter/switch: the resolved framing plus this space's variant
  *  configuration. Plain data — the runtime stays the only three-side
@@ -149,16 +153,31 @@ export interface XrEnterContext {
    *  entry_scale in the variant yet) — the engine persists it so the
    *  derived value becomes an editable knob. */
   onDerivedEntryScale?: (scale: number) => void;
+  /** The live panel/scrub surfaces of the page hosting this space
+   *  (xr-3-min) — null when the host registered none: ring 1 then
+   *  simply doesn't grow. */
+  surfaces?: XrSurfaceProvider | null;
+  /** Merge keys into this space's 'vr' variant config (panel
+   *  placements on drop, measured re-raster cost). Best-effort —
+   *  persistence failures never break a session. */
+  persistPatch?: (patch: Partial<XrVariantConfig>) => void;
 }
 
 /** The parsed shape of XrInterfaceVariant.config_json for a 'vr'
- *  variant (xr-2 keys; xr-3 adds panel placements alongside). */
+ *  variant (xr-2 keys + xr-3-min panel keys). */
 export interface XrVariantConfig {
   /** Initial rig scale — auto-derived from the space extent × framing
    *  on first entry, then editable (knob over magic). */
   entry_scale?: number;
   nav?: Partial<XrNavKnobs>;
   bookmarks?: XrViewpointBookmark[];
-  /** xr-3+ keys ride along untouched. */
+  /** xr-3-min: world-space quad placements keyed by content ref
+   *  ('panel:run' / 'panel:conditions' / 'scrub-rail') — persisted on
+   *  drop, restored on spawn, survive exit/re-enter. */
+  panel_placements?: Record<string, XrPanelPlacement>;
+  /** xr-3-min: measured HTMLMesh rasterization cost per panel id, ms
+   *  (the res-3 idiom: the canvas-fallback knob's evidence). */
+  panel_raster_ms?: Record<string, number>;
+  /** later xr-3 keys ride along untouched. */
   [key: string]: unknown;
 }

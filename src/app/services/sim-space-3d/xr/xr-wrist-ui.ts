@@ -8,8 +8,12 @@
  * view; "Home" implied a home page, i.e. exiting) and HELP (how to
  * move/zoom) — plus the HUD panel: position and distance from the
  * sim center in SIM RADII, current zoom, and the live drive rate in
- * R/s while moving — the reference that keeps movement legible. xr-3 grows this anchor into the full tiered radial-menu
- * system; the exit item stays pinned on ring 0 by contract.
+ * R/s while moving — the reference that keeps movement legible.
+ *
+ * xr-3-min grows RING 1 from this anchor: the XrSurfaceModel seed
+ * items (RUN / CONDITIONS / SCRUB), each toggling a spawnable content
+ * quad, lit while its quad is open. Full xr-3 adds tiering/pagination;
+ * the exit item stays pinned on ring 0 by contract.
  *
  * Interaction: point the OTHER controller's ray at a button and pull
  * the TRIGGER (triggers select; grips never click). While the ray
@@ -29,13 +33,34 @@ export interface XrWristActions {
   help: () => void;
 }
 
+/** A ring-1 surface item (xr-3-min): grown from the XrSurfaceModel
+ *  seed rows — each toggles a spawnable content quad. Ring 0
+ *  (EXIT/RE-CENTER/HELP) stays pinned by contract. */
+export interface XrWristRing1Item {
+  id: string;
+  label: string;
+  onSelect: () => void;
+  /** Toggled quad currently open — the button renders lit. */
+  isActive: () => boolean;
+}
+
 interface WristButton {
   mesh: THREE.Mesh;
-  action: keyof XrWristActions;
+  onSelect: () => void;
+  /** Ring-1 buttons carry both texture states; ring 0 has neither. */
+  isActive?: () => boolean;
+  normalMap?: THREE.CanvasTexture;
+  activeMap?: THREE.CanvasTexture;
+  lastActive?: boolean;
 }
 
 const HOVER_SCALE = 1.18;
 const RAY_REACH_M = 1.5;
+/** Ring-1 fan: radius from the wrist anchor + degrees between slots.
+ *  Content-adaptive capacity is legibility-bound (Q6) — three items
+ *  is well under the 6-8 cap. */
+const RING1_RADIUS = 0.175;
+const RING1_STEP_DEG = 42;
 
 import { XR_BUILD_TAG } from '@models/xr/xr-types';
 
@@ -88,16 +113,18 @@ export class XrWristUi {
     private camera: THREE.Camera,
     private wristHandedness: XrHandedness,
     actions: XrWristActions,
+    ring1: XrWristRing1Item[] = [],
   ) {
     this.group.name = 'xr-wrist-ui';
     this.buttons = [
-      this.buildButton('EXIT', '#c62828', 'exit',
+      this.buildButton('EXIT', '#c62828', actions.exit,
         new THREE.Vector3(-0.055, 0.08, 0), 30),
-      this.buildButton('RE-CENTER', '#159588', 'resetView',
+      this.buildButton('RE-CENTER', '#159588', actions.resetView,
         new THREE.Vector3(0, 0.098, 0), 19),
-      this.buildButton('HELP', '#455a64', 'help',
+      this.buildButton('HELP', '#455a64', actions.help,
         new THREE.Vector3(0.055, 0.08, 0), 30),
     ];
+    this.buildRing1(ring1);
 
     this.hudCanvas = document.createElement('canvas');
     this.hudCanvas.width = 440;
@@ -108,9 +135,9 @@ export class XrWristUi {
       map: this.hudTexture, transparent: true, depthTest: false,
     });
     this.hudPlane = new THREE.Mesh(hudGeometry, hudMaterial);
-    // Above the button ring (buttons top out ~0.12) — the data
+    // Above BOTH button rings (ring 1 tops out ~0.20) — the data
     // display overlapping the menu made both hard to use (Dustin).
-    this.hudPlane.position.set(0, 0.185, 0);
+    this.hudPlane.position.set(0, 0.27, 0);
     this.hudPlane.renderOrder = 9991;
     this.group.add(this.hudPlane);
     this.disposables.push(hudGeometry, hudMaterial, this.hudTexture);
@@ -123,12 +150,40 @@ export class XrWristUi {
       const fn = () => {
         if (this.hovered
             && c.handedness !== this.wristHandedness) {
-          actions[this.hovered.action]();
+          this.hovered.onSelect();
         }
       };
       c.ray.addEventListener('selectstart', fn);
       this.selectListeners.push({ target: c.ray, fn });
     }
+  }
+
+  /** Ring 1 (xr-3-min): the surface-model items fanned above ring 0.
+   *  Each button carries a normal + active texture; update() keeps the
+   *  lit state honest against the live isActive answer. */
+  private buildRing1(items: XrWristRing1Item[]): void {
+    const startDeg = -RING1_STEP_DEG * (items.length - 1) / 2;
+    items.forEach((item, index) => {
+      const angle = THREE.MathUtils.degToRad(
+        startDeg + index * RING1_STEP_DEG);
+      const position = new THREE.Vector3(
+        Math.sin(angle) * RING1_RADIUS,
+        Math.cos(angle) * RING1_RADIUS, 0);
+      const fontPx = item.label.length > 6 ? 15
+        : item.label.length > 4 ? 22 : 28;
+      const button = this.buildButton(
+        item.label, '#2a4a68', item.onSelect, position, fontPx, 0.026);
+      button.isActive = item.isActive;
+      button.normalMap =
+        (button.mesh.material as THREE.MeshBasicMaterial)
+          .map as THREE.CanvasTexture;
+      button.activeMap = this.buildButtonTexture(
+        item.label, '#1976d2', fontPx, '#8fd3ce');
+      button.lastActive = false;
+      this.disposables.push(button.activeMap);
+      button.mesh.name = `xr-wrist-item-${item.id}`;
+      this.buttons.push(button);
+    });
   }
 
   /** True while the pointer ray engages the cluster — world gestures
@@ -155,8 +210,25 @@ export class XrWristUi {
       this.group.lookAt(cameraWorld);
     }
     this.updateHover();
+    this.updateActiveStates();
     const key = this.hudKey(hud);
     if (key !== this.lastHudKey) this.drawHud(hud, key);
+  }
+
+  /** Keep ring-1 lit states honest against the live quads (a panel
+   *  dismissed via its ✕ un-lights the ring item too). */
+  private updateActiveStates(): void {
+    for (const button of this.buttons) {
+      if (!button.isActive || !button.normalMap || !button.activeMap) {
+        continue;
+      }
+      const active = button.isActive();
+      if (active === button.lastActive) continue;
+      button.lastActive = active;
+      const material = button.mesh.material as THREE.MeshBasicMaterial;
+      material.map = active ? button.activeMap : button.normalMap;
+      material.needsUpdate = true;
+    }
   }
 
   dispose(): void {
@@ -220,8 +292,25 @@ export class XrWristUi {
   }
 
   private buildButton(label: string, background: string,
-      action: keyof XrWristActions,
-      position: THREE.Vector3, fontPx: number): WristButton {
+      onSelect: () => void, position: THREE.Vector3, fontPx: number,
+      radius = 0.022): WristButton {
+    const texture = this.buildButtonTexture(label, background, fontPx);
+    const geometry = new THREE.CircleGeometry(radius, 24);
+    const material = new THREE.MeshBasicMaterial({
+      map: texture, transparent: true, depthTest: false,
+      side: THREE.DoubleSide,
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.name = `xr-wrist-${label.toLowerCase()}`;
+    mesh.position.copy(position);
+    mesh.renderOrder = 9992;
+    this.group.add(mesh);
+    this.disposables.push(texture, geometry, material);
+    return { mesh, onSelect };
+  }
+
+  private buildButtonTexture(label: string, background: string,
+      fontPx: number, ring?: string): THREE.CanvasTexture {
     const canvas = document.createElement('canvas');
     canvas.width = 128;
     canvas.height = 128;
@@ -230,25 +319,20 @@ export class XrWristUi {
     ctx.beginPath();
     ctx.arc(64, 64, 62, 0, Math.PI * 2);
     ctx.fill();
+    if (ring) {
+      // The lit state: a bright border ring — "this quad is open".
+      ctx.strokeStyle = ring;
+      ctx.lineWidth = 8;
+      ctx.beginPath();
+      ctx.arc(64, 64, 56, 0, Math.PI * 2);
+      ctx.stroke();
+    }
     ctx.fillStyle = '#ffffff';
     ctx.font = `bold ${fontPx}px sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(label, 64, 64);
-
-    const texture = new THREE.CanvasTexture(canvas);
-    const geometry = new THREE.CircleGeometry(0.022, 24);
-    const material = new THREE.MeshBasicMaterial({
-      map: texture, transparent: true, depthTest: false,
-      side: THREE.DoubleSide,
-    });
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.name = `xr-wrist-${action}`;
-    mesh.position.copy(position);
-    mesh.renderOrder = 9992;
-    this.group.add(mesh);
-    this.disposables.push(texture, geometry, material);
-    return { mesh, action };
+    return new THREE.CanvasTexture(canvas);
   }
 
   private buildHelpPanel(): void {
@@ -279,7 +363,7 @@ export class XrWristUi {
       side: THREE.DoubleSide,
     });
     this.helpPlane = new THREE.Mesh(geometry, material);
-    this.helpPlane.position.set(0, 0.375, 0);
+    this.helpPlane.position.set(0, 0.46, 0);
     this.helpPlane.renderOrder = 9990;
     this.helpPlane.visible = false;
     this.group.add(this.helpPlane);

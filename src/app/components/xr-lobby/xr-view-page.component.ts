@@ -4,6 +4,7 @@ import { ActivatedRoute, RouterModule } from '@angular/router';
 
 import { SimSpaceViewerComponent } from '../sim-space/sim-space-viewer/sim-space-viewer.component';
 import { XrEntryBannerComponent } from './xr-entry-banner.component';
+import { XrPanelHostComponent } from './xr-panel-host.component';
 import { SimSpaceService } from '@services/sim-space/sim-space.service';
 
 /**
@@ -13,12 +14,16 @@ import { SimSpaceService } from '@services/sim-space/sim-space.service';
  * bar exists — see XrEntryBannerComponent). 2D spaces get no XR
  * chatter at all (dimensionality-aware). ?msim=<name> carries the
  * multiscale cascade context from a lobby msim card.
+ *
+ * xr-3-min: the page also mounts the OFF-SCREEN panel host — the real
+ * run-panel + IC components the in-session wrist ring spawns as
+ * HTMLMesh page-panels (see xr-panel-host.component).
  */
 @Component({
   standalone: true,
   selector: 'xr-view-page',
   imports: [CommonModule, RouterModule, SimSpaceViewerComponent,
-            XrEntryBannerComponent],
+            XrEntryBannerComponent, XrPanelHostComponent],
   template: `
     <div class="bar">
       <a routerLink="/xr" class="back">&#8592; Back</a>
@@ -33,13 +38,20 @@ import { SimSpaceService } from '@services/sim-space/sim-space.service';
       [dimensionality]="dimensionality">
     </xr-entry-banner>
     <div class="stage" *ngIf="name">
-      <sim-space-viewer
+      <sim-space-viewer #viewerCmp
         [simSpaceName]="name"
         [xrMultiscaleName]="msim"
         [hideRunPanel]="true"
         [clickNavigates]="false"
         (xrEntryReady)="entryId = $event">
       </sim-space-viewer>
+      <!-- Off-screen (position:fixed off-viewport) — placement inside
+           .stage is irrelevant; it shares the *ngIf view so it can
+           bind the viewer's template ref. -->
+      <xr-panel-host *ngIf="dimensionality === 3"
+        [viewer]="viewerCmp"
+        [spaceName]="name">
+      </xr-panel-host>
     </div>
   `,
   styles: [`

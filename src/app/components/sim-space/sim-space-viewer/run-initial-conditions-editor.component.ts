@@ -21,6 +21,7 @@ import {
   ChangeDetectorRef,
   Component,
   EventEmitter,
+  Inject,
   Input,
   OnChanges,
   OnDestroy,
@@ -44,6 +45,7 @@ import {
   FieldSaveRule,
   StorageEstimate,
 } from '@services/sim-space/simulation-run.service';
+import { XR_PANEL_CONTEXT } from '@models/xr/xr-panel-context';
 
 /** What the editor reports up to its parent. */
 export interface RunInitialConditionsState {
@@ -118,6 +120,9 @@ export interface RunInitialConditionsState {
             </span>
           </label>
           <div class="dt-row">
+            <button type="button" class="xr-step-btn"
+                    *ngIf="xrContext && !locked"
+                    (click)="stepDt(-1)">&#8722;</button>
             <input class="field-input dt-input"
                    type="text"
                    [placeholder]="formatValue(defaultDtSeconds)"
@@ -125,6 +130,9 @@ export interface RunInitialConditionsState {
                    [readonly]="locked"
                    [class.locked]="locked"
                    (input)="onDtEdit($any($event.target).value)" />
+            <button type="button" class="xr-step-btn"
+                    *ngIf="xrContext && !locked"
+                    (click)="stepDt(1)">+</button>
             <button mat-icon-button class="clear-btn"
                     *ngIf="dtOverride && !locked"
                     (click)="onDtEdit('')"
@@ -152,7 +160,8 @@ export interface RunInitialConditionsState {
             </span>
           </button>
 
-          <ul class="field-list" *ngIf="isClassOpen(cls.name)">
+          <ul class="field-list" *ngIf="isClassOpen(cls.name)"
+              [class.xr]="xrContext">
             <li class="field-row" *ngFor="let field of cls.fieldList">
               <label class="field-label">
                 <code class="field-name">{{ field }}</code>
@@ -162,6 +171,13 @@ export interface RunInitialConditionsState {
                   default: {{ formatValue(cls.baseline[field]) }}
                 </span>
               </label>
+              <!-- XR: no keyboard in-session — numeric fields edit by
+                   ±steppers (Q-C: steppers-first, free text stays a
+                   flat-mode task). Step = one decade under the value's
+                   own magnitude. -->
+              <button type="button" class="xr-step-btn"
+                      *ngIf="xrContext && !locked && isNumericField(cls.name, field)"
+                      (click)="stepField(cls.name, field, -1)">&#8722;</button>
               <input class="field-input"
                      type="text"
                      [placeholder]="formatValue(cls.baseline[field])"
@@ -169,6 +185,9 @@ export interface RunInitialConditionsState {
                      [readonly]="locked"
                      [class.locked]="locked"
                      (input)="onFieldEdit(cls.name, field, $any($event.target).value)" />
+              <button type="button" class="xr-step-btn"
+                      *ngIf="xrContext && !locked && isNumericField(cls.name, field)"
+                      (click)="stepField(cls.name, field, 1)">+</button>
               <button type="button" class="policy-chip"
                       [class.policy-core]="effectivePolicy(cls.name, field) === 'core'"
                       [class.policy-derivable]="effectivePolicy(cls.name, field) === 'derivable'"
@@ -302,6 +321,18 @@ export interface RunInitialConditionsState {
       grid-template-columns: minmax(0, 1fr) minmax(120px, 1fr) auto auto;
       align-items: center;
       gap: 6px;
+    }
+    /* XR layout: label | − | input | + | policy | clear. */
+    .field-list.xr .field-row {
+      grid-template-columns:
+        minmax(0, 1fr) auto minmax(90px, 1fr) auto auto auto;
+    }
+    .xr-step-btn {
+      font-size: 18px; line-height: 1; font-weight: 700;
+      padding: 8px 14px;
+      border: 1px solid #b9d6f6; border-radius: 6px;
+      background: #e3f2fd; color: #0d47a1;
+      cursor: pointer;
     }
     .policy-chip {
       border: 1px solid var(--border-light, #d6d9df);
@@ -502,6 +533,9 @@ export class RunInitialConditionsEditorComponent implements OnChanges, OnDestroy
   constructor(
     private runService: SimulationRunService,
     private cdr: ChangeDetectorRef,
+    /** True when mounted in the off-screen XR panel host — numeric
+     *  fields grow ±steppers (no keyboard in-session, Q-C). */
+    @Inject(XR_PANEL_CONTEXT) public xrContext: boolean,
   ) {
     this.editSub = this.editPing$
       .pipe(debounce(() => timer(400)))
@@ -689,6 +723,47 @@ export class RunInitialConditionsEditorComponent implements OnChanges, OnDestroy
     // dt change doesn't affect validity — but does affect the
     // storage estimate (more steps = more rows).
     this.requestEstimate();
+  }
+
+  // ─────────────────────── XR ±steppers (Q-C) ───────────────────────
+
+  isNumericField(cls: string, field: string): boolean {
+    const baseline = this.classes.find(c => c.name === cls)
+      ?.baseline[field];
+    return typeof baseline === 'number';
+  }
+
+  /** One decade under the value's own magnitude — 9.8 steps by 0.1,
+   *  1500 steps by 100, 0.02 steps by 0.001; zero steps by 0.1. */
+  private stepSizeFor(value: number): number {
+    const magnitude = Math.abs(value);
+    if (!Number.isFinite(magnitude) || magnitude === 0) return 0.1;
+    return Math.pow(10, Math.floor(Math.log10(magnitude)) - 1);
+  }
+
+  stepField(cls: string, field: string, direction: number): void {
+    if (this.locked) return;
+    const baseline = this.classes.find(c => c.name === cls)
+      ?.baseline[field];
+    if (typeof baseline !== 'number') return;
+    const raw = this.overrideStringFor(cls, field);
+    const current = raw !== '' && Number.isFinite(Number(raw))
+      ? Number(raw) : baseline;
+    const next = current
+      + direction * this.stepSizeFor(current || baseline);
+    const rounded = parseFloat(next.toPrecision(10));
+    this.onFieldEdit(cls, field, String(rounded));
+    this.cdr.markForCheck();
+  }
+
+  stepDt(direction: number): void {
+    if (this.locked) return;
+    const base = this.parsedDt() || this.defaultDtSeconds || 0.1;
+    let next = base + direction * this.stepSizeFor(base);
+    // dt must stay positive — stepping below zero halves instead.
+    if (next <= 0) next = base / 2;
+    this.onDtEdit(String(parseFloat(next.toPrecision(10))));
+    this.cdr.markForCheck();
   }
 
   // ───────────────────────── per-field save policy ─────────────────────────

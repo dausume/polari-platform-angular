@@ -32,6 +32,7 @@ import { XrVariantService } from './xr-variant.service';
 import {
   XrEnterContext, XrRigPose, XrVariantConfig, XrViewpointBookmark,
 } from '@models/xr/xr-types';
+import { XrSurfaceProvider } from '@models/xr/xr-surface-model';
 
 export interface XrEngineState {
   /** An immersive session is live. */
@@ -69,6 +70,11 @@ export class XrEngineService {
    *  ops merge into this — other keys are preserved). */
   private boundSpaceName: string | null = null;
   private boundConfig: XrVariantConfig = {};
+
+  /** Live panel/scrub surfaces per space name (xr-3-min) — the page
+   *  hosting the off-screen Angular panels registers here; the
+   *  session runtime consumes them via the enter context. */
+  private surfaceProviders = new Map<string, XrSurfaceProvider>();
 
   constructor(
     private registry: XrSceneRegistryService,
@@ -137,6 +143,19 @@ export class XrEngineService {
    *  runtime's onEnded (single exit path for every way out). */
   async exit(): Promise<void> {
     await this.runtime?.exit();
+  }
+
+  /** Register the live panel/scrub surfaces for a space (xr-3-min).
+   *  Returns the unregister disposer — call it on host destroy. A
+   *  session entered on this space grows wrist ring 1 from these. */
+  registerSurfaceProvider(
+      spaceName: string, provider: XrSurfaceProvider): () => void {
+    this.surfaceProviders.set(spaceName, provider);
+    return () => {
+      if (this.surfaceProviders.get(spaceName) === provider) {
+        this.surfaceProviders.delete(spaceName);
+      }
+    };
   }
 
   /** A viewer is unmounting: if its scene is the bound one, exit
@@ -220,6 +239,11 @@ export class XrEngineService {
         // First entry: make the derived scale durable + editable.
         void this.persistConfig({ entry_scale: scale })
           .catch(() => { /* persistence is best-effort here */ });
+      },
+      surfaces: this.surfaceProviders.get(entry.spaceName) ?? null,
+      persistPatch: patch => {
+        void this.persistConfig(patch)
+          .catch(() => { /* best-effort — never breaks a session */ });
       },
     };
   }

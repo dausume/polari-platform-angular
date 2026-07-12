@@ -41,8 +41,10 @@ import {
 import { XrInputRig } from './xr-input-rig';
 import { XrNavigation } from './xr-navigation';
 import { XrNavVisuals } from './xr-nav-visuals';
-import { XrWristUi } from './xr-wrist-ui';
+import { XrWristUi, XrWristRing1Item } from './xr-wrist-ui';
 import { XrMirrorGhost, XR_MIRROR_GHOST_LAYER } from './xr-mirror-ghost';
+import { XrPanelSystem } from './xr-panel-system';
+import { XR_SURFACE_SEED } from '@models/xr/xr-surface-model';
 
 export type XrRuntimeEndReason = 'exit' | 'device' | 'error';
 
@@ -72,6 +74,9 @@ export class XrSessionRuntime {
   private visuals: XrNavVisuals | null = null;
   private ghost: XrMirrorGhost | null = null;
   private wristUi: XrWristUi | null = null;
+  /** xr-3-min panels + rail — per-bind (the surfaces belong to the
+   *  bound space's host page); null when the page registered none. */
+  private panelSystem: XrPanelSystem | null = null;
   private flatCameraRestore:
     { camera: THREE.Camera; mask: number } | null = null;
   private lastFrameTime: number | null = null;
@@ -179,6 +184,15 @@ export class XrSessionRuntime {
   }
   jumpTo(pose: XrRigPose): void { this.navigation?.jumpTo(pose); }
 
+  /** xr-3-min passthroughs (wrist ring 1 drives these in-session;
+   *  exposed for the engine/specs). No-ops without surfaces. */
+  togglePanel(contentRef: string): void {
+    this.panelSystem?.toggle(contentRef);
+  }
+  isPanelOpen(contentRef: string): boolean {
+    return this.panelSystem?.isOpen(contentRef) ?? false;
+  }
+
   // ------------------------------------------------------------------
   // Internals
   // ------------------------------------------------------------------
@@ -196,6 +210,7 @@ export class XrSessionRuntime {
         // pad drives every nav gesture (broken-grip backup).
         this.inputRig?.pollGamepads();
         navigation.update(dt);
+        this.panelSystem?.update();
         this.wristUi?.update(navigation.hud());
         this.visuals?.update(dt, {
           vignetteActive: navigation.vignetteActive(),
@@ -226,8 +241,11 @@ export class XrSessionRuntime {
     this.inputRig = new XrInputRig(this.renderer!, this.rig);
     this.visuals = new XrNavVisuals(this.rig, this.camera);
     this.ghost = new XrMirrorGhost(this.rig, this.camera);
+    // World gestures never start while ANY UI surface owns the
+    // pointer: the wrist cluster or an xr-3 panel/rail.
     this.navigation = new XrNavigation(this.rig, this.inputRig,
-      () => !(this.wristUi?.uiEngaged() ?? false));
+      () => !(this.wristUi?.uiEngaged() ?? false)
+        && !(this.panelSystem?.uiEngaged() ?? false));
     // Deferred-commit cancel: a trigger pull while a gesture is
     // PLANNING aborts it (navigation ignores triggers otherwise).
     for (const controller of this.inputRig.controllers) {
@@ -283,6 +301,35 @@ export class XrSessionRuntime {
       }
     });
 
+    // xr-3-min: the host page's live panel surfaces become the panel
+    // system + wrist ring 1. Entering from a page that registered no
+    // surfaces (e.g. a plain viewer) keeps the ring-0-only wrist.
+    let ring1: XrWristRing1Item[] = [];
+    if (context.surfaces) {
+      const surfaces = context.surfaces;
+      this.panelSystem = new XrPanelSystem(
+        scene, rig, this.camera!, this.inputRig!, surfaces, {
+          placements: context.variantConfig.panel_placements ?? {},
+          persistPatch: context.persistPatch,
+          isWristEngaged: () => this.wristUi?.uiEngaged() ?? false,
+          onGrabStart: () => this.navigation?.interrupt(),
+        });
+      // Panel rows only for panels the provider actually registered;
+      // the rail row always rides (it explains itself when empty).
+      ring1 = XR_SURFACE_SEED
+        .filter(row => row.panelContentRef === 'scrub-rail'
+          || surfaces.panels.some(
+            p => `panel:${p.id}` === row.panelContentRef))
+        .map(row => ({
+          id: row.id,
+          label: row.label,
+          onSelect: () =>
+            this.panelSystem?.toggle(row.panelContentRef),
+          isActive: () =>
+            this.panelSystem?.isOpen(row.panelContentRef) ?? false,
+        }));
+    }
+
     // Wrist UI is per-bind: its handedness is a per-space knob.
     // Ring-0 labels (Dustin 2026-07-12): EXIT / RE-CENTER / HELP.
     this.wristUi = new XrWristUi(
@@ -290,7 +337,7 @@ export class XrSessionRuntime {
         exit: () => { void this.exit(); },
         resetView: () => navigation.resetView(),
         help: () => this.wristUi?.toggleHelp(),
-      });
+      }, ring1);
 
     // The mirror ghost renders on a dedicated layer only the FLAT
     // camera gets — the wearer never sees their own headset. The
@@ -308,8 +355,14 @@ export class XrSessionRuntime {
   }
 
   /** Remove every trace of the session from the bound scene — the
-   *  byte-identical-exit guarantee is exactly this. */
+   *  byte-identical-exit guarantee is exactly this (panels included:
+   *  their layer group leaves with us; placements are already
+   *  persisted data). */
   private unbind(): void {
+    if (this.panelSystem) {
+      this.panelSystem.dispose();
+      this.panelSystem = null;
+    }
     if (this.wristUi) {
       this.wristUi.dispose();
       this.wristUi = null;
