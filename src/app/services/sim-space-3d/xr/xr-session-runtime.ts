@@ -192,6 +192,9 @@ export class XrSessionRuntime {
     try {
       const navigation = this.navigation;
       if (navigation) {
+        // Pad clicks are polled (no squeeze-style events) — grip OR
+        // pad drives every nav gesture (broken-grip backup).
+        this.inputRig?.pollGamepads();
         navigation.update(dt);
         this.wristUi?.update(navigation.hud());
         this.visuals?.update(dt, {

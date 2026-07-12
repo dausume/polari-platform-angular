@@ -95,6 +95,9 @@ export interface XrNavKnobs {
   shiftGainRadiiPerSec: number;
   /** hand offset (m past the dead zone) treated as full extension. */
   handRefM: number;
+  /** fine-control ceiling: drive never exceeds this many USER-space
+   *  meters/sec regardless of R — deep zooms stay adjustable. */
+  maxUserSpeedMps: number;
   /** soft translation clamp: max distance from the sim center, in
    *  Sim Radii. */
   clampRadii: number;
@@ -114,14 +117,17 @@ export interface XrNavKnobs {
  *  HELP panel — bumped on every XR deploy so a headset running a
  *  CACHED/RESUMED old app is identifiable at a glance (a resumed
  *  Wolvic tab never reloads; it burned a whole debugging cycle). */
-export const XR_BUILD_TAG = 'nav-5 continuous-R';
+export const XR_BUILD_TAG = 'nav-6 fine+pads';
 
 export const XR_NAV_DEFAULTS: XrNavKnobs = {
   shiftDebounceMs: 250,
   deadZoneM: 0.05,
-  responseCurve: 'linear',
-  shiftGainRadiiPerSec: 0.5,
+  // expo: small offsets move MUCH slower — fine position adjustment
+  // (Dustin: linear at 0.5 R/s was faster than a person can react).
+  responseCurve: 'expo',
+  shiftGainRadiiPerSec: 0.15,
   handRefM: 0.35,
+  maxUserSpeedMps: 2.0,
   clampRadii: 8,
   vignetteOnShift: true,
   snapTurn: true,

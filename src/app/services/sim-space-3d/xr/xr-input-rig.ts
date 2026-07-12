@@ -49,6 +49,11 @@ export interface XrControllerHandle {
   gripPressed: boolean;
   /** ms timestamp of the last squeeze press (debounce window). */
   gripPressedAt: number;
+  /** touchpad/thumbstick CLICK held — a full alternative to the
+   *  grip (Dustin's right Vive grip is physically broken; every
+   *  nav gesture accepts grip OR pad per hand). Polled from the
+   *  gamepad each frame with the same release debounce. */
+  padPressed: boolean;
 }
 
 export class XrInputRig {
@@ -75,7 +80,7 @@ export class XrInputRig {
       const handle: XrControllerHandle = {
         index: i, ray, grip, hand,
         handedness: 'none', gamepad: null, isHand: false,
-        gripPressed: false, gripPressedAt: 0,
+        gripPressed: false, gripPressedAt: 0, padPressed: false,
       };
 
       ray.addEventListener('connected', (event: any) => {
@@ -126,15 +131,48 @@ export class XrInputRig {
     }
   }
 
+  /** Poll gamepad button state (once per frame, from the session
+   *  runtime): pad CLICKS have no squeeze-style events. xr-standard
+   *  mapping: buttons[2] = touchpad press, buttons[3] = thumbstick
+   *  press. Release-debounced like the grip; a fresh pad press
+   *  stamps gripPressedAt so the shift debounce window works
+   *  identically for both inputs. */
+  private padReleasedAt = [0, 0];
+
+  pollGamepads(): void {
+    const now = performance.now();
+    for (const handle of this.controllers) {
+      const buttons = handle.gamepad?.buttons;
+      const rawDown = !!(buttons?.[2]?.pressed
+        || buttons?.[3]?.pressed);
+      if (rawDown) {
+        this.padReleasedAt[handle.index] = 0;
+        if (!handle.padPressed) {
+          handle.padPressed = true;
+          if (!handle.gripPressed) handle.gripPressedAt = now;
+        }
+      } else if (handle.padPressed) {
+        if (this.padReleasedAt[handle.index] === 0) {
+          this.padReleasedAt[handle.index] = now;
+        } else if (now - this.padReleasedAt[handle.index]
+            >= GRIP_RELEASE_DEBOUNCE_MS) {
+          handle.padPressed = false;
+          this.padReleasedAt[handle.index] = 0;
+        }
+      }
+    }
+  }
+
   byHand(handedness: XrHandedness): XrControllerHandle | null {
     return this.controllers.find(c => c.handedness === handedness)
       ?? null;
   }
 
-  /** Currently-squeezing CONTROLLER handles (Q8: navigation stays
-   *  controller-grip-only until hand tracking stabilizes). */
+  /** CONTROLLER handles currently nav-pressed — grip OR pad click,
+   *  either counts (Q8: controller-only until hands stabilize). */
   pressedGrips(): XrControllerHandle[] {
-    return this.controllers.filter(c => c.gripPressed && !c.isHand);
+    return this.controllers.filter(
+      c => (c.gripPressed || c.padPressed) && !c.isHand);
   }
 
   /** Haptic tick, guarded — absent actuators are simply silent. */

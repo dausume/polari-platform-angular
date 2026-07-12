@@ -42,18 +42,22 @@ import { XR_BUILD_TAG } from '@models/xr/xr-types';
 const HELP_LINES = [
   'HOW TO MOVE',
   '',
-  'Hold ONE grip (short pause arms it,',
-  'you feel a tick): push/pull your',
-  'hand from the anchor to glide that',
-  'way — speed shows in R/s on the HUD.',
+  'GRIP or PAD-CLICK both work the',
+  'same (backup for a broken grip).',
+  '',
+  'Hold ONE (short pause arms it, you',
+  'feel a tick): push/pull your hand',
+  'from the anchor to glide that way —',
+  'small offsets move slowly for fine',
+  'adjustment; speed shows in R/s.',
   'Release to stop.',
   '',
-  'Hold TWO grips: stretch apart = zoom',
-  'in, together = out; twist = rotate;',
-  'drag both hands = move the world.',
+  'Hold BOTH hands: stretch apart =',
+  'zoom in, together = out; twist =',
+  'rotate; drag = move the world.',
   '',
   'Cancel a one-hand glide: press the',
-  'other grip or pull a trigger.',
+  'other hand or pull a trigger.',
   '',
   'Triggers select. RE-CENTER returns',
   'to the entry view. R = the radius',
@@ -97,14 +101,14 @@ export class XrWristUi {
 
     this.hudCanvas = document.createElement('canvas');
     this.hudCanvas.width = 440;
-    this.hudCanvas.height = 168;
+    this.hudCanvas.height = 320;
     this.hudTexture = new THREE.CanvasTexture(this.hudCanvas);
-    const hudGeometry = new THREE.PlaneGeometry(0.126, 0.048);
+    const hudGeometry = new THREE.PlaneGeometry(0.126, 0.092);
     const hudMaterial = new THREE.MeshBasicMaterial({
       map: this.hudTexture, transparent: true, depthTest: false,
     });
     this.hudPlane = new THREE.Mesh(hudGeometry, hudMaterial);
-    this.hudPlane.position.set(0, 0.036, 0);
+    this.hudPlane.position.set(0, 0.058, 0);
     this.hudPlane.renderOrder = 9991;
     this.group.add(this.hudPlane);
     this.disposables.push(hudGeometry, hudMaterial, this.hudTexture);
@@ -282,8 +286,8 @@ export class XrWristUi {
 
   /** Redraw only when a DISPLAYED value changes (quantized). */
   private hudKey(hud: XrNavHud): string {
-    return [hud.state, hud.moveRadiiPerSec.toFixed(2),
-      hud.distanceR.toFixed(2),
+    return [hud.state, hud.moveRadiiPerSec.toFixed(3),
+      hud.distanceR.toFixed(2), hud.yawDeg.toFixed(1),
       hud.xR.toFixed(1), hud.yR.toFixed(1), hud.zR.toFixed(1),
       hud.zoom.toFixed(2),
       this.compact(hud.simRadius)].join('|');
@@ -292,9 +296,9 @@ export class XrWristUi {
   private drawHud(hud: XrNavHud, key: string): void {
     this.lastHudKey = key;
     const ctx = this.hudCanvas.getContext('2d')!;
-    ctx.clearRect(0, 0, 440, 168);
+    ctx.clearRect(0, 0, 440, 320);
     ctx.fillStyle = 'rgba(33,33,33,0.78)';
-    ctx.fillRect(0, 0, 440, 168);
+    ctx.fillRect(0, 0, 440, 320);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
 
@@ -304,35 +308,64 @@ export class XrWristUi {
       : `÷${(1 / hud.zoom) >= 10 ? Math.round(1 / hud.zoom)
         : (1 / hud.zoom).toFixed(1)}`;
 
-    // 26px monospace ≈ 15.6px/char → 28 chars fit 440px (Dustin:
-    // the first cut clipped lines; every line here is length-checked).
+    // Position as a vector equation in R (Dustin's format), then the
+    // yaw rotation matrix vs the ORIGINAL orientation. Every line is
+    // length-checked against the 440px canvas (26px mono ≈ 28 chars).
     ctx.fillStyle = '#e0f2f1';
     ctx.font = '26px monospace';
     ctx.fillText(
-      `pos ${this.r(hud.xR)} ${this.r(hud.yR)} ${this.r(hud.zR)} R`,
-      12, 24);
+      `${this.term(hud.xR, 'x', true)} ${this.term(hud.yR, 'y')} `
+      + `${this.term(hud.zR, 'z')}  (R)`, 12, 24);
+    const yaw = THREE.MathUtils.degToRad(hud.yawDeg);
+    const c = Math.cos(yaw);
+    const s = Math.sin(yaw);
+    ctx.fillText(`rot ${hud.yawDeg >= 0 ? '+' : ''}`
+      + `${hud.yawDeg.toFixed(1)}° vs start`, 12, 58);
+    ctx.font = '22px monospace';
+    ctx.fillStyle = '#9fb8c8';
+    ctx.fillText(`[ ${this.m(c)} ${this.m(0)} ${this.m(s)} ]`,
+      12, 90);
+    ctx.fillText(`[ ${this.m(0)} ${this.m(1)} ${this.m(0)} ]`,
+      12, 118);
+    ctx.fillText(`[ ${this.m(-s)} ${this.m(0)} ${this.m(c)} ]`,
+      12, 146);
+    ctx.fillStyle = '#e0f2f1';
+    ctx.font = '26px monospace';
     ctx.fillText(
-      `dist ${hud.distanceR.toFixed(1)} R  zoom ${zoomText}`,
-      12, 58);
+      `dist ${hud.distanceR.toFixed(2)} R  zoom ${zoomText}`,
+      12, 184);
 
     // The action line: what is happening right now.
     ctx.font = 'bold 28px monospace';
     if (hud.state === 'moving') {
       ctx.fillStyle = '#ffd54f';
       ctx.fillText(hud.moveRadiiPerSec > 0
-        ? `moving ${hud.moveRadiiPerSec.toFixed(2)} R/s`
-        : 'grabbing (zoom / rotate / drag)', 12, 100);
+        ? `moving ${hud.moveRadiiPerSec.toFixed(3)} R/s`
+        : 'grabbing (zoom / rotate / drag)', 12, 228);
       ctx.font = '22px monospace';
       ctx.fillStyle = '#b0bec5';
-      ctx.fillText('release = stop · trigger = cancel', 12, 140);
+      ctx.fillText('release = stop · trigger = cancel', 12, 268);
     } else {
       ctx.fillStyle = '#78909c';
       ctx.font = '22px monospace';
-      ctx.fillText('grip = move · HELP = how', 12, 100);
+      ctx.fillText('grip or pad-click = move · HELP = how',
+        12, 228);
       ctx.fillText(`R = ${this.compact(hud.simRadius)} world units`,
-        12, 140);
+        12, 268);
     }
     this.hudTexture.needsUpdate = true;
+  }
+
+  /** One vector-equation term: '+5.0x' / '-7.2z' (leading term
+   *  keeps its sign only when negative). */
+  private term(value: number, axis: string, lead = false): string {
+    const sign = value < 0 ? '-' : (lead ? '' : '+');
+    return `${sign}${Math.abs(value).toFixed(1)}${axis}`;
+  }
+
+  /** Fixed-width rotation-matrix element. */
+  private m(value: number): string {
+    return (value < 0 ? '-' : ' ') + Math.abs(value).toFixed(2);
   }
 
   /** Compact number for the R display (1.2k / 3.4M when huge —

@@ -51,6 +51,8 @@ export interface XrNavHud {
    *  diagnosable at a glance. */
   simRadius: number;
   moveRadiiPerSec: number;
+  /** yaw vs the original orientation, degrees (yaw-only rig). */
+  yawDeg: number;
 }
 
 const HISTORY_CAP = 50;
@@ -195,7 +197,7 @@ export class XrNavigation {
         break;
 
       case 'shift-pending': {
-        const held = this.shiftHandle?.gripPressed ?? false;
+        const held = this.navHeld(this.shiftHandle);
         if (!held) { this.toIdle(); break; }
         if (pressed.length >= 2) {
           // Second grip inside the debounce window: this IS the
@@ -218,7 +220,7 @@ export class XrNavigation {
       }
 
       case 'shift-armed': {
-        if (!this.shiftHandle?.gripPressed) {
+        if (!this.navHeld(this.shiftHandle)) {
           this.endGesture();
           break;
         }
@@ -236,7 +238,7 @@ export class XrNavigation {
       case 'grab': {
         const h1 = this.grabHandles[0];
         const h2 = this.grabHandles[1];
-        if (!h1?.gripPressed || !h2?.gripPressed) {
+        if (!this.navHeld(h1) || !this.navHeld(h2)) {
           // Releasing either hand ends the grab; a still-held grip
           // does NOT silently become a shift — re-press to shift.
           this.endGesture();
@@ -316,7 +318,16 @@ export class XrNavigation {
       zoom: this.zoomFactor(),
       simRadius: this.boundsRadius,
       moveRadiiPerSec: moving ? this.shiftRadiiPerSec : 0,
+      yawDeg: this.yawFromHomeDeg(),
     };
+  }
+
+  /** Rotation vs the ORIGINAL orientation (yaw-only by design),
+   *  wrapped to ±180°. */
+  private yawFromHomeDeg(): number {
+    const raw = poseFromRig(this.rig).yaw - this.home.yaw;
+    const wrapped = Math.atan2(Math.sin(raw), Math.cos(raw));
+    return THREE.MathUtils.radToDeg(wrapped);
   }
 
   /** Trigger pressed anywhere (runtime forwards selectstart): while
@@ -348,6 +359,11 @@ export class XrNavigation {
   // ------------------------------------------------------------------
 
   private grabHandles: (XrControllerHandle | null)[] = [null, null];
+
+  /** grip OR pad click holds a gesture (broken-grip backup). */
+  private navHeld(handle: XrControllerHandle | null): boolean {
+    return !!handle && (handle.gripPressed || !!handle.padPressed);
+  }
 
   private toIdle(): void {
     this.mode = 'idle';
@@ -428,14 +444,20 @@ export class XrNavigation {
     // Speed in Sim Radii/sec: a full reference extension drives
     // shiftGainRadiiPerSec R/s (soft-capped) — never raw meters.
     const ratio = Math.min(shaped / this.knobs.handRefM, 1.5);
-    const radiiPerSec = this.knobs.shiftGainRadiiPerSec * ratio;
-    this.shiftRadiiPerSec = radiiPerSec;
+    // Whichever is SLOWER wins: the R-relative rate keeps every sim
+    // crossable in the same feel; the user-space ceiling keeps deep
+    // zooms finely adjustable (a world-speed that is sane for the
+    // whole sim races past a zoomed-in view).
+    const worldSpeed = Math.min(
+      this.knobs.shiftGainRadiiPerSec * ratio * this.boundsRadius,
+      this.knobs.maxUserSpeedMps * this.rig.scale.x);
+    this.shiftRadiiPerSec = worldSpeed / this.boundsRadius;
 
     // Pushing the world along v = the rig moving along −v:
-    // Δrig = −RotY(yaw)·v̂ · radiiPerSec·R·dt
+    // Δrig = −RotY(yaw)·v̂ · worldSpeed·dt
     const dir = v.normalize()
       .applyQuaternion(this.rig.quaternion)
-      .multiplyScalar(-radiiPerSec * this.boundsRadius * dt);
+      .multiplyScalar(-worldSpeed * dt);
     const position = this.rig.position.clone().add(dir);
     this.clampTranslation(position, this.rig.scale.x);
     this.rig.position.copy(position);
@@ -462,6 +484,7 @@ export class XrNavigation {
     if (this.mode !== 'idle' && this.mode !== 'cancelled') return;
     const pointer = this.input.byHand(
       this.knobs.wristHandedness === 'left' ? 'right' : 'left');
+    if ((pointer as any)?.padPressed) return; // pad = nav, not turn
     const x = this.input.axisX(pointer);
     if (this.snapArmed && Math.abs(x) > SNAP_FIRE_THRESHOLD) {
       this.snapArmed = false;
