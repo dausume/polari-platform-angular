@@ -39,6 +39,8 @@ interface WristButton {
 const HOVER_SCALE = 1.18;
 const RAY_REACH_M = 1.5;
 
+import { XR_BUILD_TAG } from '@models/xr/xr-types';
+
 const HELP_LINES = [
   'HOW TO MOVE',
   '',
@@ -59,6 +61,8 @@ const HELP_LINES = [
   'Triggers select. RE-CENTER returns',
   'to the entry view. R = the radius',
   'that holds the whole simulation.',
+  '',
+  `build: ${XR_BUILD_TAG}`,
 ];
 
 export class XrWristUi {
@@ -247,13 +251,13 @@ export class XrWristUi {
   private buildHelpPanel(): void {
     const canvas = document.createElement('canvas');
     canvas.width = 512;
-    canvas.height = 620;
+    canvas.height = 680;
     const ctx = canvas.getContext('2d')!;
     ctx.fillStyle = 'rgba(20,28,38,0.92)';
-    ctx.fillRect(0, 0, 512, 620);
+    ctx.fillRect(0, 0, 512, 680);
     ctx.strokeStyle = '#5b8bb5';
     ctx.lineWidth = 4;
-    ctx.strokeRect(2, 2, 508, 616);
+    ctx.strokeRect(2, 2, 508, 676);
     ctx.fillStyle = '#e0f2f1';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
@@ -266,7 +270,7 @@ export class XrWristUi {
     });
 
     const texture = new THREE.CanvasTexture(canvas);
-    const geometry = new THREE.PlaneGeometry(0.20, 0.242);
+    const geometry = new THREE.PlaneGeometry(0.20, 0.266);
     const material = new THREE.MeshBasicMaterial({
       map: texture, transparent: true, depthTest: false,
       side: THREE.DoubleSide,
