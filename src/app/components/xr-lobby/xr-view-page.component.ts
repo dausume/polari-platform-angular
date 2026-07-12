@@ -80,7 +80,9 @@ export class XrViewPageComponent implements OnInit {
       this.dimensionality = null;
       this.simSpace.list().then(rows => {
         const row = rows.find(space => space.name === this.name);
-        this.dimensionality = row ? row.dimensionality : 3;
+        // Backend speaks '2d' | '3d'; the banner wants 3-or-not.
+        this.dimensionality =
+          row ? (row.dimensionality === '3d' ? 3 : 2) : 3;
       }).catch(() => { this.dimensionality = 3; });
     });
     this.route.queryParamMap.subscribe(params => {

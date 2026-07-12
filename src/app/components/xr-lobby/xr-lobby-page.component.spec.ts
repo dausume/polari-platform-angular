@@ -14,7 +14,7 @@ describe('XrLobbyPageComponent', () => {
 
   const spaces = Array.from({ length: 7 }, (_, index) => ({
     name: `space-${index}`, description: `space number ${index}`,
-    dimensionality: 3, coordinateSystem: 'cartesian',
+    dimensionality: '3d' as const, coordinateSystem: 'cartesian',
   }));
   const msimList$ = new BehaviorSubject([{
     id: 'm1', name: 'wax-multiscale', description: '',

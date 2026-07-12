@@ -41,7 +41,8 @@ import { MultiScaleSimSummary } from '@models/multi-scale/NamedMultiScaleSimConf
              class="card" [routerLink]="['/xr/view', space.name]">
             <span class="card-title">{{ space.name }}</span>
             <span class="card-sub">{{ space.description
-              || (space.dimensionality + 'D space') }}</span>
+              || (space.dimensionality === '3d'
+                  ? '3D space' : '2D space') }}</span>
           </a>
         </div>
         <div class="pager" *ngIf="spaces.length > PAGE_SIZE">
