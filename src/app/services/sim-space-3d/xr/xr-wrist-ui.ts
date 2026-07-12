@@ -108,7 +108,9 @@ export class XrWristUi {
       map: this.hudTexture, transparent: true, depthTest: false,
     });
     this.hudPlane = new THREE.Mesh(hudGeometry, hudMaterial);
-    this.hudPlane.position.set(0, 0.058, 0);
+    // Above the button ring (buttons top out ~0.12) — the data
+    // display overlapping the menu made both hard to use (Dustin).
+    this.hudPlane.position.set(0, 0.185, 0);
     this.hudPlane.renderOrder = 9991;
     this.group.add(this.hudPlane);
     this.disposables.push(hudGeometry, hudMaterial, this.hudTexture);
@@ -277,7 +279,7 @@ export class XrWristUi {
       side: THREE.DoubleSide,
     });
     this.helpPlane = new THREE.Mesh(geometry, material);
-    this.helpPlane.position.set(0, 0.245, 0);
+    this.helpPlane.position.set(0, 0.375, 0);
     this.helpPlane.renderOrder = 9990;
     this.helpPlane.visible = false;
     this.group.add(this.helpPlane);

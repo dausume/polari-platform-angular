@@ -120,17 +120,24 @@ export class XrNavVisuals {
     canvas.width = 256;
     canvas.height = 256;
     const ctx = canvas.getContext('2d')!;
+    // The gradient is a WHITE ALPHA MASK; the ring's color lives in
+    // material.color. FAIL-SAFE: if the canvas texture ever fails to
+    // sample (Wolvic evicted/derferred it — Dustin saw the whole
+    // space periodically WHITE OUT during movement), an unmapped
+    // MeshBasicMaterial renders its base color: black tunnel or a
+    // brief orange flash — never a blinding white quad.
     const gradient = ctx.createRadialGradient(
       128, 128, 60, 128, 128, 128);
-    gradient.addColorStop(0, 'rgba(0,0,0,0)');
-    gradient.addColorStop(0.75, `${this.hexToRgba(color, 0.85)}`);
-    gradient.addColorStop(1, `${this.hexToRgba(color, 1)}`);
+    gradient.addColorStop(0, 'rgba(255,255,255,0)');
+    gradient.addColorStop(0.75, 'rgba(255,255,255,0.85)');
+    gradient.addColorStop(1, 'rgba(255,255,255,1)');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, 256, 256);
 
     const texture = new THREE.CanvasTexture(canvas);
     const geometry = new THREE.PlaneGeometry(1.2, 1.2);
     const material = new THREE.MeshBasicMaterial({
+      color: new THREE.Color(color),
       map: texture, transparent: true, opacity: 0,
       depthTest: false, depthWrite: false,
     });
@@ -145,9 +152,4 @@ export class XrNavVisuals {
     return mesh;
   }
 
-  private hexToRgba(hex: string, alpha: number): string {
-    const n = parseInt(hex.slice(1), 16);
-    const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
-    return `rgba(${r},${g},${b},${alpha})`;
-  }
 }
