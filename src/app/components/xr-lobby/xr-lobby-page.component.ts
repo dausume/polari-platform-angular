@@ -86,9 +86,11 @@ import { MultiScaleSimSummary } from '@models/multi-scale/NamedMultiScaleSimConf
     </div>
   `,
   styles: [`
+    /* Theme-independent literal palette — the XR pages commit to
+       dark. The first build used theme vars and rendered
+       white-on-white under the light theme. */
     :host { display: block; min-height: 100vh;
-      background: var(--surface-app-background, #121212);
-      color: var(--text-on-dark, #fff); }
+      background: #121212; color: #ffffff; }
     .lobby { max-width: 1100px; margin: 0 auto; padding: 24px; }
     header { display: flex; align-items: baseline; gap: 20px;
       flex-wrap: wrap; }
@@ -100,9 +102,9 @@ import { MultiScaleSimSummary } from '@models/multi-scale/NamedMultiScaleSimConf
       grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
     .card { display: flex; flex-direction: column; gap: 8px;
       min-height: 140px; padding: 22px; border-radius: 18px;
-      background: var(--surface-primary, #1e1e1e);
+      background: #1e1e1e;
       border: 2px solid #3a3a3a; cursor: pointer;
-      text-decoration: none; color: inherit; }
+      text-decoration: none; color: #ffffff; }
     .card:hover, .card:focus { border-color: #9ecbff; }
     .card-title { font-size: 1.5rem; font-weight: 600;
       overflow-wrap: anywhere; }
@@ -117,8 +119,8 @@ import { MultiScaleSimSummary } from '@models/multi-scale/NamedMultiScaleSimConf
       justify-content: center; margin: 18px 0; }
     .pager button { font-size: 1.3rem; padding: 16px 30px;
       border-radius: 14px; border: 2px solid #3a3a3a;
-      background: var(--surface-secondary, #2d2d2d);
-      color: inherit; cursor: pointer; min-width: 140px; }
+      background: #2d2d2d;
+      color: #ffffff; cursor: pointer; min-width: 140px; }
     .pager button:disabled { opacity: .35; }
     .pager span { font-size: 1.2rem; }
     .hint { opacity: .7; font-size: 1.05rem; }

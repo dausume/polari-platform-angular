@@ -168,7 +168,7 @@ mat-card-title {
 .xr-lobby-banner {
   display: flex; align-items: center; gap: 14px;
   padding: 20px 24px; margin-bottom: 18px; border-radius: 16px;
-  background: var(--surface-primary, #1e1e1e);
+  background: #1e1e1e;
   border: 2px solid #9ecbff; color: #9ecbff;
   font-size: 1.25rem; text-decoration: none;
 }

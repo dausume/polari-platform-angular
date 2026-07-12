@@ -146,6 +146,7 @@ import { DictViewComponent } from '@components/templateClassTable/type-cells/dic
 // (ManagerInfoComponent and TypingInfoComponent are lazy-loaded via router)
 // Certificate Trust Component
 import { CertificateTrustPromptComponent } from '@components/certificate-trust-prompt/certificate-trust-prompt';
+import { XrSessionPromptComponent } from '@components/xr-lobby/xr-session-prompt.component';
 // API Profiler Component
 import { ApiProfilerComponent } from '@components/api-profiler/api-profiler.component';
 // API Config Component
@@ -377,6 +378,7 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     GraphRendererComponent,
     RunScopeSelectComponent,
     CertificateTrustPromptComponent,
+    XrSessionPromptComponent,
     EmbeddedGraphComponent,
     MapRendererComponent,
     CreateGeoJsonConfigDialogComponent,
