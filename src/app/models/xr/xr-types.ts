@@ -109,7 +109,9 @@ export interface XrNavKnobs {
   /** which wrist carries the exit/reset UI ('left' assumes a
    *  right-hand pointer — must be flippable). */
   wristHandedness: 'left' | 'right';
-  /** soft zoom clamps, RELATIVE to the entry scale (10^±exponent). */
+  /** soft zoom clamps, RELATIVE to the entry scale (10^±exponent).
+   *  Default 1.5 ≈ 31× in/out — Dustin: 10^3 was far too much
+   *  headroom; raise per space when a sim truly spans scales. */
   scaleRangeExponent: number;
 }
 
@@ -117,7 +119,7 @@ export interface XrNavKnobs {
  *  HELP panel — bumped on every XR deploy so a headset running a
  *  CACHED/RESUMED old app is identifiable at a glance (a resumed
  *  Wolvic tab never reloads; it burned a whole debugging cycle). */
-export const XR_BUILD_TAG = 'nav-6 fine+pads';
+export const XR_BUILD_TAG = 'nav-7 zoom-cap';
 
 export const XR_NAV_DEFAULTS: XrNavKnobs = {
   shiftDebounceMs: 250,
@@ -133,7 +135,7 @@ export const XR_NAV_DEFAULTS: XrNavKnobs = {
   snapTurn: true,
   snapTurnDegrees: 30,
   wristHandedness: 'left',
-  scaleRangeExponent: 3,
+  scaleRangeExponent: 1.5,
 };
 
 /** What the engine hands the (lazy-chunk) session runtime at
