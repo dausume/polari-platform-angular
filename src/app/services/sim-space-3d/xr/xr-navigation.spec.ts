@@ -395,6 +395,29 @@ describe('XrNavigation (deferred-commit state machine)', () => {
     expect(rig.position.length()).toBeLessThan(1e-9);
   });
 
+  it('RESCUE: a rig that somehow becomes non-finite or implausibly '
+      + 'far snaps home loudly, in any mode', () => {
+    rig.position.set(3e7, 0, 0); // whatever drove it there
+    frames(1);
+    expect(rig.position.length()).toBeLessThan(1e-9); // home
+    expect(nav.consumeLimitHit()).toBe(true);
+
+    rig.position.set(Number.NaN, 0, 0);
+    frames(1);
+    expect(Number.isFinite(rig.position.x)).toBe(true);
+    expect(rig.position.length()).toBeLessThan(1e-9);
+  });
+
+  it('travel terminates even with a corrupted duration (NaN-proof '
+      + 'landing + wall-clock cap)', () => {
+    nav.jumpTo({ position: [4, 0, 0], yaw: 0, scale: 2 });
+    expect(nav.isTravelling()).toBe(true);
+    (nav as any).travel.duration = Number.NaN; // corrupt it
+    frames(Math.ceil((nav.knobs.commitMaxSeconds + 1.2) / DT));
+    expect(nav.isTravelling()).toBe(false);
+    expect(rig.position.x).toBeCloseTo(4, 9); // landed on target
+  });
+
   it('gestures never start while another surface owns input focus',
       () => {
     worldFocus = false;

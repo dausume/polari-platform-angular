@@ -266,8 +266,19 @@ export class XrSessionRuntime {
     navigation.setHome(sphere.center, sphere.radius);
     // Bind-time bounds can predate async mesh loading — navigation
     // re-measures the LIVE scene at every gesture start (every plan
-    // is priced in R, so R must be true, not merely early).
-    navigation.setBoundsProvider(() => sceneBoundingSphere(scene));
+    // is priced in R, so R must be true, not merely early). The rig
+    // subtree (controllers, wrist UI, comfort visuals — wherever the
+    // USER is) must never inflate the measurement: R would then grow
+    // with every travel, compounding the next plan.
+    navigation.setBoundsProvider(() => {
+      const parent = rig.parent;
+      parent?.remove(rig);
+      try {
+        return sceneBoundingSphere(scene);
+      } finally {
+        parent?.add(rig);
+      }
+    });
 
     // Wrist UI is per-bind: its handedness is a per-space knob.
     // Ring-0 labels (Dustin 2026-07-12): EXIT / RE-CENTER / HELP.

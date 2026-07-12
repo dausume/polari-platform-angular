@@ -197,6 +197,7 @@ export class XrNavigation {
   // ------------------------------------------------------------------
 
   update(dtSeconds: number): void {
+    this.rescueIfLost();
     const pressed = this.input.pressedGrips();
 
     switch (this.mode) {
@@ -544,10 +545,43 @@ export class XrNavigation {
     this.mode = 'travelling';
   }
 
+  /** The last-resort escape (every frame, any mode): a rig that is
+   *  non-finite or implausibly far from home snaps back to the entry
+   *  pose, loudly. Whatever drove it there, the wearer is rescued in
+   *  place — never lost in the void. */
+  private rescueIfLost(): void {
+    const position = this.rig.position;
+    const scale = this.rig.scale.x;
+    const finite = Number.isFinite(position.x)
+      && Number.isFinite(position.y) && Number.isFinite(position.z)
+      && Number.isFinite(scale) && scale > 0;
+    const maxDist = this.boundsRadius * this.knobs.clampRadii * 4
+      + Math.abs(scale) * 20;
+    const homeDist = position
+      .distanceTo(new THREE.Vector3(...this.home.position));
+    if (finite && homeDist <= maxDist) return;
+    console.error('[xr-nav] RESCUE: rig implausibly far or '
+      + 'non-finite — snapping home', {
+        position: position.toArray(), scale,
+        boundsRadius: this.boundsRadius, homeDist, maxDist,
+        mode: this.mode,
+      });
+    applyPoseToRig(this.rig, this.home);
+    this.travel = null;
+    this.plan = null;
+    this.limitHit = true;
+    this.mode = 'cancelled';
+  }
+
   private driveTravel(dt: number): void {
     const travel = this.travel!;
     travel.elapsed += dt;
-    const u = Math.min(travel.elapsed / travel.duration, 1);
+    // NaN-proof termination: `!(a < b)` lands on ANY corrupted
+    // duration, and the wall-clock cap bounds it absolutely.
+    const overdue = !(travel.elapsed < travel.duration)
+      || travel.elapsed >= this.knobs.commitMaxSeconds + 1;
+    const u = overdue ? 1
+      : Math.min(travel.elapsed / travel.duration, 1);
     if (u >= 1) {
       // Land EXACTLY on the confirmed target (no float drift from
       // the log-space interpolation).
