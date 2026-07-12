@@ -298,6 +298,11 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
    *  (nothing XR-bindable). Drives the Enter-XR button's presence. */
   xrEntryId: string | null = null;
 
+  /** Fired with the registry entry id once the live scene is
+   *  XR-bindable — headset-first hosts (the /xr lobby's slim view)
+   *  mount their own oversized Enter-XR control against it. */
+  @Output() xrEntryReady = new EventEmitter<string>();
+
   /** Fired on every canvas click with the picked object id (null =
    *  empty space) — selection hosts (sim-space-selector) consume this;
    *  independent of clickNavigates. */
@@ -938,6 +943,7 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
       spaceName: this.simSpaceName,
       getHandle: () => renderer.getXrSceneHandle?.() ?? null,
     });
+    this.xrEntryReady.emit(this.xrEntryId);
   }
 
   /** Unregister on teardown; if OUR scene is the one bound into the

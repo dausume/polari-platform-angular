@@ -21,6 +21,10 @@ const routes: Routes = [
   { path: 'callback', loadComponent: () => import('@components/auth-callback/auth-callback.component').then(m => m.AuthCallbackComponent) },
   { path: 'permissions', loadComponent: () => import('@components/permissions/permissions.component').then(m => m.PermissionsComponent) },
   { path: 'permissions/roles/:name', loadComponent: () => import('@components/permissions/role-detail/role-detail.component').then(m => m.RoleDetailComponent) },
+  // Headset-first lobby: giant targets, no fine scrolling — the XR
+  // homepage (suggested from Home when a headset is detected).
+  { path: 'xr', loadComponent: () => import('@components/xr-lobby/xr-lobby-page.component').then(m => m.XrLobbyPageComponent) },
+  { path: 'xr/view/:name', loadComponent: () => import('@components/xr-lobby/xr-view-page.component').then(m => m.XrViewPageComponent) },
   { path: 'sim-spaces', loadComponent: () => import('@components/sim-space/sim-space-list-page/sim-space-list-page.component').then(m => m.SimSpaceListPageComponent) },
   { path: 'sim-spaces/:name', loadComponent: () => import('@components/sim-space/sim-space-detail-page/sim-space-detail-page.component').then(m => m.SimSpaceDetailPageComponent) },
   { path: 'multi-scale-sims', loadComponent: () => import('@components/multi-scale/multi-scale-sims.component').then(m => m.MultiScaleSimsComponent) },

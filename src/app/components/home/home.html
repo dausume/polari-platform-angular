@@ -1,4 +1,12 @@
 <div class="page-container-centered-narrow">
+    <!-- Suggestion, never a redirect: headset browsers struggle with
+         this page's scrolling — offer the XR lobby when a VR-capable
+         device is detected. -->
+    <a *ngIf="vrCapable" routerLink="/xr" class="xr-lobby-banner">
+        <mat-icon>view_in_ar</mat-icon>
+        <span>Headset detected — the XR lobby is much easier to
+            navigate here. Open Polari XR &#8594;</span>
+    </a>
     <mat-card>
         <mat-card-title>Polari Research Framework</mat-card-title>
         <p class="intro-text">
