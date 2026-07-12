@@ -353,6 +353,48 @@ describe('XrNavigation (deferred-commit state machine)', () => {
     expect(nav.consumeLimitHit()).toBe(true);
   });
 
+  it('an implausible bounds measurement is clamped into the '
+      + 'entry-scale band, never trusted (the negative-millions-of-R '
+      + 'regression)', () => {
+    // entryScale is 2 (rig scale at setHome) — a plausible R lies in
+    // 2×[0.09 … 50]. Degenerate + absurd measurements clamp loudly.
+    nav.setHome(new THREE.Vector3(0, 0, 0), 1e-6); // scene not loaded
+    expect(nav.hud().simRadius).toBeCloseTo(2 * 0.45 * 0.2, 6);
+    nav.setHome(new THREE.Vector3(0, 0, 0), 1e9); // stray huge helper
+    expect(nav.hud().simRadius).toBeCloseTo(2 * 2.5 * 20, 6);
+    nav.setHome(new THREE.Vector3(0, 0, 0), Number.NaN);
+    expect(Number.isFinite(nav.hud().simRadius)).toBe(true);
+  });
+
+  it('bounds are RE-MEASURED at gesture start (bind-time bounds can '
+      + 'predate mesh loading)', () => {
+    nav.setHome(new THREE.Vector3(0, 0, 0), 1e-6); // degenerate bind
+    nav.setBoundsProvider(() => ({
+      center: new THREE.Vector3(0, 0, 0), radius: RADIUS,
+    }));
+    armShift(new THREE.Vector3(0, 1.2, 0));
+    expect(nav.hud().simRadius).toBe(RADIUS);
+    left().grip.position.set(0, 1.2, -0.3);
+    frames(2);
+    // The plan is priced in the TRUE radius.
+    expect(nav.hud().plan!.moveRadii).toBeCloseTo(0.714, 2);
+    left().gripPressed = false;
+    settle();
+    expect(rig.position.z).toBeCloseTo(0.714 * RADIUS, 1);
+  });
+
+  it('a non-finite travel target is REFUSED in place, never applied',
+      () => {
+    nav.jumpTo({ position: [Number.NaN, 0, 0], yaw: 0, scale: 2 });
+    frames(5);
+    expect(nav.isTravelling()).toBe(false);
+    expect(rig.position.length()).toBeLessThan(1e-9);
+    nav.jumpTo({ position: [1e12, 0, 0], yaw: 0, scale: 2 });
+    frames(5);
+    expect(nav.isTravelling()).toBe(false);
+    expect(rig.position.length()).toBeLessThan(1e-9);
+  });
+
   it('gestures never start while another surface owns input focus',
       () => {
     worldFocus = false;

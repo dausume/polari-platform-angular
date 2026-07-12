@@ -95,10 +95,10 @@ export class XrWristUi {
     ];
 
     this.hudCanvas = document.createElement('canvas');
-    this.hudCanvas.width = 320;
+    this.hudCanvas.width = 440;
     this.hudCanvas.height = 168;
     this.hudTexture = new THREE.CanvasTexture(this.hudCanvas);
-    const hudGeometry = new THREE.PlaneGeometry(0.104, 0.055);
+    const hudGeometry = new THREE.PlaneGeometry(0.126, 0.048);
     const hudMaterial = new THREE.MeshBasicMaterial({
       map: this.hudTexture, transparent: true, depthTest: false,
     });
@@ -247,24 +247,26 @@ export class XrWristUi {
   private buildHelpPanel(): void {
     const canvas = document.createElement('canvas');
     canvas.width = 512;
-    canvas.height = 560;
+    canvas.height = 620;
     const ctx = canvas.getContext('2d')!;
     ctx.fillStyle = 'rgba(20,28,38,0.92)';
-    ctx.fillRect(0, 0, 512, 560);
+    ctx.fillRect(0, 0, 512, 620);
     ctx.strokeStyle = '#5b8bb5';
     ctx.lineWidth = 4;
-    ctx.strokeRect(2, 2, 508, 556);
+    ctx.strokeRect(2, 2, 508, 616);
     ctx.fillStyle = '#e0f2f1';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
+    // Generous line height + bottom margin — the first cut clipped
+    // the tail lines on-device.
     HELP_LINES.forEach((line, index) => {
       ctx.font = index === 0
-        ? 'bold 30px sans-serif' : '24px sans-serif';
-      ctx.fillText(line, 22, 18 + index * 27);
+        ? 'bold 30px sans-serif' : '23px sans-serif';
+      ctx.fillText(line, 22, 20 + index * 29);
     });
 
     const texture = new THREE.CanvasTexture(canvas);
-    const geometry = new THREE.PlaneGeometry(0.20, 0.219);
+    const geometry = new THREE.PlaneGeometry(0.20, 0.242);
     const material = new THREE.MeshBasicMaterial({
       map: texture, transparent: true, depthTest: false,
       side: THREE.DoubleSide,
@@ -284,15 +286,17 @@ export class XrWristUi {
         + `:${hud.plan.zoomFactor.toFixed(2)}` : '-',
       hud.distanceR.toFixed(2),
       hud.xR.toFixed(1), hud.yR.toFixed(1), hud.zR.toFixed(1),
-      hud.zoom.toFixed(2)].join('|');
+      hud.zoom.toFixed(2), this.compact(hud.simRadius),
+      hud.state === 'travelling'
+        ? hud.travelRemainingS.toFixed(1) : ''].join('|');
   }
 
   private drawHud(hud: XrNavHud, key: string): void {
     this.lastHudKey = key;
     const ctx = this.hudCanvas.getContext('2d')!;
-    ctx.clearRect(0, 0, 320, 168);
+    ctx.clearRect(0, 0, 440, 168);
     ctx.fillStyle = 'rgba(33,33,33,0.78)';
-    ctx.fillRect(0, 0, 320, 168);
+    ctx.fillRect(0, 0, 440, 168);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
 
@@ -302,43 +306,56 @@ export class XrWristUi {
       : `÷${(1 / hud.zoom) >= 10 ? Math.round(1 / hud.zoom)
         : (1 / hud.zoom).toFixed(1)}`;
 
+    // 26px monospace ≈ 15.6px/char → 28 chars fit 440px (Dustin:
+    // the first cut clipped lines; every line here is length-checked).
     ctx.fillStyle = '#e0f2f1';
-    ctx.font = '30px monospace';
+    ctx.font = '26px monospace';
     ctx.fillText(
       `pos ${this.r(hud.xR)} ${this.r(hud.yR)} ${this.r(hud.zR)} R`,
-      12, 26);
+      12, 24);
     ctx.fillText(
-      `dist ${hud.distanceR.toFixed(1)} R   zoom ${zoomText}`,
-      12, 62);
+      `dist ${hud.distanceR.toFixed(1)} R  zoom ${zoomText}`,
+      12, 58);
 
     // The action line: what a release WILL do / what is happening.
-    ctx.font = 'bold 34px monospace';
+    ctx.font = 'bold 28px monospace';
     if (hud.state === 'planning' && hud.plan) {
       ctx.fillStyle = '#ffd54f';
       const plan = hud.plan;
       const zoomPart = Math.abs(Math.log2(plan.zoomFactor)) > 0.03
-        ? ` zoom ${plan.zoomFactor >= 1
+        ? ` zoom${plan.zoomFactor >= 1
           ? '×' + plan.zoomFactor.toFixed(1)
           : '÷' + (1 / plan.zoomFactor).toFixed(1)}` : '';
       const movePart = plan.moveRadii > 0.005
-        ? ` move ${plan.moveRadii.toFixed(2)} R` : '';
+        ? ` move ${plan.moveRadii.toFixed(2)}R` : '';
       ctx.fillText(
-        (plan.kind === 'zoom' ? 'GRAB:' : 'AIM:')
-        + (zoomPart + movePart || ' (too small)'), 12, 106);
-      ctx.font = '24px monospace';
+        (plan.kind === 'zoom' ? 'GRAB' : 'AIM')
+        + (zoomPart + movePart || ' (too small)'), 12, 100);
+      ctx.font = '22px monospace';
       ctx.fillStyle = '#b0bec5';
-      ctx.fillText('release = go · trigger = cancel', 12, 142);
+      ctx.fillText('release = go · trigger = cancel', 12, 140);
     } else if (hud.state === 'travelling') {
       ctx.fillStyle = '#80cbc4';
       ctx.fillText(
-        `travelling… ${hud.travelRemainingS.toFixed(1)}s`, 12, 106);
+        `travelling… ${hud.travelRemainingS.toFixed(1)}s`, 12, 100);
     } else {
       ctx.fillStyle = '#78909c';
-      ctx.font = '24px monospace';
-      ctx.fillText('grip = aim a move · HELP for how',
-        12, 106);
+      ctx.font = '22px monospace';
+      ctx.fillText('grip = aim a move · HELP = how', 12, 100);
+      ctx.fillText(`R = ${this.compact(hud.simRadius)} world units`,
+        12, 140);
     }
     this.hudTexture.needsUpdate = true;
+  }
+
+  /** Compact number for the R display (1.2k / 3.4M when huge —
+   *  a huge R is exactly what this line exists to expose). */
+  private compact(value: number): string {
+    if (!Number.isFinite(value)) return String(value);
+    if (value >= 1e6) return (value / 1e6).toFixed(1) + 'M';
+    if (value >= 1e3) return (value / 1e3).toFixed(1) + 'k';
+    if (value >= 1) return value.toFixed(1);
+    return value.toPrecision(2);
   }
 
   private r(value: number): string {

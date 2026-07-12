@@ -67,6 +67,9 @@ export interface XrNavHud {
   /** user-perceived zoom vs the space default (>1 = zoomed in). */
   zoom: number;
   travelRemainingS: number;
+  /** R itself, in world units — on the HUD so a broken bounds
+   *  measurement is diagnosable at a glance. */
+  simRadius: number;
 }
 
 const HISTORY_CAP = 50;
@@ -129,17 +132,64 @@ export class XrNavigation {
     this.entryScale = this.home.scale;
   }
 
+  /** Live bounds re-measure (runtime wires sceneBoundingSphere): the
+   *  bind-time sphere can be DEGENERATE when the scene's meshes are
+   *  still loading — since every plan is expressed in R, bounds are
+   *  refreshed at the start of each gesture, when the scene is
+   *  guaranteed visible. */
+  private boundsProvider:
+    (() => { center: THREE.Vector3; radius: number }) | null = null;
+
+  setBoundsProvider(
+      provider: () => { center: THREE.Vector3; radius: number }): void {
+    this.boundsProvider = provider;
+  }
+
   /** Called at bind: the entry pose is home, and the soft clamps are
    *  relative to this scale + these bounds. */
   setHome(center: THREE.Vector3, radius: number): void {
     this.home = poseFromRig(this.rig);
     this.entryScale = this.home.scale;
     this.boundsCenter.copy(center);
-    this.boundsRadius = Math.max(radius, 1e-9);
+    this.boundsRadius = this.saneRadius(radius);
     this.history = [];
     this.plan = null;
     this.travel = null;
     this.mode = 'idle';
+  }
+
+  /** R must be TRUSTWORTHY before anything multiplies by it: the
+   *  entry framing demonstrably works (entryScale = radius/apparent
+   *  at first derivation), so a plausible R lies within a band of
+   *  entryScale × [exhibit 0.45 … inside 2.5]. A degenerate or
+   *  wildly-off measurement (scene not loaded yet, a stray huge
+   *  helper) is clamped into that band — loudly. */
+  private saneRadius(measured: number): number {
+    const expectedLow = this.entryScale * 0.45 * 0.2;
+    const expectedHigh = this.entryScale * 2.5 * 20;
+    if (!Number.isFinite(measured) || measured < expectedLow
+        || measured > expectedHigh) {
+      const fallback = Math.min(
+        Math.max(Number.isFinite(measured) ? measured : 0,
+          expectedLow),
+        expectedHigh);
+      console.warn(
+        `[xr-nav] implausible sim radius ${measured} for entry scale `
+        + `${this.entryScale} — clamped to ${fallback} (band `
+        + `${expectedLow}…${expectedHigh})`);
+      return Math.max(fallback, 1e-9);
+    }
+    return measured;
+  }
+
+  /** Refresh bounds from the live scene at gesture start. */
+  private refreshBounds(): void {
+    if (!this.boundsProvider) return;
+    try {
+      const sphere = this.boundsProvider();
+      this.boundsCenter.copy(sphere.center);
+      this.boundsRadius = this.saneRadius(sphere.radius);
+    } catch { /* keep the previous bounds */ }
   }
 
   // ------------------------------------------------------------------
@@ -175,6 +225,9 @@ export class XrNavigation {
         if (heldMs >= this.knobs.shiftDebounceMs) {
           this.mode = 'shift-planning';
           this.preGesturePose = poseFromRig(this.rig);
+          // The plan is priced in R — measure the LIVE scene now
+          // (bind-time bounds can predate async mesh loading).
+          this.refreshBounds();
           // Re-record the origin AT arm time — the plan arms here;
           // drift during the debounce is not a command.
           this.shiftOriginLocal.copy(this.shiftHandle!.grip.position);
@@ -267,6 +320,7 @@ export class XrNavigation {
       travelRemainingS: this.travel
         ? Math.max(this.travel.duration - this.travel.elapsed, 0)
         : 0,
+      simRadius: this.boundsRadius,
     };
   }
 
@@ -338,6 +392,7 @@ export class XrNavigation {
   private startGrab(h1: XrControllerHandle, h2: XrControllerHandle): void {
     this.mode = 'grab-planning';
     this.grabHandles = [h1, h2];
+    this.refreshBounds();
     this.preGesturePose = this.preGesturePose ?? poseFromRig(this.rig);
     this.grabP1.copy(h1.grip.position);
     this.grabP2.copy(h2.grip.position);
@@ -455,6 +510,21 @@ export class XrNavigation {
   private beginTravel(to: XrRigPose, plan?: XrNavPlan): void {
     const from = poseFromRig(this.rig);
     if (this.posesClose(from, to)) { this.mode = 'idle'; return; }
+    // Hard invariant (never silent): refuse a target that is not
+    // finite or absurdly far — a broken measurement must strand the
+    // user IN PLACE, not at the far end of a bad multiply.
+    const targetOffset = new THREE.Vector3(...to.position)
+      .sub(this.boundsCenter).length();
+    const sane = to.position.every(Number.isFinite)
+      && Number.isFinite(to.scale) && to.scale > 0
+      && targetOffset <= this.boundsRadius * this.knobs.clampRadii * 2
+        + to.scale * 10;
+    if (!sane) {
+      console.warn('[xr-nav] REFUSED travel to implausible target',
+        { to, boundsRadius: this.boundsRadius, targetOffset });
+      this.mode = 'idle';
+      return;
+    }
     const moveRadii = plan?.moveRadii
       ?? (new THREE.Vector3(...to.position)
         .sub(new THREE.Vector3(...from.position)).length()
