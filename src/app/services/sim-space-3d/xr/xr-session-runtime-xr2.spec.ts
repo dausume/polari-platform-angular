@@ -146,12 +146,16 @@ describe('XrSessionRuntime (xr-2, iwer)', () => {
       .toEqual(childrenBefore);
   });
 
-  it('an iwer grip squeeze + hand push drives the rig (the one-grip '
-      + 'shift end-to-end)', async () => {
+  it('an iwer grip squeeze + push PLANS, and releasing the grip '
+      + 'confirms — the rig travels (the deferred-commit shift '
+      + 'end-to-end)', async () => {
     if (!webglAvailable()) { pending('WebGL unavailable'); return; }
     await withSession(
-      // Short debounce keeps the spec fast; it is a knob.
-      contextOf({ variantConfig: { nav: { shiftDebounceMs: 40 } } }),
+      // Short debounce + fast travel keep the spec quick; knobs.
+      contextOf({ variantConfig: { nav: {
+        shiftDebounceMs: 40, commitBaseSeconds: 0.05,
+        commitSecondsPerUnit: 0.02, commitMaxSeconds: 0.3,
+      } } }),
       async (_runtime, scene) => {
         await settle(); // controllers connect
         const rig = scene.getObjectByName('polari-xr-rig')!;
@@ -160,10 +164,14 @@ describe('XrSessionRuntime (xr-2, iwer)', () => {
         const controller = device.controllers['right']!;
         controller.position.set(0.2, 1.4, -0.4);
         controller.updateButtonValue('squeeze', 1);
-        await settle(120); // debounce passes, shift arms
-        controller.position.set(0.2, 1.4, -0.8); // push forward
-        await settle(250); // frames drive the rig
-        controller.updateButtonValue('squeeze', 0);
+        await settle(120); // debounce passes, the plan arms
+        controller.position.set(0.2, 1.4, -0.8); // aim the move
+        await settle(150);
+        // Nothing moves while the grip is held (planning only).
+        expect(rig.position.distanceTo(positionBefore))
+          .toBeLessThan(1e-9);
+        controller.updateButtonValue('squeeze', 0); // release = go
+        await settle(600); // the confirmed travel completes
 
         expect(rig.position.distanceTo(positionBefore))
           .toBeGreaterThan(1e-4);

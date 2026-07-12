@@ -1,11 +1,12 @@
 /**
- * Pure unit specs for the xr-2 grip-navigation state machine — a fake
- * input rig drives it deterministically (no WebXR/iwer here; the
- * session-level integration rides the iwer specs). Pins the Dustin
- * navigation contract: grips navigate, debounce arms with a haptic
- * tick, the other grip cancels an ARMED shift, two grips world-grab
- * with the grabbed midpoint held invariant, soft clamps are never
- * silent, snap turn + reset + history behave.
+ * Pure unit specs for the deferred-commit grip navigation (xr-2 +
+ * Dustin's 2026-07-12 refinement) — a fake input rig drives it
+ * deterministically (no WebXR/iwer here; the session-level
+ * integration rides the iwer specs). Pins the contract: grips PLAN
+ * (nothing moves while held), the HUD reports the plan in Sim
+ * Radii, release CONFIRMS and the rig travels over time, the other
+ * grip / any trigger cancels a plan, soft clamps are never silent,
+ * snap turn + re-center + history behave.
  */
 import * as THREE from 'three';
 
@@ -55,13 +56,14 @@ class FakeInputRig {
   axisX(): number { return this.axisXValue; }
 }
 
-describe('XrNavigation (xr-2 state machine)', () => {
+describe('XrNavigation (deferred-commit state machine)', () => {
   let rig: THREE.Group;
   let input: FakeInputRig;
   let nav: XrNavigation;
   let worldFocus: boolean;
 
   const DT = 1 / 60;
+  const RADIUS = 5;
 
   beforeEach(() => {
     rig = new THREE.Group();
@@ -70,7 +72,7 @@ describe('XrNavigation (xr-2 state machine)', () => {
     input = new FakeInputRig();
     worldFocus = true;
     nav = new XrNavigation(rig, input as any, () => worldFocus);
-    nav.setHome(new THREE.Vector3(0, 0, 0), 5);
+    nav.setHome(new THREE.Vector3(0, 0, 0), RADIUS);
   });
 
   function press(handle: FakeHandle, heldForMs = 0): void {
@@ -81,13 +83,30 @@ describe('XrNavigation (xr-2 state machine)', () => {
   function left(): FakeHandle { return input.handles[0]; }
   function right(): FakeHandle { return input.handles[1]; }
 
-  /** Pump: pending pickup + arm check + drive frames. */
   function frames(n: number): void {
     for (let i = 0; i < n; i++) nav.update(DT);
   }
 
-  it('one grip arms after the debounce with a haptic tick, and the '
-      + 'dead zone suppresses drive', () => {
+  /** Pump until any pending commit + travel completes (bounded).
+   *  Always runs at least one frame — a release is only DETECTED on
+   *  the next update. */
+  function settle(): void {
+    frames(2);
+    for (let i = 0; i < 400 && nav.isTravelling(); i++) {
+      nav.update(DT);
+    }
+    expect(nav.isTravelling()).toBe(false);
+  }
+
+  function armShift(origin: THREE.Vector3): void {
+    left().grip.position.copy(origin);
+    press(left(), 300);
+    frames(2); // pending pickup + arm
+    expect(nav.isShiftArmed()).toBe(true);
+  }
+
+  it('one grip arms after the debounce with a haptic tick; the dead '
+      + 'zone plans nothing', () => {
     left().grip.position.set(0.2, 1.2, -0.3);
     press(left(), 0); // just pressed — inside the debounce window
     frames(1);
@@ -98,42 +117,53 @@ describe('XrNavigation (xr-2 state machine)', () => {
     expect(nav.isShiftArmed()).toBe(true);
     expect(input.pulses.length).toBe(1); // the arm tick
 
-    // Inside the dead zone: no motion.
+    // Inside the dead zone: no plan, and releasing goes nowhere.
     const before = poseFromRig(rig);
     left().grip.position.x += 0.02; // < 0.05 dead zone
     frames(5);
+    expect(nav.hud().plan).toBeNull();
+    left().gripPressed = false;
+    frames(3);
     expect(poseFromRig(rig).position).toEqual(before.position);
   });
 
-  it('an armed shift drives the rig opposite the push (world pushed '
-      + 'away), scale-relative', () => {
-    left().grip.position.set(0, 1.2, 0);
-    press(left(), 300);
-    frames(2); // pending pickup + arm
-    expect(nav.isShiftArmed()).toBe(true);
+  it('a held shift only PLANS (rig frozen, plan in Sim Radii); '
+      + 'release confirms and the rig TRAVELS to the target', () => {
+    armShift(new THREE.Vector3(0, 1.2, 0));
 
     left().grip.position.set(0, 1.2, -0.3); // push forward (−Z)
-    frames(30);
-    // World pushed away along −Z ⇒ rig retreats along +Z, scaled by
-    // the rig scale (2).
-    expect(rig.position.z).toBeGreaterThan(0.01);
+    frames(10);
+    // Nothing moved while the grip is held.
+    expect(rig.position.length()).toBeLessThan(1e-9);
+    // Plan: (0.3 − 0.05 deadzone) / 0.35 ref × 1.0 gain ≈ 0.714 R.
+    const hud = nav.hud();
+    expect(hud.state).toBe('planning');
+    expect(hud.plan!.kind).toBe('move');
+    expect(hud.plan!.moveRadii).toBeCloseTo(0.714, 2);
+
+    left().gripPressed = false;
+    frames(1);
+    expect(nav.isTravelling()).toBe(true);
+    const mid = poseFromRig(rig);
+    settle();
+    // World pushed away along −Z ⇒ rig lands +Z by 0.714 R × 5.
+    expect(rig.position.z).toBeCloseTo(0.714 * RADIUS, 1);
     expect(Math.abs(rig.position.x)).toBeLessThan(1e-6);
-    expect(rig.scale.x).toBeCloseTo(2, 10); // shift never scales
+    expect(rig.scale.x).toBeCloseTo(2, 10); // a move never scales
+    // It travelled (some intermediate pose existed between ends).
+    expect(mid.position[2]).toBeLessThan(rig.position.z);
   });
 
-  it('the OTHER grip cancels an armed shift; gestures stay dead until '
-      + 'all grips release', () => {
-    left().grip.position.set(0, 1.2, 0);
-    press(left(), 300);
-    frames(2);
-    expect(nav.isShiftArmed()).toBe(true);
+  it('the OTHER grip cancels a planned shift; gestures stay dead '
+      + 'until all grips release', () => {
+    armShift(new THREE.Vector3(0, 1.2, 0));
 
     press(right(), 0);
     frames(1);
     expect(nav.isShiftArmed()).toBe(false);
     expect(nav.isGrabbing()).toBe(false); // cancel, NOT a grab
 
-    // Still held: nothing restarts.
+    // Still held: nothing restarts, nothing moves.
     left().grip.position.set(0.5, 1.2, 0);
     const before = poseFromRig(rig);
     frames(10);
@@ -148,8 +178,22 @@ describe('XrNavigation (xr-2 state machine)', () => {
     expect(nav.isShiftArmed()).toBe(true);
   });
 
-  it('both grips pressed together start a world-grab, not a cancel',
-      () => {
+  it('a TRIGGER press cancels a plan (the cancel button)', () => {
+    armShift(new THREE.Vector3(0, 1.2, 0));
+    left().grip.position.set(0, 1.2, -0.4);
+    frames(2);
+    expect(nav.hud().plan).not.toBeNull();
+
+    nav.notifyTriggerPress();
+    frames(1);
+    expect(nav.isShiftArmed()).toBe(false);
+    left().gripPressed = false;
+    frames(3);
+    expect(rig.position.length()).toBeLessThan(1e-9); // never moved
+  });
+
+  it('both grips pressed together start a world-grab plan, not a '
+      + 'cancel', () => {
     left().grip.position.set(-0.2, 1.2, 0);
     right().grip.position.set(0.2, 1.2, 0);
     press(left(), 0);
@@ -168,63 +212,81 @@ describe('XrNavigation (xr-2 state machine)', () => {
     expect(nav.isGrabbing()).toBe(true);
   }
 
-  it('two-grip: hands APART zooms IN (rig scale shrinks) and the '
-      + 'grabbed world midpoint stays under the hands', () => {
+  it('two-grip: hands APART plan zoom IN (rig frozen while held); '
+      + 'release commits — final scale halves and the grabbed world '
+      + 'midpoint lands under the hands', () => {
     startGrab(new THREE.Vector3(-0.1, 1.2, 0),
       new THREE.Vector3(0.1, 1.2, 0));
-    // The world point grabbed at the midpoint (rig scale 2, origin
-    // rig): world = 2 × local.
     const grabbedWorld = new THREE.Vector3(0, 2.4, 0);
 
     left().grip.position.set(-0.2, 1.2, 0);
     right().grip.position.set(0.2, 1.2, 0); // distance ×2
-    frames(1);
-    expect(rig.scale.x).toBeCloseTo(1, 6); // 2 × (0.2/0.4)
+    frames(2);
+    expect(rig.scale.x).toBeCloseTo(2, 10); // frozen while held
+    const hud = nav.hud();
+    expect(hud.plan!.kind).toBe('zoom');
+    expect(hud.plan!.zoomFactor).toBeCloseTo(2, 5);
 
-    // Invariance: the grabbed world point is still under the (new)
-    // midpoint: world = P + s·mid.
+    right().gripPressed = false; // release either hand = confirm
+    frames(1);
+    left().gripPressed = false;
+    settle();
+    expect(rig.scale.x).toBeCloseTo(1, 6); // 2 × (0.2/0.4)
     const midWorld = new THREE.Vector3(0, 1.2, 0)
       .multiplyScalar(rig.scale.x).add(rig.position);
     expect(midWorld.distanceTo(grabbedWorld)).toBeLessThan(1e-6);
   });
 
-  it('two-grip: moving both hands together translates; twisting '
-      + 'rotates about the vertical axis', () => {
+  it('two-grip: moving both hands plans a translation; twisting '
+      + 'plans yaw — applied on release', () => {
     startGrab(new THREE.Vector3(-0.1, 1.2, 0),
       new THREE.Vector3(0.1, 1.2, 0));
 
-    // Translate both hands +X by 0.3: the world under the hands
-    // follows ⇒ rig moves −s·Δ.
     left().grip.position.x += 0.3;
     right().grip.position.x += 0.3;
     frames(1);
+    expect(rig.position.x).toBeCloseTo(0, 10); // frozen while held
+    right().gripPressed = false;
+    frames(1);
+    left().gripPressed = false;
+    settle();
     expect(rig.position.x).toBeCloseTo(-0.6, 6);
     expect(rig.scale.x).toBeCloseTo(2, 6);
 
-    // Twist the pair 90° about Y (hands now along Z): yaw changes.
-    left().grip.position.set(-0.3 + 0.3, 1.2, -0.1);
-    right().grip.position.set(0.3 - 0.3, 1.2, 0.1);
-    // Keep the distance 0.2 — pure rotation.
+    // Twist: re-grab at a start pose FIRST (the snapshot frame),
+    // THEN rotate the pair about Y (keep distance 0.2).
+    left().grip.position.set(0.2, 1.2, 0);
+    right().grip.position.set(0.4, 1.2, 0);
+    press(left(), 0);
+    press(right(), 0);
+    frames(1); // snapshot
     left().grip.position.set(0.3, 1.2, -0.1);
     right().grip.position.set(0.3, 1.2, 0.1);
+    frames(2);
+    right().gripPressed = false;
     frames(1);
+    left().gripPressed = false;
+    settle();
     const yaw = poseFromRig(rig).yaw;
     expect(Math.abs(yaw)).toBeGreaterThan(0.5); // rotated
     expect(rig.scale.x).toBeCloseTo(2, 3);
   });
 
-  it('the scale soft clamp engages honestly (limit hit flagged, '
-      + 'never silent)', () => {
+  it('the scale soft clamp engages honestly during planning (limit '
+      + 'flagged, never silent)', () => {
     nav.knobs.scaleRangeExponent = 1; // clamp at 10× either way
     startGrab(new THREE.Vector3(-0.01, 1.2, 0),
       new THREE.Vector3(0.01, 1.2, 0));
-    // Hands apart ×100 → wanted scale 2/100 < 2/10 → clamped.
     left().grip.position.set(-1, 1.2, 0);
     right().grip.position.set(1, 1.2, 0);
     frames(1);
-    expect(rig.scale.x).toBeCloseTo(0.2, 6);
     expect(nav.consumeLimitHit()).toBe(true);
     expect(nav.consumeLimitHit()).toBe(false); // consumed
+    right().gripPressed = false;
+    frames(1);
+    left().gripPressed = false;
+    settle();
+    expect(rig.scale.x).toBeCloseTo(0.2, 6);
   });
 
   it('snap turn: stick right yaws right with hysteresis re-arm', () => {
@@ -243,28 +305,52 @@ describe('XrNavigation (xr-2 state machine)', () => {
     expect(poseFromRig(rig).yaw).toBeCloseTo(0, 6);
   });
 
-  it('reset view restores home; back() walks the history', () => {
+  it('re-center travels home; back() walks the history (both timed, '
+      + 'never a teleport)', () => {
     const home = poseFromRig(rig);
 
-    // Move via a shift.
-    left().grip.position.set(0, 1.2, 0);
-    press(left(), 300);
-    frames(2);
+    // Move via a confirmed shift.
+    armShift(new THREE.Vector3(0, 1.2, 0));
     left().grip.position.set(0, 1.2, -0.4);
-    frames(30);
+    frames(3);
     left().gripPressed = false;
-    frames(1); // gesture end pushes history
+    settle();
     const moved = poseFromRig(rig);
     expect(moved.position).not.toEqual(home.position);
 
     expect(nav.back()).toBe(true); // back to pre-shift
+    expect(nav.isTravelling()).toBe(true);
+    settle();
     expect(poseFromRig(rig).position).toEqual(home.position);
 
     applyPoseToRig(rig, moved);
     nav.resetView();
+    settle();
     expect(poseFromRig(rig)).toEqual(home);
     expect(nav.back()).toBe(true); // reset pushed the pre-reset pose
+    settle();
     expect(poseFromRig(rig).position).toEqual(moved.position);
+  });
+
+  it('the HUD reports position and distance in Sim Radii', () => {
+    rig.position.set(RADIUS, 0, 0); // one radius from the center
+    const hud = nav.hud();
+    expect(hud.state).toBe('idle');
+    expect(hud.xR).toBeCloseTo(1, 6);
+    expect(hud.distanceR).toBeCloseTo(1, 6);
+    expect(hud.zoom).toBeCloseTo(1, 6);
+  });
+
+  it('the translation clamp holds plans within clampRadii', () => {
+    nav.knobs.clampRadii = 2;
+    nav.knobs.shiftGainRadii = 10; // absurd gain — must clamp
+    armShift(new THREE.Vector3(0, 1.2, 0));
+    left().grip.position.set(0, 1.2, -0.5);
+    frames(2);
+    const hud = nav.hud();
+    // 2 R + scale slack (2×2=4 world units = 0.8 R) is the ceiling.
+    expect(hud.plan!.moveRadii).toBeLessThanOrEqual(2.9);
+    expect(nav.consumeLimitHit()).toBe(true);
   });
 
   it('gestures never start while another surface owns input focus',
@@ -279,18 +365,26 @@ describe('XrNavigation (xr-2 state machine)', () => {
     expect(nav.isGrabbing()).toBe(false);
   });
 
-  it('interrupt() (headset removal) kills a live gesture until grips '
-      + 'release', () => {
-    left().grip.position.set(0, 1.2, 0);
-    press(left(), 300);
+  it('interrupt() kills a live PLAN unexecuted, and completes a '
+      + 'confirmed travel instantly', () => {
+    armShift(new THREE.Vector3(0, 1.2, 0));
+    left().grip.position.set(0, 1.2, -0.5);
     frames(2);
-    expect(nav.isShiftArmed()).toBe(true);
-
     nav.interrupt();
     expect(nav.isShiftArmed()).toBe(false);
-    left().grip.position.set(0, 1.2, -0.5);
-    const before = poseFromRig(rig);
-    frames(10);
-    expect(poseFromRig(rig)).toEqual(before);
+    left().gripPressed = false;
+    frames(5);
+    expect(rig.position.length()).toBeLessThan(1e-9); // plan died
+
+    // Confirmed travel + interrupt → lands on the target at once.
+    armShift(new THREE.Vector3(0, 1.2, 0));
+    left().grip.position.set(0, 1.2, -0.3);
+    frames(2);
+    left().gripPressed = false;
+    frames(2);
+    expect(nav.isTravelling()).toBe(true);
+    nav.interrupt();
+    expect(nav.isTravelling()).toBe(false);
+    expect(rig.position.z).toBeCloseTo(0.714 * RADIUS, 1);
   });
 });

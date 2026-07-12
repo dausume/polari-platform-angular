@@ -89,9 +89,23 @@ export interface XrNavKnobs {
   deadZoneM: number;
   /** shift response curve — linear to start, expo as the other value. */
   responseCurve: 'linear' | 'expo';
-  /** drive gain: user-space m/s per meter of offset past the dead zone. */
-  speedGain: number;
-  /** comfort vignette during shifts/grabs — default ON. */
+  /** Deferred-commit shift gain (Dustin 2026-07-12): a full
+   *  reference hand extension PLANS a move of this many Sim Radii —
+   *  movement is expressed in the space's own size, never raw
+   *  meters, and NOTHING moves until the grip releases. */
+  shiftGainRadii: number;
+  /** hand offset (m past the dead zone) treated as full extension. */
+  handRefM: number;
+  /** soft translation clamp: max distance from the sim center, in
+   *  Sim Radii. */
+  clampRadii: number;
+  /** confirmed actions travel over time, never teleport: duration =
+   *  base + perUnit × (moveRadii + |log2 zoom| + apparent-distance
+   *  term), capped. */
+  commitBaseSeconds: number;
+  commitSecondsPerUnit: number;
+  commitMaxSeconds: number;
+  /** comfort vignette while a confirmed action travels — default ON. */
   vignetteOnShift: boolean;
   /** thumbstick/touchpad snap turn (seated use). */
   snapTurn: boolean;
@@ -107,7 +121,12 @@ export const XR_NAV_DEFAULTS: XrNavKnobs = {
   shiftDebounceMs: 250,
   deadZoneM: 0.05,
   responseCurve: 'linear',
-  speedGain: 2.0,
+  shiftGainRadii: 1.0,
+  handRefM: 0.35,
+  clampRadii: 8,
+  commitBaseSeconds: 0.4,
+  commitSecondsPerUnit: 0.5,
+  commitMaxSeconds: 3.0,
   vignetteOnShift: true,
   snapTurn: true,
   snapTurnDegrees: 30,

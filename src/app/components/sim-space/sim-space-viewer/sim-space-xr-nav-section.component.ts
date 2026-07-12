@@ -69,7 +69,7 @@ import {
       </div>
 
       <div class="live-row" *ngIf="isBoundHere">
-        <button (click)="engine.resetView()">Reset view</button>
+        <button (click)="engine.resetView()">Re-center</button>
         <button (click)="engine.backView()">Back</button>
       </div>
 

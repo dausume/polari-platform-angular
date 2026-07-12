@@ -193,7 +193,7 @@ export class XrSessionRuntime {
       const navigation = this.navigation;
       if (navigation) {
         navigation.update(dt);
-        this.wristUi?.update(navigation.zoomFactor());
+        this.wristUi?.update(navigation.hud());
         this.visuals?.update(dt, {
           vignetteActive: navigation.vignetteActive(),
           shiftArmed: navigation.isShiftArmed(),
@@ -225,6 +225,12 @@ export class XrSessionRuntime {
     this.ghost = new XrMirrorGhost(this.rig, this.camera);
     this.navigation = new XrNavigation(this.rig, this.inputRig,
       () => !(this.wristUi?.uiEngaged() ?? false));
+    // Deferred-commit cancel: a trigger pull while a gesture is
+    // PLANNING aborts it (navigation ignores triggers otherwise).
+    for (const controller of this.inputRig.controllers) {
+      controller.ray.addEventListener('selectstart',
+        () => this.navigation?.notifyTriggerPress());
+    }
   }
 
   private bind(entry: XrSceneEntry, context: XrEnterContext): void {
@@ -260,11 +266,12 @@ export class XrSessionRuntime {
     navigation.setHome(sphere.center, sphere.radius);
 
     // Wrist UI is per-bind: its handedness is a per-space knob.
+    // Ring-0 labels (Dustin 2026-07-12): EXIT / RE-CENTER / HELP.
     this.wristUi = new XrWristUi(
       this.inputRig!, this.camera!, navigation.knobs.wristHandedness, {
         exit: () => { void this.exit(); },
         resetView: () => navigation.resetView(),
-        back: () => navigation.back(),
+        help: () => this.wristUi?.toggleHelp(),
       });
 
     // The mirror ghost renders on a dedicated layer only the FLAT
