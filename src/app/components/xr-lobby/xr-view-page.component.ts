@@ -43,18 +43,19 @@ import { SimSpaceService } from '@services/sim-space/sim-space.service';
     </div>
   `,
   styles: [`
-    /* Theme-independent literal palette — the XR pages commit to
-       dark (light theme made the var()-based build unreadable). */
+    /* Theme tokens — light/dark swap stays readable by pairing
+       surface-* backgrounds with text-primary. */
     :host { display: flex; flex-direction: column; height: 100vh;
-      background: #121212; color: #ffffff; }
+      background: var(--surface-app-background);
+      color: var(--text-primary); }
     .bar { display: flex; align-items: center; gap: 22px;
       padding: 14px 20px; flex-wrap: wrap; }
     .back { font-size: 1.4rem; padding: 16px 30px;
-      border-radius: 14px; background: #2d2d2d; color: #9ecbff;
-      text-decoration: none; border: 2px solid #3a3a3a; }
-    h1 { font-size: 1.6rem; margin: 0; overflow-wrap: anywhere;
-      color: #ffffff; }
-    .dim { font-size: 1.05rem; opacity: .7; }
+      border-radius: 14px; background: var(--surface-secondary);
+      color: var(--brand-blue); text-decoration: none;
+      border: 2px solid var(--surface-hover); }
+    h1 { font-size: 1.6rem; margin: 0; overflow-wrap: anywhere; }
+    .dim { font-size: 1.05rem; color: var(--text-secondary); }
     xr-entry-banner { display: block; margin: 0 20px; }
     .stage { position: relative; flex: 1; min-height: 0;
       margin: 10px 20px 16px; }

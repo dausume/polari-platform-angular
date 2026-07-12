@@ -39,23 +39,27 @@ import { XrSettingsService } from '@services/xr/xr-settings.service';
     </div>
   `,
   styles: [`
-    /* Theme-independent literal palette (light theme turned the
-       first var()-based build white-on-white). */
+    /* Theme tokens: brand-blue-light flips with the theme, so the
+       banner reads in light AND dark mode. */
     .banner { display: flex; align-items: center; gap: 18px;
       flex-wrap: wrap; padding: 16px 22px; margin: 0 0 4px;
-      border-radius: 16px; background: #10233a; color: #ffffff;
-      border: 2px solid #9ecbff; }
+      border-radius: 16px; background: var(--brand-blue-light);
+      color: var(--text-primary);
+      border: 2px solid var(--brand-blue); }
     .msg { font-size: 1.2rem; }
-    .mode-note { font-size: .95rem; opacity: .7; }
+    .mode-note { font-size: .95rem;
+      color: var(--text-secondary); }
     .enter { font-size: 1.45rem; font-weight: 700;
       padding: 18px 42px; border-radius: 14px; border: none;
-      background: #9ecbff; color: #10233a; cursor: pointer; }
+      background: var(--brand-blue); color: var(--text-on-primary);
+      cursor: pointer; }
     .enter:disabled { opacity: .6; }
-    .exit { background: #ffb4a9; }
+    .exit { background: var(--color-error); }
     .ar { font-size: 1.1rem; padding: 14px 22px;
-      border-radius: 14px; border: 2px solid #3a5a7a;
-      background: transparent; color: #9ecbff; opacity: .6; }
-    .error { color: #ffb4a9; font-size: 1.05rem; }
+      border-radius: 14px; border: 2px solid var(--brand-blue);
+      background: transparent; color: var(--brand-blue);
+      opacity: .6; }
+    .error { color: var(--color-error); font-size: 1.05rem; }
   `],
 })
 export class XrEntryBannerComponent implements OnInit, OnDestroy {

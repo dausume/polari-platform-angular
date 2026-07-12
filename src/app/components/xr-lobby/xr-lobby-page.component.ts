@@ -87,44 +87,49 @@ import { MultiScaleSimSummary } from '@models/multi-scale/NamedMultiScaleSimConf
     </div>
   `,
   styles: [`
-    /* Theme-independent literal palette — the XR pages commit to
-       dark. The first build used theme vars and rendered
-       white-on-white under the light theme. */
+    /* Theme TOKENS throughout — surface-* backgrounds pair with
+       text-primary so light/dark switching keeps contrast (the
+       first build paired a theme background with the always-white
+       text-on-dark and went unreadable in light mode). */
     :host { display: block; min-height: 100vh;
-      background: #121212; color: #ffffff; }
+      background: var(--surface-app-background);
+      color: var(--text-primary); }
     .lobby { max-width: 1100px; margin: 0 auto; padding: 24px; }
     header { display: flex; align-items: baseline; gap: 20px;
       flex-wrap: wrap; }
     h1 { font-size: 2.4rem; margin: 8px 0; }
-    header p { font-size: 1.2rem; opacity: .8; flex: 1; }
-    .flat-link { color: #9ecbff; font-size: 1.1rem; }
-    h2 { font-size: 1.6rem; margin: 28px 0 14px; opacity: .9; }
+    header p { font-size: 1.2rem; color: var(--text-secondary);
+      flex: 1; }
+    .flat-link { color: var(--brand-blue); font-size: 1.1rem; }
+    h2 { font-size: 1.6rem; margin: 28px 0 14px; }
     .grid { display: grid; gap: 18px;
       grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
     .card { display: flex; flex-direction: column; gap: 8px;
       min-height: 140px; padding: 22px; border-radius: 18px;
-      background: #1e1e1e;
-      border: 2px solid #3a3a3a; cursor: pointer;
-      text-decoration: none; color: #ffffff; }
-    .card:hover, .card:focus { border-color: #9ecbff; }
+      background: var(--surface-primary);
+      border: 2px solid var(--surface-hover); cursor: pointer;
+      text-decoration: none; color: var(--text-primary); }
+    .card:hover, .card:focus { border-color: var(--brand-blue); }
     .card-title { font-size: 1.5rem; font-weight: 600;
       overflow-wrap: anywhere; }
-    .card-sub { font-size: 1.05rem; opacity: .75; }
-    .msim.open { border-color: #9ecbff; }
+    .card-sub { font-size: 1.05rem;
+      color: var(--text-secondary); }
+    .msim.open { border-color: var(--brand-blue); }
     .members { display: flex; flex-direction: column; gap: 10px;
       margin-top: 10px; }
     .member { display: block; padding: 16px; font-size: 1.2rem;
-      border-radius: 12px; background: #2d2d2d; color: #9ecbff;
-      text-decoration: none; }
+      border-radius: 12px; background: var(--surface-secondary);
+      color: var(--brand-blue); text-decoration: none; }
     .pager { display: flex; align-items: center; gap: 18px;
       justify-content: center; margin: 18px 0; }
     .pager button { font-size: 1.3rem; padding: 16px 30px;
-      border-radius: 14px; border: 2px solid #3a3a3a;
-      background: #2d2d2d;
-      color: #ffffff; cursor: pointer; min-width: 140px; }
+      border-radius: 14px; border: 2px solid var(--surface-hover);
+      background: var(--surface-secondary);
+      color: var(--text-primary); cursor: pointer;
+      min-width: 140px; }
     .pager button:disabled { opacity: .35; }
     .pager span { font-size: 1.2rem; }
-    .hint { opacity: .7; font-size: 1.05rem; }
+    .hint { color: var(--text-secondary); font-size: 1.05rem; }
   `],
 })
 export class XrLobbyPageComponent implements OnInit, OnDestroy {

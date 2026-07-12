@@ -35,24 +35,25 @@ const CHOICE_KEY = 'polari-xr-prompt-choice';
     </div>
   `,
   styles: [`
-    /* Deliberately theme-independent: literal dark palette so it is
-       readable in light AND dark themes (the first lobby build used
-       theme vars and went white-on-white in light mode). */
+    /* Theme tokens — the dialog follows light/dark switching. */
     .xr-prompt { position: fixed; inset: 0; z-index: 3000;
       display: flex; align-items: center; justify-content: center;
       background: rgba(0, 0, 0, .6); }
-    .card { background: #1e1e1e; color: #ffffff; max-width: 560px;
+    .card { background: var(--surface-primary);
+      color: var(--text-primary); max-width: 560px;
       margin: 16px; padding: 30px 34px; border-radius: 20px;
-      border: 2px solid #9ecbff; }
+      border: 2px solid var(--brand-blue); }
     h2 { margin: 0 0 10px; font-size: 1.7rem; }
-    p { font-size: 1.15rem; opacity: .85; }
+    p { font-size: 1.15rem; color: var(--text-secondary); }
     .actions { display: flex; gap: 16px; margin-top: 22px;
       flex-wrap: wrap; }
     button { font-size: 1.25rem; padding: 18px 30px;
       border-radius: 14px; cursor: pointer; border: none; }
-    .go { background: #9ecbff; color: #10233a; font-weight: 600; }
-    .stay { background: #2d2d2d; color: #ffffff;
-      border: 2px solid #3a3a3a; }
+    .go { background: var(--brand-blue);
+      color: var(--text-on-primary); font-weight: 600; }
+    .stay { background: var(--surface-secondary);
+      color: var(--text-primary);
+      border: 2px solid var(--surface-hover); }
   `],
 })
 export class XrSessionPromptComponent implements OnInit {
