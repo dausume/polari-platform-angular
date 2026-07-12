@@ -6,11 +6,9 @@
  * wrist-anchored cluster — EXIT (never paginated away; one of the
  * three always-reachable exit paths), RE-CENTER (back to the entry
  * view; "Home" implied a home page, i.e. exiting) and HELP (how to
- * move/zoom under the deferred-commit model) — plus the HUD panel:
- * position and distance from the sim center in SIM RADII, current
- * zoom, and, while a gesture is planning, WHAT the release will do
- * ("MOVE 0.8 R" / "ZOOM ×2.3") — the reference that keeps movement
- * legible. xr-3 grows this anchor into the full tiered radial-menu
+ * move/zoom) — plus the HUD panel: position and distance from the
+ * sim center in SIM RADII, current zoom, and the live drive rate in
+ * R/s while moving — the reference that keeps movement legible. xr-3 grows this anchor into the full tiered radial-menu
  * system; the exit item stays pinned on ring 0 by contract.
  *
  * Interaction: point the OTHER controller's ray at a button and pull
@@ -44,19 +42,18 @@ import { XR_BUILD_TAG } from '@models/xr/xr-types';
 const HELP_LINES = [
   'HOW TO MOVE',
   '',
-  'Hold ONE grip: aim a move — the HUD',
-  'shows how many R (sim radii) it is.',
-  'RELEASE the grip to go; you glide',
-  'there over a moment.',
+  'Hold ONE grip (short pause arms it,',
+  'you feel a tick): push/pull your',
+  'hand from the anchor to glide that',
+  'way — speed shows in R/s on the HUD.',
+  'Release to stop.',
   '',
   'Hold TWO grips: stretch apart = zoom',
   'in, together = out; twist = rotate;',
-  'drag = move. Release either grip to',
-  'confirm.',
+  'drag both hands = move the world.',
   '',
-  'Cancel while holding: pull a TRIGGER',
-  '(or press the other grip during a',
-  'one-hand move).',
+  'Cancel a one-hand glide: press the',
+  'other grip or pull a trigger.',
   '',
   'Triggers select. RE-CENTER returns',
   'to the entry view. R = the radius',
@@ -285,14 +282,11 @@ export class XrWristUi {
 
   /** Redraw only when a DISPLAYED value changes (quantized). */
   private hudKey(hud: XrNavHud): string {
-    return [hud.state,
-      hud.plan ? `${hud.plan.kind}:${hud.plan.moveRadii.toFixed(2)}`
-        + `:${hud.plan.zoomFactor.toFixed(2)}` : '-',
+    return [hud.state, hud.moveRadiiPerSec.toFixed(2),
       hud.distanceR.toFixed(2),
       hud.xR.toFixed(1), hud.yR.toFixed(1), hud.zR.toFixed(1),
-      hud.zoom.toFixed(2), this.compact(hud.simRadius),
-      hud.state === 'travelling'
-        ? hud.travelRemainingS.toFixed(1) : ''].join('|');
+      hud.zoom.toFixed(2),
+      this.compact(hud.simRadius)].join('|');
   }
 
   private drawHud(hud: XrNavHud, key: string): void {
@@ -321,31 +315,20 @@ export class XrWristUi {
       `dist ${hud.distanceR.toFixed(1)} R  zoom ${zoomText}`,
       12, 58);
 
-    // The action line: what a release WILL do / what is happening.
+    // The action line: what is happening right now.
     ctx.font = 'bold 28px monospace';
-    if (hud.state === 'planning' && hud.plan) {
+    if (hud.state === 'moving') {
       ctx.fillStyle = '#ffd54f';
-      const plan = hud.plan;
-      const zoomPart = Math.abs(Math.log2(plan.zoomFactor)) > 0.03
-        ? ` zoom${plan.zoomFactor >= 1
-          ? '×' + plan.zoomFactor.toFixed(1)
-          : '÷' + (1 / plan.zoomFactor).toFixed(1)}` : '';
-      const movePart = plan.moveRadii > 0.005
-        ? ` move ${plan.moveRadii.toFixed(2)}R` : '';
-      ctx.fillText(
-        (plan.kind === 'zoom' ? 'GRAB' : 'AIM')
-        + (zoomPart + movePart || ' (too small)'), 12, 100);
+      ctx.fillText(hud.moveRadiiPerSec > 0
+        ? `moving ${hud.moveRadiiPerSec.toFixed(2)} R/s`
+        : 'grabbing (zoom / rotate / drag)', 12, 100);
       ctx.font = '22px monospace';
       ctx.fillStyle = '#b0bec5';
-      ctx.fillText('release = go · trigger = cancel', 12, 140);
-    } else if (hud.state === 'travelling') {
-      ctx.fillStyle = '#80cbc4';
-      ctx.fillText(
-        `travelling… ${hud.travelRemainingS.toFixed(1)}s`, 12, 100);
+      ctx.fillText('release = stop · trigger = cancel', 12, 140);
     } else {
       ctx.fillStyle = '#78909c';
       ctx.font = '22px monospace';
-      ctx.fillText('grip = aim a move · HELP = how', 12, 100);
+      ctx.fillText('grip = move · HELP = how', 12, 100);
       ctx.fillText(`R = ${this.compact(hud.simRadius)} world units`,
         12, 140);
     }

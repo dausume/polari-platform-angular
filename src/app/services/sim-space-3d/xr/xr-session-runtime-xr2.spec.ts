@@ -146,66 +146,12 @@ describe('XrSessionRuntime (xr-2, iwer)', () => {
       .toEqual(childrenBefore);
   });
 
-  it('REGRESSION (Dustin session 5, "keeps travelling forever"): '
-      + 'after a confirmed travel LANDS, the rig stays PUT — no '
-      + 'residual motion across seconds of frames, and a second '
-      + 'gesture behaves identically', async () => {
+  it('an iwer grip squeeze + hand push drives the rig (the one-grip '
+      + 'shift end-to-end)', async () => {
     if (!webglAvailable()) { pending('WebGL unavailable'); return; }
     await withSession(
-      // Realistic-but-bounded travel knobs (fits jasmine 5s).
-      contextOf({ variantConfig: { nav: {
-        shiftDebounceMs: 40, commitBaseSeconds: 0.2,
-        commitSecondsPerUnit: 0.1, commitMaxSeconds: 0.8,
-      } } }),
-      async (_runtime, scene) => {
-        await settle();
-        const rig = scene.getObjectByName('polari-xr-rig')!;
-        const controller = device.controllers['right']!;
-
-        // Gesture 1: aim + confirm.
-        controller.position.set(0.2, 1.4, -0.4);
-        controller.updateButtonValue('squeeze', 1);
-        await settle(120);
-        controller.position.set(0.2, 1.4, -0.75);
-        await settle(120);
-        controller.updateButtonValue('squeeze', 0);
-        await settle(1200); // travel + margin
-        const landed = rig.position.clone();
-        expect(landed.length()).toBeGreaterThan(1e-4);
-
-        // The hand keeps moving AFTER landing (as a wearer's hand
-        // does) — the rig must not move at all.
-        controller.position.set(-0.3, 1.2, -0.1);
-        await settle(400);
-        controller.position.set(0.4, 1.5, -0.9);
-        await settle(800);
-        expect(rig.position.distanceTo(landed))
-          .withContext('rig drifted with NO grip held').toBe(0);
-
-        // Gesture 2 lands and stops again (no compounding).
-        controller.updateButtonValue('squeeze', 1);
-        await settle(120);
-        controller.position.set(0.4, 1.5, -0.55);
-        await settle(120);
-        controller.updateButtonValue('squeeze', 0);
-        await settle(1200);
-        const landed2 = rig.position.clone();
-        await settle(600);
-        expect(rig.position.distanceTo(landed2))
-          .withContext('rig kept travelling after landing').toBe(0);
-      });
-  }, 20000); // deliberate multi-second observation window
-
-  it('an iwer grip squeeze + push PLANS, and releasing the grip '
-      + 'confirms — the rig travels (the deferred-commit shift '
-      + 'end-to-end)', async () => {
-    if (!webglAvailable()) { pending('WebGL unavailable'); return; }
-    await withSession(
-      // Short debounce + fast travel keep the spec quick; knobs.
-      contextOf({ variantConfig: { nav: {
-        shiftDebounceMs: 40, commitBaseSeconds: 0.05,
-        commitSecondsPerUnit: 0.02, commitMaxSeconds: 0.3,
-      } } }),
+      // Short debounce keeps the spec fast; it is a knob.
+      contextOf({ variantConfig: { nav: { shiftDebounceMs: 40 } } }),
       async (_runtime, scene) => {
         await settle(); // controllers connect
         const rig = scene.getObjectByName('polari-xr-rig')!;
@@ -214,14 +160,10 @@ describe('XrSessionRuntime (xr-2, iwer)', () => {
         const controller = device.controllers['right']!;
         controller.position.set(0.2, 1.4, -0.4);
         controller.updateButtonValue('squeeze', 1);
-        await settle(120); // debounce passes, the plan arms
-        controller.position.set(0.2, 1.4, -0.8); // aim the move
-        await settle(150);
-        // Nothing moves while the grip is held (planning only).
-        expect(rig.position.distanceTo(positionBefore))
-          .toBeLessThan(1e-9);
-        controller.updateButtonValue('squeeze', 0); // release = go
-        await settle(600); // the confirmed travel completes
+        await settle(120); // debounce passes, shift arms
+        controller.position.set(0.2, 1.4, -0.8); // push forward
+        await settle(250); // frames drive the rig
+        controller.updateButtonValue('squeeze', 0);
 
         expect(rig.position.distanceTo(positionBefore))
           .toBeGreaterThan(1e-4);

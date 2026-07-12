@@ -91,28 +91,6 @@ describe('XrEngineService (xr-2, iwer)', () => {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  /** Navigation actions TRAVEL now (deferred-commit model) — poll
-   *  until the rig stops moving before asserting the landing pose. */
-  async function untilStill(
-      rig: { position: THREE.Vector3; scale: THREE.Vector3 },
-      timeoutMs = 6000): Promise<void> {
-    let previous = rig.position.clone();
-    let previousScale = rig.scale.x;
-    let stable = 0;
-    const start = performance.now();
-    while (performance.now() - start < timeoutMs) {
-      await settle(80);
-      if (rig.position.distanceTo(previous) < 1e-9
-          && Math.abs(rig.scale.x - previousScale) < 1e-12) {
-        if (++stable >= 2) return;
-      } else {
-        stable = 0;
-      }
-      previous = rig.position.clone();
-      previousScale = rig.scale.x;
-    }
-  }
-
   it('persists the derived entry scale into the variant on first '
       + 'entry', async () => {
     if (!webglAvailable()) { pending('WebGL unavailable'); return; }
@@ -130,19 +108,10 @@ describe('XrEngineService (xr-2, iwer)', () => {
     await settle();
   });
 
-  /** Fast travel knobs — the deferred-commit travels must fit the
-   *  jasmine timeout; durations are per-space knobs. */
-  const FAST_TRAVEL = { nav: {
-    commitBaseSeconds: 0.05, commitSecondsPerUnit: 0.01,
-    commitMaxSeconds: 0.15,
-  } };
-
   it('bookmarks: save persists the pose per mode; goto jumps the '
       + 'live rig; delete is deliberate', async () => {
     if (!webglAvailable()) { pending('WebGL unavailable'); return; }
     const { engine, registry } = services();
-    await variants.mergeConfig('sim-space', 'pendulum', 'vr',
-      FAST_TRAVEL);
     const a = sceneEntry(registry, 'pendulum');
     await engine.enter(a.id);
     expect(engine.state.active).toBe(true);
@@ -154,11 +123,10 @@ describe('XrEngineService (xr-2, iwer)', () => {
     expect(stored.bookmarks![0].name).toBe('overview');
     const savedPose = stored.bookmarks![0].pose;
 
-    // Move the rig, then jump back to the bookmark (a timed travel).
+    // Move the rig, then jump back to the bookmark.
     const rig = a.scene.getObjectByName('polari-xr-rig')!;
     rig.position.x += 5;
     expect(engine.gotoBookmark('overview')).toBe(true);
-    await untilStill(rig as any);
     expect(rig.position.x).toBeCloseTo(savedPose.position[0], 10);
 
     await engine.deleteBookmark('overview');
@@ -173,19 +141,15 @@ describe('XrEngineService (xr-2, iwer)', () => {
   it('resetView + backView act on the live session', async () => {
     if (!webglAvailable()) { pending('WebGL unavailable'); return; }
     const { engine, registry } = services();
-    await variants.mergeConfig('sim-space', 'pendulum', 'vr',
-      FAST_TRAVEL);
     const a = sceneEntry(registry, 'pendulum');
     await engine.enter(a.id);
     const rig = a.scene.getObjectByName('polari-xr-rig')!;
     const home = rig.position.clone();
 
     rig.position.x += 3; // drift (as if navigated)
-    engine.resetView(); // RE-CENTER: a timed travel home
-    await untilStill(rig as any);
+    engine.resetView();
     expect(rig.position.distanceTo(home)).toBeLessThan(1e-9);
     expect(engine.backView()).toBe(true); // back to the drifted pose
-    await untilStill(rig as any);
     expect(rig.position.x).toBeCloseTo(home.x + 3, 9);
 
     await engine.exit();

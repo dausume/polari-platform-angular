@@ -89,22 +89,15 @@ export interface XrNavKnobs {
   deadZoneM: number;
   /** shift response curve — linear to start, expo as the other value. */
   responseCurve: 'linear' | 'expo';
-  /** Deferred-commit shift gain (Dustin 2026-07-12): a full
-   *  reference hand extension PLANS a move of this many Sim Radii —
-   *  movement is expressed in the space's own size, never raw
-   *  meters, and NOTHING moves until the grip releases. */
-  shiftGainRadii: number;
+  /** Shift drive gain in SIM RADII per second at a full reference
+   *  hand extension (Dustin 2026-07-12): movement is expressed in
+   *  the space's own size, never raw meters. */
+  shiftGainRadiiPerSec: number;
   /** hand offset (m past the dead zone) treated as full extension. */
   handRefM: number;
   /** soft translation clamp: max distance from the sim center, in
    *  Sim Radii. */
   clampRadii: number;
-  /** confirmed actions travel over time, never teleport: duration =
-   *  base + perUnit × (moveRadii + |log2 zoom| + apparent-distance
-   *  term), capped. */
-  commitBaseSeconds: number;
-  commitSecondsPerUnit: number;
-  commitMaxSeconds: number;
   /** comfort vignette while a confirmed action travels — default ON. */
   vignetteOnShift: boolean;
   /** thumbstick/touchpad snap turn (seated use). */
@@ -121,18 +114,15 @@ export interface XrNavKnobs {
  *  HELP panel — bumped on every XR deploy so a headset running a
  *  CACHED/RESUMED old app is identifiable at a glance (a resumed
  *  Wolvic tab never reloads; it burned a whole debugging cycle). */
-export const XR_BUILD_TAG = 'nav-3 deferred-commit + rescue';
+export const XR_BUILD_TAG = 'nav-5 continuous-R';
 
 export const XR_NAV_DEFAULTS: XrNavKnobs = {
   shiftDebounceMs: 250,
   deadZoneM: 0.05,
   responseCurve: 'linear',
-  shiftGainRadii: 1.0,
+  shiftGainRadiiPerSec: 0.5,
   handRefM: 0.35,
   clampRadii: 8,
-  commitBaseSeconds: 0.4,
-  commitSecondsPerUnit: 0.5,
-  commitMaxSeconds: 3.0,
   vignetteOnShift: true,
   snapTurn: true,
   snapTurnDegrees: 30,

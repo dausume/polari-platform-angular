@@ -24,6 +24,11 @@ import { XRHandModelFactory } from
 /** Local, self-contained profile assets (angular.json copies them). */
 const PROFILES_PATH = 'assets/webxr-profiles';
 
+/** A squeeze release shorter than this is analog-grip flutter, not
+ *  a command (Vive wands report analog grips; see the listener
+ *  comment below). */
+const GRIP_RELEASE_DEBOUNCE_MS = 150;
+
 export type XrHandedness = 'left' | 'right';
 
 export interface XrControllerHandle {
@@ -90,12 +95,30 @@ export class XrInputRig {
         handle.gripPressed = false;
       });
       // Grip = navigation (squeeze events; triggers stay selection).
+      // ANALOG grips (Vive wands) can flutter squeeze events around
+      // the threshold while physically held — an instant release
+      // then chains release→commit→re-arm→commit into runaway serial
+      // travel (Dustin's 'moves infinitely', invisible to the
+      // binary-squeeze Quest harness). A release only counts after
+      // the grip stays off for the debounce window; a flutter
+      // re-press keeps the ORIGINAL gripPressedAt (no re-arming).
+      let releaseTimer: ReturnType<typeof setTimeout> | null = null;
       ray.addEventListener('squeezestart', () => {
-        handle.gripPressed = true;
-        handle.gripPressedAt = performance.now();
+        if (releaseTimer !== null) {
+          clearTimeout(releaseTimer);
+          releaseTimer = null;
+        }
+        if (!handle.gripPressed) {
+          handle.gripPressed = true;
+          handle.gripPressedAt = performance.now();
+        }
       });
       ray.addEventListener('squeezeend', () => {
-        handle.gripPressed = false;
+        if (releaseTimer !== null) clearTimeout(releaseTimer);
+        releaseTimer = setTimeout(() => {
+          releaseTimer = null;
+          handle.gripPressed = false;
+        }, GRIP_RELEASE_DEBOUNCE_MS);
       });
 
       rig.add(ray, grip, hand);

@@ -2,33 +2,28 @@
  * @xr
  * @module services/sim-space-3d/xr/xr-navigation
  *
- * Grip navigation (xr-2 + Dustin's deferred-commit refinement,
- * 2026-07-12): the GRIP buttons are navigation; triggers stay
- * selection — and NOTHING moves while a grip is held. A gesture only
- * PLANS an action; releasing the grip CONFIRMS it; the rig then
- * travels to the target over time (never a teleport). Live motion
- * while the hand was still shaping the vector was disorienting —
- * planning + confirm + timed travel replaces it.
+ * Grip navigation (xr-2, Dustin's spec): the GRIP buttons are
+ * navigation; triggers stay selection. One consistent split.
  *
- *  - TWO grips = world-grab PLAN: hand distance plans zoom (apart =
- *    zoom in), moving the pair plans translation, twisting plans yaw
- *    — solved so the grabbed world midpoint lands under the hands at
- *    the committed target. Release either grip to confirm.
- *  - ONE grip = push/pull PLAN: the press records an ORIGIN; after
- *    the debounce the plan ARMS (haptic tick); the origin→hand
- *    vector plans a move measured in SIM RADII (a full reference
- *    extension plans shiftGainRadii R). Release to confirm.
- *  - CANCEL while planning: the OTHER grip (for a shift) or ANY
- *    trigger press (notifyTriggerPress) aborts — haptic, no motion,
- *    grips must fully release before the next gesture.
- *  - The confirmed action TRAVELS: duration grows with the planned
- *    Radii, the zoom change, and the apparent distance at the user's
- *    current scale (all knobs); vignette covers the travel.
+ *  - TWO grips = world-grab: hands apart zooms IN (the world grows),
+ *    together zooms OUT; moving both hands translates; twisting the
+ *    hand pair rotates about the vertical axis. Implemented as solving
+ *    the rig transform so the world points under the hands STAY under
+ *    the hands (nausea-safe — the world never lurches).
+ *  - ONE grip = push/pull shift: the press records an ORIGIN; after
+ *    the debounce window the shift ARMS (haptic tick); the
+ *    origin→hand vector drives translation, magnitude growing with
+ *    the vector past a dead zone. Pressing the OTHER grip while a
+ *    shift is armed CANCELS it (haptic; gestures stay dead until all
+ *    grips release). Both grips pressed within the debounce window
+ *    simply begin a world-grab — that is how two-grip gestures start.
+ *  - Everything is SIM-RADIUS-relative (Dustin 2026-07-12): drive
+ *    speed is measured in R/sec (R = the space's bounding radius), so
+ *    a molecule space and a room space feel the same and a full hand
+ *    extension crosses a predictable fraction of the sim per second.
  *
- * Everything is expressed in Sim Radii (R = the space's bounding
- * radius): the HUD reads position/distance/plans in R. Yaw-only
- * rotation throughout (the horizon never tilts). All tuning values
- * are knobs (Q8 defaults in XR_NAV_DEFAULTS).
+ * Yaw-only rotation throughout (the horizon never tilts). All tuning
+ * values are knobs (Q8 defaults in XR_NAV_DEFAULTS).
  */
 
 import * as THREE from 'three';
@@ -41,35 +36,21 @@ import {
 } from './xr-entry-placement';
 import type { XrControllerHandle, XrInputRig } from './xr-input-rig';
 
-type NavMode = 'idle' | 'shift-pending' | 'shift-planning'
-  | 'grab-planning' | 'travelling' | 'cancelled';
+type NavMode =
+  'idle' | 'shift-pending' | 'shift-armed' | 'grab' | 'cancelled';
 
-/** A gesture's planned outcome — shown on the HUD while the grip is
- *  held, executed as a timed travel on release. */
-export interface XrNavPlan {
-  kind: 'move' | 'zoom';
-  target: XrRigPose;
-  /** |Δposition| of the plan, in Sim Radii. */
-  moveRadii: number;
-  /** planned zoom change (>1 = zooming in); 1 for a pure move. */
-  zoomFactor: number;
-}
-
-/** Per-frame HUD data (wrist panel). */
+/** Per-frame HUD data (wrist panel), all in Sim Radii. */
 export interface XrNavHud {
-  state: 'idle' | 'planning' | 'travelling';
-  plan: XrNavPlan | null;
-  /** head offset from the sim center, in Sim Radii per axis. */
+  state: 'idle' | 'moving';
   xR: number;
   yR: number;
   zR: number;
   distanceR: number;
-  /** user-perceived zoom vs the space default (>1 = zoomed in). */
   zoom: number;
-  travelRemainingS: number;
-  /** R itself, in world units — on the HUD so a broken bounds
-   *  measurement is diagnosable at a glance. */
+  /** R itself in world units — a broken bounds measurement must be
+   *  diagnosable at a glance. */
   simRadius: number;
+  moveRadiiPerSec: number;
 }
 
 const HISTORY_CAP = 50;
@@ -77,19 +58,6 @@ const HISTORY_CAP = 50;
 const MIN_HEADING_SPAN_M = 0.05;
 const SNAP_FIRE_THRESHOLD = 0.7;
 const SNAP_REARM_THRESHOLD = 0.3;
-/** Ratio cap: hand extensions past 1.5× the reference stop growing
- *  the plan (soft ceiling, not a cliff). */
-const EXTENSION_RATIO_CAP = 1.5;
-/** The 'inside' apparent radius (m) — used to translate a world
- *  move into how far it FEELS at the current user scale. */
-const APPARENT_ROOM_M = 2.5;
-
-interface Travel {
-  from: XrRigPose;
-  to: XrRigPose;
-  duration: number;
-  elapsed: number;
-}
 
 export class XrNavigation {
   knobs: XrNavKnobs = { ...XR_NAV_DEFAULTS };
@@ -101,15 +69,14 @@ export class XrNavigation {
   private boundsCenter = new THREE.Vector3();
   private boundsRadius = 1;
 
-  // planning state
-  private plan: XrNavPlan | null = null;
-  private travel: Travel | null = null;
-
   // shift state
   private shiftHandle: XrControllerHandle | null = null;
   private shiftOriginLocal = new THREE.Vector3();
+  private shiftDriving = false;
+  /** live drive rate for the HUD, in R/sec (0 when not driving). */
+  private shiftRadiiPerSec = 0;
 
-  // grab state (start snapshot; each frame re-plans fresh from it)
+  // grab state (start snapshot; each frame solves fresh from it)
   private grabP1 = new THREE.Vector3();
   private grabP2 = new THREE.Vector3();
   private grabStartPose: XrRigPose | null = null;
@@ -132,19 +99,6 @@ export class XrNavigation {
     this.entryScale = this.home.scale;
   }
 
-  /** Live bounds re-measure (runtime wires sceneBoundingSphere): the
-   *  bind-time sphere can be DEGENERATE when the scene's meshes are
-   *  still loading — since every plan is expressed in R, bounds are
-   *  refreshed at the start of each gesture, when the scene is
-   *  guaranteed visible. */
-  private boundsProvider:
-    (() => { center: THREE.Vector3; radius: number }) | null = null;
-
-  setBoundsProvider(
-      provider: () => { center: THREE.Vector3; radius: number }): void {
-    this.boundsProvider = provider;
-  }
-
   /** Called at bind: the entry pose is home, and the soft clamps are
    *  relative to this scale + these bounds. */
   setHome(center: THREE.Vector3, radius: number): void {
@@ -153,36 +107,20 @@ export class XrNavigation {
     this.boundsCenter.copy(center);
     this.boundsRadius = this.saneRadius(radius);
     this.history = [];
-    this.plan = null;
-    this.travel = null;
     this.mode = 'idle';
   }
 
-  /** R must be TRUSTWORTHY before anything multiplies by it: the
-   *  entry framing demonstrably works (entryScale = radius/apparent
-   *  at first derivation), so a plausible R lies within a band of
-   *  entryScale × [exhibit 0.45 … inside 2.5]. A degenerate or
-   *  wildly-off measurement (scene not loaded yet, a stray huge
-   *  helper) is clamped into that band — loudly. */
-  private saneRadius(measured: number): number {
-    const expectedLow = this.entryScale * 0.45 * 0.2;
-    const expectedHigh = this.entryScale * 2.5 * 20;
-    if (!Number.isFinite(measured) || measured < expectedLow
-        || measured > expectedHigh) {
-      const fallback = Math.min(
-        Math.max(Number.isFinite(measured) ? measured : 0,
-          expectedLow),
-        expectedHigh);
-      console.warn(
-        `[xr-nav] implausible sim radius ${measured} for entry scale `
-        + `${this.entryScale} — clamped to ${fallback} (band `
-        + `${expectedLow}…${expectedHigh})`);
-      return Math.max(fallback, 1e-9);
-    }
-    return measured;
+  /** Live bounds re-measure (runtime wires sceneBoundingSphere): the
+   *  bind-time sphere can predate async mesh loading — since drive
+   *  speed is priced in R, bounds refresh at gesture start. */
+  private boundsProvider:
+    (() => { center: THREE.Vector3; radius: number }) | null = null;
+
+  setBoundsProvider(
+      provider: () => { center: THREE.Vector3; radius: number }): void {
+    this.boundsProvider = provider;
   }
 
-  /** Refresh bounds from the live scene at gesture start. */
   private refreshBounds(): void {
     if (!this.boundsProvider) return;
     try {
@@ -190,6 +128,49 @@ export class XrNavigation {
       this.boundsCenter.copy(sphere.center);
       this.boundsRadius = this.saneRadius(sphere.radius);
     } catch { /* keep the previous bounds */ }
+  }
+
+  /** R must be trustworthy before anything multiplies by it: entry
+   *  framing works (entryScale = radius/apparent at derivation), so
+   *  a plausible R lies within a band of entryScale. Implausible
+   *  measurements clamp LOUDLY. */
+  private saneRadius(measured: number): number {
+    const low = this.entryScale * 0.45 * 0.2;
+    const high = this.entryScale * 2.5 * 20;
+    if (!Number.isFinite(measured) || measured < low
+        || measured > high) {
+      const fallback = Math.min(Math.max(
+        Number.isFinite(measured) ? measured : 0, low), high);
+      console.warn(
+        `[xr-nav] implausible sim radius ${measured} for entry `
+        + `scale ${this.entryScale} — clamped to ${fallback}`);
+      return Math.max(fallback, 1e-9);
+    }
+    return measured;
+  }
+
+  /** Last-resort escape (every frame, any mode): a rig that is
+   *  non-finite or implausibly far snaps back home, loudly. */
+  private rescueIfLost(): void {
+    const position = this.rig.position;
+    const scale = this.rig.scale.x;
+    const finite = Number.isFinite(position.x)
+      && Number.isFinite(position.y) && Number.isFinite(position.z)
+      && Number.isFinite(scale) && scale > 0;
+    const maxDist = this.boundsRadius * this.knobs.clampRadii * 4
+      + Math.abs(scale) * 20;
+    const homeDist = position
+      .distanceTo(new THREE.Vector3(...this.home.position));
+    if (finite && homeDist <= maxDist) return;
+    console.error('[xr-nav] RESCUE: rig implausibly far or '
+      + 'non-finite — snapping home', {
+        position: position.toArray(), scale,
+        boundsRadius: this.boundsRadius, homeDist, maxDist,
+        mode: this.mode,
+      });
+    applyPoseToRig(this.rig, this.home);
+    this.limitHit = true;
+    this.cancelGesture();
   }
 
   // ------------------------------------------------------------------
@@ -202,6 +183,7 @@ export class XrNavigation {
 
     switch (this.mode) {
       case 'idle':
+        this.shiftDriving = false;
         if (!this.worldFocusFn()) break;
         if (pressed.length >= 2) {
           this.startGrab(pressed[0], pressed[1]);
@@ -224,49 +206,46 @@ export class XrNavigation {
         const heldMs =
           performance.now() - (this.shiftHandle?.gripPressedAt ?? 0);
         if (heldMs >= this.knobs.shiftDebounceMs) {
-          this.mode = 'shift-planning';
-          this.preGesturePose = poseFromRig(this.rig);
-          // The plan is priced in R — measure the LIVE scene now
-          // (bind-time bounds can predate async mesh loading).
+          this.mode = 'shift-armed';
           this.refreshBounds();
-          // Re-record the origin AT arm time — the plan arms here;
-          // drift during the debounce is not a command.
+          this.preGesturePose = poseFromRig(this.rig);
+          // Re-record the origin AT arm time — the "shift event" arms
+          // here; drift during the debounce is not a command.
           this.shiftOriginLocal.copy(this.shiftHandle!.grip.position);
           this.input.pulse(this.shiftHandle);
         }
         break;
       }
 
-      case 'shift-planning': {
+      case 'shift-armed': {
         if (!this.shiftHandle?.gripPressed) {
-          this.commitPlan(); // release = confirm
+          this.endGesture();
           break;
         }
         const other = pressed.find(p => p !== this.shiftHandle);
         if (other) {
-          // The OTHER grip is the abort button for a planned shift.
+          // The OTHER grip is the abort button for an armed shift.
           this.input.pulse(other, 0.6, 80);
           this.cancelGesture();
           break;
         }
-        this.plan = this.computeShiftPlan();
+        this.driveShift(dtSeconds);
         break;
       }
 
-      case 'grab-planning': {
+      case 'grab': {
         const h1 = this.grabHandles[0];
         const h2 = this.grabHandles[1];
         if (!h1?.gripPressed || !h2?.gripPressed) {
-          this.commitPlan(); // releasing either hand confirms
+          // Releasing either hand ends the grab; a still-held grip
+          // does NOT silently become a shift — re-press to shift.
+          this.endGesture();
+          if (pressed.length > 0) this.mode = 'cancelled';
           break;
         }
-        this.plan = this.computeGrabPlan();
+        this.solveGrab();
         break;
       }
-
-      case 'travelling':
-        this.driveTravel(dtSeconds);
-        break;
 
       case 'cancelled':
         if (pressed.length === 0) this.toIdle();
@@ -277,16 +256,15 @@ export class XrNavigation {
   }
 
   // ------------------------------------------------------------------
-  // Queries (visuals + HUD read these each frame)
+  // Queries (visuals read these each frame)
   // ------------------------------------------------------------------
 
-  isShiftArmed(): boolean { return this.mode === 'shift-planning'; }
-  isGrabbing(): boolean { return this.mode === 'grab-planning'; }
-  isTravelling(): boolean { return this.mode === 'travelling'; }
-  /** Comfort vignette: only while a CONFIRMED action travels —
-   *  planning moves nothing, so it needs no comfort cover. */
+  isShiftArmed(): boolean { return this.mode === 'shift-armed'; }
+  isGrabbing(): boolean { return this.mode === 'grab'; }
   vignetteActive(): boolean {
-    return this.knobs.vignetteOnShift && this.mode === 'travelling';
+    return this.knobs.vignetteOnShift
+      && (this.mode === 'grab'
+          || (this.mode === 'shift-armed' && this.shiftDriving));
   }
   /** rig-local origin of the armed shift (anchor ghost position). */
   shiftOrigin(): THREE.Vector3 { return this.shiftOriginLocal; }
@@ -303,76 +281,65 @@ export class XrNavigation {
     return hit;
   }
 
-  /** Everything the wrist HUD shows, in Sim Radii. */
-  hud(): XrNavHud {
-    const offset = this.headWorld().sub(this.boundsCenter)
-      .divideScalar(this.boundsRadius);
-    const planning = this.mode === 'shift-planning'
-      || this.mode === 'grab-planning';
-    return {
-      state: this.mode === 'travelling' ? 'travelling'
-        : planning ? 'planning' : 'idle',
-      plan: planning ? this.plan : null,
-      xR: offset.x,
-      yR: offset.y,
-      zR: offset.z,
-      distanceR: offset.length(),
-      zoom: this.zoomFactor(),
-      travelRemainingS: this.travel
-        ? Math.max(this.travel.duration - this.travel.elapsed, 0)
-        : 0,
-      simRadius: this.boundsRadius,
-    };
-  }
-
-  /** Trigger pressed anywhere (runtime forwards selectstart): while
-   *  a gesture is PLANNING this is the cancel button. */
-  notifyTriggerPress(): void {
-    if (this.mode === 'shift-planning'
-        || this.mode === 'grab-planning') {
-      this.input.pulse(this.shiftHandle
-        ?? this.grabHandles[0], 0.6, 80);
-      this.cancelGesture();
-    }
-  }
-
   // ------------------------------------------------------------------
-  // Actions (wrist UI / engine API) — all travel, never teleport
+  // Actions (wrist UI / engine API)
   // ------------------------------------------------------------------
 
-  /** The "I'm lost" escape (wrist RE-CENTER): home pose + default
-   *  scale, reached by a timed travel. */
+  /** The "I'm lost" escape: home pose + default scale. */
   resetView(): void {
     this.pushHistory(poseFromRig(this.rig));
-    this.beginTravel(this.home);
+    applyPoseToRig(this.rig, this.home);
+    this.mode = 'cancelled'; // any held grips must release first
   }
 
   /** Jump back to the previous viewpoint. */
   back(): boolean {
     const prev = this.history.pop();
     if (!prev) return false;
-    this.beginTravel(prev);
+    applyPoseToRig(this.rig, prev);
     return true;
   }
 
   currentPose(): XrRigPose { return poseFromRig(this.rig); }
 
+  /** Everything the wrist HUD shows, in Sim Radii. */
+  hud(): XrNavHud {
+    const offset = this.headWorld().sub(this.boundsCenter)
+      .divideScalar(this.boundsRadius);
+    const moving = this.mode === 'shift-armed' && this.shiftDriving;
+    return {
+      state: moving || this.mode === 'grab' ? 'moving' : 'idle',
+      xR: offset.x,
+      yR: offset.y,
+      zR: offset.z,
+      distanceR: offset.length(),
+      zoom: this.zoomFactor(),
+      simRadius: this.boundsRadius,
+      moveRadiiPerSec: moving ? this.shiftRadiiPerSec : 0,
+    };
+  }
+
+  /** Trigger pressed anywhere (runtime forwards selectstart): while
+   *  a gesture is live this is an extra cancel button. */
+  notifyTriggerPress(): void {
+    if (this.mode === 'shift-armed' || this.mode === 'grab') {
+      this.input.pulse(this.shiftHandle
+        ?? this.grabHandles[0], 0.6, 80);
+      this.cancelGesture();
+    }
+  }
+
   jumpTo(pose: XrRigPose): void {
     this.pushHistory(poseFromRig(this.rig));
-    this.beginTravel(pose);
+    applyPoseToRig(this.rig, pose);
   }
 
   historyDepth(): number { return this.history.length; }
 
-  /** External interruption (headset removal / visibility loss): a
-   *  PLAN dies unexecuted; a CONFIRMED travel completes instantly
-   *  (it was already committed). Grips must fully release before
-   *  navigating again — a blurred session never keeps driving. */
+  /** External interruption (headset removal / visibility loss): kill
+   *  any live gesture; grips must fully release before navigating
+   *  again — a blurred session never keeps driving. */
   interrupt(): void {
-    if (this.travel) {
-      applyPoseToRig(this.rig, this.travel.to);
-      this.travel = null;
-    }
     this.cancelGesture();
   }
 
@@ -385,13 +352,13 @@ export class XrNavigation {
   private toIdle(): void {
     this.mode = 'idle';
     this.shiftHandle = null;
-    this.plan = null;
+    this.shiftDriving = false;
     this.grabHandles = [null, null];
     this.grabStartPose = null;
   }
 
   private startGrab(h1: XrControllerHandle, h2: XrControllerHandle): void {
-    this.mode = 'grab-planning';
+    this.mode = 'grab';
     this.grabHandles = [h1, h2];
     this.refreshBounds();
     this.preGesturePose = this.preGesturePose ?? poseFromRig(this.rig);
@@ -407,10 +374,9 @@ export class XrNavigation {
     this.grabStartHeading = this.headingOf(this.grabP1, this.grabP2);
   }
 
-  /** World-grab PLAN: solve the target pose that puts the grabbed
-   *  world midpoint under the hands with distance driving scale and
-   *  twist driving yaw. Nothing is applied — the target is the plan. */
-  private computeGrabPlan(): XrNavPlan {
+  /** World-grab solve: keep the grabbed world midpoint fixed under
+   *  the hands while distance drives scale and twist drives yaw. */
+  private solveGrab(): void {
     const start = this.grabStartPose!;
     const p1 = this.grabHandles[0]!.grip.position;
     const p2 = this.grabHandles[1]!.grip.position;
@@ -440,174 +406,49 @@ export class XrNavigation {
     const position = this.grabWorldMid.clone().sub(rotated);
     this.clampTranslation(position, scale);
 
-    const current = poseFromRig(this.rig);
-    return {
-      kind: 'zoom',
-      target: {
-        position: [position.x, position.y, position.z], yaw, scale,
-      },
-      moveRadii: position.clone()
-        .sub(new THREE.Vector3(...current.position)).length()
-        / this.boundsRadius,
-      zoomFactor: current.scale / scale,
-    };
+    applyPoseToRig(this.rig, {
+      position: [position.x, position.y, position.z], yaw, scale,
+    });
   }
 
-  /** Push/pull PLAN: the origin→hand vector maps to a move measured
-   *  in Sim Radii — a full reference extension plans shiftGainRadii
-   *  R. Nothing is applied until the grip releases. */
-  private computeShiftPlan(): XrNavPlan | null {
+  private driveShift(dt: number): void {
     const hand = this.shiftHandle!.grip.position;
     const v = hand.clone().sub(this.shiftOriginLocal);
     const magnitude = v.length() - this.knobs.deadZoneM;
-    if (magnitude <= 0) return null;
+    if (magnitude <= 0) {
+      this.shiftDriving = false;
+      this.shiftRadiiPerSec = 0;
+      return;
+    }
+    this.shiftDriving = true;
 
     const shaped = this.knobs.responseCurve === 'expo'
       ? magnitude * magnitude / 0.25 // expo: quadratic, matched at 25cm
       : magnitude;
-    const ratio = Math.min(shaped / this.knobs.handRefM,
-      EXTENSION_RATIO_CAP);
-    const plannedRadii = this.knobs.shiftGainRadii * ratio;
+    // Speed in Sim Radii/sec: a full reference extension drives
+    // shiftGainRadiiPerSec R/s (soft-capped) — never raw meters.
+    const ratio = Math.min(shaped / this.knobs.handRefM, 1.5);
+    const radiiPerSec = this.knobs.shiftGainRadiiPerSec * ratio;
+    this.shiftRadiiPerSec = radiiPerSec;
 
-    // Pushing the world along v = the rig moving along −v.
-    const current = poseFromRig(this.rig);
-    const worldDelta = v.normalize()
+    // Pushing the world along v = the rig moving along −v:
+    // Δrig = −RotY(yaw)·v̂ · radiiPerSec·R·dt
+    const dir = v.normalize()
       .applyQuaternion(this.rig.quaternion)
-      .multiplyScalar(-plannedRadii * this.boundsRadius);
-    const position = new THREE.Vector3(...current.position)
-      .add(worldDelta);
-    this.clampTranslation(position, current.scale);
-
-    return {
-      kind: 'move',
-      target: { position: [position.x, position.y, position.z],
-                yaw: current.yaw, scale: current.scale },
-      moveRadii: position.clone()
-        .sub(new THREE.Vector3(...current.position)).length()
-        / this.boundsRadius,
-      zoomFactor: 1,
-    };
+      .multiplyScalar(-radiiPerSec * this.boundsRadius * dt);
+    const position = this.rig.position.clone().add(dir);
+    this.clampTranslation(position, this.rig.scale.x);
+    this.rig.position.copy(position);
   }
 
-  /** Release = confirm: a meaningful plan travels; an empty plan
-   *  (inside the dead zone) simply ends the gesture. */
-  private commitPlan(): void {
-    const plan = this.plan;
-    const before = this.preGesturePose;
-    this.toIdle();
-    if (!plan
-        || this.posesClose(plan.target, poseFromRig(this.rig))) {
-      this.preGesturePose = null;
-      return;
+  private endGesture(): void {
+    // Only a gesture that actually MOVED earns a history entry.
+    if (this.preGesturePose
+        && !this.posesClose(this.preGesturePose, poseFromRig(this.rig))) {
+      this.pushHistory(this.preGesturePose);
     }
-    if (before) this.pushHistory(before);
     this.preGesturePose = null;
-    this.beginTravel(plan.target, plan);
-  }
-
-  /** Confirmed actions travel over time, never teleport. Duration
-   *  grows with the planned Radii, the zoom change, and how far the
-   *  move FEELS at the current user scale — all knobs. */
-  private beginTravel(to: XrRigPose, plan?: XrNavPlan): void {
-    const from = poseFromRig(this.rig);
-    if (this.posesClose(from, to)) { this.mode = 'idle'; return; }
-    // Hard invariant (never silent): refuse a target that is not
-    // finite or absurdly far — a broken measurement must strand the
-    // user IN PLACE, not at the far end of a bad multiply.
-    const targetOffset = new THREE.Vector3(...to.position)
-      .sub(this.boundsCenter).length();
-    const sane = to.position.every(Number.isFinite)
-      && Number.isFinite(to.scale) && to.scale > 0
-      && targetOffset <= this.boundsRadius * this.knobs.clampRadii * 2
-        + to.scale * 10;
-    if (!sane) {
-      console.warn('[xr-nav] REFUSED travel to implausible target',
-        { to, boundsRadius: this.boundsRadius, targetOffset });
-      this.mode = 'idle';
-      return;
-    }
-    const moveRadii = plan?.moveRadii
-      ?? (new THREE.Vector3(...to.position)
-        .sub(new THREE.Vector3(...from.position)).length()
-        / this.boundsRadius);
-    const zoomFactor = plan?.zoomFactor ?? (from.scale / to.scale);
-    const apparent = new THREE.Vector3(...to.position)
-      .sub(new THREE.Vector3(...from.position)).length()
-      / Math.max(from.scale * APPARENT_ROOM_M, 1e-9);
-    const effective = moveRadii
-      + Math.abs(Math.log2(Math.max(zoomFactor, 1e-9)))
-      + Math.min(apparent, 4) * 0.25;
-    const duration = Math.min(
-      this.knobs.commitBaseSeconds
-        + this.knobs.commitSecondsPerUnit * effective,
-      this.knobs.commitMaxSeconds);
-    this.travel = { from, to, duration, elapsed: 0 };
-    this.mode = 'travelling';
-  }
-
-  /** The last-resort escape (every frame, any mode): a rig that is
-   *  non-finite or implausibly far from home snaps back to the entry
-   *  pose, loudly. Whatever drove it there, the wearer is rescued in
-   *  place — never lost in the void. */
-  private rescueIfLost(): void {
-    const position = this.rig.position;
-    const scale = this.rig.scale.x;
-    const finite = Number.isFinite(position.x)
-      && Number.isFinite(position.y) && Number.isFinite(position.z)
-      && Number.isFinite(scale) && scale > 0;
-    const maxDist = this.boundsRadius * this.knobs.clampRadii * 4
-      + Math.abs(scale) * 20;
-    const homeDist = position
-      .distanceTo(new THREE.Vector3(...this.home.position));
-    if (finite && homeDist <= maxDist) return;
-    console.error('[xr-nav] RESCUE: rig implausibly far or '
-      + 'non-finite — snapping home', {
-        position: position.toArray(), scale,
-        boundsRadius: this.boundsRadius, homeDist, maxDist,
-        mode: this.mode,
-      });
-    applyPoseToRig(this.rig, this.home);
-    this.travel = null;
-    this.plan = null;
-    this.limitHit = true;
-    this.mode = 'cancelled';
-  }
-
-  private driveTravel(dt: number): void {
-    const travel = this.travel!;
-    travel.elapsed += dt;
-    // NaN-proof termination: `!(a < b)` lands on ANY corrupted
-    // duration, and the wall-clock cap bounds it absolutely.
-    const overdue = !(travel.elapsed < travel.duration)
-      || travel.elapsed >= this.knobs.commitMaxSeconds + 1;
-    const u = overdue ? 1
-      : Math.min(travel.elapsed / travel.duration, 1);
-    if (u >= 1) {
-      // Land EXACTLY on the confirmed target (no float drift from
-      // the log-space interpolation).
-      applyPoseToRig(this.rig, travel.to);
-      this.travel = null;
-      // Grips still held after a travel must release before the
-      // next gesture — no accidental re-plan.
-      this.mode = this.input.pressedGrips().length > 0
-        ? 'cancelled' : 'idle';
-      return;
-    }
-    const eased = u * u * (3 - 2 * u); // smoothstep
-    const from = travel.from;
-    const to = travel.to;
-    const position = new THREE.Vector3(...from.position)
-      .lerp(new THREE.Vector3(...to.position), eased);
-    // Scale interpolates in LOG space (zooms feel uniform).
-    const scale = Math.exp(THREE.MathUtils.lerp(
-      Math.log(from.scale), Math.log(to.scale), eased));
-    let yawDelta = to.yaw - from.yaw;
-    yawDelta = Math.atan2(Math.sin(yawDelta), Math.cos(yawDelta));
-    applyPoseToRig(this.rig, {
-      position: [position.x, position.y, position.z],
-      yaw: from.yaw + yawDelta * eased,
-      scale,
-    });
+    this.toIdle();
   }
 
   private cancelGesture(): void {
@@ -669,8 +510,8 @@ export class XrNavigation {
     return clamped;
   }
 
-  /** Soft translation clamp: the rig origin stays within clampRadii
-   *  Sim Radii of the space center (you cannot get lost beyond all
+  /** Soft translation clamp: the rig origin stays within a generous
+   *  multiple of the space bounds (you cannot get lost beyond all
    *  sight of the space). */
   private clampTranslation(p: THREE.Vector3, scale: number): void {
     const maxDist = this.boundsRadius * this.knobs.clampRadii
