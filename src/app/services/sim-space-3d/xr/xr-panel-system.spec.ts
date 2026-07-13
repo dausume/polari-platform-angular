@@ -36,7 +36,9 @@ describe('XrPanelSystem (xr-3-min, iwer)', () => {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  function sceneEntry(name: string) {
+  function sceneEntry(name: string,
+      extraHandle: Partial<import('@services/xr/xr-scene-registry.service')
+        .XrSceneHandle> = {}) {
     const scene = new THREE.Scene();
     scene.add(new THREE.Mesh(
       new THREE.BoxGeometry(1, 1, 1),
@@ -47,7 +49,7 @@ describe('XrPanelSystem (xr-3-min, iwer)', () => {
       id: `test-${name}`,
       label: name,
       spaceName: name,
-      getHandle: () => ({ scene, camera }),
+      getHandle: () => ({ scene, camera, ...extraHandle }),
     };
     return { entry, scene, camera };
   }
@@ -94,6 +96,11 @@ describe('XrPanelSystem (xr-3-min, iwer)', () => {
         panels: [
           { id: 'run', label: 'Simulation run', getElement: () => el },
           { id: 'conditions', label: 'Initial conditions',
+            getElement: () => el },
+          { id: 'equations', label: 'Live evaluations',
+            getElement: () => el },
+          { id: 'legend', label: 'Scene contents', getElement: () => el },
+          { id: 'solutions', label: 'No-code solutions',
             getElement: () => el },
         ],
         getScrubState: () => harness.scrubState,
@@ -158,12 +165,15 @@ describe('XrPanelSystem (xr-3-min, iwer)', () => {
   }
 
   it('grows wrist ring 1 from the surface seed (RUN / CONDITIONS / '
-      + 'SCRUB), and only when surfaces exist', async () => {
+      + 'SCRUB / EQUATIONS / LEGEND / NO-CODE), and only when '
+      + 'surfaces exist', async () => {
     if (!webglAvailable()) { pending('WebGL unavailable'); return; }
     const harness = buildHarness();
     await withSession(contextOf(harness), async (_runtime, scene) => {
       await settle(150); // controllers connect, wrist attaches
-      for (const id of ['run', 'conditions', 'scrub']) {
+      for (const id of
+          ['run', 'conditions', 'scrub', 'equations', 'legend',
+           'solutions']) {
         expect(scene.getObjectByName(`xr-wrist-item-${id}`))
           .withContext(`ring-1 item ${id}`).toBeTruthy();
       }
@@ -207,6 +217,34 @@ describe('XrPanelSystem (xr-3-min, iwer)', () => {
       expect(runtime.isPanelOpen('panel:run')).toBeFalse();
       expect(scene.getObjectByName('xr-panel-panel:run')).toBeFalsy();
       expect(scene.children.length).toBe(childrenBefore);
+    });
+    harness.dispose();
+  });
+
+  it('toggling EQUATIONS, LEGEND, or SOLUTIONS spawns an HTMLMesh '
+      + 'quad of the LIVE element the same way RUN does', async () => {
+    if (!webglAvailable()) { pending('WebGL unavailable'); return; }
+    const harness = buildHarness();
+    await withSession(contextOf(harness), async (runtime, scene) => {
+      for (const contentRef of
+          ['panel:equations', 'panel:legend', 'panel:solutions']) {
+        runtime.togglePanel(contentRef);
+        expect(runtime.isPanelOpen(contentRef))
+          .withContext(contentRef).toBeTrue();
+        const root = scene.getObjectByName(`xr-panel-${contentRef}`)!;
+        const quad = root.children.find(
+          c => (c as THREE.Mesh).isMesh
+            && ((c as THREE.Mesh).material as THREE.MeshBasicMaterial)
+              ?.map && (((c as THREE.Mesh).material as
+              THREE.MeshBasicMaterial).map as any).dom) as THREE.Mesh;
+        expect(quad).withContext(`${contentRef} HTMLMesh quad`)
+          .toBeTruthy();
+        expect((quad.material as any).map.dom)
+          .withContext(`${contentRef} rasterizes the live element`)
+          .toBe(harness.el);
+        runtime.togglePanel(contentRef);
+        expect(runtime.isPanelOpen(contentRef)).toBeFalse();
+      }
     });
     harness.dispose();
   });
@@ -311,5 +349,42 @@ describe('XrPanelSystem (xr-3-min, iwer)', () => {
         expect(root.scale.x).toBeCloseTo(2.5, 10);
       });
     harness.dispose();
+  });
+
+  it('a 2D scene handle (mainSurfaceElement) auto-spawns a NON-'
+      + 'CLOSABLE main quad at bind — no ring-1 toggle needed, no '
+      + 'close button (primary content, not an auxiliary panel)',
+      async () => {
+    if (!webglAvailable()) { pending('WebGL unavailable'); return; }
+    const { el, clicks } = buildSurfaceElement();
+    const { entry, scene } = sceneEntry('2d-space', {
+      mainSurfaceElement: el, forcedFraming: 'exhibit', fixedRadius: 0.5,
+    });
+    const runtime = new XrSessionRuntime({ onEnded: () => {} });
+    // No context.surfaces at all — a bare 2D space with nothing else
+    // registered must still get its main quad.
+    await runtime.enter(entry, { framing: 'inside', variantConfig: {} });
+    try {
+      await settle(150);
+      const root = scene.getObjectByName('xr-panel-panel:main');
+      expect(root).withContext('main quad auto-spawned').toBeTruthy();
+      expect(root!.children.some(c => c.name === 'xr-panel-close'))
+        .withContext('no close mesh on the main quad').toBeFalse();
+      // Still interactive — same forwarding path as every other quad.
+      aimControllerAt(scene, 'right', quadWorldCenter(scene, 'panel:main'));
+      await settle(120);
+      const controller = device.controllers['right']!;
+      controller.updateButtonValue('trigger', 1);
+      await settle(60);
+      controller.updateButtonValue('trigger', 0);
+      await settle(60);
+      expect(clicks.length)
+        .withContext('main quad forwards clicks like any panel')
+        .toBeGreaterThan(0);
+    } finally {
+      await runtime.exit();
+      await settle();
+    }
+    el.remove();
   });
 });

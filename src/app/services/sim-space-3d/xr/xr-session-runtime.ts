@@ -263,20 +263,31 @@ export class XrSessionRuntime {
     const scene = handle.scene as THREE.Scene;
     const rig = this.rig!;
     const navigation = this.navigation!;
+    // A 2D space's shape overrides the settings cascade — a flat quad
+    // has no "interior" to stand inside (xr-2d-scene-builder.ts).
+    const framing = handle.forcedFraming ?? context.framing;
+    const mainSurfaceElement =
+      handle.mainSurfaceElement as HTMLElement | undefined;
 
     // Space extent BEFORE the rig (and its controller models) joins.
-    const sphere = sceneBoundingSphere(scene);
+    // 2D spaces carry a FIXED radius (there's no real 3D geometry to
+    // measure — the visible content is a panel positioned relative to
+    // the camera, not stable world geometry; see XrSceneHandle).
+    const fixedRadius = handle.fixedRadius;
+    const sphere = typeof fixedRadius === 'number'
+      ? new THREE.Sphere(new THREE.Vector3(0, 0, 0), fixedRadius)
+      : sceneBoundingSphere(scene);
 
     // Scale-relative entry: the variant's entry_scale wins; otherwise
     // derive from extent × framing and report it up for persistence
     // (knob over magic — the derived value becomes editable data).
     let entryScale = context.variantConfig.entry_scale;
     if (!(typeof entryScale === 'number' && entryScale > 0)) {
-      entryScale = deriveEntryScale(sphere.radius, context.framing);
+      entryScale = deriveEntryScale(sphere.radius, framing);
       context.onDerivedEntryScale?.(entryScale);
     }
     const placement = placeRigForFraming(
-      sphere.center, entryScale, context.framing);
+      sphere.center, entryScale, framing);
     rig.position.copy(placement.position);
     rig.quaternion.identity();
     rig.scale.setScalar(placement.scale);
@@ -290,8 +301,14 @@ export class XrSessionRuntime {
     // is priced in R, so R must be true, not merely early). The rig
     // subtree (controllers, wrist UI, comfort visuals — wherever the
     // USER is) must never inflate the measurement: R would then grow
-    // with every travel, compounding the next plan.
+    // with every travel, compounding the next plan. A 2D space's R
+    // stays PINNED to the fixed measurement instead — re-measuring
+    // the scene graph would make R drift as the user drags the main
+    // panel around (it's camera-relative content, not world geometry).
     navigation.setBoundsProvider(() => {
+      if (typeof fixedRadius === 'number') {
+        return new THREE.Sphere(new THREE.Vector3(0, 0, 0), fixedRadius);
+      }
       const parent = rig.parent;
       parent?.remove(rig);
       try {
@@ -303,10 +320,15 @@ export class XrSessionRuntime {
 
     // xr-3-min: the host page's live panel surfaces become the panel
     // system + wrist ring 1. Entering from a page that registered no
-    // surfaces (e.g. a plain viewer) keeps the ring-0-only wrist.
+    // surfaces (e.g. a plain viewer) keeps the ring-0-only wrist. A
+    // 2D space's main quad needs the panel system too (it reuses the
+    // exact same HTMLMesh + hover/click-forwarding machinery) even
+    // when the page registered no side-panel surfaces.
     let ring1: XrWristRing1Item[] = [];
-    if (context.surfaces) {
-      const surfaces = context.surfaces;
+    if (context.surfaces || mainSurfaceElement) {
+      const surfaces = context.surfaces ?? {
+        panels: [], getScrubState: () => null, setScrubCurrent: () => {},
+      };
       this.panelSystem = new XrPanelSystem(
         scene, rig, this.camera!, this.inputRig!, surfaces, {
           placements: context.variantConfig.panel_placements ?? {},
@@ -314,11 +336,14 @@ export class XrSessionRuntime {
           isWristEngaged: () => this.wristUi?.uiEngaged() ?? false,
           onGrabStart: () => this.navigation?.interrupt(),
         });
+      if (mainSurfaceElement) {
+        this.panelSystem.spawnMain(mainSurfaceElement);
+      }
       // Panel rows only for panels the provider actually registered;
       // the rail row always rides (it explains itself when empty).
-      ring1 = XR_SURFACE_SEED
+      ring1 = context.surfaces ? XR_SURFACE_SEED
         .filter(row => row.panelContentRef === 'scrub-rail'
-          || surfaces.panels.some(
+          || context.surfaces!.panels.some(
             p => `panel:${p.id}` === row.panelContentRef))
         .map(row => ({
           id: row.id,
@@ -327,7 +352,7 @@ export class XrSessionRuntime {
             this.panelSystem?.toggle(row.panelContentRef),
           isActive: () =>
             this.panelSystem?.isOpen(row.panelContentRef) ?? false,
-        }));
+        })) : [];
     }
 
     // Wrist UI is per-bind: its handedness is a per-space knob.

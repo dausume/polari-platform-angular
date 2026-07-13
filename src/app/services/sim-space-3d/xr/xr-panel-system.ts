@@ -63,7 +63,10 @@ interface OpenQuad {
   mesh: THREE.Mesh;          // HTMLMesh or the rail plane
   html: HTMLMesh | null;     // null for the rail
   element: HTMLElement | null;
-  close: THREE.Mesh;
+  /** Null for the 2D main quad — it's primary content, not an
+   *  auxiliary panel, and isn't ring-1 gated so there's no toggle to
+   *  re-open it with if dismissed. */
+  close: THREE.Mesh | null;
   frame: THREE.Mesh;
   lastSize: { w: number; h: number };
 }
@@ -75,6 +78,14 @@ const SPAWN: Record<string, { forward: number; right: number;
   'panel:run': { forward: 1.35, right: -0.42, up: 0.05 },
   'panel:conditions': { forward: 1.35, right: 0.42, up: 0.05 },
   'scrub-rail': { forward: 1.1, right: 0, up: -0.38 },
+  'panel:equations': { forward: 1.35, right: -0.85, up: 0.05 },
+  'panel:legend': { forward: 1.35, right: 0.85, up: 0.05 },
+  'panel:solutions': { forward: 1.6, right: 0, up: 0.35 },
+  // 2D main content (2026-07-12): closer + lower than the side
+  // panels — "spawn directly in front of the MeshHTML with a much
+  // lower radius" (Dustin) — the whole point of the 2D XR path is
+  // standing right in front of the graph, not a room-scale scene.
+  'panel:main': { forward: 0.85, right: 0, up: -0.05 },
 };
 const SPAWN_DEFAULT = { forward: 1.3, right: 0, up: 0 };
 /** Ray reach for panel targeting, user-space meters. */
@@ -196,12 +207,33 @@ export class XrPanelSystem {
         + ' — panel not spawned');
       return;
     }
-    const t0 = performance.now();
-    const html = new HTMLMesh(element);
-    const ms = performance.now() - t0;
-    html.material.side = THREE.DoubleSide;
-    this.recordRasterCost(id, ms);
-    this.mountQuad(contentRef, html, html, element);
+    const build = () => {
+      // A dismiss can't reach an unmounted quad (its ✕ doesn't exist
+      // yet), but a second ring-press while still waiting on fonts
+      // re-enters spawnPanel() — this keeps that idempotent instead
+      // of mounting the quad twice.
+      if (this.quads.has(contentRef)) return;
+      const t0 = performance.now();
+      const html = new HTMLMesh(element);
+      const ms = performance.now() - t0;
+      html.material.side = THREE.DoubleSide;
+      this.recordRasterCost(id, ms);
+      this.mountQuad(contentRef, html, html, element);
+    };
+    // HTMLMesh's canvas capture is a ONE-SHOT snapshot, not a live
+    // render — a custom web font still loading at capture time
+    // (KaTeX's glyph font on the equations panel, Material Icons'
+    // ligature font on run/conditions) freezes into the raster wrong
+    // until the panel is dismissed and reopened. Fonts are almost
+    // always long since warm by the time someone reaches a wrist
+    // button (well after initial page load), so this stays fully
+    // synchronous in the common case — it only waits when a font is
+    // genuinely still loading.
+    if (document.fonts.status === 'loaded') {
+      build();
+    } else {
+      void document.fonts.ready.then(build);
+    }
   }
 
   private spawnRail(): void {
@@ -209,16 +241,44 @@ export class XrPanelSystem {
     this.mountQuad('scrub-rail', this.rail.mesh, null, null);
   }
 
+  /** The 2D-space main content (2026-07-12): one big always-open
+   *  HTMLMesh of the live D3 host — not ring-1 gated (there's no
+   *  toggle button for it), not closable (it's the primary content,
+   *  not an auxiliary panel). Reuses every other panel's raycasting/
+   *  hover/click-forwarding path, so interaction parity is automatic
+   *  exactly like RUN/CONDITIONS already get. Idempotent: a stray
+   *  second bind-time call (there shouldn't be one) is a no-op. */
+  spawnMain(element: HTMLElement): void {
+    const contentRef = 'panel:main';
+    if (this.quads.has(contentRef)) return;
+    const build = () => {
+      if (this.quads.has(contentRef)) return;
+      const t0 = performance.now();
+      const html = new HTMLMesh(element);
+      const ms = performance.now() - t0;
+      html.material.side = THREE.DoubleSide;
+      this.recordRasterCost('main', ms);
+      this.mountQuad(contentRef, html, html, element, false);
+    };
+    if (document.fonts.status === 'loaded') {
+      build();
+    } else {
+      void document.fonts.ready.then(build);
+    }
+  }
+
   private mountQuad(contentRef: string, mesh: THREE.Mesh,
-      html: HTMLMesh | null, element: HTMLElement | null): void {
+      html: HTMLMesh | null, element: HTMLElement | null,
+      closable = true): void {
     const root = new THREE.Group();
     root.name = `xr-panel-${contentRef}`;
     root.add(mesh);
 
     const size = this.quadSize(mesh);
     const frame = this.buildFrame(size.w, size.h);
-    const close = this.buildClose(size.w, size.h);
-    root.add(frame, close);
+    const close = closable ? this.buildClose(size.w, size.h) : null;
+    root.add(frame);
+    if (close) root.add(close);
 
     this.applyPlacement(root, contentRef);
     this.group.add(root);
@@ -329,10 +389,13 @@ export class XrPanelSystem {
     }
     quad.frame.geometry.dispose();
     (quad.frame.material as THREE.Material).dispose();
-    quad.close.geometry.dispose();
-    const closeMaterial = quad.close.material as THREE.MeshBasicMaterial;
-    closeMaterial.map?.dispose();
-    closeMaterial.dispose();
+    if (quad.close) {
+      quad.close.geometry.dispose();
+      const closeMaterial =
+        quad.close.material as THREE.MeshBasicMaterial;
+      closeMaterial.map?.dispose();
+      closeMaterial.dispose();
+    }
   }
 
   /** HTMLMesh freezes its texture canvas at first capture — content
@@ -359,7 +422,7 @@ export class XrPanelSystem {
       quad.html = html;
       quad.root.add(html);
       const size = this.quadSize(html);
-      quad.close.position.set(
+      quad.close?.position.set(
         size.w / 2 + 0.035, size.h / 2 + 0.02, 0.002);
       quad.frame.geometry.dispose();
       quad.frame.geometry =
@@ -385,7 +448,8 @@ export class XrPanelSystem {
   private interactive(): THREE.Mesh[] {
     const meshes: THREE.Mesh[] = [];
     for (const quad of this.quads.values()) {
-      meshes.push(quad.mesh, quad.close);
+      meshes.push(quad.mesh);
+      if (quad.close) meshes.push(quad.close);
     }
     return meshes;
   }
@@ -411,9 +475,9 @@ export class XrPanelSystem {
   private castRay(handle: XrControllerHandle): RayTarget | null {
     if (handle.isHand || handle.handedness === 'none') return null;
     const origin = new THREE.Vector3();
-    handle.ray.getWorldPosition(origin);
+    handle.pointer.getWorldPosition(origin);
     const quaternion = new THREE.Quaternion();
-    handle.ray.getWorldQuaternion(quaternion);
+    handle.pointer.getWorldQuaternion(quaternion);
     const direction =
       new THREE.Vector3(0, 0, -1).applyQuaternion(quaternion);
     this.raycaster.set(origin, direction);

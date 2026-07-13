@@ -27,6 +27,7 @@ import { Style2DLibraryService } from '@services/sim-space-2d/style-2d-library.s
 import { Mesh3DLibraryService } from '@services/sim-space-3d/mesh-3d-library.service';
 import { Material3DLibraryService } from '@services/sim-space-3d/material-3d-library.service';
 import { Texture3DLibraryService } from '@services/sim-space-3d/texture-3d-library.service';
+import { MathShapeGeometryLibraryService } from '@services/sim-space-3d/math-shape-geometry-library.service';
 
 @Injectable({ providedIn: 'root' })
 export class SimSpaceRendererFactory {
@@ -35,7 +36,8 @@ export class SimSpaceRendererFactory {
     private styles2D: Style2DLibraryService,
     private meshes3D: Mesh3DLibraryService,
     private materials3D: Material3DLibraryService,
-    private textures3D: Texture3DLibraryService
+    private textures3D: Texture3DLibraryService,
+    private mathShapeGeometry3D: MathShapeGeometryLibraryService
   ) {}
 
   /**
@@ -57,7 +59,7 @@ export class SimSpaceRendererFactory {
         '@services/sim-space-3d/three-renderer.service'
       );
       return new ThreeSimSpaceRenderer(this.meshes3D, this.materials3D,
-                                       this.textures3D);
+                                       this.textures3D, this.mathShapeGeometry3D);
     }
     throw new Error(`[SimSpaceRendererFactory] dimensionality "${dimensionality}" not supported.`);
   }

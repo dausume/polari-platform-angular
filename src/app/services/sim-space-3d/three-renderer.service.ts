@@ -39,6 +39,7 @@ import {
 import { Mesh3DLibraryService } from './mesh-3d-library.service';
 import { Material3DLibraryService } from './material-3d-library.service';
 import { Texture3DLibraryService } from './texture-3d-library.service';
+import { MathShapeGeometryLibraryService } from './math-shape-geometry-library.service';
 import { CADControls } from './controls/cad-controls';
 import { applyCameraConfig, hasExplicitPose } from './camera-config';
 import { projectObjectRect } from './three-projection';
@@ -98,7 +99,8 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
   constructor(
     private meshLib: Mesh3DLibraryService,
     private materialLib: Material3DLibraryService,
-    private textureLib: Texture3DLibraryService
+    private textureLib: Texture3DLibraryService,
+    private mathShapeGeometryLib: MathShapeGeometryLibraryService
   ) {}
 
   // -------------------------------------------------------------------
@@ -636,10 +638,38 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
     this.scene.add(new THREE.GridHelper(10, 10, 0xbdbdbd, 0xe0e0e0));
   }
 
+  /** Prefix marking a shapeRef as a mathshapes-module shape name (e.g. a
+   *  math-defined aquaponic pot's body/hole primitives) rather than a
+   *  Mesh3DDefinition catalogue entry — resolved via
+   *  MathShapeGeometryLibraryService instead of meshLib/buildGeometry. */
+  private static readonly MATH_SHAPE_PREFIX = 'mathshape:';
+
   private buildMeshFor(obj: SimSpaceObject): THREE.Object3D {
     // Always returns a Mesh — geometry/material builders fall back to
     // defaults (cube / magenta material) when refs miss, so this never
     // returns null. Return type accordingly.
+    const materialDef = this.materialLib.get(obj.styleRef);
+    // Albedo texture, when the material declares one (textures are
+    // cached/shared by name inside three-texture-builders).
+    const texture = materialDef?.map_texture_ref
+      ? buildTexture(this.textureLib.get(materialDef.map_texture_ref))
+      : null;
+    const material = buildMaterial(materialDef, texture);
+
+    if (obj.shapeRef.startsWith(ThreeSimSpaceRenderer.MATH_SHAPE_PREFIX)) {
+      const shapeName = obj.shapeRef.slice(ThreeSimSpaceRenderer.MATH_SHAPE_PREFIX.length);
+      // Math-shape meshes are frequently open/thin (a hollow wall's
+      // lateral surface, a short bore) with no back-face geometry behind
+      // them — a single-sided material culls the "wrong" side depending
+      // on viewing angle, which is what made the aquaponics pot render as
+      // a torn, one-sided sheet instead of a vessel. buildMaterial()
+      // constructs a fresh, unshared instance per call (unlike textures,
+      // which ARE cached — see buildTexture above), so mutating .side
+      // here can't leak onto any other mesh's material.
+      material.side = THREE.DoubleSide;
+      return new THREE.Mesh(this.mathShapeGeometryLib.get(shapeName), material);
+    }
+
     const meshDef = this.meshLib.get(obj.shapeRef);
     if (!meshDef) {
       // Honest gap: the library has no such mesh (bad ref or rows not
@@ -647,14 +677,7 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
       console.warn(
         `[ThreeSimSpaceRenderer] shapeRef "${obj.shapeRef}" not in the mesh library — rendering a fallback cube (object ${obj.id})`);
     }
-    const materialDef = this.materialLib.get(obj.styleRef);
-    // Albedo texture, when the material declares one (textures are
-    // cached/shared by name inside three-texture-builders).
-    const texture = materialDef?.map_texture_ref
-      ? buildTexture(this.textureLib.get(materialDef.map_texture_ref))
-      : null;
-    return new THREE.Mesh(buildGeometry(meshDef),
-                          buildMaterial(materialDef, texture));
+    return new THREE.Mesh(buildGeometry(meshDef), material);
   }
 
   private applyTransform(node: THREE.Object3D, obj: SimSpaceObject): void {

@@ -35,7 +35,10 @@ export interface XrSurfaceModelRow {
 }
 
 /** The xr-3-min seed: RUN / CONDITIONS / SCRUB on ring 1
- *  (WEBXR_PLAN.md, Dustin's scope 2026-07-13). */
+ *  (WEBXR_PLAN.md, Dustin's scope 2026-07-13). EQUATIONS / LEGEND
+ *  added in the 2026-07-12 debug-pass session — the remaining flat-
+ *  only menus growing onto the same ring (row order = fan order;
+ *  `slot` is descriptive only, see XrWristUi.buildRing1). */
 export const XR_SURFACE_SEED: XrSurfaceModelRow[] = [
   {
     kind: 'menu-item', id: 'run', label: 'RUN',
@@ -49,6 +52,21 @@ export const XR_SURFACE_SEED: XrSurfaceModelRow[] = [
   {
     kind: 'menu-item', id: 'scrub', label: 'SCRUB',
     xrPlacement: { ring: 1, slot: 2 }, panelContentRef: 'scrub-rail',
+  },
+  {
+    kind: 'menu-item', id: 'equations', label: 'EQUATIONS',
+    xrPlacement: { ring: 1, slot: 3 },
+    panelContentRef: 'panel:equations',
+  },
+  {
+    kind: 'menu-item', id: 'legend', label: 'LEGEND',
+    xrPlacement: { ring: 1, slot: 4 },
+    panelContentRef: 'panel:legend',
+  },
+  {
+    kind: 'menu-item', id: 'solutions', label: 'NO-CODE',
+    xrPlacement: { ring: 1, slot: 5 },
+    panelContentRef: 'panel:solutions',
   },
 ];
 

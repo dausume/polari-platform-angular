@@ -60,12 +60,14 @@ describe('XrLobbyPageComponent', () => {
     expect(component.pagedSpaces[0].name).toBe('space-6');
   });
 
-  it('renders giant space cards linking to the slim viewer', () => {
+  it('renders giant space cards linking to DIRECT XR entry '
+     + '(2026-07-12: one tap straight into VR, no flat-preview page '
+     + 'in between)', () => {
     const cards = fixture.nativeElement
       .querySelectorAll('a.card');
     expect(cards.length).toBe(6);
     expect(cards[0].getAttribute('href'))
-      .toContain('/xr/view/space-0');
+      .toContain('/xr/enter/space-0');
   });
 
   it('expands an msim to its panels\' DEDUPED bound spaces (the '

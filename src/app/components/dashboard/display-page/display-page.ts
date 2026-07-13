@@ -9,6 +9,7 @@ import { DisplayRendererComponent } from '@components/dashboard/dashboard-render
 import { Subscription } from 'rxjs';
 import { registerMsimDisplayComponents } from '@components/multi-scale/msim-display-components';
 import { registerMsciDisplayComponents } from '@components/materials-science/msci-display-components';
+import { registerAquaponicsDisplayComponents } from '@components/aquaponics/aquaponics-display-components';
 import { DisplayEventsService } from '@services/no-code-services/display-events.service';
 
 @Component({
@@ -93,6 +94,7 @@ export class DisplayPageComponent implements OnInit, OnDestroy {
     // workbench); register their components before rendering.
     registerMsimDisplayComponents();
     registerMsciDisplayComponents();
+    registerAquaponicsDisplayComponents();
     this.sub = this.route.paramMap.subscribe(params => {
       const id = params.get('id');
       if (id) {

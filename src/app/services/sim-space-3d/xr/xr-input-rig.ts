@@ -29,13 +29,43 @@ const PROFILES_PATH = 'assets/webxr-profiles';
  *  comment below). */
 const GRIP_RELEASE_DEBOUNCE_MS = 150;
 
+/**
+ * Per-device pointer pitch correction (Dustin, 2026-07-12 headset
+ * session: the ray's default direction "really bothers" him on the
+ * Vive — it doesn't line up with where the wand physically points).
+ * WebXR's target-ray-space pose is runtime-defined, and Wolvic/OpenVR's
+ * Vive-wand ray is tilted noticeably below the felt pointing line;
+ * Oculus Touch profiles (Quest) do NOT have this problem — the
+ * default target ray already tracks the physical controller, so this
+ * correction must be OFF for Quest (Dustin's explicit caution: don't
+ * let a Vive fix bend Quest pointing). Detected from the connected
+ * input source's `profiles` list, never from a global default.
+ * Sign/magnitude is a first estimate — dial in on the next in-headset
+ * pass (build tag on the HELP panel identifies the running code).
+ */
+const VIVE_POINTER_PITCH_DEG = -18;
+/** Profile-id substring that identifies an HTC Vive wand — ONLY the
+ *  vendor-specific id, deliberately NOT the shared
+ *  'generic-trigger-squeeze-*' fallback family: Quest controllers
+ *  also carry a generic-trigger-squeeze-thumbstick entry later in
+ *  their profiles list, so matching on that generic family would
+ *  wrongly pitch Quest rays too (exactly the cross-device bug to
+ *  avoid). 'htc-vive' only ever appears for the actual wand. */
+const VIVE_PROFILE_MARKERS = ['htc-vive'];
+
 export type XrHandedness = 'left' | 'right';
 
 export interface XrControllerHandle {
   /** three slot index (0/1 — handedness is only known on connect). */
   index: number;
-  /** target-ray space (select/squeeze events arrive here). */
+  /** target-ray space (select/squeeze events arrive here; RAW runtime
+   *  pose — do not use for aiming, see `pointer`). */
   ray: THREE.XRTargetRaySpace;
+  /** The AIMING transform: a child of `ray` carrying the per-device
+   *  pitch correction (identity on Quest/unknown devices). Raycasting
+   *  and the visual ray line both read this, so the beam you see is
+   *  always exactly where clicks land. */
+  pointer: THREE.Object3D;
   /** grip space (models attach here; grip pose = hand pose). */
   grip: THREE.XRGripSpace;
   /** hand-tracking space (joint-driven when hands active). */
@@ -75,10 +105,13 @@ export class XrInputRig {
 
       grip.add(controllerModels.createControllerModel(grip));
       hand.add(handModels.createHandModel(hand as any, 'mesh'));
-      ray.add(this.buildRayLine());
+      const pointer = new THREE.Group();
+      pointer.name = 'xr-pointer';
+      pointer.add(this.buildRayLine());
+      ray.add(pointer);
 
       const handle: XrControllerHandle = {
-        index: i, ray, grip, hand,
+        index: i, ray, pointer, grip, hand,
         handedness: 'none', gamepad: null, isHand: false,
         gripPressed: false, gripPressedAt: 0, padPressed: false,
       };
@@ -92,6 +125,14 @@ export class XrInputRig {
         // Rays belong to pointing devices; a tracked hand points with
         // its own joints (xr-3 pinch work) — hide the stick.
         this.setRayVisible(ray, !handle.isHand);
+        // Device-specific aim correction (never touches Quest — see
+        // VIVE_POINTER_PITCH_DEG above).
+        const profiles = source?.profiles ?? [];
+        const isViveWand = profiles.some(p =>
+          VIVE_PROFILE_MARKERS.some(marker => p.includes(marker)));
+        pointer.rotation.set(
+          isViveWand ? THREE.MathUtils.degToRad(VIVE_POINTER_PITCH_DEG)
+            : 0, 0, 0);
       });
       ray.addEventListener('disconnected', () => {
         handle.handedness = 'none';

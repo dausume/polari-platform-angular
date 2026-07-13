@@ -24,6 +24,11 @@ const routes: Routes = [
   // Headset-first lobby: giant targets, no fine scrolling — the XR
   // homepage (suggested from Home when a headset is detected).
   { path: 'xr', loadComponent: () => import('@components/xr-lobby/xr-lobby-page.component').then(m => m.XrLobbyPageComponent) },
+  // Direct XR entry (2026-07-12): the lobby links HERE now — one big
+  // ENTER VR action, no flat-preview chrome in between.
+  { path: 'xr/enter/:name', loadComponent: () => import('@components/xr-lobby/xr-direct-entry-page.component').then(m => m.XrDirectEntryPageComponent) },
+  // Older flat-preview + Enter VR page — still reachable directly,
+  // just no longer the lobby's own link target.
   { path: 'xr/view/:name', loadComponent: () => import('@components/xr-lobby/xr-view-page.component').then(m => m.XrViewPageComponent) },
   { path: 'sim-spaces', loadComponent: () => import('@components/sim-space/sim-space-list-page/sim-space-list-page.component').then(m => m.SimSpaceListPageComponent) },
   { path: 'sim-spaces/:name', loadComponent: () => import('@components/sim-space/sim-space-detail-page/sim-space-detail-page.component').then(m => m.SimSpaceDetailPageComponent) },

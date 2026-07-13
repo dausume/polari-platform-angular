@@ -8,21 +8,27 @@ import { XrSettingsService } from '@services/xr/xr-settings.service';
 
 /**
  * The Enter-XR bar (Dustin 2026-07-12): when the DEVICE has XR and
- * the space is 3D, a decent-sized prompt sits ABOVE the whole 3D
+ * the space is enterable, a decent-sized prompt sits ABOVE the whole
  * view offering VR (and AR once xr-4 lands). Device capability
  * decides the bar EXISTS; the space's resolved xr_mode is shown as
  * a label, never used to hide the control — the old button rendered
  * NOTHING for mode 'none' (every unset space), which made XR entry
  * undiscoverable on the very page built for it.
+ *
+ * 2D spaces (2026-07-12, same day): now XR-enterable too — the flat
+ * D3 view mounts as one big HTMLMesh quad instead of a fabricated 3D
+ * scene (xr-2d-scene-builder.ts) — so this banner no longer excludes
+ * dimensionality 2. Only a definitively-unenterable state (null while
+ * the space list is still loading) hides it.
  */
 @Component({
   standalone: true,
   selector: 'xr-entry-banner',
   imports: [CommonModule],
   template: `
-    <div class="banner" *ngIf="deviceHasXr && is3d">
+    <div class="banner" *ngIf="deviceHasXr && isEnterable">
       <span class="msg" *ngIf="!entryId">
-        3D scene loading — Enter VR appears here when it is
+        Scene loading — Enter VR appears here when it is
         ready…</span>
       <ng-container *ngIf="entryId">
         <span class="msg">This space can be entered.</span>
@@ -67,8 +73,8 @@ export class XrEntryBannerComponent implements OnInit, OnDestroy {
   @Input() spaceName = '';
   @Input() multiscaleName?: string;
   @Input() entryId: string | null = null;
-  /** 3 for 3D spaces; anything else renders no banner (a 2D space
-   *  has nothing to enter — no XR chatter on it at all). */
+  /** 2 or 3 — both are enterable now; null (still loading the space
+   *  list) renders no banner rather than flash-then-hide. */
   @Input() dimensionality: number | null = 3;
 
   deviceHasXr = false;
@@ -83,8 +89,8 @@ export class XrEntryBannerComponent implements OnInit, OnDestroy {
               private engine: XrEngineService,
               private settings: XrSettingsService) {}
 
-  get is3d(): boolean {
-    return this.dimensionality === 3;
+  get isEnterable(): boolean {
+    return this.dimensionality === 2 || this.dimensionality === 3;
   }
 
   ngOnInit(): void {

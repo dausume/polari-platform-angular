@@ -29,6 +29,26 @@
   overflow-y: visible !important;
 }
 
+/* sim-space-legend positions itself as a FLAT-VIEWPORT overlay
+ * (position: absolute; right/bottom pinned to the nearest positioned
+ * ancestor — normally the canvas region). Mounted bare under
+ * .xr-panel-context it would escape the small wrapper div HTMLMesh
+ * captures (an absolutely-positioned box doesn't contribute to its
+ * parent's flow size, so the wrapper would collapse to just its
+ * title line and the real content would be captured off-canvas /
+ * clipped). Pin it back into normal flow so it sizes with its
+ * content like every other XR surface. */
+.xr-panel-context .legend-panel {
+  position: static !important;
+  right: auto !important;
+  bottom: auto !important;
+  max-height: none !important;
+}
+
+.xr-panel-context .legend-body {
+  overflow-y: visible !important;
+}
+
 /* Rasterized text is texture pixels — a slightly larger base wins
  * legibility at panel viewing distance. */
 .xr-panel-context {

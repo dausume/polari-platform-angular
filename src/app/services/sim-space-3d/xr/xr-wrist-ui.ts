@@ -208,6 +208,17 @@ export class XrWristUi {
       const cameraWorld = new THREE.Vector3();
       this.camera.getWorldPosition(cameraWorld);
       this.group.lookAt(cameraWorld);
+      // The button ring reads fine off the GROUP's own billboard (it
+      // sits close to the pivot), but the HUD (y 0.27) and HELP
+      // (y 0.46) panels sit far enough from that pivot that a single
+      // whole-group rotation stops actually facing the wearer once
+      // the wrist is close to the face (Dustin: can't bring it close
+      // enough to read, wants it angled toward him) — near-field
+      // parallax off a single pivot. lookAt() on each panel directly
+      // (it accounts for the parent's rotation internally) makes them
+      // always face the eye exactly, at any distance or wrist angle.
+      this.hudPlane.lookAt(cameraWorld);
+      this.helpPlane?.lookAt(cameraWorld);
     }
     this.updateHover();
     this.updateActiveStates();
@@ -259,13 +270,13 @@ export class XrWristUi {
   private updateHover(): void {
     const previous = this.hovered;
     this.hovered = null;
-    const pointer = this.input.byHand(
+    const pointerHandle = this.input.byHand(
       this.wristHandedness === 'left' ? 'right' : 'left');
-    if (this.group.parent && pointer && !pointer.isHand) {
+    if (this.group.parent && pointerHandle && !pointerHandle.isHand) {
       const origin = new THREE.Vector3();
-      pointer.ray.getWorldPosition(origin);
+      pointerHandle.pointer.getWorldPosition(origin);
       const quaternion = new THREE.Quaternion();
-      pointer.ray.getWorldQuaternion(quaternion);
+      pointerHandle.pointer.getWorldQuaternion(quaternion);
       const direction =
         new THREE.Vector3(0, 0, -1).applyQuaternion(quaternion);
       this.raycaster.set(origin, direction);

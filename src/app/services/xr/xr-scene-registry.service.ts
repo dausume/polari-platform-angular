@@ -22,6 +22,33 @@ export interface XrSceneHandle {
   /** THREE.Camera the flat viewer currently uses (pose seed only —
    *  the XR session gets its own camera; this one is never mutated). */
   camera: unknown;
+  /**
+   * 2D spaces (2026-07-12): the LIVE flat host element — the same DOM
+   * node the D3 renderer already draws into — mounted as ONE big
+   * always-open HTMLMesh quad instead of fabricating 3D geometry.
+   * Absent for 3D spaces, which already have real scene content.
+   */
+  mainSurfaceElement?: unknown;
+  /**
+   * Overrides the settings-cascade framing when the scene's SHAPE
+   * dictates it, not the space's category — a flat quad has no
+   * "interior" to stand inside, so 2D always forces 'exhibit'
+   * regardless of what the space's xr_framing setting resolves to.
+   * Absent = use the resolved cascade value untouched.
+   */
+  forcedFraming?: 'inside' | 'exhibit';
+  /**
+   * 2D spaces: a fixed "sim radius" in world units, measured from the
+   * flat host element's real size (HTMLMesh's own 1000px = 1 unit
+   * convention — see xr-2d-scene-builder.ts). Used INSTEAD OF
+   * sceneBoundingSphere() for both the entry-scale derivation and the
+   * ongoing navigation R re-measurement: there is no real 3D geometry
+   * to measure, and the visible content is a panel positioned
+   * relative to the CAMERA, not a stable world object — measuring the
+   * scene graph would make R drift as panels get dragged around.
+   * Absent for 3D spaces.
+   */
+  fixedRadius?: number;
 }
 
 export interface XrSceneEntry {

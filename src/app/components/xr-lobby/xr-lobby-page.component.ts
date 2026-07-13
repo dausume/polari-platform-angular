@@ -17,9 +17,10 @@ import { MultiScaleSimSummary } from '@models/multi-scale/NamedMultiScaleSimConf
  * this lobby exists purely to FIND and VIEW sim spaces and
  * multiscale sims. Design rules: giant tap targets, page with big
  * PREV/NEXT buttons instead of fine scrolling, one tap from a card
- * to the slim /xr/view page whose only job is Enter VR. A multiscale
- * card expands to its panels' bound 3D spaces (opened with the msim
- * name as cascade context).
+ * to /xr/enter — DIRECT XR entry (2026-07-12), no flat-preview page
+ * in between, just one big ENTER VR action. A multiscale card
+ * expands to its panels' bound spaces (opened with the msim name as
+ * cascade context).
  */
 @Component({
   standalone: true,
@@ -38,7 +39,7 @@ import { MultiScaleSimSummary } from '@models/multi-scale/NamedMultiScaleSimConf
         <p class="hint" *ngIf="spacesError">{{ spacesError }}</p>
         <div class="grid">
           <a *ngFor="let space of pagedSpaces"
-             class="card" [routerLink]="['/xr/view', space.name]">
+             class="card" [routerLink]="['/xr/enter', space.name]">
             <span class="card-title">{{ space.name }}</span>
             <span class="card-sub">{{ space.description
               || (space.dimensionality === '3d'
@@ -69,7 +70,7 @@ import { MultiScaleSimSummary } from '@models/multi-scale/NamedMultiScaleSimConf
               <p class="hint" *ngIf="!expandedSpaces.length">
                 {{ expandedNote }}</p>
               <a *ngFor="let ref of expandedSpaces" class="member"
-                 [routerLink]="['/xr/view', ref]"
+                 [routerLink]="['/xr/enter', ref]"
                  [queryParams]="{ msim: msim.name }">
                 {{ ref }}</a>
             </div>

@@ -119,7 +119,7 @@ export interface XrNavKnobs {
  *  HELP panel — bumped on every XR deploy so a headset running a
  *  CACHED/RESUMED old app is identifiable at a glance (a resumed
  *  Wolvic tab never reloads; it burned a whole debugging cycle). */
-export const XR_BUILD_TAG = 'xr3min panels';
+export const XR_BUILD_TAG = 'xr3min pointer+hud fix';
 
 export const XR_NAV_DEFAULTS: XrNavKnobs = {
   shiftDebounceMs: 250,

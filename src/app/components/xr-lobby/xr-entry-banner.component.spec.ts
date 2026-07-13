@@ -62,9 +62,22 @@ describe('XrEntryBannerComponent', () => {
       'entry-1', { multiscaleName: undefined });
   });
 
-  it('renders nothing on a 2D space (no XR chatter)', async () => {
+  it('shows ENTER VR for a 2D space too (2026-07-12: 2D spaces are '
+     + 'XR-enterable — one big HTMLMesh of the flat D3 view)',
+     async () => {
     component.spaceName = 'flat-2d';
     component.dimensionality = 2;
+    component.entryId = 'entry-2d';
+    await render();
+    const button = fixture.nativeElement.querySelector('.enter');
+    expect(button).withContext('the enter button').toBeTruthy();
+    expect(button.textContent).toContain('ENTER VR');
+  });
+
+  it('renders nothing while dimensionality is still unknown (space '
+     + 'list not yet answered — no banner flash)', async () => {
+    component.spaceName = 'loading-space';
+    component.dimensionality = null;
     component.entryId = null;
     await render();
     expect(fixture.nativeElement.querySelector('.banner'))

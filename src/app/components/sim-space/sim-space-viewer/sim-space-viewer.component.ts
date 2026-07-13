@@ -59,7 +59,9 @@ import {
   SimSpaceEditorSidebarComponent,
 } from './sim-space-editor-sidebar.component';
 import { SimSpaceXrButtonComponent } from './sim-space-xr-button.component';
-import { XrSceneRegistryService } from '@services/xr/xr-scene-registry.service';
+import {
+  XrSceneHandle, XrSceneRegistryService,
+} from '@services/xr/xr-scene-registry.service';
 import { XrEngineService } from '@services/xr/xr-engine.service';
 import {
   SimSpaceEvaluationSnapshot,
@@ -933,23 +935,66 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
     return this.hostRef.nativeElement;
   }
 
-  /** Register this viewer's live 3D scene with the XR registry
-   *  (xr-1) — the ~5-line addition the plan promised. 2D renderers
-   *  (no getXrSceneHandle) simply never register. */
+  /** Register this viewer's live scene with the XR registry (xr-1).
+   *  3D renderers expose a real THREE.Scene directly. 2D renderers
+   *  have no getXrSceneHandle (no three.js involved in the flat
+   *  view) — for those, lazily build the "one big HTMLMesh of the
+   *  live D3 host" scene instead (2026-07-12: 2D spaces are now
+   *  XR-enterable). */
   private registerXrScene(renderer: SimSpaceRenderer): void {
-    if (!renderer.getXrSceneHandle || !this.simSpaceName) return;
+    if (!this.simSpaceName) return;
+    const dimensionality = this.snapshot?.definition.dimensionality;
+    let getHandle: () => XrSceneHandle | null;
+    if (renderer.getXrSceneHandle) {
+      getHandle = () => renderer.getXrSceneHandle?.() ?? null;
+    } else if (dimensionality === '2d') {
+      getHandle = () => this.get2dXrSceneHandle();
+    } else {
+      return;
+    }
     this.xrEntryId = this.xrRegistry.register({
       label: this.simSpaceName,
       spaceName: this.simSpaceName,
-      getHandle: () => renderer.getXrSceneHandle?.() ?? null,
+      getHandle,
     });
     this.xrEntryReady.emit(this.xrEntryId);
+  }
+
+  /** Memoized 2D scene handle — the dynamic `three` import only fires
+   *  once per viewer instance, on the FIRST actual XR-enter attempt
+   *  (getHandle() is only ever called from the XR engine's own
+   *  enter/bind flow, never during normal flat rendering), so flat-
+   *  2D-only users never pay for it. Returns null (documented "not
+   *  ready yet" contract every XR scene handle already honors) until
+   *  the lazy chunk resolves; a first-click failure is honest and
+   *  simply retryable — by the time a user has navigated from the XR
+   *  lobby to pressing Enter VR, the chunk has almost always already
+   *  landed. */
+  private xr2dHandle: XrSceneHandle | null = null;
+  private xr2dBuildPromise: Promise<void> | null = null;
+
+  private get2dXrSceneHandle(): XrSceneHandle | null {
+    if (this.xr2dHandle) return this.xr2dHandle;
+    if (!this.xr2dBuildPromise) {
+      this.xr2dBuildPromise = import(
+        '@services/sim-space-3d/xr/xr-2d-scene-builder'
+      ).then(({ buildXr2dSceneHandle }) => {
+        this.xr2dHandle =
+          buildXr2dSceneHandle(this.hostRef.nativeElement);
+      }).catch(err => {
+        console.error(
+          '[sim-space-viewer] 2D XR scene build failed:', err);
+      });
+    }
+    return null;
   }
 
   /** Unregister on teardown; if OUR scene is the one bound into the
    *  live XR session, the engine exits first (never renders a
    *  torn-down scene). */
   private unregisterXrScene(): void {
+    this.xr2dHandle = null;
+    this.xr2dBuildPromise = null;
     if (!this.xrEntryId) return;
     const id = this.xrEntryId;
     this.xrEntryId = null;
