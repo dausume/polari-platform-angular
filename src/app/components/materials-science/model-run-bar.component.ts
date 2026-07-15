@@ -5,7 +5,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
-import { EngineTemplate } from '@services/materials-science/engine-model.service';
+import { EngineTemplate } from '@models/materials-science/engine-model-types';
 
 /**
  * The shared header bar of both model-config surfaces: live capability

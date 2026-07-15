@@ -42,6 +42,7 @@ import {
   SimSpaceSnapshot,
   SimSpaceObject,
   SimSpaceConnection,
+  SimSpaceConfiguredInterface,
   SimSpaceDimensionality,
   SnapshotVector,
 } from '@models/sim-space/sim-space-types';
@@ -53,6 +54,7 @@ import { SimSpaceScrubberComponent, ScrubberKind } from './sim-space-scrubber.co
 import { SimSpaceEvaluationOverlayComponent } from './sim-space-evaluation-overlay.component';
 import { SimSpaceEvaluationSelectorComponent } from './sim-space-evaluation-selector.component';
 import { SimSpaceSimulationRunPanelComponent } from './sim-space-simulation-run-panel.component';
+import { SimSpaceInitialConditionsPanelComponent } from './sim-space-initial-conditions-panel.component';
 import {
   OverlayKey,
   OverlayVisibility,
@@ -79,6 +81,7 @@ import {
     SimSpaceEvaluationOverlayComponent,
     SimSpaceEvaluationSelectorComponent,
     SimSpaceSimulationRunPanelComponent,
+    SimSpaceInitialConditionsPanelComponent,
     SimSpaceEditorSidebarComponent,
     SimSpaceXrButtonComponent,
   ],
@@ -104,11 +107,27 @@ import {
       [axisLabels]="snapshot.definition.axisLabels || {}">
     </sim-space-axis-legend>
 
-    <!-- Simulation run controller — top-left, below the axis legend.
-         Visible only when the scene's bound *SimState classes
-         participate in a SimulationDefinition. -->
-    <div class="run-panel-anchor" *ngIf="simulationDefinitionName && !hideRunPanel">
-      <sim-space-simulation-run-panel
+    <!-- Initial Conditions + simulation run controller — top-left,
+         below the axis legend, stacked as two INDEPENDENT panels (not
+         nested — separating them is what leaves room for the IC
+         panel's own tabs without crowding the run/step controls).
+         The Initial Conditions panel is a View toggle (sidebar) and
+         shows whenever the scene has configured interfaces or a bound
+         simulation to set manual fields on; the run panel shows only
+         when a SimulationDefinition is actually bound. -->
+    <div class="side-panels-anchor" *ngIf="!hideRunPanel">
+      <sim-space-initial-conditions-panel
+        *ngIf="overlayVisible.initialConditions
+          && (configuredInterfaces.length > 0 || simulationDefinitionName)"
+        [configuredInterfaces]="configuredInterfaces"
+        [simulationDefinitionName]="simulationDefinitionName"
+        [defaultDtSeconds]="simulationDefaultDtSeconds"
+        [runName]="selectedRunName"
+        (stepCommitted)="onSimulationStepCommitted()">
+      </sim-space-initial-conditions-panel>
+
+      <sim-space-simulation-run-panel *ngIf="simulationDefinitionName"
+        [externalRefreshKey]="icPanelRefreshTick"
         [simulationDefinitionName]="simulationDefinitionName"
         [defaultDtSeconds]="simulationDefaultDtSeconds"
         [bottomOffsetPx]="legendBottomOffsetPx"
@@ -266,14 +285,20 @@ import {
 
     /* Simulation run panel — top-left, parked under the axis legend
        (which sits at top: 12px). 320px clearance lets the legend stay
-       readable when the run panel is open; the panel itself is
-       collapsible so it stays small at rest. */
-    .run-panel-anchor {
+       readable when either panel is open; each panel is independently
+       collapsible so they stay small at rest. Stacked as a flex column
+       (not nested) — the Initial Conditions panel and the Run/Step
+       panel are separate components with separate View toggles. */
+    .side-panels-anchor {
       position: absolute;
       top: 12px;
       left: 340px;
       z-index: 2;
       pointer-events: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-width: 460px;
     }
   `]
 })
@@ -317,7 +342,7 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
    *  Choices persist per scene for the session. The run panel is NOT
    *  part of this — the menu that runs the simulation stays visible. */
   overlayVisible: OverlayVisibility =
-    { axes: true, legend: true, evaluations: true };
+    { axes: true, legend: true, evaluations: true, initialConditions: true };
   private overlaysInitializedFor: string | null = null;
 
   @ViewChild('host', { static: true }) hostRef!: ElementRef<HTMLDivElement>;
@@ -377,6 +402,26 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
     return sims[0] ?? null;
   }
 
+  /** The scene's configured "how to set this up" interfaces, in
+   *  declared order — handed to sim-space-initial-conditions-panel,
+   *  which resolves each componentName against the Display registry
+   *  and renders it as a tab (the panel appends its own always-last
+   *  Manual tab). */
+  /** Stable empty-array fallback — returning a fresh `[]` literal from
+   *  a getter evaluated every change-detection cycle (this component
+   *  isn't OnPush) would feed a NEW reference to the child panel's
+   *  [configuredInterfaces] input on every tick during the pre-load
+   *  window, forcing its own ngOnChanges (and tab rebuild) to refire
+   *  needlessly. Sharing one instance keeps it a true no-op once a
+   *  snapshot with real data lands (that array is read directly off
+   *  the parsed response, so it's already stable on its own). */
+  private static readonly EMPTY_CONFIGURED_INTERFACES: SimSpaceConfiguredInterface[] = [];
+
+  get configuredInterfaces(): SimSpaceConfiguredInterface[] {
+    return this.snapshot?.definition.configuredInterfaces
+      ?? SimSpaceViewerComponent.EMPTY_CONFIGURED_INTERFACES;
+  }
+
   /** Default dt in seconds for the active sim def, surfaced as the
    *  IC editor's dt-override placeholder. 0 = unknown (fallback to
    *  generic "sim default" placeholder text in the editor). */
@@ -395,8 +440,18 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
    *  new *SimState rows appear in the scene + scrubber range expands. */
   async onSimulationStepCommitted(): Promise<void> {
     if (!this.simSpaceName) return;
+    // The Initial Conditions panel commits step 0 on ITS OWN run-list
+    // fetch (separate from the run panel's) — bump the tick so the
+    // sibling run panel (unchanged run selection, so its own
+    // ngOnChanges wouldn't otherwise refire) re-reads run status too
+    // and flips from "uninitialized" once this lands.
+    this.icPanelRefreshTick++;
     await this.load(this.simSpaceName);
   }
+
+  /** Bumped whenever a step commits from EITHER sibling panel — see
+   *  sim-space-simulation-run-panel's `externalRefreshKey` input. */
+  icPanelRefreshTick = 0;
 
   /** Run panel emitted a selection change — re-fetch the snapshot
    *  filtered to that run so the viewer shows ONLY this run's rows. */
@@ -501,7 +556,17 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
     const runChanged = changes['run'] && !changes['run'].firstChange;
     const nameChanged =
       changes['simSpaceName'] && !changes['simSpaceName'].firstChange;
-    if (nameChanged) this.initOverlayVisibility();
+    if (nameChanged) {
+      this.initOverlayVisibility();
+      // Per-scene session state — without this reset, navigating from
+      // one SimSpace to another (route param change reuses this same
+      // component instance) carried the PREVIOUS scene's run selection
+      // into the new scene's snapshot fetch (?run=<stale run name>),
+      // silently scoping an unrelated scene to a run it has nothing to
+      // do with. `run` (pinned-run embeds) still wins via the branch
+      // above when both fire in the same change batch.
+      if (!changes['run']) this.selectedRunName = null;
+    }
     if (nameChanged || runChanged) {
       await this.load(this.simSpaceName);
     }
@@ -523,6 +588,7 @@ export class SimSpaceViewerComponent implements AfterViewInit, OnChanges, OnDest
       axes: stored.axes ?? base,
       legend: stored.legend ?? base,
       evaluations: stored.evaluations ?? base,
+      initialConditions: stored.initialConditions ?? base,
     };
   }
 

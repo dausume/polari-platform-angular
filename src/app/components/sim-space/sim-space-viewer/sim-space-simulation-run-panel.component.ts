@@ -40,15 +40,11 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatInputModule } from '@angular/material/input';
 
+import { SimulationRunService } from '@services/sim-space/simulation-run.service';
 import {
-  SimulationRunService,
   SimulationRunSummary,
   SimulationStepResult,
-} from '@services/sim-space/simulation-run.service';
-import {
-  RunInitialConditionsEditorComponent,
-  RunInitialConditionsState,
-} from './run-initial-conditions-editor.component';
+} from '@models/sim-space/sim-space-types';
 import { RunCurrentStateDisplayComponent } from './run-current-state-display.component';
 import {
   formatTimeValue,
@@ -64,7 +60,6 @@ import { XR_PANEL_CONTEXT } from '@models/xr/xr-panel-context';
     CommonModule, FormsModule, MatIconModule, MatButtonModule,
     MatSelectModule, MatFormFieldModule, MatTooltipModule,
     MatProgressSpinnerModule, MatInputModule,
-    RunInitialConditionsEditorComponent,
     RunCurrentStateDisplayComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -96,50 +91,22 @@ import { XR_PANEL_CONTEXT } from '@models/xr/xr-panel-context';
                Set Initial Conditions appears for it. -->
           <button mat-stroked-button class="new-run-btn"
                   [disabled]="newRunInFlight || !simulationDefinitionName"
-                  matTooltip="Create a fresh run and configure its initial conditions"
+                  matTooltip="Create a fresh, uninitialized run — open the Initial Conditions panel (View toggles, right sidebar) to configure and commit its step 0"
                   (click)="onStartNewRun()">
             <mat-icon *ngIf="!newRunInFlight">add</mat-icon>
             <mat-progress-spinner *ngIf="newRunInFlight" diameter="14" mode="indeterminate">
             </mat-progress-spinner>
             New Run
           </button>
-          <button mat-stroked-button class="new-run-btn"
-                  *ngIf="!selectedRunInitialized && selectedRunName"
-                  [disabled]="newRunInFlight || !simulationDefinitionName || !icState.valid"
-                  [matTooltip]="newRunDisabledReason"
-                  (click)="onSetInitialConditions()">
-            <mat-icon *ngIf="!newRunInFlight">add_task</mat-icon>
-            <mat-progress-spinner *ngIf="newRunInFlight" diameter="14" mode="indeterminate">
-            </mat-progress-spinner>
-            Set Initial Conditions
-          </button>
         </div>
 
-        <!-- Per-class initial-conditions editor for the next fresh run.
-             Debounced validation gates the New Run button. In XR the
-             CONDITIONS page-panel owns this surface — the embedded
-             accordion would duplicate it on the RUN quad. -->
-        <details class="ic-editor-wrap" *ngIf="simulationDefinitionName && !xrContext" open>
-          <summary class="ic-summary">
-            <mat-icon>tune</mat-icon>
-            <span>Configure initial conditions for next run</span>
-            <span class="ic-status muted small"
-                  [class.ic-status-ok]="icState.valid && icState.hasValidator"
-                  [class.ic-status-bad]="!icState.valid">
-              <ng-container *ngIf="icState.validating">checking…</ng-container>
-              <ng-container *ngIf="!icState.validating && icState.valid && icState.hasValidator">✓ valid</ng-container>
-              <ng-container *ngIf="!icState.validating && !icState.hasValidator && icState.valid">no validator</ng-container>
-              <ng-container *ngIf="!icState.validating && !icState.valid">✗ invalid</ng-container>
-            </span>
-          </summary>
-          <run-initial-conditions-editor
-            [simulationDefinitionName]="simulationDefinitionName"
-            [defaultDtSeconds]="defaultDtSeconds"
-            [locked]="selectedRunInitialized"
-            [runName]="selectedRunName"
-            (stateChange)="onIcStateChange($event)">
-          </run-initial-conditions-editor>
-        </details>
+        <!-- 2026-07-14: initial-conditions editing moved to its own
+             sim-space-initial-conditions-panel (separate View toggle,
+             right sidebar) — this component owns run SELECTION and
+             STEP control only, not IC configuration. An
+             uninitialized selected run still reads as such below
+             (Current state stays hidden) until that panel commits
+             step 0. -->
 
         <details class="cs-display-wrap"
                  *ngIf="simulationDefinitionName && selectedRunInitialized"
@@ -380,29 +347,6 @@ import { XR_PANEL_CONTEXT } from '@models/xr/xr-panel-context';
       white-space: nowrap;
       font-size: 0.75rem;
     }
-    .ic-editor-wrap {
-      border: 1px solid var(--border-light, #e0e3e9);
-      border-radius: 6px;
-      padding: 6px 10px;
-      background: rgba(0,0,0,0.015);
-    }
-    .ic-summary {
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 0.78rem;
-      font-weight: 500;
-      color: var(--text-primary, #222);
-      list-style: none;
-      padding-bottom: 4px;
-    }
-    .ic-summary::-webkit-details-marker { display: none; }
-    .ic-summary mat-icon { font-size: 16px; width: 16px; height: 16px; color: #1976d2; }
-    .ic-status { margin-left: auto; font-weight: 600; }
-    .ic-status-ok  { color: #1e7e34; }
-    .ic-status-bad { color: #b71c1c; }
-
     .cs-display-wrap {
       border: 1px solid var(--border-light, #e0e3e9);
       border-radius: 6px;
@@ -570,6 +514,14 @@ export class SimSpaceSimulationRunPanelComponent implements OnChanges {
    *  scrubber is showing so the panel doesn't get clipped. */
   @Input() bottomOffsetPx: number = 12;
 
+  /** Bumped by the viewer whenever the SIBLING Initial Conditions panel
+   *  commits a step (2026-07-14: IC-setting moved to its own component
+   *  — see sim-space-initial-conditions-panel). This component's own
+   *  `runs` list has no other way to learn a run flipped from
+   *  uninitialized to initialized, since `simulationDefinitionName`
+   *  itself doesn't change when that happens. */
+  @Input() externalRefreshKey = 0;
+
   /** Emitted when a step lands successfully so the viewer can reload
    *  the snapshot and show the new rows. */
   @Output() stepCommitted = new EventEmitter<SimulationStepResult>();
@@ -658,6 +610,9 @@ export class SimSpaceSimulationRunPanelComponent implements OnChanges {
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['simulationDefinitionName']) {
       this.reloadRuns();
+    } else if (changes['externalRefreshKey'] && !changes['externalRefreshKey'].firstChange) {
+      this.reloadRuns();
+      this.currentStateRefreshKey++;
     }
   }
 
@@ -702,40 +657,12 @@ export class SimSpaceSimulationRunPanelComponent implements OnChanges {
 
   onFilterChange(): void { /* tracked via getter — no work needed */ }
 
-  /** Latest state from the inline initial-conditions editor. Drives
-   *  the New Run button's disabled state + supplies the per-run
-   *  overrides to the create call. */
-  icState: RunInitialConditionsState = {
-    overrides: {},
-    timeStepSeconds: 0,
-    fieldSaveOverrides: {},
-    storageEstimate: null,
-    valid: true,
-    hasValidator: false,
-    reason: '',
-    error: null,
-    validating: false,
-  };
-
-  onIcStateChange(state: RunInitialConditionsState): void {
-    this.icState = state;
-  }
-
-  get newRunDisabledReason(): string {
-    if (!this.simulationDefinitionName) return 'No simulation bound to this scene.';
-    if (this.icState.validating) return 'Validating initial conditions…';
-    if (!this.icState.valid) {
-      if (this.icState.reason) return `Initial conditions invalid: ${this.icState.reason}`;
-      if (this.icState.error)  return `Validator error: ${this.icState.error}`;
-      return 'Initial conditions invalid.';
-    }
-    return 'Lock these initial conditions into a fresh run by writing the step-0 row.';
-  }
-
   /** Spin up a fresh, uninitialized run (no step 0 yet) and switch the
    *  whole panel to it. Because it has no committed step 0 it reads as
-   *  not-initialized → the IC editor unlocks and Set Initial Conditions
-   *  appears, scoped to this new run. */
+   *  not-initialized — the Initial Conditions panel (its own View
+   *  toggle) picks this up via the SAME selectedRunName the viewer
+   *  already threads to both panels, and shows its Set Initial
+   *  Conditions action for it. */
   async onStartNewRun(): Promise<void> {
     if (!this.simulationDefinitionName || this.newRunInFlight) return;
     this.newRunInFlight = true;
@@ -752,42 +679,6 @@ export class SimSpaceSimulationRunPanelComponent implements OnChanges {
         success: false, step: null, time: null,
         rowsByClass: {}, solutionTraces: [], warnings: [],
         error: `Failed to create run: ${err?.message || err}`,
-      };
-    } finally {
-      this.newRunInFlight = false;
-    }
-  }
-
-  /** Write the editor's initial conditions onto the selected
-   *  (uninitialized) run, then commit step 0 so they're locked in. The
-   *  run can no longer have its IC changed afterward — start a New Run
-   *  to use different values. */
-  async onSetInitialConditions(): Promise<void> {
-    if (!this.selectedRunName || this.newRunInFlight) return;
-    if (!this.icState.valid) return;
-    const runName = this.selectedRunName;
-    this.newRunInFlight = true;
-    try {
-      await this.runService.setInitialConditions(
-        runName,
-        this.icState.overrides,
-        this.icState.timeStepSeconds > 0 ? this.icState.timeStepSeconds : undefined,
-        this.icState.fieldSaveOverrides,
-      );
-      // Commit step 0 now so the initial-conditions row exists and the
-      // run's IC is effectively locked.
-      const result = await this.runService.step(runName, 0);
-      this.lastResult = result;
-      if (result.success) {
-        await this.reloadRuns();
-        this.currentStateRefreshKey++;
-        this.stepCommitted.emit(result);
-      }
-    } catch (err: any) {
-      this.lastResult = {
-        success: false, step: null, time: null,
-        rowsByClass: {}, solutionTraces: [], warnings: [],
-        error: `Failed to set initial conditions: ${err?.message || err}`,
       };
     } finally {
       this.newRunInFlight = false;

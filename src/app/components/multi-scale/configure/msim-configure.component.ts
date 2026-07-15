@@ -7,10 +7,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { NamedMultiScaleSimConfig } from '@models/multi-scale/NamedMultiScaleSimConfig';
-import {
-  CompositionFinding,
-  MsimAuthoringService,
-} from '@services/multi-scale/msim-authoring.service';
+import { MsimAuthoringService } from '@services/multi-scale/msim-authoring.service';
+import { CompositionFinding } from '@models/multi-scale/msim-types';
 import { MsimSpacesEditorComponent } from './msim-spaces-editor.component';
 import { MsimStagesEditorComponent } from './msim-stages-editor.component';
 import { MsimCouplingEditorComponent } from './msim-coupling-editor.component';

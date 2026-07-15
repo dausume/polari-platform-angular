@@ -4,9 +4,8 @@ import { RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
-import {
-  MaterialsBasisService, PresenceMatrix,
-} from '@services/materials-science/materials-basis.service';
+import { MaterialsBasisService } from '@services/materials-science/materials-basis.service';
+import { PresenceMatrix } from '@models/materials-science/materials-basis-types';
 
 /**
  * The Materials home page (/display/materials): the accountability

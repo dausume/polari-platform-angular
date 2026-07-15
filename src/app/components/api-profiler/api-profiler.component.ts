@@ -12,8 +12,8 @@
 
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Subscription } from 'rxjs';
+import { ApiProfilerService } from '../../services/api-profiler.service';
 import {
-    ApiProfilerService,
     QueryResult,
     ProfileMatch,
     DetectedType,
@@ -23,7 +23,7 @@ import {
     FetchResult,
     BuildProfileResult,
     CreateClassResult
-} from '../../services/api-profiler.service';
+} from '@models/api-profiler/api-profiler-types';
 
 interface HeaderEntry {
     key: string;

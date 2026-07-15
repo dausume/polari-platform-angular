@@ -4,49 +4,13 @@ import { firstValueFrom } from 'rxjs';
 import { PolariService } from '@services/polari-service';
 import { NamedMultiScaleSimConfig } from '@models/multi-scale/NamedMultiScaleSimConfig';
 
-/** The simulation-intents taxonomy (GET /api/simulations/intents). */
-export interface IntentInfo {
-  label: string;
-  question: string;
-  requires: string[];
-  produces: string;
-  plugPoints: string;
-}
-export interface IntentsCatalog {
-  intents: Record<string, IntentInfo>;
-  productBearing: string[];
-  continuous: string[];
-}
-
-/** One composition-coherence finding (plain language). */
-export interface CompositionFinding {
-  level: 'error' | 'warning';
-  message: string;
-}
-
-/** A member simulation as the authoring surfaces need it. */
-export interface SimDefLite {
-  id: string;
-  name: string;
-  intent: string;
-  timeStepSeconds: number;
-  participatingClasses: string[];
-}
-
-/** Parsed SimulationCouplingDefinition for the weaving editor. */
-export interface CouplingConfig {
-  id: string;
-  name: string;
-  description: string;
-  sourceSimulationRef: string;
-  sourceClassName: string;
-  targetSimulationRef: string;
-  targetClassName: string;
-  samplerEquationRef: string;
-  /** The raw config_json object (sampler operands / inject / defaults). */
-  config: Record<string, any>;
-  enabled: boolean;
-}
+import {
+  IntentInfo,
+  IntentsCatalog,
+  CompositionFinding,
+  SimDefLite,
+  CouplingConfig,
+} from '@models/multi-scale/msim-types';
 
 /**
  * Authoring backend access for the Multi-Scale page's Configure mode and

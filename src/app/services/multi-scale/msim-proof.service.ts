@@ -1,21 +1,11 @@
 import { Injectable } from '@angular/core';
 import { Subject } from 'rxjs';
 
-import { StageSearchReport } from './multi-scale-sim-definition.service';
+import {
+  ProofEvent,
+  StageSearchReport,
+} from '@models/multi-scale/msim-types';
 
-/** A substance's proof state changed (search finished or was cleared). */
-export interface ProofEvent {
-  msim: string;
-  stageKey: string;
-  substanceKey: string;
-  substanceLabel: string;
-  /** The substance's physical identity (melting line etc.) — lets
-   *  explainability views draw the analytic melt line the attempts
-   *  were judged against. */
-  substanceParams?: Record<string, number>;
-  /** null = proof was cleared ("Try again"). */
-  report: StageSearchReport | null;
-}
 
 /**
  * Session-scoped cache of first-principles PROOF results, keyed by

@@ -4,15 +4,15 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
+import { AccountabilityService } from '@services/scoring/accountability.service';
+import { ScoringService } from '@services/scoring/scoring.service';
 import {
-  AccountabilityService, AssertionRow, CohortReport, ContributorRow,
+  AssertionRow, CohortReport, ContributorRow,
   ContributorRecord, ElectionRow, ElectionTally, GroupBiasReport,
   OutletAccuracyReport, PolicyScoreReport, PoliticianScoreReport,
   SubjectRow, SuggestionReport, ValidityReport,
-} from '@services/scoring/accountability.service';
-import {
-  ScoreConceptSummary, ScoreGroupRow, ScoringService,
-} from '@services/scoring/scoring.service';
+  ScoreConceptSummary, ScoreGroupRow,
+} from '@models/scoring/scoring-types';
 
 /**
  * Policy accountability (/scoring/accountability, scr-5/6/8): the

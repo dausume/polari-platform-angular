@@ -3,13 +3,13 @@ import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
+import { ScoringService } from '@services/scoring/scoring.service';
+import { AccountabilityService } from '@services/scoring/accountability.service';
 import {
   ConceptScoreReport, GroupAggregateReport, GroupCompareReport,
-  ScoreConceptSummary, ScoreGroupRow, ScoringService,
-} from '@services/scoring/scoring.service';
-import {
-  AccountabilityService, CriticalContextReport, SpecificityReport,
-} from '@services/scoring/accountability.service';
+  ScoreConceptSummary, ScoreGroupRow,
+  CriticalContextReport, SpecificityReport,
+} from '@models/scoring/scoring-types';
 
 /**
  * The Scoring home (/scoring, scr-1): context-based scoring as a

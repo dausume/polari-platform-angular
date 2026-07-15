@@ -95,6 +95,26 @@ export interface SimSpaceDefinitionPayload {
    * framing (and projected overlay anchors) stay stable.
    */
   camera?: SimSpaceCameraConfig | null;
+  /**
+   * Optional CONFIGURED "how to set this scene up" interfaces — ordered
+   * Display-registry components rendered as tabs in the viewer's
+   * Initial Conditions panel, ahead of the generic auto-generating
+   * manual form (always the last tab). Generalizes
+   * MultiScaleSimulationDefinition's icInterfaceRef panel so any
+   * SimSpace can carry one or more, independent of whether a
+   * SimulationDefinition is bound (e.g. the aquaponics pot editor —
+   * that scene has no bound simulation at all).
+   */
+  configuredInterfaces?: SimSpaceConfiguredInterface[];
+}
+
+export interface SimSpaceConfiguredInterface {
+  /** Name registered in DISPLAY_COMPONENT_REGISTRY. */
+  componentName: string;
+  /** Per-item inputs, same shape as a Display item's componentProps.inputs. */
+  inputs?: Record<string, any>;
+  /** Panel header text. Falls back to componentName when absent. */
+  label?: string;
 }
 
 export interface SimSpaceCameraConfig {

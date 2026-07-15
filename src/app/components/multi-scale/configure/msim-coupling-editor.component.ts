@@ -6,11 +6,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
-import {
-  CouplingConfig,
-  MsimAuthoringService,
-  SimDefLite,
-} from '@services/multi-scale/msim-authoring.service';
+import { MsimAuthoringService } from '@services/multi-scale/msim-authoring.service';
+import { CouplingConfig, SimDefLite } from '@models/multi-scale/msim-types';
 
 interface InjectRow { key: string; kind: string; index: number; value: string; }
 interface DefaultRow { key: string; value: number; }

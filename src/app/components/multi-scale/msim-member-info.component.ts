@@ -5,9 +5,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
-import {
-  MsimMemberInfoService, MemberSimInfo,
-} from '@services/multi-scale/msim-member-info.service';
+import { MsimMemberInfoService } from '@services/multi-scale/msim-member-info.service';
+import { MemberSimInfo } from '@models/multi-scale/msim-types';
 
 /**
  * The ⓘ on a member-simulation chip: opens a popover with the

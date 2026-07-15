@@ -4,9 +4,10 @@ import { ActivatedRoute, RouterModule } from '@angular/router';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Subscription } from 'rxjs';
 
+import { MaterialsBasisService } from '@services/materials-science/materials-basis.service';
 import {
-  DetailLevel, DetailLevelRow, MaterialDetail, MaterialsBasisService,
-} from '@services/materials-science/materials-basis.service';
+  DetailLevel, DetailLevelRow, MaterialDetail,
+} from '@models/materials-science/materials-basis-types';
 
 /**
  * The per-material detail view (/materials/{name}, msci-28): the

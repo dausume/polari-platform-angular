@@ -3,9 +3,10 @@ import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
+import { MaterialsBasisService } from '@services/materials-science/materials-basis.service';
 import {
-  LevelAccountability, LevelEntry, MaterialsBasisService,
-} from '@services/materials-science/materials-basis.service';
+  LevelAccountability, LevelEntry,
+} from '@models/materials-science/materials-basis-types';
 
 /**
  * One scale level's page (/display/materials-level-{0..4}): what this

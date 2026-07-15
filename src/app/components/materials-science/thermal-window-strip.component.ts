@@ -2,7 +2,7 @@ import { Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
-import { ThermalProfileRow } from '@services/materials-science/materials-basis.service';
+import { ThermalProfileRow } from '@models/materials-science/materials-basis-types';
 
 /**
  * A material's thermal processing facts in one strip: melt range,

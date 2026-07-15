@@ -5,9 +5,10 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
+import { EngineModelService } from '@services/materials-science/engine-model.service';
 import {
-  EngineCapability, EngineModelRow, EngineModelService, EngineTemplate,
-} from '@services/materials-science/engine-model.service';
+  EngineCapability, EngineModelRow, EngineTemplate,
+} from '@models/materials-science/engine-model-types';
 import {
   ModelBindingEditorComponent,
 } from './model-binding-editor.component';

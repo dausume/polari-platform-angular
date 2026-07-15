@@ -7,8 +7,8 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MsimStage } from '@models/multi-scale/NamedMultiScaleSimConfig';
 import {
   MultiScaleSimDefinitionService,
-  StageSearchReport,
 } from '@services/multi-scale/multi-scale-sim-definition.service';
+import { StageSearchReport } from '@models/multi-scale/msim-types';
 
 /**
  * Stage solution search (Run mode) — "attempt multiple candidate

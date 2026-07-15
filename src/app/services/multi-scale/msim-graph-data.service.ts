@@ -6,15 +6,7 @@ import { RuntimeConfigService } from '@services/runtime-config.service';
 import { PolariService } from '@services/polari-service';
 import { NamedGraphConfig } from '@models/graphs/NamedGraphConfig';
 
-/** One page of a per-run timeseries from GET /runs/{run}/series. */
-export interface SeriesPage {
-  run: string;
-  class: string;
-  steps: number[];
-  times: Array<number | null>;
-  fields: Record<string, Array<number | null>>;
-  lastStep: number | null;
-}
+import { SeriesPage } from '@models/multi-scale/msim-types';
 
 /**
  * Data feed for the multi-scale page's graph panels: GraphDefinition

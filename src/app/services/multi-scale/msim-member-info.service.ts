@@ -4,13 +4,7 @@ import { firstValueFrom } from 'rxjs';
 
 import { PolariService } from '@services/polari-service';
 
-/** The explainability slice of a SimulationDefinition row. */
-export interface MemberSimInfo {
-  name: string;
-  description: string;
-  /** The sim's declared role-intent (observe | search | …). */
-  intent: string;
-}
+import { MemberSimInfo } from '@models/multi-scale/msim-types';
 
 /**
  * Per-member simulation descriptions for the Multi-Scale Simulation

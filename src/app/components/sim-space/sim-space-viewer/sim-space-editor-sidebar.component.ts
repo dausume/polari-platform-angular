@@ -42,11 +42,11 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { MatInputModule } from '@angular/material/input';
 
+import { SimulationRunService } from '@services/sim-space/simulation-run.service';
 import {
-  SimulationRunService,
   SimulationExecutionSolutionEntry,
   SimulationSolutionsResponse,
-} from '@services/sim-space/simulation-run.service';
+} from '@models/sim-space/sim-space-types';
 import {
   SimSpaceDefinitionPayload,
 } from '@models/sim-space/sim-space-types';
@@ -54,11 +54,15 @@ import { SimSpaceXrSectionComponent } from './sim-space-xr-section.component';
 import { SimSpaceXrNavSectionComponent } from './sim-space-xr-nav-section.component';
 
 /** The on-canvas overlays managed from the sidebar's View toggles. */
-export type OverlayKey = 'axes' | 'legend' | 'evaluations';
+export type OverlayKey = 'axes' | 'legend' | 'evaluations' | 'initialConditions';
 export interface OverlayVisibility {
   axes: boolean;
   legend: boolean;
   evaluations: boolean;
+  /** sim-space-initial-conditions-panel — separated (2026-07-14) from
+   *  the Run/Step panel, which has no toggle of its own (shows
+   *  whenever a simulation is bound). */
+  initialConditions: boolean;
 }
 
 @Component({
@@ -123,6 +127,12 @@ export interface OverlayVisibility {
                 (click)="toggleOverlay('evaluations')">
           <mat-icon>functions</mat-icon>
         </button>
+        <button mat-icon-button class="view-toggle"
+                [class.active]="overlayVisible.initialConditions"
+                [matTooltip]="(overlayVisible.initialConditions ? 'Hide' : 'Show') + ' initial conditions'"
+                (click)="toggleOverlay('initialConditions')">
+          <mat-icon>input</mat-icon>
+        </button>
       </div>
 
       <!-- EXPANDED state — accordion. -->
@@ -161,6 +171,11 @@ export interface OverlayVisibility {
               <mat-icon [class.on]="overlayVisible.evaluations">functions</mat-icon>
               <span class="view-label">Live evaluations</span>
               <mat-icon class="view-state">{{ overlayVisible.evaluations ? 'toggle_on' : 'toggle_off' }}</mat-icon>
+            </div>
+            <div class="view-row" (click)="toggleOverlay('initialConditions')">
+              <mat-icon [class.on]="overlayVisible.initialConditions">input</mat-icon>
+              <span class="view-label">Initial conditions</span>
+              <mat-icon class="view-state">{{ overlayVisible.initialConditions ? 'toggle_on' : 'toggle_off' }}</mat-icon>
             </div>
           </div>
         </section>
@@ -611,7 +626,7 @@ export class SimSpaceEditorSidebarComponent implements OnChanges {
    *  sidebar is just their switchboard (the overlays crowd the canvas
    *  at embed sizes, so they live here and appear only when enabled). */
   @Input() overlayVisible: OverlayVisibility =
-    { axes: true, legend: true, evaluations: true };
+    { axes: true, legend: true, evaluations: true, initialConditions: true };
   @Output() overlayToggle = new EventEmitter<OverlayKey>();
 
   /** Lets the viewer (the parent) react to expansion if it needs to

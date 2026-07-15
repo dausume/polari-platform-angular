@@ -10,10 +10,10 @@
  * behavior parity is automatic because there is only ONE component
  * instance per surface.
  *
- * The standalone CONDITIONS editor wires into the SAME run panel
- * instance's IC state (stateChange → onIcStateChange), so "Set
- * Initial Conditions" on the RUN quad applies what the CONDITIONS
- * quad edited — one state, two pages.
+ * The CONDITIONS quad mounts sim-space-initial-conditions-panel
+ * (2026-07-14: separated from the run panel in flat mode too, so XR
+ * gets the same tabs/Set-Initial-Conditions surface verbatim — no
+ * XR-specific IC wiring to keep in sync).
  *
  * 2026-07-12 debug-pass session: EQUATIONS (the flat "Live
  * evaluations" selector + overlay, bundled into one panel — a
@@ -40,8 +40,8 @@ import { SimSpaceViewerComponent }
   from '../sim-space/sim-space-viewer/sim-space-viewer.component';
 import { SimSpaceSimulationRunPanelComponent }
   from '../sim-space/sim-space-viewer/sim-space-simulation-run-panel.component';
-import { RunInitialConditionsEditorComponent }
-  from '../sim-space/sim-space-viewer/run-initial-conditions-editor.component';
+import { SimSpaceInitialConditionsPanelComponent }
+  from '../sim-space/sim-space-viewer/sim-space-initial-conditions-panel.component';
 import { SimSpaceEvaluationSelectorComponent }
   from '../sim-space/sim-space-viewer/sim-space-evaluation-selector.component';
 import { SimSpaceEvaluationOverlayComponent }
@@ -61,7 +61,7 @@ import { formatTimeValue } from '@models/sim-space/time-units';
   imports: [
     CommonModule,
     SimSpaceSimulationRunPanelComponent,
-    RunInitialConditionsEditorComponent,
+    SimSpaceInitialConditionsPanelComponent,
     SimSpaceEvaluationSelectorComponent,
     SimSpaceEvaluationOverlayComponent,
     SimSpaceLegendComponent,
@@ -75,19 +75,18 @@ import { formatTimeValue } from '@models/sim-space/time-units';
           [simulationDefinitionName]="viewer.simulationDefinitionName"
           [defaultDtSeconds]="viewer.simulationDefaultDtSeconds"
           [timeUnit]="viewer.temporalUnit"
-          (stepCommitted)="viewer.onSimulationStepCommitted()"
-          (selectedRunChange)="viewer.onSelectedRunChange($event)">
+          (stepCommitted)="onPanelStepCommitted()"
+          (selectedRunChange)="onPanelRunSelectionChange($event)">
         </sim-space-simulation-run-panel>
       </div>
       <div class="xr-panel-surface conditions" #conditionsSurface>
-        <div class="xr-surface-title">Initial conditions</div>
-        <run-initial-conditions-editor
-          [simulationDefinitionName]="viewer.simulationDefinitionName ?? ''"
+        <sim-space-initial-conditions-panel
+          [configuredInterfaces]="viewer.configuredInterfaces"
+          [simulationDefinitionName]="viewer.simulationDefinitionName"
           [defaultDtSeconds]="viewer.simulationDefaultDtSeconds"
-          [locked]="runPanel.selectedRunInitialized"
-          [runName]="runPanel.selectedRunName"
-          (stateChange)="runPanel.onIcStateChange($event)">
-        </run-initial-conditions-editor>
+          [runName]="viewer.selectedRunName"
+          (stepCommitted)="onPanelStepCommitted()">
+        </sim-space-initial-conditions-panel>
       </div>
       <!-- Live evaluation equations — the flat "Live evaluations"
            selector + overlay bundled into ONE XR panel (in flat mode
@@ -187,6 +186,27 @@ export class XrPanelHostComponent implements OnChanges, OnDestroy {
   ngOnDestroy(): void {
     this.unregister?.();
     this.unregister = null;
+  }
+
+  /** Both RUN and CONDITIONS panels' `stepCommitted` bind here instead
+   *  of calling `viewer.onSimulationStepCommitted()` directly (2026-07-14,
+   *  "VR Run doesn't update the scrubber" follow-up). Their trigger
+   *  originates from a synthetic click dispatched at the panel's HTMLMesh
+   *  UV by the XR frame loop's trigger-forward code (xr-panel-system.ts)
+   *  — same category of "arrives from outside the Angular zone" hazard
+   *  already fixed for scrub-rail drags via `setScrubCurrent` below.
+   *  Angular's own listener SHOULD re-enter the zone it was registered
+   *  in regardless of dispatch origin, so this is defensive rather than
+   *  a confirmed fix — but it's free (`zone.run()` inside an already-
+   *  active zone is a no-op) and closes off zone boundaries as a
+   *  possible contributor without needing another on-headset round
+   *  trip to rule out. */
+  onPanelStepCommitted(): void {
+    this.zone.run(() => this.viewer?.onSimulationStepCommitted());
+  }
+
+  onPanelRunSelectionChange(runName: string | null): void {
+    this.zone.run(() => this.viewer?.onSelectedRunChange(runName));
   }
 
   private register(): void {

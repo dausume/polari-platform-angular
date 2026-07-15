@@ -234,7 +234,20 @@ export class XrSessionRuntime {
    *  frame IN REFERENCE SPACE, so the rig carries the world placement
    *  and scale — the flat viewer's camera is never touched. */
   private buildRig(): void {
-    this.camera = new THREE.PerspectiveCamera(60, 1, 0.05, 1000);
+    // Near-clip lowered 0.05 -> 0.01 (2026-07-14, "menu disappears
+    // when brought too close to your face" follow-up): the wrist UI's
+    // own LOOKAT_MIN_DIST_M guard (xr-wrist-ui.ts) starts skipping
+    // lookAt() at 0.08m to avoid a degenerate rotation, but the OLD
+    // 0.05m near-clip sat well inside that guarded zone — genuinely
+    // possible for the wrist plane to cross the near plane and get
+    // hardware-culled by the renderer itself before the rotation
+    // guard was ever the deciding factor. 0.01m gives real headroom
+    // below LOOKAT_MIN_DIST_M so the lookAt guard is unambiguously
+    // what's responsible for menu behavior at close range, not a race
+    // with clip-plane culling. WebXR sessions propagate this via
+    // XRSession.updateRenderState({depthNear}) — 0.01m is within every
+    // major runtime's accepted range.
+    this.camera = new THREE.PerspectiveCamera(60, 1, 0.01, 1000);
     this.rig = new THREE.Group();
     this.rig.name = RIG_NAME;
     this.rig.add(this.camera);

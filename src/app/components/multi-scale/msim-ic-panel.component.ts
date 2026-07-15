@@ -8,13 +8,11 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
-import {
-  IcChoice, IcInterfaceConfig,
-} from '@services/multi-scale/initial-condition-interface.service';
-import {
-  MultiScaleSimDefinitionService, StageSearchReport,
-} from '@services/multi-scale/multi-scale-sim-definition.service';
+import { MultiScaleSimDefinitionService } from '@services/multi-scale/multi-scale-sim-definition.service';
 import { MsimProofService } from '@services/multi-scale/msim-proof.service';
+import {
+  IcChoice, IcInterfaceConfig, StageSearchReport,
+} from '@models/multi-scale/msim-types';
 import { DisplaySelectionContextService } from '@services/dashboard/display-selection-context.service';
 import { SimulationRunService } from '@services/sim-space/simulation-run.service';
 import { evaluateExpression } from '@models/multi-scale/safe-expression';

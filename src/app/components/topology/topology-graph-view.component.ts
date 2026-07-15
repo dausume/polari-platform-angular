@@ -11,7 +11,7 @@ import * as d3 from 'd3';
 import {
   ModuleAssignment, ModuleDependencyEdge, TopologyConnection,
   TopologyGraph, TopologyInstance,
-} from '@services/topology/topology.service';
+} from '@models/topology/topology-types';
 
 /** One node of the topology graph — a PolariInstance card. */
 interface GraphNode {

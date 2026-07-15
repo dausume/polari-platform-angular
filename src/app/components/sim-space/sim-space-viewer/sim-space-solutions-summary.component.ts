@@ -23,11 +23,11 @@
 import { Component, Input, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
+import { SimulationRunService } from '@services/sim-space/simulation-run.service';
 import {
   SimulationExecutionSolutionEntry,
-  SimulationRunService,
   SimStepRoleHint,
-} from '@services/sim-space/simulation-run.service';
+} from '@models/sim-space/sim-space-types';
 
 @Component({
   standalone: true,

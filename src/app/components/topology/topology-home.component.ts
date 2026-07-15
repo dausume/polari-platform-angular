@@ -4,10 +4,11 @@ import { RouterModule } from '@angular/router';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
 
+import { TopologyService } from '@services/topology/topology.service';
 import {
   AssignResult, DriftReport, ModuleAssignment, TopologyGraph,
-  TopologyInstance, TopologyService, TopologySummary, ValidateReport,
-} from '@services/topology/topology.service';
+  TopologyInstance, TopologySummary, ValidateReport,
+} from '@models/topology/topology-types';
 import {
   TopologyGraphViewComponent,
 } from './topology-graph-view.component';

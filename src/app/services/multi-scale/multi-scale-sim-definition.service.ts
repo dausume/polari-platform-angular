@@ -8,60 +8,13 @@ import {
   NamedMultiScaleSimConfig,
 } from '@models/multi-scale/NamedMultiScaleSimConfig';
 
-/** Verdict of a stage's no-code gate solution (backend
- *  POST /api/simulations/multi-scale/{msim}/stages/{key}/gate). */
-export interface StageGateVerdict {
-  complete: boolean;
-  hasGate: boolean;
-  reason: string;
-  derivedValues: Record<string, unknown> | null;
-  error: string | null;
-  deriveResolved: {
-    params: Record<string, Record<string, unknown>>;
-    fields: Record<string, Record<string, Record<string, unknown>>>;
-  };
-}
+import {
+  StageGateVerdict,
+  StageSearchAttempt,
+  StageSearchWinner,
+  StageSearchReport,
+} from '@models/multi-scale/msim-types';
 
-/** One attempt of a stage's solution search. */
-export interface StageSearchAttempt {
-  run: string;
-  candidate: Record<string, number>;
-  stepped: number;
-  complete: boolean;
-  reason: string;
-  error: string | null;
-}
-
-/** One valid solution a stage search found. */
-export interface StageSearchWinner {
-  run: string;
-  candidate: Record<string, number>;
-  derivedValues: Record<string, unknown> | null;
-}
-
-/** Progress/result of a stage's solution search (one batch per call). */
-export interface StageSearchReport {
-  achieved: boolean;
-  /** The FIRST valid solution (what derive flows consume). */
-  winner: StageSearchWinner | null;
-  /** EVERY valid solution found so far (grows under
-   *  continueAfterWinner / search.stopPolicy 'exhaustive'). */
-  winners?: StageSearchWinner[];
-  /** True once every candidate has been attempted. */
-  searchComplete?: boolean;
-  exhausted: boolean;
-  totalCandidates: number;
-  attempted: number;
-  advancedThisCall: number;
-  attempts: StageSearchAttempt[];
-  error: string | null;
-  /** Present when achieved: the winner's derive map resolved into
-   *  per-simulation parameter/field bundles (the PROVEN values). */
-  deriveResolved?: {
-    params: Record<string, Record<string, number>>;
-    fields: Record<string, unknown>;
-  } | null;
-}
 
 /**
  * MultiScaleSimulationDefinition service — same CRUDE-backed shape as

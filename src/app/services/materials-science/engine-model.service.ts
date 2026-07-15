@@ -7,65 +7,12 @@ import {
   parseCrudeReadAllResponse,
 } from '@services/sim-space/crude-response-parser';
 
-/** One catalog row from GET /api/msci/engine-templates. */
-export interface EngineTemplate {
-  name: string;
-  displayName: string;
-  description: string;
-  engineKind: 'fem' | 'dft' | string;
-  engineKey: string;
-  parameterSchema: {
-    section: string; key: string; type: string; unit?: string;
-    required?: boolean; default?: unknown; min?: number; max?: number;
-    description?: string;
-  }[];
-  sectionMap: Record<string, string>;
-  outputs: { key: string; type: string; unit?: string;
-             description?: string }[];
-  costClass: string;
-  capabilityRequirements: string[];
-  capability: { ok: boolean; missing: any[]; suggestions: any[] };
-  notes: string;
-  enabled: boolean;
-}
-
-/** The specialized model-definition classes this layer routes to. */
-export type EngineModelClass =
-  'FEMModelDefinition' | 'DFTModelDefinition'
-  | 'MDModelDefinition' | 'MesoModelDefinition';
-
-/** A FEM/DFT/MD/Meso model definition row (backend field names). */
-export interface EngineModelRow {
-  id?: string;
-  name: string;
-  display_name: string;
-  description: string;
-  physics_ref?: string;       // FEM/MD/Meso ModelDefinition
-  calculation_ref?: string;   // DFTModelDefinition
-  domain_json?: string;
-  materials_json?: string;
-  boundary_conditions_json?: string;
-  source_terms_json?: string;
-  mesh_json?: string;
-  solver_json?: string;
-  structure_json?: string;
-  method_json?: string;
-  accuracy_json?: string;
-  system_json?: string;                 // MD + Meso
-  thermodynamic_state_json?: string;    // MD
-  integration_json?: string;            // MD + Meso
-  sampling_json?: string;               // Meso
-  last_result_json: string;
-  last_executed_at: string;
-  notes: string;
-  enabled: boolean;
-}
-
-/** One engine root from GET /api/msci/engines/capability. */
-export interface EngineCapability {
-  available?: boolean;
-  [key: string]: unknown;
-}
+import {
+  EngineTemplate,
+  EngineModelClass,
+  EngineModelRow,
+  EngineCapability,
+} from '@models/materials-science/engine-model-types';
 
 /**
  * The engine-model layer's HTTP surface: the template catalog (with

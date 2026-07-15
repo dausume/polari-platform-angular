@@ -6,13 +6,13 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { FormsModule } from '@angular/forms';
 
+import { MaterialsBasisService } from '@services/materials-science/materials-basis.service';
 import {
   EngineCapability,
   MaterialIdentityRow,
-  MaterialsBasisService,
   ScaleDefinitionRow,
   ThermalProfileRow,
-} from '@services/materials-science/materials-basis.service';
+} from '@models/materials-science/materials-basis-types';
 import { ScaleLevelCellComponent } from './scale-level-cell.component';
 import { ThermalWindowStripComponent } from './thermal-window-strip.component';
 

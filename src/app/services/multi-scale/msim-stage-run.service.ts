@@ -5,13 +5,7 @@ import { MsimProofService } from './msim-proof.service';
 import { MultiScaleSimDefinitionService } from './multi-scale-sim-definition.service';
 import { SimulationRunService } from '@services/sim-space/simulation-run.service';
 
-/** A stage's best-known run changed (a proof landed or was cleared). */
-export interface StageRunChange {
-  msim: string;
-  stageKey: string;
-  /** The proof winner's run, or null when the proof was cleared. */
-  run: string | null;
-}
+import { StageRunChange } from '@models/multi-scale/msim-types';
 
 /**
  * Resolves the `stage:<stageKey>` panel run token — "the run that

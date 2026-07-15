@@ -7,10 +7,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { MsimStage } from '@models/multi-scale/NamedMultiScaleSimConfig';
-import {
-  IntentsCatalog,
-  MsimAuthoringService,
-} from '@services/multi-scale/msim-authoring.service';
+import { MsimAuthoringService } from '@services/multi-scale/msim-authoring.service';
+import { IntentsCatalog } from '@models/multi-scale/msim-types';
 
 interface DeriveRow { target: string; source: string; }
 interface GridParamRow { name: string; from: number; to: number; steps: number; }

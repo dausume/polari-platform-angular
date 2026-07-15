@@ -2,7 +2,7 @@ import { Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
-import { ScaleDefinitionRow } from '@services/materials-science/materials-basis.service';
+import { ScaleDefinitionRow } from '@models/materials-science/materials-basis-types';
 
 /**
  * One cell of the materials-basis grid: a material's definition at one
