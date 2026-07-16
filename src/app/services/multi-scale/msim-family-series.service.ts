@@ -1,14 +1,10 @@
 import { Injectable } from '@angular/core';
 
 import { NamedGraphConfig } from '@models/graphs/NamedGraphConfig';
-import { SeriesPage } from './msim-graph-data.service';
-
-/** One family member's fetched series, labeled for the legend. */
-export interface FamilyMemberSeries {
-  /** Legend-facing name, e.g. 'Paraffin wax'. */
-  label: string;
-  page: SeriesPage;
-}
+import {
+  FamilyMemberSeries,
+  SeriesPage,
+} from '@models/multi-scale/msim-types';
 
 /**
  * Merges several family members' per-run series into ONE chart's rows —

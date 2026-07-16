@@ -20,16 +20,13 @@ import {
 } from '@components/multi-scale/configure/msim-configure.component';
 import {
   MultiScaleSimDefinitionService,
-  StageGateVerdict,
 } from '@services/multi-scale/multi-scale-sim-definition.service';
 import {
   InitialConditionInterfaceService,
-  IcInterfaceConfig,
 } from '@services/multi-scale/initial-condition-interface.service';
-import {
-  SimulationRunService,
-  SimulationRunSummary,
-} from '@services/sim-space/simulation-run.service';
+import { SimulationRunService } from '@services/sim-space/simulation-run.service';
+import { SimulationRunSummary } from '@models/sim-space/sim-space-types';
+import { StageGateVerdict, IcInterfaceConfig } from '@models/multi-scale/msim-types';
 import {
   MsimPanel,
   MsimStage,

@@ -1,13 +1,10 @@
 import { Injectable } from '@angular/core';
 
 import { NamedGraphConfig } from '@models/graphs/NamedGraphConfig';
-import { StageSearchReport } from './multi-scale-sim-definition.service';
-
-/** Substance identity needed to draw the analytic melting line. */
-export interface MeltLineParams {
-  melt_temp_ref: number;
-  melt_slope_k_per_pa: number;
-}
+import {
+  MeltLineParams,
+  StageSearchReport,
+} from '@models/multi-scale/msim-types';
 
 const REFERENCE_PRESSURE_PA = 101325.0;
 const MELT_LINE_SAMPLES = 24;

@@ -6,9 +6,11 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
 import {
-  FormulationSearchDef,
   FormulationSearchService,
 } from '@services/materials-science/formulation-search.service';
+import {
+  FormulationSearchDef,
+} from '@models/materials-science/formulation-search-types';
 
 /**
  * Every FormulationSearchDefinition knob as an explicit control

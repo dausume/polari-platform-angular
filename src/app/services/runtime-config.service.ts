@@ -20,62 +20,7 @@ import { BehaviorSubject, Observable, of } from 'rxjs';
 import { catchError, tap } from 'rxjs/operators';
 import { environment } from 'src/environments/environment-dev';
 
-// Interface for endpoint configuration
-export interface EndpointConfig {
-    protocol: string;
-    url: string;
-    port: string;
-}
-
-// Interface for backend configuration
-export interface BackendConfig {
-    http: EndpointConfig;
-    https: EndpointConfig;
-    ws?: EndpointConfig;
-    preferHttps: boolean;
-}
-
-// Interface for frontend configuration
-export interface FrontendConfig {
-    http: EndpointConfig;
-    https: EndpointConfig;
-}
-
-// Interface for connection settings
-export interface ConnectionConfig {
-    retryInterval: number;
-    maxRetryTime: number;
-    timeout: number;
-}
-
-// Interface for feature flags and security settings
-export interface FeaturesConfig {
-    enableHttps: boolean;
-    enableRuntimeConfig: boolean;
-    // Security: When false, users cannot change the backend URL/port via UI
-    allowBackendChange: boolean;
-}
-
-// Interface for Keycloak / OIDC configuration
-export interface KeycloakConfig {
-    authority: string;
-    clientId: string;
-    realm: string;
-    redirectUri: string;
-    postLogoutRedirectUri: string;
-    responseType: string;
-    scope: string;
-    silentRedirectUri?: string;
-}
-
-// Complete runtime configuration interface
-export interface RuntimeConfig {
-    backend: BackendConfig;
-    frontend: FrontendConfig;
-    connection: ConnectionConfig;
-    features: FeaturesConfig;
-    keycloak?: KeycloakConfig;
-}
+import { KeycloakConfig, RuntimeConfig } from '@models/runtimeConfig';
 
 @Injectable({
     providedIn: 'root'

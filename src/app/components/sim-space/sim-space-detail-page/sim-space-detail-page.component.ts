@@ -6,9 +6,22 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 
 import { SimSpaceViewerComponent } from '../sim-space-viewer/sim-space-viewer.component';
+import { registerMsimDisplayComponents } from '@components/multi-scale/msim-display-components';
+import { registerMsciDisplayComponents } from '@components/materials-science/msci-display-components';
+import { registerAquaponicsDisplayComponents } from '@components/aquaponics/aquaponics-display-components';
 
 /**
  * /sim-spaces/:name — full-page viewer for one SimSpaceDefinition.
+ *
+ * 2026-07-14: a scene's configured initial-conditions interface (see
+ * SimSpaceInitialConditionsPanelComponent) names a Display-registry
+ * componentName, but registration is otherwise only wired from
+ * display-page.ts (the /display/:route surface) — this page never
+ * went through there, so e.g. the aquaponics pot editor resolved as
+ * "not registered" here even though it works fine at /display/pot-
+ * geometry. Same eager-register-the-known-set approach display-page.ts
+ * already uses (small, lazy-chunked, standalone call — doesn't pull
+ * these into sim-space-viewer's own shared bundle).
  */
 @Component({
   standalone: true,
@@ -48,6 +61,9 @@ export class SimSpaceDetailPageComponent implements OnInit {
   constructor(private route: ActivatedRoute, private router: Router) {}
 
   ngOnInit(): void {
+    registerMsimDisplayComponents();
+    registerMsciDisplayComponents();
+    registerAquaponicsDisplayComponents();
     this.route.paramMap.subscribe(pm => {
       this.name = pm.get('name') ?? undefined;
     });

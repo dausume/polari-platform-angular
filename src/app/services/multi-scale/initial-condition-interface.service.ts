@@ -4,39 +4,12 @@ import { BehaviorSubject, Observable, throwError } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
 import { PolariService } from '@services/polari-service';
 
-/** One choice of a choicePreset IC interface (e.g. a bob material). */
-export interface IcChoice {
-  key: string;
-  label: string;
-  description?: string;
-  setParams?: Record<string, number>;
-  setFields?: Record<string, Record<string, unknown>>;
-  /** Milestone B: the substance's physical identity (melting line,
-   *  density behavior) — used as the material space's search
-   *  fixedParams. A choice carrying this can be PROVEN by the
-   *  first-principles stage. */
-  substanceParams?: Record<string, number>;
-}
+import {
+  IcChoice,
+  IcProvingStage,
+  IcInterfaceConfig,
+} from '@models/multi-scale/msim-types';
 
-/** Milestone B: which composition + stage proves this picker's choices. */
-export interface IcProvingStage {
-  msim: string;
-  stageKey: string;
-}
-
-/** Parsed InitialConditionInterfaceDefinition. */
-export interface IcInterfaceConfig {
-  id: string;
-  name: string;
-  description: string;
-  targetSimulationRef: string;
-  targetClassName: string;
-  interfaceKind: string; // 'choicePreset' | 'fieldEditor'
-  label: string;
-  choices: IcChoice[];
-  derivedParams: Record<string, string>;
-  provingStage: IcProvingStage | null;
-}
 
 /**
  * InitialConditionInterfaceDefinition service — CRUDE-backed reader

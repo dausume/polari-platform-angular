@@ -28,6 +28,15 @@
 **/node_modules
 **/npm-debug.log
 **/obj
+# Angular's own local build cache (webpack/esbuild incremental cache,
+# regenerated automatically) — was NOT excluded, so it was silently
+# ballooning the docker build context (found 2026-07-15 at 5.9GB,
+# fully accounting for the frontend rebuild's multi-minute context-
+# transfer step). The image build never reads it; it's pure waste to
+# ship into the build context.
+**/.angular
+**/dist
+**/coverage
 **/secrets.dev.yaml
 **/values.dev.yaml
 LICENSE

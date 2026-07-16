@@ -10,9 +10,8 @@ import { MsimPanel } from '@models/multi-scale/NamedMultiScaleSimConfig';
 import { MsimGraphPanelComponent } from './msim-graph-panel.component';
 import { MsimGraphDataService } from '@services/multi-scale/msim-graph-data.service';
 import { MsimStageRunService } from '@services/multi-scale/msim-stage-run.service';
-import {
-  MsimFamilySeriesService, FamilyMemberSeries,
-} from '@services/multi-scale/msim-family-series.service';
+import { MsimFamilySeriesService } from '@services/multi-scale/msim-family-series.service';
+import { FamilyMemberSeries } from '@models/multi-scale/msim-types';
 import {
   InitialConditionInterfaceService,
 } from '@services/multi-scale/initial-condition-interface.service';

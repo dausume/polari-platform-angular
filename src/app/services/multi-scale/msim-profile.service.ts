@@ -7,36 +7,12 @@ import {
   parseCrudeReadAllResponse,
 } from '@services/sim-space/crude-response-parser';
 
-/** A MultiScaleSimulationProfile row (backend field names, parsed). */
-export interface MsimProfile {
-  name: string;
-  display_name: string;
-  description: string;
-  scaleLevels: { key: string; label: string; units: string;
-                 order: number }[];
-  stageTemplates: any[];
-  fidelityLadder: { rung: number; level: string; engines: string[];
-                    costClass: string; purpose: string }[];
-  panelRoster: { kind: string; slot: string; required: boolean }[];
-  couplingShapes: any[];
-  defaultSearchPolicy: Record<string, unknown>;
-}
+import {
+  MsimProfile,
+  ConformanceFinding,
+  ConformanceReport,
+} from '@models/multi-scale/msim-types';
 
-/** One conformance finding (profile_api contract). */
-export interface ConformanceFinding {
-  level: 'ok' | 'gap' | 'note';
-  slot: string;
-  message: string;
-  evidence: unknown;
-}
-
-export interface ConformanceReport {
-  conforms: boolean | null;
-  profile: string;
-  msim: string;
-  findings: ConformanceFinding[];
-  suggestions: { action: string; reason: string; evidence: unknown }[];
-}
 
 /**
  * MultiScaleSimulationProfile (family) reads + the conformance

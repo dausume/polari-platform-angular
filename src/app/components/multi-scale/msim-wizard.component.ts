@@ -6,10 +6,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 
 import { MsimPanel, MsimStage } from '@models/multi-scale/NamedMultiScaleSimConfig';
-import {
-  IntentsCatalog,
-  MsimAuthoringService,
-} from '@services/multi-scale/msim-authoring.service';
+import { MsimAuthoringService } from '@services/multi-scale/msim-authoring.service';
+import { IntentsCatalog } from '@models/multi-scale/msim-types';
 import { MsimSpacesEditorComponent } from './configure/msim-spaces-editor.component';
 import { MsimStagesEditorComponent } from './configure/msim-stages-editor.component';
 import { MsimCouplingEditorComponent } from './configure/msim-coupling-editor.component';

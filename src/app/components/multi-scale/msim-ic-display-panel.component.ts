@@ -5,8 +5,8 @@ import { Subscription } from 'rxjs';
 import { MsimIcPanelComponent } from './msim-ic-panel.component';
 import {
   InitialConditionInterfaceService,
-  IcInterfaceConfig,
 } from '@services/multi-scale/initial-condition-interface.service';
+import { IcInterfaceConfig } from '@models/multi-scale/msim-types';
 import { MsimPanelBusService } from '@services/multi-scale/msim-panel-bus.service';
 
 /**

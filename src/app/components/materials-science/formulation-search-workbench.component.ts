@@ -4,10 +4,12 @@ import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 
 import {
-  FormulationRun,
-  FormulationSearchDef,
   FormulationSearchService,
 } from '@services/materials-science/formulation-search.service';
+import {
+  FormulationRun,
+  FormulationSearchDef,
+} from '@models/materials-science/formulation-search-types';
 import { FormulationKnobsFormComponent } from './formulation-knobs-form.component';
 import { FormulationRunControlsComponent } from './formulation-run-controls.component';
 import { FormulationTrajectoryGraphComponent } from './formulation-trajectory-graph.component';

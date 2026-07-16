@@ -37,14 +37,14 @@ import { MatButtonModule } from '@angular/material/button';
 import { Subject, Subscription, timer } from 'rxjs';
 import { debounce } from 'rxjs/operators';
 
+import { SimulationRunService } from '@services/sim-space/simulation-run.service';
 import {
-  SimulationRunService,
   InitialConditionsForClass,
   FieldPoliciesForClass,
   FieldSavePolicy,
   FieldSaveRule,
   StorageEstimate,
-} from '@services/sim-space/simulation-run.service';
+} from '@models/sim-space/sim-space-types';
 import { XR_PANEL_CONTEXT } from '@models/xr/xr-panel-context';
 
 /** What the editor reports up to its parent. */

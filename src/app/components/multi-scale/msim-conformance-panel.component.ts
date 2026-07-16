@@ -3,10 +3,8 @@ import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
-import {
-  ConformanceReport,
-  MsimProfileService,
-} from '@services/multi-scale/msim-profile.service';
+import { MsimProfileService } from '@services/multi-scale/msim-profile.service';
+import { ConformanceReport } from '@models/multi-scale/msim-types';
 
 /**
  * Family-conformance findings for one msim: slot-by-slot ok/gap/note

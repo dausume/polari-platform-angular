@@ -4,10 +4,11 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
+import { AccountabilityService } from '@services/scoring/accountability.service';
 import {
-  AccountabilityService, ContextRow, ContributorRow,
+  ContextRow, ContributorRow,
   SurvivalReport, SurvivalSubmitResult, SurvivalWalkthrough,
-} from '@services/scoring/accountability.service';
+} from '@models/scoring/scoring-types';
 
 /** One in-progress wizard entry. */
 interface StepEntry {

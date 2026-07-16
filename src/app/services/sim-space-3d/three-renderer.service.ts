@@ -40,6 +40,8 @@ import { Mesh3DLibraryService } from './mesh-3d-library.service';
 import { Material3DLibraryService } from './material-3d-library.service';
 import { Texture3DLibraryService } from './texture-3d-library.service';
 import { MathShapeGeometryLibraryService } from './math-shape-geometry-library.service';
+import { WaterSliceGeometryLibraryService } from './water-slice-geometry-library.service';
+import { PlantSkeletonGeometryLibraryService } from './plant-skeleton-geometry-library.service';
 import { CADControls } from './controls/cad-controls';
 import { applyCameraConfig, hasExplicitPose } from './camera-config';
 import { projectObjectRect } from './three-projection';
@@ -84,6 +86,10 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
   private connectionLines = new Map<string, THREE.Line>();
   /** State-Projection arrows, keyed by SnapshotVector.key (stable-key reuse). */
   private vectorArrows = new Map<string, THREE.ArrowHelper>();
+  /** Pots currently running the water-slice fill animation (aquaponics-
+   *  pot-shape phase 3) — guards against re-starting on every setObjects()
+   *  call, which fires far more often than once per pot. */
+  private waterAnimating = new Set<string>();
 
   private overlays = new Map<
     string,
@@ -100,7 +106,9 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
     private meshLib: Mesh3DLibraryService,
     private materialLib: Material3DLibraryService,
     private textureLib: Texture3DLibraryService,
-    private mathShapeGeometryLib: MathShapeGeometryLibraryService
+    private mathShapeGeometryLib: MathShapeGeometryLibraryService,
+    private waterSliceGeometryLib: WaterSliceGeometryLibraryService,
+    private plantSkeletonGeometryLib: PlantSkeletonGeometryLibraryService
   ) {}
 
   // -------------------------------------------------------------------
@@ -187,6 +195,11 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
     this.meshes.clear();
     this.connectionLines.clear();
     this.vectorArrows.clear();
+    // Stops any in-progress water-slice fill animations (their loop
+    // checks `this.looping`, already false above, on their next tick —
+    // this just lets a fresh startWaterAnimation() run if the pot's
+    // scene is reopened rather than staying permanently guarded out).
+    this.waterAnimating.clear();
     this.renderer.dispose();
     this.renderer.domElement.parentNode?.removeChild(this.renderer.domElement);
     this.renderer = undefined;
@@ -318,6 +331,10 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
       // resolve to the on-screen timestep, even though the mesh itself is
       // bound to the stable track.
       mesh.userData['polariSimSpaceId'] = obj.id;
+      if (obj.shapeRef.startsWith(ThreeSimSpaceRenderer.WATER_SLICE_PREFIX)) {
+        this.startWaterAnimation(obj.shapeRef.slice(
+          ThreeSimSpaceRenderer.WATER_SLICE_PREFIX.length));
+      }
     }
     // currentObjects stays keyed by per-row id — updateObjectTransform,
     // overlays, and connection endpoint lookups all address objects by id.
@@ -644,6 +661,20 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
    *  MathShapeGeometryLibraryService instead of meshLib/buildGeometry. */
   private static readonly MATH_SHAPE_PREFIX = 'mathshape:';
 
+  /** Prefix marking a shapeRef as a pot's LIVE water-flow slice
+   *  (aquaponics-pot-shape phase 3) — the name after the prefix is a
+   *  POT name, not a stored shape name (there's no MathShapeDefinition
+   *  row behind it; every request is a fresh Darcy solve). Resolved
+   *  via WaterSliceGeometryLibraryService. */
+  private static readonly WATER_SLICE_PREFIX = 'waterslice:';
+
+  /** Prefix marking a shapeRef as a planting's LIVE animation-bones
+   *  skeleton (plant-growth-sim phase 6/7) — the name after the
+   *  prefix is a PotPlanting name; there's no stored row behind it
+   *  either (the bone graph depends on current normalized_growth).
+   *  Resolved via PlantSkeletonGeometryLibraryService. */
+  private static readonly PLANT_SKELETON_PREFIX = 'plantskeleton:';
+
   private buildMeshFor(obj: SimSpaceObject): THREE.Object3D {
     // Always returns a Mesh — geometry/material builders fall back to
     // defaults (cube / magenta material) when refs miss, so this never
@@ -670,6 +701,25 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
       return new THREE.Mesh(this.mathShapeGeometryLib.get(shapeName), material);
     }
 
+    if (obj.shapeRef.startsWith(ThreeSimSpaceRenderer.WATER_SLICE_PREFIX)) {
+      const potName = obj.shapeRef.slice(
+        ThreeSimSpaceRenderer.WATER_SLICE_PREFIX.length);
+      // A flat 2-D Darcy cross-section (see water_slice_mesh's own
+      // documented approximation) — double-sided for the same reason
+      // as math-shapes above, a single plane has no back face.
+      material.side = THREE.DoubleSide;
+      return new THREE.Mesh(this.waterSliceGeometryLib.get(potName), material);
+    }
+
+    if (obj.shapeRef.startsWith(ThreeSimSpaceRenderer.PLANT_SKELETON_PREFIX)) {
+      const plantingName = obj.shapeRef.slice(
+        ThreeSimSpaceRenderer.PLANT_SKELETON_PREFIX.length);
+      // Solid tapered cylinders (real volume, not a thin plane/shell)
+      // — single-sided is correct here, unlike the two branches above.
+      return new THREE.Mesh(
+        this.plantSkeletonGeometryLib.get(plantingName), material);
+    }
+
     const meshDef = this.meshLib.get(obj.shapeRef);
     if (!meshDef) {
       // Honest gap: the library has no such mesh (bad ref or rows not
@@ -678,6 +728,74 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
         `[ThreeSimSpaceRenderer] shapeRef "${obj.shapeRef}" not in the mesh library — rendering a fallback cube (object ${obj.id})`);
     }
     return new THREE.Mesh(buildGeometry(meshDef), material);
+  }
+
+  // -------------------------------------------------------------------
+  // Water-slice fill animation (aquaponics-pot-shape phase 3)
+  // -------------------------------------------------------------------
+  //
+  // Self-contained here (not the SimSpace viewer component) — same
+  // architectural call as the mathshape:/waterslice: shapeRef dispatch
+  // above: feature-specific rendering behavior lives in the renderer's
+  // prefix handling, the viewer component stays a generic SimSpace
+  // shell. Starts automatically the first time a `waterslice:` object
+  // appears in setObjects() (i.e. the moment a `{pot}-water-viz` scene
+  // is opened) — no UI control needed, matches "should be separate
+  // from the [static] pot" by simply not existing in that other scene.
+
+  private async startWaterAnimation(potName: string): Promise<void> {
+    if (this.waterAnimating.has(potName)) return;
+    this.waterAnimating.add(potName);
+    try {
+      // get() kicks off (or reuses) the default-level fetch — the
+      // backend's own "maintained level of a flow-through pot" pick
+      // (aquaponics/hydraulics.py::build_darcy_payload).
+      this.waterSliceGeometryLib.get(potName);
+      const maintainedMm = await this.waitForMaintainedLevel(potName);
+      if (maintainedMm === null || maintainedMm <= 0) return;
+
+      // Ramp 0 -> maintained level, then hold — a self-watering pot's
+      // reservoir fills once and stays maintained by the input holes,
+      // it doesn't repeatedly fill/drain, so this animates ONCE per
+      // scene view rather than looping (repeated independent
+      // steady-state solves; see water_slice_mesh's own documented
+      // approximation for why this isn't a true transient solve).
+      const FILL_STEPS = 14;
+      const STEP_MS = 200;
+      for (let i = 1; i <= FILL_STEPS; i++) {
+        if (!this.looping || !this.waterAnimating.has(potName)) return;
+        const levelMm = (maintainedMm * i) / FILL_STEPS;
+        await this.waterSliceGeometryLib.setWaterLevel(potName, levelMm);
+        await this.sleepMs(STEP_MS);
+      }
+    } catch (err) {
+      console.warn(
+        `[ThreeSimSpaceRenderer] water-slice fill animation failed for `
+        + `"${potName}"`, err);
+    }
+  }
+
+  /** Polls WaterSliceGeometryLibraryService's metadata cache until the
+   *  default-level fetch resolves (or refuses/times out). Not event-
+   *  driven because the geometry service is a plain cache, not an
+   *  Observable store — polling a small in-memory map every 100ms for
+   *  at most 5s is cheap and simple, and this only runs once per pot
+   *  per scene view (guarded by waterAnimating above). */
+  private async waitForMaintainedLevel(
+    potName: string, timeoutMs = 5000
+  ): Promise<number | null> {
+    const start = performance.now();
+    while (performance.now() - start < timeoutMs) {
+      if (!this.looping) return null;
+      const meta = this.waterSliceGeometryLib.lastResult(potName);
+      if (meta) return meta.ok ? meta.waterLevelMm : null;
+      await this.sleepMs(100);
+    }
+    return null;
+  }
+
+  private sleepMs(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   private applyTransform(node: THREE.Object3D, obj: SimSpaceObject): void {

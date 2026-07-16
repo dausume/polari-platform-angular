@@ -2,9 +2,11 @@ import { Component, Input, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 import {
-  FormulationRun,
   FormulationSearchService,
 } from '@services/materials-science/formulation-search.service';
+import {
+  FormulationRun,
+} from '@models/materials-science/formulation-search-types';
 import {
   FormulationRunControlsComponent,
 } from '@components/materials-science/formulation-run-controls.component';

@@ -61,6 +61,14 @@ const RAY_REACH_M = 1.5;
  *  is well under the 6-8 cap. */
 const RING1_RADIUS = 0.175;
 const RING1_STEP_DEG = 42;
+/** Below this distance (meters) a panel's own position is close enough
+ *  to the eye that lookAt()'s look-direction vector degenerates (near-
+ *  zero magnitude → an unstable/NaN rotation) — exactly the range
+ *  Dustin is trying to bring the wrist INTO to read it up close, so
+ *  skipping the reorient here (keep the last valid facing) is what
+ *  fixes "it disappears when I bring it near my face" rather than
+ *  trading it for a flicker/garbage-rotation bug at the same range. */
+const LOOKAT_MIN_DIST_M = 0.08;
 
 import { XR_BUILD_TAG } from '@models/xr/xr-types';
 
@@ -207,7 +215,7 @@ export class XrWristUi {
       // moving grip parent).
       const cameraWorld = new THREE.Vector3();
       this.camera.getWorldPosition(cameraWorld);
-      this.group.lookAt(cameraWorld);
+      this.safeLookAt(this.group, cameraWorld);
       // The button ring reads fine off the GROUP's own billboard (it
       // sits close to the pivot), but the HUD (y 0.27) and HELP
       // (y 0.46) panels sit far enough from that pivot that a single
@@ -217,13 +225,28 @@ export class XrWristUi {
       // parallax off a single pivot. lookAt() on each panel directly
       // (it accounts for the parent's rotation internally) makes them
       // always face the eye exactly, at any distance or wrist angle.
-      this.hudPlane.lookAt(cameraWorld);
-      this.helpPlane?.lookAt(cameraWorld);
+      this.safeLookAt(this.hudPlane, cameraWorld);
+      if (this.helpPlane) this.safeLookAt(this.helpPlane, cameraWorld);
     }
     this.updateHover();
     this.updateActiveStates();
     const key = this.hudKey(hud);
     if (key !== this.lastHudKey) this.drawHud(hud, key);
+  }
+
+  /** lookAt(), but a no-op below LOOKAT_MIN_DIST_M — see that constant's
+   *  doc comment. Object3D.lookAt() computes its rotation from the
+   *  (target - position) vector; as that vector's length approaches
+   *  zero the direction becomes numerically unstable (any tiny
+   *  tracking jitter flips it wildly, or it collapses to NaN), which
+   *  reads as the panel vanishing or thrashing right as the wearer
+   *  brings it in close enough to read — keeping the last valid facing
+   *  instead is strictly better than an undefined one. */
+  private safeLookAt(object: THREE.Object3D, target: THREE.Vector3): void {
+    const worldPos = new THREE.Vector3();
+    object.getWorldPosition(worldPos);
+    if (worldPos.distanceTo(target) < LOOKAT_MIN_DIST_M) return;
+    object.lookAt(target);
   }
 
   /** Keep ring-1 lit states honest against the live quads (a panel
@@ -387,7 +410,8 @@ export class XrWristUi {
       hud.distanceR.toFixed(2), hud.yawDeg.toFixed(1),
       hud.xR.toFixed(1), hud.yR.toFixed(1), hud.zR.toFixed(1),
       hud.zoom.toFixed(2),
-      this.compact(hud.simRadius)].join('|');
+      this.compact(hud.simRadius),
+      hud.rescueCount].join('|');
   }
 
   private drawHud(hud: XrNavHud, key: string): void {
@@ -449,6 +473,19 @@ export class XrWristUi {
         12, 228);
       ctx.fillText(`R = ${this.compact(hud.simRadius)} world units`,
         12, 268);
+    }
+
+    // 2026-07-14 diagnostic: rescueIfLost() fire count, on-headset —
+    // see XrNavHud.rescueCount doc comment. Silent when it's never
+    // fired (the common case); if it's climbing every frame, THIS is
+    // the "orange border stuck on at rest" bug, readable without ever
+    // touching devtools.
+    if (hud.rescueCount > 0) {
+      ctx.fillStyle = '#ff6e40';
+      ctx.font = 'bold 20px monospace';
+      ctx.fillText(
+        `⚠ RESCUE ×${hud.rescueCount}  hd=${hud.lastRescueHomeDist.toFixed(1)} `
+        + `md=${hud.lastRescueMaxDist.toFixed(1)}`, 12, 300);
     }
     this.hudTexture.needsUpdate = true;
   }

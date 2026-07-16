@@ -5,10 +5,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
-import {
-  MsimAuthoringService,
-  SimDefLite,
-} from '@services/multi-scale/msim-authoring.service';
+import { MsimAuthoringService } from '@services/multi-scale/msim-authoring.service';
+import { SimDefLite } from '@models/multi-scale/msim-types';
 
 interface ChoiceRow {
   key: string;

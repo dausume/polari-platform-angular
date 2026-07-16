@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { User, UserManager, UserManagerSettings } from 'oidc-client-ts';
-import { RuntimeConfigService, KeycloakConfig } from '@services/runtime-config.service';
+import { RuntimeConfigService } from '@services/runtime-config.service';
+import { KeycloakConfig } from '@models/runtimeConfig';
 import { AuthUser } from '../../classes/auth-user';
 
 /**

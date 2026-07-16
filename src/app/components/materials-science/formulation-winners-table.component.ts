@@ -5,10 +5,12 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
 import {
-  FormulationCandidate,
-  FormulationRun,
   FormulationSearchService,
 } from '@services/materials-science/formulation-search.service';
+import {
+  FormulationCandidate,
+  FormulationRun,
+} from '@models/materials-science/formulation-search-types';
 
 /**
  * The persisted candidates of one formulation run: components,

@@ -5,10 +5,9 @@ import { Subscription } from 'rxjs';
 
 import { GraphRendererComponent } from '@components/graph-config/graph-renderer/graph-renderer';
 import { NamedGraphConfig } from '@models/graphs/NamedGraphConfig';
-import { MsimProofService, ProofEvent } from '@services/multi-scale/msim-proof.service';
-import {
-  MsimAttemptsToRowsService, MeltLineParams,
-} from '@services/multi-scale/msim-attempts-to-rows.service';
+import { MsimProofService } from '@services/multi-scale/msim-proof.service';
+import { MsimAttemptsToRowsService } from '@services/multi-scale/msim-attempts-to-rows.service';
+import { ProofEvent, MeltLineParams } from '@models/multi-scale/msim-types';
 
 /**
  * The CONDITION MAP: every temperature/pressure candidate a stage's

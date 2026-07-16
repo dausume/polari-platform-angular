@@ -6,11 +6,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
-import {
-  IntentsCatalog,
-  MsimAuthoringService,
-  SimDefLite,
-} from '@services/multi-scale/msim-authoring.service';
+import { MsimAuthoringService } from '@services/multi-scale/msim-authoring.service';
+import { IntentsCatalog, SimDefLite } from '@models/multi-scale/msim-types';
 
 /**
  * Spaces editor — which simulations are members of this composition,

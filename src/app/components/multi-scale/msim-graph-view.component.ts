@@ -9,15 +9,15 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import * as d3 from 'd3';
 
+import { MsimAuthoringService } from '@services/multi-scale/msim-authoring.service';
 import {
-  MsimAuthoringService, CouplingConfig, IntentsCatalog,
-} from '@services/multi-scale/msim-authoring.service';
-import {
-  InitialConditionInterfaceService, IcInterfaceConfig,
+  InitialConditionInterfaceService,
 } from '@services/multi-scale/initial-condition-interface.service';
 import {
-  SimulationRunService, SimulationRunSummary,
-} from '@services/sim-space/simulation-run.service';
+  CouplingConfig, IntentsCatalog, IcInterfaceConfig,
+} from '@models/multi-scale/msim-types';
+import { SimulationRunService } from '@services/sim-space/simulation-run.service';
+import { SimulationRunSummary } from '@models/sim-space/sim-space-types';
 import {
   MsimStage, NamedMultiScaleSimConfig,
 } from '@models/multi-scale/NamedMultiScaleSimConfig';

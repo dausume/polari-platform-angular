@@ -16,6 +16,8 @@
  *   - types/object.ts    SimSpaceObject + SimSpaceConnection
  *   - types/binding.ts   SimSpaceBinding + temporal binding
  *   - types/snapshot.ts  Definition payload + Snapshot + ResolvedBinding
+ *   - types/evaluation.ts Live-evaluation overlay shapes
+ *   - types/run.ts       SimulationRun lifecycle + step/IC/storage-estimate shapes
  *
  * Callers can import from this file (preserves the pre-split surface) or
  * directly from a facet when they only need one slice.
@@ -26,3 +28,4 @@ export * from './types/object';
 export * from './types/binding';
 export * from './types/snapshot';
 export * from './types/evaluation';
+export * from './types/run';

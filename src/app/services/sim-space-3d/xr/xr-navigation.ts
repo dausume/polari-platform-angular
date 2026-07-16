@@ -53,6 +53,17 @@ export interface XrNavHud {
   moveRadiiPerSec: number;
   /** yaw vs the original orientation, degrees (yaw-only rig). */
   yawDeg: number;
+  /** 2026-07-14 diagnostic: how many times rescueIfLost() has fired
+   *  this session — an on-headset way to confirm/rule out "the rig
+   *  keeps getting rescued every frame" without needing devtools
+   *  access (painful on standalone hardware). 0 = never fired. A
+   *  number climbing every frame IS the "stuck orange border" bug;
+   *  a small fixed count that stops growing is a one-off, unrelated. */
+  rescueCount: number;
+  /** Last rescue's home-distance vs its threshold, world units —
+   *  magnitude tells you HOW implausible the rig position was. */
+  lastRescueHomeDist: number;
+  lastRescueMaxDist: number;
 }
 
 const HISTORY_CAP = 50;
@@ -89,6 +100,11 @@ export class XrNavigation {
   private preGesturePose: XrRigPose | null = null;
   private snapArmed = true;
   private limitHit = false;
+
+  // 2026-07-14 diagnostic — see XrNavHud.rescueCount doc comment.
+  private rescueCount = 0;
+  private lastRescueHomeDist = 0;
+  private lastRescueMaxDist = 0;
 
   constructor(
     private rig: THREE.Group,
@@ -164,11 +180,14 @@ export class XrNavigation {
     const homeDist = position
       .distanceTo(new THREE.Vector3(...this.home.position));
     if (finite && homeDist <= maxDist) return;
+    this.rescueCount++;
+    this.lastRescueHomeDist = homeDist;
+    this.lastRescueMaxDist = maxDist;
     console.error('[xr-nav] RESCUE: rig implausibly far or '
       + 'non-finite — snapping home', {
         position: position.toArray(), scale,
         boundsRadius: this.boundsRadius, homeDist, maxDist,
-        mode: this.mode,
+        mode: this.mode, rescueCount: this.rescueCount,
       });
     applyPoseToRig(this.rig, this.home);
     this.limitHit = true;
@@ -319,6 +338,9 @@ export class XrNavigation {
       simRadius: this.boundsRadius,
       moveRadiiPerSec: moving ? this.shiftRadiiPerSec : 0,
       yawDeg: this.yawFromHomeDeg(),
+      rescueCount: this.rescueCount,
+      lastRescueHomeDist: this.lastRescueHomeDist,
+      lastRescueMaxDist: this.lastRescueMaxDist,
     };
   }
 

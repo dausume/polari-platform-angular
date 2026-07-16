@@ -28,6 +28,8 @@ import { Mesh3DLibraryService } from '@services/sim-space-3d/mesh-3d-library.ser
 import { Material3DLibraryService } from '@services/sim-space-3d/material-3d-library.service';
 import { Texture3DLibraryService } from '@services/sim-space-3d/texture-3d-library.service';
 import { MathShapeGeometryLibraryService } from '@services/sim-space-3d/math-shape-geometry-library.service';
+import { WaterSliceGeometryLibraryService } from '@services/sim-space-3d/water-slice-geometry-library.service';
+import { PlantSkeletonGeometryLibraryService } from '@services/sim-space-3d/plant-skeleton-geometry-library.service';
 
 @Injectable({ providedIn: 'root' })
 export class SimSpaceRendererFactory {
@@ -37,7 +39,9 @@ export class SimSpaceRendererFactory {
     private meshes3D: Mesh3DLibraryService,
     private materials3D: Material3DLibraryService,
     private textures3D: Texture3DLibraryService,
-    private mathShapeGeometry3D: MathShapeGeometryLibraryService
+    private mathShapeGeometry3D: MathShapeGeometryLibraryService,
+    private waterSliceGeometry3D: WaterSliceGeometryLibraryService,
+    private plantSkeletonGeometry3D: PlantSkeletonGeometryLibraryService
   ) {}
 
   /**
@@ -59,7 +63,9 @@ export class SimSpaceRendererFactory {
         '@services/sim-space-3d/three-renderer.service'
       );
       return new ThreeSimSpaceRenderer(this.meshes3D, this.materials3D,
-                                       this.textures3D, this.mathShapeGeometry3D);
+                                       this.textures3D, this.mathShapeGeometry3D,
+                                       this.waterSliceGeometry3D,
+                                       this.plantSkeletonGeometry3D);
     }
     throw new Error(`[SimSpaceRendererFactory] dimensionality "${dimensionality}" not supported.`);
   }
