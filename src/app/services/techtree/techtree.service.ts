@@ -5,7 +5,8 @@ import { firstValueFrom } from 'rxjs';
 import { PolariService } from '@services/polari-service';
 
 import {
-  TechTreePayload, TechTreeSummary, TechTreeValidateReport,
+  BaselineReport, TechTreePayload, TechTreeSummary,
+  TechTreeValidateReport,
 } from '@models/techtree/techtree-types';
 
 /**
@@ -34,6 +35,14 @@ export class TechTreeService {
     const query = name ? `?name=${encodeURIComponent(name)}` : '';
     return firstValueFrom(this.http.get<TechTreePayload>(
       this.url(`/tree${query}`),
+      this.polariService.backendRequestOptions))
+      .catch((err) => err?.error?.ok === false ? err.error : null);
+  }
+
+  /** tt-8: the OSEB rollup across the baseline domain trees. */
+  baseline(): Promise<BaselineReport | null> {
+    return firstValueFrom(this.http.get<BaselineReport>(
+      this.url('/baseline'),
       this.polariService.backendRequestOptions))
       .catch((err) => err?.error?.ok === false ? err.error : null);
   }

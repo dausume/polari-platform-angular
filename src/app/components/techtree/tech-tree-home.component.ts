@@ -6,7 +6,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { TechTreeService } from '@services/techtree/techtree.service';
 import {
-  TechTreePayload, TechTreeSummary,
+  BaselineReport, TechTreePayload, TechTreeSummary,
 } from '@models/techtree/techtree-types';
 import { TechTreeViewComponent } from './tech-tree-view.component';
 
@@ -29,6 +29,8 @@ import { TechTreeViewComponent } from './tech-tree-view.component';
 export class TechTreeHomeComponent implements OnInit {
   summary: TechTreeSummary | null = null;
   payload: TechTreePayload | null = null;
+  /** tt-8: the OSEB rollup across the baseline DOMAIN trees. */
+  baseline: BaselineReport | null = null;
 
   activeTree = '';
   loading = true;
@@ -38,7 +40,10 @@ export class TechTreeHomeComponent implements OnInit {
   constructor(private techTreeService: TechTreeService) {}
 
   async ngOnInit(): Promise<void> {
-    this.summary = await this.techTreeService.summary();
+    [this.summary, this.baseline] = await Promise.all([
+      this.techTreeService.summary(),
+      this.techTreeService.baseline(),
+    ]);
     if (!this.summary?.ok) {
       this.loading = false;
       this.loadError = 'No tech tree answered — is the backend up? '

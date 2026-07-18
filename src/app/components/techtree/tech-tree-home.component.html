@@ -3,8 +3,39 @@
         <h2><mat-icon>account_tree</mat-icon> Tech Tree</h2>
         <p class="page-sub">Technologies with theory / real / business /
             politics segments — completion is derived from modules and
-            evidence, never hand-set. A complete baseline tree = the
+            evidence, never hand-set. Reaching the end of ALL baseline
+            domain trees, combined, is the
             <strong>Open Source Economic Baseline</strong>.</p>
+    </div>
+
+    <!-- tt-8: the OSEB across its domain trees. -->
+    <div class="baseline-strip" *ngIf="baseline?.ok && baseline!.trees.length">
+        <div class="baseline-domains">
+            <button class="domain-card" *ngFor="let tree of baseline!.trees"
+                    [class.active]="tree.name === activeTree"
+                    [class.achieved]="tree.baselineAchieved"
+                    (click)="select(tree.name)"
+                    [matTooltip]="tree.nodeCount + ' technologies · ' + tree.gapCount + ' open gaps'">
+                <span class="domain-title">{{ tree.title }}</span>
+                <span class="domain-track">
+                    <span class="domain-fill"
+                          [class.complete]="tree.baselineAchieved"
+                          [style.width]="percent(tree.completionLevel)"></span>
+                </span>
+                <span class="domain-pct">{{ percent(tree.completionLevel) }}</span>
+            </button>
+        </div>
+        <div class="baseline-combined"
+             [matTooltip]="baseline!.note">
+            <span class="combined-label">Open Source Economic Baseline</span>
+            <span class="domain-track wide">
+                <span class="domain-fill combined"
+                      [class.complete]="baseline!.baselineAchieved"
+                      [style.width]="percent(baseline!.completionLevel)"></span>
+            </span>
+            <span class="domain-pct big">{{ percent(baseline!.completionLevel) }}</span>
+            <span class="badge achieved" *ngIf="baseline!.baselineAchieved">✓ achieved</span>
+        </div>
     </div>
 
     <div class="load-error" *ngIf="loadError && !loading">{{ loadError }}</div>
@@ -19,7 +50,7 @@
                             [class.active]="tree.name === activeTree"
                             (click)="select(tree.name)"
                             [matTooltip]="tree.description">
-                        {{ tree.name }}
+                        {{ tree.title || tree.name }}
                         <span class="badge baseline" *ngIf="tree.isBaseline">baseline</span>
                     </button>
                 </ng-container>
@@ -28,7 +59,7 @@
                     + new tree</button>
             </div>
             <div class="tree-meta">
-                <span class="tree-name">{{ payload!.tree.name }}</span>
+                <span class="tree-name">{{ payload!.tree.title || payload!.tree.name }}</span>
                 <span class="badge baseline" *ngIf="payload!.tree.isBaseline"
                       matTooltip="the canonical Open-Source-Economic-Baseline tree">
                     baseline</span>

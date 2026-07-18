@@ -20,6 +20,8 @@ export type SegmentKind = 'theory' | 'real' | 'business' | 'politics';
 
 export interface TechTreeListEntry {
   name: string;
+  /** Domain display title, e.g. 'Electronics / Microelectronics'. */
+  title: string;
   owner: string;
   isActive: boolean;
   isBaseline: boolean;
@@ -86,10 +88,33 @@ export interface TechEdgeReport {
 
 export interface TechTreeMeta {
   name: string;
+  title: string;
   owner: string;
   isBaseline: boolean;
   completionLevel: number;
   baselineAchieved: boolean;
+}
+
+/** tt-8: the OSEB rollup across baseline DOMAIN trees
+ *  (GET /api/techtree/baseline) — reaching the end of ALL of them,
+ *  combined, is the Open Source Economic Baseline. */
+export interface BaselineTreeReport {
+  name: string;
+  title: string;
+  owner: string;
+  completionLevel: number;
+  baselineAchieved: boolean;
+  nodeCount: number;
+  gapCount: number;
+}
+
+export interface BaselineReport {
+  ok: boolean;
+  error?: string;
+  trees: BaselineTreeReport[];
+  completionLevel: number;
+  baselineAchieved: boolean;
+  note: string;
 }
 
 export interface TechTreePayload {

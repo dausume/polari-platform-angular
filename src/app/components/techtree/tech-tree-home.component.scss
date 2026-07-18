@@ -22,6 +22,74 @@
 }
 .load-error { color: var(--color-error-text, #bf360c); }
 
+// tt-8: the OSEB strip — one card per baseline domain tree + the
+// combined rollup bar underneath.
+.baseline-strip {
+  margin-top: 14px;
+  border: 1px solid var(--border-light, #e0e0e0);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: var(--surface-primary, #fff);
+
+  .baseline-domains {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .domain-card {
+    flex: 1;
+    min-width: 200px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 12px;
+    border: 1px solid var(--border-light, #cfd8dc);
+    border-radius: 10px;
+    background: var(--surface-primary, #fff);
+    cursor: pointer;
+    text-align: left;
+    &.active { border-color: #3f51b5; box-shadow: 0 0 0 1px #3f51b5; }
+    &.achieved { border-color: #2e7d32; }
+    .domain-title { font-size: 13px; font-weight: 700; color: #37474f; }
+  }
+  .domain-track {
+    display: block;
+    height: 8px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+    &.wide { flex: 1; height: 10px; border-radius: 5px; }
+  }
+  .domain-fill {
+    display: block;
+    height: 100%;
+    background: #1e88e5;
+    border-radius: 4px;
+    transition: width 300ms;
+    &.combined { background: #3f51b5; }
+    &.complete { background: #2e7d32; }
+  }
+  .domain-pct {
+    font-size: 12px; font-family: monospace; font-weight: 700;
+    color: #546e7a;
+    &.big { font-size: 14px; }
+  }
+  .baseline-combined {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 12px;
+    .combined-label {
+      font-size: 12px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.05em; color: #3949ab; white-space: nowrap;
+    }
+    .badge.achieved {
+      font-size: 10.5px; padding: 1px 8px; border-radius: 10px;
+      background: #e8f5e9; color: #1b5e20; font-weight: 700;
+    }
+  }
+}
+
 .tree-bar {
   display: flex;
   flex-wrap: wrap;
