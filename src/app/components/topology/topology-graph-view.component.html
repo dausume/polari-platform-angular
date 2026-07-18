@@ -91,13 +91,32 @@
                 module moves between Polari containers (psc / infra /
                 auth containers are non-adaptive and never appear here).</p>
             <button class="move-btn"
-                    [disabled]="!moveTargetInstance && !moveTargetMachine"
+                    [disabled]="moving || (!moveTargetInstance && !moveTargetMachine)"
                     (click)="requestMove()"
                     matTooltip="container target = module reassignment (the old spot stays as a dashed transient ghost); device target = engine relocation (the provider instance re-pins; the stack redeploy stays a pol command). Rows persist — this IS the configuration that comes back up.">
-                move {{ selectedModule }}
-                {{ moveTargetInstance ? '→ ' + moveTargetInstance
-                   : moveTargetMachine ? '→ ' + moveTargetMachine : '' }}
+                {{ moving ? 'moving…' : 'move ' + selectedModule }}
+                {{ !moving && moveTargetInstance ? '→ ' + moveTargetInstance
+                   : !moving && moveTargetMachine ? '→ ' + moveTargetMachine : '' }}
             </button>
+            <div class="move-result ok" *ngIf="moveResult">
+                <strong>{{ moveResult!.moveKind === 'engine-relocation'
+                    ? 'engine relocated' : 'moved' }}</strong>
+                <ng-container *ngIf="moveResult!.moveKind === 'module-reassignment'">
+                    → {{ moveResult!.toInstance }}
+                    <span *ngIf="moveResult!.fromInstances?.length">
+                        · ghost{{ moveResult!.fromInstances!.length > 1 ? 's' : '' }} at
+                        {{ moveResult!.fromInstances!.join(', ') }}</span>
+                    <div class="muted">same-image move: both containers already carry
+                        the code — routing follows the rows immediately, no
+                        container replacement needed.</div>
+                </ng-container>
+                <ng-container *ngIf="moveResult!.moveKind === 'engine-relocation'">
+                    {{ moveResult!.fromMachine }} → {{ moveResult!.toMachine }}
+                    <div class="muted">redeploy (human-run):
+                        <code *ngFor="let cmd of moveResult!.suggestedCommands">{{ cmd }}&nbsp;</code></div>
+                </ng-container>
+            </div>
+            <div class="move-result error" *ngIf="moveFailure">{{ moveFailure }}</div>
             <p class="muted move-note">moving an engine ≠ moving a module: device
                 targets relocate the whole provider instance; container targets
                 reassign the module and leave a transient ghost behind. Moves are

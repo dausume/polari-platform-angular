@@ -137,7 +137,8 @@ interface ModuleInfo {
         </h3>
         <topology-graph-view *ngIf="showGraph"
                              [graph]="topologyGraph"
-                             [moduleGraph]="moduleGraph">
+                             [moduleGraph]="moduleGraph"
+                             (moved)="loadModuleGraphPublic()">
         </topology-graph-view>
       </div>
 
@@ -249,6 +250,9 @@ export class ModuleManagementComponent implements OnInit, OnDestroy {
       })
     );
   }
+
+  /** tt-15: refetch after a move executed inside the graph. */
+  loadModuleGraphPublic(): void { void this.loadModuleGraph(); }
 
   /** Non-fatal: the cards work without the topology answering. */
   private async loadModuleGraph(): Promise<void> {

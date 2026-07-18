@@ -10,10 +10,11 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import * as d3 from 'd3';
 
 import { FormsModule } from '@angular/forms';
+import { TopologyService } from '@services/topology/topology.service';
 import {
   IntegrationLink, ModuleAssignment, ModuleDependencyEdge,
-  ModuleGraphReport, MoveRequest, TopologyConnection, TopologyGraph,
-  TopologyTestingReport,
+  ModuleGraphReport, MoveRequest, MoveResult, TopologyConnection,
+  TopologyGraph, TopologyTestingReport,
 } from '@models/topology/topology-types';
 import {
   InstanceNode, ModuleCircle, Scene, buildScene,
@@ -132,8 +133,10 @@ export class TopologyGraphViewComponent implements OnChanges {
    *  edges green on successful pings with protocol + security
    *  notated. */
   @Input() testing: TopologyTestingReport | null = null;
-  /** tt-13: a move was requested from the module drawer — the page
-   *  executes it (POST /move) and refetches. */
+  /** tt-15: the move EXECUTED here (the drawer works on every page
+   *  that embeds this view) — hosts listen to refetch their data.
+   *  tt-13's moveRequest stays for hosts that want to intercept. */
+  @Output() moved = new EventEmitter<MoveResult>();
   @Output() moveRequest = new EventEmitter<MoveRequest>();
 
   @ViewChild('svgHost', { static: true }) svgHost!: ElementRef<SVGSVGElement>;
@@ -159,7 +162,8 @@ export class TopologyGraphViewComponent implements OnChanges {
   private zoomBehavior: d3.ZoomBehavior<SVGSVGElement, unknown>
     | null = null;
 
-  constructor(private zone: NgZone) {}
+  constructor(private zone: NgZone,
+              private topologyService: TopologyService) {}
 
   /** tt-10: the module-details drill-in id for a module chip. */
   moduleDetailsId(moduleName: string): string {
@@ -176,6 +180,10 @@ export class TopologyGraphViewComponent implements OnChanges {
   /** tt-13: click a module circle → drawer shows exactly where it
    *  lives (container + host) and offers the move. */
   selectModule(moduleName: string): void {
+    if (this.selectedModule !== moduleName) {
+      this.moveResult = null;
+      this.moveFailure = '';
+    }
     this.selectedModule = moduleName;
     this.moveTargetInstance = '';
     this.moveTargetMachine = '';
@@ -229,14 +237,45 @@ export class TopologyGraphViewComponent implements OnChanges {
       .map(m => m.name).sort();
   }
 
-  requestMove(): void {
-    if (!this.selectedModule) { return; }
+  /** tt-15 inline move state — the drawer shows the outcome right
+   *  where the button was clicked, on every embedding page. */
+  moving = false;
+  moveResult: MoveResult | null = null;
+  moveFailure = '';
+
+  async requestMove(): Promise<void> {
+    if (!this.selectedModule || this.moving) { return; }
+    const request: MoveRequest = { module: this.selectedModule };
     if (this.moveTargetInstance) {
-      this.moveRequest.emit({ module: this.selectedModule,
-                              toInstance: this.moveTargetInstance });
+      request.toInstance = this.moveTargetInstance;
     } else if (this.moveTargetMachine) {
-      this.moveRequest.emit({ module: this.selectedModule,
-                              toMachine: this.moveTargetMachine });
+      request.toMachine = this.moveTargetMachine;
+    } else {
+      return;
+    }
+    this.moveRequest.emit(request);
+    this.moving = true;
+    this.moveResult = null;
+    this.moveFailure = '';
+    const result = await this.topologyService.move(request);
+    this.moving = false;
+    if (result?.ok) {
+      this.moveResult = result;
+      // Refresh our own inputs so the graph + drawer move NOW,
+      // even when the host page doesn't listen.
+      const [graph, modules] = await Promise.all([
+        this.topologyService.graph(),
+        this.topologyService.moduleGraph(),
+      ]);
+      if (graph?.ok) { this.graph = graph; }
+      if (modules?.ok) { this.moduleGraph = modules; }
+      this.rebuild();
+      this.selectModule(request.module);
+      this.moveResult = result;
+      this.moved.emit(result);
+    } else {
+      this.moveFailure = result?.error
+        || `move of ${request.module} did not land — rows unchanged`;
     }
   }
 

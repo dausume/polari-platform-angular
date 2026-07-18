@@ -225,6 +225,25 @@
     &:disabled { opacity: 0.4; }
   }
   .move-note { font-size: 11px; margin: 6px 0 0; }
+  .move-result {
+    margin-top: 8px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    &.ok {
+      background: #e8f5e9; color: #1b5e20;
+      border: 1px solid #c8e6c9;
+    }
+    &.error {
+      background: #fbe9e7; color: #bf360c;
+      border: 1px solid #ffccbc;
+    }
+    .muted { color: #546e7a; font-size: 11px; margin-top: 4px; }
+    code {
+      background: rgba(0, 0, 0, 0.06); border-radius: 4px;
+      padding: 0 5px; font-size: 10.5px;
+    }
+  }
   .drawer-chip {
     &.classification {
       background: transparent;

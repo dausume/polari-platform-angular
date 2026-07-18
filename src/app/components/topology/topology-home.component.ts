@@ -183,17 +183,12 @@ export class TopologyHomeComponent implements OnInit {
   moveNotice: MoveResult | null = null;
   moveError = '';
 
-  async onMoveRequest(request: MoveRequest): Promise<void> {
-    this.assigning = true;
+  /** tt-15: the graph view EXECUTES moves itself now (so the drawer
+   *  works on every page) — this page just mirrors the outcome and
+   *  refreshes its chips/panels. */
+  async onMoved(result: MoveResult): Promise<void> {
+    this.moveNotice = result;
     this.moveError = '';
-    this.moveNotice = null;
-    const result = await this.topologyService.move(request);
-    if (result?.ok) {
-      this.moveNotice = result;
-    } else {
-      this.moveError = result?.error
-        || `move of ${request.module} did not land — rows unchanged`;
-    }
     const [fresh, freshModules] = await Promise.all([
       this.topologyService.graph(this.activeTopology || undefined),
       this.topologyService.moduleGraph(
@@ -204,7 +199,6 @@ export class TopologyHomeComponent implements OnInit {
       this.rebuildModuleChips();
     }
     if (freshModules?.ok) { this.moduleGraph = freshModules; }
-    this.assigning = false;
   }
 
   toggleConnection(name: string): void {

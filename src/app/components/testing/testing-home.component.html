@@ -37,7 +37,8 @@
 
         <topology-graph-view [graph]="graph"
                              [moduleGraph]="moduleGraph"
-                             [testing]="testing"></topology-graph-view>
+                             [testing]="testing"
+                             (moved)="onMoved()"></topology-graph-view>
 
         <div class="results-panel" *ngIf="testing?.ok">
             <div class="panel modules-panel">

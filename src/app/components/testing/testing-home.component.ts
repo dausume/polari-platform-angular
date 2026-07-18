@@ -70,6 +70,16 @@ export class TestingHomeComponent implements OnInit {
     this.runningModule = '';
   }
 
+  /** tt-15: a move executed inside the embedded graph — refresh
+   *  everything this page derives from the rows. */
+  async onMoved(): Promise<void> {
+    [this.graph, this.moduleGraph, this.testing] = await Promise.all([
+      this.topologyService.graph(),
+      this.topologyService.moduleGraph(),
+      this.topologyService.testing(),
+    ]);
+  }
+
   async runPings(): Promise<void> {
     this.pinging = true;
     const result = await this.topologyService.runPings();
