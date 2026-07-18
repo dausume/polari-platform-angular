@@ -68,6 +68,7 @@ const routes: Routes = [
   { path: 'scoring/survival', loadComponent: () => import('@components/scoring/survival-costs.component').then(m => m.SurvivalCostsComponent) },
   { path: 'topology', loadComponent: () => import('@components/topology/topology-home.component').then(m => m.TopologyHomeComponent) },
   { path: 'tech-tree', loadComponent: () => import('@components/techtree/tech-tree-home.component').then(m => m.TechTreeHomeComponent) },
+  { path: 'testing', loadComponent: () => import('@components/testing/testing-home.component').then(m => m.TestingHomeComponent) },
   { path: 'display/:id', loadComponent: () => import('@components/dashboard/display-page/display-page').then(m => m.DisplayPageComponent) }
 ];
 

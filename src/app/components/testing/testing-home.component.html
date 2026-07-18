@@ -1,0 +1,104 @@
+<div class="testing-page">
+    <div class="page-header">
+        <h2><mat-icon>fact_check</mat-icon> Testing</h2>
+        <p class="page-sub">Testing wrapped around the topology: modules and
+            hosts turn <span class="tag pass">green</span> when every suite
+            passes and <span class="tag fail">red</span> when tests fail;
+            links turn green when the foundational integration pings succeed
+            (connectivity only — never functionality), notated with their
+            protocol and how the channel is secured. Runs execute only when
+            you click them.</p>
+    </div>
+
+    <div class="load-error" *ngIf="loadError && !loading">{{ loadError }}</div>
+    <div class="loading" *ngIf="loading">loading topology + test state…</div>
+
+    <ng-container *ngIf="graph?.ok && !loading">
+        <div class="controls-bar">
+            <label>Run selftests:</label>
+            <select [(ngModel)]="selectedModule" [disabled]="!!runningModule">
+                <option value="all">all modules ({{ modulesWithSuites().length }})</option>
+                <option *ngFor="let module of modulesWithSuites()" [value]="module">
+                    {{ module }}</option>
+            </select>
+            <button class="run-btn" (click)="runTests(selectedModule)"
+                    [disabled]="!!runningModule"
+                    matTooltip="runs the selftest suites in the backend container (same as pol modules selftest)">
+                {{ runningModule ? 'running ' + runningModule + '…' : '▶ run' }}</button>
+            <button class="run-btn ping" (click)="runPings()" [disabled]="pinging"
+                    matTooltip="foundational integration pass — machines, cross-node dependency edges, connection artifacts; pinging only">
+                {{ pinging ? 'pinging…' : '📡 ping integrations' }}</button>
+            <span class="summary" *ngIf="testing?.ok">
+                <span class="tag pass">{{ counts().pass }} pass</span>
+                <span class="tag fail">{{ counts().fail }} fail</span>
+                <span class="tag muted">{{ counts().neverRun }} never run</span>
+            </span>
+        </div>
+
+        <topology-graph-view [graph]="graph"
+                             [moduleGraph]="moduleGraph"
+                             [testing]="testing"></topology-graph-view>
+
+        <div class="results-panel" *ngIf="testing?.ok">
+            <div class="panel modules-panel">
+                <h3>Module suites</h3>
+                <table class="results-table">
+                    <tr><th></th><th>module</th><th>instances</th><th>suites</th></tr>
+                    <ng-container *ngFor="let m of testing!.modules">
+                        <tr class="module-row" [class.fail]="m.state === 'fail'"
+                            [class.pass]="m.state === 'pass'"
+                            (click)="toggleModule(m.module)">
+                            <td class="state">{{ stateIcon(m.state) }}</td>
+                            <td class="name">{{ m.module }}</td>
+                            <td class="muted">{{ m.instances.join(', ') || '—' }}</td>
+                            <td class="muted">{{ m.suites.length }} · {{ m.state }}</td>
+                        </tr>
+                        <tr *ngIf="expandedModules.has(m.module)">
+                            <td></td>
+                            <td colspan="3">
+                                <div class="suite-line" *ngFor="let s of m.suites"
+                                     [matTooltip]="s.outputTail">
+                                    <span class="tag" [class.pass]="s.status === 'pass'"
+                                          [class.fail]="s.status !== 'pass' && s.status !== 'never-run'"
+                                          [class.muted]="s.status === 'never-run'">
+                                        {{ s.status }}</span>
+                                    <code>{{ s.suite }}</code>
+                                    <span class="muted" *ngIf="s.checksTotal">
+                                        {{ s.checksPassed }}/{{ s.checksTotal }} checks</span>
+                                    <span class="muted" *ngIf="s.ranAt">· {{ s.ranAt }}</span>
+                                </div>
+                            </td>
+                        </tr>
+                    </ng-container>
+                </table>
+            </div>
+
+            <div class="panel links-panel">
+                <h3>Integration links <span class="muted">(foundational — pinging only)</span></h3>
+                <p class="empty" *ngIf="!testing!.links.length">
+                    No pings recorded yet — run 📡 ping integrations.</p>
+                <table class="results-table" *ngIf="testing!.links.length">
+                    <tr><th></th><th>subject</th><th>protocol</th><th>security</th><th>evidence</th></tr>
+                    <tr *ngFor="let link of testing!.links"
+                        [class.fail]="link.status === 'failed'"
+                        [class.pass]="link.status === 'ok'">
+                        <td class="state">{{ link.status === 'ok' ? '✓'
+                            : link.status === 'failed' ? '✗' : '·' }}</td>
+                        <td class="name">{{ link.subject }}
+                            <span class="muted">({{ link.kind }})</span></td>
+                        <td><code *ngIf="link.protocol">{{ link.protocol }}</code></td>
+                        <td>
+                            <span class="tag" [class.pass]="link.secured"
+                                  [class.warn]="!link.secured && link.status === 'ok'"
+                                  [matTooltip]="link.securityNote">
+                                {{ link.secured ? '🔒 secured' :
+                                   link.status === 'static-artifact' ? 'n/a' : '⚠ unsecured' }}</span>
+                        </td>
+                        <td class="muted evidence" [matTooltip]="link.target">
+                            {{ link.evidence }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </ng-container>
+</div>

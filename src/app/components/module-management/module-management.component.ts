@@ -1,6 +1,6 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { Subscription } from 'rxjs';
 import { MatCardModule } from '@angular/material/card';
@@ -32,6 +32,9 @@ interface ModuleInfo {
   classCount: number;
   seedInstanceCount: number;
   userCreated?: boolean;
+  /** tt-11: in-process framework module — its enable/disable knob
+   *  lives on the Topology (ModuleAssignment), not this registry. */
+  boundary?: boolean;
 }
 
 @Component({
@@ -86,12 +89,17 @@ interface ModuleInfo {
             </div>
           </mat-card-content>
           <mat-card-actions>
-            <mat-slide-toggle
+            <mat-slide-toggle *ngIf="!mod.boundary"
               [checked]="mod.enabled"
               [disabled]="!mod.available || toggling || seeding"
               (change)="toggleModule(mod, $event.checked)">
               {{ mod.enabled ? 'Enabled' : 'Disabled' }}
             </mat-slide-toggle>
+            <a *ngIf="mod.boundary" class="boundary-note"
+               routerLink="/topology"
+               title="in-process framework module — place/enable it per instance on the Topology (ModuleAssignment rows)">
+              loaded in-process · placement → Topology
+            </a>
             <button mat-stroked-button
               *ngIf="mod.enabled && mod.available"
               [disabled]="seeding || toggling"
@@ -189,6 +197,15 @@ interface ModuleInfo {
     .error-message { background: #fdecea; color: #b71c1c; }
     .toggle-message.success { background: #e8f5e9; color: #1b5e20; }
     .toggle-message.error { background: #fdecea; color: #b71c1c; }
+    .boundary-note {
+      font-size: 11.5px;
+      color: #607d8b;
+      text-decoration: none;
+      border: 1px dashed #b0bec5;
+      border-radius: 10px;
+      padding: 2px 10px;
+    }
+    .boundary-note:hover { border-color: #3f51b5; color: #3f51b5; }
     .module-graph-section {
       margin-top: 24px;
       h3 {
@@ -199,7 +216,7 @@ interface ModuleInfo {
     }
   `],
   imports: [
-    CommonModule, MatCardModule, MatIconModule, MatButtonModule,
+    CommonModule, RouterModule, MatCardModule, MatIconModule, MatButtonModule,
     MatSlideToggleModule, MatProgressSpinnerModule, MatChipsModule, MatDialogModule,
     ModuleDependencyExplorerComponent, TopologyGraphViewComponent
   ]

@@ -22,6 +22,9 @@ import {
 export interface ModuleCircle {
   /** Module id ('materialsScience.fem'). */
   module: string;
+  /** tt-11: word-wrapped label lines (depth-0 circles) — packing
+   *  pads for them so labels never collide with neighbors. */
+  labelLines: string[];
   /** Center relative to the OWNING instance rectangle. */
   cx: number;
   cy: number;
@@ -76,6 +79,36 @@ export interface Scene {
 /** How many nesting levels are drawn inside a module circle. */
 export const NEST_DEPTH_CAP = 2;
 
+export const MODULE_LABEL_LINE_H = 11;
+
+/** tt-11: wrap a module/engine name into short lines on its word
+ *  boundaries ('.', '-', '_', camelCase) so descriptions wrap
+ *  instead of truncating or overlapping. */
+export function wrapLabel(name: string): string[] {
+  const words = name
+    .replace(/([a-z0-9])([A-Z])/g, '$1​$2')
+    .split(/[.\-_​]/)
+    .filter(w => w.length);
+  const lines: string[] = [];
+  let current = '';
+  for (const word of words) {
+    const joined = current ? `${current}·${word}` : word;
+    if (joined.length <= LABEL_LINE_CHARS) {
+      current = joined;
+    } else {
+      if (current) { lines.push(current); }
+      current = word.length > LABEL_LINE_CHARS
+        ? word.slice(0, LABEL_LINE_CHARS - 1) + '…' : word;
+    }
+  }
+  if (current) { lines.push(current); }
+  if (lines.length > LABEL_MAX_LINES) {
+    return [...lines.slice(0, LABEL_MAX_LINES - 1),
+            lines[LABEL_MAX_LINES - 1] + '…'];
+  }
+  return lines.length ? lines : [name];
+}
+
 const LEAF_R = 16;
 const NEST_PAD = 7;
 const PACK_GAP = 6;
@@ -87,9 +120,15 @@ const MIN_W = 230;
 const MIN_H = 112;
 const HOST_PAD = 16;
 const HOST_LABEL_H = 24;
-const HOST_GAP = 36;
-const INSTANCE_GAP = 18;
+// tt-11 (Dustin): the tt-9 compaction went TOO tight when hosts
+// wrap the modules — still limited, but the limit is tripled.
+const HOST_GAP = 108;
+const INSTANCE_GAP = 28;
 const UNPLACED = 'unplaced';
+/** Wrapped label lines per module circle (see wrapLabel). */
+const LABEL_LINE_H = 11;
+const LABEL_MAX_LINES = 3;
+const LABEL_LINE_CHARS = 14;
 
 interface ModuleFacts {
   dependsOn: Map<string, string[]>;
@@ -130,6 +169,7 @@ function buildCircle(module: string, depth: number, facts: ModuleFacts,
   const primary = facts.primaryConsumer.get(module) ?? '';
   const circle: ModuleCircle = {
     module,
+    labelLines: depth === 0 ? wrapLabel(module) : [],
     cx: 0, cy: 0, r: LEAF_R,
     depth,
     classification: facts.classification.get(module) ?? 'independent',
@@ -174,8 +214,13 @@ function packInstance(instance: TopologyInstance, modules:
   let w = MIN_W;
   let h = MIN_H;
   if (circles.length) {
-    const packed = circles.map(
-      circle => ({ r: circle.r + PACK_GAP + MODULE_LABEL_H / 2, circle }));
+    // Pack radius covers the wrapped label block so neighboring
+    // labels can never overlap (tt-11).
+    const packed = circles.map(circle => ({
+      r: circle.r + PACK_GAP
+        + (circle.labelLines.length * LABEL_LINE_H + 4) / 2,
+      circle,
+    }));
     d3.packSiblings(packed);
     const enclose = d3.packEnclose(
       packed as unknown as Array<{ r: number; x: number; y: number }>);
@@ -282,14 +327,15 @@ export function buildScene(graph: TopologyGraph,
     if (!byHost.has(host)) { byHost.set(host, []); }
     byHost.get(host)!.push(n);
   }
-  // Connector-length discipline: the free run between connected
-  // module circles should stay within DOUBLE the diameter of the
-  // largest (containing) module circle — so the inter-host gutter
-  // is capped at that length, and instances align vertically with
-  // their partners (barycenter) so runs stay short + horizontal.
+  // Connector-length discipline, tripled per Dustin's review: the
+  // free run between connected module circles stays within SIX
+  // diameters of the largest (containing) module circle — the
+  // inter-host gutter is capped at that length, and instances
+  // align vertically with their partners (barycenter) so runs
+  // stay short + horizontal.
   const rMax = Math.max(LEAF_R, ...nodes.flatMap(
     n => n.modules.map(c => c.r)));
-  const gutter = Math.min(HOST_GAP, 4 * rMax);
+  const gutter = Math.min(HOST_GAP, 12 * rMax);
   // instance -> connected partner instance ids (both directions).
   const partnersOf = new Map<string, string[]>();
   for (const e of graph.edges) {

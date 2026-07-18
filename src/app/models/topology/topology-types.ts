@@ -212,3 +212,59 @@ export interface ResolveResult {
   edges: number;
   changed: unknown[];
 }
+
+/** tt-11: testing over topology (GET /api/topology/testing) — the
+ *  graph doubles as the progress visualization of testing. */
+export type ModuleTestState = 'pass' | 'fail' | 'never-run'
+  | 'no-suites';
+export type RollupTestState = 'pass' | 'fail' | 'unknown';
+
+export interface SuiteResult {
+  suite: string;
+  status: string;
+  checksPassed: number;
+  checksTotal: number;
+  ranAt: string;
+  outputTail: string;
+}
+
+export interface ModuleTestReport {
+  module: string;
+  state: ModuleTestState;
+  instances: string[];
+  suites: SuiteResult[];
+}
+
+/** One foundational integration ping — connectivity only, with the
+ *  protocol and its security notated. */
+export interface IntegrationLink {
+  kind: 'machine' | 'dep-edge' | 'connection';
+  subject: string;
+  target: string;
+  protocol: string;
+  secured: boolean;
+  securityNote: string;
+  status: 'ok' | 'failed' | 'unpingable' | 'static-artifact';
+  evidence: string;
+  checkedAt: string;
+}
+
+export interface TopologyTestingReport {
+  ok: boolean;
+  error?: string;
+  topology: string;
+  modules: ModuleTestReport[];
+  instances: Record<string, RollupTestState>;
+  hosts: Record<string, RollupTestState>;
+  links: IntegrationLink[];
+}
+
+export interface TestRunResult {
+  ok: boolean;
+  error?: string;
+  ran?: number;
+  checked?: number;
+  results?: Array<{ suite: string; status: string;
+    checksPassed: number; checksTotal: number }>;
+  report: TopologyTestingReport;
+}

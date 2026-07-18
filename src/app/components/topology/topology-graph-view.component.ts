@@ -10,8 +10,9 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import * as d3 from 'd3';
 
 import {
-  ModuleAssignment, ModuleDependencyEdge, ModuleGraphReport,
-  TopologyConnection, TopologyGraph,
+  IntegrationLink, ModuleAssignment, ModuleDependencyEdge,
+  ModuleGraphReport, TopologyConnection, TopologyGraph,
+  TopologyTestingReport,
 } from '@models/topology/topology-types';
 import {
   InstanceNode, ModuleCircle, Scene, buildScene,
@@ -29,6 +30,13 @@ const DEP_COLORS: Record<string, string> = {
   resolved: '#2e7d32',
   unresolved: '#c62828',
   degraded: '#f9a825',
+};
+
+/** tt-11 test-progress palette: red failing / green all-pass;
+ *  anything else keeps its normal look (honesty over paint). */
+const TEST_COLORS: Record<string, string> = {
+  pass: '#2e7d32',
+  fail: '#c62828',
 };
 
 /** A2 classification palette — circle strokes + legend dots. */
@@ -72,6 +80,11 @@ const CONN_PALETTE = [
 export class TopologyGraphViewComponent implements OnChanges {
   @Input({ required: true }) graph!: TopologyGraph | null;
   @Input() moduleGraph: ModuleGraphReport | null = null;
+  /** tt-11: when set, the graph paints TEST PROGRESS — modules and
+   *  hosts red on failing tests / green when everything passes,
+   *  edges green on successful pings with protocol + security
+   *  notated. */
+  @Input() testing: TopologyTestingReport | null = null;
 
   @ViewChild('svgHost', { static: true }) svgHost!: ElementRef<SVGSVGElement>;
 
@@ -97,6 +110,13 @@ export class TopologyGraphViewComponent implements OnChanges {
     return moduleName.split('.')[0];
   }
 
+  /** tt-11: one module's derived test state ('' outside testing
+   *  mode or when the module has no report). */
+  testStateOf(moduleName: string): string {
+    return this.moduleTestState.get(
+      moduleName.split('.')[0]) ?? '';
+  }
+
   /** tt-9 parity with the tech tree: center the viewport on the
    *  instance holding a module's PRIMARY copy and open its drawer. */
   zoomToModule(moduleName: string): void {
@@ -119,8 +139,21 @@ export class TopologyGraphViewComponent implements OnChanges {
     this.selectNode(node);
   }
 
+  /** tt-11 lookups (rebuilt on input change). */
+  private moduleTestState = new Map<string, string>();
+  private pingBySubject = new Map<string, IntegrationLink>();
+
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['graph'] || changes['moduleGraph']) {
+    if (changes['testing']) {
+      this.moduleTestState = new Map(
+        (this.testing?.ok ? this.testing.modules : [])
+          .map(m => [m.module, m.state]));
+      this.pingBySubject = new Map(
+        (this.testing?.ok ? this.testing.links : [])
+          .map(l => [l.subject, l]));
+    }
+    if (changes['graph'] || changes['moduleGraph']
+        || changes['testing']) {
       this.rebuild();
       if (this.selected) {
         const again = this.scene.nodes.find(
@@ -249,11 +282,33 @@ export class TopologyGraphViewComponent implements OnChanges {
     const hg = root.append('g').attr('class', 'hosts');
     for (const host of this.scene.hosts) {
       const g = hg.append('g');
+      const hostState = this.testing?.ok
+        ? this.testing.hosts[host.name] ?? '' : '';
+      const hostPing = this.pingBySubject.get(host.name);
       g.append('rect')
         .attr('class', 'host-box')
         .attr('x', host.x).attr('y', host.y)
         .attr('width', host.w).attr('height', host.h)
-        .attr('rx', 14);
+        .attr('rx', 14)
+        .classed('test-pass', hostState === 'pass')
+        .classed('test-fail', hostState === 'fail');
+      if (this.testing?.ok && hostPing) {
+        g.append('text')
+          .attr('class', 'host-ping')
+          .attr('x', host.x + host.w - 12)
+          .attr('y', host.y + 17)
+          .attr('text-anchor', 'end')
+          .attr('fill', hostPing.status === 'ok'
+            ? '#2e7d32' : hostPing.status === 'failed'
+            ? '#c62828' : '#90a4ae')
+          .text(hostPing.status === 'ok'
+            ? `● ${hostPing.protocol}`
+              + `${hostPing.secured ? ' 🔒' : ' ⚠'}`
+            : `● ${hostPing.status}`)
+          .append('title').text(
+            `${hostPing.securityNote || hostPing.evidence} `
+            + `(${hostPing.evidence})`);
+      }
       g.append('text')
         .attr('class', 'host-label')
         .attr('x', host.x + 14).attr('y', host.y + 17)
@@ -321,7 +376,16 @@ export class TopologyGraphViewComponent implements OnChanges {
       const t = this.scene.circleIndex.get(
         `${edge.consumerInstanceName}|${edge.moduleName}`)
         ?? this.rectAnchor(tNode)!;
-      const color = DEP_COLORS[edge.status] ?? '#90a4ae';
+      // tt-11: a pinged edge paints its FOUNDATIONAL connectivity
+      // result (green/red) and notates protocol + security.
+      const ping = this.testing?.ok
+        ? this.pingBySubject.get(edge.name) : undefined;
+      const color = ping
+        ? (ping.status === 'ok' ? '#2e7d32' : '#c62828')
+        : DEP_COLORS[edge.status] ?? '#90a4ae';
+      const marker = ping
+        ? (ping.status === 'ok' ? 'resolved' : 'unresolved')
+        : edge.status;
 
       if (sNode === tNode) {
         // Same container: a short interior arc between the circles.
@@ -335,7 +399,7 @@ export class TopologyGraphViewComponent implements OnChanges {
           .attr('d', `M${sx},${sy} L${tx},${ty}`)
           .attr('fill', 'none').attr('stroke', color)
           .attr('stroke-width', 2)
-          .attr('marker-end', `url(#topo-arrow-${edge.status})`);
+          .attr('marker-end', `url(#topo-arrow-${marker})`);
         continue;
       }
 
@@ -358,14 +422,17 @@ export class TopologyGraphViewComponent implements OnChanges {
         .attr('fill', 'none')
         .attr('stroke', color)
         .attr('stroke-width', 2)
-        .attr('marker-end', `url(#topo-arrow-${edge.status})`);
+        .attr('marker-end', `url(#topo-arrow-${marker})`);
       eg.append('text')
         .attr('class', 'edge-label')
         .attr('x', (exit.x + entry.x) / 2)
         .attr('y', (exit.y + entry.y) / 2 - 8)
         .attr('text-anchor', 'middle')
         .attr('fill', color)
-        .text(edge.dependsOnModule);
+        .text(edge.dependsOnModule
+          + (ping && ping.status === 'ok' && ping.protocol
+             ? ` · ${ping.protocol}${ping.secured ? ' 🔒' : ' ⚠'}`
+             : ''));
     }
   }
 
@@ -388,11 +455,15 @@ export class TopologyGraphViewComponent implements OnChanges {
         .style('cursor', 'pointer')
         .on('click', () => this.zone.run(() => this.selectNode(n)));
 
+      const instanceState = this.testing?.ok
+        ? this.testing.instances[n.id] ?? '' : '';
       g.append('rect')
         .attr('width', n.w).attr('height', n.h)
         .attr('rx', 10)
         .attr('class', 'node-body')
-        .classed('selected', this.selected?.id === n.id);
+        .classed('selected', this.selected?.id === n.id)
+        .classed('test-pass', instanceState === 'pass')
+        .classed('test-fail', instanceState === 'fail');
       g.append('rect')
         .attr('width', n.w).attr('height', 26)
         .attr('rx', 10)
@@ -434,7 +505,12 @@ export class TopologyGraphViewComponent implements OnChanges {
   private renderModuleCircle(g: d3.Selection<SVGGElement, unknown,
       null, undefined>, circle: ModuleCircle, cx: number,
       cy: number): void {
-    const color = CLASSIFICATION_COLORS[circle.classification]
+    // tt-11 testing mode: red/green wins over the classification
+    // palette; unknown states keep their normal look.
+    const testState = this.testing?.ok
+      ? this.testStateOf(circle.module) : '';
+    const color = TEST_COLORS[testState]
+      ?? CLASSIFICATION_COLORS[circle.classification]
       ?? '#78909c';
     const disabled = circle.state === 'disabled';
     const node = g.append('g')
@@ -461,17 +537,23 @@ export class TopologyGraphViewComponent implements OnChanges {
       .attr('fill-opacity', circle.depth === 0 ? 0.10 : 0.14);
     node.append('title').text(
       `${circle.module} — ${circle.classification}`
+      + (testState ? ` · tests: ${testState}` : '')
       + (circle.transient
          ? ` (transient copy; primary under ${circle.primaryConsumer}`
            + ' — click to zoom there)'
          : '')
       + (disabled ? ' · disabled' : ''));
     if (circle.depth === 0) {
-      node.append('text')
+      // tt-11: word-wrapped label lines (packing pads for them).
+      const label = node.append('text')
         .attr('class', 'module-label')
-        .attr('y', circle.r + 12)
-        .attr('text-anchor', 'middle')
-        .text(truncate(circle.module, 22));
+        .attr('text-anchor', 'middle');
+      circle.labelLines.forEach((line, i) => {
+        label.append('tspan')
+          .attr('x', 0)
+          .attr('y', circle.r + 12 + i * 11)
+          .text(line);
+      });
     } else if (circle.r >= 14 && !circle.children.length) {
       node.append('text')
         .attr('class', 'module-label nested')

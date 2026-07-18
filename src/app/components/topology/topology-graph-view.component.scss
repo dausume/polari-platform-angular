@@ -100,6 +100,16 @@
     fill: #546e7a;
   }
   .module-circle { transition: fill-opacity 120ms; }
+  // tt-11 test-progress paint: red failing / green all-pass.
+  .node-body.test-pass { stroke: #2e7d32; stroke-width: 2; }
+  .node-body.test-fail { stroke: #c62828; stroke-width: 2.6; }
+  .host-box.test-pass { stroke: #2e7d32; stroke-width: 2; }
+  .host-box.test-fail { stroke: #c62828; stroke-width: 2.6; }
+  .host-ping {
+    font-size: 10.5px;
+    font-family: monospace;
+    font-weight: 700;
+  }
   .module-label {
     font-size: 10.5px;
     fill: #37474f;

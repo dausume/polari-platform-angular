@@ -22,6 +22,8 @@ import {
   DriftReport,
   AssignResult,
   ResolveResult,
+  TestRunResult,
+  TopologyTestingReport,
 } from '@models/topology/topology-types';
 
 /**
@@ -84,6 +86,32 @@ export class TopologyService {
     if (fromInstance) { body['from_instance'] = fromInstance; }
     return firstValueFrom(this.http.post<AssignResult>(
       this.url('/assign'), body,
+      this.polariService.backendRequestOptions))
+      .catch((err) => err?.error?.ok === false ? err.error : null);
+  }
+
+  /** tt-11: derived test states + latest integration pings. */
+  testing(name?: string): Promise<TopologyTestingReport | null> {
+    const query = name ? `?name=${encodeURIComponent(name)}` : '';
+    return firstValueFrom(this.http.get<TopologyTestingReport>(
+      this.url(`/testing${query}`),
+      this.polariService.backendRequestOptions))
+      .catch((err) => err?.error?.ok === false ? err.error : null);
+  }
+
+  /** Run one module's selftest suites (or 'all') in-container —
+   *  synchronous; the response carries the refreshed report. */
+  runTests(module: string): Promise<TestRunResult | null> {
+    return firstValueFrom(this.http.post<TestRunResult>(
+      this.url('/testing/run'), { module },
+      this.polariService.backendRequestOptions))
+      .catch((err) => err?.error?.ok === false ? err.error : null);
+  }
+
+  /** The foundational integration pass — pinging only. */
+  runPings(): Promise<TestRunResult | null> {
+    return firstValueFrom(this.http.post<TestRunResult>(
+      this.url('/testing/ping'), {},
       this.polariService.backendRequestOptions))
       .catch((err) => err?.error?.ok === false ? err.error : null);
   }
