@@ -239,6 +239,7 @@ export const BACKEND_ONLY_RUNTIME_CLASSES = new Set<string>([
   'CalculusOperation',        // SymPy equations
   'MatrixEquationOperation',  // numpy matrix engine
   'EngineModelOperation',     // FEM/DFT model solve via materialsScience engines
+  'WaxPrintOperation',        // wax-printer command engine (wp-7)
   'StateChangeCommit',        // persists instances via the manager/DB
   'SimulationStateStep',      // simulation-runner entry
   'SimStepNextState',         // simulation-runner terminators
@@ -1100,6 +1101,56 @@ export class StateSpaceClassRegistry {
         { name: 'resultFieldPath', displayName: 'Result Field', type: 'string', isEditable: true }
       ],
       factory: () => ({ type: 'EngineModelOperation', displayName: 'Engine Model (FEM/DFT)', modelRef: '', inputBindings: [], resultKeyMap: [], resultTarget: 'result_variable', resultVariableName: 'model_result', resultFieldPath: '' })
+    });
+
+    // === WaxPrintOperation (wp-7): one wax-printer COMMAND callable from
+    //     no-code — melt / bead-voxel / movement / print-step (extensible
+    //     to printer-control commands). Same inputBindings/resultKeyMap
+    //     shape as EngineModelOperation; backend-only runtime. ===
+    this.registerClass({
+      className: 'WaxPrintOperation',
+      displayName: 'Wax Printer Command',
+      description: 'Runs one wax-printer command via the validated waxprint physics engine and writes its outputs into the solution context as waxprint.<key> plus any mapped variables. Commands: melt / bead-voxel / movement / print-step / optimize / resolution-profile / evaluate-run. Every physics command also accepts scalar OVERRIDES as input bindings (hotend_temp_c, nozzle_diameter_mm, ambient_temp_c, bed_temp_c, print_speed_mm_s, layer_height_mm, wind_mm_s, ...) so any print knob is manipulable from the graph. Backend-only runtime; the extension point toward direct 3D-printer control.',
+      category: 'Physics/Chemistry',
+      icon: 'print',
+      color: '#8D6E63',
+      isStateSpaceObject: true,
+      supportedRuntimes: ['python_backend'],
+      stateSpaceDisplayFields: ['displayName', 'command'],
+      stateSpaceFieldsPerRow: 2,
+      isBuiltIn: true,
+      slotConfiguration: {
+        defaultInputCount: 1,
+        defaultOutputCount: 1,
+        allowDynamicInputs: false,
+        allowDynamicOutputs: false,
+        maxInputSlots: 1,
+        maxOutputSlots: 1,
+        inputType: 'any',
+        outputType: 'any',
+        inputLabels: ['Input'],
+        outputLabels: ['Result']
+      },
+      eventMethods: [
+        {
+          methodName: 'execute',
+          displayName: 'Run Wax Command',
+          description: 'Resolve input bindings, run the wax-printer command, map result keys into the context.',
+          category: 'Physics/Chemistry',
+          inputParams: [],
+          output: { type: 'any', displayName: 'Result' }
+        }
+      ],
+      variables: [
+        { name: 'displayName', displayName: 'Display Name', type: 'string', isEditable: true, defaultValue: 'Wax Printer Command' },
+        { name: 'command', displayName: 'Command', type: 'string', isEditable: true, defaultValue: 'print-step' },
+        { name: 'inputBindings', displayName: 'Input Bindings', type: 'object', isEditable: true },
+        { name: 'resultKeyMap', displayName: 'Result Key Map', type: 'object', isEditable: true },
+        { name: 'resultTarget', displayName: 'Result Target', type: 'string', isEditable: true, defaultValue: 'result_variable' },
+        { name: 'resultVariableName', displayName: 'Result Variable', type: 'string', isEditable: true, defaultValue: 'waxprint_result' },
+        { name: 'resultFieldPath', displayName: 'Result Field', type: 'string', isEditable: true }
+      ],
+      factory: () => ({ type: 'WaxPrintOperation', displayName: 'Wax Printer Command', command: 'print-step', inputBindings: [], resultKeyMap: [], resultTarget: 'result_variable', resultVariableName: 'waxprint_result', resultFieldPath: '' })
     });
 
     // === Data Operations (Variable & Function) ===

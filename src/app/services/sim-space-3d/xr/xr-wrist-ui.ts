@@ -56,6 +56,30 @@ interface WristButton {
 
 const HOVER_SCALE = 1.18;
 const RAY_REACH_M = 1.5;
+/** Fingertip POKE (opt-in via pokeFrom(); hands sessions): hover
+ *  highlight within this distance of a button's plane… */
+const POKE_HOVER_DIST_M = 0.02;
+/** …and a front-crossing through this depth = one click. */
+const POKE_PRESS_Z_M = 0.004;
+/** A tip further behind the button plane than this is a pass-through
+ *  (reaching past the ring), never a press. */
+const POKE_BEHIND_LIMIT_M = -0.08;
+/** One poke = one activation: per-item refractory window. */
+const POKE_DEBOUNCE_MS = 300;
+/** Poke lateral tolerance: hover/press counts within this multiple of
+ *  the button disc's radius (the discs are 2.2-2.6 cm — fingertip
+ *  joint accuracy needs a modest margin). */
+const POKE_LATERAL_RADIUS_SCALE = 1.25;
+/** Hand-wrist attach STICKY visibility (on-device: reaching for the
+ *  ring with the other hand occludes the anchored wrist, Quest drops
+ *  the hand's tracking — three marks the wrist joint invisible or
+ *  removes the input source — and the ring vanished mid-poke). Once
+ *  shown, the ring stays while a fingertip is within this distance of
+ *  it, OR within the grace window after the wrist joint was last
+ *  live; it hides only after BOTH fail. Controller anchoring is
+ *  untouched. */
+const HAND_STICKY_NEAR_M = 0.25;
+const HAND_STICKY_GRACE_MS = 2000;
 /** Ring-1 fan: radius from the wrist anchor + degrees between slots.
  *  Content-adaptive capacity is legibility-bound (Q6) — three items
  *  is well under the 6-8 cap. */
@@ -109,6 +133,23 @@ export class XrWristUi {
   private helpPlane: THREE.Mesh | null = null;
   private helpVisible = false;
   private hovered: WristButton | null = null;
+  // Fingertip-poke state (only ever populated when a host opts in by
+  // calling pokeFrom() — sim-space XR never does, so nothing here
+  // changes its behavior).
+  private pokeHover = new Set<WristButton>();
+  private pokePrevZ = new Map<string, number>();
+  private pokeLastFireAt = new Map<WristButton, number>();
+  /** Opt-in: anchor the ring to a tracked hand's wrist joint when the
+   *  wrist-side input is a HAND (default keeps the controller-only
+   *  contract: hands detach the ring). */
+  private handWristAttach = false;
+  /** Sticky hand-anchor state: the joint we're anchored to (survives
+   *  a tracking dropout that removes the input source), when the
+   *  wrist joint was last live, and last frame's poke tips (for the
+   *  fingertip-near-ring hold). */
+  private handAnchor: THREE.Object3D | null = null;
+  private handLastLiveAt = Number.NEGATIVE_INFINITY;
+  private lastPokeTips: THREE.Vector3[] = [];
   private raycaster = new THREE.Raycaster();
   private disposables: (THREE.BufferGeometry | THREE.Material
     | THREE.Texture)[] = [];
@@ -197,7 +238,81 @@ export class XrWristUi {
   /** True while the pointer ray engages the cluster — world gestures
    *  must not start (input focus rules: one interaction at a time). */
   uiEngaged(): boolean {
-    return this.hovered !== null;
+    return this.hovered !== null || this.pokeHover.size > 0;
+  }
+
+  /** Opt IN to hand-wrist anchoring (see handWristAttach). */
+  setHandWristAttach(enabled: boolean): void {
+    this.handWristAttach = enabled;
+  }
+
+  /** ADDITIVE opt-in fingertip POKE (hands sessions): the host feeds
+   *  world-space index-tip positions once per frame. A tip hovering a
+   *  button highlights it; a front-crossing contact (tip passes
+   *  through the button plane inside its bounds) fires the same
+   *  onSelect as ray+trigger, debounced per item. Callers that never
+   *  feed tips are completely unaffected. */
+  pokeFrom(tips: THREE.Vector3[]): void {
+    // Remembered for attachToWrist's fingertip-near-ring sticky hold
+    // (next frame — a 25 cm tolerance makes one frame of lag moot).
+    this.lastPokeTips = tips;
+    const nextHover = new Set<WristButton>();
+    if (!this.group.parent || tips.length === 0) {
+      this.pokePrevZ.clear();
+    } else {
+      // Fresh world matrices: update() just re-billboarded the group.
+      this.group.updateWorldMatrix(true, true);
+      const local = new THREE.Vector3();
+      this.buttons.forEach((button, buttonIndex) => {
+        const radius = (button.mesh.geometry as THREE.CircleGeometry)
+          .parameters.radius;
+        tips.forEach((tip, tipIndex) => {
+          // Button local space: the group billboards toward the eye,
+          // so +z = toward the wearer (the approach side) and x/y is
+          // the button plane.
+          local.copy(tip);
+          button.mesh.worldToLocal(local);
+          const key = `${buttonIndex}|${tipIndex}`;
+          const previousZ = this.pokePrevZ.get(key);
+          this.pokePrevZ.set(key, local.z);
+          const lateral = Math.hypot(local.x, local.y);
+          if (lateral > radius * POKE_LATERAL_RADIUS_SCALE
+              || local.z < POKE_BEHIND_LIMIT_M
+              || local.z > POKE_HOVER_DIST_M * 4) {
+            return;
+          }
+          if (Math.abs(local.z) <= POKE_HOVER_DIST_M) {
+            nextHover.add(button);
+          }
+          // Front-crossing: last frame in front of the press plane,
+          // this frame at/behind it — one activation per crossing.
+          if (previousZ !== undefined && previousZ > POKE_PRESS_Z_M
+              && local.z <= POKE_PRESS_Z_M) {
+            const now = performance.now();
+            const last = this.pokeLastFireAt.get(button) ?? 0;
+            if (now - last >= POKE_DEBOUNCE_MS) {
+              this.pokeLastFireAt.set(button, now);
+              button.onSelect();
+            }
+          }
+        });
+      });
+    }
+    // Reconcile hover scale across BOTH input paths (runs after
+    // update()'s ray-hover pass each frame, so it owns the final
+    // scale for this frame).
+    for (const button of this.buttons) {
+      const lit = button === this.hovered || nextHover.has(button);
+      button.mesh.scale.setScalar(lit ? HOVER_SCALE : 1);
+    }
+    this.pokeHover = nextHover;
+  }
+
+  /** Hosts without sim navigation (the AR zone-capture page) hide the
+   *  nav HUD plane — its R/zoom/drive readout would be meaningless
+   *  noise there — while keeping both button rings. */
+  setHudVisible(visible: boolean): void {
+    this.hudPlane.visible = visible;
   }
 
   /** HELP button action target (runtime wires it). */
@@ -281,13 +396,61 @@ export class XrWristUi {
    *  appears or handedness flips. */
   private attachToWrist(): void {
     const wrist = this.input.byHand(this.wristHandedness);
-    const grip = wrist && !wrist.isHand ? wrist.grip : null;
-    if (grip && this.group.parent !== grip) {
-      grip.add(this.group);
-    } else if (!grip && this.group.parent) {
+    let anchor: THREE.Object3D | null = null;
+    if (wrist && !wrist.isHand) {
+      anchor = wrist.grip;
+      this.handAnchor = null;
+    } else if (this.handWristAttach) {
+      // Hands session (opt-in): the hand's wrist joint is the anchor
+      // — grip space is not reliably posed for hands. The joint
+      // appears a few frames in; until then the ring stays detached.
+      //
+      // STICKY once shown (see HAND_STICKY_* docs): a tracking
+      // dropout — three flags the joint invisible, or Quest removes
+      // the hand input source outright (byHand() then returns null) —
+      // must not hide the ring while the user is reaching for it.
+      // Hold the last anchor while a fingertip is near the ring OR
+      // the live-grace window stands; only when both fail, detach.
+      const joint: THREE.Object3D | null = (wrist && wrist.isHand)
+        ? ((wrist.hand as any)?.joints?.['wrist'] ?? null) : null;
+      const now = performance.now();
+      const live = !!joint && joint.visible !== false;
+      if (live) this.handLastLiveAt = now;
+      anchor = joint ?? this.handAnchor;
+      if (anchor && !live) {
+        const sticky =
+          now - this.handLastLiveAt <= HAND_STICKY_GRACE_MS
+          || this.tipNearRing();
+        if (!sticky) {
+          anchor = null;
+        } else {
+          // three re-stamps joint.visible from the pose every frame
+          // BEFORE this animation-loop callback; an untracked joint
+          // is invisible and children inherit that — override it for
+          // this frame's render so the sticky hold actually shows.
+          anchor.visible = true;
+        }
+      }
+      this.handAnchor = anchor;
+    }
+    if (anchor && this.group.parent !== anchor) {
+      anchor.add(this.group);
+    } else if (!anchor && this.group.parent) {
       this.group.parent.remove(this.group);
       this.hovered = null;
+      this.pokeHover.clear();
     }
+  }
+
+  /** Any of last frame's poke fingertips within the sticky hold
+   *  distance of the (still-parented) ring's anchor point. */
+  private tipNearRing(): boolean {
+    if (!this.group.parent || this.lastPokeTips.length === 0) {
+      return false;
+    }
+    const center = this.group.getWorldPosition(new THREE.Vector3());
+    return this.lastPokeTips.some(
+      tip => tip.distanceTo(center) <= HAND_STICKY_NEAR_M);
   }
 
   private updateHover(): void {

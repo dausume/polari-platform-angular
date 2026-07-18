@@ -1,0 +1,90 @@
+<div class="zones-board">
+  <div class="board-controls">
+    <label>Site
+      <select [(ngModel)]="selectedSite" (ngModelChange)="reload()">
+        <option *ngFor="let site of sites" [value]="site">{{ site }}</option>
+      </select>
+    </label>
+    <label>Cube size (m)
+      <input type="number" step="0.05" min="0.05" [(ngModel)]="cubeSize" />
+    </label>
+    <button mat-stroked-button (click)="reload()" [disabled]="loading || !selectedSite">
+      Refresh
+    </button>
+    <span class="totals" *ngIf="summary">
+      rooms {{ summary.totalRoomVolumeM3 | number:'1.0-2' }} m³ ·
+      selected {{ summary.totalSelectedVolumeM3 | number:'1.0-2' }} m³ ·
+      {{ summary.totalSelectedCubes }} cubes
+    </span>
+  </div>
+
+  <mat-spinner *ngIf="loading" diameter="28"></mat-spinner>
+  <p *ngIf="error" class="error">{{ error }}</p>
+
+  <div class="rooms-bar" *ngIf="summary && !loading">
+    <div class="room-card" *ngFor="let room of summary.rooms">
+      <div class="room-head">
+        <span class="room-name">{{ room.roomLabel || room.room }}</span>
+        <button class="zone-chip room-chip" (click)="openDetail(room.room)"
+                [class.active]="detailZone === room.room">
+          room {{ room.roomVolumeM3 | number:'1.0-2' }} m³
+        </button>
+      </div>
+      <div class="room-stats">
+        selected {{ room.selectedVolumeM3 | number:'1.0-2' }} m³ ·
+        {{ room.selectedCubes }} cubes
+      </div>
+      <div class="zone-strip">
+        <button class="zone-chip" *ngFor="let selection of room.selections"
+                (click)="openDetail(selection.zone)"
+                [class.active]="detailZone === selection.zone"
+                [class.failed]="!selection.ok">
+          <span class="mode-icon">{{ modeIcon(selection.captureMode) }}</span>
+          {{ selection.zone }}
+          <span class="chip-data" *ngIf="selection.ok">
+            {{ selection.volumeM3 | number:'1.0-2' }} m³ / {{ selection.totalCubes }}
+          </span>
+          <span class="chip-data" *ngIf="!selection.ok">{{ selection.error }}</span>
+        </button>
+        <span class="empty-note" *ngIf="room.selections.length === 0">
+          no selections yet
+        </span>
+      </div>
+    </div>
+
+    <div class="room-card free-card" *ngIf="summary.freeSelections.length > 0">
+      <div class="room-head"><span class="room-name">Unassigned selections</span></div>
+      <div class="zone-strip">
+        <button class="zone-chip" *ngFor="let selection of summary.freeSelections"
+                (click)="openDetail(selection.zone)"
+                [class.active]="detailZone === selection.zone"
+                [class.failed]="!selection.ok">
+          <span class="mode-icon">{{ modeIcon(selection.captureMode) }}</span>
+          {{ selection.zone }}
+          <span class="chip-data" *ngIf="selection.ok">
+            {{ selection.volumeM3 | number:'1.0-2' }} m³ / {{ selection.totalCubes }}
+          </span>
+        </button>
+      </div>
+    </div>
+
+    <p class="empty-note" *ngIf="summary.rooms.length === 0
+        && summary.freeSelections.length === 0">
+      No zones captured for this site yet.
+    </p>
+  </div>
+
+  <div class="detail-panel" *ngIf="detailZone">
+    <h4>{{ detailZone }}</h4>
+    <mat-spinner *ngIf="detailLoading" diameter="24"></mat-spinner>
+    <dl class="kv" *ngIf="!detailLoading">
+      <ng-container *ngFor="let entry of detailEntries()">
+        <dt>{{ entry[0] }}</dt>
+        <dd>{{ entry[1] }}</dd>
+      </ng-container>
+    </dl>
+    <ul class="warnings" *ngIf="detailWarnings().length > 0">
+      <li *ngFor="let warning of detailWarnings()">{{ warning }}</li>
+    </ul>
+  </div>
+</div>

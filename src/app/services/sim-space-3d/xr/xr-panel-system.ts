@@ -90,6 +90,13 @@ const SPAWN: Record<string, { forward: number; right: number;
 const SPAWN_DEFAULT = { forward: 1.3, right: 0, up: 0 };
 /** Ray reach for panel targeting, user-space meters. */
 const RAY_REACH_M = 6;
+/** Fingertip POKE (opt-in via pokeFrom(); hands sessions): hover /
+ *  press thresholds in quad-local meters (≈ user-space at rig scale
+ *  1). Same tuning as the wrist ring. */
+const POKE_HOVER_DIST_M = 0.02;
+const POKE_PRESS_Z_M = 0.004;
+const POKE_BEHIND_LIMIT_M = -0.08;
+const POKE_DEBOUNCE_MS = 300;
 /** Element size re-check cadence (frames) — HTMLMesh's texture size
  *  is frozen at first capture, so growth needs a rebuild. */
 const SIZE_CHECK_INTERVAL = 45;
@@ -105,6 +112,11 @@ export class XrPanelSystem {
   private drag: {
     handle: XrControllerHandle; quad: OpenQuad;
   } | null = null;
+  // Fingertip-poke state (only populated when a host opts in by
+  // calling pokeFrom() each frame — sim-space XR never does).
+  private pokeTouch = new Set<string>();
+  private pokePrevZ = new Map<string, number>();
+  private pokeLastFireAt = new Map<string, number>();
   private placements: Record<string, XrPanelPlacement>;
   private rasterMs: Record<string, number> = {};
   private rasterPersisted = new Set<string>();
@@ -160,10 +172,107 @@ export class XrPanelSystem {
    *  world navigation must not start (input focus rules). */
   uiEngaged(): boolean {
     if (this.drag || this.triggerHeld.size > 0) return true;
+    if (this.pokeTouch.size > 0) return true;
     for (const target of this.hover.values()) {
       if (target) return true;
     }
     return false;
+  }
+
+  /** ADDITIVE opt-in fingertip POKE (hands sessions): the host feeds
+   *  world-space index-tip positions once per frame. A tip near a
+   *  quad's surface forwards hover (mousemove) at the touched UV; a
+   *  front-crossing contact forwards mousedown/mouseup/click there —
+   *  the exact dispatch the ray path uses — debounced per quad. The
+   *  ✕ dismisses on contact; the scrub rail scrubs at the touched U.
+   *  Callers that never feed tips are completely unaffected. */
+  pokeFrom(tips: THREE.Vector3[]): void {
+    const touched = new Set<string>();
+    if (tips.length === 0) {
+      this.pokePrevZ.clear();
+      this.pokeTouch = touched;
+      return;
+    }
+    const local = new THREE.Vector3();
+    const now = performance.now();
+    const dismissals: string[] = [];
+    for (const quad of this.quads.values()) {
+      quad.root.updateWorldMatrix(true, true);
+      const size = this.quadSize(quad.mesh);
+      tips.forEach((tip, tipIndex) => {
+        // Quad-local space: x/y span the plane, +z faces the viewer.
+        local.copy(tip);
+        quad.mesh.worldToLocal(local);
+        const key = `${quad.contentRef}|${tipIndex}`;
+        const previousZ = this.pokePrevZ.get(key);
+        this.pokePrevZ.set(key, local.z);
+        if (Math.abs(local.x) > size.w / 2
+            || Math.abs(local.y) > size.h / 2
+            || local.z < POKE_BEHIND_LIMIT_M
+            || local.z > POKE_HOVER_DIST_M * 4) {
+          return;
+        }
+        // Raycast-UV convention: (0,0) bottom-left — forwardDomEvent
+        // flips y for the DOM exactly like the ray path.
+        const target: RayTarget = {
+          kind: quad.contentRef === 'scrub-rail' ? 'rail' : 'quad',
+          contentRef: quad.contentRef,
+          uv: new THREE.Vector2(local.x / size.w + 0.5,
+            local.y / size.h + 0.5),
+        };
+        if (Math.abs(local.z) <= POKE_HOVER_DIST_M) {
+          touched.add(quad.contentRef);
+          if (target.kind === 'quad') {
+            this.forwardDomEvent(target, 'mousemove');
+          }
+        }
+        const crossed = previousZ !== undefined
+          && previousZ > POKE_PRESS_Z_M && local.z <= POKE_PRESS_Z_M;
+        if (!crossed) return;
+        const last = this.pokeLastFireAt.get(quad.contentRef) ?? 0;
+        if (now - last < POKE_DEBOUNCE_MS) return;
+        this.pokeLastFireAt.set(quad.contentRef, now);
+        if (target.kind === 'rail') {
+          this.rail?.scrubAtUv(target.uv.x);
+        } else {
+          this.forwardDomEvent(target, 'mousedown');
+          this.forwardDomEvent(target, 'mouseup');
+          this.forwardDomEvent(target, 'click');
+        }
+      });
+      // The ✕ close disc: contact crossing = dismiss (after the
+      // iteration — dismissing mutates this.quads).
+      if (quad.close) {
+        const radius = (quad.close.geometry as THREE.CircleGeometry)
+          .parameters.radius;
+        tips.forEach((tip, tipIndex) => {
+          local.copy(tip);
+          quad.close!.worldToLocal(local);
+          const key = `${quad.contentRef}:close|${tipIndex}`;
+          const previousZ = this.pokePrevZ.get(key);
+          this.pokePrevZ.set(key, local.z);
+          if (Math.hypot(local.x, local.y) > radius * 1.2
+              || local.z < POKE_BEHIND_LIMIT_M
+              || local.z > POKE_HOVER_DIST_M * 4) {
+            return;
+          }
+          if (Math.abs(local.z) <= POKE_HOVER_DIST_M) {
+            touched.add(quad.contentRef);
+          }
+          if (previousZ !== undefined && previousZ > POKE_PRESS_Z_M
+              && local.z <= POKE_PRESS_Z_M) {
+            const closeKey = `${quad.contentRef}:close`;
+            const last = this.pokeLastFireAt.get(closeKey) ?? 0;
+            if (now - last >= POKE_DEBOUNCE_MS) {
+              this.pokeLastFireAt.set(closeKey, now);
+              dismissals.push(quad.contentRef);
+            }
+          }
+        });
+      }
+    }
+    for (const contentRef of dismissals) this.dismiss(contentRef);
+    this.pokeTouch = touched;
   }
 
   // ------------------------------------------------------------------

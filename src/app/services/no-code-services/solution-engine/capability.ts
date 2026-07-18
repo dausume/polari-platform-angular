@@ -19,6 +19,7 @@ export const BACKEND_ONLY_CLASSES = new Set([
     'CalculusOperation',        // SymPy equations
     'MatrixEquationOperation',  // numpy matrix engine
     'EngineModelOperation',     // FEM/DFT model solve via materialsScience engines
+    'WaxPrintOperation',        // wax-printer command engine (wp-7)
     'StateChangeCommit',        // persists instances via the manager/DB
     'SimulationStateStep',      // simulation-runner entry
     'SimStepNextState',         // simulation-runner terminators

@@ -1,7 +1,8 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import { Subscription } from 'rxjs';
+import { HttpClient } from '@angular/common/http';
+import { Subscription, firstValueFrom } from 'rxjs';
 
 import {
   SimSpaceService,
@@ -9,6 +10,19 @@ import {
 } from '@services/sim-space/sim-space.service';
 import { MultiScaleSimDefinitionService } from '@services/multi-scale/multi-scale-sim-definition.service';
 import { MultiScaleSimSummary } from '@models/multi-scale/NamedMultiScaleSimConfig';
+import { PolariService } from '@services/polari-service';
+import { parseCrudeReadAllResponse }
+  from '@services/sim-space/crude-response-parser';
+
+/** A SimulationDefinition with xr_requirement 'ar-capture', plus its
+ *  live requirement status (tied selection-zone count). */
+interface ArRequiredSim {
+  name: string;
+  description: string;
+  /** ZoneDefinition rows with simulation_ref === name and
+   *  zone_role === 'selection'. */
+  zoneCount: number;
+}
 
 /**
  * /xr — the headset-first homepage (Dustin directive 2026-07-12,
@@ -31,8 +45,39 @@ import { MultiScaleSimSummary } from '@models/multi-scale/NamedMultiScaleSimConf
       <header>
         <h1>Polari XR</h1>
         <p>Pick a space, then Enter VR.</p>
+        <a routerLink="/xr/zone-capture" class="flat-link">
+          Zone capture</a>
         <a routerLink="/" class="flat-link">Flat site</a>
       </header>
+
+      <section class="ar-required">
+        <h2>AR Required Simulations</h2>
+        <p class="hint">These simulations run inside zones captured
+          from the real world — capture is THE way in.</p>
+        <p class="hint" *ngIf="arSimsError">{{ arSimsError }}</p>
+        <p class="hint" *ngIf="!arSimsError && arSimsLoaded
+            && !arSims.length">
+          No simulations currently require AR capture.</p>
+        <div class="grid">
+          <div *ngFor="let sim of arSims" class="card ar-card">
+            <span class="card-title">{{ sim.name }}</span>
+            <span class="card-sub">{{ sim.description
+              || 'AR-capture simulation' }}</span>
+            <span class="req-status" [class.met]="sim.zoneCount > 0">
+              {{ sim.zoneCount > 0
+                ? sim.zoneCount + ' zone'
+                  + (sim.zoneCount === 1 ? '' : 's') + ' captured'
+                : 'requirement: capture at least one zone' }}</span>
+            <div class="ar-actions">
+              <a class="capture-btn" routerLink="/xr/zone-capture"
+                 [queryParams]="{ sim: sim.name }">
+                Capture zones (requirement)</a>
+              <a *ngIf="sim.zoneCount > 0" class="board-link"
+                 routerLink="/zones-board">Rooms/zones board</a>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <section>
         <h2>Sim Spaces</h2>
@@ -131,11 +176,32 @@ import { MultiScaleSimSummary } from '@models/multi-scale/NamedMultiScaleSimConf
     .pager button:disabled { opacity: .35; }
     .pager span { font-size: 1.2rem; }
     .hint { color: var(--text-secondary); font-size: 1.05rem; }
+    /* AR Required Simulations — prominent, first section. */
+    .ar-required { padding: 4px 0 8px; }
+    .ar-required h2 { color: var(--brand-blue); }
+    .ar-card { cursor: default; border-color: var(--brand-blue); }
+    .req-status { font-size: 1.05rem; font-weight: 600;
+      color: #e67e22; }
+    .req-status.met { color: #2ecc71; }
+    .ar-actions { display: flex; flex-wrap: wrap; gap: 10px;
+      margin-top: 8px; }
+    .capture-btn { display: inline-block; padding: 14px 22px;
+      font-size: 1.15rem; font-weight: 600; border-radius: 12px;
+      background: var(--brand-blue); color: #fff;
+      text-decoration: none; }
+    .board-link { display: inline-block; padding: 14px 22px;
+      font-size: 1.15rem; border-radius: 12px;
+      background: var(--surface-secondary);
+      border: 2px solid var(--surface-hover);
+      color: var(--brand-blue); text-decoration: none; }
   `],
 })
 export class XrLobbyPageComponent implements OnInit, OnDestroy {
 
   readonly PAGE_SIZE = 6;
+  arSims: ArRequiredSim[] = [];
+  arSimsError = '';
+  arSimsLoaded = false;
   spaces: SimSpaceSummary[] = [];
   spacesError = '';
   spacePage = 0;
@@ -147,9 +213,12 @@ export class XrLobbyPageComponent implements OnInit, OnDestroy {
   private subscription?: Subscription;
 
   constructor(private simSpace: SimSpaceService,
-              private msimService: MultiScaleSimDefinitionService) {}
+              private msimService: MultiScaleSimDefinitionService,
+              private http: HttpClient,
+              private polari: PolariService) {}
 
   ngOnInit(): void {
+    void this.loadArRequiredSims();
     this.simSpace.list()
       .then(rows => { this.spaces = rows; })
       .catch(() => {
@@ -163,6 +232,42 @@ export class XrLobbyPageComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.subscription?.unsubscribe();
+  }
+
+  /** AR-required sims + their live requirement status: generic CRUDE
+   *  reads of SimulationDefinition (xr_requirement 'ar-capture') and
+   *  ZoneDefinition (simulation_ref + zone_role 'selection' counts).
+   *  A failed zone read degrades to count-unknown (0) rather than
+   *  hiding the sims — the capture entry point must stay visible. */
+  private async loadArRequiredSims(): Promise<void> {
+    const base = this.polari.getBackendBaseUrl();
+    const options = this.polari.backendRequestOptions;
+    let zones: any[] = [];
+    try {
+      const simResponse = await firstValueFrom(
+        this.http.get(`${base}/SimulationDefinition`, options));
+      const sims = parseCrudeReadAllResponse(
+        simResponse, 'SimulationDefinition')
+        .filter(row => row?.xr_requirement === 'ar-capture');
+      try {
+        const zoneResponse = await firstValueFrom(
+          this.http.get(`${base}/ZoneDefinition`, options));
+        zones = parseCrudeReadAllResponse(
+          zoneResponse, 'ZoneDefinition');
+      } catch { /* counts degrade to 0; sims still listed */ }
+      this.arSims = sims.map(sim => ({
+        name: String(sim.name ?? ''),
+        description: String(sim.description ?? ''),
+        zoneCount: zones.filter(z =>
+          z?.simulation_ref === sim.name
+          && z?.zone_role === 'selection').length,
+      })).filter(sim => sim.name);
+      this.arSimsError = '';
+    } catch {
+      this.arSimsError = 'Could not load AR-required simulations — '
+        + 'is the backend reachable?';
+    }
+    this.arSimsLoaded = true;
   }
 
   get pagedSpaces(): SimSpaceSummary[] {

@@ -24,6 +24,12 @@ const routes: Routes = [
   // Headset-first lobby: giant targets, no fine scrolling — the XR
   // homepage (suggested from Home when a headset is detected).
   { path: 'xr', loadComponent: () => import('@components/xr-lobby/xr-lobby-page.component').then(m => m.XrLobbyPageComponent) },
+  // arz-5: AR zone capture — walk a real room, place points with the
+  // trigger, both-grips-hold commits; packed cubes render in place.
+  { path: 'xr/zone-capture', loadComponent: () => import('@components/xr-lobby/xr-zone-capture-page.component').then(m => m.XrZoneCapturePageComponent) },
+  // Rooms/zones board: horizontal bar of rooms + the zones in them
+  // (dual-surface: this web view AND an XR HTMLMesh panel).
+  { path: 'zones-board', loadComponent: () => import('@components/zones/zones-board.component').then(m => m.ZonesBoardComponent) },
   // Direct XR entry (2026-07-12): the lobby links HERE now — one big
   // ENTER VR action, no flat-preview chrome in between.
   { path: 'xr/enter/:name', loadComponent: () => import('@components/xr-lobby/xr-direct-entry-page.component').then(m => m.XrDirectEntryPageComponent) },
