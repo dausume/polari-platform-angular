@@ -6,8 +6,8 @@ import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
 
 import { TopologyService } from '@services/topology/topology.service';
 import {
-  AssignResult, DriftReport, ModuleAssignment, TopologyGraph,
-  TopologyInstance, TopologySummary, ValidateReport,
+  AssignResult, DriftReport, ModuleAssignment, ModuleGraphReport,
+  TopologyGraph, TopologyInstance, TopologySummary, ValidateReport,
 } from '@models/topology/topology-types';
 import {
   TopologyGraphViewComponent,
@@ -44,6 +44,7 @@ interface AssignNotice {
 export class TopologyHomeComponent implements OnInit {
   summary: TopologySummary | null = null;
   graph: TopologyGraph | null = null;
+  moduleGraph: ModuleGraphReport | null = null;
   drift: DriftReport | null = null;
   validation: ValidateReport | null = null;
 
@@ -82,8 +83,9 @@ export class TopologyHomeComponent implements OnInit {
     this.validation = null;
     this.assignNotice = null;
     this.assignError = '';
-    [this.graph, this.drift] = await Promise.all([
+    [this.graph, this.moduleGraph, this.drift] = await Promise.all([
       this.topologyService.graph(name),
+      this.topologyService.moduleGraph(name),
       this.topologyService.drift(name),
     ]);
     this.rebuildModuleChips();
@@ -157,13 +159,19 @@ export class TopologyHomeComponent implements OnInit {
         || `Assign of ${assignment.moduleName} to ${to} did not land`
           + ' — rows unchanged.';
     }
-    // Refetch either way: the rows are the truth, not the drag.
-    const fresh = await this.topologyService.graph(
-      this.activeTopology || undefined);
+    // Refetch either way: the rows are the truth, not the drag —
+    // and the assign re-resolves + re-designates edges, so the
+    // module graph (transient/primary) moves with it.
+    const [fresh, freshModules] = await Promise.all([
+      this.topologyService.graph(this.activeTopology || undefined),
+      this.topologyService.moduleGraph(
+        this.activeTopology || undefined),
+    ]);
     if (fresh?.ok) {
       this.graph = fresh;
       this.rebuildModuleChips();
     }
+    if (freshModules?.ok) { this.moduleGraph = freshModules; }
     this.assigning = false;
   }
 

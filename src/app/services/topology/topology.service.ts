@@ -13,6 +13,7 @@ import {
   ModuleAssignment,
   EdgeStatus,
   ModuleDependencyEdge,
+  ModuleGraphReport,
   TopologyConnection,
   TopologyGraph,
   ValidationFinding,
@@ -48,6 +49,14 @@ export class TopologyService {
     const query = name ? `?name=${encodeURIComponent(name)}` : '';
     return firstValueFrom(this.http.get<TopologyGraph>(
       this.url(`/graph${query}`),
+      this.polariService.backendRequestOptions))
+      .catch((err) => err?.error?.ok === false ? err.error : null);
+  }
+
+  moduleGraph(name?: string): Promise<ModuleGraphReport | null> {
+    const query = name ? `?name=${encodeURIComponent(name)}` : '';
+    return firstValueFrom(this.http.get<ModuleGraphReport>(
+      this.url(`/module-graph${query}`),
       this.polariService.backendRequestOptions))
       .catch((err) => err?.error?.ok === false ? err.error : null);
   }

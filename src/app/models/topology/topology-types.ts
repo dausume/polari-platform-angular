@@ -86,7 +86,51 @@ export interface ModuleDependencyEdge {
   dependsOnModule: string;
   providerInstanceName: string;
   status: EdgeStatus;
+  /** tt-1 designation: a dependency shared by N>1 consumers keeps ONE
+   *  primary edge; the other N-1 render as dashed transient copies. */
+  isPrimary: boolean;
+  isTransient: boolean;
   evidence: string;
+}
+
+/** tt-1 module-level graph (GET /api/topology/module-graph) — the
+ *  bidirectional view the circle/nesting renderer draws. */
+export type ModuleClassification =
+  'consumer' | 'provider' | 'hybrid' | 'independent' | 'data-only';
+
+export interface ModulePlacement {
+  instance: string;
+  state: string;
+}
+
+export interface ModuleGraphModule {
+  name: string;
+  placements: ModulePlacement[];
+  dependsOn: string[];
+  dependents: string[];
+  outDegree: number;
+  inDegree: number;
+  dataOnly: boolean;
+  classification: ModuleClassification;
+}
+
+export interface ModuleGraphEdge {
+  name: string;
+  moduleName: string;
+  consumerInstanceName: string;
+  dependsOnModule: string;
+  providerInstanceName: string;
+  status: EdgeStatus;
+  isPrimary: boolean;
+  isTransient: boolean;
+}
+
+export interface ModuleGraphReport {
+  ok: boolean;
+  error?: string;
+  topology: string;
+  modules: ModuleGraphModule[];
+  edges: ModuleGraphEdge[];
 }
 
 export interface TopologyConnection {

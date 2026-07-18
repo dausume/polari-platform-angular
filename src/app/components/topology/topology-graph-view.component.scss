@@ -46,6 +46,14 @@
   .legend-item { display: inline-flex; align-items: center; gap: 5px; }
   .swatch { width: 18px; height: 0; border-top: 2px solid currentColor; }
   .swatch.dashed { border-top-style: dashed; }
+  // circle vocabulary (tt-2): dot = module classification;
+  // dashed dot = transient dependency copy
+  .dot {
+    width: 11px; height: 11px; border-radius: 50%;
+    border: 2px solid currentColor; background: transparent;
+  }
+  .dot.dashed { border-style: dashed; }
+  .legend-item.transient { color: #607d8b; }
   .legend-item.resolved { color: #2e7d32; }
   .legend-item.unresolved { color: #c62828; }
   .legend-item.degraded { color: #f9a825; }
@@ -79,6 +87,28 @@
   .node-title { font-size: 14px; font-weight: 600; fill: #263238; }
   .node-meta { font-size: 11px; fill: #607d8b; }
   .node-modules { font-size: 10.5px; fill: #455a64; font-family: monospace; }
+  // tt-2 nesting vocabulary: host ▸ container ▸ module circles
+  .host-box {
+    fill: rgba(96, 125, 139, 0.05);
+    stroke: rgba(96, 125, 139, 0.45);
+    stroke-width: 1.4;
+  }
+  .host-label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    fill: #546e7a;
+  }
+  .module-circle { transition: fill-opacity 120ms; }
+  .module-label {
+    font-size: 10.5px;
+    fill: #37474f;
+    font-family: monospace;
+    paint-order: stroke;
+    stroke: rgba(255, 255, 255, 0.9);
+    stroke-width: 2.5px;
+    &.nested { font-size: 9px; fill: #546e7a; }
+  }
   .edge-label {
     font-size: 11px;
     paint-order: stroke;
@@ -149,6 +179,15 @@
     &.status.degraded {
       background: var(--color-warn-bg, #fff8e1);
       color: var(--color-warn-text, #8d6e00);
+    }
+    &.transient {
+      background: transparent;
+      border: 1px dashed var(--border-medium, #90a4ae);
+      color: var(--text-secondary, #607d8b);
+    }
+    &.classification {
+      background: transparent;
+      border: 1px solid currentColor;
     }
   }
 }

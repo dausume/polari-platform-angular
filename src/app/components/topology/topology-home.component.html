@@ -131,7 +131,8 @@
     <div class="status-line" *ngIf="assigning">Writing assignment…</div>
 
     <!-- The topology as the node graph it is -->
-    <topology-graph-view [graph]="graph"></topology-graph-view>
+    <topology-graph-view [graph]="graph"
+                         [moduleGraph]="moduleGraph"></topology-graph-view>
 
     <!-- Instance cards: drag module chips between cards -->
     <h3 class="section-head">Instances</h3>

@@ -9,25 +9,12 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import * as d3 from 'd3';
 
 import {
-  ModuleAssignment, ModuleDependencyEdge, TopologyConnection,
-  TopologyGraph, TopologyInstance,
+  ModuleAssignment, ModuleDependencyEdge, ModuleGraphReport,
+  TopologyConnection, TopologyGraph,
 } from '@models/topology/topology-types';
-
-/** One node of the topology graph — a PolariInstance card. */
-interface GraphNode {
-  id: string;
-  instance: TopologyInstance;
-  modules: string[];
-  x: number; y: number; w: number; h: number; depth: number;
-}
-
-interface GraphEdgeView {
-  source: string;
-  target: string;
-  kind: 'dep' | 'conn';
-  status?: string;
-  label: string;
-}
+import {
+  InstanceNode, ModuleCircle, Scene, buildScene,
+} from './topology-graph-layout';
 
 const KIND_COLORS: Record<string, string> = {
   'prf-backend': '#5c6bc0',
@@ -43,16 +30,35 @@ const DEP_COLORS: Record<string, string> = {
   degraded: '#f9a825',
 };
 
-const CONN_COLOR = '#90a4ae';
+/** A2 classification palette — circle strokes + legend dots. */
+export const CLASSIFICATION_COLORS: Record<string, string> = {
+  consumer: '#1e88e5',
+  provider: '#43a047',
+  hybrid: '#8e24aa',
+  independent: '#78909c',
+  'data-only': '#f9a825',
+};
+
+/** Interconnect connections are thin COLORED lines now — border-dash
+ *  belongs to transient dependency copies (A4). */
+const CONN_PALETTE = [
+  '#26a69a', '#7e57c2', '#ec407a', '#66bb6a', '#29b6f6',
+  '#ffa726', '#8d6e63', '#5c6bc0', '#d4e157', '#78909c',
+];
 
 /**
- * The topology drawn as the node graph it is (visually kin to the
- * multi-scale composition graph): each PolariInstance is a card node;
- * solid edges are module dependency edges colored by resolution
- * status; lighter dashed edges are interconnect connections,
- * toggleable per interconnect kind. Click a node for a drill-in
- * drawer with the instance's rows — assignments, edges, connections.
- * Pure presentation: the data arrives whole via the graph input.
+ * The revamped topology renderer (tt-2, TECH_TREE_TOPOLOGY_PLAN
+ * Part A): modules are CIRCLES (node-logic) nested inside their
+ * consumers to a depth cap, Polari containers are rectangles sized
+ * around their packed modules, hosts are the outermost rectangles
+ * (host ▸ container ▸ modules, toggleable). Dashed borders mean
+ * TRANSIENT dependency copies — a dependency shared by N>1 consumers
+ * is solid only under its designated primary consumer; duplicates
+ * are intentional. Service connections render as thin colored lines
+ * (no longer dashed). Dependency edges stay solid, colored by
+ * resolution status, anchored to the module circles themselves.
+ * Pure presentation: data arrives whole via the graph +
+ * module-graph inputs; geometry lives in topology-graph-layout.ts.
  */
 @Component({
   standalone: true,
@@ -63,31 +69,31 @@ const CONN_COLOR = '#90a4ae';
 })
 export class TopologyGraphViewComponent implements OnChanges {
   @Input({ required: true }) graph!: TopologyGraph | null;
+  @Input() moduleGraph: ModuleGraphReport | null = null;
 
   @ViewChild('svgHost', { static: true }) svgHost!: ElementRef<SVGSVGElement>;
 
-  selected: GraphNode | null = null;
+  selected: InstanceNode | null = null;
   selectedEdges: ModuleDependencyEdge[] = [];
   selectedConnections: TopologyConnection[] = [];
   selectedAssignments: ModuleAssignment[] = [];
 
   showConnections = true;
+  groupByHost = true;
   interconnectKeys: string[] = [];
   hiddenInterconnects = new Set<string>();
+  classificationKeys = Object.keys(CLASSIFICATION_COLORS);
 
-  private nodes: GraphNode[] = [];
-  private edges: GraphEdgeView[] = [];
+  private scene: Scene = { hosts: [], nodes: [], circleIndex: new Map() };
 
   constructor(private zone: NgZone) {}
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['graph']) {
-      this.assembleGraph();
-      this.layout();
-      this.render();
-      // Keep the drawer on the same instance across reloads.
+    if (changes['graph'] || changes['moduleGraph']) {
+      this.rebuild();
       if (this.selected) {
-        const again = this.nodes.find(n => n.id === this.selected!.id);
+        const again = this.scene.nodes.find(
+          n => n.id === this.selected!.id);
         if (again) { this.selectNode(again); } else { this.selected = null; }
       }
     }
@@ -99,108 +105,49 @@ export class TopologyGraphViewComponent implements OnChanges {
     } else {
       this.hiddenInterconnects.add(key);
     }
-    this.assembleGraph();
-    this.layout();
     this.render();
   }
 
   toggleConnections(): void {
     this.showConnections = !this.showConnections;
-    this.assembleGraph();
-    this.layout();
     this.render();
   }
 
-  // ------------------------------------------------------------------
-  // Graph assembly
-  // ------------------------------------------------------------------
-
-  private assembleGraph(): void {
-    this.nodes = [];
-    this.edges = [];
-    if (!this.graph?.ok) { return; }
-    const byInstance = new Map<string, GraphNode>();
-    for (const instance of this.graph.instances) {
-      const modules = this.graph.assignments
-        .filter(a => a.instanceName === instance.name)
-        .map(a => a.moduleName);
-      const node: GraphNode = {
-        id: instance.name, instance, modules,
-        x: 0, y: 0, w: 230, h: 112, depth: 0,
-      };
-      byInstance.set(instance.name, node);
-      this.nodes.push(node);
-    }
-
-    // Dependency edges: the module flows provider → consumer. An edge
-    // without both endpoints placed (e.g. unresolved, no provider yet)
-    // has nothing to draw — the validation panel names it instead.
-    for (const edge of this.graph.edges) {
-      if (!byInstance.has(edge.providerInstanceName)
-          || !byInstance.has(edge.consumerInstanceName)) { continue; }
-      this.edges.push({
-        source: edge.providerInstanceName,
-        target: edge.consumerInstanceName,
-        kind: 'dep',
-        status: edge.status,
-        label: edge.dependsOnModule,
-      });
-    }
-
-    this.interconnectKeys = [...new Set(
-      this.graph.connections.map(c => c.interconnectKey))].sort();
-    if (this.showConnections) {
-      for (const conn of this.graph.connections) {
-        if (this.hiddenInterconnects.has(conn.interconnectKey)) { continue; }
-        if (!byInstance.has(conn.fromInstanceName)
-            || !byInstance.has(conn.toInstanceName)) { continue; }
-        this.edges.push({
-          source: conn.fromInstanceName,
-          target: conn.toInstanceName,
-          kind: 'conn',
-          label: conn.interconnectKey,
-        });
-      }
-    }
+  toggleHosts(): void {
+    this.groupByHost = !this.groupByHost;
+    this.rebuild();
   }
 
-  // ------------------------------------------------------------------
-  // Layout — layered left→right by longest path over the drawn edges.
-  // ------------------------------------------------------------------
+  classificationColor(key: string): string {
+    return CLASSIFICATION_COLORS[key] ?? '#78909c';
+  }
 
-  private layout(): void {
-    const depth = new Map<string, number>(this.nodes.map(n => [n.id, 0]));
-    for (let pass = 0; pass < this.nodes.length + 1; pass++) {
-      let changed = false;
-      for (const e of this.edges) {
-        const d = (depth.get(e.source) ?? 0) + 1;
-        if (d > (depth.get(e.target) ?? 0)) {
-          depth.set(e.target, d);
-          changed = true;
-        }
-      }
-      if (!changed) break;
+  /** Drawer helper — one module's classification from the module
+   *  graph ('' when the report hasn't answered). */
+  classificationOf(moduleName: string): string {
+    return this.moduleGraph?.ok
+      ? this.moduleGraph.modules.find(
+          m => m.name === moduleName)?.classification ?? ''
+      : '';
+  }
+
+  connectionColor(key: string): string {
+    const index = this.interconnectKeys.indexOf(key);
+    return CONN_PALETTE[
+      (index < 0 ? 0 : index) % CONN_PALETTE.length];
+  }
+
+  private rebuild(): void {
+    if (!this.graph?.ok) {
+      this.scene = { hosts: [], nodes: [], circleIndex: new Map() };
+      this.render();
+      return;
     }
-    const columns = new Map<number, GraphNode[]>();
-    for (const n of this.nodes) {
-      n.depth = depth.get(n.id) ?? 0;
-      if (!columns.has(n.depth)) columns.set(n.depth, []);
-      columns.get(n.depth)!.push(n);
-    }
-    // compact autoplacement: cards are 230x112, so ~40px gutters keep
-    // the whole graph in one eyeful (the fit-to-view pass below
-    // guarantees it regardless of node count)
-    const colGap = 270, rowGap = 136, x0 = 40, y0 = 40;
-    const maxRows = Math.max(1,
-      ...[...columns.values()].map(c => c.length));
-    for (const [d, col] of columns) {
-      col.sort((a, b) => a.id.localeCompare(b.id));
-      const startY = y0 + ((maxRows - col.length) * rowGap) / 2;
-      col.forEach((n, i) => {
-        n.x = x0 + d * colGap;
-        n.y = startY + i * rowGap;
-      });
-    }
+    this.interconnectKeys = [...new Set(
+      this.graph.connections.map(c => c.interconnectKey))].sort();
+    this.scene = buildScene(
+      this.graph, this.moduleGraph, this.groupByHost);
+    this.render();
   }
 
   // ------------------------------------------------------------------
@@ -210,13 +157,14 @@ export class TopologyGraphViewComponent implements OnChanges {
   private render(): void {
     const svg = d3.select(this.svgHost.nativeElement);
     svg.selectAll('*').remove();
+    const graph = this.graph;
+    if (!graph?.ok) { return; }
 
     const defs = svg.append('defs');
     for (const [id, color] of [
       ['topo-arrow-resolved', DEP_COLORS['resolved']],
       ['topo-arrow-unresolved', DEP_COLORS['unresolved']],
       ['topo-arrow-degraded', DEP_COLORS['degraded']],
-      ['topo-arrow-conn', CONN_COLOR],
     ] as Array<[string, string]>) {
       defs.append('marker')
         .attr('id', id).attr('viewBox', '0 -5 10 10')
@@ -231,59 +179,145 @@ export class TopologyGraphViewComponent implements OnChanges {
       .scaleExtent([0.2, 2.5])
       .on('zoom', (ev) => root.attr('transform', ev.transform));
     svg.call(zoom as any);
+    this.fitToView(svg, zoom);
 
-    // fit-to-view: start with the whole graph centered and visible
-    // (never zoomed IN past 1:1 — small graphs stay life-size)
-    if (this.nodes.length) {
-      const pad = 24;
-      const minX = Math.min(...this.nodes.map(n => n.x)) - pad;
-      const minY = Math.min(...this.nodes.map(n => n.y)) - pad;
-      const maxX = Math.max(...this.nodes.map(n => n.x + n.w)) + pad;
-      const maxY = Math.max(...this.nodes.map(n => n.y + n.h)) + pad;
-      const host = this.svgHost.nativeElement as SVGSVGElement;
-      const vw = host.clientWidth || 800;
-      const vh = host.clientHeight || 520;
-      const scale = Math.min(1, vw / (maxX - minX), vh / (maxY - minY));
-      const tx = (vw - (maxX - minX) * scale) / 2 - minX * scale;
-      const ty = (vh - (maxY - minY) * scale) / 2 - minY * scale;
-      svg.call(
-        (zoom as any).transform,
-        d3.zoomIdentity.translate(tx, ty).scale(scale),
-      );
+    this.renderHosts(root);
+    this.renderConnections(root, graph);
+    this.renderDependencyEdges(root, graph);
+    this.renderInstances(root);
+  }
+
+  private fitToView(svg: d3.Selection<SVGSVGElement, unknown, null,
+      undefined>, zoom: d3.ZoomBehavior<SVGSVGElement, unknown>): void {
+    const boxes = [
+      ...this.scene.hosts,
+      ...this.scene.nodes,
+    ];
+    if (!boxes.length) { return; }
+    const pad = 24;
+    const minX = Math.min(...boxes.map(b => b.x)) - pad;
+    const minY = Math.min(...boxes.map(b => b.y)) - pad;
+    const maxX = Math.max(...boxes.map(b => b.x + b.w)) + pad;
+    const maxY = Math.max(...boxes.map(b => b.y + b.h)) + pad;
+    const host = this.svgHost.nativeElement as SVGSVGElement;
+    const vw = host.clientWidth || 800;
+    const vh = host.clientHeight || 520;
+    const scale = Math.min(1, vw / (maxX - minX), vh / (maxY - minY));
+    const tx = (vw - (maxX - minX) * scale) / 2 - minX * scale;
+    const ty = (vh - (maxY - minY) * scale) / 2 - minY * scale;
+    svg.call(
+      (zoom as any).transform,
+      d3.zoomIdentity.translate(tx, ty).scale(scale),
+    );
+  }
+
+  /** Outermost rectangles: one per PolariNodeMachine in use (A1). */
+  private renderHosts(root: d3.Selection<SVGGElement, unknown, null,
+      undefined>): void {
+    const hg = root.append('g').attr('class', 'hosts');
+    for (const host of this.scene.hosts) {
+      const g = hg.append('g');
+      g.append('rect')
+        .attr('class', 'host-box')
+        .attr('x', host.x).attr('y', host.y)
+        .attr('width', host.w).attr('height', host.h)
+        .attr('rx', 14);
+      g.append('text')
+        .attr('class', 'host-label')
+        .attr('x', host.x + 14).attr('y', host.y + 17)
+        .text(host.name === 'unplaced'
+          ? '⚠ unplaced' : `🖥 ${host.name}`);
+      const m = host.machine;
+      if (m) {
+        g.append('title').text(
+          `${m.name} — ${m.sshAlias} · ${m.arch} · ${m.memGb} GB`
+          + (m.swarmRole && m.swarmRole !== 'none'
+             ? ` · swarm ${m.swarmRole}` : ''));
+      }
     }
+  }
 
-    const byId = new Map(this.nodes.map(n => [n.id, n]));
-
-    // Edges first (under the nodes). Connections lighter + dashed.
-    const eg = root.append('g').attr('class', 'edges');
-    for (const e of this.edges) {
-      const s = byId.get(e.source), t = byId.get(e.target);
-      if (!s || !t) continue;
+  /** Interconnects: THIN COLORED lines between containers — the
+   *  dash vocabulary now belongs to transient dependency copies. */
+  private renderConnections(root: d3.Selection<SVGGElement, unknown,
+      null, undefined>, graph: TopologyGraph): void {
+    if (!this.showConnections) { return; }
+    const byId = new Map(this.scene.nodes.map(n => [n.id, n]));
+    const eg = root.append('g').attr('class', 'conn-edges');
+    for (const conn of graph.connections) {
+      if (this.hiddenInterconnects.has(conn.interconnectKey)) { continue; }
+      const s = byId.get(conn.fromInstanceName);
+      const t = byId.get(conn.toInstanceName);
+      if (!s || !t) { continue; }
+      const color = this.connectionColor(conn.interconnectKey);
       const sx = s.x + s.w, sy = s.y + s.h / 2;
       const tx = t.x, ty = t.y + t.h / 2;
       const dx = Math.max(40, (tx - sx) / 2);
-      const color = e.kind === 'conn'
-        ? CONN_COLOR : (DEP_COLORS[e.status ?? ''] ?? CONN_COLOR);
-      const marker = e.kind === 'conn' ? 'conn' : (e.status ?? 'conn');
       eg.append('path')
-        .attr('d', `M${sx},${sy} C${sx + dx},${sy} ${tx - dx},${ty} ${tx},${ty}`)
+        .attr('d', `M${sx},${sy} C${sx + dx},${sy} `
+          + `${tx - dx},${ty} ${tx},${ty}`)
         .attr('fill', 'none')
         .attr('stroke', color)
-        .attr('stroke-width', e.kind === 'conn' ? 1.2 : 2)
-        .attr('stroke-dasharray', e.kind === 'conn' ? '4,4' : null)
-        .attr('opacity', e.kind === 'conn' ? 0.65 : 1)
-        .attr('marker-end', `url(#topo-arrow-${marker})`);
+        .attr('stroke-width', 1.2)
+        .attr('opacity', 0.55);
       eg.append('text')
-        .attr('class', `edge-label${e.kind === 'conn' ? ' conn' : ''}`)
+        .attr('class', 'edge-label conn')
+        .attr('x', (sx + tx) / 2).attr('y', (sy + ty) / 2 - 6)
+        .attr('text-anchor', 'middle')
+        .attr('fill', color)
+        .text(conn.interconnectKey);
+    }
+  }
+
+  /** Module dependency edges anchored to the module CIRCLES:
+   *  provider's circle → consumer's circle, solid, status-colored. */
+  private renderDependencyEdges(root: d3.Selection<SVGGElement,
+      unknown, null, undefined>, graph: TopologyGraph): void {
+    const byId = new Map(this.scene.nodes.map(n => [n.id, n]));
+    const eg = root.append('g').attr('class', 'dep-edges');
+    for (const edge of graph.edges) {
+      const s = this.scene.circleIndex.get(
+        `${edge.providerInstanceName}|${edge.dependsOnModule}`)
+        ?? this.rectAnchor(byId.get(edge.providerInstanceName));
+      const t = this.scene.circleIndex.get(
+        `${edge.consumerInstanceName}|${edge.moduleName}`)
+        ?? this.rectAnchor(byId.get(edge.consumerInstanceName));
+      if (!s || !t) { continue; }
+      const dx = t.x - s.x, dy = t.y - s.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const sx = s.x + (dx / len) * s.r, sy = s.y + (dy / len) * s.r;
+      const tx = t.x - (dx / len) * (t.r + 4);
+      const ty = t.y - (dy / len) * (t.r + 4);
+      const bend = Math.max(40, Math.abs(tx - sx) / 2);
+      const color = DEP_COLORS[edge.status] ?? '#90a4ae';
+      eg.append('path')
+        .attr('d', `M${sx},${sy} C${sx + bend},${sy} `
+          + `${tx - bend},${ty} ${tx},${ty}`)
+        .attr('fill', 'none')
+        .attr('stroke', color)
+        .attr('stroke-width', 2)
+        .attr('marker-end', `url(#topo-arrow-${edge.status})`);
+      eg.append('text')
+        .attr('class', 'edge-label')
         .attr('x', (sx + tx) / 2).attr('y', (sy + ty) / 2 - 8)
         .attr('text-anchor', 'middle')
         .attr('fill', color)
-        .text(e.label);
+        .text(edge.dependsOnModule);
     }
+  }
 
-    // Nodes — rounded cards with a colored header strip.
+  private rectAnchor(node: InstanceNode | undefined):
+      { x: number; y: number; r: number } | null {
+    return node
+      ? { x: node.x + node.w / 2, y: node.y + node.h / 2, r: 0 }
+      : null;
+  }
+
+  /** Container rectangles with their packed module circles. */
+  private renderInstances(root: d3.Selection<SVGGElement, unknown,
+      null, undefined>): void {
     const ng = root.append('g').attr('class', 'nodes');
-    for (const n of this.nodes) {
+    for (const n of this.scene.nodes) {
       const strip = KIND_COLORS[n.instance.kind] ?? '#546e7a';
       const g = ng.append('g')
         .attr('class', 'node')
@@ -308,26 +342,75 @@ export class TopologyGraphViewComponent implements OnChanges {
         .text(truncate(n.instance.kind.toUpperCase(), 24));
 
       g.append('text')
-        .attr('x', 10).attr('y', 46).attr('class', 'node-title')
+        .attr('x', 10).attr('y', 44).attr('class', 'node-title')
         .text(truncate(n.instance.name, 26));
       g.append('text')
-        .attr('x', 10).attr('y', 62).attr('class', 'node-meta')
+        .attr('x', 10).attr('y', 58).attr('class', 'node-meta')
         .text(truncate(
           `${n.instance.dbBackend || 'no db'} · ${n.instance.envTier}`
-          + ` · x${n.instance.replicas}`, 34));
+          + ` · x${n.instance.replicas}`, 40));
       g.append('text')
-        .attr('x', 10).attr('y', 78).attr('class', 'node-meta')
+        .attr('x', 10).attr('y', 71).attr('class', 'node-meta')
         .text(truncate(
           `${n.instance.machineName || 'unplaced'}`
-          + ` → ${n.instance.orchestrationTarget}`, 34));
-      g.append('text')
-        .attr('x', 10).attr('y', 98).attr('class', 'node-modules')
-        .text(n.modules.length
-          ? truncate(n.modules.join('  '), 36)
-          : 'no modules assigned');
-      if (n.modules.length) {
-        g.append('title').text(`modules: ${n.modules.join(', ')}`);
+          + ` → ${n.instance.orchestrationTarget}`, 40));
+
+      if (!n.modules.length) {
+        g.append('text')
+          .attr('x', 10).attr('y', n.h - 12)
+          .attr('class', 'node-modules')
+          .text('no modules assigned');
       }
+      for (const circle of n.modules) {
+        this.renderModuleCircle(g, circle, circle.cx, circle.cy);
+      }
+    }
+  }
+
+  /** One module circle + its nested dependency copies (A3/A4). */
+  private renderModuleCircle(g: d3.Selection<SVGGElement, unknown,
+      null, undefined>, circle: ModuleCircle, cx: number,
+      cy: number): void {
+    const color = CLASSIFICATION_COLORS[circle.classification]
+      ?? '#78909c';
+    const disabled = circle.state === 'disabled';
+    const node = g.append('g')
+      .attr('transform', `translate(${cx},${cy})`)
+      .attr('opacity', disabled ? 0.4 : 1);
+    node.append('circle')
+      .attr('r', circle.r)
+      .attr('class', 'module-circle')
+      .attr('stroke', color)
+      .attr('stroke-width', circle.depth === 0 ? 2 : 1.4)
+      // Border-dash = TRANSIENT COPY (was: service connections).
+      .attr('stroke-dasharray', circle.transient ? '5,4' : null)
+      .attr('fill', color)
+      .attr('fill-opacity', circle.depth === 0 ? 0.10 : 0.14);
+    node.append('title').text(
+      `${circle.module} — ${circle.classification}`
+      + (circle.transient
+         ? ` (transient copy; primary under ${circle.primaryConsumer})`
+         : '')
+      + (disabled ? ' · disabled' : ''));
+    if (circle.depth === 0) {
+      node.append('text')
+        .attr('class', 'module-label')
+        .attr('y', circle.r + 12)
+        .attr('text-anchor', 'middle')
+        .text(truncate(circle.module, 22));
+    } else if (circle.r >= 14 && !circle.children.length) {
+      node.append('text')
+        .attr('class', 'module-label nested')
+        .attr('y', 3)
+        .attr('text-anchor', 'middle')
+        .text(truncate(shortName(circle.module),
+          Math.max(4, Math.floor(circle.r / 3.2))));
+    }
+    for (const child of circle.children) {
+      this.renderModuleCircle(
+        node as unknown as d3.Selection<SVGGElement, unknown, null,
+          undefined>,
+        child, child.cx, child.cy);
     }
   }
 
@@ -335,7 +418,7 @@ export class TopologyGraphViewComponent implements OnChanges {
   // Drill-in drawer
   // ------------------------------------------------------------------
 
-  selectNode(n: GraphNode): void {
+  selectNode(n: InstanceNode): void {
     this.selected = n;
     const g = this.graph;
     if (!g?.ok) { return; }
@@ -371,4 +454,9 @@ export class TopologyGraphViewComponent implements OnChanges {
 
 function truncate(s: string, max: number): string {
   return s.length > max ? s.slice(0, max - 1) + '…' : s;
+}
+
+function shortName(module: string): string {
+  const parts = module.split('.');
+  return parts[parts.length - 1];
 }

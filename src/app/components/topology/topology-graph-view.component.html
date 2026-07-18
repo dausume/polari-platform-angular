@@ -4,14 +4,26 @@
             <span class="legend-item resolved"><span class="swatch"></span> resolved</span>
             <span class="legend-item unresolved"><span class="swatch"></span> unresolved</span>
             <span class="legend-item degraded"><span class="swatch"></span> degraded</span>
+            <span class="legend-item" *ngFor="let key of classificationKeys"
+                  [style.color]="classificationColor(key)"
+                  matTooltip="module classification (circle color)">
+                <span class="dot"></span> {{ key }}</span>
+            <span class="legend-item transient"
+                  matTooltip="a dependency shared by several modules — solid under its primary consumer, dashed copies under the others (duplicates intentional)">
+                <span class="dot dashed"></span> transient copy</span>
+            <button class="legend-toggle" [class.off]="!groupByHost"
+                    (click)="toggleHosts()"
+                    matTooltip="outermost rectangles = host machines (host ▸ container ▸ modules)">
+                🖥 hosts</button>
             <button class="legend-toggle" [class.off]="!showConnections"
                     (click)="toggleConnections()"
-                    matTooltip="lighter dashed edges — the interconnect connections">
-                <span class="swatch dashed"></span> connections</button>
+                    matTooltip="thin colored lines — the interconnect connections">
+                <span class="swatch"></span> connections</button>
             <ng-container *ngIf="showConnections">
                 <button class="legend-toggle key"
                         *ngFor="let key of interconnectKeys"
                         [class.off]="hiddenInterconnects.has(key)"
+                        [style.color]="connectionColor(key)"
                         (click)="toggleInterconnect(key)"
                         matTooltip="toggle this interconnect kind">
                     {{ key }}</button>
@@ -62,6 +74,9 @@
             <h4>Modules</h4>
             <div class="drawer-line" *ngFor="let assignment of selectedAssignments">
                 <span class="drawer-chip module">{{ assignment.moduleName }}</span>
+                <span class="drawer-chip classification"
+                      *ngIf="classificationOf(assignment.moduleName) as cls"
+                      [style.color]="classificationColor(cls)">{{ cls }}</span>
                 <span class="muted">{{ assignment.state }}</span>
             </div>
         </div>
@@ -71,6 +86,9 @@
             <div class="drawer-line" *ngFor="let edge of selectedEdges">
                 <span class="drawer-chip status" [class]="'drawer-chip status ' + edge.status">
                     {{ edge.status }}</span>
+                <span class="drawer-chip transient" *ngIf="edge.isTransient"
+                      matTooltip="shared dependency — this consumer holds a dashed transient copy">
+                    transient</span>
                 <span [matTooltip]="edge.evidence">{{ edgeDirection(edge) }}</span>
             </div>
         </div>
