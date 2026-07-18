@@ -249,3 +249,25 @@
   border: 1px solid #3f51b5;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
 }
+
+// tt-13: move outcome notice.
+.move-notice {
+  margin: 10px 0;
+  padding: 8px 12px;
+  border: 1px solid #c5cae9;
+  border-radius: 10px;
+  background: #e8eaf6;
+  font-size: 12.5px;
+  color: #283593;
+  code {
+    background: rgba(0, 0, 0, 0.06);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 11.5px;
+  }
+  &.error {
+    border-color: #ffccbc;
+    background: #fbe9e7;
+    color: #bf360c;
+  }
+}

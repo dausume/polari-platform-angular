@@ -200,6 +200,26 @@
       border: 1px dashed var(--border-medium, #90a4ae);
       color: var(--text-secondary, #607d8b);
     }
+  }
+  .move-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 3px 0; font-size: 12px;
+    label { width: 84px; color: var(--text-secondary, #666); }
+    select {
+      flex: 1; font-size: 12px; padding: 3px 6px;
+      border-radius: 6px;
+      border: 1px solid var(--border-light, #cfd8dc);
+    }
+  }
+  .move-btn {
+    margin-top: 6px;
+    font-size: 12px; padding: 4px 14px; border-radius: 12px;
+    border: 1px solid #3f51b5; background: #3f51b5; color: #fff;
+    cursor: pointer; width: 100%;
+    &:disabled { opacity: 0.4; }
+  }
+  .move-note { font-size: 11px; margin: 6px 0 0; }
+  .drawer-chip {
     &.classification {
       background: transparent;
       border: 1px solid currentColor;

@@ -21,6 +21,8 @@ import {
   DriftRow,
   DriftReport,
   AssignResult,
+  MoveRequest,
+  MoveResult,
   ResolveResult,
   TestRunResult,
   TopologyTestingReport,
@@ -86,6 +88,19 @@ export class TopologyService {
     if (fromInstance) { body['from_instance'] = fromInstance; }
     return firstValueFrom(this.http.post<AssignResult>(
       this.url('/assign'), body,
+      this.polariService.backendRequestOptions))
+      .catch((err) => err?.error?.ok === false ? err.error : null);
+  }
+
+  /** tt-13: dynamic move — the backend plans module-reassignment
+   *  vs engine-relocation from the target kind; rows persist so
+   *  the move IS the configuration that comes back up. */
+  move(request: MoveRequest): Promise<MoveResult | null> {
+    const body: Record<string, string> = { module: request.module };
+    if (request.toInstance) { body['to_instance'] = request.toInstance; }
+    if (request.toMachine) { body['to_machine'] = request.toMachine; }
+    return firstValueFrom(this.http.post<MoveResult>(
+      this.url('/move'), body,
       this.polariService.backendRequestOptions))
       .catch((err) => err?.error?.ok === false ? err.error : null);
   }

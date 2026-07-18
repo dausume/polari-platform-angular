@@ -33,8 +33,70 @@
         <svg #svgHost class="graph-svg"></svg>
     </div>
 
+    <!-- tt-13 module drawer: where it lives + click-to-move. -->
+    <aside class="graph-drawer" *ngIf="selectedModule">
+        <div class="drawer-title">
+            <mat-icon>radio_button_checked</mat-icon>
+            <span>{{ selectedModule }}</span>
+            <button mat-icon-button (click)="closeModuleDrawer()" matTooltip="Close">
+                <mat-icon>close</mat-icon>
+            </button>
+        </div>
+        <p class="drawer-sub" *ngIf="classificationOf(selectedModule!) as cls">
+            classification: <span [style.color]="classificationColor(cls)">{{ cls }}</span></p>
+
+        <div class="drawer-section">
+            <h4>Where it lives</h4>
+            <div class="drawer-line" *ngFor="let p of selectedModulePlacements">
+                <span class="drawer-chip" [class.transient]="p.state === 'transient'">
+                    {{ p.instance }}</span>
+                <span class="muted">on {{ p.machine }} · {{ p.state }}</span>
+            </div>
+            <p class="muted" *ngIf="!selectedModulePlacements.length">
+                not assigned anywhere in this topology</p>
+        </div>
+
+        <div class="drawer-section">
+            <h4>Move</h4>
+            <div class="move-row">
+                <label>to container</label>
+                <select [(ngModel)]="moveTargetInstance"
+                        (ngModelChange)="moveTargetMachine = ''">
+                    <option value="">—</option>
+                    <option *ngFor="let name of instanceNames()" [value]="name">{{ name }}</option>
+                </select>
+            </div>
+            <div class="move-row">
+                <label>to device</label>
+                <select [(ngModel)]="moveTargetMachine"
+                        (ngModelChange)="moveTargetInstance = ''">
+                    <option value="">—</option>
+                    <option *ngFor="let name of machineNames()" [value]="name">{{ name }}</option>
+                </select>
+            </div>
+            <button class="move-btn"
+                    [disabled]="!moveTargetInstance && !moveTargetMachine"
+                    (click)="requestMove()"
+                    matTooltip="container target = module reassignment (the old spot stays as a dashed transient ghost); device target = engine relocation (the provider instance re-pins; the stack redeploy stays a pol command). Rows persist — this IS the configuration that comes back up.">
+                move {{ selectedModule }}
+                {{ moveTargetInstance ? '→ ' + moveTargetInstance
+                   : moveTargetMachine ? '→ ' + moveTargetMachine : '' }}
+            </button>
+            <p class="muted move-note">moving an engine ≠ moving a module: device
+                targets relocate the whole provider instance; container targets
+                reassign the module and leave a transient ghost behind. Moves are
+                persisted rows — they come back up this way.</p>
+        </div>
+
+        <div class="drawer-section">
+            <a class="drawer-chip module link"
+               [routerLink]="['/module-details', moduleDetailsId(selectedModule!)]">
+                drill into {{ moduleDetailsId(selectedModule!) }} →</a>
+        </div>
+    </aside>
+
     <!-- Drill-in drawer: the instance's rows, nothing hidden. -->
-    <aside class="graph-drawer" *ngIf="selected">
+    <aside class="graph-drawer" *ngIf="selected && !selectedModule">
         <div class="drawer-title">
             <mat-icon>dns</mat-icon>
             <span>{{ selected.instance.name }}</span>

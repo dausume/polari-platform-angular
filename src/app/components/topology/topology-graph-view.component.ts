@@ -1,6 +1,6 @@
 import {
-  Component, ElementRef, Input, NgZone, OnChanges, SimpleChanges,
-  ViewChild,
+  Component, ElementRef, EventEmitter, Input, NgZone, OnChanges,
+  Output, SimpleChanges, ViewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
@@ -9,9 +9,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import * as d3 from 'd3';
 
+import { FormsModule } from '@angular/forms';
 import {
   IntegrationLink, ModuleAssignment, ModuleDependencyEdge,
-  ModuleGraphReport, TopologyConnection, TopologyGraph,
+  ModuleGraphReport, MoveRequest, TopologyConnection, TopologyGraph,
   TopologyTestingReport,
 } from '@models/topology/topology-types';
 import {
@@ -72,8 +73,8 @@ const CONN_PALETTE = [
 @Component({
   standalone: true,
   selector: 'topology-graph-view',
-  imports: [CommonModule, RouterModule, MatButtonModule, MatIconModule,
-            MatTooltipModule],
+  imports: [CommonModule, FormsModule, RouterModule, MatButtonModule,
+            MatIconModule, MatTooltipModule],
   templateUrl: './topology-graph-view.component.html',
   styleUrls: ['./topology-graph-view.component.scss'],
 })
@@ -85,6 +86,9 @@ export class TopologyGraphViewComponent implements OnChanges {
    *  edges green on successful pings with protocol + security
    *  notated. */
   @Input() testing: TopologyTestingReport | null = null;
+  /** tt-13: a move was requested from the module drawer — the page
+   *  executes it (POST /move) and refetches. */
+  @Output() moveRequest = new EventEmitter<MoveRequest>();
 
   @ViewChild('svgHost', { static: true }) svgHost!: ElementRef<SVGSVGElement>;
 
@@ -92,6 +96,12 @@ export class TopologyGraphViewComponent implements OnChanges {
   selectedEdges: ModuleDependencyEdge[] = [];
   selectedConnections: TopologyConnection[] = [];
   selectedAssignments: ModuleAssignment[] = [];
+  /** tt-13 module drawer: the clicked module + its placements. */
+  selectedModule: string | null = null;
+  selectedModulePlacements:
+    Array<{ instance: string; machine: string; state: string }> = [];
+  moveTargetInstance = '';
+  moveTargetMachine = '';
 
   showConnections = true;
   groupByHost = true;
@@ -115,6 +125,50 @@ export class TopologyGraphViewComponent implements OnChanges {
   testStateOf(moduleName: string): string {
     return this.moduleTestState.get(
       moduleName.split('.')[0]) ?? '';
+  }
+
+  /** tt-13: click a module circle → drawer shows exactly where it
+   *  lives (container + host) and offers the move. */
+  selectModule(moduleName: string): void {
+    this.selectedModule = moduleName;
+    this.moveTargetInstance = '';
+    this.moveTargetMachine = '';
+    const machineOf = new Map(
+      (this.graph?.ok ? this.graph.instances : [])
+        .map(i => [i.name, i.machineName || 'unplaced']));
+    this.selectedModulePlacements =
+      (this.graph?.ok ? this.graph.assignments : [])
+        .filter(a => a.moduleName === moduleName)
+        .map(a => ({
+          instance: a.instanceName,
+          machine: machineOf.get(a.instanceName) ?? '',
+          state: a.state,
+        }));
+  }
+
+  closeModuleDrawer(): void {
+    this.selectedModule = null;
+  }
+
+  instanceNames(): string[] {
+    return (this.graph?.ok ? this.graph.instances : [])
+      .map(i => i.name).sort();
+  }
+
+  machineNames(): string[] {
+    return (this.graph?.ok ? this.graph.machines : [])
+      .map(m => m.name).sort();
+  }
+
+  requestMove(): void {
+    if (!this.selectedModule) { return; }
+    if (this.moveTargetInstance) {
+      this.moveRequest.emit({ module: this.selectedModule,
+                              toInstance: this.moveTargetInstance });
+    } else if (this.moveTargetMachine) {
+      this.moveRequest.emit({ module: this.selectedModule,
+                              toMachine: this.moveTargetMachine });
+    }
   }
 
   /** tt-9 parity with the tech tree: center the viewport on the
@@ -513,9 +567,19 @@ export class TopologyGraphViewComponent implements OnChanges {
       ?? CLASSIFICATION_COLORS[circle.classification]
       ?? '#78909c';
     const disabled = circle.state === 'disabled';
+    // tt-13: a 'transient' ASSIGNMENT is a ghost at the module's
+    // former location — dashed, faded, inert, one click to return.
+    const ghost = circle.state === 'transient';
     const node = g.append('g')
       .attr('transform', `translate(${cx},${cy})`)
-      .attr('opacity', disabled ? 0.4 : 1);
+      .attr('opacity', disabled ? 0.4 : ghost ? 0.45 : 1);
+    if (circle.depth === 0) {
+      node.style('cursor', 'pointer')
+        .on('click', (ev: Event) => {
+          ev.stopPropagation();
+          this.zone.run(() => this.selectModule(circle.module));
+        });
+    }
     if (circle.transient && circle.primaryConsumer) {
       // tt-9 parity: a dashed transient copy zooms to wherever the
       // primary consumer actually lives (same as tech-tree chips).
@@ -531,8 +595,10 @@ export class TopologyGraphViewComponent implements OnChanges {
       .attr('class', 'module-circle')
       .attr('stroke', color)
       .attr('stroke-width', circle.depth === 0 ? 2 : 1.4)
-      // Border-dash = TRANSIENT COPY (was: service connections).
-      .attr('stroke-dasharray', circle.transient ? '5,4' : null)
+      // Border-dash = TRANSIENT (shared-dep copy OR tt-13 moved-
+      // away ghost); was: service connections.
+      .attr('stroke-dasharray',
+        circle.transient || ghost ? '5,4' : null)
       .attr('fill', color)
       .attr('fill-opacity', circle.depth === 0 ? 0.10 : 0.14);
     node.append('title').text(
@@ -542,6 +608,8 @@ export class TopologyGraphViewComponent implements OnChanges {
          ? ` (transient copy; primary under ${circle.primaryConsumer}`
            + ' — click to zoom there)'
          : '')
+      + (ghost ? ' · TRANSIENT GHOST — moved away; click to move '
+                 + 'it back' : '')
       + (disabled ? ' · disabled' : ''));
     if (circle.depth === 0) {
       // tt-11: word-wrapped label lines (packing pads for them).

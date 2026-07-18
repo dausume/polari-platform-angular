@@ -7,7 +7,8 @@ import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
 import { TopologyService } from '@services/topology/topology.service';
 import {
   AssignResult, DriftReport, ModuleAssignment, ModuleGraphReport,
-  TopologyGraph, TopologyInstance, TopologySummary, ValidateReport,
+  MoveRequest, MoveResult, TopologyGraph, TopologyInstance,
+  TopologySummary, ValidateReport,
 } from '@models/topology/topology-types';
 import {
   TopologyGraphViewComponent,
@@ -162,6 +163,37 @@ export class TopologyHomeComponent implements OnInit {
     // Refetch either way: the rows are the truth, not the drag —
     // and the assign re-resolves + re-designates edges, so the
     // module graph (transient/primary) moves with it.
+    const [fresh, freshModules] = await Promise.all([
+      this.topologyService.graph(this.activeTopology || undefined),
+      this.topologyService.moduleGraph(
+        this.activeTopology || undefined),
+    ]);
+    if (fresh?.ok) {
+      this.graph = fresh;
+      this.rebuildModuleChips();
+    }
+    if (freshModules?.ok) { this.moduleGraph = freshModules; }
+    this.assigning = false;
+  }
+
+  // ------------------------------------------------------------------
+  // tt-13: click-to-move from the module drawer.
+  // ------------------------------------------------------------------
+
+  moveNotice: MoveResult | null = null;
+  moveError = '';
+
+  async onMoveRequest(request: MoveRequest): Promise<void> {
+    this.assigning = true;
+    this.moveError = '';
+    this.moveNotice = null;
+    const result = await this.topologyService.move(request);
+    if (result?.ok) {
+      this.moveNotice = result;
+    } else {
+      this.moveError = result?.error
+        || `move of ${request.module} did not land — rows unchanged`;
+    }
     const [fresh, freshModules] = await Promise.all([
       this.topologyService.graph(this.activeTopology || undefined),
       this.topologyService.moduleGraph(

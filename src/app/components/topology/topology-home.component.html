@@ -131,8 +131,27 @@
     <div class="status-line" *ngIf="assigning">Writing assignment…</div>
 
     <!-- The topology as the node graph it is -->
+    <div class="move-notice" *ngIf="moveNotice">
+        <strong>{{ moveNotice!.moveKind === 'engine-relocation'
+            ? 'engine relocated' : 'module moved' }}</strong>
+        — {{ moveNotice!.note }}
+        <ng-container *ngIf="moveNotice!.moveKind === 'engine-relocation'">
+            <div>instance <code>{{ moveNotice!.instance }}</code>:
+                {{ moveNotice!.fromMachine }} → {{ moveNotice!.toMachine }}</div>
+            <div>next (human-run):
+                <code *ngFor="let cmd of moveNotice!.suggestedCommands">{{ cmd }}&nbsp;</code></div>
+        </ng-container>
+        <ng-container *ngIf="moveNotice!.moveKind === 'module-reassignment'">
+            <div>{{ moveNotice!.module }} → {{ moveNotice!.toInstance }};
+                ghosts at: {{ moveNotice!.fromInstances?.join(', ') || 'none' }}</div>
+            <div>next (human-run): <code>{{ moveNotice!.suggestedCommand }}</code></div>
+        </ng-container>
+    </div>
+    <div class="move-notice error" *ngIf="moveError">{{ moveError }}</div>
+
     <topology-graph-view [graph]="graph"
-                         [moduleGraph]="moduleGraph"></topology-graph-view>
+                         [moduleGraph]="moduleGraph"
+                         (moveRequest)="onMoveRequest($event)"></topology-graph-view>
 
     <!-- Instance cards: drag module chips between cards -->
     <h3 class="section-head">Instances</h3>

@@ -213,6 +213,32 @@ export interface ResolveResult {
   changed: unknown[];
 }
 
+/** tt-13: dynamic move (POST /api/topology/move) — container
+ *  target = module reassignment (former spots become transient
+ *  ghosts); device target = engine relocation (instance re-pins;
+ *  stack redeploy stays a human pol command). */
+export interface MoveRequest {
+  module: string;
+  toInstance?: string;
+  toMachine?: string;
+}
+
+export interface MoveResult {
+  ok: boolean;
+  error?: string;
+  moveKind?: 'module-reassignment' | 'engine-relocation';
+  module?: string;
+  toInstance?: string;
+  fromInstances?: string[];
+  instance?: string;
+  fromMachine?: string;
+  toMachine?: string;
+  placementConstraint?: string;
+  suggestedCommand?: string;
+  suggestedCommands?: string[];
+  note?: string;
+}
+
 /** tt-11: testing over topology (GET /api/topology/testing) — the
  *  graph doubles as the progress visualization of testing. */
 export type ModuleTestState = 'pass' | 'fail' | 'never-run'
