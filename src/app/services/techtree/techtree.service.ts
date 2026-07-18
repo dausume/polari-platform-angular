@@ -38,6 +38,16 @@ export class TechTreeService {
       .catch((err) => err?.error?.ok === false ? err.error : null);
   }
 
+  /** B6: any org creates its own tree — a row write, nothing more.
+   *  Nodes/segments follow via the node/assignment upserts. */
+  createDefinition(name: string, owner: string, description: string):
+      Promise<{ ok: boolean; error?: string } | null> {
+    return firstValueFrom(this.http.post<{ ok: boolean }>(
+      this.url('/definition'), { name, owner, description },
+      this.polariService.backendRequestOptions))
+      .catch((err) => err?.error?.ok === false ? err.error : null);
+  }
+
   validate(name?: string): Promise<TechTreeValidateReport | null> {
     return firstValueFrom(this.http.post<TechTreeValidateReport>(
       this.url('/validate'), name ? { name } : {},

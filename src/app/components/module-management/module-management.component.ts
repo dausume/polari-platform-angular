@@ -15,6 +15,13 @@ import { ClassTypingService } from '@services/class-typing-service';
 import { ModuleDisableConfirmDialogComponent, ModuleDisableConfirmData } from './module-disable-confirm-dialog';
 import { CreateModuleDialogComponent, CreateModuleDialogResult } from './create-module-dialog';
 import { ModuleDependencyExplorerComponent } from './module-dependency-explorer.component';
+import { TopologyService } from '@services/topology/topology.service';
+import {
+  ModuleGraphReport, TopologyGraph,
+} from '@models/topology/topology-types';
+import {
+  TopologyGraphViewComponent,
+} from '@components/topology/topology-graph-view.component';
 
 interface ModuleInfo {
   id: string;
@@ -107,6 +114,25 @@ interface ModuleInfo {
         <span>{{ toggleMessage }}</span>
       </div>
 
+      <!-- tt-7 (A6 convergence): the SAME circle/nesting renderer the
+           Topology tab uses, as a modules view — circles classified by
+           role, deps nested, transient copies dashed. The cards above
+           stay the enable/disable actions; the text tree below stays
+           the fallback/list view. -->
+      <div class="module-graph-section" *ngIf="topologyGraph?.ok">
+        <h3 (click)="showGraph = !showGraph">
+          <mat-icon>{{ showGraph ? 'expand_less' : 'expand_more' }}</mat-icon>
+          Module graph
+          <span class="muted">— circles by classification, dependencies
+            nested, dashed = transient copy (same renderer as the
+            Topology tab)</span>
+        </h3>
+        <topology-graph-view *ngIf="showGraph"
+                             [graph]="topologyGraph"
+                             [moduleGraph]="moduleGraph">
+        </topology-graph-view>
+      </div>
+
       <!-- Boundary + dependency explorer (msci-21): the coherent-module
            map, requires-trees, and the union install plan. -->
       <module-dependency-explorer></module-dependency-explorer>
@@ -163,11 +189,19 @@ interface ModuleInfo {
     .error-message { background: #fdecea; color: #b71c1c; }
     .toggle-message.success { background: #e8f5e9; color: #1b5e20; }
     .toggle-message.error { background: #fdecea; color: #b71c1c; }
+    .module-graph-section {
+      margin-top: 24px;
+      h3 {
+        display: flex; align-items: center; gap: 6px;
+        font-size: 15px; cursor: pointer; margin: 0 0 4px;
+      }
+      .muted { font-weight: 400; font-size: 12px; color: #999; }
+    }
   `],
   imports: [
     CommonModule, MatCardModule, MatIconModule, MatButtonModule,
     MatSlideToggleModule, MatProgressSpinnerModule, MatChipsModule, MatDialogModule,
-    ModuleDependencyExplorerComponent
+    ModuleDependencyExplorerComponent, TopologyGraphViewComponent
   ]
 })
 export class ModuleManagementComponent implements OnInit, OnDestroy {
@@ -179,16 +213,32 @@ export class ModuleManagementComponent implements OnInit, OnDestroy {
   creating = false;
   toggleMessage: string | null = null;
   toggleError = false;
+  // tt-7 (A6): the modules view of the circle/nesting renderer.
+  topologyGraph: TopologyGraph | null = null;
+  moduleGraph: ModuleGraphReport | null = null;
+  showGraph = true;
   private subscriptions: Subscription[] = [];
 
-  constructor(private http: HttpClient, private polariService: PolariService, private typingService: ClassTypingService, private dialog: MatDialog, private router: Router) {}
+  constructor(private http: HttpClient, private polariService: PolariService, private typingService: ClassTypingService, private dialog: MatDialog, private router: Router,
+              private topologyService: TopologyService) {}
 
   ngOnInit(): void {
     this.subscriptions.push(
       this.polariService.connectionSuccessSubject.subscribe(isConnected => {
-        if (isConnected) { this.loadModules(); }
+        if (isConnected) {
+          this.loadModules();
+          this.loadModuleGraph();
+        }
       })
     );
+  }
+
+  /** Non-fatal: the cards work without the topology answering. */
+  private async loadModuleGraph(): Promise<void> {
+    [this.topologyGraph, this.moduleGraph] = await Promise.all([
+      this.topologyService.graph(),
+      this.topologyService.moduleGraph(),
+    ]);
   }
 
   ngOnDestroy(): void {

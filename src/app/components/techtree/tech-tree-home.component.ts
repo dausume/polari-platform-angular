@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
@@ -20,8 +21,8 @@ import { TechTreeViewComponent } from './tech-tree-view.component';
 @Component({
   standalone: true,
   selector: 'tech-tree-home',
-  imports: [CommonModule, MatIconModule, MatTooltipModule,
-            TechTreeViewComponent],
+  imports: [CommonModule, FormsModule, MatIconModule,
+            MatTooltipModule, TechTreeViewComponent],
   templateUrl: './tech-tree-home.component.html',
   styleUrls: ['./tech-tree-home.component.scss'],
 })
@@ -58,6 +59,7 @@ export class TechTreeHomeComponent implements OnInit {
   async select(name: string): Promise<void> {
     this.activeTree = name;
     this.loading = true;
+    this.loadError = '';
     this.payload = await this.techTreeService.tree(name);
     this.loading = false;
     if (!this.payload?.ok) {
@@ -68,5 +70,39 @@ export class TechTreeHomeComponent implements OnInit {
 
   percent(level: number | undefined | null): string {
     return `${Math.round((level ?? 0) * 100)}%`;
+  }
+
+  // ------------------------------------------------------------------
+  // B6: per-org trees — a business's tree is the technologies it
+  // depends on to operate. Creation is one row write; nodes and
+  // assignments follow through the same upserts the seed uses.
+  // ------------------------------------------------------------------
+
+  showCreate = false;
+  creating = false;
+  createError = '';
+  newTree = { name: '', owner: '', description: '' };
+
+  async createTree(): Promise<void> {
+    const name = this.newTree.name.trim();
+    if (!name) {
+      this.createError = 'a tree needs a name';
+      return;
+    }
+    this.creating = true;
+    this.createError = '';
+    const result = await this.techTreeService.createDefinition(
+      name, this.newTree.owner.trim(),
+      this.newTree.description.trim());
+    this.creating = false;
+    if (!result?.ok) {
+      this.createError = result?.error
+        || 'create did not land (POST /api/techtree/definition)';
+      return;
+    }
+    this.showCreate = false;
+    this.newTree = { name: '', owner: '', description: '' };
+    this.summary = await this.techTreeService.summary();
+    await this.select(name);
   }
 }

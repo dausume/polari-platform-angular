@@ -12,15 +12,20 @@
 
     <ng-container *ngIf="payload?.ok">
         <div class="tree-bar">
-            <div class="tree-tabs" *ngIf="summary && summary.trees.length > 1">
-                <button *ngFor="let tree of summary!.trees"
-                        class="tree-tab"
-                        [class.active]="tree.name === activeTree"
-                        (click)="select(tree.name)"
-                        [matTooltip]="tree.description">
-                    {{ tree.name }}
-                    <span class="badge baseline" *ngIf="tree.isBaseline">baseline</span>
-                </button>
+            <div class="tree-tabs">
+                <ng-container *ngIf="summary && summary.trees.length > 1">
+                    <button *ngFor="let tree of summary!.trees"
+                            class="tree-tab"
+                            [class.active]="tree.name === activeTree"
+                            (click)="select(tree.name)"
+                            [matTooltip]="tree.description">
+                        {{ tree.name }}
+                        <span class="badge baseline" *ngIf="tree.isBaseline">baseline</span>
+                    </button>
+                </ng-container>
+                <button class="tree-tab new" (click)="showCreate = !showCreate"
+                        matTooltip="per-org trees: a business's tree = the technologies it depends on to operate">
+                    + new tree</button>
             </div>
             <div class="tree-meta">
                 <span class="tree-name">{{ payload!.tree.name }}</span>
@@ -40,6 +45,20 @@
                 </div>
                 <span class="completion-text">{{ percent(payload!.tree.completionLevel) }}</span>
             </div>
+        </div>
+
+        <div class="create-tree" *ngIf="showCreate">
+            <input placeholder="tree name (e.g. my-print-shop)"
+                   [(ngModel)]="newTree.name" (keyup.enter)="createTree()">
+            <input placeholder="owner (org / business)"
+                   [(ngModel)]="newTree.owner" (keyup.enter)="createTree()">
+            <input class="wide" placeholder="description"
+                   [(ngModel)]="newTree.description" (keyup.enter)="createTree()">
+            <button (click)="createTree()" [disabled]="creating">
+                {{ creating ? 'creating…' : 'create' }}</button>
+            <span class="create-error" *ngIf="createError">{{ createError }}</span>
+            <span class="muted">then add technologies via
+                POST /api/techtree/node + /assignment (row-level, same as the seed)</span>
         </div>
 
         <tech-tree-view [payload]="payload"></tech-tree-view>
