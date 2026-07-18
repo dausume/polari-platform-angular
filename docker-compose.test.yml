@@ -22,6 +22,11 @@ services:
       - ./tsconfig.spec.json:/app/tsconfig.spec.json:ro
       # Mount coverage output directory
       - ./coverage:/app/coverage
+    # The trap hands the bind-mounted coverage/ back to the HOST user on exit —
+    # tests run as root (Chrome + image-owned /app caches), and without this
+    # the host is left with root-owned coverage/ (docker even creates the dir
+    # root-owned if missing). Export UID/GID or it falls back to 1000:1000.
+    command: sh -c 'trap "chown -R ${UID:-1000}:${GID:-1000} /app/coverage" EXIT; /app/run-tests.sh'
     # Only attach to network in fullstack mode
     networks:
       - polari-test-network
