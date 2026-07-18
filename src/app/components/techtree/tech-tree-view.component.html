@@ -1,0 +1,58 @@
+<div class="graph-shell">
+    <div class="graph-canvas">
+        <div class="graph-legend" *ngIf="payload?.ok">
+            <span class="legend-item"
+                  *ngFor="let kind of payload!.segmentColors | keyvalue"
+                  [style.color]="kind.value"
+                  matTooltip="segment band — exists only when populated; fills with completion">
+                <span class="square"></span> {{ kind.key }}</span>
+            <span class="legend-item transient"
+                  matTooltip="a technology needed by several others — solid under its primary dependent, dashed copies elsewhere (duplicates intentional)">
+                <span class="square dashed"></span> transient copy</span>
+            <span class="legend-hint">scroll to zoom · drag to pan · click a technology for details</span>
+        </div>
+        <svg #svgHost class="graph-svg"></svg>
+    </div>
+
+    <!-- Drill-in drawer: the technology's derived state, nothing hidden. -->
+    <aside class="graph-drawer" *ngIf="selected">
+        <div class="drawer-title">
+            <mat-icon>account_tree</mat-icon>
+            <span>{{ selected.title }}</span>
+            <button mat-icon-button (click)="closeDrawer()" matTooltip="Close">
+                <mat-icon>close</mat-icon>
+            </button>
+        </div>
+        <p class="drawer-sub">completion {{ percent(selected.completionLevel) }}
+            <span *ngIf="selected.description"> · {{ selected.description }}</span></p>
+
+        <div class="drawer-section" *ngFor="let seg of selected.segments">
+            <h4 [style.color]="seg.color">{{ segmentLabel(seg.kind) }}
+                — {{ seg.done }}/{{ seg.total }}
+                <span class="muted">(weight {{ seg.weight }})</span></h4>
+            <div class="drawer-line" *ngFor="let a of seg.assignments">
+                <span class="drawer-chip" [class.done]="a.done"
+                      [class.undone]="!a.done"
+                      [matTooltip]="a.evidence">
+                    {{ a.done ? '✓' : '✗' }} {{ a.refName }}</span>
+                <span class="muted" *ngIf="!a.done && a.action"
+                      [matTooltip]="'knob: ' + a.knob">{{ a.action }}</span>
+            </div>
+        </div>
+
+        <div class="drawer-section" *ngIf="selected.dependsOn.length">
+            <h4>Depends on</h4>
+            <span class="drawer-chip" *ngFor="let dep of selected.dependsOn">
+                {{ dep }}</span>
+        </div>
+
+        <div class="drawer-section" *ngIf="selected.gaps?.length">
+            <h4>Gaps (suggestions — nothing auto-applies)</h4>
+            <div class="drawer-line gap" *ngFor="let gap of selected.gaps">
+                <span class="drawer-chip undone">{{ gap.subject }}</span>
+                <span [matTooltip]="'knob: ' + gap.knob">{{ gap.evidence }}
+                    <em *ngIf="gap.action"> → {{ gap.action }}</em></span>
+            </div>
+        </div>
+    </aside>
+</div>

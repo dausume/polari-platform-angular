@@ -1,0 +1,66 @@
+<div class="tech-tree-page">
+    <div class="page-header">
+        <h2><mat-icon>account_tree</mat-icon> Tech Tree</h2>
+        <p class="page-sub">Technologies with theory / real / business /
+            politics segments — completion is derived from modules and
+            evidence, never hand-set. A complete baseline tree = the
+            <strong>Open Source Economic Baseline</strong>.</p>
+    </div>
+
+    <div class="load-error" *ngIf="loadError && !loading">{{ loadError }}</div>
+    <div class="loading" *ngIf="loading">loading tree…</div>
+
+    <ng-container *ngIf="payload?.ok">
+        <div class="tree-bar">
+            <div class="tree-tabs" *ngIf="summary && summary.trees.length > 1">
+                <button *ngFor="let tree of summary!.trees"
+                        class="tree-tab"
+                        [class.active]="tree.name === activeTree"
+                        (click)="select(tree.name)"
+                        [matTooltip]="tree.description">
+                    {{ tree.name }}
+                    <span class="badge baseline" *ngIf="tree.isBaseline">baseline</span>
+                </button>
+            </div>
+            <div class="tree-meta">
+                <span class="tree-name">{{ payload!.tree.name }}</span>
+                <span class="badge baseline" *ngIf="payload!.tree.isBaseline"
+                      matTooltip="the canonical Open-Source-Economic-Baseline tree">
+                    baseline</span>
+                <span class="badge owner" *ngIf="payload!.tree.owner">
+                    {{ payload!.tree.owner }}</span>
+                <span class="badge achieved" *ngIf="payload!.tree.baselineAchieved">
+                    ✓ baseline achieved</span>
+            </div>
+            <div class="completion-bar" matTooltip="mean node completion (derived)">
+                <div class="completion-track">
+                    <div class="completion-fill"
+                         [class.complete]="payload!.tree.baselineAchieved"
+                         [style.width]="percent(payload!.tree.completionLevel)"></div>
+                </div>
+                <span class="completion-text">{{ percent(payload!.tree.completionLevel) }}</span>
+            </div>
+        </div>
+
+        <tech-tree-view [payload]="payload"></tech-tree-view>
+
+        <div class="gaps-panel" *ngIf="payload!.gaps.length">
+            <h3 (click)="showGaps = !showGaps">
+                <mat-icon>{{ showGaps ? 'expand_less' : 'expand_more' }}</mat-icon>
+                {{ payload!.gaps.length }} gaps to the baseline
+                <span class="muted">— every row names its knob and action; nothing auto-applies</span>
+            </h3>
+            <table class="gaps-table" *ngIf="showGaps">
+                <tr>
+                    <th>subject</th><th>evidence</th><th>knob</th><th>action</th>
+                </tr>
+                <tr *ngFor="let gap of payload!.gaps">
+                    <td class="subject">{{ gap.subject }}</td>
+                    <td>{{ gap.evidence }}</td>
+                    <td class="knob">{{ gap.knob }}</td>
+                    <td class="action">{{ gap.action }}</td>
+                </tr>
+            </table>
+        </div>
+    </ng-container>
+</div>

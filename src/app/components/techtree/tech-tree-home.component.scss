@@ -1,0 +1,101 @@
+// Tech Tree page (tt-4).
+
+.tech-tree-page {
+  padding: 16px 20px 28px;
+}
+
+.page-header {
+  h2 {
+    display: flex; align-items: center; gap: 8px;
+    margin: 0 0 4px; font-size: 20px;
+  }
+  .page-sub {
+    margin: 0; font-size: 13px;
+    color: var(--text-secondary, #666);
+    max-width: 760px;
+  }
+}
+
+.loading, .load-error {
+  margin: 18px 0; font-size: 13.5px;
+  color: var(--text-secondary, #666);
+}
+.load-error { color: var(--color-error-text, #bf360c); }
+
+.tree-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  margin-top: 14px;
+
+  .tree-tabs { display: flex; gap: 6px; }
+  .tree-tab {
+    font-size: 12px; padding: 3px 10px; border-radius: 12px;
+    border: 1px solid var(--border-medium, #b0bec5);
+    background: var(--surface-primary, #fff);
+    color: #607d8b; cursor: pointer;
+    &.active { border-color: #3f51b5; color: #3f51b5; font-weight: 600; }
+  }
+  .tree-meta {
+    display: flex; align-items: center; gap: 8px;
+    .tree-name { font-weight: 700; font-size: 15px; }
+  }
+  .badge {
+    font-size: 10.5px; padding: 1px 8px; border-radius: 10px;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    &.baseline { background: #e8eaf6; color: #3949ab; }
+    &.owner { background: var(--surface-hover, #eceff1); color: #607d8b; }
+    &.achieved { background: #e8f5e9; color: #1b5e20; font-weight: 700; }
+  }
+  .completion-bar {
+    display: flex; align-items: center; gap: 8px;
+    flex: 1; min-width: 220px; max-width: 420px;
+    .completion-track {
+      flex: 1; height: 10px; border-radius: 5px;
+      background: rgba(0, 0, 0, 0.08); overflow: hidden;
+    }
+    .completion-fill {
+      height: 100%; background: #1e88e5; border-radius: 5px;
+      transition: width 300ms;
+      &.complete { background: #2e7d32; }
+    }
+    .completion-text {
+      font-size: 12.5px; font-family: monospace; font-weight: 700;
+    }
+  }
+}
+
+.gaps-panel {
+  margin-top: 16px;
+  border: 1px solid var(--border-light, #e0e0e0);
+  border-radius: 12px;
+  padding: 10px 14px;
+  background: var(--surface-primary, #fff);
+
+  h3 {
+    display: flex; align-items: center; gap: 6px;
+    margin: 0; font-size: 14px; cursor: pointer;
+    .muted {
+      font-weight: 400; font-size: 12px;
+      color: var(--text-secondary, #999);
+    }
+  }
+  .gaps-table {
+    width: 100%; margin-top: 8px; font-size: 12px;
+    border-collapse: collapse;
+    th {
+      text-align: left; font-size: 11px; text-transform: uppercase;
+      letter-spacing: 0.04em; color: var(--text-secondary, #888);
+      padding: 4px 8px 4px 0;
+    }
+    td {
+      padding: 4px 8px 4px 0;
+      border-top: 1px dashed rgba(0, 0, 0, 0.08);
+      vertical-align: top;
+    }
+    .subject { font-family: monospace; white-space: nowrap; }
+    .knob { font-family: monospace; color: #607d8b; }
+    .action { color: #1565c0; }
+  }
+}

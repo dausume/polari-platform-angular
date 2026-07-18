@@ -40,6 +40,7 @@ export class ClassTypingService {
         new navComponent("Materials","display/materials","MaterialsHomeComponent", {}, []),
         new navComponent("Scoring","scoring","ScoringHomeComponent", {}, []),
         new navComponent("Topology","topology","TopologyHomeComponent", {}, []),
+        new navComponent("Tech Tree","tech-tree","TechTreeHomeComponent", {}, []),
         new navComponent("Module Management","module-management","ModuleManagementComponent", {}, []),
         new navComponent("Tables","tables","TablesComponent", {}, []),
         new navComponent("Graphs","graphs","GraphsComponent", {}, []),
