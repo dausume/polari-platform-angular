@@ -69,6 +69,7 @@ const routes: Routes = [
   { path: 'topology', loadComponent: () => import('@components/topology/topology-home.component').then(m => m.TopologyHomeComponent) },
   { path: 'tech-tree', loadComponent: () => import('@components/techtree/tech-tree-home.component').then(m => m.TechTreeHomeComponent) },
   { path: 'testing', loadComponent: () => import('@components/testing/testing-home.component').then(m => m.TestingHomeComponent) },
+  { path: 'apps', loadComponent: () => import('@components/apps/apps-home.component').then(m => m.AppsHomeComponent) },
   { path: 'display/:id', loadComponent: () => import('@components/dashboard/display-page/display-page').then(m => m.DisplayPageComponent) }
 ];
 

@@ -1,0 +1,57 @@
+<div class="apps-page">
+    <div class="page-header">
+        <h2><mat-icon>apps</mat-icon> Polari-Apps</h2>
+        <p class="page-sub">Configurations of modules for a particular
+            capability or use-case. Deployment is <strong>plan-first and
+            exportable</strong> — download the package and apply it later with
+            <code>pol apps deploy &lt;file.json&gt;</code>; nothing deploys on
+            the spot, and container deploys always stay a human-run
+            <code>pol topology apply</code>.</p>
+    </div>
+
+    <div class="load-error" *ngIf="loadError && !loading">{{ loadError }}</div>
+    <div class="loading" *ngIf="loading">loading apps…</div>
+
+    <div class="app-cards">
+        <div class="app-card" *ngFor="let app of apps">
+            <div class="card-head">
+                <h3>{{ app.title }}</h3>
+                <span class="readiness" *ngIf="plan(app.name) as p"
+                      [matTooltip]="'fraction of the app\'s modules already placed on the active topology'">
+                    {{ percent(p.readiness) }} placed</span>
+            </div>
+            <p class="use-case">{{ app.useCase }}</p>
+            <p class="description">{{ app.description }}</p>
+
+            <div class="section" *ngIf="plan(app.name) as p">
+                <h4>Plan on '{{ p.topology }}'</h4>
+                <div class="placement" *ngFor="let pl of p.placements">
+                    <span class="state" [class.ok]="pl.status === 'already-placed'"
+                          [class.todo]="pl.status === 'needs-assignment'"
+                          [class.missing]="pl.status === 'missing'">
+                        {{ pl.status === 'already-placed' ? '✓'
+                           : pl.status === 'needs-assignment' ? '→' : '✗' }}</span>
+                    <a class="module-link"
+                       [routerLink]="['/module-details', moduleDetailsId(pl.module)]">
+                        {{ pl.module }}</a>
+                    <span class="where">{{ pl.instances.join(', ')
+                        || pl.suggestedCommand }}</span>
+                </div>
+            </div>
+
+            <div class="section" *ngIf="app.pages.length">
+                <h4>Front doors</h4>
+                <a class="page-chip" *ngFor="let page of app.pages"
+                   [routerLink]="page">{{ page }}</a>
+            </div>
+
+            <div class="actions">
+                <button class="export-btn" (click)="exportApp(app.name)"
+                        matTooltip="download the credential-free polari-app-package JSON — deploy it later with pol apps deploy">
+                    ⬇ export package
+                </button>
+                <code class="cli-hint">pol apps deploy {{ app.name }}.polari-app.json</code>
+            </div>
+        </div>
+    </div>
+</div>

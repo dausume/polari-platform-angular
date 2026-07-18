@@ -1,0 +1,109 @@
+// Polari-Apps page (tt-12).
+
+.apps-page { padding: 16px 20px 28px; }
+
+.page-header {
+  h2 {
+    display: flex; align-items: center; gap: 8px;
+    margin: 0 0 4px; font-size: 20px;
+  }
+  .page-sub {
+    margin: 0; font-size: 13px;
+    color: var(--text-secondary, #666);
+    max-width: 800px;
+    code {
+      background: rgba(0, 0, 0, 0.05); border-radius: 4px;
+      padding: 1px 5px; font-size: 12px;
+    }
+  }
+}
+
+.loading, .load-error {
+  margin: 18px 0; font-size: 13.5px;
+  color: var(--text-secondary, #666);
+}
+.load-error { color: var(--color-error-text, #bf360c); }
+
+.app-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.app-card {
+  border: 1px solid var(--border-light, #e0e0e0);
+  border-radius: 12px;
+  background: var(--surface-primary, #fff);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  .card-head {
+    display: flex; align-items: baseline; gap: 10px;
+    h3 { margin: 0; font-size: 16px; flex: 1; }
+    .readiness {
+      font-size: 11.5px; font-family: monospace; font-weight: 700;
+      background: #e8eaf6; color: #3949ab;
+      border-radius: 10px; padding: 1px 8px; white-space: nowrap;
+    }
+  }
+  .use-case {
+    margin: 0; font-size: 13px; font-style: italic;
+    color: var(--text-secondary, #607d8b);
+  }
+  .description {
+    margin: 0; font-size: 12.5px;
+    color: var(--text-secondary, #666);
+  }
+  .section {
+    h4 {
+      margin: 4px 0; font-size: 11px; text-transform: uppercase;
+      letter-spacing: 0.04em; color: var(--text-secondary, #888);
+    }
+  }
+  .placement {
+    display: flex; gap: 8px; align-items: baseline;
+    font-size: 12.5px; padding: 1px 0;
+    .state {
+      width: 16px; font-weight: 700;
+      &.ok { color: #2e7d32; }
+      &.todo { color: #1565c0; }
+      &.missing { color: #c62828; }
+    }
+    .module-link {
+      font-family: monospace; color: #1565c0;
+      text-decoration: none;
+      &:hover { text-decoration: underline; }
+    }
+    .where {
+      font-size: 11.5px; color: var(--text-tertiary, #9e9e9e);
+      word-break: break-word;
+    }
+  }
+  .page-chip {
+    display: inline-block;
+    font-size: 11.5px; font-family: monospace;
+    background: var(--color-info-bg, #e3f2fd);
+    color: var(--color-info-text, #1565c0);
+    border-radius: 10px; padding: 1px 8px;
+    margin: 0 4px 4px 0; text-decoration: none;
+    &:hover { text-decoration: underline; }
+  }
+  .actions {
+    display: flex; align-items: center; gap: 10px;
+    margin-top: auto; padding-top: 8px;
+    border-top: 1px dashed rgba(0, 0, 0, 0.08);
+    .export-btn {
+      font-size: 12px; padding: 4px 14px; border-radius: 12px;
+      border: 1px solid #3f51b5; background: transparent;
+      color: #3f51b5; cursor: pointer;
+      &:hover { background: rgba(63, 81, 181, 0.08); }
+    }
+    .cli-hint {
+      font-size: 10.5px; color: var(--text-tertiary, #9e9e9e);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+  }
+}

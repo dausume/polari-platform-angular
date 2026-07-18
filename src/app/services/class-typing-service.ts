@@ -42,6 +42,7 @@ export class ClassTypingService {
         new navComponent("Topology","topology","TopologyHomeComponent", {}, []),
         new navComponent("Tech Tree","tech-tree","TechTreeHomeComponent", {}, []),
         new navComponent("Testing","testing","TestingHomeComponent", {}, []),
+        new navComponent("Polari-Apps","apps","AppsHomeComponent", {}, []),
         new navComponent("Module Management","module-management","ModuleManagementComponent", {}, []),
         new navComponent("Tables","tables","TablesComponent", {}, []),
         new navComponent("Graphs","graphs","GraphsComponent", {}, []),
