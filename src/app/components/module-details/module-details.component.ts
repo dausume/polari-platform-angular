@@ -25,6 +25,20 @@ interface ClassDetail {
   referencedBy: string[];
   inheritsFrom: string[];
   detailsAvailable: boolean;
+  /** tt-10: live row count — the 'data it defines' quick-nav. */
+  instanceCount?: number;
+}
+
+/** tt-10 drill-in map entries (GET /modules/{id}). */
+interface ModulePage {
+  name: string;
+  sourceClass: string;
+  route: string;
+}
+
+interface ModuleSelftests {
+  suites: string[];
+  command: string;
 }
 
 interface PolariDependency {
@@ -45,6 +59,9 @@ interface ModuleDetail {
   classes: ClassDetail[];
   pythonDependencies: string[];
   polariDependencies: PolariDependency[];
+  pages?: ModulePage[];
+  apiRoutes?: string[];
+  selftests?: ModuleSelftests;
 }
 
 @Component({
@@ -112,7 +129,80 @@ interface ModuleDetail {
             </div>
           </mat-tab>
 
-          <!-- Tab 2: Polari Classes -->
+          <!-- Tab 2 (tt-10): where to work — pages, functionality,
+               data, tests this module defines, each one click away. -->
+          <mat-tab label="Navigate">
+            <div class="tab-content">
+              <mat-card class="nav-card">
+                <mat-card-header>
+                  <mat-icon mat-card-avatar>web</mat-icon>
+                  <mat-card-title>Pages</mat-card-title>
+                  <mat-card-subtitle>display pages this module defines</mat-card-subtitle>
+                </mat-card-header>
+                <mat-card-content>
+                  <p *ngIf="!moduleData.pages?.length" class="empty-message">No display pages attributed to this module.</p>
+                  <mat-chip-set>
+                    <mat-chip *ngFor="let page of moduleData.pages"
+                              (click)="openPage(page)" highlighted color="primary">
+                      <mat-icon matChipAvatar>open_in_new</mat-icon>
+                      {{ page.name }}
+                    </mat-chip>
+                  </mat-chip-set>
+                </mat-card-content>
+              </mat-card>
+
+              <mat-card class="nav-card">
+                <mat-card-header>
+                  <mat-icon mat-card-avatar>storage</mat-icon>
+                  <mat-card-title>Data</mat-card-title>
+                  <mat-card-subtitle>classes + live rows — click to open the class page</mat-card-subtitle>
+                </mat-card-header>
+                <mat-card-content>
+                  <p *ngIf="!moduleData.classes.length" class="empty-message">No classes.</p>
+                  <mat-chip-set>
+                    <mat-chip *ngFor="let cls of moduleData.classes"
+                              (click)="navigateToClass(cls.className)">
+                      {{ cls.className }}
+                      <span class="count-tag">{{ cls.instanceCount ?? 0 }}</span>
+                    </mat-chip>
+                  </mat-chip-set>
+                </mat-card-content>
+              </mat-card>
+
+              <mat-card class="nav-card">
+                <mat-card-header>
+                  <mat-icon mat-card-avatar>api</mat-icon>
+                  <mat-card-title>Functionality</mat-card-title>
+                  <mat-card-subtitle>API routes registered by this module's source</mat-card-subtitle>
+                </mat-card-header>
+                <mat-card-content>
+                  <p *ngIf="!moduleData.apiRoutes?.length" class="empty-message">No routes scanned — this module serves through the generated class CRUDE endpoints only.</p>
+                  <div class="route-list">
+                    <code *ngFor="let route of moduleData.apiRoutes">{{ route }}</code>
+                  </div>
+                </mat-card-content>
+              </mat-card>
+
+              <mat-card class="nav-card">
+                <mat-card-header>
+                  <mat-icon mat-card-avatar>fact_check</mat-icon>
+                  <mat-card-title>Selftests</mat-card-title>
+                  <mat-card-subtitle>run them in-container via the pol CLI</mat-card-subtitle>
+                </mat-card-header>
+                <mat-card-content>
+                  <p *ngIf="!moduleData.selftests?.suites?.length" class="empty-message">No selftest suites in this module.</p>
+                  <ng-container *ngIf="moduleData.selftests?.suites?.length">
+                    <div class="route-list">
+                      <code *ngFor="let suite of moduleData.selftests!.suites">{{ suite }}</code>
+                    </div>
+                    <p class="selftest-command"><code>{{ moduleData.selftests!.command }}</code></p>
+                  </ng-container>
+                </mat-card-content>
+              </mat-card>
+            </div>
+          </mat-tab>
+
+          <!-- Tab 3: Polari Classes -->
           <mat-tab>
             <ng-template mat-tab-label>
               Polari Classes
@@ -129,6 +219,7 @@ interface ModuleDetail {
                     </mat-panel-title>
                     <mat-panel-description>
                       {{ cls.fields.length }} fields
+                      · {{ cls.instanceCount ?? 0 }} rows
                       <span *ngIf="!cls.detailsAvailable" class="limited-tag">(limited info)</span>
                     </mat-panel-description>
                   </mat-expansion-panel-header>
@@ -278,6 +369,34 @@ interface ModuleDetail {
     }
     .class-detail { padding: 8px 0; }
     .class-nav-row { margin-bottom: 12px; }
+    .nav-card { margin-bottom: 14px; }
+    .count-tag {
+      margin-left: 6px;
+      font-size: 10px;
+      font-family: monospace;
+      background: rgba(0, 0, 0, 0.08);
+      border-radius: 8px;
+      padding: 0 6px;
+    }
+    .route-list {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      code {
+        font-size: 12px;
+        background: rgba(0, 0, 0, 0.05);
+        border-radius: 4px;
+        padding: 2px 8px;
+        width: fit-content;
+      }
+    }
+    .selftest-command {
+      margin: 10px 0 0;
+      code {
+        background: #263238; color: #aed581;
+        border-radius: 6px; padding: 4px 10px; font-size: 12px;
+      }
+    }
     .detail-section {
       margin-bottom: 12px;
       display: flex;
@@ -412,6 +531,14 @@ export class ModuleDetailsComponent implements OnInit, OnDestroy {
 
   navigateToClass(className: string): void {
     this.router.navigate(['/class-main-page', className]);
+  }
+
+  /** tt-10: open one of the module's display pages (pageRoute wins;
+   *  seeded pages resolve to /display/<name>). */
+  openPage(page: ModulePage): void {
+    const route = page.route.startsWith('/')
+      ? page.route : `/${page.route}`;
+    this.router.navigateByUrl(route);
   }
 
   navigateToModule(moduleId: string): void {

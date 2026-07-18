@@ -31,8 +31,13 @@
                 — {{ seg.done }}/{{ seg.total }}
                 <span class="muted">(weight {{ seg.weight }})</span></h4>
             <div class="drawer-line" *ngFor="let a of seg.assignments">
-                <span class="drawer-chip" [class.done]="a.done"
-                      [class.undone]="!a.done"
+                <a *ngIf="a.moduleId" class="drawer-chip link"
+                   [class.done]="a.done" [class.undone]="!a.done"
+                   [routerLink]="['/module-details', a.moduleId]"
+                   [matTooltip]="a.evidence + ' — click to drill into the module'">
+                    {{ a.done ? '✓' : '✗' }} {{ a.refName }}</a>
+                <span *ngIf="!a.moduleId" class="drawer-chip"
+                      [class.done]="a.done" [class.undone]="!a.done"
                       [matTooltip]="a.evidence">
                     {{ a.done ? '✓' : '✗' }} {{ a.refName }}</span>
                 <span class="muted" *ngIf="!a.done && a.action"

@@ -149,6 +149,11 @@
       border: 1px dotted #3f51b5;
       color: #3949ab;
     }
+    &.link {
+      text-decoration: none;
+      cursor: pointer;
+      &:hover { text-decoration: underline; }
+    }
   }
   .tree-tag { color: #3949ab; font-style: normal; font-size: 11px; }
   .zoom-btn {
