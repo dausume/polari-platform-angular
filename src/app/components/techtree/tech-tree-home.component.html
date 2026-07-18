@@ -92,7 +92,9 @@
                 POST /api/techtree/node + /assignment (row-level, same as the seed)</span>
         </div>
 
-        <tech-tree-view [payload]="payload"></tech-tree-view>
+        <tech-tree-view [payload]="payload"
+                        [focusNode]="focusNode"
+                        (zoomRef)="zoomTo($event)"></tech-tree-view>
 
         <div class="gaps-panel" *ngIf="payload!.gaps.length">
             <h3 (click)="showGaps = !showGaps">

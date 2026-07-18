@@ -82,6 +82,17 @@
     fill: none; stroke: rgba(0, 0, 0, 0.12); stroke-width: 3;
   }
   .ring-fill { fill: #1e88e5; &.complete { fill: #2e7d32; } }
+  // tt-9 cross-tree chips: dotted = "lives in another tree".
+  .cross-chip {
+    fill: rgba(63, 81, 181, 0.06);
+    stroke: #3f51b5;
+    stroke-width: 1.1;
+    stroke-dasharray: 2, 3;
+    &.dangling { stroke: #c62828; fill: rgba(198, 40, 40, 0.05); }
+  }
+  .cross-chip-label {
+    font-size: 9.5px; font-family: monospace; fill: #3949ab;
+  }
 }
 
 // ---- Drill-in drawer ----
@@ -133,5 +144,17 @@
       background: var(--color-error-bg, #fbe9e7);
       color: var(--color-error-text, #bf360c);
     }
+    &.cross {
+      background: transparent;
+      border: 1px dotted #3f51b5;
+      color: #3949ab;
+    }
+  }
+  .tree-tag { color: #3949ab; font-style: normal; font-size: 11px; }
+  .zoom-btn {
+    font-size: 10.5px; padding: 1px 8px; border-radius: 10px;
+    border: 1px solid #3f51b5; background: transparent;
+    color: #3f51b5; cursor: pointer;
+    &:hover { background: rgba(63, 81, 181, 0.08); }
   }
 }

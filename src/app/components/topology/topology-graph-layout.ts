@@ -87,8 +87,8 @@ const MIN_W = 230;
 const MIN_H = 112;
 const HOST_PAD = 16;
 const HOST_LABEL_H = 24;
-const HOST_GAP = 56;
-const INSTANCE_GAP = 26;
+const HOST_GAP = 36;
+const INSTANCE_GAP = 18;
 const UNPLACED = 'unplaced';
 
 interface ModuleFacts {
@@ -282,6 +282,26 @@ export function buildScene(graph: TopologyGraph,
     if (!byHost.has(host)) { byHost.set(host, []); }
     byHost.get(host)!.push(n);
   }
+  // Connector-length discipline: the free run between connected
+  // module circles should stay within DOUBLE the diameter of the
+  // largest (containing) module circle — so the inter-host gutter
+  // is capped at that length, and instances align vertically with
+  // their partners (barycenter) so runs stay short + horizontal.
+  const rMax = Math.max(LEAF_R, ...nodes.flatMap(
+    n => n.modules.map(c => c.r)));
+  const gutter = Math.min(HOST_GAP, 4 * rMax);
+  // instance -> connected partner instance ids (both directions).
+  const partnersOf = new Map<string, string[]>();
+  for (const e of graph.edges) {
+    if (!e.providerInstanceName || !e.consumerInstanceName) { continue; }
+    if (e.providerInstanceName === e.consumerInstanceName) { continue; }
+    partnersOf.set(e.providerInstanceName,
+      [...(partnersOf.get(e.providerInstanceName) ?? []),
+       e.consumerInstanceName]);
+    partnersOf.set(e.consumerInstanceName,
+      [...(partnersOf.get(e.consumerInstanceName) ?? []),
+       e.providerInstanceName]);
+  }
   // Hosts ordered by their shallowest instance so providers still
   // read left→right; 'unplaced' sinks to the end.
   const hostNames = [...byHost.keys()].sort((a, b) => {
@@ -291,11 +311,22 @@ export function buildScene(graph: TopologyGraph,
     const db = Math.min(...byHost.get(b)!.map(n => n.depth));
     return da - db || a.localeCompare(b);
   });
+  const placedCenterY = new Map<string, number>();
   let hostX = 40;
   for (const host of hostNames) {
     const members = byHost.get(host)!;
-    members.sort((a, b) => a.depth - b.depth
-      || a.id.localeCompare(b.id));
+    // Barycenter ordering: members whose partners were already
+    // placed sort toward their partners' vertical position.
+    const bary = (n: InstanceNode): number => {
+      const ys = (partnersOf.get(n.id) ?? [])
+        .map(p => placedCenterY.get(p))
+        .filter((y): y is number => y !== undefined);
+      return ys.length
+        ? ys.reduce((s, y) => s + y, 0) / ys.length
+        : Number.POSITIVE_INFINITY;
+    };
+    members.sort((a, b) => bary(a) - bary(b)
+      || a.depth - b.depth || a.id.localeCompare(b.id));
     let y = 40 + HOST_LABEL_H + HOST_PAD;
     let w = 0;
     for (const n of members) {
@@ -307,16 +338,34 @@ export function buildScene(graph: TopologyGraph,
     for (const n of members) {  // center narrow cards in the host
       n.x += (w - n.w) / 2;
     }
+    // Vertical alignment: shift the whole host so its connected
+    // instances sit level with their already-placed partners.
+    const deltas = members.flatMap(n =>
+      (partnersOf.get(n.id) ?? [])
+        .map(p => placedCenterY.get(p))
+        .filter((py): py is number => py !== undefined)
+        .map(py => py - (n.y + n.h / 2)));
+    const shift = deltas.length
+      ? deltas.reduce((s, d) => s + d, 0) / deltas.length : 0;
+    // Never lift the host's label row above the canvas margin.
+    const minTopY = 24 + HOST_LABEL_H + HOST_PAD;
+    const dy = Math.max(shift, minTopY - members[0].y);
+    for (const n of members) { n.y += dy; }
+    for (const n of members) {
+      placedCenterY.set(n.id, n.y + n.h / 2);
+    }
+    const top = members[0].y - HOST_LABEL_H - HOST_PAD;
     scene.hosts.push({
       name: host,
       machine: machines.get(host) ?? null,
       x: hostX,
-      y: 40,
+      y: top,
       w: w + HOST_PAD * 2,
-      h: (y - INSTANCE_GAP + HOST_PAD) - 40,
+      h: (members[members.length - 1].y
+          + members[members.length - 1].h + HOST_PAD) - top,
       instances: members,
     });
-    hostX += w + HOST_PAD * 2 + HOST_GAP;
+    hostX += w + HOST_PAD * 2 + gutter;
   }
   indexCircles(scene);
   return scene;

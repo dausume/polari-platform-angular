@@ -46,6 +46,20 @@
                 {{ dep }}</span>
         </div>
 
+        <div class="drawer-section" *ngIf="selected.crossRefs?.length">
+            <h4>Cross-tree (no edges — lives elsewhere)</h4>
+            <div class="drawer-line" *ngFor="let ref of selected.crossRefs">
+                <span class="drawer-chip cross" [class.undone]="!ref.exists">
+                    {{ ref.relation }}</span>
+                <span>{{ ref.nodeTitle }}
+                    <em class="tree-tag">in {{ ref.treeTitle }}</em></span>
+                <button class="zoom-btn" *ngIf="ref.exists"
+                        (click)="zoomRef.emit(ref)"
+                        matTooltip="switch to that tree and center on the node">
+                    zoom to</button>
+            </div>
+        </div>
+
         <div class="drawer-section" *ngIf="selected.gaps?.length">
             <h4>Gaps (suggestions — nothing auto-applies)</h4>
             <div class="drawer-line gap" *ngFor="let gap of selected.gaps">

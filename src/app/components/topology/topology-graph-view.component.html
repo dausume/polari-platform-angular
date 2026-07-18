@@ -73,7 +73,10 @@
         <div class="drawer-section" *ngIf="selectedAssignments.length">
             <h4>Modules</h4>
             <div class="drawer-line" *ngFor="let assignment of selectedAssignments">
-                <span class="drawer-chip module">{{ assignment.moduleName }}</span>
+                <a class="drawer-chip module link"
+                   [routerLink]="['/module-details', moduleDetailsId(assignment.moduleName)]"
+                   matTooltip="drill into the module — its pages, API surface, selftests, and data">
+                    {{ assignment.moduleName }}</a>
                 <span class="drawer-chip classification"
                       *ngIf="classificationOf(assignment.moduleName) as cls"
                       [style.color]="classificationColor(cls)">{{ cls }}</span>

@@ -1,6 +1,6 @@
 import {
-  Component, ElementRef, Input, NgZone, OnChanges, SimpleChanges,
-  ViewChild,
+  Component, ElementRef, EventEmitter, Input, NgZone, OnChanges,
+  Output, SimpleChanges, ViewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
@@ -9,7 +9,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import * as d3 from 'd3';
 
 import {
-  TechEdgeReport, TechNodeReport, TechTreePayload,
+  CrossTreeRef, TechEdgeReport, TechNodeReport, TechTreePayload,
 } from '@models/techtree/techtree-types';
 
 /** One placed technology rectangle. */
@@ -50,12 +50,20 @@ const EDGE_COLOR = '#607d8b';
 })
 export class TechTreeViewComponent implements OnChanges {
   @Input({ required: true }) payload!: TechTreePayload | null;
+  /** tt-9: node to zoom to + select after (re)render — set by the
+   *  page when a cross-tree chip lands here from another tree. */
+  @Input() focusNode: string | null = null;
+  /** tt-9: a cross-tree chip was clicked — the page switches trees
+   *  and hands the target back via focusNode. */
+  @Output() zoomRef = new EventEmitter<CrossTreeRef>();
 
   @ViewChild('svgHost', { static: true }) svgHost!: ElementRef<SVGSVGElement>;
 
   selected: TechNodeReport | null = null;
 
   private boxes: TechBox[] = [];
+  private zoomBehavior: d3.ZoomBehavior<SVGSVGElement, unknown>
+    | null = null;
 
   constructor(private zone: NgZone) {}
 
@@ -70,6 +78,24 @@ export class TechTreeViewComponent implements OnChanges {
           : null;
       }
     }
+    if (this.focusNode && this.payload?.ok) {
+      this.focusOn(this.focusNode);
+    }
+  }
+
+  /** Center the viewport on one technology and open its drawer. */
+  private focusOn(name: string): void {
+    const box = this.boxes.find(b => b.node.name === name);
+    if (!box || !this.zoomBehavior) { return; }
+    const host = this.svgHost.nativeElement as SVGSVGElement;
+    const vw = host.clientWidth || 800;
+    const vh = host.clientHeight || 520;
+    const tx = vw / 2 - (box.x + box.w / 2);
+    const ty = vh / 2 - (box.y + box.h / 2);
+    d3.select(host).transition().duration(450).call(
+      (this.zoomBehavior as any).transform,
+      d3.zoomIdentity.translate(tx, ty));
+    this.selectNode(box.node);
   }
 
   segmentLabel(kind: string): string {
@@ -107,7 +133,8 @@ export class TechTreeViewComponent implements OnChanges {
       const box: TechBox = {
         node: n, x: 0, y: 0, w: NODE_W,
         h: HEADER_H + (n.segments?.length ? BAND_H : 18)
-          + (n.dependsOn.length ? CHIP_ROW_H : 0) + 12,
+          + (n.dependsOn.length ? CHIP_ROW_H : 0)
+          + (n.crossRefs?.length ? CHIP_ROW_H : 0) + 12,
         depth: depth.get(n.name) ?? 0,
       };
       if (!columns.has(box.depth)) { columns.set(box.depth, []); }
@@ -153,6 +180,7 @@ export class TechTreeViewComponent implements OnChanges {
       .scaleExtent([0.2, 2.5])
       .on('zoom', (ev) => root.attr('transform', ev.transform));
     svg.call(zoom as any);
+    this.zoomBehavior = zoom;
     this.fitToView(svg, zoom);
 
     this.renderEdges(root, payload.edges);
@@ -284,7 +312,8 @@ export class TechTreeViewComponent implements OnChanges {
     // rectangle world): dashed chip = transient copy of a shared
     // technology; the solid copy lives under the primary dependent.
     if (n.dependsOn.length) {
-      const chipY = box.h - CHIP_ROW_H + 3;
+      const chipY = box.h - CHIP_ROW_H + 3
+        - (n.crossRefs?.length ? CHIP_ROW_H : 0);
       let cx = 10;
       const transientOf = new Map(payload.edges
         .filter(e => e.techNode === n.name)
@@ -317,6 +346,50 @@ export class TechTreeViewComponent implements OnChanges {
           .attr('x', cx + 2).attr('y', chipY + 12)
           .attr('class', 'dep-chip-label muted')
           .text(`+${n.dependsOn.length - 3}`);
+      }
+    }
+
+    // tt-9 cross-TREE references: dotted chips naming the HOME TREE
+    // of the related technology — click to zoom there. Never edges.
+    if (n.crossRefs?.length) {
+      const rowY = box.h - CHIP_ROW_H + 3;
+      let cx = 10;
+      for (const ref of n.crossRefs.slice(0, 2)) {
+        const label = `↗ ${truncate(ref.nodeTitle, 14)}`
+          + ` · ${truncate(ref.treeTitle, 10)}`;
+        const cw = label.length * 5.8 + 14;
+        if (cx + cw > box.w - 10) { break; }
+        const chip = g.append('g')
+          .style('cursor', ref.exists ? 'pointer' : 'not-allowed')
+          .on('click', (ev: Event) => {
+            ev.stopPropagation();
+            if (ref.exists) {
+              this.zone.run(() => this.zoomRef.emit(ref));
+            }
+          });
+        chip.append('rect')
+          .attr('x', cx).attr('y', rowY)
+          .attr('width', cw).attr('height', 17)
+          .attr('rx', 8)
+          .attr('class', 'cross-chip')
+          .classed('dangling', !ref.exists);
+        chip.append('text')
+          .attr('x', cx + cw / 2).attr('y', rowY + 12)
+          .attr('text-anchor', 'middle')
+          .attr('class', 'cross-chip-label')
+          .text(label);
+        chip.append('title').text(
+          `${ref.relation} — ${ref.nodeTitle} lives in the `
+          + `"${ref.treeTitle}" tree`
+          + (ref.exists ? ' (click to zoom there)'
+                        : ' (target missing — see validation)'));
+        cx += cw + 6;
+      }
+      if (n.crossRefs.length > 2) {
+        g.append('text')
+          .attr('x', cx + 2).attr('y', rowY + 12)
+          .attr('class', 'dep-chip-label muted')
+          .text(`+${n.crossRefs.length - 2}`);
       }
     }
   }

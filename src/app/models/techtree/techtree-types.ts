@@ -45,6 +45,20 @@ export interface SegmentAssignmentReport {
   evidence: string;
   knob: string;
   action: string;
+  /** tt-10 (theory rows only): navigable module-details id; ''
+   *  when the referenced module isn't built yet. */
+  moduleId?: string;
+}
+
+/** tt-9: one cross-TREE reference — never an edge; names where the
+ *  related technology lives so the UI can zoom to it. */
+export interface CrossTreeRef {
+  tree: string;
+  node: string;
+  relation: string;
+  treeTitle: string;
+  nodeTitle: string;
+  exists: boolean;
 }
 
 export interface TechSegmentReport {
@@ -71,6 +85,7 @@ export interface TechNodeReport {
   title: string;
   description: string;
   dependsOn: string[];
+  crossRefs: CrossTreeRef[];
   layoutHints: Record<string, unknown>;
   segmentsPresent: SegmentKind[];
   segments: TechSegmentReport[];

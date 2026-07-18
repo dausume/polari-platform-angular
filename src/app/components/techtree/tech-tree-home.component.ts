@@ -6,7 +6,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { TechTreeService } from '@services/techtree/techtree.service';
 import {
-  BaselineReport, TechTreePayload, TechTreeSummary,
+  BaselineReport, CrossTreeRef, TechTreePayload, TechTreeSummary,
 } from '@models/techtree/techtree-types';
 import { TechTreeViewComponent } from './tech-tree-view.component';
 
@@ -36,6 +36,8 @@ export class TechTreeHomeComponent implements OnInit {
   loading = true;
   loadError = '';
   showGaps = true;
+  /** tt-9: node the view should zoom to after a tree switch. */
+  focusNode: string | null = null;
 
   constructor(private techTreeService: TechTreeService) {}
 
@@ -65,12 +67,20 @@ export class TechTreeHomeComponent implements OnInit {
     this.activeTree = name;
     this.loading = true;
     this.loadError = '';
+    if (name !== this.payload?.tree?.name) { this.focusNode = null; }
     this.payload = await this.techTreeService.tree(name);
     this.loading = false;
     if (!this.payload?.ok) {
       this.loadError = this.payload?.error
         || `Tree '${name}' did not answer (GET /api/techtree/tree)`;
     }
+  }
+
+  /** tt-9: a cross-tree chip — switch to the ref's home tree and
+   *  hand the view the node to center on. */
+  async zoomTo(ref: CrossTreeRef): Promise<void> {
+    await this.select(ref.tree);
+    this.focusNode = ref.node;
   }
 
   percent(level: number | undefined | null): string {

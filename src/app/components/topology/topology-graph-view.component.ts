@@ -3,6 +3,7 @@ import {
   ViewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -63,7 +64,8 @@ const CONN_PALETTE = [
 @Component({
   standalone: true,
   selector: 'topology-graph-view',
-  imports: [CommonModule, MatButtonModule, MatIconModule, MatTooltipModule],
+  imports: [CommonModule, RouterModule, MatButtonModule, MatIconModule,
+            MatTooltipModule],
   templateUrl: './topology-graph-view.component.html',
   styleUrls: ['./topology-graph-view.component.scss'],
 })
@@ -85,8 +87,37 @@ export class TopologyGraphViewComponent implements OnChanges {
   classificationKeys = Object.keys(CLASSIFICATION_COLORS);
 
   private scene: Scene = { hosts: [], nodes: [], circleIndex: new Map() };
+  private zoomBehavior: d3.ZoomBehavior<SVGSVGElement, unknown>
+    | null = null;
 
   constructor(private zone: NgZone) {}
+
+  /** tt-10: the module-details drill-in id for a module chip. */
+  moduleDetailsId(moduleName: string): string {
+    return moduleName.split('.')[0];
+  }
+
+  /** tt-9 parity with the tech tree: center the viewport on the
+   *  instance holding a module's PRIMARY copy and open its drawer. */
+  zoomToModule(moduleName: string): void {
+    const holder = this.graph?.ok
+      ? this.graph.assignments.find(
+          a => a.moduleName === moduleName && a.state !== 'disabled')
+      : null;
+    const node = holder
+      ? this.scene.nodes.find(n => n.id === holder.instanceName)
+      : null;
+    if (!node || !this.zoomBehavior) { return; }
+    const host = this.svgHost.nativeElement as SVGSVGElement;
+    const vw = host.clientWidth || 800;
+    const vh = host.clientHeight || 520;
+    const tx = vw / 2 - (node.x + node.w / 2);
+    const ty = vh / 2 - (node.y + node.h / 2);
+    d3.select(host).transition().duration(450).call(
+      (this.zoomBehavior as any).transform,
+      d3.zoomIdentity.translate(tx, ty));
+    this.selectNode(node);
+  }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['graph'] || changes['moduleGraph']) {
@@ -179,6 +210,7 @@ export class TopologyGraphViewComponent implements OnChanges {
       .scaleExtent([0.2, 2.5])
       .on('zoom', (ev) => root.attr('transform', ev.transform));
     svg.call(zoom as any);
+    this.zoomBehavior = zoom;
     this.fitToView(svg, zoom);
 
     this.renderHosts(root);
@@ -269,37 +301,68 @@ export class TopologyGraphViewComponent implements OnChanges {
     }
   }
 
-  /** Module dependency edges anchored to the module CIRCLES:
-   *  provider's circle → consumer's circle, solid, status-colored. */
+  /** Module dependency edges: modules stay PHYSICALLY inside their
+   *  container, so the connector runs circle → own container BORDER
+   *  → partner container border → partner circle. Only the border-
+   *  to-border run is outside the containers; the layout compaction
+   *  (barycenter alignment + gutter cap at 2× the largest module
+   *  circle's diameter) keeps that external run short. */
   private renderDependencyEdges(root: d3.Selection<SVGGElement,
       unknown, null, undefined>, graph: TopologyGraph): void {
     const byId = new Map(this.scene.nodes.map(n => [n.id, n]));
     const eg = root.append('g').attr('class', 'dep-edges');
     for (const edge of graph.edges) {
+      const sNode = byId.get(edge.providerInstanceName);
+      const tNode = byId.get(edge.consumerInstanceName);
+      if (!sNode || !tNode) { continue; }
       const s = this.scene.circleIndex.get(
         `${edge.providerInstanceName}|${edge.dependsOnModule}`)
-        ?? this.rectAnchor(byId.get(edge.providerInstanceName));
+        ?? this.rectAnchor(sNode)!;
       const t = this.scene.circleIndex.get(
         `${edge.consumerInstanceName}|${edge.moduleName}`)
-        ?? this.rectAnchor(byId.get(edge.consumerInstanceName));
-      if (!s || !t) { continue; }
-      const dx = t.x - s.x, dy = t.y - s.y;
-      const len = Math.hypot(dx, dy) || 1;
-      const sx = s.x + (dx / len) * s.r, sy = s.y + (dy / len) * s.r;
-      const tx = t.x - (dx / len) * (t.r + 4);
-      const ty = t.y - (dy / len) * (t.r + 4);
-      const bend = Math.max(40, Math.abs(tx - sx) / 2);
+        ?? this.rectAnchor(tNode)!;
       const color = DEP_COLORS[edge.status] ?? '#90a4ae';
+
+      if (sNode === tNode) {
+        // Same container: a short interior arc between the circles.
+        const dx = t.x - s.x, dy = t.y - s.y;
+        const len = Math.hypot(dx, dy) || 1;
+        const sx = s.x + (dx / len) * s.r;
+        const sy = s.y + (dy / len) * s.r;
+        const tx = t.x - (dx / len) * (t.r + 4);
+        const ty = t.y - (dy / len) * (t.r + 4);
+        eg.append('path')
+          .attr('d', `M${sx},${sy} L${tx},${ty}`)
+          .attr('fill', 'none').attr('stroke', color)
+          .attr('stroke-width', 2)
+          .attr('marker-end', `url(#topo-arrow-${edge.status})`);
+        continue;
+      }
+
+      const exit = borderPoint(sNode, s, tNode);
+      const entry = borderPoint(tNode, t, sNode);
+      // Interior stubs trimmed at the circle boundary.
+      const sd = Math.hypot(exit.x - s.x, exit.y - s.y) || 1;
+      const sx = s.x + ((exit.x - s.x) / sd) * s.r;
+      const sy = s.y + ((exit.y - s.y) / sd) * s.r;
+      const td = Math.hypot(entry.x - t.x, entry.y - t.y) || 1;
+      const tx = t.x + ((entry.x - t.x) / td) * (t.r + 4);
+      const ty = t.y + ((entry.y - t.y) / td) * (t.r + 4);
+      const bend = Math.max(
+        18, Math.abs(entry.x - exit.x) / 2);
       eg.append('path')
-        .attr('d', `M${sx},${sy} C${sx + bend},${sy} `
-          + `${tx - bend},${ty} ${tx},${ty}`)
+        .attr('d', `M${sx},${sy} L${exit.x},${exit.y} `
+          + `C${exit.x + bend},${exit.y} `
+          + `${entry.x - bend},${entry.y} ${entry.x},${entry.y} `
+          + `L${tx},${ty}`)
         .attr('fill', 'none')
         .attr('stroke', color)
         .attr('stroke-width', 2)
         .attr('marker-end', `url(#topo-arrow-${edge.status})`);
       eg.append('text')
         .attr('class', 'edge-label')
-        .attr('x', (sx + tx) / 2).attr('y', (sy + ty) / 2 - 8)
+        .attr('x', (exit.x + entry.x) / 2)
+        .attr('y', (exit.y + entry.y) / 2 - 8)
         .attr('text-anchor', 'middle')
         .attr('fill', color)
         .text(edge.dependsOnModule);
@@ -377,6 +440,16 @@ export class TopologyGraphViewComponent implements OnChanges {
     const node = g.append('g')
       .attr('transform', `translate(${cx},${cy})`)
       .attr('opacity', disabled ? 0.4 : 1);
+    if (circle.transient && circle.primaryConsumer) {
+      // tt-9 parity: a dashed transient copy zooms to wherever the
+      // primary consumer actually lives (same as tech-tree chips).
+      node.style('cursor', 'zoom-in')
+        .on('click', (ev: Event) => {
+          ev.stopPropagation();
+          this.zone.run(
+            () => this.zoomToModule(circle.primaryConsumer));
+        });
+    }
     node.append('circle')
       .attr('r', circle.r)
       .attr('class', 'module-circle')
@@ -389,7 +462,8 @@ export class TopologyGraphViewComponent implements OnChanges {
     node.append('title').text(
       `${circle.module} — ${circle.classification}`
       + (circle.transient
-         ? ` (transient copy; primary under ${circle.primaryConsumer})`
+         ? ` (transient copy; primary under ${circle.primaryConsumer}`
+           + ' — click to zoom there)'
          : '')
       + (disabled ? ' · disabled' : ''));
     if (circle.depth === 0) {
@@ -454,6 +528,31 @@ export class TopologyGraphViewComponent implements OnChanges {
 
 function truncate(s: string, max: number): string {
   return s.length > max ? s.slice(0, max - 1) + '…' : s;
+}
+
+/** Where a connector crosses a container's border: the side facing
+ *  the partner container, level with the module circle when the
+ *  run is horizontal. */
+function borderPoint(node: InstanceNode,
+                     anchor: { x: number; y: number },
+                     toward: InstanceNode): { x: number; y: number } {
+  const cx = node.x + node.w / 2, cy = node.y + node.h / 2;
+  const dx = (toward.x + toward.w / 2) - cx;
+  const dy = (toward.y + toward.h / 2) - cy;
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    return {
+      x: dx > 0 ? node.x + node.w : node.x,
+      y: clamp(anchor.y, node.y + 32, node.y + node.h - 10),
+    };
+  }
+  return {
+    x: clamp(anchor.x, node.x + 10, node.x + node.w - 10),
+    y: dy > 0 ? node.y + node.h : node.y,
+  };
+}
+
+function clamp(v: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, v));
 }
 
 function shortName(module: string): string {

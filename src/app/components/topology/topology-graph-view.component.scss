@@ -168,6 +168,11 @@
       background: var(--color-info-bg, #e3f2fd);
       color: var(--color-info-text, #1565c0);
     }
+    &.link {
+      text-decoration: none;
+      cursor: pointer;
+      &:hover { text-decoration: underline; }
+    }
     &.status.resolved {
       background: var(--color-success-bg, #e8f5e9);
       color: var(--color-success-text, #1b5e20);
