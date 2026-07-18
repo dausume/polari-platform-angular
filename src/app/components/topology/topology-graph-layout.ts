@@ -113,7 +113,8 @@ const LEAF_R = 16;
 const NEST_PAD = 7;
 const PACK_GAP = 6;
 const HEADER_H = 26;
-const TEXT_BLOCK_H = 40;
+// header text + two meta lines + the tt-14 service-category dots.
+const TEXT_BLOCK_H = 56;
 const RECT_PAD = 14;
 const MODULE_LABEL_H = 14;
 const MIN_W = 230;
@@ -214,13 +215,20 @@ function packInstance(instance: TopologyInstance, modules:
   let w = MIN_W;
   let h = MIN_H;
   if (circles.length) {
-    // Pack radius covers the wrapped label block so neighboring
-    // labels can never overlap (tt-11).
-    const packed = circles.map(circle => ({
-      r: circle.r + PACK_GAP
-        + (circle.labelLines.length * LABEL_LINE_H + 4) / 2,
-      circle,
-    }));
+    // Pack radius covers the wrapped label block — HEIGHT (lines)
+    // AND WIDTH (longest line) — so neighboring labels can never
+    // overlap (tt-11; width term added after Dustin's screenshot
+    // showed side-by-side labels colliding).
+    const packed = circles.map(circle => {
+      const labelH = circle.labelLines.length * LABEL_LINE_H + 4;
+      const labelW = Math.max(0, ...circle.labelLines.map(
+        line => line.length)) * 6.2;
+      return {
+        r: Math.max(circle.r + PACK_GAP + labelH / 2,
+                    labelW / 2 + 6),
+        circle,
+      };
+    });
     d3.packSiblings(packed);
     const enclose = d3.packEnclose(
       packed as unknown as Array<{ r: number; x: number; y: number }>);

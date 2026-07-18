@@ -46,6 +46,8 @@ export interface TopologyMeta {
 
 export interface TopologyMachine {
   name: string;
+  /** tt-14: synthetic (sim) rows are never deploy targets. */
+  isReal: boolean;
   sshAlias: string;
   arch: string;
   memGb: number;
@@ -55,8 +57,27 @@ export interface TopologyMachine {
   notes: string;
 }
 
+/** tt-14 instance categories: only 'polari' can receive modules;
+ *  integrated apps (PSC/Odoo-style), auth containers (Keycloak),
+ *  and infrastructure are non-adaptive. */
+export type InstanceAppKind =
+  'polari' | 'integrated-app' | 'auth' | 'infrastructure'
+  | 'unknown';
+
+export interface InstanceStorage {
+  kind: string;
+  name: string;
+  shared: boolean;
+  note: string;
+}
+
 export interface TopologyInstance {
   name: string;
+  appKind: InstanceAppKind;
+  isPolari: boolean;
+  /** Named storage identity ('sqlite-prf-a' vs shared mariadb);
+   *  null for non-Polari containers (no object tree). */
+  storage: InstanceStorage | null;
   kind: string;
   serviceKinds: string[];
   replicas: number;
@@ -105,6 +126,8 @@ export interface ModulePlacement {
 
 export interface ModuleGraphModule {
   name: string;
+  /** tt-14: engine capabilities only live on engine/worker hosts. */
+  engineCapability: boolean;
   placements: ModulePlacement[];
   dependsOn: string[];
   dependents: string[];

@@ -19,13 +19,59 @@ import {
   InstanceNode, ModuleCircle, Scene, buildScene,
 } from './topology-graph-layout';
 
-const KIND_COLORS: Record<string, string> = {
-  'prf-backend': '#5c6bc0',
-  'psc-backend': '#26a69a',
-  'shared-infra': '#8d6e63',
-  'dask-workers': '#7e57c2',
-  'engines': '#ef6c00',
+/** tt-14 CATEGORY colors — the header strip says what KIND of
+ *  container this is: Polari (adaptive), integrated app
+ *  (non-adaptive, PSC/Odoo-style), auth (Keycloak), pure
+ *  infrastructure (databases/storage/proxy). */
+const APP_KIND_COLORS: Record<string, string> = {
+  'polari': '#3949ab',
+  'integrated-app': '#00897b',
+  'auth': '#6a1b9a',
+  'infrastructure': '#8d6e63',
+  'unknown': '#546e7a',
 };
+
+const KIND_COLORS: Record<string, string> = {
+  'prf': '#3949ab',
+  'prf-backend': '#3949ab',
+  'worker': '#ef6c00',
+  'engines': '#ef6c00',
+  'psc': '#00897b',
+  'psc-backend': '#00897b',
+  'infra': '#8d6e63',
+  'shared-infra': '#8d6e63',
+  'auth': '#6a1b9a',
+};
+
+/** tt-14 service-kind categories — dots on each container naming
+ *  its frontends / backends / DATABASES / AUTH / storage / proxy
+ *  services (keycloak + mariadb/keydb become visible + colored). */
+export function serviceCategory(kind: string):
+    { category: string; color: string } {
+  const k = kind.toLowerCase();
+  if (k.includes('keycloak') || k.includes('auth')) {
+    return { category: 'auth', color: '#6a1b9a' };
+  }
+  if (k.includes('mariadb') || k.includes('keydb')
+      || k.includes('redis') || k.includes('sqlite')
+      || k.includes('db')) {
+    return { category: 'database', color: '#ff8f00' };
+  }
+  if (k.includes('frontend')) {
+    return { category: 'frontend', color: '#29b6f6' };
+  }
+  if (k.includes('backend') || k.includes('engines')
+      || k.includes('dask')) {
+    return { category: 'backend', color: '#3949ab' };
+  }
+  if (k.includes('file-store') || k.includes('minio')) {
+    return { category: 'storage', color: '#795548' };
+  }
+  if (k.includes('proxy')) {
+    return { category: 'proxy', color: '#78909c' };
+  }
+  return { category: 'service', color: '#90a4ae' };
+}
 
 const DEP_COLORS: Record<string, string> = {
   resolved: '#2e7d32',
@@ -150,13 +196,36 @@ export class TopologyGraphViewComponent implements OnChanges {
     this.selectedModule = null;
   }
 
+  /** tt-14: only COHERENT move targets are offered. Engine
+   *  capabilities go to engine/worker instances only; everything
+   *  else goes to Polari instances (never psc/infra/auth). */
+  private isEngineModule(moduleName: string): boolean {
+    return this.moduleGraph?.ok
+      ? this.moduleGraph.modules.find(
+          m => m.name === moduleName)?.engineCapability ?? false
+      : false;
+  }
+
+  moduleIsEngine(): boolean {
+    return this.selectedModule
+      ? this.isEngineModule(this.selectedModule) : false;
+  }
+
   instanceNames(): string[] {
+    const engine = this.moduleIsEngine();
     return (this.graph?.ok ? this.graph.instances : [])
+      .filter(i => i.isPolari)
+      .filter(i => !engine
+        || i.kind === 'worker' || i.kind === 'engines')
       .map(i => i.name).sort();
   }
 
+  /** Device moves relocate whole engine instances — only offered
+   *  for engine capabilities, and only real machines qualify. */
   machineNames(): string[] {
+    if (!this.moduleIsEngine()) { return []; }
     return (this.graph?.ok ? this.graph.machines : [])
+      .filter(m => m.isReal)
       .map(m => m.name).sort();
   }
 
@@ -502,7 +571,8 @@ export class TopologyGraphViewComponent implements OnChanges {
       null, undefined>): void {
     const ng = root.append('g').attr('class', 'nodes');
     for (const n of this.scene.nodes) {
-      const strip = KIND_COLORS[n.instance.kind] ?? '#546e7a';
+      const strip = APP_KIND_COLORS[n.instance.appKind]
+        ?? KIND_COLORS[n.instance.kind] ?? '#546e7a';
       const g = ng.append('g')
         .attr('class', 'node')
         .attr('transform', `translate(${n.x},${n.y})`)
@@ -525,23 +595,54 @@ export class TopologyGraphViewComponent implements OnChanges {
       g.append('rect')  // square off the strip's bottom corners
         .attr('y', 16).attr('width', n.w).attr('height', 10)
         .attr('fill', strip);
+      const kindLabel = n.instance.appKind === 'polari'
+        ? n.instance.kind.toUpperCase()
+        : n.instance.appKind === 'integrated-app'
+        ? `${n.instance.kind.toUpperCase()} · INTEGRATED APP`
+        : n.instance.appKind === 'auth'
+        ? `${n.instance.kind.toUpperCase()} · AUTH`
+        : n.instance.appKind === 'infrastructure'
+        ? `${n.instance.kind.toUpperCase()} · INFRA`
+        : n.instance.kind.toUpperCase();
       g.append('text')
         .attr('x', 10).attr('y', 18).attr('class', 'node-kind')
-        .text(truncate(n.instance.kind.toUpperCase(), 24));
+        .text(truncate(kindLabel, 30));
 
       g.append('text')
         .attr('x', 10).attr('y', 44).attr('class', 'node-title')
         .text(truncate(n.instance.name, 26));
+      // tt-14: the NAMED storage identity — sqlite ownership vs
+      // the shared mariadb becomes visible per container.
       g.append('text')
         .attr('x', 10).attr('y', 58).attr('class', 'node-meta')
         .text(truncate(
-          `${n.instance.dbBackend || 'no db'} · ${n.instance.envTier}`
-          + ` · x${n.instance.replicas}`, 40));
+          (n.instance.storage
+            ? `${n.instance.storage.name}`
+              + `${n.instance.storage.shared ? '' : ' (owned)'}`
+            : n.instance.appKind === 'polari'
+              ? 'no object db' : 'no object tree')
+          + ` · ${n.instance.envTier} · x${n.instance.replicas}`,
+          42));
       g.append('text')
         .attr('x', 10).attr('y', 71).attr('class', 'node-meta')
         .text(truncate(
           `${n.instance.machineName || 'unplaced'}`
           + ` → ${n.instance.orchestrationTarget}`, 40));
+      // tt-14 service dots: frontends / backends / DATABASES /
+      // AUTH / storage / proxy per container (keycloak + mariadb
+      // + keydb become visible, each category its own color).
+      let dotX = 12;
+      for (const kind of n.instance.serviceKinds ?? []) {
+        const cat = serviceCategory(kind);
+        const dot = g.append('circle')
+          .attr('cx', dotX).attr('cy', 82).attr('r', 4)
+          .attr('fill', cat.color)
+          .attr('stroke', 'rgba(0,0,0,0.25)')
+          .attr('stroke-width', 0.6);
+        dot.append('title').text(`${kind} (${cat.category})`);
+        dotX += 12;
+        if (dotX > n.w - 12) { break; }
+      }
 
       if (!n.modules.length) {
         g.append('text')
