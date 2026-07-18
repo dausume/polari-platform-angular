@@ -27,6 +27,9 @@ interface ClassDetail {
   detailsAvailable: boolean;
   /** tt-10: live row count — the 'data it defines' quick-nav. */
   instanceCount?: number;
+  /** tt-14: which database this class's rows live on (on this
+   *  backend) — mariadb:db@host or sqlite:<name>. */
+  database?: string;
 }
 
 /** tt-10 drill-in map entries (GET /modules/{id}). */
@@ -39,6 +42,14 @@ interface ModulePage {
 interface ModuleSelftests {
   suites: string[];
   command: string;
+}
+
+/** tt-14: where this backend's object rows live. */
+interface ModuleStorage {
+  kind: string;
+  name: string;
+  shared: boolean;
+  note: string;
 }
 
 interface PolariDependency {
@@ -62,6 +73,7 @@ interface ModuleDetail {
   pages?: ModulePage[];
   apiRoutes?: string[];
   selftests?: ModuleSelftests;
+  storage?: ModuleStorage;
 }
 
 @Component({
@@ -155,7 +167,13 @@ interface ModuleDetail {
                 <mat-card-header>
                   <mat-icon mat-card-avatar>storage</mat-icon>
                   <mat-card-title>Data</mat-card-title>
-                  <mat-card-subtitle>classes + live rows — click to open the class page</mat-card-subtitle>
+                  <mat-card-subtitle *ngIf="moduleData.storage"
+                    [title]="moduleData.storage!.note">
+                    lives on <code>{{ moduleData.storage!.name }}</code>
+                    {{ moduleData.storage!.shared ? '(shared — visible to every sharing instance)'
+                       : '(owned by this instance)' }}
+                  </mat-card-subtitle>
+                  <mat-card-subtitle *ngIf="!moduleData.storage">classes + live rows — click to open the class page</mat-card-subtitle>
                 </mat-card-header>
                 <mat-card-content>
                   <p *ngIf="!moduleData.classes.length" class="empty-message">No classes.</p>
@@ -220,6 +238,9 @@ interface ModuleDetail {
                     <mat-panel-description>
                       {{ cls.fields.length }} fields
                       · {{ cls.instanceCount ?? 0 }} rows
+                      <span class="db-tag" *ngIf="cls.database"
+                            [title]="'where this class\\'s rows live on this backend'">
+                        · {{ cls.database }}</span>
                       <span *ngIf="!cls.detailsAvailable" class="limited-tag">(limited info)</span>
                     </mat-panel-description>
                   </mat-expansion-panel-header>
@@ -361,6 +382,12 @@ interface ModuleDetail {
       font-size: 20px;
       color: #1976d2;
       flex-shrink: 0;
+    }
+    .db-tag {
+      font-family: monospace;
+      font-size: 11px;
+      color: #ff8f00;
+      margin-left: 4px;
     }
     .limited-tag {
       font-style: italic;
