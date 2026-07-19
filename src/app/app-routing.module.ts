@@ -75,6 +75,9 @@ const routes: Routes = [
   { path: 'pspp/network', loadComponent: () => import('@components/pspp/pspp-network.component').then(m => m.PsppNetworkComponent) },
   { path: 'pspp/grader', loadComponent: () => import('@components/pspp/pspp-grader.component').then(m => m.PsppGraderComponent) },
   { path: 'pspp/progress', loadComponent: () => import('@components/pspp/pspp-progress.component').then(m => m.PsppProgressComponent) },
+  { path: 'pspp/guide', loadComponent: () => import('@components/pspp/pspp-guide.component').then(m => m.PsppGuideComponent) },
+  { path: 'pspp/benchmarks', loadComponent: () => import('@components/pspp/pspp-benchmarks.component').then(m => m.PsppBenchmarksComponent) },
+  { path: 'pspp/states', loadComponent: () => import('@components/pspp/pspp-state-dag.component').then(m => m.PsppStateDagComponent) },
   { path: 'display/:id', loadComponent: () => import('@components/dashboard/display-page/display-page').then(m => m.DisplayPageComponent) }
 ];
 

@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { PsppService } from '@services/pspp/pspp.service';
 
@@ -13,7 +14,7 @@ import { PsppService } from '@services/pspp/pspp.service';
 @Component({
   selector: 'pspp-grader',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterModule],
   template: `
   <div class="grader">
     <h2>PSPP — Composition grader</h2>
@@ -68,7 +69,8 @@ import { PsppService } from '@services/pspp/pspp.service';
             <b>{{ g.descriptor }}</b> = {{ g.value | number:'1.0-3' }}
             <span class="grade-{{ g.grade }}"> {{ g.grade }}</span>
           </div>
-          <svg viewBox="0 0 300 16" class="bar">
+          <svg viewBox="0 0 300 16" class="bar"
+               *ngIf="g.windowKind !== 'banded'">
             <rect x="0" y="6" width="300" height="4" class="rail"/>
             <rect [attr.x]="barX(g, g.center - windowHalf(g))" y="4"
                   [attr.width]="barW(g)" height="8" class="range"/>
@@ -76,11 +78,27 @@ import { PsppService } from '@services/pspp/pspp.service';
                   [attr.x2]="barX(g, g.value)" y1="0" y2="16"
                   class="marker"/>
           </svg>
+          <svg viewBox="0 0 300 16" class="bar"
+               *ngIf="g.windowKind === 'banded'">
+            <rect *ngFor="let b of bandRects(g)" [attr.x]="b.x" y="4"
+                  [attr.width]="b.w" height="8"
+                  class="band band-{{ b.grade }}"/>
+            <line [attr.x1]="bandX(g, g.value)"
+                  [attr.x2]="bandX(g, g.value)" y1="0" y2="16"
+                  class="marker"/>
+          </svg>
           <div class="note">{{ g.behaviorNote }}</div>
         </div>
         <div class="unjudged" *ngIf="result.grading.unjudged?.length">
           Unjudged (no window in this family — honest absence):
           {{ result.grading.unjudged.join(', ') }}
+        </div>
+        <div class="edit-links">
+          Windows are rows — edit them and regrade:
+          <a routerLink="/class-main-page/ThresholdReactionWindow">
+            banded (ThresholdReactionWindow)</a> ·
+          <a routerLink="/class-main-page/ReactionWindow">
+            symmetric (ReactionWindow)</a>
         </div>
       </div>
     </div>
@@ -106,6 +124,11 @@ import { PsppService } from '@services/pspp/pspp.service';
     .bar .rail { fill: #e4ddcc; }
     .bar .range { fill: #cfe3c8; }
     .bar .marker { stroke: #333; stroke-width: 2; }
+    .bar .band-ideal { fill: #9fcf94; }
+    .bar .band-acceptable { fill: #cfe3c8; }
+    .bar .band-marginal { fill: #ecd9a0; }
+    .bar .band-failure { fill: #e8b7b0; }
+    .edit-links { font-size: 10px; color: #6b6455; margin-top: 8px; }
     .overall { font-weight: 600; margin: 4px 0; }
     .grade-ideal { color: #40702f; }
     .grade-acceptable { color: #6f8f3c; }
@@ -164,5 +187,39 @@ export class PsppGraderComponent implements OnInit {
   barW(g: any): number {
     return this.barX(g, g.center + this.windowHalf(g))
       - this.barX(g, g.center - this.windowHalf(g));
+  }
+
+  // ---- banded (ThresholdReactionWindow) gauges ----
+
+  private bandedWindow(g: any): any {
+    return (this.result?.bandedWindows ?? []).find(
+      (w: any) => w.descriptor === g.descriptor);
+  }
+
+  /** Finite plotting domain across the window's bands (open-ended
+   *  failure bands get a 10% visual margin). */
+  private bandDomain(g: any): { lo: number; hi: number } {
+    const bands = this.bandedWindow(g)?.bands ?? [];
+    const finite = bands.flatMap(
+      (b: any) => [b.lo, b.hi]).filter((v: any) => v !== null);
+    const lo = Math.min(...finite);
+    const hi = Math.max(...finite);
+    const pad = (hi - lo) * 0.1 || 1;
+    return { lo: lo - pad, hi: hi + pad };
+  }
+
+  bandX(g: any, value: number): number {
+    const { lo, hi } = this.bandDomain(g);
+    const clamped = Math.max(lo, Math.min(hi, value));
+    return ((clamped - lo) / (hi - lo)) * 300;
+  }
+
+  bandRects(g: any): { x: number; w: number; grade: string }[] {
+    const { lo, hi } = this.bandDomain(g);
+    return (this.bandedWindow(g)?.bands ?? []).map((b: any) => {
+      const x = this.bandX(g, b.lo === null ? lo : b.lo);
+      const x2 = this.bandX(g, b.hi === null ? hi : b.hi);
+      return { x, w: Math.max(0, x2 - x), grade: b.grade };
+    });
   }
 }

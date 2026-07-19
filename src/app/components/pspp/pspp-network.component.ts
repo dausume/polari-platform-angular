@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
 import { PsppService } from '@services/pspp/pspp.service';
 
 interface NetNode {
@@ -24,7 +25,7 @@ interface NetNode {
 @Component({
   selector: 'pspp-network',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterModule],
   template: `
   <div class="net-page">
     <h2>PSPP — Reaction network</h2>
@@ -66,11 +67,16 @@ interface NetNode {
           <b>Competes with:</b> {{ selected.competingWith }}</div>
         <div class="p-topo">{{ selected.topologyChange }}</div>
         <div class="p-src">{{ selected.source }}</div>
+        <a class="edit" routerLink="/class-main-page/ReactionRule">
+          edit ReactionRule rows (auto-CRUDE) — the graph re-derives
+          from rows</a>
       </div>
       <div *ngIf="selected.kind === 'species'">
         <div><b>{{ selected.formula || selected.id }}</b>
           · {{ selected.speciesKind }}</div>
         <div class="p-topo">{{ selected.notes }}</div>
+        <a class="edit" routerLink="/class-main-page/ChemicalSpecies">
+          edit ChemicalSpecies rows (auto-CRUDE)</a>
       </div>
     </div>
   </div>`,

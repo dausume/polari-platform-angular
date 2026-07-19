@@ -50,9 +50,50 @@ export class PsppService {
 
   grade(composition: Record<string, number>, basis: string,
         family: string): Promise<any | null> {
+    return this.post('/grade', { composition, basis, family });
+  }
+
+  private post(path: string, body: any): Promise<any | null> {
     return firstValueFrom(this.http.post<any>(
-      this.url('/grade'), { composition, basis, family },
-      this.polariService.backendRequestOptions))
+      this.url(path), body, this.polariService.backendRequestOptions))
       .catch((err) => (err?.error?.ok === false ? err.error : null));
+  }
+
+  // ---- pspp-8 / V3 surfaces ----
+
+  pathways(cation: string, mr: number,
+           site?: string): Promise<any | null> {
+    const s = site ? `&site=${encodeURIComponent(site)}` : '';
+    return this.get(
+      `/pathways?cation=${encodeURIComponent(cation)}&mr=${mr}${s}`);
+  }
+
+  /** Everything known → graded windows + open pathways + cure +
+   *  the gap list (the experiment plan). */
+  guide(body: { composition?: Record<string, number>; basis?: string;
+                family?: string; cation?: string; mr?: number;
+                t?: number; site?: string }): Promise<any | null> {
+    return this.post('/guide', body);
+  }
+
+  /** Cure-checkpoint promotion: plan by default; {apply:true} is the
+   *  explicit write knob. */
+  checkpoint(body: { material: string; mr: number; t?: number;
+                     state_name?: string; parent_state?: string;
+                     apply?: boolean }): Promise<any | null> {
+    return this.post('/checkpoint', body);
+  }
+
+  benchmarks(): Promise<any | null> {
+    return this.get('/benchmarks');
+  }
+
+  benchmarkOverlay(name: string): Promise<any | null> {
+    return this.get(
+      `/benchmarks/${encodeURIComponent(name)}/overlay`);
+  }
+
+  waxStates(): Promise<any | null> {
+    return this.get('/wax-states');
   }
 }

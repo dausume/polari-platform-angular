@@ -9,6 +9,11 @@ import { PsppProgressComponent } from './pspp-progress.component';
 import {
   PsppDatasetChartComponent,
 } from './pspp-dataset-chart.component';
+import { PsppGuideComponent } from './pspp-guide.component';
+import {
+  PsppBenchmarksComponent,
+} from './pspp-benchmarks.component';
+import { PsppStateDagComponent } from './pspp-state-dag.component';
 
 let registered = false;
 
@@ -45,4 +50,19 @@ export function registerPsppDisplayComponents(): void {
       description: 'One digitized dataset as a proofable chart.',
       defaultInputs: { name: 'na-glass-q-distribution-vs-mr' },
     });
+  registerDisplayComponent('pspp-guide', PsppGuideComponent, {
+    displayName: 'PSPP Experiment Guide',
+    description: 'Graded windows + open pathways + cure + the '
+      + 'gap-list experiment plan.',
+  });
+  registerDisplayComponent('pspp-benchmarks', PsppBenchmarksComponent, {
+    displayName: 'PSPP Benchmark Overlays',
+    description: 'Book experiments beside engine predictions.',
+  });
+  registerDisplayComponent('pspp-state-dag', PsppStateDagComponent, {
+    displayName: 'PSPP State DAG',
+    description: 'Material state history graph; mount with a '
+      + 'material input on any page.',
+    defaultInputs: { material: 'beeswax', embedded: true },
+  });
 }

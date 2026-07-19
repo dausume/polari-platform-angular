@@ -38,6 +38,20 @@ import { PsppService } from '@services/pspp/pspp.service';
         <b>Cure progress</b>
         <span>Measured-curve estimates; unsupported conditions refuse
           and name the data that would help.</span></a>
+      <a routerLink="/pspp/guide" class="card">
+        <b>Experiment guide</b>
+        <span>Enter what you know — graded windows, open reaction
+          pathways, cure schedule; the gap list is the experiment
+          plan.</span></a>
+      <a routerLink="/pspp/benchmarks" class="card">
+        <b>Benchmark overlays</b>
+        <span>Book experiments beside engine predictions — match,
+          mismatch, or an honest refusal naming the missing
+          data.</span></a>
+      <a routerLink="/pspp/states" class="card">
+        <b>State DAGs</b>
+        <span>Material state histories + the wax feedstock routes
+          (pspp-11) — virtual states dashed.</span></a>
     </div>
     <h3>Dataset catalog</h3>
     <table *ngIf="catalog?.ok">
