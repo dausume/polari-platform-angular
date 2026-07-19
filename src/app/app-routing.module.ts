@@ -70,6 +70,11 @@ const routes: Routes = [
   { path: 'tech-tree', loadComponent: () => import('@components/techtree/tech-tree-home.component').then(m => m.TechTreeHomeComponent) },
   { path: 'testing', loadComponent: () => import('@components/testing/testing-home.component').then(m => m.TestingHomeComponent) },
   { path: 'apps', loadComponent: () => import('@components/apps/apps-home.component').then(m => m.AppsHomeComponent) },
+  { path: 'pspp', loadComponent: () => import('@components/pspp/pspp-home.component').then(m => m.PsppHomeComponent) },
+  { path: 'pspp/proofing', loadComponent: () => import('@components/pspp/pspp-proofing.component').then(m => m.PsppProofingComponent) },
+  { path: 'pspp/network', loadComponent: () => import('@components/pspp/pspp-network.component').then(m => m.PsppNetworkComponent) },
+  { path: 'pspp/grader', loadComponent: () => import('@components/pspp/pspp-grader.component').then(m => m.PsppGraderComponent) },
+  { path: 'pspp/progress', loadComponent: () => import('@components/pspp/pspp-progress.component').then(m => m.PsppProgressComponent) },
   { path: 'display/:id', loadComponent: () => import('@components/dashboard/display-page/display-page').then(m => m.DisplayPageComponent) }
 ];
 

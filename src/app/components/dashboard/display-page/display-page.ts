@@ -11,6 +11,7 @@ import { registerMsimDisplayComponents } from '@components/multi-scale/msim-disp
 import { registerMsciDisplayComponents } from '@components/materials-science/msci-display-components';
 import { registerAquaponicsDisplayComponents } from '@components/aquaponics/aquaponics-display-components';
 import { registerGenericDisplayComponents } from '@components/dashboard/generic/generic-display-components';
+import { registerPsppDisplayComponents } from '@components/pspp/pspp-display-components';
 import { DisplayEventsService } from '@services/no-code-services/display-events.service';
 
 @Component({
@@ -97,6 +98,7 @@ export class DisplayPageComponent implements OnInit, OnDestroy {
     registerMsciDisplayComponents();
     registerAquaponicsDisplayComponents();
     registerGenericDisplayComponents();
+    registerPsppDisplayComponents();
     this.sub = this.route.paramMap.subscribe(params => {
       const id = params.get('id');
       if (id) {
