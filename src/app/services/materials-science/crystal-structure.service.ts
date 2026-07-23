@@ -128,6 +128,24 @@ export class CrystalStructureService {
         error: 'scene endpoint unreachable' });
   }
 
+  analyze(name: string, body: any = {}): Promise<any> {
+    const url = `${this.base}/api/msci/structures/`
+      + `${encodeURIComponent(name)}/analyze`;
+    return firstValueFrom(this.http.post<any>(
+      url, body, this.polariService.backendRequestOptions))
+      .catch((err) => err?.error ?? { ok: false,
+        error: 'analyze endpoint unreachable' });
+  }
+
+  xrd(name: string, body: any = {}): Promise<any> {
+    const url = `${this.base}/api/msci/structures/`
+      + `${encodeURIComponent(name)}/xrd`;
+    return firstValueFrom(this.http.post<any>(
+      url, body, this.polariService.backendRequestOptions))
+      .catch((err) => err?.error ?? { ok: false,
+        error: 'xrd endpoint unreachable' });
+  }
+
   phonons(name: string, body: any): Promise<PhononResult> {
     const url = `${this.base}/api/msci/structures/`
       + `${encodeURIComponent(name)}/phonons`;

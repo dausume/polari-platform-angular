@@ -5,8 +5,9 @@ import { CommonModule } from '@angular/common';
 
 export interface SciSeries {
   label: string;
-  kind: 'line' | 'scatter' | 'band';
-  /** band series read lo/hi; line/scatter read y. */
+  /** stick = vertical rule from 0 to y (XRD-pattern idiom). */
+  kind: 'line' | 'scatter' | 'band' | 'stick';
+  /** band series read lo/hi; line/scatter/stick read y. */
   points: { x: number; y?: number; lo?: number; hi?: number }[];
   color?: string;
 }
@@ -82,6 +83,11 @@ export class SciXyChartComponent implements OnChanges {
         marks.push(Plot.areaY(s.points, {
           x: 'x', y1: 'lo', y2: 'hi',
           fill: stroke ?? s.label, fillOpacity: 0.15 }));
+      } else if (s.kind === 'stick') {
+        marks.push(Plot.ruleX(s.points, {
+          x: 'x', y: 'y', strokeWidth: 1.6,
+          stroke: stroke ?? s.label,
+          title: (d: any) => `${d.x}°: ${d.y}` }));
       } else if (s.kind === 'scatter') {
         marks.push(Plot.dot(s.points, {
           x: 'x', y: 'y', r: 2.5, fill: stroke ?? s.label,

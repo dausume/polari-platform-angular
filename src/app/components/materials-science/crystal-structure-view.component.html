@@ -162,6 +162,58 @@
           </sci-xy-chart>
         </div>
 
+        <div class="knob-row">
+          <button (click)="runAnalysis()" [disabled]="analysisRunning">
+            {{ analysisRunning ? 'analyzing…' : 'detect symmetry' }}
+          </button>
+          <button (click)="runXrd()" [disabled]="xrdRunning">
+            {{ xrdRunning ? 'simulating…' : 'simulate XRD (CuKα)' }}
+          </button>
+          <span class="knob-label">worker (pymatgen)</span>
+        </div>
+
+        <div class="refusal" *ngIf="analysis && !analysis.ok">
+          <b>Refused:</b> {{ analysis.error }}
+          <div class="suggest" *ngIf="analysis.suggestion">
+            {{ analysis.suggestion.knob }} —
+            {{ analysis.suggestion.action }}</div>
+        </div>
+        <div *ngIf="analysis?.ok" class="chips">
+          <span class="chip"
+                [class.ok]="analysis.agreesWithDeclared"
+                [class.warn]="!analysis.agreesWithDeclared">
+            detected {{ analysis.spaceGroupSymbol }}
+            (#{{ analysis.spaceGroupNumber }})
+            {{ analysis.agreesWithDeclared
+               ? '— matches declared' : '— DISAGREES with declared #'
+                 + analysis.declaredSpaceGroup }}
+          </span>
+          <span class="chip">{{ analysis.crystalSystem }},
+            point group {{ analysis.pointGroup }}</span>
+          <span class="chip">primitive:
+            {{ analysis.primitiveAtomCount }} atoms</span>
+        </div>
+        <div class="chart-note" *ngIf="analysis?.ok
+             && !analysis.agreesWithDeclared && analysis.suggestion">
+          {{ analysis.suggestion.evidence }} —
+          {{ analysis.suggestion.action }}
+        </div>
+
+        <div class="refusal" *ngIf="xrdResult && !xrdResult.ok">
+          <b>Refused:</b> {{ xrdResult.error }}
+        </div>
+        <div *ngIf="xrdResult?.ok">
+          <sci-xy-chart
+            [series]="xrdSeries"
+            [height]="220"
+            [title]="'Simulated powder XRD — '
+                     + (xrdResult.wavelength || 'CuKa')"
+            xLabel="2θ (degrees)" yLabel="relative intensity"
+            [note]="xrdResult.validity || ''">
+          </sci-xy-chart>
+          <div class="chart-note">{{ strongestPeaksLabel() }}</div>
+        </div>
+
         <div class="refusal" *ngIf="elastic && !elastic.ok">
           <b>Refused:</b> {{ elastic.error }}
         </div>

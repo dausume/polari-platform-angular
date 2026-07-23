@@ -62,6 +62,13 @@ export class CrystalStructureViewComponent implements OnInit {
   elasticRunning = false;
   elastic: ElasticResult | null = null;
 
+  // ssp-3 worker analyses (symmetry + simulated XRD).
+  analysisRunning = false;
+  analysis: any = null;
+  xrdRunning = false;
+  xrdResult: any = null;
+  xrdSeries: SciSeries[] = [];
+
   @ViewChild(SimSpaceViewerComponent) viewer?: SimSpaceViewerComponent;
 
   constructor(private crystals: CrystalStructureService) {}
@@ -80,6 +87,8 @@ export class CrystalStructureViewComponent implements OnInit {
     this.loadError = '';
     this.phonon = null;
     this.elastic = null;
+    this.analysis = null;
+    this.xrdResult = null;
     this.regenerateNote = '';
     const detail = await this.crystals.detail(name);
     if (!detail || !detail.ok) {
@@ -181,6 +190,38 @@ export class CrystalStructureViewComponent implements OnInit {
       fitSigmaToStructure: this.fitSigma,
     });
     this.elasticRunning = false;
+  }
+
+  async runAnalysis(): Promise<void> {
+    if (!this.detail) { return; }
+    this.analysisRunning = true;
+    this.analysis = await this.crystals.analyze(this.detail.name);
+    this.analysisRunning = false;
+  }
+
+  async runXrd(): Promise<void> {
+    if (!this.detail) { return; }
+    this.xrdRunning = true;
+    this.xrdResult = await this.crystals.xrd(this.detail.name);
+    this.xrdRunning = false;
+    if (this.xrdResult?.ok) {
+      this.xrdSeries = [{
+        label: 'intensity', kind: 'stick', color: '#c62828',
+        points: (this.xrdResult.peaks ?? []).map((p: any) => ({
+          x: p.twoTheta, y: p.intensity })),
+      }];
+    }
+  }
+
+  strongestPeaksLabel(): string {
+    const peaks: any[] = [...(this.xrdResult?.peaks ?? [])]
+      .sort((a, b) => b.intensity - a.intensity).slice(0, 4);
+    if (!peaks.length) { return ''; }
+    return 'strongest: ' + peaks.map(p => {
+      const hkl = (p.hkl ?? [])
+        .map((h: number[]) => h.join('')).join(',');
+      return `(${hkl}) ${p.twoTheta}°`;
+    }).join('  ');
   }
 
   isCubic(): boolean {
