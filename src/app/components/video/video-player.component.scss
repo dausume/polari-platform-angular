@@ -1,0 +1,65 @@
+// Self-hosted video player (video-1) — Video.js wrapper. Base player CSS
+// (video.js/dist/video-js.css) is loaded globally via angular.json,
+// same pattern as katex/maplibre; this file only themes it to match the
+// app's brand tokens (see src/styles/_variables.css) and lays out the
+// loading/error overlay.
+
+:host {
+  display: block;
+  width: 100%;
+}
+
+.video-title {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary, #212529);
+}
+
+.video-frame {
+  position: relative;
+  width: 100%;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #000;
+}
+
+.video-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 0.9rem;
+  background: rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+}
+
+.video-error {
+  background: rgba(211, 47, 47, 0.85); // var(--color-error)
+  padding: 12px;
+  text-align: center;
+}
+
+// ---- Video.js theming: brand-blue accent on the big play button + controls
+::ng-deep .video-js {
+  .vjs-big-play-button {
+    background-color: rgba(25, 118, 210, 0.75); // var(--brand-blue)
+    border-color: var(--brand-blue, #1976d2);
+  }
+
+  &:hover .vjs-big-play-button,
+  .vjs-big-play-button:focus {
+    background-color: var(--brand-blue, #1976d2);
+  }
+
+  .vjs-control-bar {
+    background: rgba(0, 0, 0, 0.65);
+  }
+
+  .vjs-play-progress,
+  .vjs-volume-level {
+    background: var(--brand-blue, #1976d2);
+  }
+}

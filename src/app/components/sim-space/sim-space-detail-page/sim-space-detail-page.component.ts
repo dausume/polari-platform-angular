@@ -9,6 +9,7 @@ import { SimSpaceViewerComponent } from '../sim-space-viewer/sim-space-viewer.co
 import { registerMsimDisplayComponents } from '@components/multi-scale/msim-display-components';
 import { registerMsciDisplayComponents } from '@components/materials-science/msci-display-components';
 import { registerAquaponicsDisplayComponents } from '@components/aquaponics/aquaponics-display-components';
+import { registerVideoDisplayComponents } from '@components/video/video-display-components';
 
 /**
  * /sim-spaces/:name — full-page viewer for one SimSpaceDefinition.
@@ -64,6 +65,7 @@ export class SimSpaceDetailPageComponent implements OnInit {
     registerMsimDisplayComponents();
     registerMsciDisplayComponents();
     registerAquaponicsDisplayComponents();
+    registerVideoDisplayComponents();
     this.route.paramMap.subscribe(pm => {
       this.name = pm.get('name') ?? undefined;
     });

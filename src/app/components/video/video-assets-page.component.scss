@@ -1,0 +1,111 @@
+:host {
+  display: block;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.page-header {
+  margin-bottom: 24px;
+
+  h1 { margin: 0 0 4px; font-size: 1.5rem; }
+  .subtitle { margin: 0; color: var(--text-secondary, #495057); font-size: 0.9rem; }
+  .capability-line {
+    display: flex; align-items: center; gap: 6px;
+    margin-top: 8px; padding: 8px 12px; border-radius: 4px;
+    background: var(--brand-orange-light, #fff3e0);
+    color: var(--brand-orange-dark, #e65100);
+    font-size: 0.85rem;
+  }
+}
+
+.create-card {
+  background: var(--surface-primary, #fff);
+  border: 1px solid var(--surface-hover, #eee);
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+
+  h2 { margin: 0 0 12px; font-size: 1.1rem; }
+}
+
+.create-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+
+  mat-form-field { flex: 1 1 220px; }
+  button { white-space: nowrap; }
+}
+
+.create-error {
+  color: var(--color-error, #d32f2f);
+  font-size: 0.85rem;
+  margin: 8px 0 0;
+}
+
+.assets-list {
+  .list-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 8px;
+    h2 { margin: 0; font-size: 1.1rem; }
+  }
+}
+
+.asset-row {
+  border-bottom: 1px solid var(--surface-hover, #eee);
+  padding: 10px 0;
+}
+
+.asset-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+
+  .asset-name {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+
+    .asset-id { font-size: 0.78rem; color: var(--text-tertiary, #6c757d); }
+  }
+}
+
+.status-chip {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+  text-transform: capitalize;
+  background: var(--surface-secondary, #f5f5f5);
+  color: var(--text-secondary, #495057);
+
+  &.status-ready { background: var(--brand-green-light, #e8f5e9); color: var(--brand-green-dark, #2e7d32); }
+  &.status-failed { background: #ffebee; color: var(--color-error, #d32f2f); }
+  &.status-converting, &.status-pending { background: var(--brand-blue-light, #e3f2fd); color: var(--brand-blue, #1976d2); }
+}
+
+.adaptive-chip {
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 8px;
+  background: var(--brand-purple-light, #f3e5f5);
+  color: var(--brand-purple, #7b1fa2);
+}
+
+.dims {
+  font-size: 0.78rem;
+  color: var(--text-tertiary, #6c757d);
+}
+
+.asset-error {
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+  color: var(--color-error, #d32f2f);
+}
+
+video-player {
+  display: block;
+  margin-top: 10px;
+}

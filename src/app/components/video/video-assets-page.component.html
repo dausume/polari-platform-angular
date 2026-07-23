@@ -1,0 +1,67 @@
+<div class="video-assets-page">
+  <header class="page-header">
+    <h1>Self-hosted video</h1>
+    <p class="subtitle">Upload a clip; it converts to WebM (open-source) + MP4 (fallback),
+      with optional adaptive HLS per asset.</p>
+    <p class="capability-line" *ngIf="capability && !capability.ffmpegAvailable">
+      <mat-icon inline>warning</mat-icon>
+      ffmpeg is not available on this instance — conversion is disabled until it's installed.
+    </p>
+  </header>
+
+  <section class="create-card">
+    <h2>New video</h2>
+    <div class="create-form">
+      <mat-form-field appearance="outline">
+        <mat-label>Name (unique id)</mat-label>
+        <input matInput [(ngModel)]="newName" placeholder="e.g. intro-demo" />
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Display name</mat-label>
+        <input matInput [(ngModel)]="newDisplayName" placeholder="e.g. Intro demo" />
+      </mat-form-field>
+      <mat-checkbox [(ngModel)]="newAdaptiveEnabled">
+        Adaptive streaming (HLS)
+      </mat-checkbox>
+      <input type="file" accept="video/*" (change)="onFileSelected($event)" />
+      <button mat-raised-button color="primary"
+        [disabled]="creating || !capability?.ffmpegAvailable"
+        (click)="createAndUpload()">
+        <mat-icon *ngIf="!creating">cloud_upload</mat-icon>
+        <mat-spinner *ngIf="creating" diameter="18"></mat-spinner>
+        {{ creating ? 'Uploading…' : 'Create + upload' }}
+      </button>
+    </div>
+    <p class="create-error" *ngIf="createError">{{ createError }}</p>
+  </section>
+
+  <section class="assets-list">
+    <div class="list-header">
+      <h2>Videos</h2>
+      <button mat-button (click)="refresh()"><mat-icon>refresh</mat-icon> Refresh</button>
+    </div>
+
+    <p *ngIf="loading">Loading…</p>
+    <p *ngIf="!loading && assets.length === 0">No videos yet.</p>
+
+    <div class="asset-row" *ngFor="let asset of assets">
+      <div class="asset-summary" (click)="togglePreview(asset)">
+        <div class="asset-name">
+          <strong>{{ asset.display_name || asset.name }}</strong>
+          <span class="asset-id">{{ asset.name }}</span>
+        </div>
+        <span class="status-chip" [class]="'status-' + asset.status">{{ asset.status }}</span>
+        <span class="adaptive-chip" *ngIf="asset.adaptive_enabled">adaptive</span>
+        <span class="dims" *ngIf="asset.width">{{ asset.width }}×{{ asset.height }}</span>
+        <button mat-icon-button (click)="deleteAsset(asset); $event.stopPropagation()">
+          <mat-icon>delete</mat-icon>
+        </button>
+      </div>
+      <p class="asset-error" *ngIf="asset.status === 'failed'">{{ asset.error_message }}</p>
+
+      <video-player *ngIf="previewAssetName === asset.name"
+        [assetName]="asset.name" [title]="asset.display_name">
+      </video-player>
+    </div>
+  </section>
+</div>

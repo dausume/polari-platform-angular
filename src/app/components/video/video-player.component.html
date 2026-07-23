@@ -1,0 +1,16 @@
+<div class="video-player-shell">
+  <h3 *ngIf="title" class="video-title">{{ title }}</h3>
+
+  <div class="video-frame" [class.is-loading]="loading">
+    <video #videoEl class="video-js vjs-big-play-centered" playsinline></video>
+
+    <div *ngIf="loading && !error" class="video-overlay">
+      <span *ngIf="converting">Converting video&hellip;</span>
+      <span *ngIf="!converting">Loading&hellip;</span>
+    </div>
+
+    <div *ngIf="error" class="video-overlay video-error">
+      {{ error }}
+    </div>
+  </div>
+</div>
