@@ -57,6 +57,7 @@ import { AppComponent } from './app.component';
 //Components
 // App Base Components
 import { HeaderComponent } from 'src/app/components/header/header';
+import { AiAssistantPanelComponent } from '@components/ai-assistant/ai-assistant-panel.component';
 import { PolariConfigComponent } from '@components/polari-config/polari-config';
 import { NavigationComponent } from '@components/nav-component/nav-component';
 // Class-Oriented Dynamic Components
@@ -327,6 +328,9 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     // KatexDisplayComponent is standalone — consumed by both legacy
     // module-declared components and standalone sim-space overlays.
     KatexDisplayComponent,
+    // AiAssistantPanelComponent is standalone — the in-app AI assistant,
+    // mounted app-wide in app.component.html.
+    AiAssistantPanelComponent,
     BrowserModule,
     AppRoutingModule,
     BrowserAnimationsModule,

@@ -50,6 +50,8 @@ import { SimSpaceLegendComponent }
   from '../sim-space/sim-space-viewer/sim-space-legend.component';
 import { SimSpaceSolutionsSummaryComponent }
   from '../sim-space/sim-space-viewer/sim-space-solutions-summary.component';
+import { AiAssistantPanelComponent }
+  from '@components/ai-assistant/ai-assistant-panel.component';
 import { XrEngineService } from '@services/xr/xr-engine.service';
 import { XR_PANEL_CONTEXT } from '@models/xr/xr-panel-context';
 import { XrScrubState } from '@models/xr/xr-surface-model';
@@ -66,6 +68,7 @@ import { formatTimeValue } from '@models/sim-space/time-units';
     SimSpaceEvaluationOverlayComponent,
     SimSpaceLegendComponent,
     SimSpaceSolutionsSummaryComponent,
+    AiAssistantPanelComponent,
   ],
   providers: [{ provide: XR_PANEL_CONTEXT, useValue: true }],
   template: `
@@ -125,6 +128,14 @@ import { formatTimeValue } from '@models/sim-space/time-units';
           [simulationDefinitionName]="viewer.simulationDefinitionName">
         </sim-space-solutions-summary>
       </div>
+      <!-- AI assistant — the same in-app panel, rasterized onto its own
+           HTMLMesh quad. Inherits XR_PANEL_CONTEXT=true from the
+           component-level provider above, so it renders its voice-first,
+           keyboard-free layout verbatim; there's no XR-specific assistant
+           UI to keep in sync. -->
+      <div class="xr-panel-surface assistant" #assistantSurface>
+        <ai-assistant-panel></ai-assistant-panel>
+      </div>
     </div>
   `,
   styles: [`
@@ -149,6 +160,8 @@ import { formatTimeValue } from '@models/sim-space/time-units';
     .xr-panel-surface.equations { width: 460px; }
     .xr-panel-surface.legend { width: 380px; }
     .xr-panel-surface.solutions { width: 480px; }
+    /* Fits the assistant panel's XR layout (640px) plus the wrapper pad. */
+    .xr-panel-surface.assistant { width: 660px; padding: 0; border: none; background: transparent; }
     .xr-surface-title {
       font-size: 1.05rem;
       font-weight: 700;
@@ -174,6 +187,8 @@ export class XrPanelHostComponent implements OnChanges, OnDestroy {
   legendSurface?: ElementRef<HTMLDivElement>;
   @ViewChild('solutionsSurface')
   solutionsSurface?: ElementRef<HTMLDivElement>;
+  @ViewChild('assistantSurface')
+  assistantSurface?: ElementRef<HTMLDivElement>;
 
   private unregister: (() => void) | null = null;
 
@@ -238,6 +253,11 @@ export class XrPanelHostComponent implements OnChanges, OnDestroy {
             id: 'solutions', label: 'No-code solutions',
             getElement: () =>
               this.solutionsSurface?.nativeElement ?? null,
+          },
+          {
+            id: 'assistant', label: 'Assistant',
+            getElement: () =>
+              this.assistantSurface?.nativeElement ?? null,
           },
         ],
         getScrubState: () => this.scrubState(),

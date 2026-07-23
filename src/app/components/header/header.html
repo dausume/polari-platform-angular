@@ -4,6 +4,12 @@
         <span class="header-page-button" fxFlex="noshrink">{{currentComponentTitle}}</span>
         <span fxFlex="grow"></span>
 
+        <button mat-icon-button (click)="toggleAssistant()" class="header-assistant-toggle"
+                [color]="assistant.open() ? 'accent' : ''"
+                matTooltip="AI assistant (text + voice)" aria-label="Toggle AI assistant">
+            <mat-icon>smart_toy</mat-icon>
+        </button>
+
         <button mat-icon-button (click)="toggleTheme()" class="header-theme-toggle"
                 [attr.aria-label]="(isDark ? 'Switch to light mode' : 'Switch to dark mode')">
             <mat-icon>{{ isDark ? 'light_mode' : 'dark_mode' }}</mat-icon>

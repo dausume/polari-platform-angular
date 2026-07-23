@@ -8,6 +8,7 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ThemeService } from '@services/theme.service';
 import { AuthSessionService } from '@services/auth/auth-session.service';
+import { AiAssistantService } from '@services/ai-assistant/ai-assistant.service';
 import { AuthUser } from '../../classes/auth-user';
 import { Subscription } from 'rxjs';
 
@@ -31,8 +32,13 @@ export class HeaderComponent implements OnInit, OnDestroy {
 
   constructor(
     private themeService: ThemeService,
-    private authSession: AuthSessionService
+    private authSession: AuthSessionService,
+    public assistant: AiAssistantService
   ) {}
+
+  toggleAssistant(): void {
+    this.assistant.toggle();
+  }
 
   ngOnInit(): void {
     this.themeSub = this.themeService.currentTheme.subscribe(theme => {

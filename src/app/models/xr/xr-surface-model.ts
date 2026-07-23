@@ -68,6 +68,11 @@ export const XR_SURFACE_SEED: XrSurfaceModelRow[] = [
     xrPlacement: { ring: 1, slot: 5 },
     panelContentRef: 'panel:solutions',
   },
+  {
+    kind: 'menu-item', id: 'assistant', label: 'ASSISTANT',
+    xrPlacement: { ring: 1, slot: 6 },
+    panelContentRef: 'panel:assistant',
+  },
 ];
 
 // ---------------------------------------------------------------------
