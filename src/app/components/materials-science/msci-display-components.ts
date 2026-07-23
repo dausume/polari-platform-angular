@@ -7,6 +7,7 @@ import { MdModelConfigComponent } from './md-model-config.component';
 import { MesoModelConfigComponent } from './meso-model-config.component';
 import { MaterialsHomeComponent } from './materials-home.component';
 import { MaterialLevelPageComponent } from './material-level-page.component';
+import { CrystalStructureViewComponent } from './crystal-structure-view.component';
 
 let registered = false;
 
@@ -91,6 +92,19 @@ export function registerMsciDisplayComponents(): void {
         + 'vs Balberg-limit bars and the explicit use-as-threshold '
         + 'binding knob (input: defaultModelRef)',
       defaultInputs: { defaultModelRef: '' },
+    });
+
+  registerDisplayComponent(
+    'crystal-structure-view', CrystalStructureViewComponent, {
+      displayName: 'Crystal Structure View',
+      description: 'Crystal lattice browser (ssp-2/ssp-4): structure '
+        + 'picker with facts (formula, space group, density, '
+        + 'coordination), the 3D lattice SimSpace scene with explicit '
+        + 'supercell regenerate knobs, and the L3 lattice-dynamics '
+        + 'runs — phonon dispersion along the high-symmetry path + '
+        + 'DOS + cubic elastic constants, honesty chips verbatim '
+        + '(input: structureName)',
+      defaultInputs: { structureName: '' },
     });
 
   registerDisplayComponent(

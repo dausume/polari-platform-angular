@@ -1,0 +1,189 @@
+<div class="crystal-view">
+  <div class="picker-row">
+    <mat-icon>grain</mat-icon>
+    <span class="view-title">Crystal structures</span>
+    <select class="structure-select" [ngModel]="selected"
+            (ngModelChange)="select($event)">
+      <option *ngFor="let s of structures" [value]="s.name">
+        {{ s.displayName || s.name }}
+        {{ s.facts ? '— ' + s.facts.formula : '' }}
+      </option>
+    </select>
+    <span class="load-error" *ngIf="loadError">{{ loadError }}</span>
+  </div>
+
+  <div class="body" *ngIf="detail">
+    <div class="scene-column">
+      <div class="scene-frame">
+        <sim-space-viewer *ngIf="sceneName"
+          [simSpaceName]="sceneName"
+          [hideRunPanel]="true"
+          [clickNavigates]="false">
+        </sim-space-viewer>
+      </div>
+      <div class="scene-controls">
+        <span class="knob-label">supercell</span>
+        <input type="number" min="1" max="6" [(ngModel)]="supercell[0]">
+        <span>×</span>
+        <input type="number" min="1" max="6" [(ngModel)]="supercell[1]">
+        <span>×</span>
+        <input type="number" min="1" max="6" [(ngModel)]="supercell[2]">
+        <button (click)="regenerateScene()" [disabled]="regenerating">
+          {{ regenerating ? 'regenerating…' : 'regenerate scene' }}
+        </button>
+        <span class="regen-note" *ngIf="regenerateNote">
+          {{ regenerateNote }}</span>
+      </div>
+    </div>
+
+    <div class="facts-column">
+      <div class="facts-card">
+        <div class="facts-title">{{ detail.displayName }}</div>
+        <div class="facts-desc">{{ detail.description }}</div>
+        <table class="facts-table">
+          <tr><td>formula</td><td>{{ detail.facts.formula }}</td></tr>
+          <tr><td>space group</td>
+              <td>{{ detail.spaceGroup || 'P1 (literal cell)' }}
+                <span *ngIf="detail.spaceGroupSetting !== 1">
+                  (setting {{ detail.spaceGroupSetting }})</span>
+              </td></tr>
+          <tr><td>cell</td><td>{{ cellparLabel() }}</td></tr>
+          <tr><td>volume</td>
+              <td>{{ detail.facts.cellVolumeA3 }} Å³</td></tr>
+          <tr><td>density</td>
+              <td>{{ detail.facts.densityGcm3 }} g/cm³</td></tr>
+          <tr><td>nearest neighbor</td>
+              <td>{{ detail.facts.nearestNeighborA }} Å</td></tr>
+          <tr><td>coordination (atom 0)</td>
+              <td [matTooltip]="detail.facts.bondRule">
+                {{ detail.facts.coordinationOfAtom0 }}
+                <mat-icon class="hint">info_outline</mat-icon>
+              </td></tr>
+          <tr><td>bonds in cell</td>
+              <td>{{ detail.facts.bondCount }}
+                (cutoff ×{{ detail.bondCutoffScale }})</td></tr>
+        </table>
+        <div class="facts-links">
+          <a *ngIf="detail.materialName" class="material-link"
+             [routerLink]="['/materials', detail.materialName]">
+            <mat-icon>category</mat-icon>
+            {{ detail.materialName }}
+          </a>
+          <span class="provenance" [matTooltip]="detail.notes">
+            {{ detail.provenance }}</span>
+        </div>
+      </div>
+
+      <div class="dynamics-card">
+        <div class="facts-title">Lattice dynamics (L3 —
+          classical pair potential)</div>
+        <div class="knob-row">
+          <span class="knob-label">potential</span>
+          <select [(ngModel)]="potentialKind">
+            <option value="lennard-jones">Lennard-Jones</option>
+            <option value="spring">harmonic springs</option>
+          </select>
+          <ng-container *ngIf="potentialKind === 'lennard-jones'">
+            <span class="knob-label">ε (eV)</span>
+            <input type="number" step="0.01" [(ngModel)]="epsilonEv">
+            <label class="fit-check">
+              <input type="checkbox" [(ngModel)]="fitSigma">
+              fit σ to lattice (P=0)
+            </label>
+            <ng-container *ngIf="!fitSigma">
+              <span class="knob-label">σ (Å)</span>
+              <input type="number" step="0.01" [(ngModel)]="sigmaA">
+            </ng-container>
+          </ng-container>
+          <ng-container *ngIf="potentialKind === 'spring'">
+            <span class="knob-label">k (eV/Å²)</span>
+            <input type="number" step="0.1"
+                   [(ngModel)]="stiffnessEvA2">
+          </ng-container>
+        </div>
+        <div class="knob-row">
+          <button (click)="runPhonons()" [disabled]="phononRunning">
+            {{ phononRunning ? 'computing…' : 'phonon dispersion' }}
+          </button>
+          <button (click)="runElastic()"
+                  [disabled]="elasticRunning || !isCubic()"
+                  [matTooltip]="isCubic() ? ''
+                    : 'elastic constants cover cubic cells only'">
+            {{ elasticRunning ? 'computing…' : 'elastic constants' }}
+          </button>
+          <label class="fit-check">
+            <input type="checkbox" [(ngModel)]="usePrimitive">
+            primitive cell
+          </label>
+        </div>
+
+        <div class="refusal" *ngIf="phonon && !phonon.ok">
+          <b>Refused:</b> {{ phonon.error }}
+          <div *ngIf="phonon.suggestion" class="suggest">
+            {{ phonon.suggestion.knob }} —
+            {{ phonon.suggestion.action }}</div>
+        </div>
+        <div *ngIf="phonon?.ok" class="phonon-results">
+          <div class="chips">
+            <span class="chip" [class.ok]="phonon!.stable"
+                  [class.warn]="!phonon!.stable">
+              {{ phonon!.stable ? 'stable'
+                 : 'IMAGINARY MODES (min '
+                   + phonon!.minFrequencyThz + ' THz)' }}
+            </span>
+            <span class="chip" [class.ok]="phonon!.acousticSumHolds"
+                  [class.warn]="!phonon!.acousticSumHolds"
+                  matTooltip="max |acoustic ω| at Γ — must be ~0">
+              acoustic sum {{ phonon!.gammaAcousticMaxThz }} THz
+            </span>
+            <span class="chip"
+                  *ngIf="phonon!.residualPressureGpa !== undefined">
+              residual P {{ phonon!.residualPressureGpa }} GPa
+            </span>
+            <span class="chip evidence"
+                  *ngIf="phonon!.fittedSigmaA"
+                  [matTooltip]="phonon!.fittedSigmaNote || ''">
+              fitted σ = {{ phonon!.fittedSigmaA }} Å
+            </span>
+          </div>
+          <sci-xy-chart
+            [series]="phononSeries"
+            [xTicks]="phononTicks"
+            [zeroLine]="true"
+            [title]="'Phonon dispersion — ' + detail.displayName"
+            yLabel="frequency (THz)"
+            [note]="phonon!.validity || ''">
+          </sci-xy-chart>
+          <sci-xy-chart
+            [series]="dosSeries"
+            [height]="160"
+            title="Phonon DOS"
+            xLabel="frequency (THz)" yLabel="count">
+          </sci-xy-chart>
+        </div>
+
+        <div class="refusal" *ngIf="elastic && !elastic.ok">
+          <b>Refused:</b> {{ elastic.error }}
+        </div>
+        <div *ngIf="elastic?.ok" class="elastic-results">
+          <table class="facts-table">
+            <tr><td>C₁₁</td><td>{{ elastic!.c11Gpa }} GPa</td></tr>
+            <tr><td>C₁₂</td><td>{{ elastic!.c12Gpa }} GPa</td></tr>
+            <tr><td>C₄₄</td><td>{{ elastic!.c44Gpa }} GPa</td></tr>
+            <tr><td>bulk modulus</td>
+              <td>{{ elastic!.bulkModulusGpa }} GPa
+                <span class="chip" [class.ok]="elastic!.bulkRoutesAgree"
+                      [class.warn]="!elastic!.bulkRoutesAgree"
+                      matTooltip="EOS-curvature route:
+                        {{ elastic!.bulkModulusEosGpa }} GPa">
+                  {{ elastic!.bulkRoutesAgree
+                     ? 'routes agree' : 'ROUTES DISAGREE' }}
+                </span>
+              </td></tr>
+          </table>
+          <div class="chart-note">{{ elastic!.validity }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
