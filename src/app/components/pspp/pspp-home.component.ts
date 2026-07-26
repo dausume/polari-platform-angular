@@ -52,6 +52,11 @@ import { PsppService } from '@services/pspp/pspp.service';
         <b>State DAGs</b>
         <span>Material state histories + the wax feedstock routes
           (pspp-11) — virtual states dashed.</span></a>
+      <a routerLink="/pspp/structure" class="card">
+        <b>Structure sampler</b>
+        <span>Most-likely Q-motif groups + a representative 3D
+          cluster sampled from the ensemble — amorphous, so a
+          distribution, never THE structure.</span></a>
     </div>
     <h3>Dataset catalog</h3>
     <table *ngIf="catalog?.ok">

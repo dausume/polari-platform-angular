@@ -53,6 +53,39 @@ export class PsppService {
     return this.post('/grade', { composition, basis, family });
   }
 
+  /** gsp-1/4: most-likely motif groups — reference (cation+MR) or
+   *  state (material[+state]) mode. */
+  structureGroups(params: {
+    material?: string; state?: string; cation?: string;
+    mr?: number; physicalState?: string;
+  }): Promise<any | null> {
+    const query = Object.entries(params)
+      .filter(([, v]) => v !== undefined && v !== null && v !== '')
+      .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`)
+      .join('&');
+    return this.get(`/structure/groups?${query}`);
+  }
+
+  /** gsp-2: one deterministic ensemble sample (atoms/bonds JSON). */
+  structureSample(body: any): Promise<any | null> {
+    return this.post('/structure/sample', body);
+  }
+
+  /** gsp-3: sample -> persisted SimSpace scene for the viewer. */
+  structureScene(body: any): Promise<any | null> {
+    return this.post('/structure/scene', body);
+  }
+
+  /** gsp-4b: groups after scientist-driven network steps. */
+  structureSteppedGroups(body: any): Promise<any | null> {
+    return this.post('/structure/stepped-groups', body);
+  }
+
+  /** gsp-5: Debye halo pattern of the sampled cluster. */
+  structureXrd(body: any): Promise<any | null> {
+    return this.post('/structure/xrd', body);
+  }
+
   private post(path: string, body: any): Promise<any | null> {
     return firstValueFrom(this.http.post<any>(
       this.url(path), body, this.polariService.backendRequestOptions))

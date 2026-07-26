@@ -78,6 +78,7 @@ const routes: Routes = [
   { path: 'pspp/guide', loadComponent: () => import('@components/pspp/pspp-guide.component').then(m => m.PsppGuideComponent) },
   { path: 'pspp/benchmarks', loadComponent: () => import('@components/pspp/pspp-benchmarks.component').then(m => m.PsppBenchmarksComponent) },
   { path: 'pspp/states', loadComponent: () => import('@components/pspp/pspp-state-dag.component').then(m => m.PsppStateDagComponent) },
+  { path: 'pspp/structure', loadComponent: () => import('@components/pspp/pspp-structure.component').then(m => m.PsppStructureComponent) },
   { path: 'display/:id', loadComponent: () => import('@components/dashboard/display-page/display-page').then(m => m.DisplayPageComponent) },
   { path: 'video-assets', loadComponent: () => import('@components/video/video-assets-page.component').then(m => m.VideoAssetsPageComponent) }
 ];
