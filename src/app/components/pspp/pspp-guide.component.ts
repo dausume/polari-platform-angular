@@ -129,38 +129,40 @@ import { PsppService } from '@services/pspp/pspp.service';
     </div>
   </div>`,
   styles: [`
+    :host { display: block; color: var(--text-on-bg); }
+    .card, .panel, .section, .form, .pspp-chart-card, .home a.card { color: var(--text-on-card); }
     .wrap { max-width: 780px; margin: 0 auto; padding: 12px;
       font-size: 12px; }
-    .hint { color: #6b6455; font-size: 11px; }
+    .hint { color: var(--text-on-bg-muted); font-size: 11px; }
     .form { display: flex; flex-direction: column; gap: 8px; }
-    fieldset { border: 1px solid #d7d2c4; border-radius: 8px;
+    fieldset { border: 1px solid var(--border-light); border-radius: 8px;
       display: flex; gap: 10px; flex-wrap: wrap; font-size: 11px; }
     .oxides { display: flex; gap: 8px; flex-wrap: wrap; }
     label { display: flex; flex-direction: column; gap: 2px; }
     input, select { width: 90px; font-size: 11px; }
     button { align-self: flex-start; padding: 5px 14px;
       cursor: pointer; }
-    .section { border: 1px solid #d7d2c4; border-radius: 8px;
-      margin: 10px 0; padding: 8px; background: #fffdf7; }
+    .section { border: 1px solid var(--border-light); border-radius: 8px;
+      margin: 10px 0; padding: 8px; background: var(--surface-primary); }
     table { font-size: 11px; border-collapse: collapse; }
-    td, th { padding: 2px 6px; border-bottom: 1px solid #e6e0d1;
+    td, th { padding: 2px 6px; border-bottom: 1px solid var(--border-light);
       text-align: left; }
     .overall { display: inline-block; padding: 2px 10px;
       border-radius: 8px; margin-bottom: 6px; font-weight: 600; }
-    .grade-ideal { color: #2c6b2f; }
-    .grade-acceptable { color: #6b8f2c; }
-    .grade-marginal { color: #a3741d; }
-    .grade-failure { color: #a33a2c; }
-    .note { font-size: 10px; color: #6b6455; }
+    .grade-ideal { color: var(--color-success-text); }
+    .grade-acceptable { color: var(--color-success-text); }
+    .grade-marginal { color: var(--color-warn-text); }
+    .grade-failure { color: var(--color-error-text); }
+    .note { font-size: 10px; color: var(--text-secondary); }
     .fw { margin: 3px 0; }
-    .chain { color: #6b6455; font-size: 10px; margin-left: 6px; }
-    .floor { font-size: 9px; border: 1px solid #d7d2c4;
+    .chain { color: var(--text-secondary); font-size: 10px; margin-left: 6px; }
+    .floor { font-size: 9px; border: 1px solid var(--border-light);
       border-radius: 6px; padding: 0 4px; margin-left: 4px; }
-    .blocked { font-size: 10px; color: #6b6455; margin: 2px 0; }
-    .refusal { border: 1px dashed #b0742c; border-radius: 8px;
-      padding: 6px; background: #fdf6e3; margin: 4px 0; }
-    .sugg { color: #6b6455; font-size: 11px; }
-    .gaps { background: #fdf6e3; }
+    .blocked { font-size: 10px; color: var(--text-secondary); margin: 2px 0; }
+    .refusal { border: 1px dashed var(--color-warn-border); border-radius: 8px;
+      padding: 6px; background: var(--color-warn-bg); margin: 4px 0; }
+    .sugg { color: var(--text-secondary); font-size: 11px; }
+    .gaps { background: var(--color-warn-bg); }
     .gap { margin: 4px 0; }
   `],
 })

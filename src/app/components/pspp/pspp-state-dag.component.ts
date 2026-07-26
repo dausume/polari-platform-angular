@@ -69,29 +69,31 @@ import { PsppService } from '@services/pspp/pspp.service';
     </div>
   </div>`,
   styles: [`
+    :host { display: block; color: var(--text-on-bg); }
+    .card, .panel, .section, .form, .pspp-chart-card, .home a.card { color: var(--text-on-card); }
     .wrap { max-width: 860px; margin: 0 auto; padding: 12px;
       font-size: 12px; }
     .controls { display: flex; gap: 12px; margin-bottom: 8px;
       font-size: 11px; }
     .controls label { display: flex; flex-direction: column;
       gap: 2px; }
-    svg { width: 100%; border: 1px solid #e6e0d1; border-radius: 8px;
-      background: #fffdf7; }
-    rect { fill: #fff; stroke: #8a8069; stroke-width: 1.2;
+    svg { width: 100%; border: 1px solid var(--border-light); border-radius: 8px;
+      background: var(--surface-primary); }
+    rect { fill: var(--surface-primary); stroke: var(--border-medium); stroke-width: 1.2;
       cursor: pointer; }
     rect.canonical { stroke: #4c5b8f; stroke-width: 2; }
-    rect.virtual { stroke-dasharray: 5 3; fill: #fbfaf4; }
-    rect.selected { fill: #eef2ff; }
-    .name { font-size: 11px; font-weight: 600; }
-    .stage { font-size: 9px; fill: #6b6455; }
+    rect.virtual { stroke-dasharray: 5 3; fill: var(--surface-secondary); }
+    rect.selected { fill: var(--color-info-bg); }
+    .name { font-size: 11px; font-weight: 600; fill: var(--text-primary); }
+    .stage { font-size: 9px; fill: var(--chart-text); }
     .badge { font-size: 8px; fill: #4c5b8f; }
     .edge { fill: none; stroke: #b4ab97; stroke-width: 1.2;
       marker-end: none; }
-    .detail { border: 1px solid #d7d2c4; border-radius: 8px;
-      margin-top: 8px; padding: 8px; background: #fffdf7;
+    .detail { border: 1px solid var(--border-light); border-radius: 8px;
+      margin-top: 8px; padding: 8px; background: var(--surface-primary);
       font-size: 11px; }
-    .note { color: #6b6455; font-size: 10px; margin-top: 4px; }
-    .empty { color: #6b6455; padding: 12px; }
+    .note { color: var(--text-secondary); font-size: 10px; margin-top: 4px; }
+    .empty { color: var(--text-secondary); padding: 12px; }
   `],
 })
 export class PsppStateDagComponent implements OnInit, OnChanges {

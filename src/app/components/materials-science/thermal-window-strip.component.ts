@@ -32,8 +32,8 @@ import { ThermalProfileRow } from '@models/materials-science/materials-basis-typ
     </ng-template>
   `,
   styles: [`
-    .strip { font-size: 11.5px; color: #555; white-space: nowrap; }
-    .strip.missing { color: #b26a00; font-style: italic; }
+    .strip { font-size: 11.5px; color: var(--text-secondary); white-space: nowrap; }
+    .strip.missing { color: var(--color-warn-text); font-style: italic; }
   `],
 })
 export class ThermalWindowStripComponent {

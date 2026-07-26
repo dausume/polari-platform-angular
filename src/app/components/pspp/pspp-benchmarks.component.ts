@@ -91,44 +91,46 @@ import { PsppService } from '@services/pspp/pspp.service';
     </div>
   </div>`,
   styles: [`
+    :host { display: block; color: var(--text-on-bg); }
+    .card, .panel, .section, .form, .pspp-chart-card, .home a.card { color: var(--text-on-card); }
     .wrap { max-width: 860px; margin: 0 auto; padding: 12px;
       font-size: 12px; }
-    .hint, .cite, .use { color: #6b6455; font-size: 11px; }
+    .hint, .cite, .use { color: var(--text-on-card-muted); font-size: 11px; }
     .tabs { display: flex; gap: 6px; margin: 8px 0; flex-wrap: wrap; }
     .tabs button { font-size: 11px; padding: 4px 8px; cursor: pointer;
-      border: 1px solid #d7d2c4; background: #fffdf7;
+      border: 1px solid var(--border-light); background: var(--surface-primary);
       border-radius: 6px; }
-    .tabs button.active { background: #4c5b8f; color: #fff; }
-    .section { border: 1px solid #d7d2c4; border-radius: 8px;
-      margin: 8px 0; padding: 8px; background: #fffdf7; }
+    .tabs button.active { background: var(--brand-indigo); color: var(--text-on-primary); }
+    .section { border: 1px solid var(--border-light); border-radius: 8px;
+      margin: 8px 0; padding: 8px; background: var(--surface-primary); }
     .head { display: flex; justify-content: space-between; }
     .verdict { font-size: 10px; padding: 1px 8px; border-radius: 8px; }
-    .v-match { background: #cfe3c8; }
-    .v-mismatch { background: #e8b7b0; }
-    .v-refusal { background: #f0dfae; }
-    .v-recorded { background: #e3ded1; }
+    .v-match { background: var(--color-success-bg); }
+    .v-mismatch { background: var(--color-error-bg); }
+    .v-refusal { background: var(--color-warn-bg); }
+    .v-recorded { background: var(--surface-secondary); }
     .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-    .lbl { font-size: 10px; color: #6b6455; margin: 4px 0; }
+    .lbl { font-size: 10px; color: var(--text-secondary); margin: 4px 0; }
     pre { font-size: 10px; white-space: pre-wrap; margin: 0;
       max-height: 220px; overflow: auto; }
     table { font-size: 11px; border-collapse: collapse; }
-    td, th { padding: 2px 6px; border-bottom: 1px solid #e6e0d1;
+    td, th { padding: 2px 6px; border-bottom: 1px solid var(--border-light);
       text-align: left; }
-    .grade-ideal { color: #2c6b2f; font-weight: 600; }
-    .grade-acceptable { color: #6b8f2c; }
-    .grade-marginal { color: #a3741d; }
-    .grade-failure { color: #a33a2c; font-weight: 600; }
+    .grade-ideal { color: var(--color-success-text); font-weight: 600; }
+    .grade-acceptable { color: var(--color-success-text); }
+    .grade-marginal { color: var(--color-warn-text); }
+    .grade-failure { color: var(--color-error-text); font-weight: 600; }
     .fw { margin: 3px 0; }
-    .fw .observed { background: #cfe3c8; padding: 0 4px;
+    .fw .observed { background: var(--color-success-bg); padding: 0 4px;
       border-radius: 4px; }
-    .chain { color: #6b6455; font-size: 10px; margin-left: 6px; }
-    .floor { font-size: 9px; border: 1px solid #d7d2c4;
+    .chain { color: var(--text-secondary); font-size: 10px; margin-left: 6px; }
+    .floor { font-size: 9px; border: 1px solid var(--border-light);
       border-radius: 6px; padding: 0 4px; margin-left: 4px; }
-    .blocked { font-size: 10px; color: #6b6455; margin: 2px 0; }
-    .note { font-size: 10px; color: #6b6455; margin-top: 4px; }
-    .refusal { border: 1px dashed #b0742c; border-radius: 8px;
-      padding: 8px; background: #fdf6e3; margin: 8px 0; }
-    .sugg { color: #6b6455; font-size: 11px; }
+    .blocked { font-size: 10px; color: var(--text-secondary); margin: 2px 0; }
+    .note { font-size: 10px; color: var(--text-secondary); margin-top: 4px; }
+    .refusal { border: 1px dashed var(--color-warn-border); border-radius: 8px;
+      padding: 8px; background: var(--color-warn-bg); margin: 8px 0; }
+    .sugg { color: var(--text-secondary); font-size: 11px; }
   `],
 })
 export class PsppBenchmarksComponent implements OnInit {

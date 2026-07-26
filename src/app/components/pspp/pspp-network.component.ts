@@ -81,12 +81,14 @@ interface NetNode {
     </div>
   </div>`,
   styles: [`
+    :host { display: block; color: var(--text-on-bg); }
+    .card, .panel, .section, .form, .pspp-chart-card, .home a.card { color: var(--text-on-card); }
     .net-page { padding: 12px; }
-    .hint { font-size: 12px; color: #6b6455; }
-    .wrap { overflow: auto; border: 1px solid #d7d2c4;
-      border-radius: 8px; background: #fffdf7; }
+    .hint { font-size: 12px; color: var(--text-on-bg-muted); }
+    .wrap { overflow: auto; border: 1px solid var(--border-light);
+      border-radius: 8px; background: var(--surface-primary); }
     .net-svg { min-width: 1200px; }
-    .stage { font-size: 11px; fill: #8a8272; font-weight: 600; }
+    .stage { font-size: 11px; fill: var(--chart-text); font-weight: 600; }
     .edge { fill: none; stroke: #b8b09d; stroke-width: 1.1; }
     .edge.product { stroke: #7c9a6d; stroke-width: 1.5; }
     .node { cursor: pointer; }
@@ -101,13 +103,13 @@ interface NetNode {
     .hyp-contested { stroke: #b0523f; stroke-dasharray: 2 2; }
     .site { font-size: 9px; text-anchor: middle; fill: #7a5c30; }
     .lbl { font-size: 8.5px; text-anchor: middle; fill: #4b4639; }
-    .panel { border: 1px solid #d7d2c4; border-radius: 8px;
+    .panel { border: 1px solid var(--border-light); border-radius: 8px;
       padding: 10px; margin-top: 8px; font-size: 12px;
-      background: #fffdf7; }
+      background: var(--surface-primary); }
     .p-title { font-weight: 600; }
-    .p-kind { color: #8a8272; font-weight: 400; }
+    .p-kind { color: var(--text-tertiary); font-weight: 400; }
     .p-topo { margin-top: 4px; }
-    .p-src { margin-top: 4px; font-size: 11px; color: #6b6455; }
+    .p-src { margin-top: 4px; font-size: 11px; color: var(--text-secondary); }
   `],
 })
 export class PsppNetworkComponent implements OnInit {

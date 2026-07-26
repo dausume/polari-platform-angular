@@ -18,6 +18,14 @@ body.dark-theme {
   --text-tertiary: #808080;
   --text-disabled: rgba(255,255,255,0.3);
 
+  /* Context-semantic text (see _variables.css). On dark surfaces the
+     -bg values are slightly brighter than -card so out-of-card titles
+     stay legible on the near-black page background. */
+  --text-on-card: #e0e0e0;
+  --text-on-card-muted: #b0b0b0;
+  --text-on-bg: #ededed;
+  --text-on-bg-muted: #c4c4c4;
+
   /* === Navigation === */
   --nav-background: #1a1a1a;
 
@@ -43,6 +51,10 @@ body.dark-theme {
   --color-error-text: #ef9a9a;
   --color-info-text: #90caf9;
   --color-warn-text: #ffb74d;
+
+  /* === Charts (SVG text/grid painted on themed surfaces) === */
+  --chart-text: #b0b0b0;
+  --chart-grid: rgba(255,255,255,0.14);
 
   /* === Borders & Shadows === */
   --border-light: #444444;

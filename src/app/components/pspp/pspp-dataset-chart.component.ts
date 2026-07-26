@@ -38,14 +38,16 @@ import { PsppService } from '@services/pspp/pspp.service';
     </div>
   </div>`,
   styles: [`
-    .pspp-chart-card { border: 1px solid #d7d2c4; border-radius: 8px;
-      padding: 10px 12px; margin: 8px 0; background: #fffdf7; }
+    :host { display: block; color: var(--text-on-bg); }
+    .card, .panel, .section, .form, .pspp-chart-card, .home a.card { color: var(--text-on-card); }
+    .pspp-chart-card { border: 1px solid var(--border-light); border-radius: 8px;
+      padding: 10px 12px; margin: 8px 0; background: var(--surface-primary); }
     .title { font-weight: 600; font-size: 14px; }
-    .cite { font-size: 11px; color: #6b6455; margin-bottom: 4px; }
-    .foot { font-size: 10px; color: #8a8272; margin-top: 4px; }
-    .refusal { background: #fdf0ee; border: 1px solid #e0b4ac;
+    .cite { font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; }
+    .foot { font-size: 10px; color: var(--text-tertiary); margin-top: 4px; }
+    .refusal { background: var(--color-error-bg); border: 1px solid var(--color-error-border);
       border-radius: 6px; padding: 8px; font-size: 12px; }
-    .suggest { color: #7a5c55; margin-top: 3px; }
+    .suggest { color: var(--text-secondary); margin-top: 3px; }
   `],
 })
 export class PsppDatasetChartComponent implements OnChanges {

@@ -33,10 +33,12 @@ import {
     </div>
   </div>`,
   styles: [`
+    :host { display: block; color: var(--text-on-bg); }
+    .card, .panel, .section, .form, .pspp-chart-card, .home a.card { color: var(--text-on-card); }
     .pspp-page { max-width: 640px; margin: 0 auto; padding: 12px; }
-    .hint { font-size: 12px; color: #6b6455; }
-    .pending { border: 1px dashed #c9c2b2; border-radius: 6px;
-      padding: 8px; margin: 8px 0; font-size: 12px; color: #7a7264; }
+    .hint { font-size: 12px; color: var(--text-on-bg-muted); }
+    .pending { border: 1px dashed var(--border-light); border-radius: 6px;
+      padding: 8px; margin: 8px 0; font-size: 12px; color: var(--text-secondary); }
   `],
 })
 export class PsppProofingComponent implements OnInit {

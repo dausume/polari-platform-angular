@@ -106,17 +106,19 @@ import { PsppService } from '@services/pspp/pspp.service';
       {{ result.refusal }} — {{ result.suggestion }}</div>
   </div>`,
   styles: [`
+    :host { display: block; color: var(--text-on-bg); }
+    .card, .panel, .section, .form, .pspp-chart-card, .home a.card { color: var(--text-on-card); }
     .grader { max-width: 620px; margin: 0 auto; padding: 12px; }
-    .hint { font-size: 12px; color: #6b6455; }
-    .form { border: 1px solid #d7d2c4; border-radius: 8px;
-      padding: 10px; background: #fffdf7; }
+    .hint { font-size: 12px; color: var(--text-on-bg-muted); }
+    .form { border: 1px solid var(--border-light); border-radius: 8px;
+      padding: 10px; background: var(--surface-primary); }
     .row { display: flex; gap: 8px; margin: 3px 0; }
     .row label { width: 70px; font-size: 12px; padding-top: 4px; }
     .row input, .row select { width: 130px; }
     button { margin-top: 8px; }
     table td { font-size: 12px; padding: 1px 10px 1px 0; }
-    .absent { font-size: 11px; color: #8a8272; }
-    .refusal { background: #fdf0ee; border: 1px solid #e0b4ac;
+    .absent { font-size: 11px; color: var(--text-tertiary); }
+    .refusal { background: var(--color-error-bg); border: 1px solid var(--color-error-border);
       border-radius: 6px; padding: 8px; font-size: 12px;
       margin-top: 8px; }
     .win { margin: 8px 0; }
@@ -128,14 +130,14 @@ import { PsppService } from '@services/pspp/pspp.service';
     .bar .band-acceptable { fill: #cfe3c8; }
     .bar .band-marginal { fill: #ecd9a0; }
     .bar .band-failure { fill: #e8b7b0; }
-    .edit-links { font-size: 10px; color: #6b6455; margin-top: 8px; }
+    .edit-links { font-size: 10px; color: var(--text-secondary); margin-top: 8px; }
     .overall { font-weight: 600; margin: 4px 0; }
-    .grade-ideal { color: #40702f; }
-    .grade-acceptable { color: #6f8f3c; }
-    .grade-marginal { color: #a5762a; }
-    .grade-failure { color: #a23b2a; }
-    .note { font-size: 10px; color: #6b6455; }
-    .unjudged { font-size: 11px; color: #6b6455; margin-top: 6px; }
+    .grade-ideal { color: var(--color-success-text); }
+    .grade-acceptable { color: var(--color-success-text); }
+    .grade-marginal { color: var(--color-warn-text); }
+    .grade-failure { color: var(--color-error-text); }
+    .note { font-size: 10px; color: var(--text-secondary); }
+    .unjudged { font-size: 11px; color: var(--text-secondary); margin-top: 6px; }
   `],
 })
 export class PsppGraderComponent implements OnInit {

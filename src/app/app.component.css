@@ -8,6 +8,12 @@ mat-sidenav-container {
     display: flex;
     flex-direction: column;
     overflow: auto;
+    /* The scrollable content area must carry the themed page
+       background itself — Material's default here does NOT flip with
+       our dark-theme class, which left out-of-card text (light in
+       dark mode) sitting on a stale-light surface = invisible. */
+    background-color: var(--surface-app-background) !important;
+    color: var(--text-on-bg);
   }
 
   button.mdc-icon-button.mat-mdc-icon-button.mat-unthemed.mat-mdc-button-base {

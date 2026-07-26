@@ -63,19 +63,21 @@ import { PsppService } from '@services/pspp/pspp.service';
     </table>
   </div>`,
   styles: [`
+    :host { display: block; color: var(--text-on-bg); }
+    .card, .panel, .section, .form, .pspp-chart-card, .home a.card { color: var(--text-on-card); }
     .home { max-width: 720px; margin: 0 auto; padding: 12px; }
-    .hint { font-size: 12px; color: #6b6455; }
+    .hint { font-size: 12px; color: var(--text-on-bg-muted); }
     .cards { display: grid;
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       gap: 10px; margin: 10px 0; }
-    .card { border: 1px solid #d7d2c4; border-radius: 8px;
-      padding: 10px; background: #fffdf7; text-decoration: none;
-      color: inherit; display: flex; flex-direction: column;
+    .card { border: 1px solid var(--border-light); border-radius: 8px;
+      padding: 10px; background: var(--surface-primary); text-decoration: none;
+      color: var(--text-primary); display: flex; flex-direction: column;
       gap: 4px; font-size: 12px; }
     table { font-size: 11px; border-collapse: collapse; }
-    td, th { padding: 3px 8px; border-bottom: 1px solid #e6e0d1;
+    td, th { padding: 3px 8px; border-bottom: 1px solid var(--border-light);
       text-align: left; }
-    .cite { color: #6b6455; }
+    .cite { color: var(--text-secondary); }
   `],
 })
 export class PsppHomeComponent implements OnInit {

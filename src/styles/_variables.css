@@ -20,6 +20,16 @@
   --text-on-primary: #ffffff;
   --text-on-dark: #ffffff;
 
+  /* === Context-semantic text (purpose, not shade) ===
+     Pick by the SURFACE the text sits on, so a component never has to
+     know the theme. -card = on --surface-primary (cards/panels/forms);
+     -bg = on --surface-app-background (page body, out-of-card). Tuned
+     per surface + theme so contrast holds in BOTH modes. */
+  --text-on-card: #212529;
+  --text-on-card-muted: #495057;
+  --text-on-bg: #000000;
+  --text-on-bg-muted: #333333;
+
   /* === Brand Colors === */
   --brand-indigo: #3f51b5;
   --brand-blue: #1976d2;
@@ -59,6 +69,10 @@
   /* === Navigation === */
   --nav-background: #424242;
   --nav-text: #ffffff;
+
+  /* === Charts (SVG text/grid painted on themed surfaces) === */
+  --chart-text: #495057;
+  --chart-grid: rgba(0,0,0,0.12);
 
   /* === Borders & Shadows === */
   --border-light: #e9ecef;

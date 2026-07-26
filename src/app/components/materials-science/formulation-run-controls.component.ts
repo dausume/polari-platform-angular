@@ -38,8 +38,8 @@ import {
   styles: [`
     .run-controls { display: flex; align-items: center; gap: 10px;
                     flex-wrap: wrap; }
-    .outcome { font-size: 12.5px; color: #1b5e20; }
-    .outcome.bad { color: #8d2f23; }
+    .outcome { font-size: 12.5px; color: var(--color-success-text); }
+    .outcome.bad { color: var(--color-error-text); }
   `],
 })
 export class FormulationRunControlsComponent {

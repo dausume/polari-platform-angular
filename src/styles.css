@@ -26,10 +26,29 @@ body {
   color: var(--text-primary);
 }
 
+/* The content area's background MUST carry the themed page color.
+   The template has no <mat-sidenav-content>, so Material auto-creates
+   an implicit .mat-drawer-content wrapper around <router-outlet> — a
+   Material-generated element that component-scoped (encapsulated)
+   rules can't reach, so it kept Material's default LIGHT background
+   and left dark mode with a light page behind dark cards. These are
+   GLOBAL (unencapsulated) rules against the real Material classes, so
+   they actually match and flip with --surface-app-background. */
+.mat-drawer-container,
+.mat-sidenav-container,
+.mat-drawer-content,
+.mat-sidenav-content {
+  background-color: var(--surface-app-background) !important;
+  color: var(--text-on-bg);
+}
+
 /* Override Material typography heading colors (pink-bluegrey theme
-   sets headings to light/white text for its dark palette) */
+   sets headings to light/white text for its dark palette). Use the
+   on-background token — the strongest-contrast text in each theme
+   (pure black on light, bright on dark) — so titles stay priority
+   over --text-primary/secondary wherever they sit. */
 h1, h2, h3, h4, h5, h6 {
-  color: var(--text-primary) !important;
+  color: var(--text-on-bg) !important;
 }
 
 /* Standardized mat-card styling (uses design tokens) */

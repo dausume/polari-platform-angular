@@ -47,12 +47,12 @@ import { EngineTemplate } from '@models/materials-science/engine-model-types';
     .capability {
       display: inline-flex; align-items: center; gap: 5px;
       font-size: 12px; padding: 3px 10px; border-radius: 10px;
-      background: #e8f5e9; color: #1b5e20; cursor: help;
+      background: var(--color-success-bg); color: var(--color-success-text); cursor: help;
       mat-icon { font-size: 16px; width: 16px; height: 16px; }
-      &.bad { background: #fff8e1; color: #8d6e00; }
+      &.bad { background: var(--color-warn-bg); color: var(--color-warn-text); }
     }
-    .outcome { font-size: 12.5px; color: #1b5e20; }
-    .outcome.bad { color: #8d2f23; }
+    .outcome { font-size: 12.5px; color: var(--color-success-text); }
+    .outcome.bad { color: var(--color-error-text); }
   `],
 })
 export class ModelRunBarComponent {

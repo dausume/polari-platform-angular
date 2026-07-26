@@ -51,21 +51,23 @@ import { PsppService } from '@services/pspp/pspp.service';
     </div>
   </div>`,
   styles: [`
+    :host { display: block; color: var(--text-on-bg); }
+    .card, .panel, .section, .form, .pspp-chart-card, .home a.card { color: var(--text-on-card); }
     .prog { max-width: 620px; margin: 0 auto; padding: 12px; }
     .form { display: flex; gap: 10px; align-items: end;
       flex-wrap: wrap; }
     .form label { font-size: 12px; display: flex;
       flex-direction: column; }
     .form input { width: 80px; }
-    .presets { font-size: 10px; color: #8a8272; }
-    .card { border: 1px solid #d7d2c4; border-radius: 8px;
-      padding: 10px; margin-top: 8px; background: #fffdf7;
+    .presets { font-size: 10px; color: var(--text-tertiary); }
+    .card { border: 1px solid var(--border-light); border-radius: 8px;
+      padding: 10px; margin-top: 8px; background: var(--surface-primary);
       font-size: 13px; }
-    .chart .axis { stroke: #8a8272; }
-    .chart .ax { font-size: 10px; fill: #8a8272; }
+    .chart .axis { stroke: var(--chart-text); }
+    .chart .ax { font-size: 10px; fill: var(--chart-text); }
     .chart .line { fill: none; stroke: #4a6b8a; stroke-width: 2; }
-    .assume { font-size: 11px; color: #6b6455; }
-    .refusal { background: #fdf0ee; border: 1px solid #e0b4ac;
+    .assume { font-size: 11px; color: var(--text-secondary); }
+    .refusal { background: var(--color-error-bg); border: 1px solid var(--color-error-border);
       border-radius: 6px; padding: 8px; font-size: 12px;
       margin-top: 8px; }
   `],

@@ -34,12 +34,12 @@ import { ScaleDefinitionRow } from '@models/materials-science/materials-basis-ty
     .chip {
       display: inline-block; padding: 1px 8px; border-radius: 10px;
       font-size: 11px; font-weight: 600; cursor: default;
-      background: #eceff1; color: #607d8b;
+      background: var(--surface-secondary); color: var(--text-tertiary);
     }
-    .chip.defined { background: #e8f5e9; color: #1b5e20; }
-    .chip.partial { background: #fff8e1; color: #8d6e00; }
-    .chip.planned { background: #e3f2fd; color: #1565c0; }
-    .chip.empty { background: transparent; color: #9e9e9e; }
+    .chip.defined { background: var(--color-success-bg); color: var(--color-success-text); }
+    .chip.partial { background: var(--color-warn-bg); color: var(--color-warn-text); }
+    .chip.planned { background: var(--color-info-bg); color: var(--color-info-text); }
+    .chip.empty { background: transparent; color: var(--text-disabled); }
   `],
 })
 export class ScaleLevelCellComponent {
