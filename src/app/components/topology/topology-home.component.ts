@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -42,7 +42,7 @@ interface AssignNotice {
   templateUrl: './topology-home.component.html',
   styleUrls: ['./topology-home.component.scss'],
 })
-export class TopologyHomeComponent implements OnInit {
+export class TopologyHomeComponent implements OnInit, OnDestroy {
   summary: TopologySummary | null = null;
   graph: TopologyGraph | null = null;
   moduleGraph: ModuleGraphReport | null = null;
@@ -66,7 +66,14 @@ export class TopologyHomeComponent implements OnInit {
 
   constructor(private topologyService: TopologyService) {}
 
+  /** gm-2-lite: recent/in-flight graceful moves (step receipts +
+   *  expected durations from history). Polls faster while a move
+   *  is running. */
+  moves: any[] = [];
+  private movesTimer: any = null;
+
   async ngOnInit(): Promise<void> {
+    this.refreshMoves();
     this.summary = await this.topologyService.summary();
     if (!this.summary?.ok) {
       this.loading = false;
@@ -76,6 +83,20 @@ export class TopologyHomeComponent implements OnInit {
     }
     await this.select(this.summary.activeTopology
       || this.summary.topologies[0]?.name || '');
+  }
+
+  ngOnDestroy(): void {
+    if (this.movesTimer) clearTimeout(this.movesTimer);
+  }
+
+  refreshMoves(): void {
+    this.topologyService.moveOperations().then((r) => {
+      this.moves = (r?.moves || []).slice(0, 4);
+      const active = this.moves.some(
+        (m: any) => m.status === 'running' || m.status === 'planned');
+      this.movesTimer = setTimeout(() => this.refreshMoves(),
+                                   active ? 3000 : 30000);
+    });
   }
 
   async select(name: string): Promise<void> {

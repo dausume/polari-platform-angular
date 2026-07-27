@@ -105,6 +105,16 @@ export class TopologyService {
       .catch((err) => err?.error?.ok === false ? err.error : null);
   }
 
+  /** gm-2-lite: the move ledger — recent MoveOperations with step
+   *  receipts + expected step durations from prior verified moves
+   *  (no history = {}). ?active=true filters to in-flight moves. */
+  moveOperations(activeOnly = false): Promise<any | null> {
+    return firstValueFrom(this.http.get<any>(
+      this.url(`/move-operations${activeOnly ? '?active=true' : ''}`),
+      this.polariService.backendRequestOptions))
+      .catch((err) => err?.error?.ok === false ? err.error : null);
+  }
+
   /** tt-11: derived test states + latest integration pings. */
   testing(name?: string): Promise<TopologyTestingReport | null> {
     const query = name ? `?name=${encodeURIComponent(name)}` : '';

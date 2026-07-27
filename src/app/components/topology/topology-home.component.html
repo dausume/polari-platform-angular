@@ -16,6 +16,40 @@
   <div *ngIf="loadError && !loading" class="status-line error">
     {{ loadError }}</div>
 
+  <!-- gm-2-lite: graceful moves as observable data -->
+  <div class="moves-panel" *ngIf="moves.length">
+    <h3>Graceful moves</h3>
+    <div class="move-card" *ngFor="let mv of moves"
+         [class.mv-running]="mv.status === 'running'"
+         [class.mv-failed]="mv.status === 'failed'">
+      <div class="move-head">
+        <b>{{ mv.subject }}</b>
+        <span class="mv-route">{{ mv.fromMachine }} →
+          {{ mv.toMachine }}</span>
+        <span class="chip">{{ mv.status }}</span>
+        <span class="muted" *ngIf="mv.measuredTotalS">
+          {{ mv.measuredTotalS | number:'1.1-1' }}s measured</span>
+      </div>
+      <table class="move-steps">
+        <tr *ngFor="let s of mv.steps">
+          <td class="st st-{{ s.status }}">{{ s.status }}</td>
+          <td>{{ s.label }}</td>
+          <td class="muted">{{ s.receipt }}</td>
+          <td class="num">
+            <span *ngIf="s.duration_s != null">{{ s.duration_s
+              | number:'1.1-1' }}s</span>
+            <span class="muted"
+                  *ngIf="s.duration_s == null
+                         && mv.expectedStepDurationsS[s.key] != null">
+              ~{{ mv.expectedStepDurationsS[s.key]
+                | number:'1.1-1' }}s expected</span>
+          </td>
+        </tr>
+      </table>
+      <div class="error" *ngIf="mv.error">{{ mv.error }}</div>
+    </div>
+  </div>
+
   <!-- Topology picker -->
   <div class="topo-tabs" *ngIf="summary?.ok">
     <button *ngFor="let topo of summary!.topologies"

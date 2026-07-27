@@ -271,3 +271,31 @@
     color: #bf360c;
   }
 }
+
+// gm-2-lite: graceful-moves panel
+.moves-panel {
+  margin: 10px 0;
+  h3 { margin: 4px 0; }
+  .move-card {
+    border: 1px solid var(--border-light); border-radius: 8px;
+    padding: 8px 10px; margin: 6px 0;
+    background: var(--surface-primary); color: var(--text-on-card);
+    &.mv-running { border-left: 4px solid #f9a825; }
+    &.mv-failed { border-left: 4px solid #c62828; }
+  }
+  .move-head { display: flex; gap: 10px; align-items: center;
+    font-size: 13px;
+    .mv-route { color: var(--text-on-card-muted); } }
+  .move-steps { width: 100%; border-collapse: collapse;
+    font-size: 11px; margin-top: 4px;
+    td { padding: 2px 6px;
+      border-bottom: 1px solid var(--border-light); }
+    .num { text-align: right; }
+    .st { font-weight: 700; }
+    .st-done { color: #2e7d32; }
+    .st-running { color: #f9a825; }
+    .st-failed { color: #c62828; }
+    .st-pending, .st-skipped { color: var(--text-on-card-muted); } }
+  .muted { color: var(--text-on-card-muted); }
+  .error { color: #c62828; font-size: 12px; }
+}
