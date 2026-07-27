@@ -163,4 +163,26 @@ export class PsppService {
                        nStages?: number }): Promise<any | null> {
     return this.post('/sinter/stages', body);
   }
+
+  // ---- mtt-2 characterization + research tools ----
+
+  /** XRD + FTIR method catalog: plain-language what/how + diagnostic
+   *  signals + local-buildability + safety. */
+  characterizationMethods(): Promise<any | null> {
+    return this.get('/characterization/methods');
+  }
+
+  /** Simulated FTIR diagnostic bands for a composition (Si-O-T shift +
+   *  carbonate/water bands); positions approximate, intensities refuse. */
+  ftir(body: { siAlRatio?: number; hasWater?: boolean;
+               hasCarbonate?: boolean }): Promise<any | null> {
+    return this.post('/characterization/ftir', body);
+  }
+
+  /** Buildable open-source research instruments, easiest first;
+   *  optional domain filter. */
+  researchTools(domain?: string): Promise<any | null> {
+    return this.get(domain ? `/research-tools?domain=${
+      encodeURIComponent(domain)}` : '/research-tools');
+  }
 }

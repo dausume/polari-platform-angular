@@ -63,6 +63,11 @@ import { PsppService } from '@services/pspp/pspp.service';
           ladder (local vs olivine tracks), the geopolymer→ceramic
           conversion, and sample a ceramic at each stage of a
           firing.</span></a>
+      <a routerLink="/pspp/research" class="card">
+        <b>Research + characterization</b>
+        <span>How we see materials — XRD vs FTIR in plain language, an
+          FTIR band sampler, and open-source research tools to build
+          (red-cabbage pH, spectrometer, FTIR, Brix, EC…).</span></a>
     </div>
     <h3>Dataset catalog</h3>
     <table *ngIf="catalog?.ok">
