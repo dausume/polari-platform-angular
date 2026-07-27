@@ -52,6 +52,8 @@ const routes: Routes = [
   { path: 'api-config', component: ApiConfigComponent },
   { path: 'system-diagnostics', loadComponent: () => import('@components/system-diagnostics/system-diagnostics').then(m => m.SystemDiagnosticsComponent) },
   { path: 'module-management', loadComponent: () => import('@components/module-management/module-management.component').then(m => m.ModuleManagementComponent) },
+  // mlb-4: lazy-boot bring-up tracking (module tiles going online live).
+  { path: 'modules/bringup', loadComponent: () => import('@components/module-bringup/module-bringup.component').then(m => m.ModuleBringupComponent) },
   { path: 'module-details/:moduleId', loadComponent: () => import('@components/module-details/module-details.component').then(m => m.ModuleDetailsComponent) },
   { path: 'maps', component: MapsComponent },
   { path: 'displays', component: DisplaysComponent },
