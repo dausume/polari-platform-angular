@@ -129,4 +129,38 @@ export class PsppService {
   waxStates(): Promise<any | null> {
     return this.get('/wax-states');
   }
+
+  // ---- mtt-2 ceramics ----
+
+  /** Ceramic samples on the service-temperature ladder. minTemp +
+   *  local/carbonNegative filter to what can line a target furnace. */
+  ceramicsSamples(params?: { minTemp?: number; local?: boolean;
+                             carbonNegative?: boolean }
+                  ): Promise<any | null> {
+    if (params?.minTemp === undefined) return this.get('/ceramics/samples');
+    const q = [`minTemp=${params.minTemp}`];
+    if (params.local) q.push('local=true');
+    if (params.carbonNegative) q.push('carbonNegative=true');
+    return this.get(`/ceramics/samples?${q.join('&')}`);
+  }
+
+  /** The furnace escalation ladder (geopolymer oven -> steelmaking) +
+   *  its physical bootstrapping check. */
+  ceramicsLadder(): Promise<any | null> {
+    return this.get('/ceramics/ladder');
+  }
+
+  /** The DATA-BACKED geopolymer -> ceramic thermal-conversion stages
+   *  (Table 8.8) + the glass branch. */
+  geopolymerTransition(): Promise<any | null> {
+    return this.get('/ceramics/geopolymer-transition');
+  }
+
+  /** Sample a firing at N checkpoints — the ceramic at different
+   *  stages during sintering (rho/grain refuse in place uncalibrated). */
+  sinterStages(body: { schedule: any[]; activationEnergy: number;
+                       masterCurve?: string; grain?: any;
+                       nStages?: number }): Promise<any | null> {
+    return this.post('/sinter/stages', body);
+  }
 }

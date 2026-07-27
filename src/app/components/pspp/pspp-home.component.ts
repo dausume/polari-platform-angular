@@ -57,6 +57,12 @@ import { PsppService } from '@services/pspp/pspp.service';
         <span>Most-likely Q-motif groups + a representative 3D
           cluster sampled from the ensemble — amorphous, so a
           distribution, never THE structure.</span></a>
+      <a routerLink="/pspp/ceramics" class="card">
+        <b>Ceramics + sintering</b>
+        <span>Inspect ceramic precursors + samples on the temperature
+          ladder (local vs olivine tracks), the geopolymer→ceramic
+          conversion, and sample a ceramic at each stage of a
+          firing.</span></a>
     </div>
     <h3>Dataset catalog</h3>
     <table *ngIf="catalog?.ok">

@@ -79,6 +79,7 @@ const routes: Routes = [
   { path: 'pspp/benchmarks', loadComponent: () => import('@components/pspp/pspp-benchmarks.component').then(m => m.PsppBenchmarksComponent) },
   { path: 'pspp/states', loadComponent: () => import('@components/pspp/pspp-state-dag.component').then(m => m.PsppStateDagComponent) },
   { path: 'pspp/structure', loadComponent: () => import('@components/pspp/pspp-structure.component').then(m => m.PsppStructureComponent) },
+  { path: 'pspp/ceramics', loadComponent: () => import('@components/pspp/pspp-ceramics.component').then(m => m.PsppCeramicsComponent) },
   { path: 'display/:id', loadComponent: () => import('@components/dashboard/display-page/display-page').then(m => m.DisplayPageComponent) },
   { path: 'video-assets', loadComponent: () => import('@components/video/video-assets-page.component').then(m => m.VideoAssetsPageComponent) }
 ];
