@@ -299,3 +299,33 @@
   .muted { color: var(--text-on-card-muted); }
   .error { color: #c62828; font-size: 12px; }
 }
+
+// gm-6: move planner + pulse + verify strip
+.move-planner {
+  border: 1px dashed var(--border-light); border-radius: 8px;
+  padding: 6px 10px; margin-bottom: 8px; font-size: 12px;
+  summary { cursor: pointer; color: var(--text-on-card); }
+  .planner-row { display: flex; gap: 8px; margin: 8px 0;
+    select { padding: 4px 6px; border: 1px solid var(--border-light);
+      border-radius: 4px; background: var(--surface-app-background);
+      color: var(--text-primary); } }
+  .plan-what { color: var(--text-on-card); margin: 4px 0; }
+  .confirm-gate { margin: 8px 0; display: flex; gap: 8px;
+    align-items: center; color: #c62828;
+    input { padding: 4px 6px; border: 1px solid #c62828;
+      border-radius: 4px; background: var(--surface-app-background);
+      color: var(--text-primary); } }
+  .plan-cmd { margin: 8px 0;
+    code { display: block; padding: 6px 8px; border-radius: 4px;
+      background: var(--surface-app-background);
+      color: var(--text-primary); user-select: all; } }
+}
+.moves-panel .move-card.mv-running {
+  animation: gm-pulse 1.6s ease-in-out infinite;
+}
+@keyframes gm-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(249, 168, 37, .0); }
+  50% { box-shadow: 0 0 0 4px rgba(249, 168, 37, .35); }
+}
+.verify-run { font-size: 12px; margin: 6px 0;
+  color: var(--text-on-card); }

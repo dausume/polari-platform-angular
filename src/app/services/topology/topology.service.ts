@@ -115,6 +115,30 @@ export class TopologyService {
       .catch((err) => err?.error?.ok === false ? err.error : null);
   }
 
+  /** gm-6: preview a graceful move BEFORE anything runs — planned
+   *  steps, expected durations from history, statefulness (typed
+   *  confirmation), and the exact command. No subject = the
+   *  relocatable-subject catalog. */
+  movePlan(subject?: string, machine?: string): Promise<any | null> {
+    const q: string[] = [];
+    if (subject) { q.push(`subject=${encodeURIComponent(subject)}`); }
+    if (machine) { q.push(`machine=${encodeURIComponent(machine)}`); }
+    return firstValueFrom(this.http.get<any>(
+      this.url(`/move-operations/plan${q.length ? '?' + q.join('&') : ''}`),
+      this.polariService.backendRequestOptions))
+      .catch((err) => err?.error?.ok === false ? err.error : null);
+  }
+
+  /** tt-11: run the foundational ping pass (machines + dep edges) —
+   *  gm-6 runs it automatically when a move verifies, so every flow
+   *  ends with the verification painted. */
+  pingRun(name?: string): Promise<any | null> {
+    return firstValueFrom(this.http.post<any>(
+      this.url(`/testing/ping${name ? '?name=' + encodeURIComponent(name) : ''}`),
+      {}, this.polariService.backendRequestOptions))
+      .catch((err) => err?.error?.ok === false ? err.error : null);
+  }
+
   /** tt-11: derived test states + latest integration pings. */
   testing(name?: string): Promise<TopologyTestingReport | null> {
     const query = name ? `?name=${encodeURIComponent(name)}` : '';

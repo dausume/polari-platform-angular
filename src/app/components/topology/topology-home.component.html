@@ -16,6 +16,68 @@
   <div *ngIf="loadError && !loading" class="status-line error">
     {{ loadError }}</div>
 
+  <!-- gm-6: kind-aware move planner (preview -> typed confirm ->
+       the exact command; live progress paints below once it runs) -->
+  <div class="moves-panel">
+    <details class="move-planner" (toggle)="loadSubjects()">
+      <summary>Plan a graceful move…</summary>
+      <div class="planner-row">
+        <select [(ngModel)]="planSubject" (change)="previewPlan()">
+          <option value="">— what moves —</option>
+          <option *ngFor="let s of moveSubjects | keyvalue"
+                  [value]="s.key">{{ s.key }}</option>
+        </select>
+        <select [(ngModel)]="planMachine" (change)="previewPlan()">
+          <option value="">— to machine —</option>
+          <option *ngFor="let m of machineNames" [value]="m">
+            {{ m }}</option>
+        </select>
+      </div>
+      <div class="plan-preview" *ngIf="plan?.ok">
+        <p class="plan-what">{{ plan.what }}</p>
+        <table class="move-steps">
+          <tr *ngFor="let s of plan.steps">
+            <td>{{ s.key }}</td>
+            <td class="muted">{{ s.label }}</td>
+            <td class="num muted">
+              <span *ngIf="plan.expectedStepDurationsS[s.key] != null">
+                ~{{ plan.expectedStepDurationsS[s.key]
+                  | number:'1.1-1' }}s</span></td>
+          </tr>
+        </table>
+        <p class="muted" *ngIf="plan.expectedTotalS != null">
+          expected ~{{ plan.expectedTotalS | number:'1.0-0' }}s from
+          prior moves</p>
+        <p class="muted" *ngIf="plan.expectedTotalS == null">
+          no prior moves of this kind recorded — no ETA (never a
+          guess)</p>
+        <div class="confirm-gate" *ngIf="plan.confirmationRequired">
+          <label>STATEFUL move — type
+            <b>{{ plan.subject }}</b> to confirm:</label>
+          <input [(ngModel)]="planConfirmText"
+                 [placeholder]="plan.subject"/>
+        </div>
+        <div class="plan-cmd" *ngIf="planConfirmed && planMachine">
+          <code>{{ plan.command }}</code>
+          <p class="muted">Run it (POLARI_CORE_URL + LOCAL_IP
+            exported) — progress paints below live. Execution stays
+            your move.</p>
+        </div>
+        <p class="muted" *ngIf="planConfirmed && !planMachine">
+          pick a target machine to get the exact command</p>
+      </div>
+      <p class="error" *ngIf="plan && !plan.ok">{{ plan.refusal }}</p>
+    </details>
+
+    <div class="verify-run" *ngIf="verifyRun">
+      <span *ngIf="verifyRun.running">verification pass running after
+        {{ verifyRun.move }}…</span>
+      <span *ngIf="!verifyRun.running">✓ {{ verifyRun.move }} verified
+        — ping pass: {{ verifyRun.checked ?? '?' }} checks
+        (graph repainted)</span>
+    </div>
+  </div>
+
   <!-- gm-2-lite: graceful moves as observable data -->
   <div class="moves-panel" *ngIf="moves.length">
     <h3>Graceful moves</h3>

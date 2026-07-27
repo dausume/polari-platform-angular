@@ -1,5 +1,6 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
@@ -37,7 +38,7 @@ interface AssignNotice {
 @Component({
   standalone: true,
   selector: 'topology-home',
-  imports: [CommonModule, RouterModule, MatTooltipModule,
+  imports: [CommonModule, FormsModule, RouterModule, MatTooltipModule,
             DragDropModule, TopologyGraphViewComponent],
   templateUrl: './topology-home.component.html',
   styleUrls: ['./topology-home.component.scss'],
@@ -94,9 +95,70 @@ export class TopologyHomeComponent implements OnInit, OnDestroy {
       this.moves = (r?.moves || []).slice(0, 4);
       const active = this.moves.some(
         (m: any) => m.status === 'running' || m.status === 'planned');
+      // gm-6: every flow ends with the verification run + painted —
+      // when a move we watched running flips to verified, re-run the
+      // ping pass and repaint the graph from it.
+      const verifiedNow = this.moves
+        .filter((m: any) => m.status === 'verified')
+        .map((m: any) => m.name);
+      const fresh = verifiedNow.find(
+        (n: string) => this.watchedRunning.has(n));
+      verifiedNow.forEach((n: string) => this.watchedRunning.delete(n));
+      this.moves.filter((m: any) => m.status === 'running')
+        .forEach((m: any) => this.watchedRunning.add(m.name));
+      if (fresh) { this.onMoveVerified(fresh); }
       this.movesTimer = setTimeout(() => this.refreshMoves(),
                                    active ? 3000 : 30000);
     });
+  }
+
+  // ------------------------------------------------------------------
+  // gm-6: kind-aware move planner — preview the step plan + expected
+  // durations BEFORE anything runs; stateful subjects demand a typed
+  // confirmation naming the subject; execution stays the human-run
+  // command (the panel paints live progress once it starts).
+  // ------------------------------------------------------------------
+
+  moveSubjects: Record<string, any> = {};
+  planSubject = '';
+  planMachine = '';
+  plan: any = null;
+  planConfirmText = '';
+  private watchedRunning = new Set<string>();
+  verifyRun: any = null;
+
+  get machineNames(): string[] {
+    return (this.graph?.ok ? this.graph.machines : [])
+      .map((m: any) => m.name);
+  }
+
+  loadSubjects(): void {
+    if (Object.keys(this.moveSubjects).length) { return; }
+    this.topologyService.movePlan().then(
+      (r) => (this.moveSubjects = r?.subjects || {}));
+  }
+
+  previewPlan(): void {
+    this.plan = null;
+    this.planConfirmText = '';
+    if (!this.planSubject) { return; }
+    this.topologyService.movePlan(this.planSubject,
+                                  this.planMachine || undefined)
+      .then((r) => (this.plan = r));
+  }
+
+  get planConfirmed(): boolean {
+    return !this.plan?.confirmationRequired
+      || this.planConfirmText === this.plan?.subject;
+  }
+
+  onMoveVerified(name: string): void {
+    // Repaint the graph from reality + run the foundational pings —
+    // the verification pass ends every flow, painted.
+    this.select(this.activeTopology || '');
+    this.verifyRun = { running: true, move: name };
+    this.topologyService.pingRun(this.activeTopology || undefined)
+      .then((r) => (this.verifyRun = { move: name, ...(r || {}) }));
   }
 
   async select(name: string): Promise<void> {
