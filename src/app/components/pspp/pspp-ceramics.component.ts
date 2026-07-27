@@ -19,6 +19,11 @@ import { PsppService } from '@services/pspp/pspp.service';
  *  - Sinter sampler: fire a schedule and watch the ceramic at
  *    different STAGES during sintering (rho/grain refuse in place
  *    where their calibration is absent — refusals are RENDERED).
+ *  - Glass (viscous): the refinement surface (viscosity ladder +
+ *    exact VFT fit + fining/forming/annealing/devit gates graded at
+ *    a probed temperature) and a viscous frit firing (Λ always;
+ *    Frenkel-while-valid / master curve / MS-from-measured; every
+ *    missing calibration refuses in place).
  */
 @Component({
   selector: 'pspp-ceramics',
@@ -245,6 +250,117 @@ import { PsppService } from '@services/pspp/pspp.service';
       <p *ngIf="stages && !stages.ok" class="refuse">
         {{ stages.refusal }}</p>
     </div>
+
+    <!-- ============ GLASS (REFINEMENT + VISCOUS SINTER) ============ -->
+    <div *ngIf="tab === 'glass'" class="panel">
+      <p class="hint">Glass refines and sinters by VISCOSITY, not
+        diffusion. The fixed-point log-viscosities are definitions;
+        the soda-lime temperatures are cited approximate data; the
+        VFT curve is solved EXACTLY through them (residuals shown,
+        nothing fitted). Devit kinetics + mid-stage densities refuse
+        until their datasets are digitized.</p>
+
+      <div *ngIf="glass?.ok">
+        <h4>Viscosity ladder (soda-lime)</h4>
+        <div class="visc-row" *ngFor="let p of glass.referencePoints">
+          <span class="visc-name">{{ p.name }}</span>
+          <svg class="bar" [attr.viewBox]="'0 0 15 20'"
+               preserveAspectRatio="none">
+            <rect x="0" y="4" [attr.width]="p.log10ViscosityPaS + 1"
+                  height="12" rx="2" class="visc-seg"></rect>
+          </svg>
+          <span class="visc-eta">10<sup>{{ p.log10ViscosityPaS
+            }}</sup> Pa·s</span>
+          <span class="visc-temp">{{ p.temperatureC }}&deg;C</span>
+          <span class="muted tiny">{{ p.what }}</span>
+        </div>
+        <p class="cite" *ngIf="glass.vftFit?.ok">
+          VFT (exact solve): A = {{ glass.vftFit.A | number:'1.2-2'
+          }}, B = {{ glass.vftFit.B_K | number:'1.0-0' }} K,
+          T0 = {{ glass.vftFit.T0_C | number:'1.0-0' }} &deg;C ·
+          residuals
+          <span *ngFor="let r of glass.vftFit.residuals">
+            {{ r.temperatureC }}&deg;C: {{ r.residual }}&nbsp;</span>
+        </p>
+
+        <h4>What can you do at&hellip;</h4>
+        <div class="controls">
+          <input type="number" [(ngModel)]="probeC"
+                 placeholder="temperature C"/>
+          <button (click)="probe()">Grade the gates</button>
+        </div>
+        <div *ngIf="probed?.ok" class="gates">
+          <p class="cite" *ngIf="probed.viscosity?.ok">
+            log10 &eta; = {{ probed.viscosity.log10ViscosityPaS
+            | number:'1.1-2' }} Pa·s at
+            {{ probed.temperatureC }}&deg;C</p>
+          <p class="refuse" *ngIf="probed.viscosity &&
+                !probed.viscosity.ok">
+            {{ probed.viscosity.refusal }}</p>
+          <div class="gate" *ngFor="let g of probed.gates">
+            <span class="chip" [class.g-open]="g.open"
+                  [class.g-closed]="g.open === false"
+                  [class.g-warn]="g.grade === 'marginal'">
+              {{ g.window }} · {{ g.grade || 'refused' }}</span>
+            <span class="muted tiny">{{ g.behaviorNote ||
+              g.refusal }}</span>
+          </div>
+        </div>
+        <p class="cite">Devit-risk zone {{ glass.devitrification
+          ?.zoneC?.[0] }}&ndash;{{ glass.devitrification?.zoneC?.[1]
+          }}&deg;C · {{ glass.devitrification?.kinetics }}</p>
+      </div>
+
+      <h4>Viscous frit firing</h4>
+      <div class="controls wrap">
+        <label>peak (&deg;C)<input type="number"
+               [(ngModel)]="gPeakC"/></label>
+        <label>ramp (min)<input type="number"
+               [(ngModel)]="gRampMin"/></label>
+        <label>hold (min)<input type="number"
+               [(ngModel)]="gHoldMin"/></label>
+        <label>particle r (&micro;m)<input type="number"
+               [(ngModel)]="gRadiusUm"/></label>
+        <label>green &rho;<input type="number" step="0.01"
+               [(ngModel)]="gGreen"/></label>
+        <label class="chk"><input type="checkbox"
+               [(ngModel)]="gWithCurve"/> use master curve</label>
+        <label class="chk"><input type="checkbox"
+               [(ngModel)]="gMeasured"/> measured checkpoint</label>
+        <label *ngIf="gMeasured">measured &rho;<input type="number"
+               step="0.01" [(ngModel)]="gMeasRho"/></label>
+        <label *ngIf="gMeasured">pore r (&micro;m)<input type="number"
+               [(ngModel)]="gPoreUm"/></label>
+        <button (click)="fireGlass()">Fire</button>
+      </div>
+      <div *ngIf="glassFire" class="stages">
+        <p *ngIf="glassFire.work?.ok">
+          &Lambda; = {{ glassFire.work.lambda | number:'1.3-4' }}
+          (log10 {{ glassFire.work.log10Lambda | number:'1.1-2' }})
+          — pure math over the cited &gamma;/VFT/r.</p>
+        <p class="refuse" *ngIf="glassFire.work &&
+              !glassFire.work.ok">{{ glassFire.work.refusal }}</p>
+        <p *ngIf="glassFire.density?.ok">
+          &rho; = {{ glassFire.density.relativeDensity
+          | number:'1.3-4' }}
+          <span class="chip">{{ glassFire.density.stage }}</span></p>
+        <p class="refuse" *ngIf="glassFire.density &&
+              !glassFire.density.ok">density:
+          {{ glassFire.density.refusal }} —
+          {{ glassFire.density.suggestion }}</p>
+        <p *ngIf="glassFire.finalStage?.ok">
+          final stage (MS from measured checkpoint): &rho; =
+          {{ glassFire.finalStage.relativeDensity
+          | number:'1.3-4' }}</p>
+        <p class="refuse" *ngIf="glassFire.finalStage &&
+              !glassFire.finalStage.ok">final stage:
+          {{ glassFire.finalStage.refusal }}</p>
+        <p class="muted tiny" *ngIf="glassFire.structurePlan?.ok">
+          proposes {{ glassFire.structurePlan.proposedRows.length }}
+          L2 rows (amorphous matrix + pores — no grain row: glass
+          has no grains).</p>
+      </div>
+    </div>
   </div>`,
   styles: [`
     :host { display: block; color: var(--text-on-bg); }
@@ -335,6 +451,19 @@ import { PsppService } from '@services/pspp/pspp.service';
       border-radius: 6px; }
     .theta-line { stroke: var(--accent-primary, #3949ab); stroke-width: 2; }
     .theta-dot { fill: var(--accent-primary, #3949ab); }
+    .visc-row { display: grid;
+      grid-template-columns: 150px 1fr 110px 70px minmax(160px, 2fr);
+      gap: 8px; align-items: center; padding: 2px 4px; font-size: 12px; }
+    .visc-seg { fill: var(--accent-primary, #3949ab); }
+    .visc-eta { text-align: right; }
+    .visc-temp { font-weight: 700; }
+    .gates { display: flex; flex-direction: column; gap: 4px;
+      margin: 6px 0; }
+    .gate { display: flex; gap: 8px; align-items: baseline; }
+    .chip.g-open { background: #2e7d32; color: #fff; border: none; }
+    .chip.g-closed { background: #c62828; color: #fff; border: none; }
+    .chip.g-warn { background: #f9a825; color: #000; border: none; }
+    h4 { margin: 12px 0 4px; }
   `],
 })
 export class PsppCeramicsComponent implements OnInit {
@@ -344,6 +473,7 @@ export class PsppCeramicsComponent implements OnInit {
     { key: 'ladder', label: 'Furnace ladder' },
     { key: 'geopolymer', label: 'Geopolymer → ceramic' },
     { key: 'sinter', label: 'Sinter sampler' },
+    { key: 'glass', label: 'Glass (viscous)' },
   ];
 
   samples: any[] = [];
@@ -365,12 +495,49 @@ export class PsppCeramicsComponent implements OnInit {
   thetaPoints = ''; thetaDots: { x: number; y: number }[] = [];
   densityRefusal = '';
 
+  // glass tab (refinement + viscous firing)
+  glass: any = null;
+  probeC = 725; probed: any = null;
+  gPeakC = 650; gRampMin = 60; gHoldMin = 60;
+  gRadiusUm = 100; gGreen = 0.6;
+  gWithCurve = false; gMeasured = false;
+  gMeasRho = 0.92; gPoreUm = 10;
+  glassFire: any = null;
+
   constructor(private pspp: PsppService) {}
 
   ngOnInit(): void {
     this.clearFilter();
     this.pspp.ceramicsLadder().then((r) => (this.ladder = r));
     this.pspp.geopolymerTransition().then((r) => (this.transition = r));
+    this.pspp.glassRefinement().then((r) => (this.glass = r));
+  }
+
+  probe(): void {
+    if (this.probeC == null) return;
+    this.pspp.glassRefinement(this.probeC)
+      .then((r) => (this.probed = r));
+  }
+
+  fireGlass(): void {
+    const body: any = {
+      schedule: [
+        { ramp_from_c: 25, ramp_to_c: this.gPeakC,
+          minutes: this.gRampMin },
+        { hold_c: this.gPeakC, minutes: this.gHoldMin },
+      ],
+      particleRadiusUm: this.gRadiusUm,
+      greenDensity: this.gGreen,
+      stateKey: 'soda-lime-frit#fired',
+    };
+    if (this.gWithCurve) {
+      body.masterCurve = 'glass-frit-viscous-sintering-master-curve';
+    }
+    if (this.gMeasured) {
+      body.measured = { density: this.gMeasRho,
+                        poreRadiusUm: this.gPoreUm };
+    }
+    this.pspp.sinterViscous(body).then((r) => (this.glassFire = r));
   }
 
   clearFilter(): void {

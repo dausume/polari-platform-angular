@@ -185,4 +185,26 @@ export class PsppService {
     return this.get(domain ? `/research-tools?domain=${
       encodeURIComponent(domain)}` : '/research-tools');
   }
+
+  // ---- mtt-2 glass (refinement windows + viscous sintering) ----
+
+  /** The glass-refinement surface: viscosity reference points + the
+   *  exact VFT fit (+ residual honesty) + fining/forming/annealing/
+   *  devit windows. Pass a temperature to grade every gate there. */
+  glassRefinement(temperature?: number): Promise<any | null> {
+    return this.get(temperature === undefined ? '/glass/refinement'
+      : `/glass/refinement?temperature=${temperature}`);
+  }
+
+  /** One VISCOUS (glass frit) firing: Λ always; ρ via master curve /
+   *  Frenkel-while-valid / a refusal naming the asks; optional MS
+   *  final stage from a measured closed-pore checkpoint. */
+  sinterViscous(body: { schedule: any[]; particleRadiusUm: number;
+                        gamma?: number; greenDensity?: number;
+                        masterCurve?: string;
+                        measured?: { density: number;
+                                     poreRadiusUm: number };
+                        stateKey?: string }): Promise<any | null> {
+    return this.post('/sinter/viscous', body);
+  }
 }
