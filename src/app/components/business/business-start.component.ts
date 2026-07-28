@@ -189,6 +189,28 @@ import { BizopsService } from '@services/bizops.service';
           </li>
         </ul>
         <div class="muted">{{ d.termsNote }}</div>
+        <div class="window" *ngIf="windowFor(d.name) as w">
+          <div *ngFor="let f of w.flows" class="win-row">
+            <b>{{ f.item }}</b>
+            <ng-container *ngIf="f.viable === true">
+              window {{ f.floorUsdPerKg | number:'1.2-2' }}–{{
+                f.ceilingUsdPerKg | number:'1.2-2' }} $/kg<span
+                *ngIf="f.ceilingEstimate" class="muted"
+                title="estimate-flagged ceiling">~</span>
+              · suggest <b>{{ f.suggestedUsdPerKg |
+                number:'1.2-2' }}</b>
+              <span class="muted" *ngIf="f.currentTermPrice">
+                (terms say {{ f.currentTermPrice |
+                  number:'1.2-2' }})</span>
+            </ng-container>
+            <span class="muted" *ngIf="f.viable === null">
+              {{ f.ask || f.note }}</span>
+            <span class="warn-t" *ngIf="f.viable === false">
+              {{ f.note }}</span>
+          </div>
+          <div class="muted">discovery is a suggestion — terms
+            change only when both parties edit the deal</div>
+        </div>
       </div>
     </div>
     <div *ngIf="suggestions?.ok && suggestions.suggestions?.length">
@@ -292,6 +314,10 @@ import { BizopsService } from '@services/bizops.service';
     .flows { font-size: 12px; margin: 6px 0;
       padding-left: 18px; }
     .warn-t { color: #ef6c00; font-size: 11px; }
+    .window { margin-top: 6px; font-size: 12px; padding: 6px 8px;
+      border-left: 4px solid #558b2f;
+      background: var(--surface-app-background); }
+    .win-row { padding: 2px 0; }
     .err { color: #c62828; font-size: 12px; }
     .muted { color: var(--text-on-card-muted); }
     .links { font-size: 12px; margin-top: 18px; }
@@ -305,6 +331,7 @@ export class BusinessStartComponent implements OnInit {
   eco: any = null;
   qa: any = null;
   deals: any = null;
+  pricing: any = null;
   suggestions: any = null;
   open: Record<string, boolean> = { prerequisites: true };
 
@@ -315,6 +342,7 @@ export class BusinessStartComponent implements OnInit {
     this.bizops.qa(this.business).then((r) => this.qa = r);
     this.bizops.economy().then((r) => this.eco = r);
     this.bizops.partnerships().then((r) => this.deals = r);
+    this.bizops.dealPricing().then((r) => this.pricing = r);
     this.bizops.partnershipSuggestions()
       .then((r) => this.suggestions = r);
   }
@@ -326,5 +354,11 @@ export class BusinessStartComponent implements OnInit {
 
   toggle(step: string): void {
     this.open[step] = !this.open[step];
+  }
+
+  windowFor(dealName: string): any | null {
+    if (!this.pricing?.ok) return null;
+    return this.pricing.deals.find(
+      (d: any) => d.deal === dealName) ?? null;
   }
 }
