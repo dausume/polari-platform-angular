@@ -88,6 +88,31 @@ import { BizopsService } from '@services/bizops.service';
             </div>
           </div>
 
+          <div class="sellability" *ngIf="st.sellability?.ok">
+            <div class="hard-rule">{{ st.sellability.hardRule }}
+            </div>
+            <div class="ctx" *ngFor="let c of
+                 st.sellability.contexts">
+              <span class="chip" [class.on]="c.allowed"
+                    [class.blocked]="!c.allowed">
+                {{ c.allowed ? 'allowed' : 'BLOCKED' }}</span>
+              <b>{{ c.context }}</b>
+              <div class="blockers" *ngIf="c.blockers?.length">
+                <div *ngFor="let b of c.blockers">✗ {{ b }}</div>
+              </div>
+              <div class="reqs">
+                <span *ngFor="let r of c.requirements"
+                      class="chip lvl"
+                      [class.on]="r.met" [class.blocked]="!r.met"
+                      [title]="r.reference">
+                  {{ r.displayName }}: {{ r.attainedLevel }}
+                  / needs {{ r.requiredLevel }}</span>
+              </div>
+            </div>
+            <div class="muted">{{ st.sellability.disclaimer }}
+            </div>
+          </div>
+
           <div class="gate" *ngIf="st.gate">
             <b>the gate:</b> {{ st.gate }}</div>
 
@@ -99,6 +124,29 @@ import { BizopsService } from '@services/bizops.service';
         </div>
       </div>
     </div>
+
+    <h3>Quality assurance — measured, or honestly not</h3>
+    <div class="err" *ngIf="qa && !qa.ok">{{ qa.refusal }}</div>
+    <table class="rows" *ngIf="qa?.ok">
+      <tr class="head"><td>check</td><td>method</td>
+        <td>acceptance</td><td>freq</td><td class="num">runs</td>
+        <td class="num">units</td><td class="num">pass</td></tr>
+      <tr *ngFor="let c of qa.checks">
+        <td><b>{{ c.displayName }}</b></td>
+        <td class="muted">{{ c.method }}</td>
+        <td class="muted">{{ c.acceptance }}</td>
+        <td class="muted">{{ c.frequency }}</td>
+        <td class="num">{{ c.runs }}</td>
+        <td class="num">{{ c.unitsChecked }}</td>
+        <td class="num">
+          <b *ngIf="c.passRatePct != null"
+             [class.warn-t]="c.passRatePct < 90">
+            {{ c.passRatePct }}%</b>
+          <span class="muted" *ngIf="c.passRatePct == null">
+            unmeasured</span></td>
+      </tr>
+    </table>
+    <div class="muted" *ngIf="qa?.ok">{{ qa.note }}</div>
 
     <h3>Local economy — the baseline track</h3>
     <div class="err" *ngIf="eco && !eco.ok">{{ eco.refusal }}</div>
@@ -198,6 +246,18 @@ import { BizopsService } from '@services/bizops.service';
     .lv-advance-orderable { border-left-color: #2e7d32; }
     .lv-market-proven { border-left-color: #558b2f; }
     .lv-produced { border-left-color: #f9a825; }
+    .sellability { margin: 8px 0; font-size: 12px; padding: 8px;
+      border: 1px solid var(--border-light); border-radius: 6px; }
+    .hard-rule { font-weight: 600; color: #c62828;
+      margin-bottom: 6px; }
+    .ctx { padding: 4px 0; border-top: 1px solid
+      var(--border-light); }
+    .blockers { color: #ef6c00; font-size: 11px; margin: 2px 0; }
+    .reqs { display: flex; flex-wrap: wrap; gap: 4px;
+      margin-top: 3px; }
+    .chip.lvl { font-size: 10px; }
+    .chip.blocked { background: #c6282811;
+      border-color: #c62828; }
     .gate { font-size: 12px; padding: 8px; margin: 8px 0;
       border-left: 4px solid #3949ab;
       background: var(--surface-app-background); }
@@ -243,6 +303,7 @@ export class BusinessStartComponent implements OnInit {
   budget = 120;
   wt: any = null;
   eco: any = null;
+  qa: any = null;
   deals: any = null;
   suggestions: any = null;
   open: Record<string, boolean> = { prerequisites: true };
@@ -251,6 +312,7 @@ export class BusinessStartComponent implements OnInit {
 
   ngOnInit(): void {
     this.load();
+    this.bizops.qa(this.business).then((r) => this.qa = r);
     this.bizops.economy().then((r) => this.eco = r);
     this.bizops.partnerships().then((r) => this.deals = r);
     this.bizops.partnershipSuggestions()

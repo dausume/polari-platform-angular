@@ -51,4 +51,14 @@ export class BizopsService {
   partnershipSuggestions(): Promise<any> {
     return this.get('/api/bizops/partnership-suggestions');
   }
+
+  sellability(business: string, variant = ''): Promise<any> {
+    return this.get(`/api/bizops/sellability/${business}`
+      + (variant ? `?variant=${variant}` : ''));
+  }
+
+  qa(business: string, variant = ''): Promise<any> {
+    return this.get(`/api/bizops/qa/${business}`
+      + (variant ? `?variant=${variant}` : ''));
+  }
 }
