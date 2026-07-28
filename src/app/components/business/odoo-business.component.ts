@@ -155,6 +155,7 @@ import { OdooBusinessService } from '@services/odoo-business.service';
     </table>
 
     <div class="links">
+      <a routerLink="/business/start">start a business</a> ·
       <a routerLink="/topology">topology</a> ·
       <a routerLink="/modules/bringup">module bring-up</a>
     </div>
