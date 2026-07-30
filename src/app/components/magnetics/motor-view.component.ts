@@ -1,8 +1,11 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, ElementRef, OnDestroy, OnInit, ViewChild }
+  from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { MotorsService } from '@services/motors.service';
+import { SimSpaceRendererFactory }
+  from '@services/sim-space/sim-space-renderer-factory.service';
 import { MotorMaterialsPanelComponent }
   from './motor-materials-panel.component';
 
@@ -135,6 +138,17 @@ import { MotorMaterialsPanelComponent }
             </ng-container>
           </div>
         </ng-template>
+        <div class="card" *ngIf="isM0">
+          <h4>3D — the parts as math shapes, the AC flip visible</h4>
+          <p class="hint">Every part below is a MathShapeDefinition
+            row (the same geometry the wax-mold seam prints/casts).
+            The arrow through the coil bore is its field — watch it FLIP with
+            each alternating pulse; the flip is what walks the
+            rotor. Drag to orbit.</p>
+          <div #host3d class="host3d"></div>
+          <div class="err" *ngIf="shapes3dError">
+            {{ shapes3dError }}</div>
+        </div>
         <div class="card" *ngIf="buildReq">
           <h4>Build this sample</h4>
           <div class="hint">~{{ buildReq.rough_hours }} h ·
@@ -184,6 +198,9 @@ import { MotorMaterialsPanelComponent }
       color: var(--text-on-card); margin-bottom: 12px; }
     .motor-svg { width: 100%; max-width: 340px; display: block;
       margin: 0 auto; }
+    .host3d { width: 100%; height: 320px; border-radius: 6px;
+      overflow: hidden; background:
+      var(--surface-app-background, #14161a); }
     .pole { fill: var(--text-on-card-muted, #999);
       opacity: 0.55; }
     .coil { fill: none; stroke: var(--text-on-card-muted, #999);
@@ -218,10 +235,15 @@ export class MotorViewComponent implements OnInit, OnDestroy {
   selected = ''; pulseCount = 30; alternating = true;
   playing = false; pulseIndex = 0; displayAngle = 0;
   polarity = 0; stepsSoFar = 0; missedSoFar = 0;
+  shapes3dError = '';
+  @ViewChild('host3d') host3dRef?: ElementRef<HTMLElement>;
+  private renderer3d: any = null; private coilStyle = '';
   private timer: any = null; private animFrom = 0;
   private animTo = 0; private animStart = 0;
 
-  constructor(private motors: MotorsService) {}
+  constructor(private motors: MotorsService,
+              private rendererFactory:
+                SimSpaceRendererFactory) {}
 
   async ngOnInit(): Promise<void> {
     this.designs = await this.motors.designs();
@@ -230,7 +252,90 @@ export class MotorViewComponent implements OnInit, OnDestroy {
     }
   }
 
-  ngOnDestroy(): void { this.stopTimer(); }
+  ngOnDestroy(): void { this.stopTimer(); this.destroy3d(); }
+
+  private destroy3d(): void {
+    try { this.renderer3d?.destroy(); } catch { /* detached */ }
+    this.renderer3d = null;
+  }
+
+  private objects3d(thetaRad: number): any[] {
+    const stat = (id: string, shape: string, style: string) => ({
+      id, trackKey: id, position: [0, 0, 0] as any,
+      shapeRef: `mathshape:${shape}`, styleRef: style,
+    });
+    return [
+      stat('pole-left', 'motor-m0-pole-left', 'motor-part-gray'),
+      stat('pole-right', 'motor-m0-pole-right', 'motor-part-gray'),
+      stat('coil', 'motor-m0-coil-ring', this.coilStyle),
+      stat('shaft', 'motor-m0-shaft', 'motor-shaft-steel'),
+      { ...stat('rotor-disc', 'motor-m0-rotor-disc',
+                'motor-rotor-dark'),
+        rotation: [0, 0, thetaRad] },
+      { ...stat('rotor-pointer', 'motor-m0-rotor-pointer',
+                'motor-pointer-red'),
+        rotation: [0, 0, thetaRad] },
+    ];
+  }
+
+  private vectors3d(thetaRad: number): any[] {
+    return [
+      { kind: 'vector', key: 'orientation',
+        origin: [0, 0, 1.2],
+        vec: [-Math.sin(thetaRad), Math.cos(thetaRad), 0],
+        scale: 4.2, headScale: 0.25,
+        styleRef: 'motor-pointer-red' },
+      { kind: 'vector', key: 'ac-field',
+        origin: [0, -6.8, 0],
+        vec: [0, this.polarity, 0],
+        scale: this.polarity === 0 ? 0.001 : 3.2,
+        headScale: 0.3,
+        styleRef: this.polarity >= 0 ? 'motor-coil-pos'
+                                     : 'motor-coil-neg' },
+    ];
+  }
+
+  private async init3d(): Promise<void> {
+    this.destroy3d();
+    const host = this.host3dRef?.nativeElement;
+    if (!host || !this.isM0) { return; }
+    try {
+      this.renderer3d = await this.rendererFactory.create('3d');
+      this.renderer3d.attach(host);
+      this.renderer3d.loadDefinition({
+        id: 'motor-m0-3d', name: 'motor-m0-3d',
+        dimensionality: '3d', coordinateSystem: 'math',
+        unitScale: 1,
+        viewport: { center: [0, -1.5, 0], extent: [7, 8, 5] },
+        definition: '{}',
+      });
+      this.coilStyle = 'motor-coil-idle';
+      const theta = (this.displayAngle * Math.PI) / 180;
+      this.renderer3d.setObjects(this.objects3d(theta));
+      this.renderer3d.setVectors(this.vectors3d(theta));
+    } catch (err: any) {
+      this.shapes3dError = `3D init failed: ${err?.message ?? err}
+        — is the mathshapes module enabled (POLARI_MODULES)?`;
+    }
+  }
+
+  private update3d(): void {
+    if (!this.renderer3d) { return; }
+    const theta = (this.displayAngle * Math.PI) / 180;
+    const wanted = this.polarity === 0 ? 'motor-coil-idle'
+      : (this.polarity === 1 ? 'motor-coil-pos'
+                             : 'motor-coil-neg');
+    if (wanted !== this.coilStyle) {
+      this.coilStyle = wanted;
+      this.renderer3d.setObjects(this.objects3d(theta));
+    } else {
+      this.renderer3d.updateObjectTransform(
+        'rotor-disc', { rotation: [0, 0, theta] });
+      this.renderer3d.updateObjectTransform(
+        'rotor-pointer', { rotation: [0, 0, theta] });
+    }
+    this.renderer3d.setVectors(this.vectors3d(theta));
+  }
 
   get isM0(): boolean {
     return this.selectedDesign?.topology === 'lavet-clock-stepper';
@@ -282,8 +387,13 @@ export class MotorViewComponent implements OnInit, OnDestroy {
     this.stopTimer(); this.playing = false;
     this.sim = null; this.torque = null; this.materials = null;
     this.materials = await this.motors.materials(name);
-    if (this.isM0) { await this.loadSim(); }
-    else { this.torque = await this.motors.torque(name); }
+    if (this.isM0) {
+      await this.loadSim();
+      setTimeout(() => this.init3d(), 0);
+    } else {
+      this.destroy3d();
+      this.torque = await this.motors.torque(name);
+    }
   }
 
   async loadSim(): Promise<void> {
@@ -341,6 +451,7 @@ export class MotorViewComponent implements OnInit, OnDestroy {
       const ease = 1 - Math.pow(1 - t, 3);
       this.displayAngle =
         this.animFrom + (this.animTo - this.animFrom) * ease;
+      this.update3d();
       if (t < 1 && this.playing) {
         requestAnimationFrame(stepAnim);
       }
