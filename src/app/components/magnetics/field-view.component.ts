@@ -197,6 +197,10 @@ export class FieldViewComponent implements OnInit, OnDestroy {
   }
 
   private async init3d(): Promise<void> {
+    // Destroy-first (the motor page pattern): rapid re-selects can
+    // queue two init3d timeouts — without this, the loser's render
+    // loop leaks on a stacked canvas and pegs the main thread.
+    this.destroy3d();
     const host = this.host3dRef?.nativeElement;
     if (!host || !this.payload?.ok) { return; }
     // Both libraries need an explicit load() before direct renderer
