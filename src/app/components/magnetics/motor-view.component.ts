@@ -6,6 +6,8 @@ import { RouterModule } from '@angular/router';
 import { MotorsService } from '@services/motors.service';
 import { SimSpaceRendererFactory }
   from '@services/sim-space/sim-space-renderer-factory.service';
+import { Material3DLibraryService }
+  from '@services/sim-space-3d/material-3d-library.service';
 import { MotorMaterialsPanelComponent }
   from './motor-materials-panel.component';
 
@@ -242,8 +244,8 @@ export class MotorViewComponent implements OnInit, OnDestroy {
   private animTo = 0; private animStart = 0;
 
   constructor(private motors: MotorsService,
-              private rendererFactory:
-                SimSpaceRendererFactory) {}
+              private rendererFactory: SimSpaceRendererFactory,
+              private materialLib: Material3DLibraryService) {}
 
   async ngOnInit(): Promise<void> {
     this.designs = await this.motors.designs();
@@ -267,7 +269,9 @@ export class MotorViewComponent implements OnInit, OnDestroy {
     return [
       stat('pole-left', 'motor-m0-pole-left', 'motor-part-gray'),
       stat('pole-right', 'motor-m0-pole-right', 'motor-part-gray'),
-      stat('coil', 'motor-m0-coil-ring', this.coilStyle),
+      // view uses the solid outer (CSG ring surface has no
+      // triangulation yet — the ring ROW stays the cast geometry).
+      stat('coil', 'motor-m0-coil-outer', this.coilStyle),
       stat('shaft', 'motor-m0-shaft', 'motor-shaft-steel'),
       { ...stat('rotor-disc', 'motor-m0-rotor-disc',
                 'motor-rotor-dark'),
@@ -300,6 +304,7 @@ export class MotorViewComponent implements OnInit, OnDestroy {
     const host = this.host3dRef?.nativeElement;
     if (!host || !this.isM0) { return; }
     try {
+      await this.materialLib.load(true);
       this.renderer3d = await this.rendererFactory.create('3d');
       this.renderer3d.attach(host);
       this.renderer3d.loadDefinition({
