@@ -86,6 +86,7 @@ const routes: Routes = [
   { path: 'business/odoo', loadComponent: () => import('@components/business/odoo-business.component').then(m => m.OdooBusinessComponent) },
   { path: 'business/start', loadComponent: () => import('@components/business/business-start.component').then(m => m.BusinessStartComponent) },
   { path: 'magnetics/motor', loadComponent: () => import('@components/magnetics/motor-view.component').then(m => m.MotorViewComponent) },
+  { path: 'magnetics/fields', loadComponent: () => import('@components/magnetics/field-view.component').then(m => m.FieldViewComponent) },
   { path: 'display/:id', loadComponent: () => import('@components/dashboard/display-page/display-page').then(m => m.DisplayPageComponent) },
   { path: 'video-assets', loadComponent: () => import('@components/video/video-assets-page.component').then(m => m.VideoAssetsPageComponent) }
 ];

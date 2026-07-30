@@ -55,6 +55,15 @@ export interface SimSpaceObject {
    */
   styleRef: string;
   /**
+   * Per-INSTANCE color/alpha carried AS DATA by the source rows (mag-fv:
+   * a FieldThresholdBand stores its color + alpha as row fields, so a
+   * fixed material library cannot track user edits). When set, these win
+   * over the styleRef material's color/opacity. opacityOverride < 1
+   * implies a transparent material.
+   */
+  colorOverride?: string;
+  opacityOverride?: number;
+  /**
    * Backlink to the source class instance, if any. Drives the click action
    * (e.g. "navigate to /class-main-page/<className>/<instanceId>").
    */

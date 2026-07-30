@@ -313,7 +313,8 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
     }
     for (const obj of objects) {
       const key = keyOf(obj);
-      const sig = `${obj.shapeRef}|${obj.styleRef}`;
+      const sig = `${obj.shapeRef}|${obj.styleRef}` +
+        `|${obj.colorOverride ?? ''}|${obj.opacityOverride ?? ''}`;
       let mesh = this.meshes.get(key);
       if (!mesh || mesh.userData['polariRenderSig'] !== sig) {
         // First appearance, or the track's visual changed → (re)build once.
@@ -438,7 +439,8 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
       const origin = new THREE.Vector3(v.origin[0] ?? 0, v.origin[1] ?? 0, v.origin[2] ?? 0);
       // Same styleRef→color lookup setConnections uses (material library
       // color), falling back to gray (0x888888) when the ref misses.
-      const colorHex = v.styleRef ? this.materialLib.get(v.styleRef)?.color : undefined;
+      const colorHex = v.color
+        ?? (v.styleRef ? this.materialLib.get(v.styleRef)?.color : undefined);
       const headLength = length * v.headScale;
       const headWidth = length * v.headScale * 0.6;
       if (!arrow) {
@@ -686,6 +688,16 @@ export class ThreeSimSpaceRenderer implements SimSpaceRenderer {
       ? buildTexture(this.textureLib.get(materialDef.map_texture_ref))
       : null;
     const material = buildMaterial(materialDef, texture);
+    // Data-carried per-instance overrides (mag-fv band color/alpha are
+    // ROW fields) — buildMaterial returns an unshared instance, so
+    // mutating it cannot leak onto other meshes.
+    if (obj.colorOverride) {
+      (material as THREE.MeshStandardMaterial).color?.set(obj.colorOverride);
+    }
+    if (obj.opacityOverride !== undefined) {
+      material.transparent = obj.opacityOverride < 1;
+      material.opacity = obj.opacityOverride;
+    }
 
     if (obj.shapeRef.startsWith(ThreeSimSpaceRenderer.MATH_SHAPE_PREFIX)) {
       const shapeName = obj.shapeRef.slice(ThreeSimSpaceRenderer.MATH_SHAPE_PREFIX.length);

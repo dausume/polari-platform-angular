@@ -39,6 +39,9 @@ export interface SnapshotVector {
   headScale: number;
   /** Material name → color (same library as connection styleRefs). */
   styleRef: string;
+  /** Raw hex color carried AS DATA (mag-fv band colors) — wins over
+   *  the styleRef lookup when set. */
+  color?: string;
   /** Backlink to the source class (for parity with objects/connections). */
   classRef?: { className: string; instanceId?: string };
   /** Scrubber filter value — same semantics as objects' temporalValue. */
