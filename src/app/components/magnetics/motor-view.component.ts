@@ -79,8 +79,10 @@ import { MotorMaterialsPanelComponent }
           <div class="readout" *ngIf="sim?.ok">
             <span>pulse <b>{{ pulseIndex }}</b> /
               {{ sim.pulses }}</span>
-            <span>θ = <b>{{ displayAngle | number:'1.0-0' }}°</b>
+            <span>θ = <b>{{ thetaMod | number:'1.0-0' }}°</b>
             </span>
+            <span class="hint">({{ turnsSoFar }} half-turns
+              total)</span>
             <span>steps <b>{{ stepsSoFar }}</b>
               · missed <b [class.warn-text]="missedSoFar > 0">
               {{ missedSoFar }}</b></span>
@@ -253,6 +255,14 @@ export class MotorViewComponent implements OnInit, OnDestroy {
   get elapsedS(): number {
     const rate = this.sim?.rateHz || 1;
     return this.pulseIndex / rate;
+  }
+
+  get thetaMod(): number {
+    return ((this.displayAngle % 360) + 360) % 360;
+  }
+
+  get turnsSoFar(): number {
+    return this.stepsSoFar;
   }
 
   get torquePoints(): string {
