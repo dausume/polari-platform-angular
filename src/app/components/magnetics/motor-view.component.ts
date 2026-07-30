@@ -4,6 +4,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { MotorsService } from '@services/motors.service';
+import { GearsService } from '@services/gears.service';
 import { SimSpaceService } from '@services/sim-space/sim-space.service';
 import { SimSpaceRendererFactory }
   from '@services/sim-space/sim-space-renderer-factory.service';
@@ -174,6 +175,87 @@ import { MotorMaterialsPanelComponent }
             <p class="hint">{{ drive.refusal }}</p>
           </ng-container>
         </div>
+        <div class="card">
+          <h4>Drives what?</h4>
+          <p class="hint">Gearing is how a cheap, feeble motor
+            becomes a useful actuator — and this card refuses to
+            show that win without its price.</p>
+
+          <div class="controls" *ngIf="trainOptions.length > 1">
+            <label>train
+              <select [ngModel]="trainRef"
+                      (ngModelChange)="pickTrain($event)">
+                <option *ngFor="let t of trainOptions"
+                        [value]="t.name">{{ t.displayName }}</option>
+              </select>
+            </label>
+          </div>
+
+          <p class="hint" *ngIf="!trainRef">
+            No gear train references
+            <code>{{ selected }}</code>, and none was picked — this
+            motor drives nothing yet. Set
+            <code>GearTrainDefinition.motor_design_ref</code>, or
+            pick a train above.
+          </p>
+
+          <ng-container *ngIf="trainRef && drivetrain?.ok">
+            <div class="readout">
+              <span>ratio <b>{{ drivetrain.totalRatio }}:1</b></span>
+              <span>efficiency
+                <b>{{ drivetrain.totalEfficiency }}</b></span>
+              <span>in <b>{{ drivetrain.inputSpeedRpm }}</b> rpm</span>
+            </div>
+
+            <table class="bindings" *ngIf="drivetrain.envelope?.length">
+              <tr><th>point</th><th>motor torque</th>
+                <th>output torque</th><th>output speed</th></tr>
+              <tr *ngFor="let e of drivetrain.envelope">
+                <td>{{ e.point }}</td>
+                <td>{{ sci(e.motorTorqueNm) }} Nm</td>
+                <td><b>{{ sci(e.outputTorqueNm) }} Nm</b></td>
+                <td>{{ e.outputSpeedRpm }} rpm</td></tr>
+            </table>
+
+            <div class="price" *ngIf="drivetrain.priceOfTheRatio">
+              <div class="price-head">The price of the ratio</div>
+              <div class="readout">
+                <span>speed ÷
+                  <b>{{ drivetrain.priceOfTheRatio.speedDividedBy }}</b>
+                </span>
+                <span>efficiency ×
+                  <b>{{ drivetrain.priceOfTheRatio
+                        .efficiencyMultiplier }}</b></span>
+                <span>backlash +
+                  <b>{{ drivetrain.priceOfTheRatio.backlashAddedMm }}
+                    mm</b></span>
+              </div>
+              <p class="hint">
+                {{ drivetrain.priceOfTheRatio.note }}</p>
+            </div>
+
+            <div class="duty" *ngIf="drivetrain.duty as d"
+                 [class.duty-met]="d.met"
+                 [class.duty-unmet]="!d.met">
+              <b>{{ d.met ? 'duty met' : 'duty NOT met' }}</b>
+              <span class="chip" *ngIf="d.bindingConstraint">
+                binding: {{ d.bindingConstraint }}</span>
+              <div>{{ d.note }}</div>
+              <p class="hint">{{ d.unmodeled }}</p>
+            </div>
+
+            <p class="hint"><b>speed:</b>
+              {{ drivetrain.speedBasis }}</p>
+            <p class="hint"><b>torque:</b>
+              {{ drivetrain.torqueBasis }}</p>
+            <p class="hint">{{ drivetrain.validity }}</p>
+          </ng-container>
+
+          <div class="err" *ngIf="trainRef && drivetrain
+                                  && !drivetrain.ok">
+            {{ drivetrain.refusal }}</div>
+        </div>
+
         <div class="card" *ngIf="buildReq">
           <h4>Build this sample</h4>
           <div class="hint">~{{ buildReq.rough_hours }} h ·
@@ -315,6 +397,19 @@ import { MotorMaterialsPanelComponent }
     .axis-label { font-size: 9px;
       fill: var(--text-on-card-muted, #999); }
     .torque-line { fill: none; stroke: #46f; stroke-width: 2; }
+    .price { border: 1px solid var(--surface-outline, #8884);
+      border-radius: 6px; padding: 8px 10px; margin: 8px 0;
+      background: var(--surface-app-background, #14161a);
+      color: var(--text-on-bg, inherit); }
+    .price-head { font-size: 0.82em; text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-on-bg-muted, var(--text-on-card-muted));
+      margin-bottom: 4px; }
+    .duty { border: 1px solid; border-radius: 6px;
+      padding: 8px 10px; margin: 8px 0; font-size: 0.9em; }
+    .duty-met { border-color: #2a2; color: #2a2; }
+    .duty-unmet { border-color: #c80; color: #c80; }
+    .duty .chip { margin-left: 6px; }
     .foot { margin-top: 14px; font-size: 0.9em; }
     .foot a { color: inherit; }
   `],
@@ -322,6 +417,10 @@ import { MotorMaterialsPanelComponent }
 export class MotorViewComponent implements OnInit, OnDestroy {
   designs: any; sim: any; torque: any; materials: any;
   drive: any; verify: any; verifyMsg = '';
+  /** gr-5 splice: what the gears do with this motor's output. */
+  drivetrain: any = null; trainRef = '';
+  trainOptions: Array<{ name: string; displayName: string;
+                        motorDesignRef: string }> = [];
   mCommanded = 3600; mTaken = 3600;
   mDuration: number | null = null; mNotes = '';
   selected = ''; pulseCount = 30; alternating = true;
@@ -335,14 +434,34 @@ export class MotorViewComponent implements OnInit, OnDestroy {
   private animTo = 0; private animStart = 0;
 
   constructor(private motors: MotorsService,
+              private gears: GearsService,
               private simSpaces: SimSpaceService,
               private rendererFactory: SimSpaceRendererFactory) {}
 
   async ngOnInit(): Promise<void> {
+    // Trains load once: the picker is the same list for every
+    // design, and gears being off must not block the motor page.
+    const trains = await this.gears.trains();
+    this.trainOptions = trains?.ok ? (trains.trains ?? []) : [];
     this.designs = await this.motors.designs();
     if (this.designs?.ok && this.designs.designs.length) {
       await this.select(this.designs.designs[0].name);
     }
+  }
+
+  /** The train this design drives, if a row says so. A design with
+   *  no train is an honest state, not an empty card. */
+  private trainForDesign(design: string): string {
+    return this.trainOptions.find(
+      (t) => t.motorDesignRef === design)?.name ?? '';
+  }
+
+  async pickTrain(name: string): Promise<void> {
+    this.trainRef = name;
+    this.drivetrain = null;
+    if (!name) { return; }
+    this.drivetrain = await this.gears.motorDrive(
+      name, { design: this.selected });
   }
 
   ngOnDestroy(): void { this.stopTimer(); this.destroy3d(); }
@@ -516,9 +635,11 @@ export class MotorViewComponent implements OnInit, OnDestroy {
     this.stopTimer(); this.playing = false;
     this.sim = null; this.torque = null; this.materials = null;
     this.drive = null; this.verify = null; this.verifyMsg = '';
+    this.drivetrain = null;
     this.materials = await this.motors.materials(name);
     this.drive = await this.motors.drive(name);
     this.verify = await this.motors.verifySummary(name);
+    await this.pickTrain(this.trainForDesign(name));
     if (this.isM0) {
       await this.loadSim();
       setTimeout(() => this.init3d(), 0);
