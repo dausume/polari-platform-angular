@@ -85,6 +85,7 @@ const routes: Routes = [
   { path: 'pspp/research', loadComponent: () => import('@components/pspp/pspp-research.component').then(m => m.PsppResearchComponent) },
   { path: 'business/odoo', loadComponent: () => import('@components/business/odoo-business.component').then(m => m.OdooBusinessComponent) },
   { path: 'business/start', loadComponent: () => import('@components/business/business-start.component').then(m => m.BusinessStartComponent) },
+  { path: 'magnetics/motor', loadComponent: () => import('@components/magnetics/motor-view.component').then(m => m.MotorViewComponent) },
   { path: 'display/:id', loadComponent: () => import('@components/dashboard/display-page/display-page').then(m => m.DisplayPageComponent) },
   { path: 'video-assets', loadComponent: () => import('@components/video/video-assets-page.component').then(m => m.VideoAssetsPageComponent) }
 ];
