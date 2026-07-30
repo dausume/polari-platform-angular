@@ -46,6 +46,18 @@ export class MotorsService {
     return this.get(`/api/motors/materials/${design}`);
   }
 
+  parts(design: string): Promise<any> {
+    return this.get(`/api/motors/parts/${design}`);
+  }
+
+  winding(design: string): Promise<any> {
+    return this.get(`/api/motors/winding/${design}`);
+  }
+
+  windingSweep(design: string): Promise<any> {
+    return this.get(`/api/motors/winding-sweep/${design}`);
+  }
+
   drive(design: string): Promise<any> {
     return this.get(`/api/motors/drive/${design}`);
   }

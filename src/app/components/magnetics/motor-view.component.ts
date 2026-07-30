@@ -240,6 +240,8 @@ import { MotorMaterialsPanelComponent }
       </div>
     </div>
     <div class="foot">
+      <a routerLink="/magnetics/clock-motor">pieces &amp;
+        materials</a> ·
       <a routerLink="/magnetics/fields">field views</a> ·
       <a routerLink="/business/start">start a business</a> ·
       <a routerLink="/business/odoo">odoo backbone</a>
