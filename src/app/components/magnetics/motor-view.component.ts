@@ -7,8 +7,6 @@ import { MotorsService } from '@services/motors.service';
 import { SimSpaceService } from '@services/sim-space/sim-space.service';
 import { SimSpaceRendererFactory }
   from '@services/sim-space/sim-space-renderer-factory.service';
-import { Material3DLibraryService }
-  from '@services/sim-space-3d/material-3d-library.service';
 import { MotorMaterialsPanelComponent }
   from './motor-materials-panel.component';
 
@@ -336,8 +334,7 @@ export class MotorViewComponent implements OnInit, OnDestroy {
 
   constructor(private motors: MotorsService,
               private simSpaces: SimSpaceService,
-              private rendererFactory: SimSpaceRendererFactory,
-              private materialLib: Material3DLibraryService) {}
+              private rendererFactory: SimSpaceRendererFactory) {}
 
   async ngOnInit(): Promise<void> {
     this.designs = await this.motors.designs();
@@ -409,7 +406,9 @@ export class MotorViewComponent implements OnInit, OnDestroy {
     const host = this.host3dRef?.nativeElement;
     if (!host || !this.isM0) { return; }
     try {
-      await this.materialLib.load(true);
+      // Asset libraries are guaranteed loaded by the factory
+      // (ensureSceneAssets) — the hand-load that used to live here
+      // was the mag-7b fix, generalized 2026-07-30.
       this.renderer3d = await this.rendererFactory.create('3d');
       this.renderer3d.attach(host);
       // The assembled motor is a real SimSpaceDefinition row —

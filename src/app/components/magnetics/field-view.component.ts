@@ -5,10 +5,6 @@ import { RouterModule } from '@angular/router';
 import { MagneticsService } from '@services/magnetics.service';
 import { SimSpaceRendererFactory }
   from '@services/sim-space/sim-space-renderer-factory.service';
-import { Material3DLibraryService }
-  from '@services/sim-space-3d/material-3d-library.service';
-import { Mesh3DLibraryService }
-  from '@services/sim-space-3d/mesh-3d-library.service';
 
 /**
  * mag-7 remainder: /magnetics/fields — the mag-fv payloads made
@@ -48,8 +44,12 @@ import { Mesh3DLibraryService }
       {{ payload.refusal }}</div>
 
     <ng-container *ngIf="payload?.ok">
+      <!-- The 3D card is HIDDEN, never destroyed, when a view has no
+           3D mode: tearing the host out of the DOM per switch forced
+           a new WebGL context each time and Chrome stalled on the
+           churn. One context, reused. -->
       <div class="card"
-           *ngIf="payload.displayMode !== 'flux-tubes'">
+           [hidden]="payload.displayMode === 'flux-tubes'">
         <div #host3d class="host3d"></div>
         <div class="legend">
           <span *ngFor="let b of legend" class="legend-item">
@@ -155,9 +155,7 @@ export class FieldViewComponent implements OnInit, OnDestroy {
   private renderer3d: any = null;
 
   constructor(private magnetics: MagneticsService,
-              private rendererFactory: SimSpaceRendererFactory,
-              private materialLib: Material3DLibraryService,
-              private meshLib: Mesh3DLibraryService) {}
+              private rendererFactory: SimSpaceRendererFactory) {}
 
   async ngOnInit(): Promise<void> {
     this.views = await this.magnetics.fieldViews();
@@ -188,39 +186,42 @@ export class FieldViewComponent implements OnInit, OnDestroy {
     this.selected = name;
     this.payload = await this.magnetics.fieldView(name);
     this.legend = [];
-    this.destroy3d();
-    if (!this.payload?.ok
-        || this.payload.displayMode === 'flux-tubes') { return; }
-    // The host div appears via *ngIf on the NEXT change-detection
-    // pass — defer renderer attach the same way the motor page does.
-    setTimeout(() => this.init3d(), 0);
+    if (!this.payload?.ok) { return; }
+    // The host div materializes on the NEXT change-detection pass
+    // the first time through — defer, same as the motor page.
+    setTimeout(() => this.render3d(), 0);
   }
 
-  private async init3d(): Promise<void> {
-    // Destroy-first (the motor page pattern): rapid re-selects can
-    // queue two init3d timeouts — without this, the loser's render
-    // loop leaks on a stacked canvas and pegs the main thread.
-    this.destroy3d();
+  /** ONE renderer for the component's lifetime; each view just
+   *  swaps its contents. Creating a WebGL context per view switch
+   *  is what stalled the tab. */
+  private async render3d(): Promise<void> {
     const host = this.host3dRef?.nativeElement;
     if (!host || !this.payload?.ok) { return; }
-    // Both libraries need an explicit load() before direct renderer
-    // use (the Material3DLibraryService lesson from mag-7b — and the
-    // MESH library too, or every builtin shapeRef falls back to a
-    // cube: the shells rendered as boxes until this line).
-    await Promise.all([this.materialLib.load(true),
-                       this.meshLib.load(true)]);
-    this.renderer3d = await this.rendererFactory.create('3d');
-    this.renderer3d.attach(host);
-    this.renderer3d.loadDefinition({
-      id: `fv-${this.selected}`, name: `fv-${this.selected}`,
-      dimensionality: '3d', coordinateSystem: 'math', unitScale: 1,
-      viewport: { center: [0, 0, 0], extent: [6, 6, 6] },
-      definition: '{}',
-    });
+    if (!this.renderer3d) {
+      // Asset libraries are guaranteed loaded by the factory
+      // (ensureSceneAssets) — pages no longer hand-load them.
+      this.renderer3d = await this.rendererFactory.create('3d');
+      this.renderer3d.attach(host);
+      this.renderer3d.loadDefinition({
+        id: 'fv-space', name: 'fv-space',
+        dimensionality: '3d', coordinateSystem: 'math',
+        unitScale: 1,
+        viewport: { center: [0, 0, 0], extent: [6, 6, 6] },
+        definition: '{}',
+      });
+    }
+    // Clear the OTHER collection so a mode switch never leaves the
+    // previous view's geometry behind.
     if (this.payload.displayMode === 'vector-dispersion') {
+      this.renderer3d.setObjects([]);
       this.renderDispersion();
     } else if (this.payload.displayMode === 'threshold-shapes') {
+      this.renderer3d.setVectors([]);
       this.renderShells();
+    } else {
+      this.renderer3d.setObjects([]);
+      this.renderer3d.setVectors([]);
     }
   }
 

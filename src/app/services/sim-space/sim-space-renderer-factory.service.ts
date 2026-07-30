@@ -45,13 +45,55 @@ export class SimSpaceRendererFactory {
   ) {}
 
   /**
-   * Returns a fresh renderer for the given dimensionality. Caller owns
+   * The scene's ASSET PREREQUISITE: the definition libraries a renderer
+   * resolves refs against (materials/styles, meshes, textures) must be
+   * loaded BEFORE the first setObjects/setVectors call, or every ref
+   * misses and the renderer silently draws fallbacks — a magenta cube
+   * where a shape belongs, gray where a band color belongs.
+   *
+   * This used to be each CALLER's job, and callers forgot: the mag-7b
+   * motor page shipped without the material load (parts rendered
+   * untinted) and the mag-7 field-view page without the mesh load
+   * (threshold shells rendered as cubes). Same bug twice = the wrong
+   * layer owned it. Defining the materials/shapes a simulation will
+   * use is common to essentially every scene, so the factory — which
+   * already injects every library — now guarantees it. Callers may
+   * still call load() themselves; these are idempotent and cached.
+   *
+   * NOT included: the derived-geometry libraries (math-shape,
+   * water-slice, plant-skeleton). Those fetch PER NAME on demand and
+   * have no whole-library preload; the renderer awaits them at use.
+   */
+  private async ensureSceneAssets(
+    dimensionality: SimSpaceDimensionality
+  ): Promise<void> {
+    try {
+      if (dimensionality === '2d') {
+        await Promise.all([this.shapes2D.load(), this.styles2D.load()]);
+        return;
+      }
+      await Promise.all([this.meshes3D.load(), this.materials3D.load(),
+                         this.textures3D.load()]);
+    } catch (err) {
+      // An unreachable/gated backend must not block the renderer from
+      // existing — the scene then renders honest fallbacks and the
+      // console names the cause, which beats a blank page.
+      console.warn('[SimSpaceRendererFactory] scene asset libraries '
+        + 'failed to load — refs will fall back to defaults', err);
+    }
+  }
+
+  /**
+   * Returns a fresh renderer for the given dimensionality, with its
+   * asset libraries already loaded (see ensureSceneAssets). Caller owns
    * lifecycle (must call attach() then destroy() on teardown).
    *
    * 3D is async because the `three` module is loaded on demand. 2D is
-   * synchronous since d3 is already in the main bundle (no-code uses it).
+   * async too (it awaits its libraries) even though d3 itself is in the
+   * main bundle.
    */
   async create(dimensionality: SimSpaceDimensionality): Promise<SimSpaceRenderer> {
+    await this.ensureSceneAssets(dimensionality);
     if (dimensionality === '2d') {
       return new D3SimSpaceRenderer(this.shapes2D, this.styles2D);
     }
