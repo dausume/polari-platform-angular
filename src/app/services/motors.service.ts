@@ -45,4 +45,26 @@ export class MotorsService {
   materials(design: string): Promise<any> {
     return this.get(`/api/motors/materials/${design}`);
   }
+
+  drive(design: string): Promise<any> {
+    return this.get(`/api/motors/drive/${design}`);
+  }
+
+  verifySummary(design: string): Promise<any> {
+    return this.get(`/api/motors/verify/${design}`);
+  }
+
+  recordVerification(design: string, body: {
+    kind: string; stepsCommanded: number; stepsTaken: number;
+    durationS?: number; notes?: string;
+  }): Promise<any> {
+    return firstValueFrom(this.http.post<any>(
+      this.url(`/api/motors/verify/${design}`), body,
+      this.polariService.backendRequestOptions))
+      .catch((err) => err?.error ?? {
+        ok: false,
+        refusal: `backend unreachable or module off (${err?.status
+          ?? '?'}) — is 'motors' in POLARI_MODULES?`,
+      });
+  }
 }

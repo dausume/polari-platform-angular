@@ -4,6 +4,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { MotorsService } from '@services/motors.service';
+import { SimSpaceService } from '@services/sim-space/sim-space.service';
 import { SimSpaceRendererFactory }
   from '@services/sim-space/sim-space-renderer-factory.service';
 import { Material3DLibraryService }
@@ -148,8 +149,32 @@ import { MotorMaterialsPanelComponent }
             each alternating pulse; the flip is what walks the
             rotor. Drag to orbit.</p>
           <div #host3d class="host3d"></div>
+          <p class="hint" *ngIf="sceneSource">{{ sceneSource }}</p>
           <div class="err" *ngIf="shapes3dError">
             {{ shapes3dError }}</div>
+        </div>
+        <div class="card">
+          <h4>Drive it</h4>
+          <ng-container *ngIf="drive?.ok">
+            <div class="readout">
+              <span>board <b>{{ drive.board }}</b></span>
+              <span>profile <b>{{ drive.profile }}</b></span>
+              <span>pole pairs <b>{{ drive.polePairs }}</b></span>
+            </div>
+            <table class="bindings" *ngIf="drive.phaseBindings?.length">
+              <tr><th>phase</th><th>shield terminal</th>
+                <th>FPGA PWM</th></tr>
+              <tr *ngFor="let b of drive.phaseBindings">
+                <td>{{ b.phase }}</td>
+                <td>{{ b.shieldTerminal }}</td>
+                <td class="hint">{{ b.fpgaPwmChannel }}</td></tr>
+            </table>
+            <pre class="snippet">{{ drive.configSnippet }}</pre>
+            <p class="hint">{{ drive.honesty }}</p>
+          </ng-container>
+          <ng-container *ngIf="drive && !drive.ok">
+            <p class="hint">{{ drive.refusal }}</p>
+          </ng-container>
         </div>
         <div class="card" *ngIf="buildReq">
           <h4>Build this sample</h4>
@@ -160,6 +185,53 @@ import { MotorMaterialsPanelComponent }
             <li *ngFor="let mt of buildReq.materials">
               <code>{{ mt.ref }}</code> — {{ mt.note }}</li>
           </ul>
+        </div>
+        <div class="card">
+          <h4>Verification runs — earned, never declared</h4>
+          <ng-container *ngIf="verify?.ok">
+            <div class="readout">
+              <span>sim <b>{{ verify.simCount }}</b></span>
+              <span>measured <b>{{ verify.measuredCount }}</b></span>
+              <span class="chip"
+                    [class.earned]="verify.madeAndMeasured">
+                {{ verify.madeAndMeasured ? 'made-and-measured'
+                   : 'not yet made-and-measured' }}</span>
+            </div>
+            <p class="hint">{{ verify.honesty }}</p>
+            <table class="bindings" *ngIf="verify.runs?.length">
+              <tr><th>run</th><th>kind</th><th>steps</th>
+                <th>clock error</th></tr>
+              <tr *ngFor="let r of verify.runs">
+                <td>{{ r.name }}</td><td>{{ r.kind }}</td>
+                <td>{{ r.stepsTaken }}/{{ r.stepsCommanded }}</td>
+                <td [class.warn-text]="r.clockErrorS > 0">
+                  {{ r.clockErrorS }} s</td></tr>
+            </table>
+            <div class="controls" *ngIf="isM0 && sim?.ok">
+              <button (click)="recordSimRun()">record this sim
+                replay ({{ sim.pulses }} pulses)</button>
+            </div>
+            <details class="measured-form">
+              <summary class="hint">record a MEASURED bench run</summary>
+              <div class="controls">
+                <label>commanded <input type="number"
+                  [(ngModel)]="mCommanded" min="1"/></label>
+                <label>taken <input type="number"
+                  [(ngModel)]="mTaken" min="0"/></label>
+                <label>duration s <input type="number"
+                  [(ngModel)]="mDuration" min="0"/></label>
+              </div>
+              <div class="controls">
+                <label>notes <input type="text"
+                  [(ngModel)]="mNotes" size="30"/></label>
+                <button (click)="recordMeasuredRun()">record
+                  measured</button>
+              </div>
+            </details>
+            <div class="err" *ngIf="verifyMsg">{{ verifyMsg }}</div>
+          </ng-container>
+          <div class="err" *ngIf="verify && !verify.ok">
+            {{ verify.refusal }}</div>
         </div>
       </div>
 
@@ -224,6 +296,20 @@ import { MotorMaterialsPanelComponent }
       flex-wrap: wrap; }
     .controls input[type=number] { width: 64px; }
     .torque-svg { width: 100%; max-width: 420px; }
+    .snippet { font-size: 0.78em; overflow-x: auto; padding: 8px;
+      border-radius: 6px; border: 1px solid
+      var(--surface-outline, #8884);
+      background: var(--surface-app-background, #14161a);
+      color: var(--text-on-bg, inherit); }
+    .bindings { border-collapse: collapse; font-size: 0.85em;
+      margin: 6px 0; }
+    .bindings th, .bindings td { border: 1px solid
+      var(--surface-outline, #8884); padding: 2px 8px;
+      text-align: left; }
+    .chip.earned { border-color: #2a2; color: #2a2; }
+    .measured-form { margin-top: 6px; }
+    .measured-form input { max-width: 90px; }
+    .measured-form input[type=text] { max-width: none; }
     .axis { stroke: var(--text-on-card-muted, #999); }
     .axis-label { font-size: 9px;
       fill: var(--text-on-card-muted, #999); }
@@ -234,16 +320,21 @@ import { MotorMaterialsPanelComponent }
 })
 export class MotorViewComponent implements OnInit, OnDestroy {
   designs: any; sim: any; torque: any; materials: any;
+  drive: any; verify: any; verifyMsg = '';
+  mCommanded = 3600; mTaken = 3600;
+  mDuration: number | null = null; mNotes = '';
   selected = ''; pulseCount = 30; alternating = true;
   playing = false; pulseIndex = 0; displayAngle = 0;
   polarity = 0; stepsSoFar = 0; missedSoFar = 0;
-  shapes3dError = '';
+  shapes3dError = ''; sceneSource = '';
   @ViewChild('host3d') host3dRef?: ElementRef<HTMLElement>;
   private renderer3d: any = null; private coilStyle = '';
+  private sceneObjects: any[] | null = null;
   private timer: any = null; private animFrom = 0;
   private animTo = 0; private animStart = 0;
 
   constructor(private motors: MotorsService,
+              private simSpaces: SimSpaceService,
               private rendererFactory: SimSpaceRendererFactory,
               private materialLib: Material3DLibraryService) {}
 
@@ -262,6 +353,21 @@ export class MotorViewComponent implements OnInit, OnDestroy {
   }
 
   private objects3d(thetaRad: number): any[] {
+    // Layout comes from the motor-m0-viz SimSpaceDefinition row's
+    // snapshot; MOTION (rotor rotation, coil polarity material) is
+    // applied here from the solver replay — scene = data, animation
+    // = runtime transform, never baked into the row.
+    if (this.sceneObjects) {
+      return this.sceneObjects.map((o: any) => ({
+        ...o, trackKey: o.id,
+        styleRef: o.id === 'coil' ? this.coilStyle : o.styleRef,
+        rotation: (o.id === 'rotor-disc'
+                   || o.id === 'rotor-pointer')
+          ? [0, 0, thetaRad] : o.rotation,
+      }));
+    }
+    // Fallback when the scene row is absent (older backend): the
+    // same six parts hard-coded, coil as the solid outer.
     const stat = (id: string, shape: string, style: string) => ({
       id, trackKey: id, position: [0, 0, 0] as any,
       shapeRef: `mathshape:${shape}`, styleRef: style,
@@ -269,8 +375,6 @@ export class MotorViewComponent implements OnInit, OnDestroy {
     return [
       stat('pole-left', 'motor-m0-pole-left', 'motor-part-gray'),
       stat('pole-right', 'motor-m0-pole-right', 'motor-part-gray'),
-      // view uses the solid outer (CSG ring surface has no
-      // triangulation yet — the ring ROW stays the cast geometry).
       stat('coil', 'motor-m0-coil-outer', this.coilStyle),
       stat('shaft', 'motor-m0-shaft', 'motor-shaft-steel'),
       { ...stat('rotor-disc', 'motor-m0-rotor-disc',
@@ -307,13 +411,31 @@ export class MotorViewComponent implements OnInit, OnDestroy {
       await this.materialLib.load(true);
       this.renderer3d = await this.rendererFactory.create('3d');
       this.renderer3d.attach(host);
-      this.renderer3d.loadDefinition({
+      // The assembled motor is a real SimSpaceDefinition row —
+      // layout + viewport from its snapshot; fall back to the
+      // hard-coded equivalent when the row is absent.
+      this.sceneObjects = null; this.sceneSource = '';
+      let definition: any = {
         id: 'motor-m0-3d', name: 'motor-m0-3d',
         dimensionality: '3d', coordinateSystem: 'math',
         unitScale: 1,
         viewport: { center: [0, -1.5, 0], extent: [7, 8, 5] },
         definition: '{}',
-      });
+      };
+      try {
+        const snap = await this.simSpaces.snapshot('motor-m0-viz');
+        if (snap?.definition && snap.objects?.length) {
+          definition = snap.definition;
+          this.sceneObjects = snap.objects;
+          this.sceneSource = 'scene: SimSpaceDefinition row '
+            + '"motor-m0-viz" (motion overlaid from the solver '
+            + 'replay)';
+        }
+      } catch {
+        this.sceneSource = 'scene row "motor-m0-viz" not found — '
+          + 'using the built-in fallback layout';
+      }
+      this.renderer3d.loadDefinition(definition);
       this.coilStyle = 'motor-coil-idle';
       const theta = (this.displayAngle * Math.PI) / 180;
       this.renderer3d.setObjects(this.objects3d(theta));
@@ -391,7 +513,10 @@ export class MotorViewComponent implements OnInit, OnDestroy {
     this.selected = name;
     this.stopTimer(); this.playing = false;
     this.sim = null; this.torque = null; this.materials = null;
+    this.drive = null; this.verify = null; this.verifyMsg = '';
     this.materials = await this.motors.materials(name);
+    this.drive = await this.motors.drive(name);
+    this.verify = await this.motors.verifySummary(name);
     if (this.isM0) {
       await this.loadSim();
       setTimeout(() => this.init3d(), 0);
@@ -399,6 +524,38 @@ export class MotorViewComponent implements OnInit, OnDestroy {
       this.destroy3d();
       this.torque = await this.motors.torque(name);
     }
+  }
+
+  async recordSimRun(): Promise<void> {
+    if (!this.sim?.ok) { return; }
+    this.verifyMsg = '';
+    const out = await this.motors.recordVerification(this.selected, {
+      kind: 'sim-quasi-static',
+      stepsCommanded: this.sim.pulses,
+      stepsTaken: this.sim.stepsTaken,
+      notes: this.alternating
+        ? 'page replay, alternating pulses'
+        : 'page replay, same-polarity (the honest failure mode)',
+    });
+    if (!out?.ok) {
+      this.verifyMsg = out?.refusal || 'record failed';
+    }
+    this.verify = await this.motors.verifySummary(this.selected);
+  }
+
+  async recordMeasuredRun(): Promise<void> {
+    this.verifyMsg = '';
+    const out = await this.motors.recordVerification(this.selected, {
+      kind: 'measured',
+      stepsCommanded: this.mCommanded,
+      stepsTaken: this.mTaken,
+      durationS: this.mDuration ?? undefined,
+      notes: this.mNotes,
+    });
+    if (!out?.ok) {
+      this.verifyMsg = out?.refusal || 'record failed';
+    }
+    this.verify = await this.motors.verifySummary(this.selected);
   }
 
   async loadSim(): Promise<void> {
