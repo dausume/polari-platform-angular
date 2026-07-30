@@ -142,6 +142,19 @@ import { MotorMaterialsPanelComponent }
         </ng-template>
         <div class="card" *ngIf="isM0">
           <h4>3D — the parts as math shapes, the AC flip visible</h4>
+          <div class="geom-toggle">
+            <button [class.active]="geometryMode === 'realistic'"
+                    (click)="setGeometryMode('realistic')">
+              realistic
+              <span class="hint">— what the device IS
+                (from photographs)</span>
+            </button>
+            <button [class.active]="geometryMode === 'schematic'"
+                    (click)="setGeometryMode('schematic')">
+              schematic
+              <span class="hint">— shows WHY it steps</span>
+            </button>
+          </div>
           <p class="hint">Every part below is a MathShapeDefinition
             row (the same geometry the wax-mold seam prints/casts).
             The arrow through the coil bore is its field — watch it FLIP with
@@ -409,6 +422,15 @@ import { MotorMaterialsPanelComponent }
       padding: 8px 10px; margin: 8px 0; font-size: 0.9em; }
     .duty-met { border-color: #2a2; color: #2a2; }
     .duty-unmet { border-color: #c80; color: #c80; }
+    .geom-toggle { display: flex; gap: 8px; flex-wrap: wrap;
+      margin-bottom: 8px; }
+    .geom-toggle button { padding: 4px 10px; border-radius: 8px;
+      border: 1px solid var(--surface-outline, #8884);
+      background: var(--surface-primary);
+      color: var(--text-on-card); cursor: pointer;
+      font-size: 0.88em; text-align: left; }
+    .geom-toggle button.active { border-color: #46f; }
+    .geom-toggle .hint { font-size: 0.9em; }
     .duty .chip { margin-left: 6px; }
     .foot { margin-top: 14px; font-size: 0.9em; }
     .foot a { color: inherit; }
@@ -427,6 +449,47 @@ export class MotorViewComponent implements OnInit, OnDestroy {
   playing = false; pulseIndex = 0; displayAngle = 0;
   polarity = 0; stepsSoFar = 0; missedSoFar = 0;
   shapes3dError = ''; sceneSource = '';
+
+  /** Which M0 geometry runs. REALISTIC by default (mag-10b, built
+   *  from reference photographs) — Dustin checked photos of a real
+   *  Lavet motor against the schematic and it "looked nothing like
+   *  it". The schematic stays one click away because it is still
+   *  the better picture for seeing WHY the thing steps; same
+   *  precedent as keeping the 2D card beside the 3D. */
+  geometryMode: 'realistic' | 'schematic' = 'realistic';
+
+  /** Per-geometry facts the animation needs. `rotorAxisX` is the
+   *  one that matters: the realistic rotor is bored into the plate
+   *  at x = -9.5, not at the origin, and everything about spinning
+   *  it correctly follows from that. */
+  private static readonly GEOMETRIES: Record<string, any> = {
+    realistic: {
+      scene: 'motor-m0-lavet-v2-viz',
+      blurb: 'the device as built, from reference photographs',
+      rotorBodies: ['rotor-magnet', 'rotor-pinion', 'rotor-index'],
+      rotorAxisX: -9.5,
+      orientationOrigin: [-9.5, 0, 4.2],
+      orientationScale: 3.0,
+      // Coil axis is X (bobbin lies along the plate); the field
+      // through its bore flips with the pulse.
+      fieldOrigin: [4.0, 0, 0],
+      fieldAxis: [1, 0, 0],
+      fieldScale: 7.0,
+      fallbackViewport: { center: [0, 0, 1], extent: [34, 22, 16] },
+    },
+    schematic: {
+      scene: 'motor-m0-viz',
+      blurb: 'an idealised diagram of the flux path',
+      rotorBodies: ['rotor-disc', 'rotor-pointer'],
+      rotorAxisX: 0,
+      orientationOrigin: [0, 0, 1.2],
+      orientationScale: 4.2,
+      fieldOrigin: [0, -6.8, 0],
+      fieldAxis: [0, 1, 0],
+      fieldScale: 3.2,
+      fallbackViewport: { center: [0, -1.5, 0], extent: [7, 8, 5] },
+    },
+  };
   @ViewChild('host3d') host3dRef?: ElementRef<HTMLElement>;
   private renderer3d: any = null; private coilStyle = '';
   private sceneObjects: any[] | null = null;
@@ -471,19 +534,47 @@ export class MotorViewComponent implements OnInit, OnDestroy {
     this.renderer3d = null;
   }
 
+  /** Spin the rotor group about its OWN axis.
+   *
+   *  three.js applies `world = position + R * vertex`, and math-shape
+   *  geometry carries ABSOLUTE coordinates (the v2 rotor's vertices
+   *  really are out at x = -9.5), so setting `rotation` alone spins
+   *  the part about the WORLD origin — a wide arc, not a spin. To
+   *  turn about an axis through `a` we want
+   *  `world = a + R (vertex - a)`, i.e.
+   *
+   *      position = a - R * a
+   *
+   *  which for a Z-axis rotation through (ax, 0) is
+   *  (ax(1 - cos t), -ax sin t, 0). The M0 schematic rotor sits at
+   *  the origin, so its offset is identically zero and this reduces
+   *  to the old behaviour. */
+  private rotorTransform(thetaRad: number):
+    { rotation: number[]; position: number[] } {
+    const ax = this.geom.rotorAxisX;
+    return {
+      rotation: [0, 0, thetaRad],
+      position: [ax * (1 - Math.cos(thetaRad)),
+                 -ax * Math.sin(thetaRad), 0],
+    };
+  }
+
   private objects3d(thetaRad: number): any[] {
-    // Layout comes from the motor-m0-viz SimSpaceDefinition row's
-    // snapshot; MOTION (rotor rotation, coil polarity material) is
-    // applied here from the solver replay — scene = data, animation
-    // = runtime transform, never baked into the row.
+    // Layout comes from the scene SimSpaceDefinition row's snapshot;
+    // MOTION (rotor rotation, coil polarity material) is applied
+    // here from the solver replay — scene = data, animation =
+    // runtime transform, never baked into the row.
     if (this.sceneObjects) {
-      return this.sceneObjects.map((o: any) => ({
-        ...o, trackKey: o.id,
-        styleRef: o.id === 'coil' ? this.coilStyle : o.styleRef,
-        rotation: (o.id === 'rotor-disc'
-                   || o.id === 'rotor-pointer')
-          ? [0, 0, thetaRad] : o.rotation,
-      }));
+      const spin = this.rotorTransform(thetaRad);
+      return this.sceneObjects.map((o: any) => {
+        const isRotor = this.geom.rotorBodies.includes(o.id);
+        return {
+          ...o, trackKey: o.id,
+          styleRef: o.id === 'coil' ? this.coilStyle : o.styleRef,
+          rotation: isRotor ? spin.rotation : o.rotation,
+          position: isRotor ? spin.position : o.position,
+        };
+      });
     }
     // Fallback when the scene row is absent (older backend): the
     // same six parts hard-coded, coil as the solid outer.
@@ -506,65 +597,106 @@ export class MotorViewComponent implements OnInit, OnDestroy {
   }
 
   private vectors3d(thetaRad: number): any[] {
+    const g = this.geom;
     return [
+      // Rotor orientation: rides ABOVE the rotor's own axis, so on
+      // the v2 it sits over the real rotor rather than the origin.
       { kind: 'vector', key: 'orientation',
-        origin: [0, 0, 1.2],
+        origin: g.orientationOrigin,
         vec: [-Math.sin(thetaRad), Math.cos(thetaRad), 0],
-        scale: 4.2, headScale: 0.25,
+        scale: g.orientationScale, headScale: 0.25,
         styleRef: 'motor-pointer-red' },
+      // The AC through the coil bore — the flip IS the mechanism.
       { kind: 'vector', key: 'ac-field',
-        origin: [0, -6.8, 0],
-        vec: [0, this.polarity, 0],
-        scale: this.polarity === 0 ? 0.001 : 3.2,
+        origin: g.fieldOrigin,
+        vec: g.fieldAxis.map((c: number) => c * this.polarity),
+        scale: this.polarity === 0 ? 0.001 : g.fieldScale,
         headScale: 0.3,
         styleRef: this.polarity >= 0 ? 'motor-coil-pos'
                                      : 'motor-coil-neg' },
     ];
   }
 
+  get geom(): any {
+    return MotorViewComponent.GEOMETRIES[this.geometryMode];
+  }
+
+  /** Toggling geometry swaps the scene CONTENTS on the existing
+   *  renderer. It must never create a second WebGL context — doing
+   *  that per switch is what stalled the tab on the field-view page
+   *  earlier, and the fix there was exactly this split. */
+  async setGeometryMode(mode: 'realistic' | 'schematic'):
+    Promise<void> {
+    if (this.geometryMode === mode) { return; }
+    this.geometryMode = mode;
+    await this.loadScene();
+  }
+
   private async init3d(): Promise<void> {
-    this.destroy3d();
     const host = this.host3dRef?.nativeElement;
     if (!host || !this.isM0) { return; }
     try {
-      // Asset libraries are guaranteed loaded by the factory
-      // (ensureSceneAssets) — the hand-load that used to live here
-      // was the mag-7b fix, generalized 2026-07-30.
-      this.renderer3d = await this.rendererFactory.create('3d');
-      this.renderer3d.attach(host);
-      // The assembled motor is a real SimSpaceDefinition row —
-      // layout + viewport from its snapshot; fall back to the
-      // hard-coded equivalent when the row is absent.
-      this.sceneObjects = null; this.sceneSource = '';
-      let definition: any = {
-        id: 'motor-m0-3d', name: 'motor-m0-3d',
-        dimensionality: '3d', coordinateSystem: 'math',
-        unitScale: 1,
-        viewport: { center: [0, -1.5, 0], extent: [7, 8, 5] },
-        definition: '{}',
-      };
-      try {
-        const snap = await this.simSpaces.snapshot('motor-m0-viz');
-        if (snap?.definition && snap.objects?.length) {
-          definition = snap.definition;
-          this.sceneObjects = snap.objects;
-          this.sceneSource = 'scene: SimSpaceDefinition row '
-            + '"motor-m0-viz" (motion overlaid from the solver '
-            + 'replay)';
-        }
-      } catch {
-        this.sceneSource = 'scene row "motor-m0-viz" not found — '
-          + 'using the built-in fallback layout';
+      if (!this.renderer3d) {
+        // Asset libraries are guaranteed loaded by the factory
+        // (ensureSceneAssets) — the hand-load that used to live
+        // here was the mag-7b fix, generalized 2026-07-30.
+        this.renderer3d = await this.rendererFactory.create('3d');
+        this.renderer3d.attach(host);
       }
-      this.renderer3d.loadDefinition(definition);
-      this.coilStyle = 'motor-coil-idle';
-      const theta = (this.displayAngle * Math.PI) / 180;
-      this.renderer3d.setObjects(this.objects3d(theta));
-      this.renderer3d.setVectors(this.vectors3d(theta));
+      await this.loadScene();
     } catch (err: any) {
       this.shapes3dError = `3D init failed: ${err?.message ?? err}
         — is the mathshapes module enabled (POLARI_MODULES)?`;
     }
+  }
+
+  /** Fetch the current mode's scene row and paint it. The assembled
+   *  motor is a real SimSpaceDefinition row — layout + viewport from
+   *  its snapshot; the built-in fallback covers an older backend
+   *  that has no such row. */
+  private async loadScene(): Promise<void> {
+    if (!this.renderer3d) { return; }
+    const g = this.geom;
+    this.sceneObjects = null;
+    this.sceneSource = '';
+    this.shapes3dError = '';
+    let definition: any = {
+      id: 'motor-m0-3d', name: 'motor-m0-3d',
+      dimensionality: '3d', coordinateSystem: 'math', unitScale: 1,
+      viewport: g.fallbackViewport, definition: '{}',
+    };
+    try {
+      const snap = await this.simSpaces.snapshot(g.scene);
+      if (snap?.definition && snap.objects?.length) {
+        definition = snap.definition;
+        this.sceneObjects = snap.objects;
+        this.sceneSource = `scene: SimSpaceDefinition row "${g.scene}"`
+          + ` — ${g.blurb} (motion overlaid from the solver replay)`;
+      } else {
+        this.sceneSource = `scene row "${g.scene}" is empty — using `
+          + 'the built-in fallback layout';
+      }
+    } catch {
+      this.sceneSource = `scene row "${g.scene}" not found — using `
+        + 'the built-in fallback layout';
+    }
+    if (!this.sceneObjects && this.geometryMode === 'realistic') {
+      // No hard-coded stand-in exists for the photo-built geometry,
+      // and inventing one would defeat the point of building it
+      // from references. Say so rather than showing the schematic
+      // under a "realistic" label.
+      this.shapes3dError = `the realistic geometry lives only in the `
+        + `"${g.scene}" row, and it is not available — switch to `
+        + `schematic, or enable the motors + mathshapes modules.`;
+      this.renderer3d.setObjects([]);
+      this.renderer3d.setVectors([]);
+      return;
+    }
+    this.renderer3d.loadDefinition(definition);
+    this.coilStyle = 'motor-coil-idle';
+    const theta = (this.displayAngle * Math.PI) / 180;
+    this.renderer3d.setObjects(this.objects3d(theta));
+    this.renderer3d.setVectors(this.vectors3d(theta));
   }
 
   private update3d(): void {
@@ -574,13 +706,19 @@ export class MotorViewComponent implements OnInit, OnDestroy {
       : (this.polarity === 1 ? 'motor-coil-pos'
                              : 'motor-coil-neg');
     if (wanted !== this.coilStyle) {
+      // A material swap needs a rebuild (the render signature
+      // includes styleRef), and that rebuild carries the transform.
       this.coilStyle = wanted;
       this.renderer3d.setObjects(this.objects3d(theta));
     } else {
-      this.renderer3d.updateObjectTransform(
-        'rotor-disc', { rotation: [0, 0, theta] });
-      this.renderer3d.updateObjectTransform(
-        'rotor-pointer', { rotation: [0, 0, theta] });
+      // Cheap path: patch the rotor bodies in place. Position moves
+      // WITH rotation — see rotorTransform: off-axis spin is a
+      // rotation plus a compensating translation, so patching one
+      // without the other would slide the rotor off its bearing.
+      const spin = this.rotorTransform(theta);
+      for (const id of this.geom.rotorBodies) {
+        this.renderer3d.updateObjectTransform(id, spin);
+      }
     }
     this.renderer3d.setVectors(this.vectors3d(theta));
   }
