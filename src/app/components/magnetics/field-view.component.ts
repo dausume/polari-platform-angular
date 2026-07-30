@@ -7,6 +7,8 @@ import { SimSpaceRendererFactory }
   from '@services/sim-space/sim-space-renderer-factory.service';
 import { Material3DLibraryService }
   from '@services/sim-space-3d/material-3d-library.service';
+import { Mesh3DLibraryService }
+  from '@services/sim-space-3d/mesh-3d-library.service';
 
 /**
  * mag-7 remainder: /magnetics/fields — the mag-fv payloads made
@@ -154,7 +156,8 @@ export class FieldViewComponent implements OnInit, OnDestroy {
 
   constructor(private magnetics: MagneticsService,
               private rendererFactory: SimSpaceRendererFactory,
-              private materialLib: Material3DLibraryService) {}
+              private materialLib: Material3DLibraryService,
+              private meshLib: Mesh3DLibraryService) {}
 
   async ngOnInit(): Promise<void> {
     this.views = await this.magnetics.fieldViews();
@@ -196,7 +199,12 @@ export class FieldViewComponent implements OnInit, OnDestroy {
   private async init3d(): Promise<void> {
     const host = this.host3dRef?.nativeElement;
     if (!host || !this.payload?.ok) { return; }
-    await this.materialLib.load(true);
+    // Both libraries need an explicit load() before direct renderer
+    // use (the Material3DLibraryService lesson from mag-7b — and the
+    // MESH library too, or every builtin shapeRef falls back to a
+    // cube: the shells rendered as boxes until this line).
+    await Promise.all([this.materialLib.load(true),
+                       this.meshLib.load(true)]);
     this.renderer3d = await this.rendererFactory.create('3d');
     this.renderer3d.attach(host);
     this.renderer3d.loadDefinition({
