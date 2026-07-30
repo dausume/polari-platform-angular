@@ -73,6 +73,16 @@ import { BizopsService } from '@services/bizops.service';
               </ng-container>
               <span class="muted" *ngIf="b.units === 0">
                 — {{ b.refusal }}</span>
+              <!-- mag-8: magnetic variants carry an EARNED selling
+                   gate + stated exclusions — the plan's numbers
+                   show either way -->
+              <span class="gate"
+                    *ngIf="b.businessGate as g"
+                    [class.gate-open]="g.businessAllowed">
+                {{ g.businessAllowed ? 'selling open ('
+                   + g.realizationLevel + ')' : g.note }}</span>
+              <span class="muted" *ngIf="b.excludedNote">
+                ⚠ {{ b.excludedNote }}</span>
             </div>
             <div class="muted">{{ st.batchPlan.learning }}</div>
           </div>
@@ -320,6 +330,10 @@ import { BizopsService } from '@services/bizops.service';
     .win-row { padding: 2px 0; }
     .err { color: #c62828; font-size: 12px; }
     .muted { color: var(--text-on-card-muted); }
+    .gate { display: inline-block; border: 1px solid #c80;
+      color: #c80; border-radius: 10px; padding: 0 8px;
+      font-size: 11px; margin-left: 6px; }
+    .gate.gate-open { border-color: #2a2; color: #2a2; }
     .links { font-size: 12px; margin-top: 18px; }
     .links a { color: var(--accent-primary, #3949ab); }
   `],
