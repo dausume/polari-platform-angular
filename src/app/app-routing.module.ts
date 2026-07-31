@@ -87,6 +87,7 @@ const routes: Routes = [
   { path: 'business/start', loadComponent: () => import('@components/business/business-start.component').then(m => m.BusinessStartComponent) },
   { path: 'magnetics/motor', loadComponent: () => import('@components/magnetics/motor-view.component').then(m => m.MotorViewComponent) },
   { path: 'magnetics/clock-motor', loadComponent: () => import('@components/magnetics/clock-motor.component').then(m => m.ClockMotorComponent) },
+  { path: 'magnetics/clock-views', loadComponent: () => import('@components/magnetics/clock-views.component').then(m => m.ClockViewsComponent) },
   { path: 'magnetics/fields', loadComponent: () => import('@components/magnetics/field-view.component').then(m => m.FieldViewComponent) },
   { path: 'display/:id', loadComponent: () => import('@components/dashboard/display-page/display-page').then(m => m.DisplayPageComponent) },
   { path: 'video-assets', loadComponent: () => import('@components/video/video-assets-page.component').then(m => m.VideoAssetsPageComponent) }

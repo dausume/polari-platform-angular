@@ -79,4 +79,24 @@ export class MotorsService {
           ?? '?'}) — is 'motors' in POLARI_MODULES?`,
       });
   }
+  // view-1: discipline views as data + goals/scales.
+  clockViews(): Promise<any> {
+    return this.get('/api/motors/clock-views');
+  }
+
+  clockView(name: string, params: Record<string, string>):
+      Promise<any> {
+    const q = Object.entries(params)
+      .filter(([, v]) => v)
+      .map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&');
+    return this.get(`/api/motors/clock-view/${name}`
+      + (q ? `?${q}` : ''));
+  }
+
+  componentView(part: string, design: string): Promise<any> {
+    return this.get(`/api/motors/component-view/${part}`
+      + `?design=${encodeURIComponent(design)}`);
+  }
+
+  goals(): Promise<any> { return this.get('/api/motors/goals'); }
 }
