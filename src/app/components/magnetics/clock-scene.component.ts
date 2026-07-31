@@ -316,11 +316,15 @@ export class ClockSceneComponent
       const mags = (l.vectors ?? []).map((v: any) => v.magnitude);
       const maxMag = Math.max(1e-12, ...mags);
       (l.vectors ?? []).forEach((v: any, i: number) => {
+        // unit direction — raw tesla-scale vectors read as
+        // near-zero and the renderer hides them; magnitude is
+        // carried by the arrow LENGTH instead (field-view idiom).
+        const mag = Math.hypot(...v.vector) || 1;
         vectors.push({
           kind: 'vector', key: `${l.name}-${i}`,
           origin: v.point.map(
             (c: number, k: number) => anchor[k] + c * s),
-          vec: v.vector,
+          vec: v.vector.map((c: number) => c / mag),
           scale: 0.25 + 0.75 * (v.magnitude / maxMag),
           headScale: 0.3, color: v.color });
       });
