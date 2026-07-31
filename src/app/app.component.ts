@@ -1,5 +1,7 @@
 // app.component.ts
-import { Router } from '@angular/router';
+import { Router, NavigationEnd } from '@angular/router';
+import { filter } from 'rxjs/operators';
+import { AppNav, AppsNavService } from '@services/apps-nav.service';
 import { navComponent, ObjectCategory } from '@models/navComponent';
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { map } from 'rxjs/operators'
@@ -22,6 +24,12 @@ import { DisplaySummary } from '@models/dashboards/DisplaySummary';
 export class AppComponent {
   sideNavOpened = false;
   isConnected = false;
+  // nav-3: the app whose territory the current route sits in; when
+  // set, its menu renders on top and the base (core) nav collapses
+  // under an expander — still always reachable.
+  currentApp: AppNav | null = null;
+  coreNavExpanded = true;
+  private coreNavToggledByUser = false;
   router: Router
   //Connects to the polari node and retrieves/maintains the fundamental data on how the app functions.
   polariService: PolariService
@@ -55,7 +63,7 @@ export class AppComponent {
 
   private displayManager: DisplayManagerService;
 
-  constructor(router: Router, polariService: PolariService, typingService: ClassTypingService, crudeServicesManager: CRUDEservicesManager, displayManager: DisplayManagerService)
+  constructor(router: Router, polariService: PolariService, typingService: ClassTypingService, crudeServicesManager: CRUDEservicesManager, displayManager: DisplayManagerService, private appsNav: AppsNavService)
   {
     this.router = router
     this.polariService = polariService
@@ -67,6 +75,20 @@ export class AppComponent {
     this.setActiveNavComponentsData()
   }
 
+  private bindAppContext(url: string): void {
+    this.currentApp = this.appsNav.appForUrl(url);
+    if (!this.coreNavToggledByUser) {
+      // default posture: core nav folds away inside an app,
+      // expands in the core shell — until the user says otherwise.
+      this.coreNavExpanded = !this.currentApp;
+    }
+  }
+
+  toggleCoreNav(): void {
+    this.coreNavExpanded = !this.coreNavExpanded;
+    this.coreNavToggledByUser = true;
+  }
+
   ngOnInit()
   {
     // console.log("In app.component.ts ngOnInit");
@@ -74,6 +96,15 @@ export class AppComponent {
     this.polariService.connectionSuccessSubject.subscribe(connectionVal => {
       this.isConnected = connectionVal
     });
+
+    // nav-3: app context for the side nav (menus are rows; the
+    // service resolves which app owns the current route).
+    this.appsNav.ensureLoaded();
+    this.appsNav.payload$.subscribe(() =>
+      this.bindAppContext(this.router.url));
+    this.router.events
+      .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
+      .subscribe(e => this.bindAppContext(e.urlAfterRedirects));
 
     // Subscribe to static nav components
     this.typingService.navComponentsBehaviorSubject.subscribe(navList => {

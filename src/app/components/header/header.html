@@ -2,6 +2,55 @@
     <mat-toolbar-row fxLayout="row">
         <img class="header-polari-icon" width=50 height=50 [src]="polariImgUrl">
         <span class="header-page-button" fxFlex="noshrink">{{currentComponentTitle}}</span>
+
+        <!-- nav-3 base top nav: ALWAYS present — enter apps, reach
+             the higher-level views (topology, modules, trees...). -->
+        <button mat-button [matMenuTriggerFor]="appsMenu" class="header-nav-button">
+            <mat-icon>apps</mat-icon><span class="header-nav-label">Apps</span>
+            <mat-icon class="header-nav-caret">arrow_drop_down</mat-icon>
+        </button>
+        <mat-menu #appsMenu="matMenu">
+            <button mat-menu-item *ngFor="let a of disciplineApps" (click)="go('/app/' + a.name)">
+                <mat-icon>science</mat-icon><span>{{ a.title }}</span>
+            </button>
+            <mat-divider *ngIf="useCaseApps.length"></mat-divider>
+            <button mat-menu-item *ngFor="let a of useCaseApps" (click)="go('/app/' + a.name)">
+                <mat-icon>storefront</mat-icon><span>{{ a.title }}</span>
+            </button>
+            <mat-divider></mat-divider>
+            <button mat-menu-item (click)="go('/apps')">
+                <mat-icon>grid_view</mat-icon><span>All apps &amp; deployment plans</span>
+            </button>
+        </mat-menu>
+
+        <button mat-button [matMenuTriggerFor]="coreMenu" class="header-nav-button">
+            <mat-icon>lan</mat-icon><span class="header-nav-label">Core</span>
+            <mat-icon class="header-nav-caret">arrow_drop_down</mat-icon>
+        </button>
+        <mat-menu #coreMenu="matMenu">
+            <button mat-menu-item *ngFor="let v of coreViews" (click)="go(v.route)">
+                <mat-icon>{{ v.icon }}</mat-icon><span>{{ v.label }}</span>
+            </button>
+        </mat-menu>
+
+        <!-- The app in context leverages the top bar: its topMenu
+             groups render as dropdowns beside the base nav. -->
+        <ng-container *ngIf="currentApp">
+            <span class="header-app-name" (click)="go('/app/' + currentApp.name)">{{ currentApp.title }}</span>
+            <ng-container *ngFor="let g of topGroups">
+                <button mat-button [matMenuTriggerFor]="appGroupMenu" class="header-nav-button app-group">
+                    <span class="header-nav-label">{{ g.group }}</span>
+                    <mat-icon class="header-nav-caret">arrow_drop_down</mat-icon>
+                </button>
+                <mat-menu #appGroupMenu="matMenu">
+                    <button mat-menu-item *ngFor="let it of g.items" (click)="openNavItem(it)">
+                        <mat-icon *ngIf="it.availability === 'absent'" class="header-item-off">power_off</mat-icon>
+                        <span [class.header-item-dim]="it.availability !== 'enabled'">{{ it.label }}</span>
+                    </button>
+                </mat-menu>
+            </ng-container>
+        </ng-container>
+
         <span fxFlex="grow"></span>
 
         <button mat-icon-button (click)="toggleAssistant()" class="header-assistant-toggle"

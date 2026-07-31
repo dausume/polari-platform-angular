@@ -92,3 +92,49 @@
     height: 20px;
     line-height: 20px;
 }
+
+/* =========================================================================
+ * nav-3: base top nav (Apps / Core) + in-app topMenu group dropdowns.
+ * Toolbar is dark in both themes, so buttons ride --nav-text.
+ * ========================================================================= */
+
+.header-nav-button {
+    margin-left: 4px;
+    color: var(--nav-text) !important;
+}
+
+.header-nav-button mat-icon {
+    color: var(--nav-text) !important;
+}
+
+.header-nav-label {
+    margin: 0 2px 0 4px;
+}
+
+.header-nav-caret {
+    margin-left: -2px;
+}
+
+.header-app-name {
+    margin-left: 14px;
+    padding: 2px 10px;
+    border: 1px solid var(--nav-text);
+    border-radius: 14px;
+    font-size: 0.85em;
+    opacity: 0.9;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.header-item-off {
+    color: #c98a00 !important;
+}
+
+.header-item-dim {
+    opacity: 0.65;
+}
+
+@media (max-width: 900px) {
+    .header-nav-label { display: none; }
+    .header-app-name { display: none; }
+}

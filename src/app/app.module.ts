@@ -58,6 +58,7 @@ import { AppComponent } from './app.component';
 // App Base Components
 import { HeaderComponent } from 'src/app/components/header/header';
 import { AiAssistantPanelComponent } from '@components/ai-assistant/ai-assistant-panel.component';
+import { AppNavPanelComponent } from '@components/apps/app-nav-panel.component';
 import { PolariConfigComponent } from '@components/polari-config/polari-config';
 import { NavigationComponent } from '@components/nav-component/nav-component';
 // Class-Oriented Dynamic Components
@@ -331,6 +332,9 @@ import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/
     // AiAssistantPanelComponent is standalone — the in-app AI assistant,
     // mounted app-wide in app.component.html.
     AiAssistantPanelComponent,
+    // nav-3: an app's own side menu (standalone), mounted in the
+    // shell side nav above the collapsible core nav.
+    AppNavPanelComponent,
     BrowserModule,
     AppRoutingModule,
     BrowserAnimationsModule,

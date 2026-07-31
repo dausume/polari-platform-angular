@@ -15,6 +15,17 @@
 
     <mat-sidenav [(opened)]="sideNavOpened" #sidenav mode="side" >
           <mat-nav-list>
+            <!-- nav-3: the app in context leverages the side menu —
+                 its full map renders first; the base (core) nav stays
+                 below, collapsible but always reachable. -->
+            <app-nav-panel *ngIf="currentApp" [app]="currentApp"></app-nav-panel>
+
+            <mat-list-item *ngIf="currentApp" (click)="toggleCoreNav()" class="dropdown-header">
+                <mat-icon>{{ coreNavExpanded ? 'expand_less' : 'expand_more' }}</mat-icon>
+                <span>Polari core</span>
+            </mat-list-item>
+
+            <ng-container *ngIf="coreNavExpanded">
             <!-- Static Navigation Items -->
             <mat-list-item *ngFor="let navComp of staticNavComponents" (click)="pageNav(navComp)">
                {{ navComp.title }}
@@ -136,6 +147,7 @@
                     <span class="dropdown-item-text">{{ dp.name || 'Untitled Page' }}</span>
                 </mat-list-item>
             </div>
+            </ng-container>
           </mat-nav-list>
     </mat-sidenav>
     <button mat-icon-button class="sidenav-toggle" (click)="toggleSideNav()" ><mat-icon>menu</mat-icon></button>
