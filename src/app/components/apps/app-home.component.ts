@@ -22,8 +22,11 @@ import {
   <div class="ah-page" *ngIf="app; else missing">
     <div class="ah-head">
       <h2>{{ app.title }}</h2>
-      <span class="ah-chip persona" *ngFor="let p of app.personas">
-        {{ p }}</span>
+      <button class="ah-chip persona" *ngFor="let p of app.personas"
+              matTooltip="see every app for this persona"
+              (click)="router.navigate(['/apps'],
+                       { queryParams: { persona: p } })">
+        {{ p }}</button>
     </div>
     <p class="ah-usecase">{{ app.useCase }}</p>
 
@@ -84,7 +87,10 @@ import {
       var(--surface-outline, #8884); border-radius: 9px;
       padding: 1px 8px; color: var(--text-on-bg-muted,
       var(--text-on-card-muted)); }
-    .ah-chip.persona { color: var(--text-on-bg); }
+    .ah-chip.persona { color: var(--text-on-bg);
+      background: transparent; cursor: pointer; }
+    .ah-chip.persona:hover { background:
+      var(--surface-hover, #8882); }
     .ah-modstrip { display: flex; gap: 10px; flex-wrap: wrap;
       margin: 10px 0 4px; }
     .ah-mod { display: inline-flex; align-items: center; gap: 4px;
@@ -123,7 +129,7 @@ export class AppHomeComponent implements OnInit, OnDestroy {
   private subs: Subscription[] = [];
 
   constructor(private route: ActivatedRoute,
-              private router: Router,
+              public router: Router,
               private appsNav: AppsNavService) {}
 
   ngOnInit(): void {

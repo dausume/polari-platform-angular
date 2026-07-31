@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { MotorsService } from '@services/motors.service';
 
 /**
@@ -70,7 +70,19 @@ import { MotorsService } from '@services/motors.service';
           <b>{{ s.section }}</b>
           <span class="chip src">{{ s.source }}</span>
         </div>
+        <!-- nav-4: the section LEADS with its insight + links into
+             the visuals; the payload is the expander, not the face. -->
+        <p class="lead" *ngIf="s.lead">{{ s.lead }}</p>
+        <div class="links" *ngIf="s.links?.length">
+          <button class="lnk" *ngFor="let lk of s.links"
+                  (click)="goLink(lk)">
+            {{ lk.label }}
+            <span class="chip kind">{{ lk.kind }}</span>
+          </button>
+        </div>
         <ng-container *ngIf="s.payload; else refused">
+          <details class="sec-details">
+          <summary class="label">details &amp; numbers</summary>
           <!-- specialized renderings where structure is known -->
           <table class="tbl" *ngIf="s.payload.summary?.length">
             <tr><th>scale</th><th>verdict</th><th>score</th>
@@ -121,6 +133,7 @@ import { MotorsService } from '@services/motors.service';
             <summary class="label">full payload</summary>
             <pre class="raw">{{ stringify(s.payload) }}</pre>
           </details>
+          </details>
         </ng-container>
         <ng-template #refused>
           <div class="bad-text">refused: {{ s.refusal }}</div>
@@ -150,6 +163,18 @@ import { MotorsService } from '@services/motors.service';
   styles: [`
     .cv-page { padding: 14px 18px;
       color: var(--text-on-bg, inherit); }
+    .lead { margin: 6px 0 4px; font-size: 0.92em;
+      color: var(--text-on-card); }
+    .links { display: flex; flex-wrap: wrap; gap: 6px;
+      margin: 4px 0 6px; }
+    .lnk { display: inline-flex; align-items: center; gap: 5px;
+      border: 1px solid var(--surface-outline, #8884);
+      background: var(--surface-primary);
+      color: var(--text-on-card); border-radius: 12px;
+      padding: 2px 10px; cursor: pointer; font-size: 0.85em;
+      text-decoration: underline; }
+    .lnk:hover { background: var(--surface-hover, #8882); }
+    .sec-details > summary { cursor: pointer; }
     .hint { color: var(--text-on-bg-muted,
       var(--text-on-card-muted)); font-size: 0.9em; }
     .err { color: #d33; }
@@ -212,7 +237,12 @@ export class ClockViewsComponent implements OnInit {
   component = '';
   design = 'clock-lavet-m0';
 
-  constructor(private motors: MotorsService) {}
+  constructor(private motors: MotorsService,
+              private router: Router) {}
+
+  goLink(lk: any): void {
+    if (lk?.route) { this.router.navigateByUrl(lk.route); }
+  }
 
   async ngOnInit(): Promise<void> {
     this.registry = await this.motors.clockViews();

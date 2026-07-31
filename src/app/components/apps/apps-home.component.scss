@@ -107,3 +107,66 @@
     }
   }
 }
+
+/* nav-5: persona chips */
+.persona-bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 4px 0 14px;
+}
+
+.persona-label {
+    color: var(--text-on-bg-muted, var(--text-on-card-muted));
+    font-size: 0.9em;
+}
+
+.persona-chip {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--surface-outline, #8884);
+    border-radius: 14px;
+    background: var(--surface-primary);
+    overflow: hidden;
+
+    &.active {
+        border-color: var(--text-on-card);
+    }
+
+    .persona-name {
+        border: none;
+        background: transparent;
+        color: var(--text-on-card);
+        padding: 3px 4px 3px 12px;
+        cursor: pointer;
+        font-size: 0.88em;
+    }
+
+    .persona-enter {
+        border: none;
+        background: transparent;
+        color: var(--text-on-card-muted);
+        cursor: pointer;
+        padding: 3px 8px 0 2px;
+
+        mat-icon {
+            font-size: 16px;
+            width: 16px;
+            height: 16px;
+        }
+
+        &:hover {
+            color: var(--text-on-card);
+        }
+    }
+}
+
+.app-home-link {
+    color: inherit;
+    text-decoration: none;
+
+    &:hover {
+        text-decoration: underline;
+    }
+}

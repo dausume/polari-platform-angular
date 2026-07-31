@@ -12,10 +12,24 @@
     <div class="load-error" *ngIf="loadError && !loading">{{ loadError }}</div>
     <div class="loading" *ngIf="loading">loading apps…</div>
 
+    <!-- nav-5: persona chips — filter the cards; the arrow jumps
+         straight into that discipline's default study. -->
+    <div class="persona-bar" *ngIf="personas.length">
+        <span class="persona-label">I am a…</span>
+        <span class="persona-chip" *ngFor="let p of personas"
+              [class.active]="p === activePersona">
+            <button class="persona-name" (click)="setPersona(p)">{{ p }}</button>
+            <button class="persona-enter" (click)="enterPersona(p)"
+                    matTooltip="jump into this discipline's default study">
+                <mat-icon>arrow_forward</mat-icon>
+            </button>
+        </span>
+    </div>
+
     <div class="app-cards">
-        <div class="app-card" *ngFor="let app of apps">
+        <div class="app-card" *ngFor="let app of visibleApps">
             <div class="card-head">
-                <h3>{{ app.title }}</h3>
+                <h3><a class="app-home-link" [routerLink]="['/app', app.name]">{{ app.title }}</a></h3>
                 <span class="readiness" *ngIf="plan(app.name) as p"
                       [matTooltip]="'fraction of the app\'s modules already placed on the active topology'">
                     {{ percent(p.readiness) }} placed</span>

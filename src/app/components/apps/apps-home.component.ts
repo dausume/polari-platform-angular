@@ -3,10 +3,11 @@ import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 
 import { PolariService } from '@services/polari-service';
+import { AppsNavService } from '@services/apps-nav.service';
 
 interface AppEntry {
   name: string;
@@ -61,8 +62,17 @@ export class AppsHomeComponent implements OnInit {
   loading = true;
   loadError = '';
 
+  // nav-5: persona chips — filter the cards, and jump straight
+  // into the discipline's default study (EE → magnetics).
+  personas: string[] = [];
+  personaApps: Record<string, string[]> = {};
+  activePersona = '';
+
   constructor(private http: HttpClient,
-              private polariService: PolariService) {}
+              private polariService: PolariService,
+              private appsNav: AppsNavService,
+              private route: ActivatedRoute,
+              private router: Router) {}
 
   private url(path: string): string {
     return `${this.polariService.getBackendBaseUrl()}/api/apps${path}`;
@@ -81,6 +91,40 @@ export class AppsHomeComponent implements OnInit {
     }
     this.apps = result.apps;
     for (const app of this.apps) { this.loadPlan(app.name); }
+    this.appsNav.ensureLoaded();
+    this.appsNav.payload$.subscribe(p => {
+      this.personaApps = p?.personas ?? {};
+      this.personas = Object.keys(this.personaApps).sort();
+    });
+    this.route.queryParamMap.subscribe(q =>
+      this.activePersona = q.get('persona') || '');
+  }
+
+  get visibleApps(): AppEntry[] {
+    const names = this.personaApps[this.activePersona];
+    return names?.length
+      ? this.apps.filter(a => names.includes(a.name)) : this.apps;
+  }
+
+  setPersona(persona: string): void {
+    this.activePersona =
+      this.activePersona === persona ? '' : persona;
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { persona: this.activePersona || null },
+      queryParamsHandling: 'merge',
+    });
+  }
+
+  /** The discipline's default study: the persona's first app's
+   *  first enabled routed item — the "EE → magnetics" jump. */
+  enterPersona(persona: string): void {
+    const first = (this.personaApps[persona] || [])[0];
+    const app = first ? this.appsNav.appByName(first) : null;
+    if (!app) { return; }
+    const item = app.nav.flatMap(g => g.items)
+      .find(it => it.availability === 'enabled' && it.route);
+    this.router.navigateByUrl(item?.route || `/app/${app.name}`);
   }
 
   private async loadPlan(name: string): Promise<void> {
