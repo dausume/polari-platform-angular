@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { MotorsService } from '@services/motors.service';
+import { ClockSceneComponent } from './clock-scene.component';
 
 /**
  * view-1 (goal-5b): /magnetics/clock-views — ONE renderer over the
@@ -18,7 +19,8 @@ import { MotorsService } from '@services/motors.service';
 @Component({
   standalone: true,
   selector: 'clock-views',
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule,
+            ClockSceneComponent],
   template: `
   <div class="cv-page">
     <h2>Clock views — one machine, split by discipline</h2>
@@ -59,6 +61,11 @@ import { MotorsService } from '@services/motors.service';
       <button (click)="openComponent()"
               [disabled]="!component">component view</button>
     </div>
+
+    <!-- viz-2: the discipline's 3D face — layers switch with the
+         tab and stack in any combination; the cards below are the
+         numbers behind the picture. -->
+    <clock-scene *ngIf="current" [view]="current"></clock-scene>
 
     <div class="hint" *ngIf="view?.scaleSupport === 'm0-only'">
       This view runs the deep engines on the built M0 and says so —
