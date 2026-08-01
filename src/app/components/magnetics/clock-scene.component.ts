@@ -253,11 +253,16 @@ export class ClockSceneComponent
     // ws-3: shape-swap layers replace a body's geometry (the
     // observable winding stands in for the solid coil).
     const swapOf: Record<string, string> = {};
+    const hidden = new Set<string>();
     for (const l of this.scene.layers) {
-      if (l.kind === 'shape-swap' && l.ok
-          && this.enabled.has(l.name) && l.body && l.shapeRef) {
-        swapOf[l.body] = l.shapeRef;
+      if (l.kind !== 'shape-swap' || !l.ok
+          || !this.enabled.has(l.name)) { continue; }
+      for (const s of (l.swaps ??
+           (l.body && l.shapeRef
+             ? [{ body: l.body, shapeRef: l.shapeRef }] : []))) {
+        if (s.body && s.shapeRef) { swapOf[s.body] = s.shapeRef; }
       }
+      for (const h of l.hide ?? []) { hidden.add(h); }
     }
     const geom = this.replayGeom();
     const thetaRad = this.theta * Math.PI / 180;
@@ -277,7 +282,8 @@ export class ClockSceneComponent
         rotation: isRotor && spin ? spin.rotation : o.rotation,
         position: isRotor && spin ? spin.position : o.position,
         colorOverride: spec?.color,
-        opacityOverride: anyColoring && !spec ? 0.3 : undefined,
+        opacityOverride: hidden.has(o.id) ? 0.03
+          : anyColoring && !spec ? 0.3 : undefined,
       };
     });
     for (const l of this.scene.layers) {
