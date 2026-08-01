@@ -57,11 +57,16 @@ import { SimSpaceService } from '@services/sim-space/sim-space.service';
     <div #host class="cs-host"></div>
     <div class="cs-legends" *ngIf="scene?.ok">
       <ng-container *ngFor="let l of scene.layers">
-        <div class="cs-legend" *ngIf="enabled.has(l.name) && l.legend?.length">
+        <div class="cs-legend"
+             *ngIf="enabled.has(l.name) && (l.legend?.length || l.crossCheck)">
           <span class="cs-legend-title">{{ l.displayName }}</span>
           <span class="cs-swatch" *ngFor="let e of l.legend">
             <i [style.background]="e.color"></i>{{ e.label }}</span>
           <span class="cs-note" *ngIf="l.note">{{ l.note }}</span>
+          <span class="cs-note" *ngIf="l.crossCheck">
+            MTL cross-check: geometry {{ l.crossCheck.geometryMTL }}
+            vs electrical {{ l.crossCheck.electricalMTL }} —
+            {{ l.crossCheck.note }}</span>
         </div>
       </ng-container>
     </div>
@@ -143,6 +148,7 @@ export class ClockSceneComponent
       case 'replay': return 'play_circle';
       case 'vector-field': return 'grain';
       case 'markers': return 'join_inner';
+      case 'shape-swap': return 'cable';
       default: return 'palette';
     }
   }
@@ -244,6 +250,15 @@ export class ClockSceneComponent
         colorOf[body] = spec;   // later enabled layer wins
       }
     }
+    // ws-3: shape-swap layers replace a body's geometry (the
+    // observable winding stands in for the solid coil).
+    const swapOf: Record<string, string> = {};
+    for (const l of this.scene.layers) {
+      if (l.kind === 'shape-swap' && l.ok
+          && this.enabled.has(l.name) && l.body && l.shapeRef) {
+        swapOf[l.body] = l.shapeRef;
+      }
+    }
     const geom = this.replayGeom();
     const thetaRad = this.theta * Math.PI / 180;
     const spin = geom ? this.rotorTransform(geom, thetaRad) : null;
@@ -256,6 +271,7 @@ export class ClockSceneComponent
       const spec = colorOf[o.id];
       return {
         ...o, trackKey: o.id,
+        shapeRef: swapOf[o.id] ?? o.shapeRef,
         styleRef: (geom && o.id === geom.coilBody && coilStyle)
           ? coilStyle : o.styleRef,
         rotation: isRotor && spin ? spin.rotation : o.rotation,
