@@ -37,6 +37,16 @@ import { SimSpaceService } from '@services/sim-space/sim-space.service';
   <div class="cs-wrap">
     <div class="cs-bar" *ngIf="scene?.ok">
       <span class="cs-title">3D — {{ scene.baseScene }}</span>
+      <ng-container *ngIf="scene.scenes?.length > 1">
+        <button class="cs-chip cs-scene" *ngFor="let s of scene.scenes"
+                [class.on]="s.name === scene.scene"
+                (click)="pickScene(s.name)">
+          <mat-icon class="cs-chip-ic">{{ s.name === 'gear-train'
+            ? 'settings' : 'precision_manufacturing' }}</mat-icon>
+          {{ s.title }}
+        </button>
+        <span class="cs-sep">|</span>
+      </ng-container>
       <button class="cs-chip" *ngFor="let l of scene.layers"
               [class.on]="enabled.has(l.name)"
               [class.refused]="!l.ok"
@@ -90,6 +100,9 @@ import { SimSpaceService } from '@services/sim-space/sim-space.service';
       background: var(--surface-hover, #8882); }
     .cs-chip.refused { opacity: 0.5; cursor: help;
       text-decoration: line-through; }
+    .cs-chip.cs-scene { border-style: dashed; }
+    .cs-chip.cs-scene.on { border-style: solid; font-weight: 600; }
+    .cs-sep { color: var(--text-on-card-muted); margin: 0 2px; }
     .cs-chip-ic { font-size: 14px; width: 14px; height: 14px; }
     .cs-replay { margin-left: auto; display: inline-flex;
       gap: 8px; align-items: center; font-size: 0.85em; }
@@ -114,6 +127,11 @@ export class ClockSceneComponent
 
   scene: any = null;
   enabled = new Set<string>();
+  private sceneName = '';
+
+  // gr-4: continuous kinematic replay of the solved gear train.
+  private gearTheta: Record<string, number> = {};
+  private gearTimer: any = null;
 
   private renderer: any = null;
   private loadedScene = '';
@@ -140,6 +158,7 @@ export class ClockSceneComponent
 
   ngOnDestroy(): void {
     this.stopTimer();
+    if (this.gearTimer) { clearInterval(this.gearTimer); }
     this.renderer?.destroy?.();
   }
 
@@ -149,6 +168,7 @@ export class ClockSceneComponent
       case 'vector-field': return 'grain';
       case 'markers': return 'join_inner';
       case 'shape-swap': return 'cable';
+      case 'gear-replay': return 'settings';
       default: return 'palette';
     }
   }
@@ -163,16 +183,25 @@ export class ClockSceneComponent
     return this.scene?.layers?.find((l: any) => l.name === name);
   }
 
+  pickScene(name: string): void {
+    if (name === this.sceneName) { return; }
+    this.sceneName = name;
+    this.reload();
+  }
+
   private async reload(): Promise<void> {
     if (!this.view) { return; }
+    const qs = this.sceneName
+      ? `?scene=${encodeURIComponent(this.sceneName)}` : '';
     const url = `${this.polariService.getBackendBaseUrl()}` +
-      `/api/motors/clock-scene/${this.view}`;
+      `/api/motors/clock-scene/${this.view}${qs}`;
     this.scene = await firstValueFrom(this.http.get<any>(
       url, this.polariService.backendRequestOptions))
       .catch((err) => err?.error ?? {
         ok: false, refusal: 'clock-scene unreachable — is the ' +
           'motors module online?' });
     if (!this.scene?.ok) { return; }
+    this.sceneName = this.scene.scene || '';
     this.enabled = new Set(this.scene.layers
       .filter((l: any) => l.ok && l.defaultOn)
       .map((l: any) => l.name));
@@ -180,6 +209,47 @@ export class ClockSceneComponent
     if (this.replayOn()) { await this.ensureSim(); }
     this.repaint();
     if (this.replayOn() && !this.playing) { this.playPause(); }
+    this.syncGearReplay();
+  }
+
+  // ---- gr-4: gear-train kinematic replay --------------------------
+
+  private gearLayer(): any {
+    return this.scene?.layers?.find(
+      (l: any) => l.kind === 'gear-replay' && l.ok
+        && this.enabled.has(l.name));
+  }
+
+  private syncGearReplay(): void {
+    const layer = this.gearLayer();
+    if (!layer) {
+      if (this.gearTimer) { clearInterval(this.gearTimer); }
+      this.gearTimer = null;
+      return;
+    }
+    if (this.gearTimer) { return; }
+    let last = performance.now();
+    this.gearTimer = setInterval(() => {
+      const l = this.gearLayer();
+      if (!l || !this.renderer) { return; }
+      const now = performance.now();
+      const dt = (now - last) / 1000; last = now;
+      for (const b of l.bodies ?? []) {
+        const theta = (this.gearTheta[b.body] ?? 0)
+          + b.displayRevPerSec * 2 * Math.PI * dt;
+        this.gearTheta[b.body] = theta;
+        const [cx, cy] = b.center;
+        // rotation about the gear's OWN axis: geometry carries
+        // absolute coords, so position = a - R a (mag-10c).
+        this.renderer.updateObjectTransform(b.body, {
+          rotation: [0, 0, theta],
+          position: [
+            cx - (cx * Math.cos(theta) - cy * Math.sin(theta)),
+            cy - (cx * Math.sin(theta) + cy * Math.cos(theta)),
+            0],
+        });
+      }
+    }, 90);
   }
 
   private async ensureScene(name: string): Promise<void> {
@@ -214,6 +284,7 @@ export class ClockSceneComponent
     }
     if (!this.replayOn()) { this.stopTimer(); this.playing = false; }
     this.repaint();
+    this.syncGearReplay();
   }
 
   // ---- composition ------------------------------------------------
