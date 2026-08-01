@@ -249,6 +249,17 @@ export class ClockSceneComponent
             0],
         });
       }
+      // as-2: hand ORIENTATION vectors — each hand's pointing
+      // direction, rotating with its body.
+      const hv = (l.handVectors ?? []).map((h: any) => {
+        const theta = this.gearTheta[h.body] ?? 0;
+        return {
+          kind: 'vector', key: h.key, origin: h.origin,
+          vec: [-Math.sin(theta), Math.cos(theta), 0],
+          scale: h.length, headScale: 0.12, color: h.color,
+        };
+      });
+      if (hv.length) { this.renderer.setVectors(hv); }
     }, 90);
   }
 
