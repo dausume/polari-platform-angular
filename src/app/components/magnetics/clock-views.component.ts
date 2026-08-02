@@ -126,17 +126,30 @@ import { ClockSceneComponent } from './clock-scene.component';
                 <td>{{ c.modelled ? 'yes' : 'NAMED GAP' }}</td></tr>
             </table>
           </div>
-          <div *ngIf="s.payload.requirements?.length">
+          <!-- goal-feasibility SLOT requirements (guarded by
+               shape: m1-axis carries a same-named field of plain
+               value rows, which renders in the table below). -->
+          <div *ngIf="s.payload.requirements?.length
+                      && s.payload.requirements[0].slot">
             <div class="part" *ngFor="let r of s.payload.requirements">
               <div class="part-head"><b>{{ r.slot }}</b>
                 <span class="chip fn">{{ r.archetype }}</span></div>
               <div class="nums" *ngIf="r.demands">
                 {{ stringify(r.demands) }}</div>
-              <div class="hint">viable: {{ r.materialCandidates.join(', ')
+              <div class="hint">viable: {{ r.materialCandidates?.join(', ')
                 || '(none yet)' }}<span *ngIf="r.unassessed?.length">
-                 · unassessed: {{ r.unassessed.join(', ') }}</span></div>
+                 · unassessed: {{ r.unassessed?.join(', ') }}</span></div>
             </div>
           </div>
+          <!-- m1-5: axis requirement VALUE rows -->
+          <table class="tbl" *ngIf="s.payload.requirements?.length
+                                    && s.payload.requirements[0].unit">
+            <tr><th>requirement</th><th>value</th><th>basis</th></tr>
+            <tr *ngFor="let r of s.payload.requirements">
+              <td>{{ r.name }}</td>
+              <td class="nums">{{ r.value }} {{ r.unit }}</td>
+              <td>{{ r.basis }}</td></tr>
+          </table>
           <!-- generic fallback: the honest full payload -->
           <details>
             <summary class="label">full payload</summary>
