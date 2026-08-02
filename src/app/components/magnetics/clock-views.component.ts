@@ -150,6 +150,23 @@ import { ClockSceneComponent } from './clock-scene.component';
               <td class="nums">{{ r.value }} {{ r.unit }}</td>
               <td>{{ r.basis }}</td></tr>
           </table>
+          <!-- m2-8: HEADLINE numbers — any engine may offer a
+               flat {label, value, note} list, and a PROOF should:
+               its answer rendered as raw JSON is an answer
+               nobody reads. Shape-gated like every renderer
+               above (the m1-8 lesson). -->
+          <table class="tbl" *ngIf="s.payload.headline?.length">
+            <tr><th>what</th><th>value</th><th>what it means</th></tr>
+            <tr *ngFor="let h of s.payload.headline">
+              <td>{{ h.label }}</td>
+              <td class="nums"><span class="chip"
+                    [class.ok]="h.verdict === 'ok'"
+                    [class.warn]="h.verdict === 'warn'"
+                    [class.bad]="h.verdict === 'bad'"
+                    *ngIf="h.verdict">{{ h.value }}</span>
+                <span *ngIf="!h.verdict">{{ h.value }}</span></td>
+              <td>{{ h.note }}</td></tr>
+          </table>
           <!-- generic fallback: the honest full payload -->
           <details>
             <summary class="label">full payload</summary>
