@@ -1,7 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule }
+  from '@angular/router';
 import { MotorsService } from '@services/motors.service';
 import { ClockSceneComponent } from './clock-scene.component';
 
@@ -23,7 +24,8 @@ import { ClockSceneComponent } from './clock-scene.component';
             ClockSceneComponent],
   template: `
   <div class="cv-page">
-    <h2>Clock views — one machine, split by discipline</h2>
+    <h2>Discipline views — one machine at a time, split by
+      discipline</h2>
     <p class="hint">Views are rows, not components: each tab is a
       ClockViewDefinition, each panel an engine's answer. A refused
       panel states its reason and the knob that would open it.</p>
@@ -245,13 +247,17 @@ export class ClockViewsComponent implements OnInit {
   design = 'clock-lavet-m0';
 
   constructor(private motors: MotorsService,
-              private router: Router) {}
+              private router: Router,
+              private route: ActivatedRoute) {}
 
   goLink(lk: any): void {
     if (lk?.route) { this.router.navigateByUrl(lk.route); }
   }
 
   async ngOnInit(): Promise<void> {
+    // m1-8: nav rows deep-link a specific view (?view=view-m1-…).
+    const wanted = this.route.snapshot.queryParamMap.get('view');
+    if (wanted) { this.current = wanted; }
     this.registry = await this.motors.clockViews();
     const goals = await this.motors.goals();
     this.goalRows = goals?.ok ? goals.goals : [];

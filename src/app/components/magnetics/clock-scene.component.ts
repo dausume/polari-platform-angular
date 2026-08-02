@@ -55,9 +55,11 @@ import { SimSpaceService } from '@services/sim-space/sim-space.service';
         <mat-icon class="cs-chip-ic">{{ kindIcon(l.kind) }}</mat-icon>
         {{ l.displayName }}
       </button>
-      <span class="cs-replay" *ngIf="replayOn()">
+      <span class="cs-replay" *ngIf="replayOn() || phaseReplayOn()">
         θ {{ theta | number:'1.0-0' }}° ·
         {{ stepsSoFar }} steps
+        <span *ngIf="phaseReplayOn() && currentPhase !== ''">
+          · phase {{ ['A','B','C'][+currentPhase] }} lit</span>
         <button class="cs-chip" (click)="playPause()">
           {{ playing ? 'pause' : 'play' }}</button>
       </span>
@@ -144,6 +146,11 @@ export class ClockSceneComponent
   private polarity = 0; private pulseIndex = 0;
   private timer: any = null;
 
+  // phase-replay state (m1)
+  seq: any = null;
+  currentPhase = '';
+  private seqIndex = 0;
+
   constructor(private http: HttpClient,
               private polariService: PolariService,
               private motors: MotorsService,
@@ -165,6 +172,7 @@ export class ClockSceneComponent
   kindIcon(kind: string): string {
     switch (kind) {
       case 'replay': return 'play_circle';
+      case 'phase-replay': return 'bolt';
       case 'vector-field': return 'grain';
       case 'markers': return 'join_inner';
       case 'shape-swap': return 'cable';
@@ -177,6 +185,35 @@ export class ClockSceneComponent
     return !!this.scene?.layers?.some(
       (l: any) => l.kind === 'replay' && l.ok
         && this.enabled.has(l.name));
+  }
+
+  // m1-3: the M1 sequencing replay — coils light by which PHASE
+  // is excited while the rotor steps; driven from the m1-sequence
+  // history exactly as the M0 replay rides clock-sim.
+  phaseReplayOn(): boolean {
+    return !!this.scene?.layers?.some(
+      (l: any) => l.kind === 'phase-replay' && l.ok
+        && this.enabled.has(l.name));
+  }
+
+  private phaseGeom(): any {
+    const l = this.scene?.layers?.find(
+      (x: any) => x.kind === 'phase-replay' && x.ok
+        && this.enabled.has(x.name));
+    return l?.geometry ?? null;
+  }
+
+  private async ensureSeq(): Promise<void> {
+    if (this.seq?.ok) { return; }
+    const geom = this.phaseGeom();
+    const design = geom?.design || 'reluctance-6s4p-m1';
+    const url = `${this.polariService.getBackendBaseUrl()}` +
+      `/api/motors/m1-sequence/${design}?steps=12`;
+    this.seq = await firstValueFrom(this.http.get<any>(
+      url, this.polariService.backendRequestOptions))
+      .catch((err) => err?.error ?? { ok: false });
+    this.seqIndex = 0; this.stepsSoFar = 0;
+    this.theta = 0; this.currentPhase = '';
   }
 
   private layer(name: string): any {
@@ -207,8 +244,10 @@ export class ClockSceneComponent
       .map((l: any) => l.name));
     await this.ensureScene(this.scene.baseScene);
     if (this.replayOn()) { await this.ensureSim(); }
+    if (this.phaseReplayOn()) { await this.ensureSeq(); }
     this.repaint();
-    if (this.replayOn() && !this.playing) { this.playPause(); }
+    if ((this.replayOn() || this.phaseReplayOn())
+        && !this.playing) { this.playPause(); }
     this.syncGearReplay();
   }
 
@@ -292,8 +331,11 @@ export class ClockSceneComponent
       this.enabled.add(name);
       const l = this.layer(name);
       if (l?.kind === 'replay') { await this.ensureSim(); }
+      if (l?.kind === 'phase-replay') { await this.ensureSeq(); }
     }
-    if (!this.replayOn()) { this.stopTimer(); this.playing = false; }
+    if (!this.replayOn() && !this.phaseReplayOn()) {
+      this.stopTimer(); this.playing = false;
+    }
     this.repaint();
     this.syncGearReplay();
   }
@@ -353,15 +395,34 @@ export class ClockSceneComponent
       this.polarity > 0 ? geom.coilStyles?.pos :
       this.polarity < 0 ? geom.coilStyles?.neg :
       geom.coilStyles?.idle;
+    // m1-3: the phase walk — rotor bodies spin about the scene
+    // origin; the excited phase's coil PAIR takes the lit style.
+    const pgeom = this.phaseGeom();
+    const allPhaseCoils = new Set<string>(
+      Object.values<any>(pgeom?.phaseCoils ?? {}).flat());
+    const litCoils = new Set<string>(
+      (pgeom?.phaseCoils ?? {})[this.currentPhase] ?? []);
     const objects = this.sceneObjects.map((o: any) => {
       const isRotor = geom?.rotorBodies?.includes(o.id);
+      const isPRotor = pgeom?.rotorBodies?.includes(o.id);
       const spec = colorOf[o.id];
+      let styleRef = o.styleRef;
+      if (geom && o.id === geom.coilBody && coilStyle) {
+        styleRef = coilStyle;
+      } else if (pgeom && allPhaseCoils.has(o.id)) {
+        styleRef = litCoils.has(o.id)
+          ? pgeom.coilStyles?.excited : pgeom.coilStyles?.idle;
+      }
       return {
         ...o, trackKey: o.id,
         shapeRef: swapOf[o.id] ?? o.shapeRef,
-        styleRef: (geom && o.id === geom.coilBody && coilStyle)
-          ? coilStyle : o.styleRef,
-        rotation: isRotor && spin ? spin.rotation : o.rotation,
+        styleRef,
+        rotation: isRotor && spin ? spin.rotation
+          // arrayed pole bodies carry their own base z-rotation —
+          // the step angle ADDS to it, never replaces it.
+          : isPRotor ? [o.rotation?.[0] ?? 0, o.rotation?.[1] ?? 0,
+                        (o.rotation?.[2] ?? 0) + thetaRad]
+          : o.rotation,
         position: isRotor && spin ? spin.position : o.position,
         colorOverride: spec?.color,
         opacityOverride: hidden.has(o.id) ? 0.03
@@ -441,14 +502,19 @@ export class ClockSceneComponent
   playPause(): void {
     if (this.playing) { this.stopTimer(); this.playing = false;
                         return; }
-    if (!this.sim?.ok) { return; }
+    if (this.phaseReplayOn() ? !this.seq?.ok : !this.sim?.ok) {
+      return;
+    }
     this.playing = true;
-    const rate = this.sim.rateHz || 1;
+    const rate = this.phaseReplayOn()
+      ? (this.seq?.speedAssumption?.rateHz || 2)
+      : (this.sim?.rateHz || 1);
     this.timer = setInterval(() => this.tick(),
                              Math.max(250, 1000 / rate));
   }
 
   private tick(): void {
+    if (this.phaseReplayOn()) { this.phaseTick(); return; }
     if (!this.sim?.ok || !this.replayOn()) {
       this.stopTimer(); this.playing = false; return;
     }
@@ -460,6 +526,23 @@ export class ClockSceneComponent
     const entry = this.sim.history?.[this.pulseIndex];
     if (!entry) { return; }
     this.polarity = entry.polarity;
+    if (entry.stepped) { this.stepsSoFar += 1; }
+    this.theta = entry.thetaDeg;
+    this.repaint();
+  }
+
+  private phaseTick(): void {
+    if (!this.seq?.ok) {
+      this.stopTimer(); this.playing = false; return;
+    }
+    if (this.seqIndex >= this.seq.steps) {
+      this.seqIndex = 0;     // loop the phase walk on the canvas
+      this.stepsSoFar = 0;
+    }
+    this.seqIndex += 1;
+    const entry = this.seq.history?.[this.seqIndex];
+    if (!entry) { return; }
+    this.currentPhase = String(entry.phase);
     if (entry.stepped) { this.stepsSoFar += 1; }
     this.theta = entry.thetaDeg;
     this.repaint();
