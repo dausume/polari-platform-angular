@@ -207,8 +207,17 @@ export class ClockSceneComponent
     if (this.seq?.ok) { return; }
     const geom = this.phaseGeom();
     const design = geom?.design || 'reluctance-6s4p-m1';
+    // m2-3: the LAYER ROW names its engine (historySource), and
+    // the replay asks that engine for the history. Hardcoding
+    // m1-sequence here silently ran the RELUCTANCE solver on the
+    // PM design — which, at saliency 1.0, has no torque at all,
+    // so the coils lit and the rotor sat still. A layer that
+    // declares its source must be believed.
+    const source = String(geom?.historySource || 'm1-sequence');
+    const route = source === 'm2-rotation'
+      ? 'm2-rotation' : 'm1-sequence';
     const url = `${this.polariService.getBackendBaseUrl()}` +
-      `/api/motors/m1-sequence/${design}?steps=12`;
+      `/api/motors/${route}/${design}?steps=12`;
     this.seq = await firstValueFrom(this.http.get<any>(
       url, this.polariService.backendRequestOptions))
       .catch((err) => err?.error ?? { ok: false });
