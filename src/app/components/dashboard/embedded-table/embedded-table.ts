@@ -46,6 +46,17 @@ import { NamedTableConfig } from '@models/tables/NamedTableConfig';
 })
 export class EmbeddedTableComponent implements OnInit {
   @Input() tableConfigId!: string;
+
+  /** Field holding the reference this embed is scoped to
+   *  (e.g. 'design_ref'). Empty = every row of the class.
+   *
+   *  A per-object definition describes HOW to render a class; the
+   *  reference says WHICH rows this page is about. Without it an
+   *  embed on an M0 page silently showed every design's rows. */
+  @Input() filterField = '';
+
+  /** The reference value (e.g. 'clock-lavet-m0'). */
+  @Input() filterValue = '';
   @Input() className: string = '';
   @Input() classTypeData: any = {};
 
@@ -89,7 +100,10 @@ export class EmbeddedTableComponent implements OnInit {
     }
 
     const crudeService = this.crudeManager.getCRUDEclassService(this.className);
-    crudeService.readAll().subscribe({
+    const filter = this.filterField && this.filterValue
+      ? { [this.filterField]: this.filterValue }
+      : undefined;
+    crudeService.readAll(filter).subscribe({
       next: (data: any) => {
         this.instanceData = this.parseInstances(data);
         this.loading = false;

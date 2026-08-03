@@ -43,6 +43,11 @@ export type PlotRenderStyle = 'lineY' | 'barY' | 'lineX' | 'barX' | 'dot' | 'are
  * Represents a complete plot figure with data series, axes, and dimension renderers.
  * The PlotFigure class is the central model for visualization configuration.
  */
+/** Rough width of one tick-label character at the default font size.
+ *  Used to predict collision; approximate on purpose — the cost of
+ *  being slightly wrong is a rotated label that did not need it. */
+const TICK_CHAR_PX = 6.5;
+
 export class PlotFigure {
     /** Unique identifier for the plot figure */
     id: string;
@@ -195,6 +200,11 @@ export class PlotFigure {
         }
 
         try {
+            // Computed FIRST: it may widen the bottom margin to make
+            // room for rotated tick labels, and an object literal
+            // evaluates its properties in order — reading
+            // marginBottom before this ran would capture the old value.
+            const xScale = this.xScaleOptions();
             return Plot.plot({
                 marks,
                 width: this.options.width || 800,
@@ -204,12 +214,80 @@ export class PlotFigure {
                 marginBottom: this.options.marginBottom || 40,
                 marginLeft: this.options.marginLeft || 50,
                 grid: this.options.showGrid ?? true,
-                ...(this.options.xLabel ? { x: { label: this.options.xLabel } } : {}),
+                x: xScale,
                 ...(this.options.yLabel ? { y: { label: this.options.yLabel } } : {})
             });
         } catch (e) {
             console.error('[PlotFigure] Rendering failed:', e);
             return null;
         }
+    }
+
+    /**
+     * X scale options, with categorical labels kept readable.
+     *
+     * A categorical x axis (part names, run names, material refs) puts
+     * one tick per row, and they overlap into an unreadable smear as
+     * soon as the labels are wider than the plot — which is what a
+     * configured bar chart of motor parts looked like. Rotate them
+     * when the predicted width will not fit, and give the rotated
+     * text vertical room so it does not clip.
+     */
+    private xScaleOptions(): Record<string, unknown> {
+        const scale: Record<string, unknown> = {};
+        if (this.options.xLabel) {
+            scale['label'] = this.options.xLabel;
+        }
+        const labels = this.categoricalXLabels();
+        if (!labels.length) {
+            return scale;
+        }
+        // Collision is about WIDTH, not count: seven parts named
+        // "Coil winding (1500 t, 44 AWG)" overlap just as badly as
+        // thirty short ones. Predict the laid-out width and rotate
+        // only when it will not fit.
+        const needed = labels.reduce(
+            (total, label) => total + label.length * TICK_CHAR_PX + 10, 0);
+        const available = (this.options.width || 800)
+            - (this.options.marginLeft || 50)
+            - (this.options.marginRight || 30);
+        if (needed > available) {
+            scale['tickRotate'] = -35;
+            const longest = labels.reduce(
+                (max, label) => Math.max(max, label.length), 0);
+            // Rotated labels need vertical room or they clip.
+            const room = Math.min(160, Math.round(longest * TICK_CHAR_PX * 0.6) + 30);
+            if (room > (this.options.marginBottom || 40)) {
+                (this.options as any).marginBottom = room;
+            }
+            // A label rotated anticlockwise leans LEFT of its tick, so
+            // the first category overhangs the plot and gets clipped
+            // by the container. Give it somewhere to lean.
+            const overhang = Math.min(90, Math.round(room * 0.7));
+            if (overhang > (this.options.marginLeft || 50)) {
+                (this.options as any).marginLeft = overhang;
+            }
+        }
+        return scale;
+    }
+
+    /** The distinct categorical x labels; empty when x is not
+     *  categorical or the data is unavailable. */
+    private categoricalXLabels(): string[] {
+        const axis = this.Xaxes?.[0];
+        const field = axis?.dimension?.name;
+        const points = this.dataseries?.dataPoints;
+        if (!field || !Array.isArray(points) || points.length === 0) {
+            return [];
+        }
+        const seen = new Set<string>();
+        for (const point of points) {
+            const value = (point as any)?.[field]
+                ?? (point as any)?.values?.[field];
+            if (typeof value === 'string') {
+                seen.add(value);
+            }
+        }
+        return [...seen];
     }
 }

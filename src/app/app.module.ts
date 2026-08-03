@@ -505,13 +505,15 @@ export class AppModule {
     // Register embedded table wrapper (loads table config by ID at render time)
     registerDisplayComponent('embeddedTable', EmbeddedTableComponent, {
       displayName: 'Table Configuration',
-      description: 'Renders a saved table configuration'
+      description: 'Renders a saved table configuration',
+      defaultInputs: { tableConfigId: '', className: '', filterField: '', filterValue: '' },
     });
 
     // Register embedded graph wrapper (loads graph config by ID at render time)
     registerDisplayComponent('embeddedGraph', EmbeddedGraphComponent, {
       displayName: 'Graph Configuration',
-      description: 'Renders a saved graph configuration'
+      description: 'Renders a saved graph configuration',
+      defaultInputs: { graphConfigId: '', className: '', filterField: '', filterValue: '' },
     });
 
     // Register solution invoke button for use in displays
