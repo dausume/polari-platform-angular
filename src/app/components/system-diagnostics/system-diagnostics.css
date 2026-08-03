@@ -101,7 +101,7 @@ mat-progress-bar {
 
 .timestamp {
   font-size: 12px;
-  color: var(--border-dark);
+  color: var(--text-tertiary);
 }
 
 .checkpoint-arrow {
@@ -109,7 +109,7 @@ mat-progress-bar {
   align-items: center;
   gap: 8px;
   margin-bottom: 8px;
-  color: var(--border-dark);
+  color: var(--text-tertiary);
 }
 
 .delta {

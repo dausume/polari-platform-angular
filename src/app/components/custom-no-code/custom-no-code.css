@@ -18,7 +18,7 @@
   overflow: hidden;
   padding: 16px;
   box-sizing: border-box;
-  background-color: #f5f5f5;
+  background-color: var(--surface-secondary);
 }
 
 /* Canvas wrapper - contains the SVG and controls */
@@ -384,7 +384,7 @@
   flex-direction: row;
   overflow: hidden;
   border-radius: 8px;
-  background: #fff;
+  background: var(--surface-primary);
 }
 
 /* State Tool Sidebar container */
@@ -406,7 +406,7 @@
   right: -500px;
   width: 500px;
   height: 100vh;
-  background: #fff;
+  background: var(--surface-primary);
   box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
   z-index: 1000;
   transition: right 0.3s ease;
@@ -424,15 +424,15 @@
   align-items: center;
   justify-content: space-between;
   padding: 16px 20px;
-  border-bottom: 1px solid #e0e0e0;
-  background: #f5f5f5;
+  border-bottom: 1px solid var(--border-medium);
+  background: var(--surface-secondary);
 }
 
 .panel-header h3 {
   margin: 0;
   font-size: 18px;
   font-weight: 500;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .panel-content {
@@ -473,7 +473,7 @@
 /* State Properties Popup */
 .state-props-popup {
   position: fixed;
-  background: white;
+  background: var(--surface-primary);
   border-radius: 8px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
   padding: 16px;
@@ -489,14 +489,14 @@
   align-items: center;
   margin-bottom: 12px;
   padding-bottom: 10px;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--border-medium);
 }
 
 .state-props-title {
   margin: 0;
   font-size: 14px;
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .state-props-close {
@@ -513,14 +513,14 @@
 }
 
 .state-props-close:hover {
-  background: #f0f0f0;
+  background: var(--surface-hover);
 }
 
 .state-props-close mat-icon {
   font-size: 18px;
   width: 18px;
   height: 18px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .state-props-type {
@@ -528,11 +528,11 @@
   align-items: center;
   gap: 6px;
   padding: 6px 10px;
-  background: #f5f5f5;
+  background: var(--surface-secondary);
   border-radius: 4px;
   margin-bottom: 12px;
   font-size: 12px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .state-props-type mat-icon {
@@ -550,7 +550,7 @@
   display: block;
   font-size: 11px;
   font-weight: 600;
-  color: #666;
+  color: var(--text-secondary);
   margin-bottom: 6px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -559,7 +559,7 @@
 .state-props-input {
   width: 100%;
   padding: 8px 12px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-light);
   border-radius: 4px;
   font-size: 14px;
   box-sizing: border-box;
@@ -576,7 +576,7 @@
   justify-content: flex-end;
   gap: 8px;
   padding-top: 12px;
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid var(--border-medium);
 }
 
 .state-props-btn {
@@ -590,8 +590,8 @@
 }
 
 .state-props-btn.cancel {
-  background: #f5f5f5;
-  color: #666;
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
 }
 
 .state-props-btn.cancel:hover {
@@ -708,7 +708,7 @@
   background: none;
   border: none;
   cursor: pointer;
-  color: var(--text-tertiary, #888);
+  color: var(--text-tertiary);
   padding: 4px;
   border-radius: 4px;
 }
@@ -726,7 +726,7 @@
 }
 
 .class-picker-search mat-icon {
-  color: var(--text-tertiary, #888);
+  color: var(--text-tertiary);
   font-size: 20px;
   width: 20px;
   height: 20px;
@@ -742,7 +742,7 @@
 }
 
 .class-picker-search input::placeholder {
-  color: var(--text-tertiary, #666);
+  color: var(--text-tertiary);
 }
 
 .class-picker-list {
@@ -776,7 +776,7 @@
 .class-picker-empty {
   padding: 24px 20px;
   text-align: center;
-  color: var(--text-tertiary, #666);
+  color: var(--text-tertiary);
   font-style: italic;
   font-size: 13px;
 }

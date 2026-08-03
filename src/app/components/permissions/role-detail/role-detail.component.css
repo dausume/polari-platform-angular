@@ -20,7 +20,7 @@ h1 {
 }
 
 .role-description {
-  color: var(--mat-sys-on-surface-variant, #666);
+  color: var(--mat-sys-on-surface-variant, var(--text-secondary));
   margin-bottom: 20px;
 }
 
@@ -38,7 +38,7 @@ h2 { margin: 24px 0 8px 0; }
 }
 .meta-card dt {
   font-weight: 500;
-  color: var(--mat-sys-on-surface-variant, #666);
+  color: var(--mat-sys-on-surface-variant, var(--text-secondary));
 }
 .meta-card dd { margin: 0; }
 
@@ -88,7 +88,7 @@ h2 { margin: 24px 0 8px 0; }
 }
 .module-chip.fw {
   background-color: rgba(0, 0, 0, 0.08) !important;
-  color: #555 !important;
+  color: var(--text-secondary) !important;
 }
 .module-chip.cust {
   background-color: rgba(123, 31, 162, 0.12) !important;
@@ -113,7 +113,7 @@ mat-icon.err-icon {
   align-items: center;
   gap: 8px;
   padding: 24px;
-  color: #888;
+  color: var(--text-tertiary);
   justify-content: center;
 }
 
@@ -134,6 +134,6 @@ mat-icon.err-icon {
   align-items: center;
   gap: 12px;
   padding: 32px 0;
-  color: #888;
+  color: var(--text-tertiary);
   justify-content: center;
 }

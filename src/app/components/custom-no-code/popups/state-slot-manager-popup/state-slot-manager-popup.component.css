@@ -2,7 +2,7 @@
 
 .slot-manager-popup {
   position: fixed;
-  background: white;
+  background: var(--surface-primary);
   border-radius: 8px;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
   padding: 16px;
@@ -21,21 +21,21 @@
   align-items: center;
   margin-bottom: 12px;
   padding-bottom: 12px;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--border-medium);
 }
 
 .popup-title {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .state-name {
   font-size: 12px;
-  color: #666;
+  color: var(--text-secondary);
   padding: 4px 10px;
-  background: #f5f5f5;
+  background: var(--surface-secondary);
   border-radius: 12px;
 }
 
@@ -62,13 +62,13 @@
 
 .toggle-label {
   font-size: 13px;
-  color: #333;
+  color: var(--text-primary);
 }
 
 /* Slots Sections */
 .slots-section {
   margin-bottom: 16px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-medium);
   border-radius: 6px;
   overflow: hidden;
 }
@@ -101,13 +101,13 @@
   font-size: 20px;
   width: 20px;
   height: 20px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .section-title {
   font-size: 13px;
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary);
   flex: 1;
 }
 
@@ -115,9 +115,9 @@
   font-size: 11px;
   font-weight: 600;
   padding: 2px 8px;
-  background: rgba(255, 255, 255, 0.8);
+  background: var(--surface-primary);
   border-radius: 10px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .add-slot-btn {
@@ -125,7 +125,7 @@
   height: 24px;
   border: none;
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.8);
+  background: var(--surface-primary);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -134,26 +134,26 @@
 }
 
 .add-slot-btn:hover {
-  background: white;
+  background: var(--surface-primary);
 }
 
 .add-slot-btn mat-icon {
   font-size: 18px;
   width: 18px;
   height: 18px;
-  color: #333;
+  color: var(--text-primary);
 }
 
 /* Section Content */
 .section-content {
   padding: 8px;
-  background: white;
+  background: var(--surface-primary);
 }
 
 .empty-message {
   padding: 12px;
   text-align: center;
-  color: #999;
+  color: var(--text-tertiary);
   font-size: 12px;
   font-style: italic;
 }
@@ -191,7 +191,7 @@
 .slot-label {
   font-size: 12px;
   font-weight: 500;
-  color: #333;
+  color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -199,14 +199,14 @@
 
 .slot-abbrev {
   font-size: 10px;
-  color: #999;
+  color: var(--text-tertiary);
   font-weight: 400;
   margin-left: 4px;
 }
 
 .slot-mode {
   font-size: 10px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .slot-actions {
@@ -262,7 +262,7 @@
   font-size: 16px;
   width: 16px;
   height: 16px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .icon-btn.remove-btn:hover {
@@ -280,7 +280,7 @@
   gap: 8px;
   margin-top: 16px;
   padding-top: 16px;
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid var(--border-medium);
 }
 
 .action-btn {
@@ -294,8 +294,8 @@
 }
 
 .cancel-btn {
-  background: #f5f5f5;
-  color: #666;
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
 }
 
 .cancel-btn:hover {

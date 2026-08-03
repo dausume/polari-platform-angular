@@ -4,7 +4,7 @@
     width: 880px;
     max-width: 95vw;
     max-height: 90vh;
-    background: var(--surface-primary, #fff);
+    background: var(--surface-primary);
     border-radius: 8px;
     overflow: hidden;
 }
@@ -15,7 +15,7 @@
     align-items: center;
     gap: 12px;
     padding: 14px 20px;
-    border-bottom: 1px solid var(--border-medium, #ddd);
+    border-bottom: 1px solid var(--border-medium);
     background: rgba(255, 183, 77, 0.08);
 }
 
@@ -31,14 +31,14 @@
     margin: 0;
     font-size: 16px;
     font-weight: 500;
-    color: var(--text-primary, #222);
+    color: var(--text-primary);
 }
 
 .close-btn {
     background: transparent;
     border: none;
     cursor: pointer;
-    color: var(--text-tertiary, #888);
+    color: var(--text-tertiary);
     padding: 4px;
     line-height: 0;
     border-radius: 4px;
@@ -46,7 +46,7 @@
 
 .close-btn:hover {
     background: rgba(0, 0, 0, 0.04);
-    color: var(--text-primary, #222);
+    color: var(--text-primary);
 }
 
 /* Body */
@@ -68,13 +68,13 @@
 .form-label {
     font-size: 13px;
     font-weight: 600;
-    color: var(--text-primary, #222);
+    color: var(--text-primary);
 }
 
 .form-hint {
     margin: 0;
     font-size: 12px;
-    color: var(--text-tertiary, #888);
+    color: var(--text-tertiary);
 }
 
 /* Equation pick */
@@ -121,17 +121,17 @@
 
 .clear-btn {
     background: transparent;
-    border: 1px solid var(--border-light, #e0e3e9);
+    border: 1px solid var(--border-light);
     border-radius: 4px;
-    color: var(--text-tertiary, #888);
+    color: var(--text-tertiary);
     cursor: pointer;
     padding: 6px;
     line-height: 0;
 }
 
 .clear-btn:hover {
-    background: var(--surface-hover, #f0f0f0);
-    color: var(--text-primary, #333);
+    background: var(--surface-hover);
+    color: var(--text-primary);
 }
 
 .clear-btn mat-icon {
@@ -147,7 +147,7 @@
     gap: 8px;
     padding: 6px 10px;
     font-size: 12px;
-    color: var(--text-secondary, #555);
+    color: var(--text-secondary);
 }
 
 .status-row.error {
@@ -166,7 +166,7 @@
 /* Equation Step-1 preview (mirrors the Equations page Step 1 wrapper). */
 .equation-preview-group .equation-preview {
     background: var(--surface-secondary, #f6f7f9);
-    border: 1px solid var(--border-light, #e0e3e9);
+    border: 1px solid var(--border-light);
     border-radius: 6px;
     padding: 12px 14px;
     min-height: 60px;
@@ -191,7 +191,7 @@
     gap: 8px;
     padding: 6px 10px;
     background: var(--surface-secondary, #f6f7f9);
-    border: 1px solid var(--border-light, #e0e3e9);
+    border: 1px solid var(--border-light);
     border-radius: 4px;
     font-size: 13px;
 }
@@ -212,13 +212,13 @@
     font-size: 16px;
     width: 16px;
     height: 16px;
-    color: var(--text-tertiary, #888);
+    color: var(--text-tertiary);
     flex-shrink: 0;
 }
 
 .mapping-source {
     flex: 1;
-    color: var(--text-primary, #333);
+    color: var(--text-primary);
     font-family: 'Consolas', 'Monaco', monospace;
     font-size: 12px;
     overflow: hidden;
@@ -228,7 +228,7 @@
 
 .mapping-shape-hint {
     font-size: 11px;
-    color: var(--text-tertiary, #888);
+    color: var(--text-tertiary);
     font-style: italic;
     flex-shrink: 0;
 }
@@ -289,7 +289,7 @@
     gap: 8px;
     padding: 10px 12px;
     background: var(--surface-secondary, #f6f7f9);
-    border: 1px solid var(--border-light, #e0e3e9);
+    border: 1px solid var(--border-light);
     border-radius: 6px;
 }
 
@@ -312,7 +312,7 @@
 
 .binding-hint {
     font-size: 11px;
-    color: var(--text-tertiary, #888);
+    color: var(--text-tertiary);
     font-style: italic;
 }
 
@@ -338,10 +338,10 @@
     align-items: center;
     gap: 8px;
     padding: 12px;
-    color: var(--text-tertiary, #888);
+    color: var(--text-tertiary);
     font-size: 12px;
     font-style: italic;
-    background: var(--surface-secondary, #fafafa);
+    background: var(--surface-secondary);
     border-radius: 4px;
 }
 
@@ -364,7 +364,7 @@
     gap: 8px;
     cursor: pointer;
     font-size: 13px;
-    color: var(--text-primary, #333);
+    color: var(--text-primary);
     padding: 6px 10px;
     border-radius: 4px;
 }
@@ -383,15 +383,15 @@
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: var(--text-tertiary, #888);
+    color: var(--text-tertiary);
 }
 
 .result-input {
     padding: 8px 10px;
-    border: 1px solid var(--border-light, #e0e3e9);
+    border: 1px solid var(--border-light);
     border-radius: 4px;
-    background: var(--surface-primary, #fff);
-    color: var(--text-primary, #222);
+    background: var(--surface-primary);
+    color: var(--text-primary);
     font-size: 13px;
     font-family: inherit;
 }
@@ -407,7 +407,7 @@
     justify-content: flex-end;
     gap: 8px;
     padding: 12px 20px;
-    border-top: 1px solid var(--border-medium, #ddd);
+    border-top: 1px solid var(--border-medium);
 }
 
 .footer-btn {

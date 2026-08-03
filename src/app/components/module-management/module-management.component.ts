@@ -213,7 +213,8 @@ interface ModuleInfo {
         display: flex; align-items: center; gap: 6px;
         font-size: 15px; cursor: pointer; margin: 0 0 4px;
       }
-      .muted { font-weight: 400; font-size: 12px; color: #999; }
+      .muted { font-weight: 400; font-size: 12px;
+        color: var(--text-on-bg-muted); }
     }
   `],
   imports: [

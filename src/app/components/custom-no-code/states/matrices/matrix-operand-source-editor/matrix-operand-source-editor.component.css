@@ -67,7 +67,7 @@
     align-items: flex-start;
     gap: 6px;
     font-size: 10px;
-    color: var(--text-tertiary, #888);
+    color: var(--text-tertiary);
     font-style: italic;
 }
 
@@ -111,17 +111,17 @@
 .mos-element-remove {
     margin-left: auto;
     background: transparent;
-    border: 1px solid var(--border-light, #e0e3e9);
+    border: 1px solid var(--border-light);
     border-radius: 4px;
-    color: var(--text-tertiary, #888);
+    color: var(--text-tertiary);
     cursor: pointer;
     padding: 2px;
     line-height: 0;
 }
 
 .mos-element-remove:hover {
-    background: var(--surface-hover, #f0f0f0);
-    color: #c62828;
+    background: var(--surface-hover);
+    color: var(--color-error-text);
 }
 
 .mos-element-remove mat-icon {

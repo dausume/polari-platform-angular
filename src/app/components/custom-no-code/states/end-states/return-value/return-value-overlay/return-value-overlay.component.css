@@ -45,7 +45,7 @@
 .value-label {
   font-size: 10px;
   font-weight: 500;
-  color: #666;
+  color: var(--text-secondary);
   flex-shrink: 0;
 }
 
@@ -58,8 +58,8 @@
   padding: 4px 8px;
   border: 1px solid #BDBDBD;
   border-radius: 3px;
-  background: white;
-  color: #424242;
+  background: var(--surface-primary);
+  color: var(--text-primary);
   cursor: pointer;
   font-size: 10px;
   min-width: 60px;
@@ -139,7 +139,7 @@
   padding: 0;
   border: none;
   background: transparent;
-  color: #999;
+  color: var(--text-tertiary);
   cursor: pointer;
   border-radius: 3px;
 }

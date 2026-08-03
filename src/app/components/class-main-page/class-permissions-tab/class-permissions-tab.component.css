@@ -11,7 +11,7 @@
 h3 { margin: 0 0 4px 0; }
 
 .tab-subtitle {
-  color: var(--mat-sys-on-surface-variant, #666);
+  color: var(--mat-sys-on-surface-variant, var(--text-secondary));
   margin: 0;
   max-width: 800px;
 }
@@ -28,7 +28,7 @@ table { width: 100%; }
 
 .role-desc {
   font-size: 0.8rem;
-  color: #888;
+  color: var(--text-tertiary);
 }
 
 .mono { font-family: monospace; }
@@ -57,5 +57,5 @@ mat-icon.err-icon {
   align-items: center;
   gap: 12px;
   padding: 24px 0;
-  color: #888;
+  color: var(--text-tertiary);
 }

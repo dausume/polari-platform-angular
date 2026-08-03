@@ -2,8 +2,8 @@
 
 .context-menu {
   position: fixed;
-  background: white;
-  border: 1px solid #ccc;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-medium);
   border-radius: 8px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
   min-width: 200px;
@@ -16,14 +16,14 @@
 .menu-header {
   padding: 8px 12px;
   font-weight: 500;
-  color: #333;
-  background: #f5f5f5;
+  color: var(--text-primary);
+  background: var(--surface-secondary);
   border-radius: 8px 8px 0 0;
 }
 
 .state-name {
   font-size: 13px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .menu-divider {
@@ -39,11 +39,11 @@
   cursor: pointer;
   transition: background 0.15s ease;
   position: relative;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .menu-item:hover {
-  background: #f0f0f0;
+  background: var(--surface-hover);
 }
 
 .menu-item mat-icon {
@@ -51,7 +51,7 @@
   width: 18px;
   height: 18px;
   margin-right: 10px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .menu-label {
@@ -60,7 +60,7 @@
 
 .current-value {
   font-size: 12px;
-  color: #999;
+  color: var(--text-tertiary);
   margin-right: 4px;
 }
 
@@ -69,7 +69,7 @@
   width: 16px !important;
   height: 16px !important;
   margin-right: 0 !important;
-  color: #999 !important;
+  color: var(--text-tertiary) !important;
 }
 
 .menu-item.danger {
@@ -93,8 +93,8 @@
   position: absolute;
   left: 100%;
   top: 0;
-  background: white;
-  border: 1px solid #ccc;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-medium);
   border-radius: 8px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
   min-width: 150px;
@@ -109,11 +109,11 @@
   padding: 8px 12px;
   cursor: pointer;
   transition: background 0.15s ease;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .submenu-item:hover {
-  background: #f0f0f0;
+  background: var(--surface-hover);
 }
 
 .submenu-item.active {
@@ -125,7 +125,7 @@
   width: 18px;
   height: 18px;
   margin-right: 10px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .submenu-item .check-icon {
@@ -140,7 +140,7 @@
   border: 2px solid #666;
   border-radius: 50%;
   margin-right: 10px;
-  background: #f5f5f5;
+  background: var(--surface-secondary);
 }
 
 .size-preview.small {

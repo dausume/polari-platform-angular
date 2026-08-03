@@ -73,8 +73,8 @@
     font-size: 14px;
     padding: 10px 12px;
     background: var(--surface-secondary, #f6f7f9);
-    color: var(--text-primary, #222);
-    border: 1px solid var(--border-light, #e0e3e9);
+    color: var(--text-primary);
+    border: 1px solid var(--border-light);
     border-radius: 6px;
     resize: vertical;
 }
@@ -86,7 +86,7 @@
 
 .preview-card {
     background: var(--surface-secondary, #f6f7f9);
-    border: 1px solid var(--border-light, #e0e3e9);
+    border: 1px solid var(--border-light);
     border-radius: 6px;
     padding: 12px 14px;
 }
@@ -96,7 +96,7 @@
     font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: var(--text-tertiary, #888);
+    color: var(--text-tertiary);
     margin-bottom: 6px;
 }
 
@@ -121,8 +121,8 @@
 .references-panel {
     margin-top: 8px;
     padding: 10px 14px;
-    background: var(--surface-secondary, #fafafa);
-    border: 1px solid var(--border-light, #e0e3e9);
+    background: var(--surface-secondary);
+    border: 1px solid var(--border-light);
     border-radius: 6px;
 }
 
@@ -143,7 +143,7 @@
 .references-title {
     font-size: 13px;
     font-weight: 600;
-    color: var(--text-primary, #333);
+    color: var(--text-primary);
 }
 
 .references-list {
@@ -157,7 +157,7 @@
 
 .references-list li {
     font-size: 12px;
-    color: var(--text-secondary, #555);
+    color: var(--text-secondary);
     line-height: 1.4;
 }
 
@@ -174,10 +174,10 @@
 .palette-column {
     display: flex;
     height: 540px;
-    border: 1px solid var(--border-light, #e0e3e9);
+    border: 1px solid var(--border-light);
     border-radius: 6px;
     overflow: hidden;
-    background: var(--surface-primary, #ffffff);
+    background: var(--surface-primary);
 }
 
 .palette-column app-equation-symbol-palette {

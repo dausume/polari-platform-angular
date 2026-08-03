@@ -19,6 +19,22 @@
 
 /* Global element rules */
 html, body { height: 100%; }
+
+/* Bare anchors otherwise keep the browser default #0000EE / visited
+   purple — near-invisible on the dark page background. Element-level
+   selector only, so any component rule (or an explicit
+   `color: inherit`) still wins. */
+a {
+  color: var(--color-info-text);
+}
+
+/* A plain <button> with no color of its own falls back to the UA's
+   `buttontext` — solid black, which vanishes on a dark surface. Make
+   it inherit its container's themed color instead. Scoped away from
+   Material's own buttons, which carry their own themed rules below. */
+button:not([class*='mat-']) {
+  color: inherit;
+}
 body {
   margin: 0;
   font-family: Roboto, "Helvetica Neue", sans-serif;
@@ -139,6 +155,15 @@ mat-card,
   background-color: var(--surface-hover) !important;
 }
 
+/* Menu-item icons: the prebuilt dark palette leaves them WHITE, which
+   is invisible on the light menu surface in light mode. Purpose:
+   supporting glyph beside the label → secondary text token. Component
+   styles that intentionally color an icon (e.g. .header-item-off) must
+   use a higher-specificity selector. */
+.mat-mdc-menu-panel .mat-mdc-menu-item mat-icon {
+  color: var(--text-secondary) !important;
+}
+
 /* --- Mat Dialog --- */
 .mat-mdc-dialog-container .mdc-dialog__surface {
   background-color: var(--surface-primary) !important;
@@ -157,6 +182,16 @@ mat-card,
 
 .mat-mdc-chip:not(.mat-mdc-chip-disabled) .mat-mdc-chip-action-label {
   color: var(--text-primary) !important;
+}
+
+/* The chip's leading glyph (and its remove button) got neither of the
+   rules above, so it kept Material's near-white default and vanished
+   on the chip's own light surface. */
+.mat-mdc-chip:not(.mat-mdc-chip-disabled) .mat-mdc-chip-graphic mat-icon,
+.mat-mdc-chip:not(.mat-mdc-chip-disabled) .mat-mdc-chip-remove,
+.mat-mdc-chip:not(.mat-mdc-chip-disabled) .mat-mdc-chip-trailing-icon {
+  color: var(--text-secondary) !important;
+  opacity: 1;
 }
 
 /* --- Mat Tab --- */
@@ -226,6 +261,16 @@ mat-card,
   background-color: var(--border-medium);
 }
 
+/* The toggle's own label sits OUTSIDE the switch, on the page surface,
+   and had no themed color — it kept Material's near-white default and
+   was invisible in light mode (the "Disabled" labels on
+   /module-management). Same for radio and checkbox labels. */
+.mat-mdc-slide-toggle .mdc-label,
+.mat-mdc-radio-button .mdc-label,
+.mat-mdc-checkbox .mdc-label {
+  color: var(--text-primary) !important;
+}
+
 /* --- Mat Divider --- */
 .mat-divider {
   border-top-color: var(--border-light) !important;
@@ -291,6 +336,25 @@ mat-card,
 .mat-button-toggle-checked {
   background-color: var(--surface-hover) !important;
   color: var(--text-primary) !important;
+}
+
+/* Disabled controls: the prebuilt dark palette paints disabled labels
+   rgba(255,255,255,.5) — literally white-on-white on light surfaces
+   (e.g. disabled "Show" buttons on /permissions). Tie every disabled
+   label/icon to the theme-flipping disabled token instead. */
+.mat-mdc-button:disabled,
+.mat-mdc-outlined-button:disabled,
+.mat-mdc-unelevated-button:disabled,
+.mat-mdc-raised-button:disabled,
+.mat-mdc-icon-button:disabled,
+.mat-mdc-button:disabled mat-icon,
+.mat-mdc-outlined-button:disabled mat-icon,
+.mat-mdc-icon-button:disabled mat-icon {
+  color: var(--text-disabled) !important;
+}
+
+.mat-mdc-outlined-button:disabled {
+  border-color: var(--border-medium) !important;
 }
 
 /* --- Scrollbars --- */

@@ -51,6 +51,8 @@ body.dark-theme {
   --color-error-text: #ef9a9a;
   --color-info-text: #90caf9;
   --color-warn-text: #ffb74d;
+  --brand-purple-text: #ce93d8;
+  --brand-teal-text: #4db6ac;
 
   /* === Charts (SVG text/grid painted on themed surfaces) === */
   --chart-text: #b0b0b0;

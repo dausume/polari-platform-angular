@@ -2,7 +2,7 @@
 
 .slot-config-popup {
   position: fixed;
-  background: white;
+  background: var(--surface-primary);
   border-radius: 8px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
   padding: 16px;
@@ -33,21 +33,21 @@
   gap: 8px;
   margin-bottom: 16px;
   padding-bottom: 12px;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--border-medium);
 }
 
 .popup-title {
   margin: 0;
   font-size: 14px;
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .slot-index {
   font-size: 11px;
-  color: #999;
+  color: var(--text-tertiary);
   padding: 2px 8px;
-  background: #f5f5f5;
+  background: var(--surface-secondary);
   border-radius: 10px;
 }
 
@@ -56,7 +56,7 @@
   align-items: center;
   gap: 4px;
   font-size: 11px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .slot-angle-input label {
@@ -66,11 +66,11 @@
 .angle-input {
   width: 52px;
   padding: 3px 6px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-light);
   border-radius: 4px;
   font-size: 11px;
   text-align: right;
-  color: #333;
+  color: var(--text-primary);
   outline: none;
 }
 
@@ -79,7 +79,7 @@
 }
 
 .angle-unit {
-  color: #999;
+  color: var(--text-tertiary);
   font-size: 12px;
 }
 
@@ -92,7 +92,7 @@
   display: block;
   font-size: 11px;
   font-weight: 600;
-  color: #666;
+  color: var(--text-secondary);
   margin-bottom: 8px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -102,7 +102,7 @@
 .text-input {
   width: 100%;
   padding: 8px 12px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-light);
   border-radius: 4px;
   font-size: 13px;
   box-sizing: border-box;
@@ -162,7 +162,7 @@
 
 .mapping-option {
   padding: 10px 12px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-medium);
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -188,7 +188,7 @@
   font-size: 18px;
   width: 18px;
   height: 18px;
-  color: #999;
+  color: var(--text-tertiary);
 }
 
 .mapping-option.selected .option-radio {
@@ -198,18 +198,18 @@
 .option-label {
   font-size: 13px;
   font-weight: 500;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .option-description {
   margin: 4px 0 0 26px;
   font-size: 11px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 /* Parameter Info */
 .param-info {
-  background: #f5f5f5;
+  background: var(--surface-secondary);
   padding: 10px 12px;
   border-radius: 4px;
 }
@@ -227,13 +227,13 @@
 
 .param-label {
   font-size: 11px;
-  color: #666;
+  color: var(--text-secondary);
   font-weight: 500;
 }
 
 .param-value {
   font-size: 12px;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .type-badge {
@@ -251,7 +251,7 @@
   gap: 8px;
   margin-top: 16px;
   padding-top: 16px;
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid var(--border-medium);
 }
 
 .action-spacer {
@@ -288,8 +288,8 @@
 }
 
 .cancel-btn {
-  background: #f5f5f5;
-  color: #666;
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
 }
 
 .cancel-btn:hover {
@@ -309,7 +309,7 @@
 .section-hint {
   margin: 6px 0 8px 0;
   font-size: 11px;
-  color: #888;
+  color: var(--text-tertiary);
   font-style: italic;
 }
 
@@ -337,11 +337,11 @@
   align-items: center;
   gap: 6px;
   padding: 8px 12px;
-  background: #f5f5f5;
+  background: var(--surface-secondary);
   border-radius: 6px;
   margin-bottom: 12px;
   font-size: 12px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .state-type-indicator mat-icon {
@@ -409,7 +409,7 @@
 /* Selection Count */
 .selection-count {
   font-weight: 400;
-  color: #888;
+  color: var(--text-tertiary);
   font-size: 11px;
   margin-left: 4px;
 }
@@ -425,7 +425,7 @@
 }
 
 .context-value-group {
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-medium);
   border-radius: 6px;
   overflow: hidden;
 }
@@ -435,18 +435,18 @@
   align-items: center;
   gap: 6px;
   padding: 6px 10px;
-  background: #f8f9fa;
-  border-bottom: 1px solid #e0e0e0;
+  background: var(--surface-secondary);
+  border-bottom: 1px solid var(--border-medium);
   font-size: 11px;
   font-weight: 500;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .group-header mat-icon {
   font-size: 14px;
   width: 14px;
   height: 14px;
-  color: #999;
+  color: var(--text-tertiary);
 }
 
 .context-value-list {
@@ -480,7 +480,7 @@
   font-size: 18px;
   width: 18px;
   height: 18px;
-  color: #999;
+  color: var(--text-tertiary);
 }
 
 .context-value-item.selected .checkbox-icon {
@@ -491,15 +491,15 @@
   flex: 1;
   font-family: 'Roboto Mono', monospace;
   font-size: 11px;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .context-value-item .value-type {
   font-size: 10px;
   padding: 1px 4px;
-  background: #e9ecef;
+  background: var(--surface-hover);
   border-radius: 3px;
-  color: #666;
+  color: var(--text-secondary);
   font-family: 'Roboto Mono', monospace;
 }
 
@@ -526,7 +526,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-medium);
   border-radius: 6px;
   overflow: hidden;
 }
@@ -538,7 +538,7 @@
   padding: 10px 12px;
   cursor: pointer;
   transition: background 0.15s ease;
-  background: white;
+  background: var(--surface-primary);
   border-bottom: 1px solid #f0f0f0;
 }
 
@@ -558,7 +558,7 @@
   font-size: 18px;
   width: 18px;
   height: 18px;
-  color: #999;
+  color: var(--text-tertiary);
 }
 
 .produced-variable-item.selected .checkbox-icon {
@@ -570,7 +570,7 @@
   font-family: 'Roboto Mono', monospace;
   font-size: 12px;
   font-weight: 500;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .produced-variable-item .value-type {
@@ -648,7 +648,7 @@
 .connections-list {
   display: flex;
   flex-direction: column;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-medium);
   border-radius: 6px;
   overflow: hidden;
 }
@@ -658,7 +658,7 @@
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  background: white;
+  background: var(--surface-primary);
   border-bottom: 1px solid #f0f0f0;
   transition: background 0.15s ease;
 }
@@ -668,14 +668,14 @@
 }
 
 .connection-item:hover {
-  background: #fafafa;
+  background: var(--surface-tertiary);
 }
 
 .connection-icon {
   font-size: 16px;
   width: 16px;
   height: 16px;
-  color: #999;
+  color: var(--text-tertiary);
   flex-shrink: 0;
 }
 
@@ -690,7 +690,7 @@
 .connection-state-name {
   font-size: 12px;
   font-weight: 500;
-  color: #333;
+  color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -698,7 +698,7 @@
 
 .connection-slot-detail {
   font-size: 10px;
-  color: #888;
+  color: var(--text-tertiary);
 }
 
 .connection-remove-btn {
@@ -724,7 +724,7 @@
   font-size: 16px;
   width: 16px;
   height: 16px;
-  color: #999;
+  color: var(--text-tertiary);
   transition: color 0.15s ease;
 }
 
@@ -737,7 +737,7 @@
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
-  background: #f5f5f5;
+  background: var(--surface-secondary);
   border-radius: 6px;
 }
 
@@ -745,13 +745,13 @@
   font-size: 18px;
   width: 18px;
   height: 18px;
-  color: #999;
+  color: var(--text-tertiary);
   flex-shrink: 0;
 }
 
 .no-connections-info p {
   margin: 0;
   font-size: 11px;
-  color: #999;
+  color: var(--text-tertiary);
   font-style: italic;
 }

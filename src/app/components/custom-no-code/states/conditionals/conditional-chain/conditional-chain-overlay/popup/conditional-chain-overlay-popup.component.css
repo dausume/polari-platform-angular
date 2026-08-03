@@ -5,7 +5,7 @@
   max-width: 95vw;
   max-height: 90vh;
   font-family: 'Roboto', sans-serif;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .popup-header {
@@ -13,7 +13,7 @@
   align-items: center;
   gap: 10px;
   padding: 14px 18px;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--border-medium);
   background: #f8f9fa;
 }
 
@@ -29,7 +29,7 @@
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .close-btn {
@@ -40,7 +40,7 @@
   height: 28px;
   border: none;
   background: transparent;
-  color: #666;
+  color: var(--text-secondary);
   cursor: pointer;
   border-radius: 4px;
 }
@@ -66,8 +66,8 @@
   display: flex;
   justify-content: flex-end;
   padding: 12px 18px;
-  border-top: 1px solid #e0e0e0;
-  background: #fafafa;
+  border-top: 1px solid var(--border-medium);
+  background: var(--surface-tertiary);
 }
 
 .footer-btn {

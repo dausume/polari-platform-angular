@@ -18,7 +18,7 @@
   left: 3vw;
   width: 94vw;
   height: 94vh;
-  background: #fff;
+  background: var(--surface-primary);
   border-radius: 12px;
   box-shadow: 0 16px 64px rgba(0, 0, 0, 0.4);
   z-index: 100003;
@@ -156,8 +156,8 @@
   align-items: center;
   gap: 8px;
   padding: 12px 16px;
-  background: #f5f5f5;
-  border-bottom: 1px solid #e0e0e0;
+  background: var(--surface-secondary);
+  border-bottom: 1px solid var(--border-medium);
   flex-shrink: 0;
 }
 
@@ -181,15 +181,15 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .panel-count {
   margin-left: auto;
   font-size: 12px;
   font-weight: 600;
-  color: #666;
-  background: #e0e0e0;
+  color: var(--text-secondary);
+  background: var(--surface-hover);
   padding: 2px 8px;
   border-radius: 10px;
 }
@@ -205,7 +205,7 @@
 /* ==================== Input/Output Panels ==================== */
 
 .inputs-panel {
-  border-right: 1px solid #e0e0e0;
+  border-right: 1px solid var(--border-medium);
 }
 
 .inputs-panel .panel-header {
@@ -213,7 +213,7 @@
 }
 
 .outputs-panel {
-  border-left: 1px solid #e0e0e0;
+  border-left: 1px solid var(--border-medium);
 }
 
 .outputs-panel .panel-header {
@@ -223,15 +223,15 @@
 /* ==================== Connection Cards ==================== */
 
 .connection-card {
-  background: #fafafa;
-  border: 1px solid #e0e0e0;
+  background: var(--surface-tertiary);
+  border: 1px solid var(--border-medium);
   border-radius: 6px;
   padding: 10px 12px;
   margin-bottom: 8px;
 }
 
 .connection-card.connected {
-  background: #fff;
+  background: var(--surface-primary);
   border-color: #c8e6c9;
 }
 
@@ -253,13 +253,13 @@
 .slot-name {
   font-size: 13px;
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .data-type-badge {
   font-size: 11px;
-  color: #666;
-  background: #e8eaf6;
+  color: var(--text-secondary);
+  background: var(--brand-blue-light);
   padding: 2px 8px;
   border-radius: 3px;
   font-family: 'Roboto Mono', monospace;
@@ -270,11 +270,11 @@
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: #555;
+  color: var(--text-secondary);
 }
 
 .connection-detail.unconnected {
-  color: #999;
+  color: var(--text-tertiary);
   font-style: italic;
 }
 
@@ -282,7 +282,7 @@
   font-size: 16px;
   width: 16px;
   height: 16px;
-  color: #999;
+  color: var(--text-tertiary);
 }
 
 .connected-state {
@@ -290,7 +290,7 @@
 }
 
 .connected-slot {
-  color: #999;
+  color: var(--text-tertiary);
   font-size: 11px;
 }
 
@@ -316,7 +316,7 @@
   align-items: center;
   justify-content: center;
   padding: 32px 16px;
-  color: #999;
+  color: var(--text-tertiary);
 }
 
 .empty-icon {
@@ -352,19 +352,19 @@
   align-items: center;
   gap: 10px;
   padding: 10px 16px;
-  background: #f5f5f5;
+  background: var(--surface-secondary);
   border-radius: 6px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-medium);
 }
 
 .badge-label {
   font-size: 13px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .badge-value {
   font-size: 15px;
-  color: #333;
+  color: var(--text-primary);
   font-weight: 600;
   font-family: 'Roboto Mono', monospace;
 }
@@ -373,7 +373,7 @@
 
 .description-section {
   padding: 12px 16px;
-  background: #e8eaf6;
+  background: var(--brand-blue-light);
   border-radius: 6px;
   border-left: 3px solid #3f51b5;
 }
@@ -382,13 +382,13 @@
   margin: 0;
   font-size: 14px;
   line-height: 1.5;
-  color: #333;
+  color: var(--text-primary);
 }
 
 /* ==================== Detail Sections ==================== */
 
 .detail-section {
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-medium);
   border-radius: 6px;
   overflow: hidden;
 }
@@ -398,8 +398,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 10px 16px;
-  background: #fafafa;
-  border-bottom: 1px solid #e0e0e0;
+  background: var(--surface-tertiary);
+  border-bottom: 1px solid var(--border-medium);
   cursor: pointer;
 }
 
@@ -408,14 +408,14 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .edit-icon {
   font-size: 18px;
   width: 18px;
   height: 18px;
-  color: #999;
+  color: var(--text-tertiary);
   transition: color 0.2s;
 }
 
@@ -441,7 +441,7 @@
 
 .class-name {
   font-size: 15px;
-  color: #333;
+  color: var(--text-primary);
   font-weight: 500;
 }
 
@@ -492,17 +492,17 @@
 
 .field-label {
   font-size: 12px;
-  color: #666;
+  color: var(--text-secondary);
   font-weight: 500;
 }
 
 .field-input {
   padding: 10px 12px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-medium);
   border-radius: 4px;
   font-size: 14px;
   font-family: 'Roboto Mono', monospace;
-  background: #fff;
+  background: var(--surface-primary);
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
@@ -513,8 +513,8 @@
 }
 
 .field-input.readonly {
-  background: #f5f5f5;
-  color: #666;
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
   cursor: not-allowed;
 }
 
@@ -538,13 +538,13 @@
 
 .info-label {
   font-size: 13px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .info-value {
   font-size: 13px;
   font-weight: 500;
-  color: #333;
+  color: var(--text-primary);
   font-family: 'Roboto Mono', monospace;
 }
 
@@ -579,8 +579,8 @@
   align-items: center;
   gap: 24px;
   padding: 10px 24px;
-  background: #f5f5f5;
-  border-top: 1px solid #e0e0e0;
+  background: var(--surface-secondary);
+  border-top: 1px solid var(--border-medium);
   flex-shrink: 0;
 }
 
@@ -592,13 +592,13 @@
 
 .footer-label {
   font-size: 12px;
-  color: #999;
+  color: var(--text-tertiary);
 }
 
 .footer-value {
   font-size: 12px;
   font-weight: 500;
-  color: #555;
+  color: var(--text-secondary);
   font-family: 'Roboto Mono', monospace;
 }
 
@@ -636,12 +636,12 @@
 
   .inputs-panel {
     border-right: none;
-    border-bottom: 1px solid #e0e0e0;
+    border-bottom: 1px solid var(--border-medium);
   }
 
   .outputs-panel {
     border-left: none;
-    border-top: 1px solid #e0e0e0;
+    border-top: 1px solid var(--border-medium);
   }
 
   .panel-content {

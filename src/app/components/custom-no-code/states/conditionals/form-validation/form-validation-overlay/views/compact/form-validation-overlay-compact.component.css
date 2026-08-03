@@ -40,7 +40,7 @@
   background: rgba(0, 0, 0, 0.04);
   border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 10px;
-  color: #888;
+  color: var(--text-tertiary);
   font-size: 9px;
   cursor: pointer;
   transition: background 0.12s, color 0.12s, border-color 0.12s;
@@ -75,7 +75,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  color: #888;
+  color: var(--text-tertiary);
   font-style: italic;
   font-size: 9px;
 }

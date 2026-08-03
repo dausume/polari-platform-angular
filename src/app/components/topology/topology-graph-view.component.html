@@ -4,25 +4,26 @@
             <span class="legend-item resolved"><span class="swatch"></span> resolved</span>
             <span class="legend-item unresolved"><span class="swatch"></span> unresolved</span>
             <span class="legend-item degraded"><span class="swatch"></span> degraded</span>
+            <!-- Mark colors stay on the swatches; label text rides the
+                 legend's theme color so it reads in both modes. -->
             <span class="legend-item" *ngFor="let key of classificationKeys"
-                  [style.color]="classificationColor(key)"
                   matTooltip="module classification (circle color)">
-                <span class="dot"></span> {{ key }}</span>
+                <span class="dot" [style.color]="classificationColor(key)"></span> {{ key }}</span>
             <span class="legend-item transient"
                   matTooltip="a dependency shared by several modules — solid under its primary consumer, dashed copies under the others (duplicates intentional)">
                 <span class="dot dashed"></span> transient copy</span>
-            <span class="legend-item" style="color:#3949ab"
+            <span class="legend-item"
                   matTooltip="adaptive Polari instances — the only containers that can receive modules">
-                <span class="square"></span> polari</span>
-            <span class="legend-item" style="color:#00897b"
+                <span class="square" style="color:#3949ab"></span> polari</span>
+            <span class="legend-item"
                   matTooltip="non-adaptive apps (PSC, future Odoo) that integrate with Polari at fixed points — never module targets">
-                <span class="square"></span> integrated app</span>
-            <span class="legend-item" style="color:#6a1b9a"
+                <span class="square" style="color:#00897b"></span> integrated app</span>
+            <span class="legend-item"
                   matTooltip="auth containers (Keycloak) — separate category, never module targets">
-                <span class="square"></span> auth</span>
-            <span class="legend-item" style="color:#ff8f00"
+                <span class="square" style="color:#6a1b9a"></span> auth</span>
+            <span class="legend-item"
                   matTooltip="pure database containers (mariadb / keydb) — service dots on each card">
-                <span class="square"></span> database</span>
+                <span class="square" style="color:#ff8f00"></span> database</span>
             <button class="legend-toggle" [class.off]="!groupByHost"
                     (click)="toggleHosts()"
                     matTooltip="outermost rectangles = host machines (host ▸ container ▸ modules)">
@@ -35,10 +36,9 @@
                 <button class="legend-toggle key"
                         *ngFor="let key of interconnectKeys"
                         [class.off]="hiddenInterconnects.has(key)"
-                        [style.color]="connectionColor(key)"
                         (click)="toggleInterconnect(key)"
                         matTooltip="toggle this interconnect kind">
-                    {{ key }}</button>
+                    <span class="swatch" [style.color]="connectionColor(key)"></span> {{ key }}</button>
             </ng-container>
             <span class="legend-hint">scroll to zoom · drag to pan · click an instance for details</span>
         </div>

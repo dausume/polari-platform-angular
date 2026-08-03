@@ -98,7 +98,7 @@ interface ClassBlock {
     .class-header {
       display: flex; align-items: center; gap: 6px;
       padding: 6px 10px;
-      border: none; background: white; width: 100%;
+      border: none; background: var(--surface-primary); width: 100%;
       border-bottom: 1px solid var(--border-light, #e0e3e9);
       border-top-left-radius: 6px; border-top-right-radius: 6px;
       cursor: pointer; text-align: left; font: inherit; color: inherit;

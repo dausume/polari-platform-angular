@@ -74,11 +74,11 @@ mat-card-header mat-card-title{display:flex;align-items:center;gap:8px}
 .format-template:hover{background:var(--brand-purple-light);border-color:var(--brand-purple);transform:translateY(-2px)}
 .format-template.selected{background:var(--brand-purple-light);border-color:var(--brand-purple)}
 .format-header{display:flex;align-items:center;gap:8px;margin-bottom:12px}
-.format-header mat-icon{color:var(--brand-purple)}
+.format-header mat-icon{color:var(--brand-purple-text)}
 .format-name{font-weight:600;font-size:14px;color:var(--text-primary)}
 .format-desc{margin-top:8px;font-size:12px;color:var(--text-secondary)}
 .format-path{margin-top:8px;font-size:11px;color:var(--text-tertiary)}
-.format-path code{background:var(--surface-secondary);padding:2px 6px;border-radius:3px;font-family:monospace;color:var(--brand-purple)}
+.format-path code{background:var(--surface-secondary);padding:2px 6px;border-radius:3px;font-family:monospace;color:var(--brand-purple-text)}
 .selected-profile-card{border-left:4px solid var(--brand-green);background:var(--brand-green-light)}
 .selected-info{margin-top:12px;padding:12px;background:var(--surface-primary);border-radius:4px}
 .selected-info .label{color:var(--text-secondary);margin-right:8px}
@@ -129,7 +129,7 @@ mat-card-header mat-card-title{display:flex;align-items:center;gap:8px}
 .detail-row .value{font-size:14px}
 .detail-row .value.success{color:var(--color-success-text)}
 .detail-row .value.error{color:var(--color-error-text)}
-.path-value{background:var(--surface-secondary);padding:2px 8px;border-radius:3px;font-family:monospace;font-size:12px;color:var(--brand-purple)}
+.path-value{background:var(--surface-secondary);padding:2px 8px;border-radius:3px;font-family:monospace;font-size:12px;color:var(--brand-purple-text)}
 .endpoint-field-abstraction{margin-top:16px;padding:12px;background:var(--color-success-bg);border:1px solid var(--color-success-border);border-radius:6px}
 .abstraction-header{display:flex;align-items:center;gap:8px;margin-bottom:10px;color:var(--color-success-text);font-size:13px;font-weight:500}
 .abstraction-header mat-icon{font-size:18px;width:18px;height:18px}
@@ -278,7 +278,7 @@ mat-card-actions{display:flex;flex-wrap:wrap;gap:4px;padding:8px 16px;border-top
     color: var(--color-success-text);
     mat-icon { color: var(--brand-green); }
 }
-.sig-badge.type-sig mat-icon { color: var(--brand-purple); }
+.sig-badge.type-sig mat-icon { color: var(--brand-purple-text); }
 .sig-badge.field-sig mat-icon { color: var(--brand-blue); }
 
 /* Expanded signature details */
@@ -307,7 +307,7 @@ mat-card-actions{display:flex;flex-wrap:wrap;gap:4px;padding:8px 16px;border-top
         font-size: 18px;
         width: 18px;
         height: 18px;
-        color: var(--brand-purple);
+        color: var(--brand-purple-text);
     }
     .section-count {
         color: var(--text-secondary);
@@ -355,7 +355,7 @@ mat-card-actions{display:flex;flex-wrap:wrap;gap:4px;padding:8px 16px;border-top
 .signature-item.signature-missing .status-icon { color: var(--brand-orange); }
 .signature-item.signature-extra .status-icon { color: var(--color-info); }
 .signature-item .sig-level {
-    color: var(--brand-purple);
+    color: var(--brand-purple-text);
     font-weight: 600;
     min-width: 55px;
 }
@@ -377,7 +377,7 @@ mat-card-actions{display:flex;flex-wrap:wrap;gap:4px;padding:8px 16px;border-top
 .level-header {
     font-size: 11px;
     font-weight: 600;
-    color: var(--brand-purple);
+    color: var(--brand-purple-text);
     margin: 8px 0 4px;
     padding: 4px 8px;
     background: var(--brand-purple-light);
@@ -499,7 +499,7 @@ mat-card-actions{display:flex;flex-wrap:wrap;gap:4px;padding:8px 16px;border-top
 .type-value {
     font-family: monospace;
     background: var(--brand-purple-light);
-    color: var(--brand-purple);
+    color: var(--brand-purple-text);
     padding: 2px 6px;
     border-radius: 3px;
 }
@@ -529,7 +529,7 @@ mat-card-actions{display:flex;flex-wrap:wrap;gap:4px;padding:8px 16px;border-top
     font-family: monospace;
 }
 .type-level .level-num {
-    color: var(--brand-purple);
+    color: var(--brand-purple-text);
     font-weight: 600;
 }
 .type-level .level-type {
@@ -538,7 +538,7 @@ mat-card-actions{display:flex;flex-wrap:wrap;gap:4px;padding:8px 16px;border-top
 
 .level-label {
     display: inline-block;
-    color: var(--brand-purple);
+    color: var(--brand-purple-text);
     font-weight: 600;
     font-size: 12px;
     margin-right: 8px;
@@ -570,7 +570,7 @@ mat-card-actions{display:flex;flex-wrap:wrap;gap:4px;padding:8px 16px;border-top
 }
 .field-chip .field-type {
     font-size: 10px;
-    color: var(--brand-purple);
+    color: var(--brand-purple-text);
     font-style: italic;
     opacity: 0.8;
 }
@@ -669,7 +669,7 @@ mat-card-actions{display:flex;flex-wrap:wrap;gap:4px;padding:8px 16px;border-top
 .rank-score {
     font-size: 12px;
     font-weight: 600;
-    color: var(--brand-purple);
+    color: var(--brand-purple-text);
     padding: 2px 8px;
     background: var(--brand-purple-light);
     border-radius: 10px;

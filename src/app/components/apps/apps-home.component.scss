@@ -9,10 +9,10 @@
   }
   .page-sub {
     margin: 0; font-size: 13px;
-    color: #546e7a;
+    color: var(--text-on-bg-muted);
     max-width: 800px;
     code {
-      background: rgba(0, 0, 0, 0.05); border-radius: 4px;
+      background: var(--surface-secondary); border-radius: 4px;
       padding: 1px 5px; font-size: 12px;
     }
   }
@@ -20,7 +20,7 @@
 
 .loading, .load-error {
   margin: 18px 0; font-size: 13.5px;
-  color: #546e7a;
+  color: var(--text-on-bg-muted);
 }
 .load-error { color: var(--color-error-text, #bf360c); }
 
@@ -32,9 +32,9 @@
 }
 
 .app-card {
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-medium);
   border-radius: 12px;
-  background: #fff;
+  background: var(--surface-primary);
   padding: 14px 16px;
   display: flex;
   flex-direction: column;
@@ -45,22 +45,22 @@
     h3 { margin: 0; font-size: 16px; flex: 1; }
     .readiness {
       font-size: 11.5px; font-family: monospace; font-weight: 700;
-      background: #e8eaf6; color: #3949ab;
+      background: var(--brand-blue-light); color: var(--color-info-text);
       border-radius: 10px; padding: 1px 8px; white-space: nowrap;
     }
   }
   .use-case {
     margin: 0; font-size: 13px; font-style: italic;
-    color: #546e7a;
+    color: var(--text-on-card-muted);
   }
   .description {
     margin: 0; font-size: 12.5px;
-    color: #546e7a;
+    color: var(--text-on-card-muted);
   }
   .section {
     h4 {
       margin: 4px 0; font-size: 11px; text-transform: uppercase;
-      letter-spacing: 0.04em; color: #546e7a;
+      letter-spacing: 0.04em; color: var(--text-on-card-muted);
     }
   }
   .placement {
@@ -68,17 +68,17 @@
     font-size: 12.5px; padding: 1px 0;
     .state {
       width: 16px; font-weight: 700;
-      &.ok { color: #2e7d32; }
-      &.todo { color: #1565c0; }
-      &.missing { color: #c62828; }
+      &.ok { color: var(--color-success-text); }
+      &.todo { color: var(--color-info-text); }
+      &.missing { color: var(--color-error-text); }
     }
     .module-link {
-      font-family: monospace; color: #1565c0;
+      font-family: monospace; color: var(--color-info-text);
       text-decoration: none;
       &:hover { text-decoration: underline; }
     }
     .where {
-      font-size: 11.5px; color: #90a4ae;
+      font-size: 11.5px; color: var(--text-tertiary);
       word-break: break-word;
     }
   }
@@ -94,15 +94,15 @@
   .actions {
     display: flex; align-items: center; gap: 10px;
     margin-top: auto; padding-top: 8px;
-    border-top: 1px dashed rgba(0, 0, 0, 0.08);
+    border-top: 1px dashed var(--border-light);
     .export-btn {
       font-size: 12px; padding: 4px 14px; border-radius: 12px;
-      border: 1px solid #3f51b5; background: transparent;
-      color: #3f51b5; cursor: pointer;
-      &:hover { background: rgba(63, 81, 181, 0.08); }
+      border: 1px solid var(--brand-indigo); background: transparent;
+      color: var(--color-info-text); cursor: pointer;
+      &:hover { background: rgba(63, 81, 181, 0.12); }
     }
     .cli-hint {
-      font-size: 10.5px; color: #90a4ae;
+      font-size: 10.5px; color: var(--text-tertiary);
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
   }
@@ -118,7 +118,7 @@
 }
 
 .persona-label {
-    color: var(--text-on-bg-muted, var(--text-on-card-muted));
+    color: var(--text-on-bg-muted);
     font-size: 0.9em;
 }
 

@@ -9,7 +9,7 @@
     flex-direction: column;
     gap: 10px;
     padding: 8px;
-    color: #333;
+    color: var(--text-primary);
     font-size: 12px;
     overflow-y: auto;
     overflow-x: hidden;
@@ -30,7 +30,7 @@
     gap: 6px;
     padding: 8px;
     background: var(--surface-secondary, #f6f7f9);
-    border: 1px solid var(--border-light, #e0e3e9);
+    border: 1px solid var(--border-light);
     border-radius: 4px;
 }
 
@@ -39,14 +39,14 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: var(--text-tertiary, #888);
+    color: var(--text-tertiary);
 }
 
 .mini-label {
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: var(--text-tertiary, #888);
+    color: var(--text-tertiary);
 }
 
 /* ===== Matrix-equation pick ===== */
@@ -78,9 +78,9 @@
 
 .clear-btn {
     background: transparent;
-    border: 1px solid var(--border-light, #e0e3e9);
+    border: 1px solid var(--border-light);
     border-radius: 4px;
-    color: var(--text-tertiary, #888);
+    color: var(--text-tertiary);
     cursor: pointer;
     padding: 4px;
     line-height: 0;
@@ -88,8 +88,8 @@
 }
 
 .clear-btn:hover {
-    background: var(--surface-hover, #f0f0f0);
-    color: var(--text-primary, #333);
+    background: var(--surface-hover);
+    color: var(--text-primary);
 }
 
 .clear-btn mat-icon {
@@ -105,7 +105,7 @@
     gap: 6px;
     padding: 6px 10px;
     font-size: 11px;
-    color: var(--text-secondary, #555);
+    color: var(--text-secondary);
 }
 
 .overlay-status.overlay-error {
@@ -128,8 +128,8 @@
 
 .equation-preview-rendered {
     padding: 6px 8px;
-    background: var(--surface-primary, #fff);
-    border: 1px solid var(--border-light, #e0e3e9);
+    background: var(--surface-primary);
+    border: 1px solid var(--border-light);
     border-radius: 4px;
     min-height: 32px;
     display: flex;
@@ -139,7 +139,7 @@
 
 /* ===== Operand mapping summary ===== */
 .mapping-section {
-    background: var(--surface-primary, #fff);
+    background: var(--surface-primary);
     border-color: rgba(129, 199, 132, 0.4);
 }
 
@@ -158,7 +158,7 @@
     gap: 6px;
     padding: 4px 8px;
     background: var(--surface-secondary, #f6f7f9);
-    border: 1px solid var(--border-light, #e0e3e9);
+    border: 1px solid var(--border-light);
     border-radius: 4px;
     font-size: 11px;
 }
@@ -179,13 +179,13 @@
     font-size: 14px;
     width: 14px;
     height: 14px;
-    color: var(--text-tertiary, #888);
+    color: var(--text-tertiary);
     flex-shrink: 0;
 }
 
 .mapping-source {
     flex: 1;
-    color: var(--text-primary, #333);
+    color: var(--text-primary);
     font-family: 'Consolas', 'Monaco', monospace;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -215,7 +215,7 @@
     font-size: 16px;
     width: 16px;
     height: 16px;
-    color: var(--text-tertiary, #888);
+    color: var(--text-tertiary);
 }
 
 .bindings-header .section-label {
@@ -268,8 +268,8 @@
     flex-direction: column;
     gap: 4px;
     padding: 8px;
-    background: var(--surface-primary, #fff);
-    border: 1px solid var(--border-light, #e0e3e9);
+    background: var(--surface-primary);
+    border: 1px solid var(--border-light);
     border-radius: 4px;
 }
 
@@ -290,13 +290,13 @@
 }
 
 .binding-arrow {
-    color: var(--text-tertiary, #888);
+    color: var(--text-tertiary);
     font-size: 12px;
 }
 
 .binding-hint {
     font-size: 10px;
-    color: var(--text-tertiary, #888);
+    color: var(--text-tertiary);
     font-style: italic;
 }
 
@@ -319,7 +319,7 @@
     align-items: center;
     gap: 6px;
     padding: 8px;
-    color: var(--text-tertiary, #888);
+    color: var(--text-tertiary);
     font-size: 11px;
     font-style: italic;
 }
@@ -343,7 +343,7 @@
     font-size: 16px;
     width: 16px;
     height: 16px;
-    color: var(--text-tertiary, #888);
+    color: var(--text-tertiary);
 }
 
 .result-header .section-label {
@@ -371,7 +371,7 @@
     gap: 6px;
     cursor: pointer;
     font-size: 12px;
-    color: var(--text-primary, #333);
+    color: var(--text-primary);
     padding: 4px 6px;
     border-radius: 3px;
 }
@@ -388,10 +388,10 @@
 
 .result-input {
     padding: 6px 8px;
-    border: 1px solid var(--border-light, #e0e3e9);
+    border: 1px solid var(--border-light);
     border-radius: 4px;
-    background: var(--surface-primary, #fff);
-    color: var(--text-primary, #222);
+    background: var(--surface-primary);
+    color: var(--text-primary);
     font-size: 12px;
     font-family: inherit;
 }
@@ -402,7 +402,7 @@
 }
 
 .result-input::placeholder {
-    color: var(--text-tertiary, #aaa);
+    color: var(--text-tertiary);
 }
 
 /* ===== Open standalone editor link ===== */
@@ -485,7 +485,7 @@
     min-height: 32px;
     padding: 4px 8px;
     background: var(--surface-secondary, #f6f7f9);
-    border: 1px solid var(--border-light, #e0e3e9);
+    border: 1px solid var(--border-light);
     border-radius: 4px;
 }
 
@@ -496,7 +496,7 @@
 }
 
 .tier-compact__no-equation {
-    color: var(--text-tertiary, #999);
+    color: var(--text-tertiary);
     font-size: 11px;
     font-style: italic;
 }

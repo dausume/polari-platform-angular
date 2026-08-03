@@ -53,27 +53,27 @@
 
         &:hover {
             color: var(--text-primary);
-            background: rgba(255, 255, 255, 0.05);
+            background: var(--surface-hover);
         }
 
         &.active {
-            color: #90caf9;
-            border-bottom-color: #90caf9;
+            color: var(--color-info-text);
+            border-bottom-color: var(--color-info-text);
         }
     }
 }
 
 .display-icon {
-    color: #90caf9;
-    &.published { color: #66bb6a; }
+    color: var(--color-info-text);
+    &.published { color: var(--color-success-text); }
 }
 
 .page-badge {
     background: rgba(102, 187, 106, 0.15);
-    color: #66bb6a;
+    color: var(--color-success-text);
 }
 
 .solution-badge {
     background: rgba(144, 202, 249, 0.15);
-    color: #90caf9;
+    color: var(--color-info-text);
 }

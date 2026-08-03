@@ -20,9 +20,9 @@
 }
 
 .equation-cell-pill.empty {
-    color: var(--text-tertiary, #888);
+    color: var(--text-tertiary);
     background: transparent;
-    border-color: var(--border-light, #e0e3e9);
+    border-color: var(--border-light);
     font-style: italic;
 }
 
@@ -39,7 +39,7 @@
 }
 
 .cell-edit-icon {
-    color: var(--text-tertiary, #888);
+    color: var(--text-tertiary);
     opacity: 0;
     transition: opacity 0.15s;
 }

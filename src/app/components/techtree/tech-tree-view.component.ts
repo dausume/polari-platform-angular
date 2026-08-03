@@ -282,18 +282,22 @@ export class TechTreeViewComponent implements OnChanges {
           .attr('fill', seg.color)
           .attr('fill-opacity', 0.5);
       }
+      // Band text: the tinted band is a data mark, but the label is
+      // TEXT — paint it with the theme token so it stays readable on
+      // both light and dark canvases (seg.color survives as the band
+      // fill/stroke identity; yellow-on-white was unreadable).
       band.append('text')
         .attr('x', bx + (bw - 3) / 2).attr('y', HEADER_H + 16)
         .attr('text-anchor', 'middle')
         .attr('class', 'band-label')
-        .attr('fill', seg.color)
+        .attr('fill', 'var(--text-primary)')
         .text(truncate(this.segmentLabel(seg.kind),
           Math.max(3, Math.floor(bw / 8))));
       band.append('text')
         .attr('x', bx + (bw - 3) / 2).attr('y', HEADER_H + 32)
         .attr('text-anchor', 'middle')
         .attr('class', 'band-count')
-        .attr('fill', seg.color)
+        .attr('fill', 'var(--text-primary)')
         .text(`${seg.done}/${seg.total}`);
       band.append('title').text(
         `${this.segmentLabel(seg.kind)} — `

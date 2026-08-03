@@ -1,11 +1,12 @@
 <div class="graph-shell">
     <div class="graph-canvas">
         <div class="graph-legend" *ngIf="payload?.ok">
+            <!-- Domain color stays on the SWATCH (data mark); the label is
+                 text and rides the legend's theme color for readability. -->
             <span class="legend-item"
                   *ngFor="let kind of payload!.segmentColors | keyvalue"
-                  [style.color]="kind.value"
                   matTooltip="segment band — exists only when populated; fills with completion">
-                <span class="square"></span> {{ kind.key }}</span>
+                <span class="square" [style.color]="kind.value"></span> {{ kind.key }}</span>
             <span class="legend-item transient"
                   matTooltip="a technology needed by several others — solid under its primary dependent, dashed copies elsewhere (duplicates intentional)">
                 <span class="square dashed"></span> transient copy</span>

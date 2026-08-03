@@ -5,15 +5,15 @@
   max-width: 1100px;
 
   h2 { margin: 0 0 6px; }
-  .intro { color: #546e7a; margin: 0 0 14px; }
+  .intro { color: var(--text-on-card-muted); margin: 0 0 14px; }
 
-  .status-line { color: #546e7a; }
+  .status-line { color: var(--text-on-card-muted); }
   .status-line.error { color: var(--color-error-text, #b71c1c); }
 
   .chip {
     font-size: 10px; padding: 1px 7px; border-radius: 8px;
-    background: #eceff1;
-    color: #546e7a;
+    background: var(--surface-secondary);
+    color: var(--text-on-card-muted);
   }
   .chip.active-chip, .chip.clean-chip {
     background: var(--color-success-bg, #e8f5e9);
@@ -34,7 +34,7 @@
 
   .suggested-command {
     font-size: 11px; padding: 2px 8px; border-radius: 6px;
-    background: #eceff1;
+    background: var(--surface-secondary);
     color: var(--color-info-text, #1565c0);
     font-family: monospace; word-break: break-all;
   }
@@ -45,7 +45,7 @@
       display: flex; gap: 6px; align-items: center;
       font-size: 12px; padding: 5px 12px; border-radius: 16px;
       border: 1px solid #b0bec5;
-      background: #fff;
+      background: var(--surface-primary);
       color: var(--text-primary, #263238); cursor: pointer;
       &.active {
         border-color: var(--brand-indigo, #3f51b5);
@@ -69,7 +69,7 @@
     }
   }
   .topo-desc { margin: 0 0 10px; font-size: 12px;
-    color: #546e7a; }
+    color: var(--text-on-card-muted); }
 
   // ---- Drift banner ----
   .drift-banner {
@@ -91,7 +91,7 @@
       flex-wrap: wrap; font-size: 12px; padding: 3px 0;
       border-top: 1px dashed rgba(0, 0, 0, 0.10);
       .drift-subject { font-weight: 600; }
-      .drift-evidence { color: #546e7a; }
+      .drift-evidence { color: var(--text-on-card-muted); }
       .drift-kind.unobserved {
         background: var(--color-error-bg, #fbe9e7);
         color: var(--color-error-text, #bf360c);
@@ -124,7 +124,7 @@
       }
       .finding-check { font-weight: 600; }
       .finding-target { color: var(--text-primary, #37474f); }
-      .finding-evidence { color: #546e7a; }
+      .finding-evidence { color: var(--text-on-card-muted); }
       .finding-action { color: var(--color-info-text, #1565c0);
         font-size: 11px; }
     }
@@ -142,14 +142,14 @@
     .dismiss {
       margin-left: auto; border: none; background: none;
       cursor: pointer; font-size: 14px;
-      color: #546e7a;
+      color: var(--text-on-card-muted);
     }
   }
 
   .section-head { margin: 18px 0 2px; font-size: 15px;
     color: var(--text-primary, #263238) !important; }
   .section-hint { margin: 0 0 8px; font-size: 11.5px;
-    color: #90a4ae; }
+    color: var(--text-tertiary); }
 
   // ---- Instance cards + module drag-drop ----
   .instance-cards {
@@ -171,7 +171,7 @@
         color: var(--color-info-text, #1565c0);
       }
       .target-badge {
-        background: #eceff1;
+        background: var(--surface-secondary);
         font-family: monospace;
       }
     }
@@ -180,14 +180,14 @@
     }
     .chip.service { font-family: monospace; }
     .card-notes { margin: 0; font-size: 11px;
-      color: #90a4ae; }
+      color: var(--text-tertiary); }
   }
 
   .module-list {
     display: flex; gap: 4px; flex-wrap: wrap; align-items: center;
     min-height: 30px; border-radius: 6px; padding: 4px;
     border: 1px dashed #b0bec5;
-    background: #fff;
+    background: var(--surface-primary);
 
     &.cdk-drop-list-dragging {
       border-color: var(--brand-indigo, #3f51b5);
@@ -202,7 +202,7 @@
       &.disabled { opacity: 0.5; text-decoration: line-through; }
     }
     .no-modules { font-size: 11px; font-style: italic;
-      color: #90a4ae; }
+      color: var(--text-tertiary); }
   }
 
   // ---- Connections table ----
@@ -213,21 +213,21 @@
     th, td { padding: 5px 10px; text-align: left; }
     thead th {
       border-bottom: 2px solid #b0bec5;
-      color: #546e7a; font-size: 11px;
+      color: var(--text-on-card-muted); font-size: 11px;
     }
     tbody tr { border-bottom: 1px solid #e0e0e0; }
     .conn-row { cursor: pointer; }
-    .expander { color: #90a4ae;
+    .expander { color: var(--text-tertiary);
       font-size: 11px; margin-right: 4px; }
     .kinds { font-family: monospace; font-size: 11.5px; }
-    .notes { color: #90a4ae; font-size: 11px; }
-    .artifact-row td { background: #fff; }
+    .notes { color: var(--text-tertiary); font-size: 11px; }
+    .artifact-row td { background: var(--surface-primary); }
     .artifact-label { font-size: 11px; font-weight: 600;
-      color: #546e7a; margin-bottom: 4px; }
+      color: var(--text-on-card-muted); margin-bottom: 4px; }
     .artifact {
       margin: 0; font-size: 11px; font-family: monospace;
       white-space: pre-wrap; word-break: break-all;
-      background: #eceff1;
+      background: var(--surface-secondary);
       border-radius: 6px; padding: 8px 10px;
       color: var(--text-primary, #37474f);
     }
@@ -235,7 +235,7 @@
 
   .aggregation-note {
     margin-top: 12px; font-size: 11px;
-    color: #90a4ae;
+    color: var(--text-tertiary);
     border-left: 3px solid #b0bec5;
     padding-left: 10px;
   }
@@ -245,7 +245,7 @@
 // style it outside the component scope (::ng-deep at root = global).
 ::ng-deep .cdk-drag-preview.module-chip {
   font-size: 11px; padding: 2px 9px; border-radius: 10px;
-  background: #e3f2fd; color: #1565c0;
+  background: var(--color-info-bg); color: var(--color-info-text);
   border: 1px solid #3f51b5;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
 }
@@ -256,9 +256,9 @@
   padding: 8px 12px;
   border: 1px solid #c5cae9;
   border-radius: 10px;
-  background: #e8eaf6;
+  background: var(--brand-blue-light);
   font-size: 12.5px;
-  color: #283593;
+  color: var(--color-info-text);
   code {
     background: rgba(0, 0, 0, 0.06);
     border-radius: 4px;
@@ -266,9 +266,9 @@
     font-size: 11.5px;
   }
   &.error {
-    border-color: #ffccbc;
-    background: #fbe9e7;
-    color: #bf360c;
+    border-color: var(--color-error-border);
+    background: var(--color-error-bg);
+    color: var(--color-error-text);
   }
 }
 
@@ -280,7 +280,7 @@
     border: 1px solid var(--border-light); border-radius: 8px;
     padding: 8px 10px; margin: 6px 0;
     background: var(--surface-primary); color: var(--text-on-card);
-    &.mv-running { border-left: 4px solid #f9a825; }
+    &.mv-running { border-left: 4px solid var(--color-warn); }
     &.mv-failed { border-left: 4px solid #c62828; }
   }
   .move-head { display: flex; gap: 10px; align-items: center;
@@ -292,12 +292,12 @@
       border-bottom: 1px solid var(--border-light); }
     .num { text-align: right; }
     .st { font-weight: 700; }
-    .st-done { color: #2e7d32; }
-    .st-running { color: #f9a825; }
-    .st-failed { color: #c62828; }
+    .st-done { color: var(--color-success-text); }
+    .st-running { color: var(--color-warn-text); }
+    .st-failed { color: var(--color-error-text); }
     .st-pending, .st-skipped { color: var(--text-on-card-muted); } }
   .muted { color: var(--text-on-card-muted); }
-  .error { color: #c62828; font-size: 12px; }
+  .error { color: var(--color-error-text); font-size: 12px; }
 }
 
 // gm-6: move planner + pulse + verify strip
@@ -311,7 +311,7 @@
       color: var(--text-primary); } }
   .plan-what { color: var(--text-on-card); margin: 4px 0; }
   .confirm-gate { margin: 8px 0; display: flex; gap: 8px;
-    align-items: center; color: #c62828;
+    align-items: center; color: var(--color-error-text);
     input { padding: 4px 6px; border: 1px solid #c62828;
       border-radius: 4px; background: var(--surface-app-background);
       color: var(--text-primary); } }

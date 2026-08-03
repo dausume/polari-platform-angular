@@ -65,6 +65,11 @@
   --color-error-text: #c62828;
   --color-info-text: #1565c0;
   --color-warn-text: #e65100;
+  /* Brand hues used as TEXT need their own flipping pair: the base
+     --brand-* values are mark colors and stay put across themes, so
+     text set from them goes unreadable on the opposite background. */
+  --brand-purple-text: #6a1b9a;
+  --brand-teal-text: #00695c;
 
   /* === Navigation === */
   --nav-background: #424242;

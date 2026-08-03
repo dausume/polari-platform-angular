@@ -21,9 +21,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-medium);
   border-radius: 5px;
-  background: white;
+  background: var(--surface-primary);
   cursor: pointer;
   transition: all 0.15s ease;
   padding: 0;
@@ -58,9 +58,9 @@
   align-items: center;
   justify-content: center;
   padding: 4px 6px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-medium);
   border-radius: 5px;
-  background: white;
+  background: var(--surface-primary);
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -82,7 +82,7 @@
 .operand-value {
   font-family: 'Roboto Mono', monospace;
   font-size: 10px;
-  color: #333;
+  color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

@@ -302,5 +302,5 @@
 
 :host ::ng-deep .mat-button-toggle-checked {
     background: var(--brand-blue-light);
-    color: #1565c0;
+    color: var(--color-info-text);
 }

@@ -34,7 +34,7 @@
   width: 100%;
   background: transparent; border: none; cursor: pointer;
   padding: 4px 2px;
-  color: #555; font: inherit; font-size: 0.72rem;
+  color: var(--text-secondary); font: inherit; font-size: 0.72rem;
   text-align: left;
 }
 .coding-comment-toggle:hover { background: rgba(0, 0, 0, 0.03); border-radius: 3px; }
@@ -51,7 +51,7 @@
   width: 100%;
   font-size: 0.78rem;
   padding: 6px 8px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border-medium);
   border-radius: 4px;
   resize: vertical;
   font-family: inherit;

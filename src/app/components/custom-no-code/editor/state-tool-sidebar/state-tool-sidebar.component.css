@@ -4,8 +4,8 @@
   position: relative;
   width: 280px;
   height: 100%;
-  background: #f5f5f5;
-  border-left: 1px solid #ddd;
+  background: var(--surface-secondary);
+  border-left: 1px solid var(--border-light);
   display: flex;
   flex-direction: column;
   transition: width 0.3s ease;
@@ -25,8 +25,8 @@
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  border: 1px solid #ccc;
-  background: #fff;
+  border: 1px solid var(--border-medium);
+  background: var(--surface-primary);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -35,15 +35,15 @@
 }
 
 .toggle-btn:hover {
-  background: #f0f0f0;
-  border-color: #999;
+  background: var(--surface-hover);
+  border-color: var(--border-dark);
 }
 
 .toggle-btn mat-icon {
   font-size: 18px;
   width: 18px;
   height: 18px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 /* Sidebar Content */
@@ -58,21 +58,21 @@
 /* Header */
 .sidebar-header {
   padding: 12px 16px;
-  background: #fff;
-  border-bottom: 1px solid #e0e0e0;
+  background: var(--surface-primary);
+  border-bottom: 1px solid var(--border-medium);
 }
 
 .sidebar-header h3 {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary);
 }
 
 /* Tab Buttons Container */
 .tab-buttons-container {
-  background: #fff;
-  border-bottom: 1px solid #e0e0e0;
+  background: var(--surface-primary);
+  border-bottom: 1px solid var(--border-medium);
 }
 
 /* Tab Buttons */
@@ -93,10 +93,10 @@
   justify-content: center;
   gap: 6px;
   padding: 8px 12px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-light);
   border-radius: 6px;
-  background: #f8f8f8;
-  color: #666;
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
@@ -104,8 +104,8 @@
 }
 
 .tab-btn:hover {
-  background: #eee;
-  border-color: #ccc;
+  background: var(--surface-hover);
+  border-color: var(--border-medium);
 }
 
 .tab-btn.active {
@@ -148,13 +148,13 @@
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  background: #fff;
-  border-bottom: 1px solid #e0e0e0;
+  background: var(--surface-primary);
+  border-bottom: 1px solid var(--border-medium);
 }
 
 .shape-selector label {
   font-size: 12px;
-  color: #666;
+  color: var(--text-secondary);
   font-weight: 500;
 }
 
@@ -166,9 +166,12 @@
 .shape-btn {
   width: 32px;
   height: 32px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-light);
   border-radius: 4px;
-  background: #fff;
+  background: var(--surface-primary);
+  /* A <button> with no color falls back to the UA's black buttontext,
+     which disappears on the dark surface. */
+  color: var(--text-primary);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -177,8 +180,8 @@
 }
 
 .shape-btn:hover {
-  background: #f0f0f0;
-  border-color: #999;
+  background: var(--surface-hover);
+  border-color: var(--border-dark);
 }
 
 .shape-btn.selected {
@@ -217,19 +220,19 @@
   cursor: pointer;
   user-select: none;
   transition: background 0.2s;
-  background: #fff;
-  border-bottom: 1px solid #eee;
+  background: var(--surface-primary);
+  border-bottom: 1px solid var(--border-light);
 }
 
 .category-header:hover {
-  background: #f5f5f5;
+  background: var(--surface-secondary);
 }
 
 .expand-icon {
   font-size: 18px;
   width: 18px;
   height: 18px;
-  color: #888;
+  color: var(--text-tertiary);
   margin-right: 4px;
 }
 
@@ -244,13 +247,13 @@
   flex: 1;
   font-size: 13px;
   font-weight: 500;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .category-count {
   font-size: 11px;
-  color: #888;
-  background: #e8e8e8;
+  color: var(--text-tertiary);
+  background: var(--surface-hover);
   padding: 2px 8px;
   border-radius: 10px;
 }
@@ -258,7 +261,7 @@
 /* Category Items */
 .category-items {
   padding: 4px 8px 8px 8px;
-  background: #fafafa;
+  background: var(--surface-tertiary);
 }
 
 /* Tool Item */
@@ -270,8 +273,8 @@
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s;
-  background: #fff;
-  border: 1px solid #e0e0e0;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-medium);
 }
 
 .tool-item:hover {
@@ -314,7 +317,7 @@
 .item-name {
   font-size: 13px;
   font-weight: 500;
-  color: #333;
+  color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -322,14 +325,14 @@
 
 .item-source {
   font-size: 11px;
-  color: #888;
+  color: var(--text-tertiary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .drag-indicator {
-  color: #ccc;
+  color: var(--text-disabled);
   font-size: 18px;
   width: 18px;
   height: 18px;
@@ -344,20 +347,20 @@
 /* Search Container */
 .search-container {
   padding: 12px;
-  background: #fff;
+  background: var(--surface-primary);
 }
 
 .search-input-wrapper {
   display: flex;
   align-items: center;
-  background: #f5f5f5;
-  border: 1px solid #ddd;
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-light);
   border-radius: 6px;
   padding: 0 8px;
 }
 
 .search-icon {
-  color: #888;
+  color: var(--text-tertiary);
   font-size: 20px;
   width: 20px;
   height: 20px;
@@ -373,7 +376,7 @@
 }
 
 .search-input::placeholder {
-  color: #999;
+  color: var(--text-tertiary);
 }
 
 .clear-btn {
@@ -390,11 +393,11 @@
   font-size: 18px;
   width: 18px;
   height: 18px;
-  color: #888;
+  color: var(--text-tertiary);
 }
 
 .clear-btn:hover mat-icon {
-  color: #333;
+  color: var(--text-primary);
 }
 
 /* Create New Section */
@@ -439,14 +442,14 @@
 .empty-state {
   text-align: center;
   padding: 32px 16px;
-  color: #888;
+  color: var(--text-tertiary);
 }
 
 .empty-state mat-icon {
   font-size: 48px;
   width: 48px;
   height: 48px;
-  color: #ccc;
+  color: var(--text-disabled);
   margin-bottom: 12px;
 }
 
@@ -454,19 +457,19 @@
   margin: 0 0 4px 0;
   font-size: 14px;
   font-weight: 500;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .empty-state span {
   font-size: 12px;
-  color: #999;
+  color: var(--text-tertiary);
 }
 
 /* No Results */
 .no-results {
   padding: 16px;
   text-align: center;
-  color: #888;
+  color: var(--text-tertiary);
   font-size: 13px;
 }
 
@@ -481,7 +484,7 @@
 }
 
 .collapsed-content button {
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .collapsed-content button.active {
@@ -524,7 +527,7 @@
   align-items: center;
   gap: 8px;
   margin-bottom: 12px;
-  color: #333;
+  color: var(--text-primary);
   font-weight: 500;
 }
 
@@ -544,7 +547,7 @@
 
 .solution-label {
   font-size: 12px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .solution-name {
@@ -602,7 +605,7 @@
 
 .class-description {
   margin: 0;
-  color: #666;
+  color: var(--text-secondary);
   font-size: 13px;
   line-height: 1.5;
 }
@@ -618,14 +621,14 @@
   margin: 0 0 12px 0;
   font-size: 14px;
   font-weight: 500;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .class-section h4 mat-icon {
   font-size: 18px;
   width: 18px;
   height: 18px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 /* Field List */
@@ -640,14 +643,14 @@
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  background: #f5f5f5;
+  background: var(--surface-secondary);
   border-radius: 6px;
   flex-wrap: wrap;
 }
 
 .field-name {
   font-weight: 500;
-  color: #333;
+  color: var(--text-primary);
   font-family: 'Consolas', 'Monaco', monospace;
 }
 
@@ -663,7 +666,7 @@
 .field-desc {
   flex-basis: 100%;
   font-size: 12px;
-  color: #666;
+  color: var(--text-secondary);
   margin-top: 4px;
 }
 
@@ -676,7 +679,7 @@
 
 .method-item {
   padding: 10px 12px;
-  background: #f5f5f5;
+  background: var(--surface-secondary);
   border-radius: 6px;
 }
 
@@ -695,7 +698,7 @@
 
 .method-params {
   font-size: 12px;
-  color: #666;
+  color: var(--text-secondary);
   font-family: 'Consolas', 'Monaco', monospace;
 }
 
@@ -711,7 +714,7 @@
 .method-desc {
   display: block;
   font-size: 12px;
-  color: #666;
+  color: var(--text-secondary);
   margin-top: 6px;
 }
 
@@ -741,7 +744,7 @@
   justify-content: space-between;
   gap: 8px;
   padding: 8px 12px;
-  background: #f5f5f5;
+  background: var(--surface-secondary);
   border-radius: 6px;
   margin-bottom: 6px;
 }
@@ -768,7 +771,7 @@
   justify-content: space-between;
   gap: 8px;
   padding: 10px 12px;
-  background: #f5f5f5;
+  background: var(--surface-secondary);
   border-radius: 6px;
   margin-bottom: 6px;
 }
@@ -797,7 +800,7 @@
   font-size: 11px;
   font-weight: 500;
   transition: all 0.15s ease;
-  background: white;
+  background: var(--surface-primary);
 }
 
 .action-btn mat-icon {
@@ -887,8 +890,8 @@
   align-items: center;
   gap: 12px;
   padding: 12px;
-  background: #fff;
-  border: 1px solid #e0e0e0;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-medium);
   border-radius: 8px;
   margin-bottom: 8px;
   cursor: pointer;
@@ -931,13 +934,13 @@
 
 .helper-class-name {
   font-weight: 500;
-  color: #333;
+  color: var(--text-primary);
   font-size: 14px;
 }
 
 .helper-class-desc {
   font-size: 12px;
-  color: #666;
+  color: var(--text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -945,7 +948,7 @@
 
 .helper-class-counts {
   font-size: 11px;
-  color: #999;
+  color: var(--text-tertiary);
 }
 
 .chevron-icon {
@@ -974,15 +977,15 @@
   justify-content: center;
   width: 32px;
   height: 32px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-light);
   border-radius: 6px;
-  background: #fff;
+  background: var(--surface-primary);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .back-btn:hover {
-  background: #f5f5f5;
+  background: var(--surface-secondary);
   border-color: #00897B;
 }
 
@@ -990,7 +993,7 @@
   font-size: 20px;
   width: 20px;
   height: 20px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 /* ==================== Sub-Solutions Tab Styles ==================== */
@@ -1003,8 +1006,8 @@
   align-items: center;
   gap: 12px;
   padding: 12px;
-  background: #fff;
-  border: 1px solid #e0e0e0;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-medium);
   border-radius: 8px;
   margin-bottom: 8px;
   cursor: pointer;
@@ -1043,13 +1046,13 @@
 
 .sub-solution-name {
   font-weight: 500;
-  color: #333;
+  color: var(--text-primary);
   font-size: 14px;
 }
 
 .sub-solution-desc {
   font-size: 12px;
-  color: #666;
+  color: var(--text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1065,11 +1068,11 @@
 }
 
 .sub-solution-signature .params {
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .sub-solution-signature .arrow {
-  color: #999;
+  color: var(--text-tertiary);
 }
 
 .sub-solution-signature .return-type {

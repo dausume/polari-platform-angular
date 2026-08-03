@@ -25,6 +25,15 @@
     color: #fdd835 !important;
 }
 
+/* The assistant toggle rides the fixed-dark toolbar like every other
+   nav control. Without this it inherits the global .mat-mdc-icon-button
+   color (--text-secondary), which is near-invisible on --nav-background
+   in both themes. */
+.header-assistant-toggle,
+.header-assistant-toggle mat-icon {
+    color: var(--nav-text) !important;
+}
+
 /* =========================================================================
  * Auth controls
  * The nav bar is dark in both light and dark themes (#424242 / #1a1a1a),
@@ -126,7 +135,9 @@
     white-space: nowrap;
 }
 
-.header-item-off {
+/* Extra specificity: must outrank the global menu-item icon rule in
+   styles.css (absent-module marker keeps its amber warning color). */
+.mat-mdc-menu-item mat-icon.header-item-off {
     color: #c98a00 !important;
 }
 

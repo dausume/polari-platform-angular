@@ -24,7 +24,7 @@
 .intro-card ul { padding-left: 20px; margin: 8px 0; }
 .intro-card li { margin: 6px 0; }
 .intro-card code {
-  background: var(--mat-sys-surface-container, #f0f0f0);
+  background: var(--mat-sys-surface-container, var(--surface-hover));
   padding: 1px 4px;
   border-radius: 3px;
   font-size: 0.85em;
@@ -40,7 +40,7 @@
 h2 { margin: 0 0 4px 0; }
 
 .tab-subtitle {
-  color: var(--mat-sys-on-surface-variant, #666);
+  color: var(--mat-sys-on-surface-variant, var(--text-secondary));
   margin: 0;
   max-width: 720px;
 }
@@ -70,7 +70,7 @@ h2 { margin: 0 0 4px 0; }
   align-items: center;
   gap: 12px;
   padding: 24px 0;
-  color: #888;
+  color: var(--text-tertiary);
 }
 
 table { width: 100%; }

@@ -74,8 +74,8 @@
   gap: 2px;
   padding: 2px 6px;
   border: 1px solid #00BCD4;
-  background: white;
-  color: #00BCD4;
+  background: var(--surface-primary);
+  color: var(--brand-teal-text);
   border-radius: 10px;
   cursor: pointer;
   font-size: 8px;
@@ -164,7 +164,7 @@
 
 .type-input:focus {
   outline: none;
-  border-color: #00BCD4;
+  border-color: var(--brand-teal);
 }
 
 /* By Index filter */
@@ -226,10 +226,10 @@
   display: flex;
   gap: 3px;
   align-items: center;
-  background: #FAFAFA;
+  background: var(--surface-tertiary);
   padding: 3px;
   border-radius: 3px;
-  border: 1px solid #E0E0E0;
+  border: 1px solid var(--border-medium);
 }
 
 .field-select,
@@ -241,7 +241,7 @@
   font-size: 9px;
   border: 1px solid #BDBDBD;
   border-radius: 2px;
-  background: white;
+  background: var(--surface-primary);
 }
 
 .field-select {
@@ -301,7 +301,7 @@
   margin-top: 4px;
   border: 1px dashed #00BCD4;
   background: transparent;
-  color: #00BCD4;
+  color: var(--brand-teal-text);
   border-radius: 3px;
   cursor: pointer;
   font-size: 9px;
@@ -337,7 +337,7 @@
 
 .custom-input:focus {
   outline: none;
-  border-color: #00BCD4;
+  border-color: var(--brand-teal);
 }
 
 /* Compact mode */
@@ -347,7 +347,7 @@
   justify-content: center;
   gap: 3px;
   height: 100%;
-  color: #00BCD4;
+  color: var(--brand-teal-text);
   font-size: 10px;
   font-weight: 500;
 }

@@ -27,7 +27,7 @@
 .section-label {
   font-size: 10px;
   font-weight: 600;
-  color: #666;
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -45,14 +45,14 @@
   justify-content: center;
   gap: 4px;
   padding: 6px 8px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-medium);
   border-radius: 4px;
-  background: white;
+  background: var(--surface-primary);
   cursor: pointer;
   transition: all 0.15s ease;
   font-size: 10px;
   font-weight: 500;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .target-tab mat-icon {
@@ -62,40 +62,40 @@
 }
 
 .target-tab:hover {
-  border-color: #9C27B0;
+  border-color: var(--brand-purple);
   background: #fdf4ff;
 }
 
 .target-tab.active {
-  border-color: #9C27B0;
-  background: #f3e5f5;
-  color: #9C27B0;
+  border-color: var(--brand-purple);
+  background: var(--brand-purple-light);
+  color: var(--brand-purple-text);
 }
 
 /* Field select */
 .field-select {
   width: 100%;
   padding: 6px 8px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-light);
   border-radius: 4px;
   font-size: 11px;
-  background: white;
+  background: var(--surface-primary);
   cursor: pointer;
 }
 
 .field-select:focus {
   outline: none;
-  border-color: #9C27B0;
+  border-color: var(--brand-purple);
 }
 
 .field-hint {
   margin: 2px 0 0 0;
   font-size: 9px;
-  color: #888;
+  color: var(--text-tertiary);
 }
 
 .field-hint code {
-  background: #f5f5f5;
+  background: var(--surface-secondary);
   padding: 1px 4px;
   border-radius: 2px;
   font-family: 'Roboto Mono', monospace;
@@ -112,7 +112,7 @@
 .text-input {
   width: 100%;
   padding: 6px 8px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-light);
   border-radius: 4px;
   font-size: 11px;
   box-sizing: border-box;
@@ -120,7 +120,7 @@
 
 .text-input:focus {
   outline: none;
-  border-color: #9C27B0;
+  border-color: var(--brand-purple);
 }
 
 .text-input.error {
@@ -187,21 +187,21 @@
 
 .mini-label {
   font-size: 9px;
-  color: #888;
+  color: var(--text-tertiary);
 }
 
 .mini-select {
   padding: 4px 6px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-light);
   border-radius: 4px;
   font-size: 10px;
-  background: white;
+  background: var(--surface-primary);
   cursor: pointer;
 }
 
 .mini-select:focus {
   outline: none;
-  border-color: #9C27B0;
+  border-color: var(--brand-purple);
 }
 
 /* Checkbox */
@@ -210,7 +210,7 @@
   align-items: center;
   gap: 4px;
   font-size: 10px;
-  color: #666;
+  color: var(--text-secondary);
   cursor: pointer;
 }
 
@@ -226,9 +226,9 @@
   align-items: center;
   justify-content: space-between;
   padding: 8px 10px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-medium);
   border-radius: 4px;
-  background: white;
+  background: var(--surface-primary);
   cursor: pointer;
   transition: all 0.15s ease;
   text-align: left;
@@ -236,20 +236,20 @@
 }
 
 .value-display-btn:hover {
-  border-color: #9C27B0;
+  border-color: var(--brand-purple);
   background: #fdf4ff;
 }
 
 .value-display-btn.active {
-  border-color: #9C27B0;
-  background: #f3e5f5;
+  border-color: var(--brand-purple);
+  background: var(--brand-purple-light);
 }
 
 .value-text {
   flex: 1;
   font-family: 'Roboto Mono', monospace;
   font-size: 11px;
-  color: #333;
+  color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -259,7 +259,7 @@
   font-size: 14px;
   width: 14px;
   height: 14px;
-  color: #9C27B0;
+  color: var(--brand-purple-text);
   flex-shrink: 0;
 }
 
@@ -267,17 +267,17 @@
 .preview-section {
   margin-top: 4px;
   padding-top: 8px;
-  border-top: 1px dashed #e0e0e0;
+  border-top: 1px dashed var(--border-medium);
 }
 
 .preview-code {
   display: block;
   padding: 6px 8px;
-  background: #f5f5f5;
+  background: var(--surface-secondary);
   border-radius: 4px;
   font-family: 'Roboto Mono', monospace;
   font-size: 11px;
-  color: #9C27B0;
+  color: var(--brand-purple-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -287,8 +287,8 @@
 .value-popup {
   position: fixed;
   z-index: 10000;
-  background: white;
-  border: 1px solid #e0e0e0;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-medium);
   border-radius: 8px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
   min-width: 350px;
@@ -300,7 +300,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 10px 12px;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--border-medium);
   background: #f8f9fa;
   border-radius: 8px 8px 0 0;
 }
@@ -308,7 +308,7 @@
 .popup-title {
   font-weight: 600;
   font-size: 12px;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .popup-close-btn {
@@ -321,7 +321,7 @@
   background: transparent;
   cursor: pointer;
   border-radius: 4px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .popup-close-btn:hover {
@@ -344,42 +344,42 @@
 }
 
 .popup-content ::ng-deep .step-label {
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .popup-content ::ng-deep .flow-dropdown {
-  border: 1px solid #ccc;
-  background: white;
-  color: #333;
+  border: 1px solid var(--border-medium);
+  background: var(--surface-primary);
+  color: var(--text-primary);
 }
 
 .popup-content ::ng-deep .flow-dropdown:focus {
-  border-color: #9C27B0;
-  background: white;
+  border-color: var(--brand-purple);
+  background: var(--surface-primary);
 }
 
 .popup-content ::ng-deep .flow-dropdown:hover:not(:disabled) {
-  border-color: #9C27B0;
+  border-color: var(--brand-purple);
 }
 
 .popup-content ::ng-deep .flow-dropdown option {
-  background: white;
-  color: #333;
+  background: var(--surface-primary);
+  color: var(--text-primary);
 }
 
 .popup-content ::ng-deep .flow-input {
-  border: 1px solid #ccc;
-  background: white;
-  color: #333;
+  border: 1px solid var(--border-medium);
+  background: var(--surface-primary);
+  color: var(--text-primary);
 }
 
 .popup-content ::ng-deep .flow-input:focus {
-  border-color: #9C27B0;
-  background: white;
+  border-color: var(--brand-purple);
+  background: var(--surface-primary);
 }
 
 .popup-content ::ng-deep .flow-input::placeholder {
-  color: #999;
+  color: var(--text-tertiary);
 }
 
 .popup-content ::ng-deep .no-options-hint {
@@ -392,11 +392,11 @@
 }
 
 .popup-content ::ng-deep .preview-label {
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .popup-content ::ng-deep .preview-value {
-  color: #9C27B0;
+  color: var(--brand-purple-text);
 }
 
 /* Compact mode */
@@ -406,7 +406,7 @@
   justify-content: center;
   gap: 4px;
   height: 100%;
-  color: #9C27B0;
+  color: var(--brand-purple-text);
 }
 
 .compact-summary mat-icon {

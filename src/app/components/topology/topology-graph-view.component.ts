@@ -509,11 +509,15 @@ export class TopologyGraphViewComponent implements OnChanges {
         .attr('stroke', color)
         .attr('stroke-width', 1.2)
         .attr('opacity', 0.55);
+      // The LINE carries the interconnect's color identity; the label
+      // is text on the canvas, so it takes the theme's text color.
+      // Painting the label in the line color left pale kinds (yellow,
+      // light green) barely legible on the light canvas.
       eg.append('text')
         .attr('class', 'edge-label conn')
         .attr('x', (sx + tx) / 2).attr('y', (sy + ty) / 2 - 6)
         .attr('text-anchor', 'middle')
-        .attr('fill', color)
+        .attr('fill', 'var(--chart-text)')
         .text(conn.interconnectKey);
     }
   }
@@ -590,7 +594,7 @@ export class TopologyGraphViewComponent implements OnChanges {
         .attr('x', (exit.x + entry.x) / 2)
         .attr('y', (exit.y + entry.y) / 2 - 8)
         .attr('text-anchor', 'middle')
-        .attr('fill', color)
+        .attr('fill', 'var(--chart-text)')
         .text(edge.dependsOnModule
           + (ping && ping.status === 'ok' && ping.protocol
              ? ` · ${ping.protocol}${ping.secured ? ' 🔒' : ' ⚠'}`

@@ -253,7 +253,11 @@ import { BizopsService } from '@services/bizops.service';
       color: var(--text-on-card); }
     .step-head { display: flex; align-items: center; gap: 10px;
       padding: 10px 12px; cursor: pointer; }
-    .num { display: inline-flex; width: 24px; height: 24px;
+    /* Scoped to the step badge: an unscoped .num also matched the QA
+       table's numeric cells, painting them with the badge's indigo
+       fill while the table's own text color stayed — muted grey on
+       indigo, effectively unreadable. */
+    .step-head .num { display: inline-flex; width: 24px; height: 24px;
       border-radius: 50%; align-items: center;
       justify-content: center; background: #3949ab; color: #fff;
       font-size: 12px; flex: none; }

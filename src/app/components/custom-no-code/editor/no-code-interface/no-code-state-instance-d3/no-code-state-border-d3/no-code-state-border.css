@@ -4,7 +4,7 @@
   }
   
   .border-line {
-    background-color: #ffffff;
+    background-color: var(--surface-primary);
   }
 
   .border-corner {

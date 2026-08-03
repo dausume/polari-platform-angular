@@ -12,13 +12,13 @@ h2 { margin: 0 0 4px 0; }
 h3 { margin: 24px 0 12px 0; }
 
 .tab-subtitle {
-  color: var(--mat-sys-on-surface-variant, #666);
+  color: var(--mat-sys-on-surface-variant, var(--text-secondary));
   margin: 0;
   max-width: 800px;
 }
 
 .tab-subtitle code {
-  background: var(--mat-sys-surface-container, #f5f5f5);
+  background: var(--mat-sys-surface-container, var(--surface-secondary));
   padding: 1px 4px;
   border-radius: 3px;
   font-size: 0.85em;
@@ -33,7 +33,7 @@ h3 { margin: 24px 0 12px 0; }
 }
 .identity-card dt {
   font-weight: 500;
-  color: var(--mat-sys-on-surface-variant, #666);
+  color: var(--mat-sys-on-surface-variant, var(--text-secondary));
 }
 .identity-card dd { margin: 0; }
 
@@ -48,7 +48,7 @@ mat-icon.op-yes { color: #2e7d32; }
   align-items: center;
   gap: 8px;
   padding: 24px;
-  color: #888;
+  color: var(--text-tertiary);
   justify-content: center;
 }
 
@@ -64,5 +64,5 @@ mat-icon.op-yes { color: #2e7d32; }
   align-items: center;
   gap: 12px;
   padding: 24px 0;
-  color: #888;
+  color: var(--text-tertiary);
 }

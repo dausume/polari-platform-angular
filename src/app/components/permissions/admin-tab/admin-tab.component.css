@@ -12,7 +12,7 @@ h2 { margin: 0 0 4px 0; color: var(--mat-sys-on-surface, #1a1a1a); }
 h3 { margin: 24px 0 4px 0; color: var(--mat-sys-on-surface, #1a1a1a); }
 
 .tab-subtitle {
-  color: var(--mat-sys-on-surface-variant, #666);
+  color: var(--mat-sys-on-surface-variant, var(--text-secondary));
   margin: 0;
   max-width: 800px;
 }
@@ -33,7 +33,7 @@ h3 { margin: 24px 0 4px 0; color: var(--mat-sys-on-surface, #1a1a1a); }
   line-height: 1.55;
 }
 .guide-steps code {
-  background: var(--mat-sys-surface-container, #f0f0f0);
+  background: var(--mat-sys-surface-container, var(--surface-hover));
   color: var(--mat-sys-on-surface, #1a1a1a);
   padding: 1px 4px;
   border-radius: 3px;
@@ -96,7 +96,7 @@ h3 { margin: 24px 0 4px 0; color: var(--mat-sys-on-surface, #1a1a1a); }
   align-items: center;
   gap: 12px;
   padding: 24px 0;
-  color: #888;
+  color: var(--text-tertiary);
 }
 
 .muted { color: #888; }

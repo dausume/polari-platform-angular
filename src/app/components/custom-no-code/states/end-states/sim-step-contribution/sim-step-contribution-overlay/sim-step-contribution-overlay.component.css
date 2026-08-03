@@ -52,7 +52,7 @@
 
 .tier-compact__count {
     font-size: 10px;
-    color: var(--text-secondary, #666);
+    color: var(--text-secondary);
 }
 
 /* ===== Full tier ===== */
@@ -61,7 +61,7 @@
     flex-direction: column;
     gap: 10px;
     padding: 8px;
-    color: #333;
+    color: var(--text-primary);
     font-size: 12px;
     overflow-y: auto;
     overflow-x: hidden;
@@ -74,7 +74,7 @@
     gap: 6px;
     padding: 8px;
     background: var(--surface-secondary, #f6f7f9);
-    border: 1px solid var(--border-light, #e0e3e9);
+    border: 1px solid var(--border-light);
     border-radius: 4px;
 }
 
@@ -82,7 +82,7 @@
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: var(--text-secondary, #666);
+    color: var(--text-secondary);
     font-weight: 600;
 }
 
@@ -99,11 +99,11 @@
     justify-content: center;
     width: 22px;
     height: 22px;
-    border: 1px solid var(--border-light, #e0e3e9);
+    border: 1px solid var(--border-light);
     border-radius: 4px;
-    background: white;
+    background: var(--surface-primary);
     cursor: pointer;
-    color: var(--text-secondary, #666);
+    color: var(--text-secondary);
 }
 
 .add-btn:hover {
@@ -130,10 +130,10 @@
 .field-name-input {
     width: 100%;
     padding: 4px 6px;
-    border: 1px solid var(--border-light, #e0e3e9);
+    border: 1px solid var(--border-light);
     border-radius: 3px;
-    background: white;
-    color: var(--text-primary, #222);
+    background: var(--surface-primary);
+    color: var(--text-primary);
     font-size: 12px;
     font-family: inherit;
     box-sizing: border-box;
@@ -147,7 +147,7 @@
 
 .empty-hint {
     font-size: 11px;
-    color: var(--text-tertiary, #999);
+    color: var(--text-tertiary);
     font-style: italic;
     padding: 4px 2px;
 }
@@ -157,8 +157,8 @@
     flex-direction: column;
     gap: 4px;
     padding: 6px;
-    background: white;
-    border: 1px solid var(--border-light, #e0e3e9);
+    background: var(--surface-primary);
+    border: 1px solid var(--border-light);
     border-radius: 4px;
 }
 
@@ -176,7 +176,7 @@
 .op-select {
     flex: 0 0 auto;
     padding: 2px 4px;
-    border: 1px solid var(--border-light, #e0e3e9);
+    border: 1px solid var(--border-light);
     border-radius: 3px;
     background: #fff3e0;
     color: #d84315;
@@ -196,7 +196,7 @@
     min-width: 0;
     padding: 2px 6px;
     font-size: 11px;
-    color: var(--text-secondary, #555);
+    color: var(--text-secondary);
     background: var(--surface-secondary, #f6f7f9);
     border-radius: 3px;
     overflow: hidden;

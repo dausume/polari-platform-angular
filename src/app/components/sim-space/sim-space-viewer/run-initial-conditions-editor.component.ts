@@ -292,7 +292,7 @@ export interface RunInitialConditionsState {
       padding: 6px 10px;
       border: none;
       width: 100%;
-      background: white;
+      background: var(--surface-primary);
       border-bottom: 1px solid var(--border-light, #e0e3e9);
       border-top-left-radius: 6px;
       border-top-right-radius: 6px;
@@ -343,7 +343,7 @@ export interface RunInitialConditionsState {
       letter-spacing: 0.04em;
       font-weight: 600;
       cursor: pointer;
-      background: white;
+      background: var(--surface-primary);
       font-family: inherit;
     }
     .policy-chip:hover { filter: brightness(0.97); }
@@ -359,7 +359,7 @@ export interface RunInitialConditionsState {
       padding: 4px 6px;
       border: 1px solid var(--border-light, #e0e3e9);
       border-radius: 3px;
-      background: white;
+      background: var(--surface-primary);
       color: var(--text-primary, #222);
       font-size: 12px;
       font-family: monospace;
@@ -407,7 +407,7 @@ export interface RunInitialConditionsState {
       flex-direction: column;
       gap: 4px;
       padding: 6px 10px;
-      background: white;
+      background: var(--surface-primary);
       border: 1px solid var(--border-light, #e0e3e9);
       border-radius: 6px;
     }
