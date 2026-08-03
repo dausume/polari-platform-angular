@@ -266,12 +266,8 @@ import { BizopsService } from '@services/bizops.service';
     .step-body { padding: 0 14px 12px 46px; font-size: 13px; }
     .why, .cost { color: var(--text-on-card-muted);
       font-size: 12px; margin: 4px 0; }
-    .rows { border-collapse: collapse; font-size: 12px;
-      width: 100%; margin: 8px 0; }
-    .rows td { border-bottom: 1px solid var(--border-light);
-      padding: 3px 8px 3px 0; }
-    .rows .head td { color: var(--text-on-card-muted);
-      font-size: 11px; }
+    /* .rows base recipe lives in _table-patterns.css */
+    .rows { margin: 8px 0; }
     .num.rows td, td.num { text-align: right; }
     .batch { margin: 8px 0; font-size: 12px; display: flex;
       flex-direction: column; gap: 4px; }

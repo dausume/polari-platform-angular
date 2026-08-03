@@ -78,8 +78,8 @@ import { SimSpaceRendererFactory }
              (click)="select(p.part)">
           <div class="part-head">
             <b>{{ p.displayName }}</b>
-            <span class="chip fn">{{ p.function }}</span>
-            <span class="chip" *ngIf="p.quantity > 1">×{{ p.quantity }}</span>
+            <span class="chip chip-outline fn">{{ p.function }}</span>
+            <span class="chip chip-outline" *ngIf="p.quantity > 1">×{{ p.quantity }}</span>
             <span class="grow"></span>
             <span class="nums" *ngIf="p.volumeCm3 != null">
               {{ p.volumeCm3 }} cm³
@@ -94,7 +94,7 @@ import { SimSpaceRendererFactory }
             <div class="mat" *ngIf="p.material">
               <span class="label">made of</span>
               <code>{{ p.material }}</code>
-              <span class="chip" *ngIf="p.realizationLevel">
+              <span class="chip chip-outline" *ngIf="p.realizationLevel">
                 {{ p.realizationLevel }}</span>
             </div>
             <div class="why" *ngIf="p.whyThisMaterial">
@@ -108,7 +108,7 @@ import { SimSpaceRendererFactory }
                 <td><code>{{ pr.property }}</code></td>
                 <td>{{ pr.value }}</td>
                 <td>{{ pr.unit }}</td>
-                <td><span class="chip">{{ pr.provenance }}</span></td>
+                <td><span class="chip chip-outline">{{ pr.provenance }}</span></td>
               </tr>
             </table>
             <div class="hint" *ngIf="p.materialGap">
@@ -165,9 +165,9 @@ import { SimSpaceRendererFactory }
     .grow { flex: 1 1 auto; }
     .nums { font-variant-numeric: tabular-nums; font-size: 0.9em; }
     .purpose { margin-top: 5px; font-size: 0.92em; }
-    .chip { border: 1px solid var(--surface-outline, #8884);
-      border-radius: 10px; padding: 0 8px; font-size: 0.76em; }
-    .chip.fn { border-color: #46f; color: #46f; }
+    /* base chip recipe lives in _chip-patterns.css */
+    .chip.fn { border-color: var(--color-info-text);
+      color: var(--color-info-text); }
     .label { color: var(--text-on-card-muted); font-size: 0.8em;
       text-transform: uppercase; letter-spacing: 0.04em;
       margin-right: 6px; }

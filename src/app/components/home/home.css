@@ -109,6 +109,7 @@ mat-card-title {
 .capability-content .button-group {
     display: flex;
     gap: 8px;
+    flex-wrap: wrap;
 }
 
 /* Features Grid */
@@ -150,8 +151,21 @@ mat-card-title {
     margin: 0;
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
+/* The text column of a media-object row must be allowed to shrink.
+   A flex child defaults to min-width:auto, so a long line makes it
+   size to max-content and overflow its parent instead of wrapping. */
+.action-content,
+.capability-content {
+    min-width: 0;
+    flex: 1;
+}
+
+/* Responsive Design.
+   Below tablet the icon sits above the text. `align-items: center`
+   stops flex from stretching children, so the content block must
+   claim the full width itself — without this it sizes to max-content
+   (818px inside a 311px card on a phone) and is clipped. */
+@media (max-width: 1023px) {
     mat-card {
         padding: 20px !important;
     }
@@ -161,6 +175,19 @@ mat-card-title {
         flex-direction: column;
         align-items: center;
         text-align: center;
+    }
+
+    .action-content,
+    .capability-content {
+        width: 100%;
+        max-width: 100%;
+    }
+
+    /* Action buttons wrap rather than forcing the row wide. */
+    .capability-content .button-group,
+    .action-content .button-group {
+        flex-wrap: wrap;
+        justify-content: center;
     }
 }
 

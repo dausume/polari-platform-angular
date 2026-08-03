@@ -63,7 +63,7 @@ const NO_GRAPHS: string[] = [];
       <div class="legend-grid">
         <div class="cls" *ngFor="let key of provenanceOrder"
              [class.model-cls]="key === 'modelled'">
-          <span class="chip"
+          <span class="chip chip-outline"
                 [class.ok]="claims.classes[key]?.tone === 'ok'"
                 [class.warn]="claims.classes[key]?.tone === 'warn'"
                 [class.bad]="claims.classes[key]?.tone === 'bad'"
@@ -124,14 +124,14 @@ const NO_GRAPHS: string[] = [];
     <div class="card sec" *ngFor="let s of view?.sections">
       <div class="sec-head">
         <b>{{ s.section }}</b>
-        <span class="chip src" *ngIf="s.source">{{ s.source }}</span>
+        <span class="chip chip-outline src" *ngIf="s.source">{{ s.source }}</span>
       </div>
       <p class="lead" *ngIf="s.lead">{{ s.lead }}</p>
       <div class="links" *ngIf="s.links?.length">
         <a class="lnk" *ngFor="let lk of s.links"
            [attr.href]="lk.route">
           {{ lk.label }}
-          <span class="chip kind">{{ lk.kind }}</span>
+          <span class="chip chip-outline kind">{{ lk.kind }}</span>
         </a>
       </div>
 
@@ -148,7 +148,7 @@ const NO_GRAPHS: string[] = [];
           <tr><th>what</th><th>value</th><th>what it means</th></tr>
           <tr *ngFor="let h of s.payload.headline">
             <td>{{ h.label }}</td>
-            <td class="nums"><span class="chip"
+            <td class="nums"><span class="chip chip-outline"
                   [class.ok]="h.verdict === 'ok'"
                   [class.warn]="h.verdict === 'warn'"
                   [class.bad]="h.verdict === 'bad'"
@@ -168,7 +168,7 @@ const NO_GRAPHS: string[] = [];
               <span class="claim-value nums">{{ c.value }}
                 <span class="unit" *ngIf="c.unit">{{ c.unit }}</span>
               </span>
-              <span class="chip"
+              <span class="chip chip-outline"
                     [class.ok]="c.tone === 'ok'"
                     [class.warn]="c.tone === 'warn'"
                     [class.bad]="c.tone === 'bad'"
@@ -256,7 +256,7 @@ const NO_GRAPHS: string[] = [];
           <tr *ngFor="let r of symptoms.ladder"
               [class.lethal]="r.isLethal">
             <td>{{ r.symptomDisplay }}
-              <span class="chip bad" *ngIf="r.isLethal">LETHAL</span>
+              <span class="chip chip-outline bad" *ngIf="r.isLethal">LETHAL</span>
               <div class="hint" *ngIf="r.onsetNote">
                 {{ r.onsetNote }}</div>
               <div class="hint" *ngIf="r.quote">
@@ -266,7 +266,7 @@ const NO_GRAPHS: string[] = [];
             <td>{{ r.reversible ? 'yes' : 'no' }}</td>
             <td>{{ r.evidenceGrade }}</td>
             <td>{{ r.citationLine || r.sourceRef }}
-              <span class="chip src" *ngIf="r.sourceKind">
+              <span class="chip chip-outline src" *ngIf="r.sourceKind">
                 {{ r.sourceKind }}</span></td></tr>
         </table>
         <div class="hint" *ngIf="symptoms.lethalFrom">
@@ -316,7 +316,7 @@ const NO_GRAPHS: string[] = [];
             <th>measured cross-check</th></tr>
           <tr *ngFor="let sp of settings.indoor.spaces">
             <td>{{ sp.displayName }}
-              <span class="chip bad" *ngIf="sp.refused">refused
+              <span class="chip chip-outline bad" *ngIf="sp.refused">refused
               </span>
               <div class="bad-text" *ngIf="sp.refusal">
                 {{ sp.refusal }}</div></td>
@@ -325,7 +325,7 @@ const NO_GRAPHS: string[] = [];
             <td class="nums">{{ sp.indoorPpmOnGlobalBackground }}</td>
             <td class="nums">{{ sp.understatedByPpm }}</td>
             <td>
-              <span class="chip" *ngIf="sp.observedCheck"
+              <span class="chip chip-outline" *ngIf="sp.observedCheck"
                     [class.ok]="sp.observedCheck.insideObservedRange"
                     [class.warn]="!sp.observedCheck
                                   .insideObservedRange">
@@ -360,7 +360,7 @@ const NO_GRAPHS: string[] = [];
             <td class="nums">{{ t.ppm }}</td>
             <td>{{ t.evidenceGrade }}</td>
             <td>{{ t.sourceKind }}
-              <span class="chip warn" *ngIf="!t.resolved">
+              <span class="chip chip-outline warn" *ngIf="!t.resolved">
                 unresolved</span></td>
             <td><a *ngIf="t.url" [attr.href]="t.url"
                    target="_blank" rel="noopener">
@@ -385,7 +385,7 @@ const NO_GRAPHS: string[] = [];
           <span class="claim-value nums">{{ c.value }}
             <span class="unit" *ngIf="c.unit">{{ c.unit }}</span>
           </span>
-          <span class="chip"
+          <span class="chip chip-outline"
                 [class.ok]="c.tone === 'ok'"
                 [class.warn]="c.tone === 'warn'"
                 [class.bad]="c.tone === 'bad'"
@@ -436,12 +436,9 @@ const NO_GRAPHS: string[] = [];
     .sec { display: block; }
     .sec-head { display: flex; gap: 8px; align-items: center;
       margin-bottom: 6px; }
-    .chip { border: 1px solid var(--surface-outline, #8884);
-      border-radius: 10px; padding: 0 8px; font-size: 0.76em; }
-    .chip.src { color: var(--text-on-card-muted); }
+    /* base chip recipe + semantic states live in
+       _chip-patterns.css */
     .chip.kind { color: var(--text-on-card-muted); }
-    .chip.ok { border-color: #2a4; color: #2a4; }
-    .chip.warn { border-color: #c80; color: #c80; }
     .chip.bad { border-color: #d33; color: #d33; }
     /* the fourth class must not read like the other three */
     .chip.model { background: #d33; color: #fff;

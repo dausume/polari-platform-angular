@@ -80,6 +80,11 @@
   --chart-grid: rgba(0,0,0,0.12);
 
   /* === Borders & Shadows === */
+  /* Outline for chips/cards that sit ON a card surface. It was
+     referenced in 10 components but never actually defined, so every
+     use silently fell back to a literal #8884 that never changed
+     with the theme. */
+  --surface-outline: rgba(0, 0, 0, 0.22);
   --border-light: #e9ecef;
   --border-medium: #e0e0e0;
   --border-dark: rgba(0,0,0,0.38);

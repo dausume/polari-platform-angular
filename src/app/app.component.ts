@@ -4,6 +4,7 @@ import { filter } from 'rxjs/operators';
 import { AppNav, AppsNavService } from '@services/apps-nav.service';
 import { navComponent, ObjectCategory } from '@models/navComponent';
 import { Component, OnDestroy, OnInit } from '@angular/core';
+import { BreakpointObserver } from '@angular/cdk/layout';
 import { map } from 'rxjs/operators'
 //
 import { PolariConfigComponent } from '@components/polari-config/polari-config';
@@ -63,7 +64,15 @@ export class AppComponent {
 
   private displayManager: DisplayManagerService;
 
-  constructor(router: Router, polariService: PolariService, typingService: ClassTypingService, crudeServicesManager: CRUDEservicesManager, displayManager: DisplayManagerService, private appsNav: AppsNavService)
+  // nav layout by device class. The drawer is a push-panel ("side")
+  // only when there is room beside the content; on phone/tablet it
+  // overlays ("over") and closes on navigation, because a 350px
+  // push-panel on a 390px screen leaves no content.
+  // Breakpoint matches --bp-standard-min in _responsive.css.
+  navMode: 'side' | 'over' = 'side';
+  private navOverlays = false;
+
+  constructor(router: Router, polariService: PolariService, typingService: ClassTypingService, crudeServicesManager: CRUDEservicesManager, displayManager: DisplayManagerService, private appsNav: AppsNavService, private breakpoints: BreakpointObserver)
   {
     this.router = router
     this.polariService = polariService
@@ -73,6 +82,21 @@ export class AppComponent {
     this.displayManager = displayManager;
     this.activeNavComponentsData = []
     this.setActiveNavComponentsData()
+
+    this.breakpoints.observe('(max-width: 1023px)').subscribe(state => {
+      this.navOverlays = state.matches;
+      this.navMode = state.matches ? 'over' : 'side';
+      // An overlay drawer must never start open — it would cover the
+      // page. Coming back to a wide screen leaves it closed too, which
+      // matches the existing default.
+      if (state.matches) { this.sideNavOpened = false; }
+    });
+  }
+
+  /** On phone/tablet the drawer covers the content, so choosing a
+   *  destination has to dismiss it; on desktop it stays pinned. */
+  closeNavIfOverlay(): void {
+    if (this.navOverlays) { this.sideNavOpened = false; }
   }
 
   private bindAppContext(url: string): void {

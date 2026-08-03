@@ -44,7 +44,7 @@ import { MotorMaterialsPanelComponent }
               [class.active]="selected === d.name"
               (click)="select(d.name)">
         <b>{{ d.ladderRung }}</b> {{ d.displayName }}
-        <span class="chip">{{ d.toleranceTier }}</span>
+        <span class="chip chip-outline">{{ d.toleranceTier }}</span>
       </button>
     </div>
 
@@ -133,7 +133,7 @@ import { MotorMaterialsPanelComponent }
                 <span>mean <b>{{ sci(torque.meanTorqueNm) }} Nm</b>
                 </span>
                 <span>ripple <b>{{ torque.ripplePct }}%</b></span>
-                <span class="chip" *ngIf="torque.dualGap">dual
+                <span class="chip chip-outline" *ngIf="torque.dualGap">dual
                   gap</span>
               </div>
               <p class="hint">{{ torque.validity }}</p>
@@ -251,7 +251,7 @@ import { MotorMaterialsPanelComponent }
                  [class.duty-met]="d.met"
                  [class.duty-unmet]="!d.met">
               <b>{{ d.met ? 'duty met' : 'duty NOT met' }}</b>
-              <span class="chip" *ngIf="d.bindingConstraint">
+              <span class="chip chip-outline" *ngIf="d.bindingConstraint">
                 binding: {{ d.bindingConstraint }}</span>
               <div>{{ d.note }}</div>
               <p class="hint">{{ d.unmodeled }}</p>
@@ -285,7 +285,7 @@ import { MotorMaterialsPanelComponent }
             <div class="readout">
               <span>sim <b>{{ verify.simCount }}</b></span>
               <span>measured <b>{{ verify.measuredCount }}</b></span>
-              <span class="chip"
+              <span class="chip chip-outline"
                     [class.earned]="verify.madeAndMeasured">
                 {{ verify.madeAndMeasured ? 'made-and-measured'
                    : 'not yet made-and-measured' }}</span>
@@ -357,8 +357,7 @@ import { MotorMaterialsPanelComponent }
       background: var(--surface-primary);
       color: var(--text-on-card); cursor: pointer; }
     .ladder button.active { border-color: #46f; }
-    .chip { border: 1px solid var(--surface-outline, #8884);
-      border-radius: 10px; padding: 0 8px; font-size: 0.78em; }
+    /* base chip recipe lives in _chip-patterns.css */
     .cols { display: flex; gap: 16px; flex-wrap: wrap; }
     .col { flex: 1 1 340px; min-width: 320px; }
     .col.wide { flex: 2 1 480px; }

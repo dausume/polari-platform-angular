@@ -59,6 +59,7 @@ body.dark-theme {
   --chart-grid: rgba(255,255,255,0.14);
 
   /* === Borders & Shadows === */
+  --surface-outline: rgba(255, 255, 255, 0.26);
   --border-light: #444444;
   --border-medium: #555555;
   --border-dark: #666666;

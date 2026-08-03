@@ -404,7 +404,7 @@
   position: fixed;
   top: 0;
   right: -500px;
-  width: 500px;
+  width: min(500px, 100vw);
   height: 100vh;
   background: var(--surface-primary);
   box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
@@ -682,7 +682,7 @@
   background: var(--surface-primary, #1e1e1e);
   border: 1px solid var(--border-light, #333);
   border-radius: 12px;
-  width: 420px;
+  width: min(420px, 100vw);
   max-height: 500px;
   display: flex;
   flex-direction: column;

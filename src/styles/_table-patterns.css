@@ -1,0 +1,106 @@
+/* =================================================================
+   TABLE PATTERNS — one recipe per table PURPOSE.
+
+   Six components had independently re-typed the same two table
+   recipes. They are consolidated here and matched by their existing
+   class names, so no template had to change. New tables should use
+   the semantic names (.data-table-dashed / .data-table-lined).
+
+   This is a GLOBAL sheet: Angular's view encapsulation scopes a
+   component's own styles, but global rules still match elements
+   inside components, which is what lets one definition serve all of
+   them.
+
+   Colors come from tokens, so both themes are covered by
+   construction; sizes come from the responsive tokens.
+   ================================================================= */
+
+/* ---- Recipe A: dashed-row table -------------------------------
+   Uppercase muted header, dashed row separators, top-aligned cells.
+   Used for findings/gaps/results listings. */
+.data-table-dashed,
+.gaps-table,
+.results-table {
+  width: 100%;
+  font-size: 12px;
+  border-collapse: collapse;
+}
+
+.data-table-dashed th,
+.gaps-table th,
+.results-table th {
+  text-align: left;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-on-card-muted);
+  padding: 4px 8px 4px 0;
+}
+
+.data-table-dashed td,
+.gaps-table td,
+.results-table td {
+  padding: 4px 8px 4px 0;
+  border-top: 1px dashed var(--border-light);
+  vertical-align: top;
+}
+
+/* ---- Recipe B: lined-row table --------------------------------
+   Solid bottom rule per row, compact muted header row. Used for the
+   business/ops readouts. */
+.data-table-lined,
+.rows {
+  border-collapse: collapse;
+  font-size: 12px;
+  width: 100%;
+}
+
+.data-table-lined td,
+.rows td {
+  border-bottom: 1px solid var(--border-light);
+  padding: 3px 8px 3px 0;
+}
+
+.data-table-lined .head td,
+.rows .head td {
+  color: var(--text-on-card-muted);
+  font-size: 11px;
+}
+
+/* ---- Overflow behaviour ---------------------------------------
+   A table is irreducible: below some width its columns simply do not
+   fit, and the choice is between clipping it (invisible data) and
+   scrolling it. It scrolls — inside its own box, so the PAGE never
+   scrolls sideways.
+
+   Keyed to the CONTAINER, so it applies equally on a phone and
+   inside a narrow MeshHTML panel. `display: block` is what makes a
+   table its own scroll container; the trade is that it then sizes to
+   its content rather than stretching, which is correct here. */
+@container (max-width: 899px) {
+  .data-table-dashed,
+  .data-table-lined,
+  .gaps-table,
+  .results-table,
+  .rows,
+  .kv-table,
+  .connections-table,
+  .agreement-table,
+  .move-steps {
+    display: block;
+    overflow-x: auto;
+    max-width: 100%;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Angular Material tables carry their own layout; they only need the
+   scroll box. */
+@container (max-width: 899px) {
+  .mat-mdc-table {
+    display: block;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+}

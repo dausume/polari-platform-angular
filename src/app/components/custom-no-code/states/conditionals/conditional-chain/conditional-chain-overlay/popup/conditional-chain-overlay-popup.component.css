@@ -1,7 +1,7 @@
 .popup-shell {
   display: flex;
   flex-direction: column;
-  width: 900px;
+  width: min(900px, calc(100vw - 2 * var(--page-pad)));
   max-width: 95vw;
   max-height: 90vh;
   font-family: 'Roboto', sans-serif;

@@ -36,7 +36,7 @@ import { SimSpaceRendererFactory }
               [class.active]="selected === v.name"
               (click)="select(v.name)">
         {{ v.displayName }}
-        <span class="chip">{{ v.displayMode }}</span>
+        <span class="chip chip-outline">{{ v.displayMode }}</span>
       </button>
     </div>
 
@@ -78,7 +78,7 @@ import { SimSpaceRendererFactory }
           stays a list. The layout page owns the geometry.</p>
         <div class="tube-row" *ngFor="let t of payload.tubes">
           <code class="tube-name">{{ t.element }}</code>
-          <span class="chip">{{ t.kind }}</span>
+          <span class="chip chip-outline">{{ t.kind }}</span>
           <div class="bar-track">
             <div class="bar"
                  [style.width.%]="barPct(t)"
@@ -116,9 +116,8 @@ import { SimSpaceRendererFactory }
       background: var(--surface-primary);
       color: var(--text-on-card); cursor: pointer; }
     .picker button.active { border-color: #46f; }
-    .chip { border: 1px solid var(--surface-outline, #8884);
-      border-radius: 10px; padding: 0 8px; font-size: 0.78em;
-      margin-left: 6px; }
+    /* base chip recipe lives in _chip-patterns.css */
+    .chip { margin-left: 6px; }
     .card { border: 1px solid var(--surface-outline, #8884);
       border-radius: 8px; padding: 12px; max-width: 760px;
       background: var(--surface-primary);

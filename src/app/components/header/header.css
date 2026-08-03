@@ -10,6 +10,27 @@
 
 .header-page-button {
     padding: 15px 0 0 15px;
+    white-space: nowrap;
+}
+
+/* The toolbar previously relied on fxFlex="grow" from
+   @angular/flex-layout, which is NOT a dependency of this project —
+   the attribute was inert, so nothing pushed the auth controls to the
+   right. This is the real spacer. */
+.header-spacer {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+/* The toolbar is the one piece of chrome that is genuinely
+   viewport-scoped, so it keys off @media rather than a container.
+   It must never force the page wider than the screen. */
+.mat-toolbar-row {
+    display: flex;
+    align-items: center;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding-inline: 8px;
 }
 
 .mat-toolbar {
@@ -145,7 +166,34 @@
     opacity: 0.65;
 }
 
-@media (max-width: 900px) {
+/* Tablet: labels collapse to their icons, the in-context app name
+   drops — the nav still works, it just stops competing for width. */
+@media (max-width: 1023px) {
     .header-nav-label { display: none; }
     .header-app-name { display: none; }
+}
+
+/* Phone: keep only what is reachable-critical — the page title, the
+   two menus (as icons), the theme toggle and the auth action. The
+   assistant toggle and the polari mark are the first to go. */
+@media (max-width: 599px) {
+    .header-polari-icon { display: none; }
+    .header-assistant-toggle { display: none; }
+    .header-page-button {
+        padding: 0 0 0 8px;
+        font-size: 1rem;
+        max-width: 40vw;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .header-register-button,
+    .header-login-button,
+    .header-user-button {
+        min-width: 0;
+        margin-left: 4px;
+        margin-right: 4px;
+        padding: 0 10px;
+    }
+    .header-user-name { max-width: 72px; }
+    .header-nav-button { margin-left: 0; padding: 0 6px; min-width: 0; }
 }

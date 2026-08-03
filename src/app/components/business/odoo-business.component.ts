@@ -188,12 +188,7 @@ import { OdooBusinessService } from '@services/odoo-business.service';
       padding-left: 18px; color: var(--text-on-card-muted); }
     .plan { margin-top: 8px; font-size: 12px; }
     .plan code { font-size: 11px; }
-    .rows { border-collapse: collapse; font-size: 12px;
-      width: 100%; }
-    .rows td { border-bottom: 1px solid var(--border-light);
-      padding: 3px 8px 3px 0; }
-    .rows .head td { color: var(--text-on-card-muted);
-      font-size: 11px; }
+    /* .rows base recipe lives in _table-patterns.css */
     .num { text-align: right; }
     .kind { color: var(--text-on-card-muted); font-size: 11px; }
     .verdict { margin-top: 8px; font-size: 12px; padding: 8px;

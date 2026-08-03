@@ -13,7 +13,7 @@
 <mat-sidenav-container>
     <header [currentComponentTitle]="currentComponentTitle"></header>
 
-    <mat-sidenav [(opened)]="sideNavOpened" #sidenav mode="side" >
+    <mat-sidenav [(opened)]="sideNavOpened" #sidenav [mode]="navMode">
           <mat-nav-list>
             <!-- nav-3: the app in context leverages the side menu —
                  its full map renders first; the base (core) nav stays
@@ -27,7 +27,7 @@
 
             <ng-container *ngIf="coreNavExpanded">
             <!-- Static Navigation Items -->
-            <mat-list-item *ngFor="let navComp of staticNavComponents" (click)="pageNav(navComp)">
+            <mat-list-item *ngFor="let navComp of staticNavComponents" (click)="pageNav(navComp); closeNavIfOverlay()">
                {{ navComp.title }}
             </mat-list-item>
 
@@ -48,7 +48,7 @@
                 </mat-list-item>
                 <div *ngIf="objectPagesSubExpanded.framework" class="sub-dropdown-items sub-framework-items">
                     <mat-list-item *ngFor="let classNav of getObjectPagesByCategory('framework')"
-                        (click)="navigateToClassPage(classNav)" class="dropdown-item sub-dropdown-item">
+                        (click)="navigateToClassPage(classNav); closeNavIfOverlay()" class="dropdown-item sub-dropdown-item">
                         <span class="dropdown-item-text">{{ classNav.title }}</span>
                     </mat-list-item>
                 </div>
@@ -61,7 +61,7 @@
                 </mat-list-item>
                 <div *ngIf="objectPagesSubExpanded.custom" class="sub-dropdown-items sub-custom-items">
                     <mat-list-item *ngFor="let classNav of getObjectPagesByCategory('custom')"
-                        (click)="navigateToClassPage(classNav)" class="dropdown-item sub-dropdown-item">
+                        (click)="navigateToClassPage(classNav); closeNavIfOverlay()" class="dropdown-item sub-dropdown-item">
                         <span class="dropdown-item-text">{{ classNav.title }}</span>
                     </mat-list-item>
                 </div>
@@ -75,7 +75,7 @@
                     </mat-list-item>
                     <div *ngIf="objectPagesSubExpanded[modCat]" class="sub-dropdown-items sub-materials-items">
                         <mat-list-item *ngFor="let classNav of getObjectPagesByCategory(modCat)"
-                            (click)="navigateToClassPage(classNav)" class="dropdown-item sub-dropdown-item">
+                            (click)="navigateToClassPage(classNav); closeNavIfOverlay()" class="dropdown-item sub-dropdown-item">
                             <span class="dropdown-item-text">{{ classNav.title }}</span>
                         </mat-list-item>
                     </div>
@@ -100,7 +100,7 @@
                 </mat-list-item>
                 <div *ngIf="unusedPagesSubExpanded.framework" class="sub-dropdown-items sub-framework-items">
                     <mat-list-item *ngFor="let classNav of getUnusedPagesByCategory('framework')"
-                        (click)="navigateToClassPage(classNav)" class="dropdown-item sub-dropdown-item unused-item">
+                        (click)="navigateToClassPage(classNav); closeNavIfOverlay()" class="dropdown-item sub-dropdown-item unused-item">
                         <span class="dropdown-item-text">{{ classNav.title }}</span>
                     </mat-list-item>
                 </div>
@@ -113,7 +113,7 @@
                 </mat-list-item>
                 <div *ngIf="unusedPagesSubExpanded.custom" class="sub-dropdown-items sub-custom-items">
                     <mat-list-item *ngFor="let classNav of getUnusedPagesByCategory('custom')"
-                        (click)="navigateToClassPage(classNav)" class="dropdown-item sub-dropdown-item unused-item">
+                        (click)="navigateToClassPage(classNav); closeNavIfOverlay()" class="dropdown-item sub-dropdown-item unused-item">
                         <span class="dropdown-item-text">{{ classNav.title }}</span>
                     </mat-list-item>
                 </div>
@@ -127,7 +127,7 @@
                     </mat-list-item>
                     <div *ngIf="unusedPagesSubExpanded[modCat]" class="sub-dropdown-items sub-materials-items">
                         <mat-list-item *ngFor="let classNav of getUnusedPagesByCategory(modCat)"
-                            (click)="navigateToClassPage(classNav)" class="dropdown-item sub-dropdown-item unused-item">
+                            (click)="navigateToClassPage(classNav); closeNavIfOverlay()" class="dropdown-item sub-dropdown-item unused-item">
                             <span class="dropdown-item-text">{{ classNav.title }}</span>
                         </mat-list-item>
                     </div>

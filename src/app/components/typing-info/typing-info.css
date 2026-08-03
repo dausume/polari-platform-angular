@@ -235,7 +235,7 @@ mat-card-subtitle {
   }
 
   .summary-stats {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
   }
 
   .occupation-grid {

@@ -44,7 +44,7 @@ const POPUP_OVERLAY_HEIGHT = 600;
     `,
     styles: [`
         .run-engine-model-overlay-popup {
-            width: 880px;
+            width: min(880px, calc(100vw - 2 * var(--page-pad)));
             max-width: 95vw;
             max-height: 90vh;
             overflow: auto;

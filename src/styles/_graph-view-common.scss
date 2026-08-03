@@ -1,0 +1,280 @@
+// =================================================================
+// GRAPH VIEW COMMON — the shared "graph on a dotted canvas with a
+// legend and a drill-in drawer" layout.
+//
+// topology-graph-view, tech-tree-view and msim-graph-view were three
+// copies of this (the topology file's own header says it was "cloned
+// from the msim composition graph"). They stay separate components —
+// their SVG vocabularies are genuinely different — but the SHELL is
+// one thing and now lives here.
+//
+// Consumed with `@use '../../../styles/graph-view-common';`.
+//
+// Responsive behaviour: the shell keys off the CONTAINER, not the
+// viewport, so it also lays out correctly when rasterized into a
+// MeshHTML panel (which has a fixed off-viewport size — see
+// _responsive.css). Below ~900px of container width the drawer stops
+// being a side panel and stacks under the canvas.
+//
+// Colors come from tokens only; segment/status colors belong to the
+// component that owns that vocabulary.
+// =================================================================
+
+.graph-shell {
+  position: relative;
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+  align-items: flex-start;
+}
+
+.graph-canvas {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--border-medium);
+  border-radius: 12px;
+  background-color: var(--surface-primary);
+  // The no-code editors' dotted grid.
+  background-image: radial-gradient(circle, var(--chart-grid) 1px, transparent 1px);
+  background-size: 22px 22px;
+  overflow: hidden;
+}
+
+.graph-svg {
+  display: block;
+  width: 100%;
+  // Height follows the device class: a phone gets a shorter canvas,
+  // a wide screen and an XR panel get a taller one.
+  height: var(--graph-height);
+}
+
+// ---- Legend -------------------------------------------------------
+// The legend floats over the canvas. Mark colors live on the SWATCH;
+// the LABEL rides the theme text color, so pale kinds stay readable
+// in both themes.
+.graph-legend {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  right: 12px;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--text-on-card-muted);
+  background: color-mix(in srgb, var(--surface-primary) 88%, transparent);
+  border-radius: 8px;
+  padding: 4px 10px;
+
+  .legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  // Line kinds.
+  .swatch {
+    width: 18px;
+    height: 0;
+    border-top: 2px solid currentColor;
+  }
+  .swatch.dashed { border-top-style: dashed; }
+
+  // Circle vocabulary: dot = classification; dashed = transient copy.
+  .dot {
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    border: 2px solid currentColor;
+    background: transparent;
+  }
+  .dot.dashed { border-style: dashed; }
+
+  // Square vocabulary: category / segment band.
+  .square {
+    width: 11px;
+    height: 11px;
+    border-radius: 3px;
+    border: 2px solid currentColor;
+    background: color-mix(in srgb, currentColor 18%, transparent);
+  }
+  .square.dashed {
+    border-style: dashed;
+    background: transparent;
+  }
+
+  .legend-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    padding: 1px 8px;
+    border-radius: 10px;
+    border: 1px solid var(--border-dark);
+    background: var(--surface-primary);
+    color: var(--text-on-card-muted);
+    cursor: pointer;
+
+    &.off { opacity: 0.45; text-decoration: line-through; }
+    &.key { font-family: monospace; }
+  }
+
+  .legend-hint {
+    color: var(--text-on-card-muted);
+    font-style: italic;
+  }
+}
+
+// On a narrow container the floating legend would cover the graph;
+// let it sit above the canvas instead.
+@container (max-width: 599px) {
+  .graph-legend {
+    position: static;
+    background: var(--surface-secondary);
+    margin-bottom: 8px;
+  }
+}
+
+// ---- Drill-in drawer ---------------------------------------------
+.graph-drawer {
+  width: var(--drawer-width);
+  flex: none;
+  border: 1px solid var(--border-medium);
+  border-radius: 12px;
+  background: var(--surface-primary);
+  padding: 12px 14px;
+  max-height: var(--graph-height);
+  overflow-y: auto;
+  box-sizing: border-box;
+
+  .drawer-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    font-size: 15px;
+
+    span { flex: 1; word-break: break-all; }
+  }
+
+  .drawer-sub {
+    font-size: 12.5px;
+    color: var(--text-on-card-muted);
+    margin: 6px 0;
+  }
+
+  .drawer-section {
+    margin-top: 12px;
+
+    h4 {
+      margin: 0 0 6px;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-on-card-muted);
+    }
+  }
+
+  .drawer-line {
+    display: flex;
+    gap: 6px;
+    align-items: baseline;
+    flex-wrap: wrap;
+    font-size: 12px;
+    padding: 2px 0;
+
+    &.gap { border-bottom: 1px dashed var(--border-light); }
+    em {
+      color: var(--text-on-card-muted);
+      font-style: normal;
+      font-weight: 600;
+    }
+  }
+
+  .muted {
+    color: var(--text-tertiary);
+    font-size: 11px;
+  }
+
+  .kv-table {
+    width: 100%;
+    font-size: 12px;
+    border-collapse: collapse;
+
+    td {
+      padding: 2px 0;
+      border-bottom: 1px dashed var(--border-light);
+    }
+    .k { color: var(--text-on-card-muted); padding-right: 8px; }
+    .v {
+      text-align: right;
+      font-family: monospace;
+      word-break: break-all;
+    }
+  }
+
+  .drawer-chip {
+    display: inline-block;
+    background: var(--surface-secondary);
+    color: var(--text-on-card-muted);
+    border-radius: 10px;
+    padding: 1px 8px;
+    font-size: 11px;
+    margin: 0 4px 4px 0;
+
+    &.link {
+      text-decoration: none;
+      cursor: pointer;
+      &:hover { text-decoration: underline; }
+    }
+    &.done,
+    &.status.resolved {
+      background: var(--color-success-bg);
+      color: var(--color-success-text);
+    }
+    &.undone,
+    &.status.unresolved {
+      background: var(--color-error-bg);
+      color: var(--color-error-text);
+    }
+    &.status.degraded {
+      background: var(--color-warn-bg);
+      color: var(--color-warn-text);
+    }
+    &.module {
+      background: var(--color-info-bg);
+      color: var(--color-info-text);
+    }
+    &.transient {
+      background: transparent;
+      border: 1px dashed var(--border-dark);
+      color: var(--text-on-card-muted);
+    }
+  }
+}
+
+// Narrow container: the drawer stops competing with the graph for
+// width and becomes a full-width panel underneath it.
+@container (max-width: 899px) {
+  .graph-shell { flex-direction: column; }
+
+  .graph-drawer {
+    width: 100%;
+    max-height: none;
+  }
+}
+
+// ---- Shared SVG label recipe -------------------------------------
+// Labels drawn ON marks need a halo in the canvas color: the fill
+// beneath them varies with the mark, so neither a light nor a dark
+// text color works everywhere. paint-order puts the stroke behind
+// the glyph, giving each label its own outline.
+@mixin svg-label-halo($width: 2.5px) {
+  paint-order: stroke;
+  stroke: var(--surface-primary);
+  stroke-width: $width;
+  stroke-linejoin: round;
+}

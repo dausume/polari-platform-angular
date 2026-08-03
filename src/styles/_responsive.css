@@ -1,0 +1,282 @@
+/* =================================================================
+   RESPONSIVE FOUNDATION — device classes as tokens
+   =================================================================
+
+   Four device classes the suite targets, plus one that is not a
+   viewport at all:
+
+     phone     <= 599px    one column, chrome collapses, nav overlays
+     tablet    600-1023px  one-to-two columns, nav still overlays
+     standard  1024-1899px the default desktop working size
+     wide      >= 1900px   more columns + wider reading measure
+     mesh      MeshHTML / WebXR (HTMLMesh)
+
+   MESH IS NOT A WIDTH. The XR path rasterizes a DOM element that
+   lives off-viewport at a FIXED pixel size (900x700 for panel:main,
+   380-720 for the side panels — see xr-panel-host.component.ts). A
+   viewport media query inside that element reports the flat browser
+   window, which has nothing to do with the panel it is being drawn
+   into. So mesh is signalled by the .xr-panel-context CLASS, and
+   panel-internal layout keys off CONTAINER width, never viewport.
+
+   THE RULE FOR COMPONENTS:
+     - Adapt with @container against a `.rc` ancestor, not @media.
+       The same rule then works flat AND inside a mesh panel.
+     - Reach for the responsive tokens below before writing any query
+       of your own; most layouts need no query at all.
+     - @media is for the APP SHELL only (sidenav mode, toolbar) —
+       genuinely viewport-scoped chrome.
+
+   Tokens here carry SIZE. Color stays in _variables.css /
+   _theme-dark.css, so light and dark are unaffected by device class
+   and the two systems never have to know about each other.
+   ================================================================= */
+
+:root {
+  /* --- Device-class breakpoints (documented so the numbers below
+         are never re-guessed; CSS cannot use var() in a query
+         condition, so the literals are repeated in the queries and
+         MUST be kept in step with these). --- */
+  --bp-phone-max: 599px;
+  --bp-tablet-min: 600px;
+  --bp-tablet-max: 1023px;
+  --bp-standard-min: 1024px;
+  --bp-wide-min: 1900px;
+
+  /* --- Responsive size tokens: the standard (default) scale. --- */
+
+  /* Page shell */
+  --page-pad: 20px;
+  --page-pad-block: 16px;
+  --page-max-width: 1200px;
+  --page-gap: 16px;
+
+  /* The comfortable reading measure for prose (intros, hints). */
+  --prose-max-width: 800px;
+
+  /* Card grids. Columns are derived, never hardcoded: a grid asks
+     for as many --grid-min-col columns as fit. */
+  --grid-min-col: 320px;
+  --grid-gap: 16px;
+
+  /* Surfaces */
+  --card-pad: 16px;
+  --card-radius: 12px;
+
+  /* Split views (graph + drill-in drawer, rail + editor) */
+  --drawer-width: 300px;
+  --rail-width: 260px;
+  --graph-height: 520px;
+
+  /* Dialogs / popups: never wider than the screen allows. */
+  --popup-max-width: 880px;
+
+  /* Multiplier for type inside rasterized panels; 1 everywhere else. */
+  --font-scale: 1;
+}
+
+/* ---------------- phone ---------------- */
+@media (max-width: 599px) {
+  :root {
+    --page-pad: 12px;
+    --page-pad-block: 12px;
+    --page-gap: 12px;
+    --grid-min-col: 100%;
+    --grid-gap: 12px;
+    --card-pad: 12px;
+    --card-radius: 10px;
+    --drawer-width: 100%;
+    --rail-width: 100%;
+    --graph-height: 320px;
+    --popup-max-width: 100%;
+  }
+}
+
+/* ---------------- tablet ---------------- */
+@media (min-width: 600px) and (max-width: 1023px) {
+  :root {
+    --page-pad: 16px;
+    --grid-min-col: 280px;
+    --card-pad: 14px;
+    --drawer-width: 260px;
+    --rail-width: 220px;
+    --graph-height: 420px;
+    --popup-max-width: 92vw;
+  }
+}
+
+/* ---------------- wide ---------------- */
+@media (min-width: 1900px) {
+  :root {
+    --page-pad: 28px;
+    --page-max-width: 1680px;
+    --grid-min-col: 360px;
+    --grid-gap: 20px;
+    --card-pad: 20px;
+    --drawer-width: 380px;
+    --rail-width: 320px;
+    --graph-height: 680px;
+  }
+}
+
+/* ---------------- mesh (MeshHTML / WebXR) ----------------
+   A panel is drawn at a fixed size and viewed at reading distance in
+   a headset, so: nothing is cramped (the constraint lift lives in
+   _xr-panel-context.css), type runs larger because these are texture
+   pixels, and the layout is free to use the panel's full width — it
+   is display space, not a window someone has to scroll.
+   Scoped to the class, NOT to a width. */
+.xr-panel-context {
+  --page-pad: 24px;
+  --page-pad-block: 20px;
+  --page-max-width: none;
+  --prose-max-width: none;
+  --grid-min-col: 300px;
+  --grid-gap: 20px;
+  --card-pad: 20px;
+  --card-radius: 14px;
+  --drawer-width: 340px;
+  --graph-height: 640px;
+  --popup-max-width: 100%;
+  --font-scale: 1.15;
+}
+
+/* =================================================================
+   Container root
+   Mark any element that should act as a size context for its
+   subtree. Components then use @container instead of @media and
+   behave correctly in BOTH a browser viewport and a mesh panel.
+   ================================================================= */
+.rc {
+  container-type: inline-size;
+}
+
+/* The app content area and every XR panel surface are container
+   roots, so page content always has one to measure against. */
+.mat-drawer-content,
+.mat-sidenav-content,
+.xr-panel-context {
+  container-type: inline-size;
+}
+
+/* =================================================================
+   Named container breakpoints
+   The same four classes, measured against the CONTAINER. Use these
+   in components:  @container (max-width: 600px) { … }
+   Sizes match the viewport classes so a 390px panel and a 390px
+   phone lay out identically — which is the whole point.
+   ================================================================= */
+
+/* Below tablet: single column, stacked. */
+@container (max-width: 599px) {
+  .rc-stack-on-narrow {
+    flex-direction: column !important;
+  }
+  .rc-hide-on-narrow {
+    display: none !important;
+  }
+  .rc-full-on-narrow {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: none !important;
+  }
+}
+
+/* =================================================================
+   Shared responsive layout primitives
+   These replace the hand-rolled page/grid/split recipes that were
+   re-implemented per component.
+   ================================================================= */
+
+/* Page shell — every page's outermost wrapper. */
+.page-shell {
+  padding: var(--page-pad-block) var(--page-pad) calc(var(--page-pad-block) * 1.75);
+  max-width: var(--page-max-width);
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+/* Prose blocks (intro / subtitle / hint) get a reading measure, not
+   the full page width. */
+.prose-measure {
+  max-width: var(--prose-max-width);
+}
+
+/* Auto-fitting card grid. `min(100%, …)` is what stops a grid from
+   blowing out its container on a phone: without it a track can never
+   shrink below its own min-content and the row overflows. */
+.auto-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--grid-min-col)), 1fr));
+  gap: var(--grid-gap);
+}
+
+/* Grid children must be allowed to shrink; `min-width: auto` (the
+   default) is the other half of the blowout above. */
+.auto-grid > * {
+  min-width: 0;
+}
+
+/* Split view: a main area beside a fixed-ish side panel, which
+   becomes stacked when the CONTAINER (not the window) is narrow. */
+.split-view {
+  display: flex;
+  gap: var(--page-gap);
+  align-items: flex-start;
+}
+
+.split-view > .split-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.split-view > .split-side {
+  flex: none;
+  width: var(--drawer-width);
+  max-width: 100%;
+}
+
+@container (max-width: 899px) {
+  .split-view {
+    flex-direction: column;
+  }
+  .split-view > .split-side {
+    width: 100%;
+  }
+}
+
+/* Any wide, irreducible content (tables, code, diagrams) scrolls
+   INSIDE its own box so the page itself never scrolls sideways. */
+.scroll-x {
+  overflow-x: auto;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Popups/dialogs: honor the design width but never exceed the
+   screen. Replaces the hardcoded 880/900px panel widths. */
+.popup-width {
+  width: var(--popup-max-width);
+  max-width: calc(100vw - 2 * var(--page-pad));
+  box-sizing: border-box;
+}
+
+/* =================================================================
+   Global overflow safety
+   A page may never scroll sideways; wide content scrolls in its own
+   container (.scroll-x above). This is the backstop that turns a
+   silent clipped layout into a visibly scrollable one.
+   ================================================================= */
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* Media and embedded content never dictate a minimum page width. */
+img,
+video,
+canvas,
+svg {
+  max-width: 100%;
+}

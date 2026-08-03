@@ -1,0 +1,152 @@
+/* =================================================================
+   CHIP PATTERNS — one small labelled token, three shapes.
+
+   `.chip` / `.badge` / `.tag` / `.pill` had ~25 independent base
+   declarations across the app, all saying roughly the same thing in
+   slightly different numbers. The BASE is defined once here; what a
+   component still owns is which STATE a given chip is in.
+
+   Global sheet on purpose: Angular scopes a component's own styles,
+   but global rules match inside components, so one definition can
+   serve every existing `.chip` without touching a template.
+
+   Three shapes, by purpose:
+     .chip            filled — a value or a status readout
+     .chip-outline    outlined — an identity/among-peers marker
+     .chip-strong     filled + bold — a verdict that must be noticed
+
+   State modifiers map onto the semantic token pairs, so every chip
+   is correct in BOTH themes by construction; a chip never picks a
+   raw color.
+   ================================================================= */
+
+.chip,
+.badge,
+.tag,
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  line-height: 1.6;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: var(--surface-secondary);
+  color: var(--text-on-card-muted);
+  white-space: nowrap;
+  box-sizing: border-box;
+  /* Long identifiers must not push a row wider than its container. */
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chip-outline {
+  background: transparent;
+  border: 1px solid var(--border-dark);
+}
+
+.chip-strong {
+  font-weight: 700;
+}
+
+/* ---- Semantic states -------------------------------------------
+   Each pairs a semantic background with its matching text token, so
+   the pair moves together between themes and can never split. */
+
+.chip.is-ok,
+.chip.ok,
+.chip.pass,
+.chip.done,
+.chip.on,
+.badge.is-ok,
+.tag.is-ok {
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
+}
+
+.chip.is-error,
+.chip.bad,
+.chip.fail,
+.chip.blocked,
+.badge.is-error,
+.tag.is-error {
+  background: var(--color-error-bg);
+  color: var(--color-error-text);
+}
+
+.chip.is-warn,
+.chip.warn,
+.badge.is-warn,
+.tag.is-warn {
+  background: var(--color-warn-bg);
+  color: var(--color-warn-text);
+}
+
+.chip.is-info,
+.chip.info,
+.badge.is-info,
+.tag.is-info {
+  background: var(--color-info-bg);
+  color: var(--color-info-text);
+}
+
+.chip.is-muted,
+.chip.muted {
+  background: var(--surface-secondary);
+  color: var(--text-tertiary);
+}
+
+/* Outlined variants keep the state color as the outline + text and
+   leave the fill transparent — the "among peers" reading.
+   The short legacy names (.ok/.warn/.bad/.on) are carried alongside
+   the .is-* names so existing templates keep working. */
+.chip-outline.is-ok,
+.chip-outline.ok,
+.chip-outline.on,
+.chip-outline.pass,
+.chip-outline.done {
+  border-color: var(--color-success-text);
+  color: var(--color-success-text);
+  background: transparent;
+}
+
+.chip-outline.is-error,
+.chip-outline.bad,
+.chip-outline.fail,
+.chip-outline.blocked {
+  border-color: var(--color-error-text);
+  color: var(--color-error-text);
+  background: transparent;
+}
+
+.chip-outline.is-warn,
+.chip-outline.warn {
+  border-color: var(--color-warn-text);
+  color: var(--color-warn-text);
+  background: transparent;
+}
+
+.chip-outline.is-info,
+.chip-outline.info {
+  border-color: var(--color-info-text);
+  color: var(--color-info-text);
+  background: transparent;
+}
+
+/* A plain source/kind marker: outline only, muted label. */
+.chip-outline.src,
+.chip-outline.kind {
+  color: var(--text-on-card-muted);
+  background: transparent;
+}
+
+/* A row of chips wraps rather than forcing its container wide —
+   the phone/mesh-panel failure mode for chip lists. */
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+}

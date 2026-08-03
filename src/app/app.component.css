@@ -51,24 +51,38 @@ mat-sidenav-container {
 
   mat-sidenav {
     background-color: var(--nav-color);
-    min-width: 350px;
-    width: auto;
-    max-width: 20%;
-    height:vmax;
+    /* Was min-width:350px + max-width:20%, which on a phone claimed
+       nearly the whole screen and, in push mode, left no content at
+       all. Width now tracks the device class and never exceeds the
+       viewport; the mode itself flips to "over" below 1024px
+       (app.component.ts). */
+    width: min(350px, 85vw);
+    max-width: 85vw;
+    box-sizing: border-box;
+    height: vmax;
     padding: 16px;
+  }
+
+  @media (min-width: 1900px) {
+    mat-sidenav { width: 400px; max-width: 22vw; }
   }
 
   router-outlet {
     display: none; /* router-outlet itself doesn't render content */
   }
 
-  /* Style the component inserted after router-outlet */
+  /* Style the component inserted after router-outlet.
+     Padding follows the device class; min-width:0 is what lets a
+     flex child actually shrink (its default min-width:auto is why
+     wide content used to force the page sideways). */
   router-outlet + * {
     display: flex;
     flex-direction: column;
     flex: 1;
+    min-width: 0;
+    max-width: 100%;
     min-height: calc(100vh - 100px); /* Account for header height */
-    padding: 16px;
+    padding: var(--page-pad-block) var(--page-pad);
     box-sizing: border-box;
   }
 

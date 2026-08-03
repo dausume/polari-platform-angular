@@ -1,7 +1,7 @@
 <mat-toolbar>
-    <mat-toolbar-row fxLayout="row">
+    <mat-toolbar-row>
         <img class="header-polari-icon" width=50 height=50 [src]="polariImgUrl">
-        <span class="header-page-button" fxFlex="noshrink">{{currentComponentTitle}}</span>
+        <span class="header-page-button">{{currentComponentTitle}}</span>
 
         <!-- nav-3 base top nav: ALWAYS present — enter apps, reach
              the higher-level views (topology, modules, trees...). -->
@@ -51,7 +51,7 @@
             </ng-container>
         </ng-container>
 
-        <span fxFlex="grow"></span>
+        <span class="header-spacer"></span>
 
         <button mat-icon-button (click)="toggleAssistant()" class="header-assistant-toggle"
                 [color]="assistant.open() ? 'accent' : ''"

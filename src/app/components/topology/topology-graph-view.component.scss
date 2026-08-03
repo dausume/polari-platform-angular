@@ -1,78 +1,16 @@
-// Topology graph view — instances as card nodes on the no-code
-// editors' dotted canvas (cloned from the msim composition graph).
+// Topology graph view — instances as card nodes on the shared graph
+// canvas. The shell (canvas, legend, drawer, responsive stacking)
+// comes from _graph-view-common; what stays here is the node/edge
+// SVG vocabulary that is specific to a topology graph, plus the
+// move-planner controls in the drawer.
+@use '../../../styles/graph-view-common' as graph;
 
-.graph-shell {
-  position: relative;
-  display: flex;
-  gap: 12px;
-  margin-top: 12px;
-}
-
-.graph-canvas {
-  position: relative;
-  flex: 1;
-  min-width: 0;
-  border: 1px solid var(--border-medium);
-  border-radius: 12px;
-  background-color: var(--surface-primary);
-  background-image: radial-gradient(circle,
-    var(--chart-grid) 1px, transparent 1px);
-  background-size: 22px 22px;
-  overflow: hidden;
-}
-
-.graph-svg {
-  display: block;
-  width: 100%;
-  height: 520px;
-}
-
+// ---- Legend modifiers (topology vocabulary) ----
 .graph-legend {
-  position: absolute;
-  top: 10px;
-  left: 12px;
-  right: 12px;
-  z-index: 2;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  align-items: center;
-  font-size: 12px;
-  color: var(--text-on-card-muted);
-  background: color-mix(in srgb, var(--surface-primary) 88%, transparent);
-  border-radius: 8px;
-  padding: 4px 10px;
-
-  .legend-item { display: inline-flex; align-items: center; gap: 5px; }
-  .swatch { width: 18px; height: 0; border-top: 2px solid currentColor; }
-  .swatch.dashed { border-top-style: dashed; }
-  // circle vocabulary (tt-2): dot = module classification;
-  // dashed dot = transient dependency copy
-  .dot {
-    width: 11px; height: 11px; border-radius: 50%;
-    border: 2px solid currentColor; background: transparent;
-  }
-  .dot.dashed { border-style: dashed; }
-  // tt-14 category swatches (polari / integrated app / auth / db)
-  .square {
-    width: 11px; height: 11px; border-radius: 3px;
-    border: 2px solid currentColor;
-    background: color-mix(in srgb, currentColor 18%, transparent);
-  }
   .legend-item.transient { color: var(--text-on-card-muted); }
   .legend-item.resolved { color: var(--color-success-text); }
   .legend-item.unresolved { color: var(--color-error-text); }
   .legend-item.degraded { color: var(--color-warn-text); }
-  .legend-toggle {
-    display: inline-flex; align-items: center; gap: 5px;
-    font-size: 11px; padding: 1px 8px; border-radius: 10px;
-    border: 1px solid var(--border-dark);
-    background: var(--surface-primary);
-    color: var(--text-on-card-muted); cursor: pointer;
-    &.off { opacity: 0.45; text-decoration: line-through; }
-    &.key { font-family: monospace; }
-  }
-  .legend-hint { color: var(--text-on-card-muted); font-style: italic; }
 }
 
 // ---- SVG node/edge styling (::ng-deep — d3 renders outside Angular) ----
@@ -136,85 +74,14 @@
   }
 }
 
-// ---- Drill-in drawer ----
+// ---- Drawer extras: the graceful-move planner (topology only) ----
 .graph-drawer {
-  width: 300px;
-  flex: none;
-  border: 1px solid var(--border-medium);
-  border-radius: 12px;
-  background: var(--surface-primary);
-  padding: 12px 14px;
-  max-height: 520px;
-  overflow-y: auto;
-
-  .drawer-title {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-weight: 600;
-    font-size: 15px;
-    span { flex: 1; word-break: break-all; }
-  }
-  .drawer-sub { font-size: 12.5px; color: var(--text-on-card-muted); margin: 6px 0; }
-  .drawer-section {
-    margin-top: 12px;
-    h4 { margin: 0 0 6px; font-size: 12px; text-transform: uppercase;
-      letter-spacing: 0.04em; color: var(--text-on-card-muted); }
-  }
-  .drawer-line {
-    display: flex; gap: 6px; align-items: baseline;
-    flex-wrap: wrap; font-size: 12px; padding: 2px 0;
-  }
-  .muted { color: var(--text-tertiary); font-size: 11px; }
-  .kv-table {
-    width: 100%;
-    font-size: 12px;
-    border-collapse: collapse;
-    td { padding: 2px 0; border-bottom: 1px dashed var(--border-light); }
-    .k { color: var(--text-on-card-muted); padding-right: 8px; }
-    .v { text-align: right; font-family: monospace; word-break: break-all; }
-  }
-  .drawer-chip {
-    display: inline-block;
-    background: var(--surface-secondary);
-    color: var(--text-on-card-muted);
-    border-radius: 10px;
-    padding: 1px 8px;
-    font-size: 11px;
-    margin: 0 4px 4px 0;
-    &.module {
-      background: var(--color-info-bg, #e3f2fd);
-      color: var(--color-info-text, #1565c0);
-    }
-    &.link {
-      text-decoration: none;
-      cursor: pointer;
-      &:hover { text-decoration: underline; }
-    }
-    &.status.resolved {
-      background: var(--color-success-bg, #e8f5e9);
-      color: var(--color-success-text, #1b5e20);
-    }
-    &.status.unresolved {
-      background: var(--color-error-bg, #fbe9e7);
-      color: var(--color-error-text, #bf360c);
-    }
-    &.status.degraded {
-      background: var(--color-warn-bg, #fff8e1);
-      color: var(--color-warn-text, #8d6e00);
-    }
-    &.transient {
-      background: transparent;
-      border: 1px dashed var(--border-dark);
-      color: var(--text-on-card-muted);
-    }
-  }
   .move-row {
     display: flex; align-items: center; gap: 8px;
     padding: 3px 0; font-size: 12px;
     label { width: 84px; color: var(--text-on-card-muted); }
     select {
-      flex: 1; font-size: 12px; padding: 3px 6px;
+      flex: 1; min-width: 0; font-size: 12px; padding: 3px 6px;
       border-radius: 6px;
       border: 1px solid var(--border-medium);
       background: var(--surface-primary);
@@ -248,10 +115,8 @@
       padding: 0 5px; font-size: 10.5px;
     }
   }
-  .drawer-chip {
-    &.classification {
-      background: transparent;
-      border: 1px solid currentColor;
-    }
+  .drawer-chip.classification {
+    background: transparent;
+    border: 1px solid currentColor;
   }
 }

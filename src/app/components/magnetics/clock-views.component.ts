@@ -35,7 +35,7 @@ import { ClockSceneComponent } from './clock-scene.component';
               [class.active]="v.name === current"
               (click)="select(v.name)">
         {{ v.displayName }}
-        <span class="chip" *ngIf="v.scaleSupport === 'any-scale'">
+        <span class="chip chip-outline" *ngIf="v.scaleSupport === 'any-scale'">
           any scale</span>
       </button>
     </div>
@@ -77,7 +77,7 @@ import { ClockSceneComponent } from './clock-scene.component';
       <div class="card sec" *ngFor="let s of view.sections">
         <div class="sec-head">
           <b>{{ s.section }}</b>
-          <span class="chip src">{{ s.source }}</span>
+          <span class="chip chip-outline src">{{ s.source }}</span>
         </div>
         <!-- nav-4: the section LEADS with its insight + links into
              the visuals; the payload is the expander, not the face. -->
@@ -86,7 +86,7 @@ import { ClockSceneComponent } from './clock-scene.component';
           <button class="lnk" *ngFor="let lk of s.links"
                   (click)="goLink(lk)">
             {{ lk.label }}
-            <span class="chip kind">{{ lk.kind }}</span>
+            <span class="chip chip-outline kind">{{ lk.kind }}</span>
           </button>
         </div>
         <ng-container *ngIf="s.payload; else refused">
@@ -98,7 +98,7 @@ import { ClockSceneComponent } from './clock-scene.component';
               <th>blockers</th><th>gaps</th></tr>
             <tr *ngFor="let r of s.payload.summary">
               <td>{{ r.scale }}</td>
-              <td><span class="chip" [class.ok]="r.verdict === 'feasible'"
+              <td><span class="chip chip-outline" [class.ok]="r.verdict === 'feasible'"
                     [class.warn]="r.verdict === 'unassessed'"
                     [class.bad]="r.verdict === 'blocked'">
                   {{ r.verdict }}</span></td>
@@ -133,7 +133,7 @@ import { ClockSceneComponent } from './clock-scene.component';
                       && s.payload.requirements[0].slot">
             <div class="part" *ngFor="let r of s.payload.requirements">
               <div class="part-head"><b>{{ r.slot }}</b>
-                <span class="chip fn">{{ r.archetype }}</span></div>
+                <span class="chip chip-outline fn">{{ r.archetype }}</span></div>
               <div class="nums" *ngIf="r.demands">
                 {{ stringify(r.demands) }}</div>
               <div class="hint">viable: {{ r.materialCandidates?.join(', ')
@@ -159,7 +159,7 @@ import { ClockSceneComponent } from './clock-scene.component';
             <tr><th>what</th><th>value</th><th>what it means</th></tr>
             <tr *ngFor="let h of s.payload.headline">
               <td>{{ h.label }}</td>
-              <td class="nums"><span class="chip"
+              <td class="nums"><span class="chip chip-outline"
                     [class.ok]="h.verdict === 'ok'"
                     [class.warn]="h.verdict === 'warn'"
                     [class.bad]="h.verdict === 'bad'"
@@ -237,12 +237,10 @@ import { ClockSceneComponent } from './clock-scene.component';
     .sec { flex: 1 1 420px; min-width: 340px; }
     .sec-head { display: flex; gap: 8px; align-items: center;
       margin-bottom: 6px; }
-    .chip { border: 1px solid var(--surface-outline, #8884);
-      border-radius: 10px; padding: 0 8px; font-size: 0.76em; }
-    .chip.src { color: var(--text-on-card-muted); }
-    .chip.fn { border-color: #46f; color: #46f; }
-    .chip.ok { border-color: #2a4; color: #2a4; }
-    .chip.warn { border-color: #c80; color: #c80; }
+    /* base chip recipe + semantic states live in
+       _chip-patterns.css; .fn is this page's own identity marker */
+    .chip.fn { border-color: var(--color-info-text);
+      color: var(--color-info-text); }
     .chip.bad { border-color: #d33; color: #d33; }
     .label { color: var(--text-on-card-muted); font-size: 0.8em;
       text-transform: uppercase; letter-spacing: 0.04em; }

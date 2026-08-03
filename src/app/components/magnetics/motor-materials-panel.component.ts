@@ -20,14 +20,14 @@ import { CommonModule } from '@angular/common';
     <div class="slot" *ngFor="let s of trail.slots">
       <div class="slot-head">
         <b>{{ slotLabel(s.slot) }}</b> — {{ s.displayName }}
-        <span class="chip">{{ s.family }}</span>
-        <span class="chip" [class.warn]="s.realizationLevel
+        <span class="chip chip-outline">{{ s.family }}</span>
+        <span class="chip chip-outline" [class.warn]="s.realizationLevel
               === 'theoretical'">{{ s.realizationLevel }}</span>
-        <span class="chip" [class.on]="s.role?.verdict === 'viable'"
+        <span class="chip chip-outline" [class.on]="s.role?.verdict === 'viable'"
               [class.warn]="s.role?.verdict !== 'viable'"
               *ngIf="s.role?.name">
           {{ s.role.name }}: {{ s.role.verdict }}</span>
-        <span class="chip" [class.on]="s.businessAllowed"
+        <span class="chip chip-outline" [class.on]="s.businessAllowed"
               [class.warn]="!s.businessAllowed">
           business {{ s.businessAllowed ? 'OPEN'
                     : 'gated (not made-and-measured)' }}</span>
@@ -43,7 +43,7 @@ import { CommonModule } from '@angular/common';
           <td>{{ p.property }}</td>
           <td class="num">{{ p.value }}</td>
           <td>{{ p.unit }}</td>
-          <td><span class="chip"
+          <td><span class="chip chip-outline"
                 [class.warn]="p.provenance === 'theoretical'"
                 [class.on]="p.provenance === 'measured'">
               {{ p.provenance }}</span></td>
@@ -67,7 +67,7 @@ import { CommonModule } from '@angular/common';
 
       <div class="trail" *ngIf="s.powder">
         <b>powder:</b> <code>{{ s.powder.powderRef }}</code>
-        <span class="chip warn" *ngIf="s.powder.isTheoretical">
+        <span class="chip chip-outline warn" *ngIf="s.powder.isTheoretical">
           THEORETICAL</span>
         <span class="muted">{{ s.powder.notes }}</span>
       </div>
@@ -90,7 +90,7 @@ import { CommonModule } from '@angular/common';
         <span class="muted" *ngIf="!st.itemRef">{{ st.note }}</span>
         <ng-container *ngIf="st.itemRef">
           <code>{{ st.itemRef }}</code>
-          <span *ngIf="st.effectivePrice" class="chip on">
+          <span *ngIf="st.effectivePrice" class="chip chip-outline on">
             {{ st.effectivePrice.usdPerKg }} $/kg via
             {{ st.effectivePrice.via }}</span>
           <div *ngIf="st.citations?.length" class="cites">
@@ -100,7 +100,7 @@ import { CommonModule } from '@angular/common';
               {{ c.price }} {{ c.currency }} /
               {{ c.amount }} {{ c.unit }}
               <span class="muted">({{ c.observedAt }})</span>
-              <span class="chip warn" *ngIf="c.isEstimate">est~
+              <span class="chip chip-outline warn" *ngIf="c.isEstimate">est~
               </span>
             </div>
           </div>
@@ -141,10 +141,8 @@ import { CommonModule } from '@angular/common';
       color: var(--text-on-card); }
     .slot-head { display: flex; gap: 8px; flex-wrap: wrap;
       align-items: center; }
-    .chip { border: 1px solid var(--surface-outline, #8884);
-      border-radius: 10px; padding: 0 8px; font-size: 0.78em; }
-    .chip.on { border-color: #2a2; color: #2a2; }
-    .chip.warn { border-color: #c80; color: #c80; }
+    /* base chip recipe + semantic states live in
+       _chip-patterns.css */
     table.props { border-collapse: collapse; margin: 8px 0;
       font-size: 0.85em; width: 100%; }
     table.props th, table.props td { border-bottom: 1px solid

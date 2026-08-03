@@ -177,19 +177,10 @@
       color: var(--text-on-card-muted);
     }
   }
+  /* Base recipe lives in _table-patterns.css (.gaps-table); only the
+     column-specific bits stay here. */
   .gaps-table {
-    width: 100%; margin-top: 8px; font-size: 12px;
-    border-collapse: collapse;
-    th {
-      text-align: left; font-size: 11px; text-transform: uppercase;
-      letter-spacing: 0.04em; color: var(--text-on-card-muted);
-      padding: 4px 8px 4px 0;
-    }
-    td {
-      padding: 4px 8px 4px 0;
-      border-top: 1px dashed var(--border-light);
-      vertical-align: top;
-    }
+    margin-top: 8px;
     .subject { font-family: monospace; white-space: nowrap; }
     .knob { font-family: monospace; color: var(--text-on-card-muted); }
     .action { color: var(--color-info-text); }
