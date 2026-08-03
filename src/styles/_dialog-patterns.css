@@ -1,0 +1,97 @@
+/* =================================================================
+   DIALOG PATTERNS — a dialog takes the whole screen when the screen
+   is small.
+
+   Almost every remaining wide `min-width` in the app belonged to a
+   modal: 500px pickers, a 600px instance picker, an 880px LaTeX
+   editor, an 800px class editor. Each of those is a control that
+   genuinely NEEDS room — you cannot usefully edit LaTeX or pick from
+   a table in 390px of a floating card.
+
+   A dialog already has a launcher (the button that opened it), so it
+   does not need to collapse into anything. What it needs is the other
+   half: on a phone it stops being a floating card and becomes the
+   screen, which is where the room comes from. This is also the
+   platform-conventional behaviour on mobile.
+
+   Below the tablet breakpoint the pane fills the viewport, the
+   surface loses its rounded corners, and the dialogs' own `min-width`
+   declarations are neutralized — they are sized for a floating card
+   and are exactly what would otherwise force sideways scrolling.
+
+   Sizes only; every color still comes from the theme tokens, so this
+   is identical in light and dark.
+   ================================================================= */
+
+@media (max-width: 599px) {
+  /* The overlay pane Material positions the dialog in. */
+  .cdk-overlay-pane.mat-mdc-dialog-panel,
+  .cdk-overlay-pane:has(> .mat-mdc-dialog-container) {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    margin: 0 !important;
+  }
+
+  .mat-mdc-dialog-container {
+    min-width: 0 !important;
+    height: 100%;
+  }
+
+  .mat-mdc-dialog-container .mat-mdc-dialog-surface {
+    border-radius: 0 !important;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Each dialog component's own root wrapper — .crud-dialog,
+     .latex-edit-dialog, .instance-picker-dialog, .dict-view-container
+     and friends. Targeted as the direct child rather than with a
+     blanket `*` so nothing deeper is disturbed. */
+  .mat-mdc-dialog-surface > * {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+  }
+
+  /* The scrolling body fills whatever is left between header and
+     actions, instead of being capped to a card-sized box. */
+  .mat-mdc-dialog-content,
+  [mat-dialog-content] {
+    max-height: none !important;
+    min-width: 0 !important;
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  /* Action rows wrap rather than pushing the dialog wide. */
+  .mat-mdc-dialog-actions,
+  [mat-dialog-actions] {
+    flex-wrap: wrap;
+  }
+}
+
+/* Tablet: keep the floating card, but never let a dialog's design
+   width exceed the screen. */
+@media (min-width: 600px) and (max-width: 1023px) {
+  .cdk-overlay-pane.mat-mdc-dialog-panel {
+    max-width: 96vw !important;
+  }
+
+  .mat-mdc-dialog-surface > * {
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+}
+
+/* NOTE — a "collapse to a launcher, expand full-screen" primitive was
+   drafted for inline controls too, then dropped: every wide control in
+   this app turned out to be dialog-launched already, and the one
+   exception (the 1200px pspp network diagram) correctly scrolls inside
+   its own wrapper. Shipping an unused primitive is how the existing
+   pattern library ended up with classes nothing references. Add it
+   when a real inline case appears. */

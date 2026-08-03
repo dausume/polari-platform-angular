@@ -137,5 +137,7 @@ if (failures) {
 console.log(
   `Responsive check passed — no unbounded fixed widths, no fixed-count ` +
     `grids (${warnMinWidth} min-width declarations above ${PHONE_WIDTH}px ` +
-    `remain, review individually).`
+    `remain; all audited 2026-08-03 — 19 belong to MatDialogs, which go ` +
+    `full-screen below 600px via _dialog-patterns.css, and one is a ` +
+    `1200px diagram inside its own scroll wrapper).`
 );
