@@ -785,7 +785,26 @@ export class DisplayRendererComponent implements OnInit, OnChanges, AfterViewIni
 
     getTextContent(item: DisplayItem): string {
         if (item.type !== 'text') return '';
-        return item.item as string || '';
+        const content = item.item;
+        if (content === null || content === undefined) return '';
+        if (typeof content === 'string') return content;
+        // `item` is typed `any`, so a text item may legitimately arrive
+        // as an object. Blind-casting it to string rendered the words
+        // "[object Object]" on the page; accept the shapes a configurer
+        // would reasonably write, and fall back to readable JSON rather
+        // than a cast artifact.
+        if (typeof content === 'object') {
+            const named = (content as any).content ?? (content as any).text
+                ?? (content as any).value;
+            if (typeof named === 'string') return named;
+            if (named !== null && named !== undefined) return String(named);
+            try {
+                return JSON.stringify(content);
+            } catch {
+                return '';
+            }
+        }
+        return String(content);
     }
 
     isItemVisible(item: DisplayItem): boolean {
