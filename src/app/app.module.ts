@@ -223,10 +223,12 @@ import { StateOverlayManager } from '@services/no-code-services/state-overlay-ma
 import { StateDefinitionService } from '@services/no-code-services/state-definition.service';
 // Shared CRUD Module for dynamic class editing components
 import { SharedCrudModule, DynamicDataTableComponent } from '@components/shared/shared-crud.module';
+import { InstanceDetailPanelComponent } from '@components/dashboard/generic/instance-detail-panel.component';
 
 
 @NgModule({
   declarations: [
+    InstanceDetailPanelComponent,
     AppComponent,
     PolariConfigComponent,
     templateClassTableComponent,
@@ -467,6 +469,21 @@ export class AppModule {
    * This enables dynamic component loading in the display renderer.
    */
   private registerDisplayComponents(): void {
+    // The SINGLE-REFERENCE half of the display pair: one instance,
+    // rendered through that class's own configured instance display.
+    // class-rows-table is the multi-reference half.
+    registerDisplayComponent('instance-detail-panel', InstanceDetailPanelComponent, {
+      displayName: 'Instance Detail Panel',
+      description: 'ONE instance of a class rendered through that '
+        + 'class\'s default instance display (inputs: className, and '
+        + 'either instanceId or filterField+filterValue; optional '
+        + 'displayId to pin a specific display)',
+      defaultInputs: {
+        className: '', instanceId: '', filterField: '',
+        filterValue: '', displayId: '',
+      },
+    });
+
     // Register templateClassTable for use in displays
     registerDisplayComponent('templateClassTable', templateClassTableComponent, {
       displayName: 'Class Data Table',

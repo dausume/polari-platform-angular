@@ -57,8 +57,27 @@ export class CRUDEclassService {
         );
       }
 
-      readAll(): Observable<any> {
-        return this.http.get(this.classUrl(), this.polariService.backendRequestOptions);
+      /** Read every instance the user may see.
+       *
+       *  `filter` narrows the read server-side by field value
+       *  (`{design_ref: 'clock-lavet-m0'}` -> `?design_ref=...`). The
+       *  backend applies it AFTER its access check, so a filter can
+       *  only ever narrow what is already readable. Unknown field
+       *  names are ignored by the backend rather than matching
+       *  nothing, so a typo degrades to "unfiltered". */
+      readAll(filter?: Record<string, string>): Observable<any> {
+        const options = this.polariService.backendRequestOptions;
+        const entries = Object.entries(filter || {})
+          .filter(([key, value]) => key && value !== null
+            && value !== undefined && String(value).length > 0);
+        if (!entries.length) {
+          return this.http.get(this.classUrl(), options);
+        }
+        const query = entries
+          .map(([key, value]) =>
+            `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
+          .join('&');
+        return this.http.get(`${this.classUrl()}?${query}`, options);
       }
 
       update(id: string, data: any): Observable<any> {

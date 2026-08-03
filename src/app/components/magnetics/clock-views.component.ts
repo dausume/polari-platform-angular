@@ -3,8 +3,39 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule }
   from '@angular/router';
+import { DISPLAY_COMPONENT_REGISTRY }
+  from '@models/dashboards/ComponentRegistry';
 import { MotorsService } from '@services/motors.service';
 import { ClockSceneComponent } from './clock-scene.component';
+import { registerDisplayComponent }
+  from '@models/dashboards/ComponentRegistry';
+import { MotorMaterialsPanelComponent }
+  from './motor-materials-panel.component';
+
+/** Panels this view can dispatch to by name.
+ *
+ *  Registered in the SAME registry the no-code displays use, so a
+ *  seeded DisplayDefinition can drop these onto a page too — the
+ *  point of naming renderers as data rather than branching in a
+ *  template.
+ *
+ *  motor-winding-panel / motor-parts-panel / motor-drive-panel are
+ *  named by clock_views.SECTION_RENDERERS but still live as markup
+ *  inside clock-motor and motor-view. Until they are extracted their
+ *  sections fall through to the named payload block — declaring the
+ *  name early is safe by design. */
+let magneticsPanelsRegistered = false;
+function registerMagneticsSectionPanels(): void {
+  if (magneticsPanelsRegistered) { return; }
+  magneticsPanelsRegistered = true;
+  registerDisplayComponent(
+    'motor-materials-panel', MotorMaterialsPanelComponent, {
+      displayName: 'Motor Materials Accountability',
+      description: 'Per-part material provenance, substitutions and '
+        + 'the honest gaps (input: trail / payload)',
+      defaultInputs: {},
+    });
+}
 
 /**
  * view-1 (goal-5b): /magnetics/clock-views — ONE renderer over the
@@ -167,9 +198,24 @@ import { ClockSceneComponent } from './clock-scene.component';
                 <span *ngIf="!h.verdict">{{ h.value }}</span></td>
               <td>{{ h.note }}</td></tr>
           </table>
-          <!-- generic fallback: the honest full payload -->
-          <details>
-            <summary class="label">full payload</summary>
+          <!-- The section's DECLARED renderer (clock_views
+               SECTION_RENDERERS, overridable per seeded section).
+               Resolved through the same ComponentRegistry the
+               no-code displays use, so a section slot and a display
+               slot are the same kind of thing. Unresolvable names
+               fall through to the payload block below, which makes
+               declaring a renderer safe before its panel exists. -->
+          <ng-container *ngIf="rendererFor(s) as declared">
+            <ng-container
+              *ngComponentOutlet="declared.component;
+                                  inputs: declared.inputs">
+            </ng-container>
+          </ng-container>
+          <!-- Last resort, and named as such: no renderer is
+               declared for this source yet. -->
+          <details *ngIf="!rendererFor(s)">
+            <summary class="label">full payload (no renderer
+              declared for "{{ s.source }}")</summary>
             <pre class="raw">{{ stringify(s.payload) }}</pre>
           </details>
           </details>
@@ -190,8 +236,15 @@ import { ClockSceneComponent } from './clock-scene.component';
           <div class="sec-head"><b>{{ s.section }}</b></div>
           <div class="bad-text" *ngIf="!s.payload">
             refused: {{ s.refusal }}</div>
-          <details *ngIf="s.payload" open>
-            <summary class="label">answer</summary>
+          <ng-container *ngIf="s.payload && rendererFor(s) as declared">
+            <ng-container
+              *ngComponentOutlet="declared.component;
+                                  inputs: declared.inputs">
+            </ng-container>
+          </ng-container>
+          <details *ngIf="s.payload && !rendererFor(s)" open>
+            <summary class="label">answer (no renderer declared for
+              "{{ s.section }}")</summary>
             <pre class="raw">{{ stringify(s.payload) }}</pre>
           </details>
         </div>
@@ -276,7 +329,9 @@ export class ClockViewsComponent implements OnInit {
 
   constructor(private motors: MotorsService,
               private router: Router,
-              private route: ActivatedRoute) {}
+              private route: ActivatedRoute) {
+    registerMagneticsSectionPanels();
+  }
 
   goLink(lk: any): void {
     if (lk?.route) { this.router.navigateByUrl(lk.route); }
@@ -309,6 +364,50 @@ export class ClockViewsComponent implements OnInit {
     this.compView = await this.motors.componentView(
       this.component, this.design);
   }
+
+  /** Resolve a section's DECLARED renderer to a real component.
+   *
+   *  The section row says how it draws (`renderer`, defaulted by
+   *  clock_views.SECTION_RENDERERS); this looks that name up in the
+   *  same ComponentRegistry the no-code displays use. Returning null
+   *  when the name is unknown is deliberate: it lets the backend
+   *  declare a renderer before its panel has been extracted, and the
+   *  view degrades to the named payload block instead of erroring.
+   *
+   *  Memoized because Angular calls this on every change-detection
+   *  pass and `inputs` must be referentially stable — a fresh object
+   *  each tick would re-create the component forever. */
+  rendererFor(section: any):
+      { component: any; inputs: Record<string, unknown> } | null {
+    const name = section?.renderer;
+    if (!name || !section?.payload) {
+      return null;
+    }
+    const cached = this.rendererCache.get(section);
+    if (cached !== undefined) {
+      return cached;
+    }
+    const entry = DISPLAY_COMPONENT_REGISTRY.getComponent(name);
+    const resolved = entry
+      ? {
+          component: entry.component,
+          inputs: {
+            ...(entry.defaultInputs || {}),
+            ...(section.payload || {}),
+            payload: section.payload,
+            design: this.design,
+          },
+        }
+      : null;
+    this.rendererCache.set(section, resolved);
+    return resolved;
+  }
+
+  /** section object -> resolved renderer (or null). Keyed by the
+   *  section instance, so a reload naturally invalidates it. */
+  private rendererCache =
+    new WeakMap<object, { component: any;
+                          inputs: Record<string, unknown> } | null>();
 
   stringify(o: unknown): string {
     return JSON.stringify(o, null, 1);

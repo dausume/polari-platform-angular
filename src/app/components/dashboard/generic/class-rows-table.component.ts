@@ -10,6 +10,13 @@ import { CRUDEservicesManager } from '@services/crude-services-manager';
  * to the first row's simple fields (long text and *_json blobs are
  * skipped); pin them explicitly with the `columns` input when a page
  * wants a curated view.
+ *
+ * MULTI-REFERENCE USE. Set `filterField` + `filterValue` to make this
+ * "the rows of X that reference THIS object" rather than "every row
+ * of X" — the reference the page already knows, pushed down to the
+ * server as a query param. That is the collection half of the
+ * single-vs-multi reference pair; the single half is
+ * `instance-detail-panel`.
  */
 @Component({
   standalone: true,
@@ -56,6 +63,20 @@ export class ClassRowsTableComponent implements OnInit {
   /** Cap rendered rows (0 = all). */
   @Input() maxRows = 0;
 
+  /** Field on this class holding the reference to filter by
+   *  (e.g. 'design_ref'). Empty = unfiltered. */
+  @Input() filterField = '';
+
+  /** The reference value the page is scoped to
+   *  (e.g. 'clock-lavet-m0'). */
+  @Input() filterValue = '';
+
+  /** Show `*_json` config blobs as columns. Off by default because
+   *  they are unreadable inline — but a curated page that has no
+   *  better renderer yet can opt in rather than falling back to a
+   *  whole-payload JSON dump. */
+  @Input() includeJsonFields = false;
+
   rows: any[] = [];
   activeColumns: string[] = [];
   loading = true;
@@ -69,7 +90,10 @@ export class ClassRowsTableComponent implements OnInit {
       this.error = 'class-rows-table: no className input.';
       return;
     }
-    this.crudeManager.getCRUDEclassService(this.className).readAll().subscribe({
+    const filter = this.filterField && this.filterValue
+      ? { [this.filterField]: this.filterValue }
+      : undefined;
+    this.crudeManager.getCRUDEclassService(this.className).readAll(filter).subscribe({
       next: (envelope: any) => {
         const rows = envelope?.[0]?.[this.className]?.[0]?.data ?? [];
         this.rows = this.maxRows > 0 ? rows.slice(0, this.maxRows) : rows;
@@ -90,7 +114,8 @@ export class ClassRowsTableComponent implements OnInit {
       return [];
     }
     return Object.keys(first)
-      .filter((key) => !key.endsWith('_json') && !key.startsWith('_'))
+      .filter((key) => this.includeJsonFields || !key.endsWith('_json'))
+      .filter((key) => !key.startsWith('_'))
       .filter((key) => {
         const value = first[key];
         return value === null
