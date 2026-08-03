@@ -32,6 +32,10 @@ const PROVENANCE_ORDER = ['measured', 'cited', 'derived',
 /** Which seeded graphs belong under which view section. */
 const SECTION_GRAPHS: { [section: string]: string[] } = {
   'outdoor-record': ['climate-co2-instrumental'],
+  // The trajectory answers "when does an urban sealed bedroom
+  // reach 3000 ppm" — it belongs beside the crossings, which is
+  // the section that asks when each line arrives.
+  'crossings': ['climate-urban-bedroom-trajectory'],
   'human-history': ['climate-co2-800kyr'],
   'trend-fits': ['climate-co2-growth-rate'],
   'carbon-sinks': ['climate-source-sink-differential',
