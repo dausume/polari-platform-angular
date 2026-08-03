@@ -91,6 +91,7 @@ const routes: Routes = [
   { path: 'magnetics/clock-motor', loadComponent: () => import('@components/magnetics/clock-motor.component').then(m => m.ClockMotorComponent) },
   { path: 'magnetics/clock-views', loadComponent: () => import('@components/magnetics/clock-views.component').then(m => m.ClockViewsComponent) },
   { path: 'magnetics/fields', loadComponent: () => import('@components/magnetics/field-view.component').then(m => m.FieldViewComponent) },
+  { path: 'co2/health', loadComponent: () => import('@components/climate/co2-health.component').then(m => m.Co2HealthComponent) },
   { path: 'display/:id', loadComponent: () => import('@components/dashboard/display-page/display-page').then(m => m.DisplayPageComponent) },
   { path: 'video-assets', loadComponent: () => import('@components/video/video-assets-page.component').then(m => m.VideoAssetsPageComponent) }
 ];
