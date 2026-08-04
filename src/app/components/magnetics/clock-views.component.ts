@@ -11,6 +11,12 @@ import { registerDisplayComponent }
   from '@models/dashboards/ComponentRegistry';
 import { MotorMaterialsPanelComponent }
   from './motor-materials-panel.component';
+import { MotorWindingPanelComponent }
+  from './motor-winding-panel.component';
+import { MotorPartsPanelComponent }
+  from './motor-parts-panel.component';
+import { MotorDrivePanelComponent }
+  from './motor-drive-panel.component';
 
 /** Panels this view can dispatch to by name.
  *
@@ -19,11 +25,11 @@ import { MotorMaterialsPanelComponent }
  *  point of naming renderers as data rather than branching in a
  *  template.
  *
- *  motor-winding-panel / motor-parts-panel / motor-drive-panel are
- *  named by clock_views.SECTION_RENDERERS but still live as markup
- *  inside clock-motor and motor-view. Until they are extracted their
- *  sections fall through to the named payload block — declaring the
- *  name early is safe by design. */
+ *  All four names declared by clock_views.SECTION_RENDERERS now
+ *  resolve. The winding / parts / drive panels were extracted from
+ *  the markup that already existed inside clock-motor and motor-view,
+ *  so both surfaces draw one answer the same way instead of one
+ *  rendering it and the other dumping JSON. */
 let magneticsPanelsRegistered = false;
 function registerMagneticsSectionPanels(): void {
   if (magneticsPanelsRegistered) { return; }
@@ -33,6 +39,29 @@ function registerMagneticsSectionPanels(): void {
       displayName: 'Motor Materials Accountability',
       description: 'Per-part material provenance, substitutions and '
         + 'the honest gaps (input: trail / payload)',
+      defaultInputs: {},
+    });
+  registerDisplayComponent(
+    'motor-winding-panel', MotorWindingPanelComponent, {
+      displayName: 'Motor Winding',
+      description: 'Gauge, turns, fill, resistance and the drive '
+        + 'voltage a coil actually needs — plus per-phase rows and '
+        + 'the imbalance where a rung has several coils '
+        + '(input: payload)',
+      defaultInputs: {},
+    });
+  registerDisplayComponent(
+    'motor-parts-panel', MotorPartsPanelComponent, {
+      displayName: 'Motor Mass Bill',
+      description: 'Every piece with its volume, mass, material and '
+        + 'the provenance of each measured property (input: payload)',
+      defaultInputs: {},
+    });
+  registerDisplayComponent(
+    'motor-drive-panel', MotorDrivePanelComponent, {
+      displayName: 'Motor Drive Profile',
+      description: 'Board, pole pairs, phase-to-terminal bindings and '
+        + 'the generated controller config (input: payload)',
       defaultInputs: {},
     });
 }
