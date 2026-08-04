@@ -17,6 +17,8 @@ import { MotorPartsPanelComponent }
   from './motor-parts-panel.component';
 import { MotorDrivePanelComponent }
   from './motor-drive-panel.component';
+import { StructuredPayloadPanelComponent }
+  from './structured-payload-panel.component';
 
 /** Panels this view can dispatch to by name.
  *
@@ -58,6 +60,15 @@ function registerMagneticsSectionPanels(): void {
       defaultInputs: {},
     });
   registerDisplayComponent(
+    'structured-payload-panel', StructuredPayloadPanelComponent, {
+      displayName: 'Structured Payload',
+      description: 'The GENERIC reading of an engine payload — '
+        + 'scalars as a readout, prose as prose, record arrays as '
+        + 'real tables. The default when a section declares no '
+        + 'renderer of its own (input: payload)',
+      defaultInputs: {},
+    });
+  registerDisplayComponent(
     'motor-drive-panel', MotorDrivePanelComponent, {
       displayName: 'Motor Drive Profile',
       description: 'Board, pole pairs, phase-to-terminal bindings and '
@@ -81,6 +92,7 @@ function registerMagneticsSectionPanels(): void {
   standalone: true,
   selector: 'clock-views',
   imports: [CommonModule, FormsModule, RouterModule,
+    StructuredPayloadPanelComponent,
             ClockSceneComponent],
   template: `
   <div class="cv-page">
@@ -240,13 +252,17 @@ function registerMagneticsSectionPanels(): void {
                                   inputs: declared.inputs">
             </ng-container>
           </ng-container>
-          <!-- Last resort, and named as such: no renderer is
-               declared for this source yet. -->
-          <details *ngIf="!rendererFor(s)">
-            <summary class="label">full payload (no renderer
-              declared for "{{ s.source }}")</summary>
-            <pre class="raw">{{ stringify(s.payload) }}</pre>
-          </details>
+          <!-- No SPECIFIC renderer: fall back to the generic
+               structured reading rather than a JSON dump. The raw
+               payload stays one click away for debugging. -->
+          <ng-container *ngIf="!rendererFor(s)">
+            <structured-payload-panel [payload]="s.payload">
+            </structured-payload-panel>
+            <details>
+              <summary class="label">raw payload</summary>
+              <pre class="raw">{{ stringify(s.payload) }}</pre>
+            </details>
+          </ng-container>
           </details>
         </ng-container>
         <ng-template #refused>
@@ -271,11 +287,14 @@ function registerMagneticsSectionPanels(): void {
                                   inputs: declared.inputs">
             </ng-container>
           </ng-container>
-          <details *ngIf="s.payload && !rendererFor(s)" open>
-            <summary class="label">answer (no renderer declared for
-              "{{ s.section }}")</summary>
-            <pre class="raw">{{ stringify(s.payload) }}</pre>
-          </details>
+          <ng-container *ngIf="s.payload && !rendererFor(s)">
+            <structured-payload-panel [payload]="s.payload">
+            </structured-payload-panel>
+            <details>
+              <summary class="label">raw payload</summary>
+              <pre class="raw">{{ stringify(s.payload) }}</pre>
+            </details>
+          </ng-container>
         </div>
       </div>
     </div>
