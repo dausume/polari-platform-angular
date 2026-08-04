@@ -88,9 +88,12 @@ import {
           </table>
         </div>
         <p class="hint">
-          Only the <strong>relational</strong> store is required to be
-          defined. Cache and blob tiers are not yet assignable to an
-          instance — shown as absent rather than assumed.
+          Only the <strong>relational</strong> store is required.
+          Cache and blob are optional and shown as
+          <em>not assigned</em> when an instance is bound to neither —
+          absent, not defaulted. Neither is a choice of technology:
+          the cache is always KeyDB, the blob store always MinIO, so
+          what is recorded is the binding.
         </p>
       </section>
 
@@ -117,6 +120,46 @@ import {
             <span class="chev">{{ open[i.instance] ? '▾' : '▸' }}</span>
           </div>
           <div class="storage-note">{{ i.storage.note }}</div>
+
+          <!-- The three tiers. Relational is stated, never edited
+               here: it is the required one and changing it moves an
+               instance's whole dataset, which is a deploy, not a
+               toggle. -->
+          <div class="tiers">
+            <span class="tier">
+              <em>relational</em>
+              <b>{{ i.storage.relational }}</b>
+              <span class="req">required</span>
+            </span>
+
+            <span class="tier">
+              <em>cache</em>
+              <b *ngIf="i.storage.cache">{{ i.storage.cache }}</b>
+              <b class="none" *ngIf="!i.storage.cache">not assigned</b>
+              <span class="req" *ngIf="i.storage.cacheImplied"
+                    [title]="'bound by the ' + i.storage.relational
+                             + ' backend, so it is not separately
+                             editable'">implied</span>
+              <button *ngIf="!i.storage.cacheImplied"
+                      [disabled]="saving[i.instance]"
+                      (click)="toggleTier(i, 'cache')">
+                {{ i.storage.cache ? 'unbind' : 'bind keydb' }}
+              </button>
+            </span>
+
+            <span class="tier">
+              <em>blob</em>
+              <b *ngIf="i.storage.blob">{{ i.storage.blob }}</b>
+              <b class="none" *ngIf="!i.storage.blob">not assigned</b>
+              <button [disabled]="saving[i.instance]"
+                      (click)="toggleTier(i, 'blob')">
+                {{ i.storage.blob ? 'unbind' : 'bind minio' }}
+              </button>
+            </span>
+          </div>
+          <div class="tier-err" *ngIf="tierError[i.instance]">
+            {{ tierError[i.instance] }}
+          </div>
 
           <div *ngIf="open[i.instance]">
             <div class="hint" *ngIf="!i.objects.length">
@@ -212,6 +255,23 @@ import {
     .chev { color: var(--text-on-card-muted); }
     .storage-note { font-size: 11.5px; color: var(--text-on-card-muted);
       margin: 3px 0 0 2px; }
+    .tiers { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 2px; }
+    .tier { display: inline-flex; align-items: baseline; gap: 6px;
+      border: 1px solid var(--surface-outline); border-radius: 10px;
+      padding: 2px 9px; font-size: 12px; max-width: 100%; }
+    .tier em { font-style: normal; font-size: 10px;
+      text-transform: uppercase; letter-spacing: 0.04em;
+      color: var(--text-on-card-muted); }
+    .tier b.none { font-weight: 400; color: var(--text-tertiary);
+      font-style: italic; }
+    .tier .req { font-size: 10px; color: var(--text-tertiary); }
+    .tier button { font-size: 11px; border-radius: var(--radius-sm);
+      border: 1px solid var(--border-medium); cursor: pointer;
+      background: var(--surface-secondary); color: var(--text-on-card);
+      padding: 0 6px; }
+    .tier button[disabled] { opacity: 0.5; cursor: default; }
+    .tier-err { font-size: 11.5px; color: var(--color-error-text);
+      margin: 2px 0 0 2px; }
     .num { text-align: right; font-variant-numeric: tabular-nums; }
     tr.dim { opacity: 0.55; }
     .chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -229,6 +289,8 @@ export class ObjectOwnershipComponent implements OnInit {
   filter = '';
   hideEmpty = true;
   open: Record<string, boolean> = {};
+  saving: Record<string, boolean> = {};
+  tierError: Record<string, string> = {};
 
   constructor(private topologyService: TopologyService) {}
 
@@ -253,6 +315,47 @@ export class ObjectOwnershipComponent implements OnInit {
 
   toggle(instance: string): void {
     this.open[instance] = !this.open[instance];
+  }
+
+  /** Bind or clear an optional tier. Only cache and blob are
+   *  editable: relational is required, and changing it would move an
+   *  instance's whole dataset — a deploy, not a toggle. The row is
+   *  re-read from the server afterwards rather than assumed, so a
+   *  refusal (e.g. double-declaring a cache the relational backend
+   *  already binds) shows the real state instead of an optimistic
+   *  one. */
+  async toggleTier(inst: OwnershipInstance,
+                   tier: 'cache' | 'blob'): Promise<void> {
+    if (this.saving[inst.instance]) { return; }
+    if (tier === 'cache' && inst.storage.cacheImplied) { return; }
+
+    const bound = tier === 'cache' ? inst.storage.cache
+                                   : inst.storage.blob;
+    const next = bound ? '' : (tier === 'cache' ? 'keydb' : 'minio');
+    const patch = tier === 'cache' ? { cache_backend: next }
+                                   : { blob_backend: next };
+
+    this.saving[inst.instance] = true;
+    this.tierError[inst.instance] = '';
+    try {
+      const result = await this.topologyService
+        .setInstanceStorage(inst.instance, patch);
+      if (!result || result.ok === false) {
+        this.tierError[inst.instance] =
+          result?.error || 'the topology API refused the change';
+        return;
+      }
+      await this.reload();
+    } finally {
+      this.saving[inst.instance] = false;
+    }
+  }
+
+  /** Re-read the report, keeping which instances the reader had
+   *  open — a refresh that collapses everything loses their place. */
+  private async reload(): Promise<void> {
+    const result = await this.topologyService.objectOwnership();
+    if (result?.ok) { this.report = result; }
   }
 
   visibleInstances(): OwnershipInstance[] {

@@ -182,4 +182,16 @@ export class TopologyService {
       this.polariService.backendRequestOptions))
       .catch((err) => err?.error?.ok === false ? err.error : null);
   }
+
+  /** Bind or clear an instance's optional storage tiers. Pass '' to
+   *  clear — unassigned is a legal state for cache and blob, unlike
+   *  the relational tier. */
+  setInstanceStorage(name: string, patch: {
+    cache_backend?: string; blob_backend?: string;
+  }): Promise<{ ok: boolean; error?: string } | null> {
+    return firstValueFrom(this.http.post<{ ok: boolean; error?: string }>(
+      this.url('/instance'), { name, ...patch },
+      this.polariService.backendRequestOptions))
+      .catch((err) => err?.error?.ok === false ? err.error : null);
+  }
 }

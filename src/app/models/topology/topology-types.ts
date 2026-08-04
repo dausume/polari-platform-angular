@@ -328,8 +328,17 @@ export interface InstanceStorage {
   shared: boolean;
   identity: string;
   note: string;
+  /** '' = genuinely not assigned. The technology is not a choice —
+   *  cache is always keydb, blob always minio — so what is recorded
+   *  is the BINDING, not a vendor. */
   cache: string;
+  /** True when the cache came from the `mariadb+keydb` relational
+   *  choice rather than its own field, so it is not separately
+   *  editable and the two can never disagree. */
+  cacheImplied: boolean;
   blob: string;
+  /** Which optional tiers are unbound — named, not inferred. */
+  unbound: string[];
 }
 
 export interface OwnedObject {
