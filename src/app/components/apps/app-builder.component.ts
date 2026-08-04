@@ -8,6 +8,24 @@ import { PolariService } from '@services/polari-service';
 import { AppsNavService, AppNav, AppNavGroup, AppNavItem }
   from '@services/apps-nav.service';
 
+interface PlanPlacement {
+  module: string;
+  status: 'already-placed' | 'needs-assignment' | 'missing';
+  instances: string[];
+  suggestedInstance: string;
+  suggestedCommand: string;
+}
+
+interface AppPlan {
+  ok: boolean;
+  app: string;
+  topology: string;
+  placements: PlanPlacement[];
+  readiness: number;
+  note?: string;
+  error?: string;
+}
+
 interface RouteChoice {
   route: string;
   label: string;
@@ -201,6 +219,80 @@ interface RouteChoice {
       </div>
     </section>
 
+    <!-- ---------- deployment ---------- -->
+    <section class="card" *ngIf="!isNew">
+      <h3>Put it on a topology</h3>
+      <p class="hint">Plan first, then apply. Applying writes
+        <strong>ModuleAssignment rows only</strong> — it does not
+        deploy containers. That stays a human-run
+        <code>pol topology apply</code>.</p>
+
+      <div class="row">
+        <label class="inline">topology
+          <select [(ngModel)]="topology">
+            <option *ngFor="let t of topologies" [value]="t">{{ t }}</option>
+          </select>
+        </label>
+        <button class="add" [disabled]="planning" (click)="loadPlan()">
+          {{ planning ? 'planning…' : (plan ? 're-plan' : 'Plan') }}
+        </button>
+      </div>
+
+      <div class="err" *ngIf="planError">{{ planError }}</div>
+
+      <ng-container *ngIf="plan">
+        <div class="readiness">
+          <div class="bar">
+            <div class="fill" [style.width.%]="plan.readiness * 100"></div>
+          </div>
+          <span>{{ placedCount() }} of {{ plan.placements.length }}
+            modules already placed</span>
+        </div>
+
+        <div class="scroll-x">
+          <table class="data-table-dashed">
+            <tr><th>module</th><th>status</th><th>where</th>
+              <th>what it would take</th></tr>
+            <tr *ngFor="let p of plan.placements">
+              <td>{{ p.module }}</td>
+              <td>
+                <span class="chip"
+                      [class.is-ok]="p.status === 'already-placed'"
+                      [class.is-warn]="p.status === 'needs-assignment'"
+                      [class.is-error]="p.status === 'missing'">
+                  {{ p.status }}</span>
+              </td>
+              <td>{{ p.instances?.join(', ') || p.suggestedInstance }}</td>
+              <td class="cmd">{{ p.suggestedCommand }}</td>
+            </tr>
+          </table>
+        </div>
+
+        <!-- A module that is not in the image cannot be assigned, so
+             applying would be a lie. Say so and refuse the action. -->
+        <div class="warn" *ngIf="missingCount() > 0">
+          {{ missingCount() }} module(s) are not in this image — apply
+          cannot place them. Build or install them first; the command
+          is in the table.
+        </div>
+
+        <div class="row">
+          <button class="primary"
+                  [disabled]="applying || !canApply()"
+                  (click)="apply()">
+            {{ applying ? 'applying…' : 'Apply to ' + topology }}
+          </button>
+          <span class="hint" *ngIf="!canApply() && !applied">
+            nothing to assign — every module is already placed or
+            missing</span>
+        </div>
+      </ng-container>
+
+      <div class="ok" *ngIf="applied">
+        {{ applied }}
+      </div>
+    </section>
+
     <div class="actions">
       <button class="primary" [disabled]="!canSave() || saving"
               (click)="save()">
@@ -302,6 +394,21 @@ interface RouteChoice {
       border: 1px solid var(--color-error-border);
       border-radius: var(--radius-md); padding: 8px 12px; margin-bottom: 10px;
     }
+    .readiness { display: flex; align-items: center; gap: 10px;
+      margin: 10px 0; font-size: 12px; color: var(--text-on-card-muted); }
+    .bar { flex: 1 1 auto; max-width: 320px; height: 8px;
+      border-radius: 4px; background: var(--surface-hover);
+      overflow: hidden; }
+    .fill { height: 100%; background: var(--brand-blue);
+      border-radius: 4px; transition: width 300ms; }
+    .cmd { font-family: monospace; font-size: 11px;
+      color: var(--text-on-card-muted); }
+    .warn {
+      background: var(--color-warn-bg); color: var(--color-warn-text);
+      border: 1px solid var(--color-warn-border);
+      border-radius: var(--radius-md); padding: 7px 11px;
+      font-size: 12.5px; margin: 8px 0;
+    }
     .ok {
       background: var(--color-success-bg); color: var(--color-success-text);
       border: 1px solid var(--color-success-border);
@@ -318,6 +425,15 @@ export class AppBuilderComponent implements OnInit {
   moduleFilter = '';
   pageToAdd = '';
   personaToAdd = '';
+
+  // ---- deployment (plan -> review -> apply) ----
+  topologies: string[] = [];
+  topology = '';
+  plan: AppPlan | null = null;
+  planning = false;
+  planError = '';
+  applying = false;
+  applied = '';
 
   /** What this node actually has, with live state — so the builder
    *  cannot offer a module that does not exist here. */
@@ -346,7 +462,8 @@ export class AppBuilderComponent implements OnInit {
   }
 
   async ngOnInit(): Promise<void> {
-    await Promise.all([this.loadModules(), this.loadRoutes()]);
+    await Promise.all([this.loadModules(), this.loadRoutes(),
+                       this.loadTopologies()]);
     const name = this.route.snapshot.paramMap.get('name') || '';
     if (name) {
       this.isNew = false;
@@ -612,6 +729,102 @@ export class AppBuilderComponent implements OnInit {
       this.error = `Could not save: ${e?.message || 'request failed'}`;
     } finally {
       this.saving = false;
+    }
+  }
+
+  // ---- deployment -------------------------------------------------
+
+  private async loadTopologies(): Promise<void> {
+    try {
+      const envelope = await firstValueFrom(
+        this.http.get<any>(this.url('/TopologyDefinition'),
+          this.polariService.backendRequestOptions));
+      const rows = envelope?.[0]?.['TopologyDefinition']?.[0]?.data ?? [];
+      this.topologies = rows.map((r: any) => r?.name).filter(Boolean);
+      const active = rows.find((r: any) => r?.is_active);
+      this.topology = active?.name || this.topologies[0] || '';
+    } catch {
+      // Not fatal: without the list the section simply cannot plan,
+      // and says so when you try.
+      this.topologies = [];
+    }
+  }
+
+  placedCount(): number {
+    return (this.plan?.placements || [])
+      .filter((p) => p.status === 'already-placed').length;
+  }
+
+  missingCount(): number {
+    return (this.plan?.placements || [])
+      .filter((p) => p.status === 'missing').length;
+  }
+
+  /** Apply is only meaningful when something is actually assignable.
+   *  Every module already placed = nothing to do; a module missing
+   *  from the image cannot be assigned at all. */
+  canApply(): boolean {
+    return (this.plan?.placements || [])
+      .some((p) => p.status === 'needs-assignment');
+  }
+
+  async loadPlan(): Promise<void> {
+    this.planning = true; this.planError = ''; this.applied = '';
+    this.plan = null;
+    try {
+      if (!this.topology) {
+        this.planError = 'No topology to plan against on this node.';
+        return;
+      }
+      const result = await firstValueFrom(this.http.get<AppPlan>(
+        this.url(`/api/apps/plan?name=${encodeURIComponent(this.draft.name)}`
+          + `&topology=${encodeURIComponent(this.topology)}`),
+        this.polariService.backendRequestOptions));
+      if (!result?.ok) {
+        this.planError = result?.error || 'The node could not plan this app.';
+        return;
+      }
+      this.plan = result;
+    } catch (e: any) {
+      this.planError = `Could not plan: ${e?.message || 'request failed'}`;
+    } finally {
+      this.planning = false;
+    }
+  }
+
+  async apply(): Promise<void> {
+    this.applying = true; this.planError = ''; this.applied = '';
+    try {
+      // `confirm` is required by the endpoint — it refuses without
+      // it, precisely so an apply cannot happen by accident. Pressing
+      // this button IS the confirmation, after reading the plan above.
+      const result = await firstValueFrom(this.http.post<any>(
+        this.url('/api/apps/apply'),
+        { name: this.draft.name, topology: this.topology, confirm: true },
+        this.polariService.backendRequestOptions));
+      if (!result?.ok) {
+        this.planError = result?.refusal || result?.error
+          || 'The node refused the apply.';
+        return;
+      }
+      const created = (result.created || []).length;
+      const skipped = (result.skipped || []).length;
+      const receipt = `Wrote ${created} assignment row(s)`
+        + (skipped ? `, skipped ${skipped} already present` : '')
+        + `. Receipt: ${result.planReceipt || '(none)'}. `
+        + 'Containers are NOT deployed — run `pol topology apply` '
+        + 'when you are ready.';
+      // The plan is now stale by construction; re-read it so the
+      // table reflects what was just written. loadPlan() clears
+      // `applied` (it is a fresh plan, not a fresh apply), so the
+      // receipt is set AFTER it — otherwise a successful apply
+      // silently shows nothing.
+      await this.loadPlan();
+      this.applied = receipt;
+    } catch (e: any) {
+      this.planError = `Could not apply: ${e?.message || 'request failed'}`;
+    } finally {
+      this.applying = false;
     }
   }
 }
