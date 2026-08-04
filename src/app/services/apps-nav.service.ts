@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { filter } from 'rxjs/operators';
 import { BehaviorSubject, firstValueFrom } from 'rxjs';
 import { PolariService } from '@services/polari-service';
 
@@ -79,6 +80,19 @@ export class AppsNavService {
     this.payload$.next(null);
     this.loading = false;
     this.ensureLoaded();
+  }
+
+  /** Await the payload.
+   *
+   *  ensureLoaded()/refresh() are fire-and-forget, which suits the
+   *  header (it renders whenever the answer arrives). A caller that
+   *  must ACT on the result — the app builder loading an app to edit,
+   *  or re-reading after a save — needs to wait for it. `force`
+   *  re-fetches rather than returning the cached answer. */
+  whenLoaded(force = false): Promise<AppsNavPayload | null> {
+    if (force) { this.refresh(); } else { this.ensureLoaded(); }
+    return firstValueFrom(
+      this.payload$.pipe(filter((p): p is AppsNavPayload => p !== null)));
   }
 
   appByName(name: string): AppNav | null {

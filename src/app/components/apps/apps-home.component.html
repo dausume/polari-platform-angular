@@ -7,6 +7,7 @@
             <code>pol apps deploy &lt;file.json&gt;</code>; nothing deploys on
             the spot, and container deploys always stay a human-run
             <code>pol topology apply</code>.</p>
+        <a class="build-btn" routerLink="/apps/build">+ Build an app</a>
     </div>
 
     <div class="load-error" *ngIf="loadError && !loading">{{ loadError }}</div>
@@ -60,6 +61,10 @@
             </div>
 
             <div class="actions">
+                <a class="edit-btn" [routerLink]="['/apps/build', app.name]"
+                   matTooltip="edit this app's modules, front doors and menu">
+                    ✎ edit
+                </a>
                 <button class="export-btn" (click)="exportApp(app.name)"
                         matTooltip="download the credential-free polari-app-package JSON — deploy it later with pol apps deploy">
                     ⬇ export package

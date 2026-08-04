@@ -170,3 +170,21 @@
         text-decoration: underline;
     }
 }
+
+/* Authoring affordances: an app is configuration, so composing one is
+   a first-class action next to exporting one. */
+.build-btn {
+  display: inline-block; margin-top: 8px;
+  border: 1px solid var(--brand-indigo);
+  background: var(--brand-indigo);
+  color: var(--text-on-primary);
+  border-radius: 12px; padding: 5px 16px;
+  font-size: 12.5px; text-decoration: none;
+}
+
+.edit-btn {
+  font-size: 12px; padding: 4px 14px; border-radius: 12px;
+  border: 1px solid var(--border-dark);
+  color: var(--text-on-card); text-decoration: none;
+  &:hover { background: var(--surface-hover); }
+}

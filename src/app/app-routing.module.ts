@@ -73,6 +73,11 @@ const routes: Routes = [
   { path: 'testing', loadComponent: () => import('@components/testing/testing-home.component').then(m => m.TestingHomeComponent) },
   { path: 'apps', loadComponent: () => import('@components/apps/apps-home.component').then(m => m.AppsHomeComponent) },
   { path: 'app/:name', loadComponent: () => import('@components/apps/app-home.component').then(m => m.AppHomeComponent) },
+  // The app BUILDER — compose an app from routes, modules and
+  // capabilities. `apps/build` before `app/:name` matters only for
+  // readability here; they are distinct prefixes.
+  { path: 'apps/build', loadComponent: () => import('@components/apps/app-builder.component').then(m => m.AppBuilderComponent) },
+  { path: 'apps/build/:name', loadComponent: () => import('@components/apps/app-builder.component').then(m => m.AppBuilderComponent) },
   { path: 'magnetics', redirectTo: '/app/app-magnetics', pathMatch: 'full' },
   { path: 'pspp', loadComponent: () => import('@components/pspp/pspp-home.component').then(m => m.PsppHomeComponent) },
   { path: 'pspp/proofing', loadComponent: () => import('@components/pspp/pspp-proofing.component').then(m => m.PsppProofingComponent) },
