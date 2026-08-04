@@ -317,3 +317,62 @@ export interface TestRunResult {
     checksPassed: number; checksTotal: number }>;
   report: TopologyTestingReport;
 }
+
+/** Where an instance's objects actually land. `shared` distinguishes a
+ *  backend several instances sit on from a store local to one
+ *  instance — sqlite is local by construction and can never be pointed
+ *  elsewhere. `cache` and `blob` are not yet assignable and come back
+ *  empty, meaning ABSENT rather than defaulted. */
+export interface InstanceStorage {
+  relational: string;
+  shared: boolean;
+  identity: string;
+  note: string;
+  cache: string;
+  blob: string;
+}
+
+export interface OwnedObject {
+  class: string;
+  module: string;
+  rows: number;
+}
+
+export interface OwnershipInstance {
+  instance: string;
+  kind: string;
+  machine: string;
+  storage: InstanceStorage;
+  modules: string[];
+  objectCount: number;
+  rowCount: number;
+  objects: OwnedObject[];
+}
+
+/** Instances grouped by the storage they genuinely share. */
+export interface StorageGroup {
+  identity: string;
+  relational: string;
+  shared: boolean;
+  instances: string[];
+  objectCount: number;
+  rowCount: number;
+}
+
+export interface OwnershipReport {
+  ok: boolean;
+  error?: string;
+  topology: string;
+  instances: OwnershipInstance[];
+  storageGroups: StorageGroup[];
+  /** A class defined by more than one module: a coherence fault,
+   *  reported rather than merged. */
+  contested: Array<{ class: string; modules: string[] }>;
+  /** Owning module is on no instance here — nobody holds them. */
+  unassigned: OwnedObject[];
+  /** Owned by the framework itself, so not assignable to a module. */
+  coreObjects: Array<{ class: string; package: string; rows: number }>;
+  /** Live rows nothing claims. */
+  orphans: Array<{ class: string; rows: number }>;
+  note: string;
+}

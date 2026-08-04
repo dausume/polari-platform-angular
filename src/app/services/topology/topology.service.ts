@@ -26,6 +26,7 @@ import {
   ResolveResult,
   TestRunResult,
   TopologyTestingReport,
+  OwnershipReport,
 } from '@models/topology/topology-types';
 
 /**
@@ -168,6 +169,16 @@ export class TopologyService {
   resolve(): Promise<ResolveResult | null> {
     return firstValueFrom(this.http.post<ResolveResult>(
       this.url('/resolve'), {},
+      this.polariService.backendRequestOptions))
+      .catch((err) => err?.error?.ok === false ? err.error : null);
+  }
+
+  /** WHO is responsible for each object — the module that defines it,
+   *  the instance holding that module, and that instance's database. */
+  objectOwnership(name?: string): Promise<OwnershipReport | null> {
+    const query = name ? `?name=${encodeURIComponent(name)}` : '';
+    return firstValueFrom(this.http.get<OwnershipReport>(
+      this.url(`/object-ownership${query}`),
       this.polariService.backendRequestOptions))
       .catch((err) => err?.error?.ok === false ? err.error : null);
   }

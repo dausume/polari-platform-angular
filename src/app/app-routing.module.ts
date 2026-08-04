@@ -69,6 +69,9 @@ const routes: Routes = [
   { path: 'scoring/accountability', loadComponent: () => import('@components/scoring/policy-accountability.component').then(m => m.PolicyAccountabilityComponent) },
   { path: 'scoring/survival', loadComponent: () => import('@components/scoring/survival-costs.component').then(m => m.SurvivalCostsComponent) },
   { path: 'topology', loadComponent: () => import('@components/topology/topology-home.component').then(m => m.TopologyHomeComponent) },
+  // Which instance is responsible for which objects, and the database
+  // each instance is bound to.
+  { path: 'topology/databases', loadComponent: () => import('@components/topology/object-ownership.component').then(m => m.ObjectOwnershipComponent) },
   { path: 'tech-tree', loadComponent: () => import('@components/techtree/tech-tree-home.component').then(m => m.TechTreeHomeComponent) },
   { path: 'testing', loadComponent: () => import('@components/testing/testing-home.component').then(m => m.TestingHomeComponent) },
   { path: 'apps', loadComponent: () => import('@components/apps/apps-home.component').then(m => m.AppsHomeComponent) },

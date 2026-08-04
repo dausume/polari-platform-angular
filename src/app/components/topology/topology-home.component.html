@@ -10,6 +10,10 @@
     <a class="bringup-link" routerLink="/modules/bringup">Module
     bring-up →</a> shows THIS backend's modules going online live
     (lazy boot), with per-module time-to-online history.
+    <a class="bringup-link" routerLink="/topology/databases">Objects
+    &amp; databases →</a> follows the other direction: which module is
+    responsible for each object, which instance holds that module, and
+    the database that instance is bound to.
   </p>
 
   <div *ngIf="loading" class="status-line">Loading topology…</div>
