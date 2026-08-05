@@ -83,14 +83,21 @@
    * exists to prevent: those are for the light card surface, so on
    * the dark nav they came out near-invisible in light mode while
    * looking fine in dark. Text belongs to the surface it sits on. */
-  --nav-background: #424242;
-  --nav-text: #ffffff;
+  /* Deep indigo rather than neutral grey: the chrome reads as a
+   * deliberate surface tied to the periwinkle page (#dde0f2) and the
+   * indigo accents, instead of an absence of colour. Contrast is
+   * better than the grey it replaces on every tier — the old faint
+   * tier sat at 4.13:1, under the 4.5 AA floor. */
+  --nav-background: #2e3a5c;
+  --nav-text: #ffffff;              /* 11.19:1 */
   /* Secondary text on the nav: section labels, counts, hints. Muted
-   * against --nav-background, never against the page. */
-  --nav-text-muted: #c7c7c7;
+   * against --nav-background, never against the page. Tinted toward
+   * the surface hue — neutral grey on a coloured surface reads as an
+   * accident rather than a choice. */
+  --nav-text-muted: #ccd3e6;        /* 7.48:1 */
   /* Faintest legible tier — group headings that must recede without
    * disappearing. */
-  --nav-text-faint: #a6a6a6;
+  --nav-text-faint: #aab4d0;        /* 5.41:1 */
   --nav-hover: rgba(255, 255, 255, 0.10);
   --nav-active-background: rgba(255, 255, 255, 0.16);
   --nav-border: rgba(255, 255, 255, 0.20);

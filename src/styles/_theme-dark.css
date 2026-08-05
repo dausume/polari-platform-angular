@@ -31,10 +31,14 @@ body.dark-theme {
    * but they must still be redefined here. A token that is not
    * redefined under dark cannot flip, and leaving the muted tiers out
    * would silently pin them to the light theme's values. */
-  --nav-background: #1a1a1a;
-  --nav-text: #ffffff;
-  --nav-text-muted: #bdbdbd;
-  --nav-text-faint: #9a9a9a;
+  /* Same indigo family as light, taken near-black. Slightly lifted
+   * off the #121212 page (1.22:1 vs the old #1a1a1a's 1.08) so the
+   * drawer is distinguishable as a surface instead of relying on its
+   * border alone — while white text still sits at 15.39:1. */
+  --nav-background: #1e2438;
+  --nav-text: #ffffff;              /* 15.39:1 */
+  --nav-text-muted: #c2c9de;        /* 9.31:1 */
+  --nav-text-faint: #9fa8c4;        /* 6.50:1 */
   --nav-hover: rgba(255, 255, 255, 0.12);
   --nav-active-background: rgba(255, 255, 255, 0.18);
   --nav-border: rgba(255, 255, 255, 0.22);
