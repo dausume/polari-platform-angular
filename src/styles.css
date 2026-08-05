@@ -5,7 +5,16 @@
    ================================================================= */
 
 /* Legacy variable aliases — kept for backward compatibility with
-   components that haven't been migrated yet */
+   components that haven't been migrated yet.
+
+   ⚠ AN ALIAS OF A THEME-FLIPPING TOKEN MUST ALSO BE DECLARED IN
+   _theme-dark.css. A custom property resolves var() in the scope
+   where it is DECLARED, so an alias living only here resolves
+   against :root and freezes at the LIGHT value — the dark overrides
+   are on body.dark-theme, a descendant this scope cannot see. That
+   is how the side drawer stayed #424242 in dark mode while the top
+   toolbar went #1a1a1a. Prefer using the underlying token directly
+   in new code. */
 :root {
   --primary-hover-color: #4d4d6c;
   --primary-color: var(--surface-app-background);

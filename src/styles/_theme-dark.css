@@ -75,4 +75,22 @@ body.dark-theme {
   --border-dark: #666666;
   --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
   --card-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.5);
+
+  /* === Legacy aliases — MUST be repeated here ===
+   * ⚠ An alias declared only in :root FREEZES at the light value. A
+   * custom property resolves var() in the scope where it is
+   * DECLARED, and the dark overrides live on body.dark-theme — a
+   * descendant of :root — so `--nav-color: var(--nav-background)` in
+   * :root can never see them.
+   *
+   * That is exactly how the side drawer stayed #424242 in dark mode
+   * while the top toolbar (which reads --nav-background directly)
+   * correctly went #1a1a1a: same intended colour, two different
+   * resolution scopes. --primary-color had the same latent bug.
+   *
+   * Re-declaring them here re-resolves each alias against the dark
+   * values. Any NEW alias of a theme-flipping token must be added in
+   * both places, or prefer using the underlying token directly. */
+  --nav-color: var(--nav-background);
+  --primary-color: var(--surface-app-background);
 }
