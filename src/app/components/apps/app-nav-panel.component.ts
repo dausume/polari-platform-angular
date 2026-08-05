@@ -46,34 +46,44 @@ import { AppNav, AppNavItem } from '@services/apps-nav.service';
   </div>
   `,
   styles: [`
+    /* This panel renders INSIDE the side drawer, so every colour here
+       belongs to the NAV surface (--nav-*), not the card surface.
+       It previously used --text-on-card*, which is dark text meant
+       for a light card: on the dark nav that read fine in dark mode
+       and went near-invisible in light mode. Text belongs to the
+       surface it sits on, and the nav is its own surface — shared
+       with the top toolbar so the two always match. */
     .anp { padding: 4px 0 8px; }
     .anp-head { display: flex; align-items: center; gap: 6px;
       padding: 8px 14px; cursor: pointer; font-weight: 600;
-      color: var(--text-on-card); }
-    .anp-head:hover { background: var(--surface-hover, #8882); }
+      color: var(--nav-text); }
+    .anp-head:hover { background: var(--nav-hover); }
     .anp-icon { font-size: 20px; width: 20px; height: 20px; }
     .anp-group-label { padding: 8px 14px 2px; font-size: 0.72em;
       text-transform: uppercase; letter-spacing: 0.08em;
-      color: var(--text-on-card-muted); display: flex;
+      color: var(--nav-text-faint); display: flex;
       align-items: center; gap: 4px; }
     .anp-top-chip { font-size: 12px; width: 12px; height: 12px; }
     .anp-item { display: flex; align-items: center; gap: 8px;
       padding: 6px 14px 6px 22px; cursor: pointer;
-      color: var(--text-on-card); font-size: 0.92em; }
-    .anp-item:hover { background: var(--surface-hover, #8882); }
+      color: var(--nav-text); font-size: 0.92em; }
+    .anp-item:hover { background: var(--nav-hover); }
     .anp-kind { font-size: 16px; width: 16px; height: 16px;
-      color: var(--text-on-card-muted); }
+      color: var(--nav-text-muted); }
     .anp-label { flex: 1 1 auto; overflow: hidden;
       text-overflow: ellipsis; white-space: nowrap; }
     .anp-chip { font-size: 0.72em; border: 1px solid
-      var(--surface-outline, #8884); border-radius: 9px;
-      padding: 0 6px; color: var(--text-on-card-muted); }
-    .anp-item.absent .anp-label { opacity: 0.65; }
-    .anp-item.absent .anp-chip { color: #c98a00;
-      border-color: #c98a0088; }
-    .anp-item.unknown .anp-label { opacity: 0.65; }
+      var(--nav-border); border-radius: 9px;
+      padding: 0 6px; color: var(--nav-text-muted); }
+    /* An absent/unknown target is dimmed, but the floor is the muted
+       nav tier — opacity on top of near-invisible text was how these
+       disappeared entirely. */
+    .anp-item.absent .anp-label,
+    .anp-item.unknown .anp-label { color: var(--nav-text-muted); }
+    .anp-item.absent .anp-chip { color: #f0b429;
+      border-color: #f0b42977; }
     .anp-note { padding: 6px 14px; font-size: 0.78em;
-      color: var(--text-on-card-muted); font-style: italic; }
+      color: var(--nav-text-muted); font-style: italic; }
   `],
 })
 export class AppNavPanelComponent {

@@ -26,8 +26,18 @@ body.dark-theme {
   --text-on-bg: #ededed;
   --text-on-bg-muted: #c4c4c4;
 
-  /* === Navigation === */
+  /* === Navigation ===
+   * The nav is dark in BOTH themes, so these shift only slightly —
+   * but they must still be redefined here. A token that is not
+   * redefined under dark cannot flip, and leaving the muted tiers out
+   * would silently pin them to the light theme's values. */
   --nav-background: #1a1a1a;
+  --nav-text: #ffffff;
+  --nav-text-muted: #bdbdbd;
+  --nav-text-faint: #9a9a9a;
+  --nav-hover: rgba(255, 255, 255, 0.12);
+  --nav-active-background: rgba(255, 255, 255, 0.18);
+  --nav-border: rgba(255, 255, 255, 0.22);
 
   /* === Brand Light Colors (card/section backgrounds) === */
   --brand-blue-light: #1a2744;

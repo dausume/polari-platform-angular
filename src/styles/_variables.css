@@ -71,9 +71,29 @@
   --brand-purple-text: #6a1b9a;
   --brand-teal-text: #00695c;
 
-  /* === Navigation === */
+  /* === Navigation ===
+   * THE NAV IS ITS OWN SURFACE, not a shade of the page. The top
+   * toolbar and the side drawer are one piece of chrome, so they read
+   * from this one set and therefore always match and change together
+   * — recolouring the nav in a theme means editing --nav-background
+   * here and the text tokens below it, nothing else.
+   *
+   * ⚠ Anything rendered INSIDE the nav must take its text from these
+   * tokens. Reaching for --text-on-card* instead is the bug this set
+   * exists to prevent: those are for the light card surface, so on
+   * the dark nav they came out near-invisible in light mode while
+   * looking fine in dark. Text belongs to the surface it sits on. */
   --nav-background: #424242;
   --nav-text: #ffffff;
+  /* Secondary text on the nav: section labels, counts, hints. Muted
+   * against --nav-background, never against the page. */
+  --nav-text-muted: #c7c7c7;
+  /* Faintest legible tier — group headings that must recede without
+   * disappearing. */
+  --nav-text-faint: #a6a6a6;
+  --nav-hover: rgba(255, 255, 255, 0.10);
+  --nav-active-background: rgba(255, 255, 255, 0.16);
+  --nav-border: rgba(255, 255, 255, 0.20);
 
   /* === Charts (SVG text/grid painted on themed surfaces) === */
   --chart-text: #495057;

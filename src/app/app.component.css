@@ -49,6 +49,22 @@ mat-sidenav-container {
     padding: 0 !important;
   }
 
+  /* Material's list items take their colour from the prebuilt
+     palette, which has no idea it is painting on the nav surface.
+     Pin every descendant to the nav text tokens so the drawer and the
+     top toolbar stay one coherent piece of chrome. */
+  mat-sidenav,
+  mat-sidenav mat-list-item,
+  mat-sidenav .mat-mdc-list-item,
+  mat-sidenav .mdc-list-item__primary-text,
+  mat-sidenav mat-icon {
+    color: var(--nav-text);
+  }
+
+  mat-sidenav mat-nav-list .mat-mdc-list-item:hover {
+    background-color: var(--nav-hover);
+  }
+
   mat-sidenav {
     background-color: var(--nav-color);
     /* Was min-width:350px + max-width:20%, which on a phone claimed
@@ -91,15 +107,18 @@ mat-sidenav-container {
   }
 
   /* Object Pages Dropdown Styles */
+  /* The drawer is the NAV surface: light-on-dark. These were black
+     tints (rgba(0,0,0,...)) inherited from a light-page assumption,
+     which on #424242 are simply not visible. */
   .dropdown-header {
     cursor: pointer;
-    background-color: rgba(0, 0, 0, 0.05);
+    background-color: var(--nav-hover);
     border-radius: 4px;
     margin-top: 8px;
   }
 
   .dropdown-header:hover {
-    background-color: rgba(0, 0, 0, 0.1);
+    background-color: var(--nav-active-background);
   }
 
   .dropdown-header mat-icon {
@@ -109,8 +128,8 @@ mat-sidenav-container {
   .dropdown-items {
     max-height: 300px;
     overflow-y: auto;
-    background-color: rgba(0, 0, 0, 0.02);
-    border-left: 3px solid var(--accent-color, #3f51b5);
+    background-color: rgba(255, 255, 255, 0.03);
+    border-left: 3px solid var(--nav-border);
     margin-left: 8px;
   }
 
@@ -120,7 +139,7 @@ mat-sidenav-container {
   }
 
   .dropdown-item:hover {
-    background-color: rgba(0, 0, 0, 0.08);
+    background-color: var(--nav-hover);
   }
 
   .dropdown-item-text {
@@ -130,28 +149,30 @@ mat-sidenav-container {
   }
 
   /* Unused Objects Dropdown Styles */
+  /* "Unused" entries recede, but the floor is the muted NAV tier —
+     --text-tertiary is a page token and reads as near-invisible grey
+     on the dark drawer. */
   .unused-header {
-    background-color: rgba(128, 128, 128, 0.1);
-    color: var(--text-tertiary);
+    background-color: rgba(255, 255, 255, 0.06);
+    color: var(--nav-text-faint);
     font-style: italic;
   }
 
   .unused-header:hover {
-    background-color: rgba(128, 128, 128, 0.15);
+    background-color: var(--nav-hover);
   }
 
   .unused-items {
-    border-left-color: var(--text-tertiary);
-    background-color: rgba(128, 128, 128, 0.05);
+    border-left-color: var(--nav-border);
+    background-color: rgba(255, 255, 255, 0.03);
   }
 
   .unused-item {
-    color: var(--text-tertiary);
-    opacity: 0.85;
+    color: var(--nav-text-muted);
   }
 
   .unused-item:hover {
-    background-color: rgba(128, 128, 128, 0.1);
+    background-color: var(--nav-hover);
   }
 
   /* Sub-dropdown Styles (nested category headers) */
