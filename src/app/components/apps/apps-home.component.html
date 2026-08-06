@@ -8,6 +8,11 @@
             the spot, and container deploys always stay a human-run
             <code>pol topology apply</code>.</p>
         <a class="build-btn" routerLink="/apps/build">+ Build an app</a>
+        <!-- appstore-1: the store serves these apps as DOWNLOADABLE
+             native shells (enrollment + reachability advisories) —
+             the no-code store page until the dedicated UI lands. -->
+        <a class="build-btn" routerLink="/display/app-store">
+            ⬇ Install as an app (App Store)</a>
     </div>
 
     <div class="load-error" *ngIf="loadError && !loading">{{ loadError }}</div>
