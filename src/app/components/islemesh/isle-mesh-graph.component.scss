@@ -184,7 +184,54 @@
     &.device { background: #546e7a; }
     &.proxy { background: #2e7d32; }
     &.router { background: #6a1b9a; }
+    &.segment { background: #37474f; }
     &.app { background: #1565c0; }
   }
   .mock-key { color: #ff8f00; }
+}
+
+/* ---- deterministic scene additions ---- */
+::ng-deep .graph-canvas {
+  .edge-l2 {
+    stroke: var(--text-on-card-muted);
+    stroke-width: 1.5;
+    stroke-dasharray: 2 3;
+    &.mock { stroke: #ff8f00; }
+  }
+  .edge-iface {
+    font-size: 10px;
+    fill: var(--text-on-card-muted);
+    text-anchor: middle;
+    paint-order: stroke;
+    stroke: var(--surface-primary);
+    stroke-width: 3px;
+    &.mock { fill: #ff8f00; }
+  }
+  .edge-serves { fill: none; }
+  .device-box {
+    .box-body {
+      fill: var(--surface-secondary);
+      stroke: var(--border-light);
+      stroke-width: 1.5;
+    }
+    .box-title-bar { fill: #546e7a; }
+    .box-title {
+      fill: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      text-anchor: middle;
+      cursor: pointer;
+    }
+    .box-empty {
+      fill: var(--text-on-card-muted);
+      font-size: 11px;
+      font-style: italic;
+      text-anchor: middle;
+    }
+    &.mock {
+      .box-body { stroke: #ff8f00; stroke-dasharray: 6 4; }
+      .box-title-bar { fill: #b26a00; }
+    }
+  }
+  .node-segment .node-label { font-size: 11px; }
 }

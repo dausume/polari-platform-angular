@@ -1,15 +1,16 @@
 /**
- * /isle-mesh — the isle topology as a D3 force graph (mac-1).
+ * /isle-mesh — the isle topology view (mac-1).
  *
- * Nodes: devices, their nginx proxies (isle-agent), the OpenWRT
- * router, and the apps served. EDGES from proxy → app are the
- * point (Dustin 2026-08-07): each is one nginx permit and its
- * label IS the access URL. The proxies are the policy; this view
- * just draws it.
+ * Deterministic scene (isle-mesh-scene.ts): every device is a BOX
+ * containing its nginx proxy / router / apps — containment says
+ * WHERE containers live. Boxes ring the L2 segment hub (the
+ * switch) with interface-labeled connection edges. serves-edges
+ * proxy→app are bundled and their labels ARE the access URLs
+ * (Dustin 2026-08-07) — stacked so they never overlap. Fit-to-view
+ * on paint; zoom/pan for detail.
  *
- * MOCK DISCIPLINE: the payload's mock_network flag (set only by
- * mock ingests — real data never carries it) renders as a LARGE
- * banner at the top, and every mock node/edge is dashed amber.
+ * MOCK DISCIPLINE: payload mock_network (a flag real ingests never
+ * carry) renders as a LARGE banner; mock elements dash amber.
  */
 import {
   AfterViewInit, Component, ElementRef, NgZone, OnDestroy,
@@ -23,59 +24,24 @@ import { firstValueFrom } from 'rxjs';
 import * as d3 from 'd3';
 
 import { PolariService } from '@services/polari-service';
-
-interface IsleNode {
-  id: string;
-  kind: 'device' | 'proxy' | 'router' | 'app' | string;
-  label: string;
-  device: string;
-  is_mock: boolean;
-  agent_present?: boolean;
-  router_running?: boolean;
-  connectivity_mode?: string;
-  domain?: string;
-  availability_mode?: string;
-  status?: string;
-  implied?: boolean;
-  // simulation-managed (self-typed — the repo carries no @types/d3)
-  x?: number;
-  y?: number;
-  fx?: number | null;
-  fy?: number | null;
-}
-
-interface IsleLink {
-  source: string | IsleNode;
-  target: string | IsleNode;
-  kind: 'serves' | 'hosts' | 'runs-on' | string;
-  label: string;
-  protocol?: string;
-  upstream?: string;
-  fragment?: string;
-  is_mock: boolean;
-}
+import {
+  buildScene, PlacedNode, Scene, SceneLink, SceneNode,
+} from './isle-mesh-scene';
 
 interface IsleGraph {
   ok: boolean;
   mock_network: boolean;
   banner: string;
-  nodes: IsleNode[];
-  links: IsleLink[];
+  nodes: SceneNode[];
+  links: SceneLink[];
   error?: string;
 }
 
 const NODE_COLORS: Record<string, string> = {
-  device: '#546e7a',
   proxy: '#2e7d32',
   router: '#6a1b9a',
   app: '#1565c0',
-};
-
-const NODE_RADIUS: Record<string, number> = {
-  device: 26,
-  proxy: 18,
-  router: 18,
-  app: 20,
+  segment: '#37474f',
 };
 
 @Component({
@@ -92,10 +58,9 @@ export class IsleMeshGraphComponent implements AfterViewInit,
   graph: IsleGraph | null = null;
   loadError = '';
   loading = true;
-  selected: IsleNode | null = null;
-  selectedLinks: IsleLink[] = [];
+  selected: SceneNode | null = null;
+  selectedLinks: SceneLink[] = [];
 
-  private sim: any = null;
   private resizeObserver: ResizeObserver | null = null;
   private paintedWidth = 0;
 
@@ -105,9 +70,6 @@ export class IsleMeshGraphComponent implements AfterViewInit,
 
   ngAfterViewInit(): void {
     this.refresh();
-    // Repaint ONLY on real width changes — a naive observer loops:
-    // paint changes host size → observer fires → paint… leaving
-    // the sim eternally at its spawn positions.
     this.resizeObserver = new ResizeObserver(() => {
       const w = this.canvasRef?.nativeElement.clientWidth || 0;
       if (w > 0 && Math.abs(w - this.paintedWidth) > 24) {
@@ -118,7 +80,6 @@ export class IsleMeshGraphComponent implements AfterViewInit,
   }
 
   ngOnDestroy(): void {
-    this.sim?.stop();
     this.resizeObserver?.disconnect();
   }
 
@@ -140,12 +101,11 @@ export class IsleMeshGraphComponent implements AfterViewInit,
     this.paint();
   }
 
-  select(node: IsleNode | null): void {
+  select(node: SceneNode | null): void {
     this.selected = node;
     this.selectedLinks = !node || !this.graph ? []
       : this.graph.links.filter((l) =>
-        (l.source as IsleNode).id === node.id
-        || (l.target as IsleNode).id === node.id);
+        l.source === node.id || l.target === node.id);
   }
 
   private paint(): void {
@@ -153,7 +113,6 @@ export class IsleMeshGraphComponent implements AfterViewInit,
     const host = this.canvasRef.nativeElement;
     const width = host.clientWidth;
     if (!width) {
-      // layout not settled yet — try again next frame
       requestAnimationFrame(() => this.paint());
       return;
     }
@@ -161,111 +120,156 @@ export class IsleMeshGraphComponent implements AfterViewInit,
     const height = host.clientHeight || 480;
     d3.select(host).selectAll('*').remove();
 
-    // Seed positions around the center so the first frames are
-    // already readable (d3's default seeds cluster near origin).
-    const cx = width / 2, cy = height / 2;
-    const spread = Math.min(width, height) / 2.8;
-    const nodes = this.graph.nodes.map((n, i) => ({
-      ...n,
-      x: cx + spread * Math.cos(
-        (2 * Math.PI * i) / this.graph!.nodes.length),
-      y: cy + spread * Math.sin(
-        (2 * Math.PI * i) / this.graph!.nodes.length),
-    }));
-    const links = this.graph.links.map((l) => ({ ...l }));
+    const scene: Scene = buildScene(this.graph.nodes,
+                                    this.graph.links);
 
     const svg = d3.select(host).append('svg')
       .attr('viewBox', `0 0 ${width} ${height}`)
       .attr('preserveAspectRatio', 'xMidYMid meet');
     const root = svg.append('g');
-    svg.call(d3.zoom<SVGSVGElement, unknown>()
-      .scaleExtent([0.3, 3])
+
+    const zoom = d3.zoom<SVGSVGElement, unknown>()
+      .scaleExtent([0.25, 3])
       .on('zoom', (event) => root.attr('transform',
-                                       event.transform)));
+                                       event.transform));
+    svg.call(zoom);
 
-    this.zone.runOutsideAngular(() => {
-      this.sim?.stop();
-      this.sim = d3.forceSimulation(nodes as any)
-        .force('link', d3.forceLink(links as any)
-          .id((d: any) => d.id)
-          .distance((l: any) => l.kind === 'serves' ? 170 : 80)
-          .strength(0.5))
-        .force('charge', d3.forceManyBody().strength(-420))
-        .force('center', d3.forceCenter(width / 2, height / 2))
-        .force('collide', d3.forceCollide()
-          .radius((d: any) => (NODE_RADIUS[d.kind] || 18) + 14));
+    // ---- FIT TO VIEW: every box visible on first paint.
+    const { bbox } = scene;
+    const scale = Math.min(width / bbox.w, height / bbox.h, 1.4);
+    const tx = width / 2 - (bbox.x + bbox.w / 2) * scale;
+    const ty = height / 2 - (bbox.y + bbox.h / 2) * scale;
+    svg.call(zoom.transform,
+             d3.zoomIdentity.translate(tx, ty).scale(scale));
 
-      const link = root.append('g').selectAll('line')
-        .data(links as any).join('line')
-        .attr('class', (d: any) => `edge edge-${d.kind}`
-          + (d.is_mock ? ' mock' : ''));
+    const select = (n: SceneNode) =>
+      this.zone.run(() => this.select(n));
 
-      // URL labels ride the serves-edges — they ARE the point.
-      const edgeLabel = root.append('g')
-        .selectAll('text')
-        .data(links.filter((l) => l.kind === 'serves' && l.label) as any)
-        .join('text')
-        .attr('class', (d: any) => 'edge-url'
-          + (d.is_mock ? ' mock' : '')
-          + (d.protocol === 'https-mtls' ? ' mtls' : ''))
-        .text((d: any) => d.protocol === 'https-mtls'
-          ? `${d.label} (mTLS)` : d.label);
+    // ---- l2 edges (under everything): box edge → segment hub
+    if (scene.segment) {
+      for (const edge of scene.l2) {
+        const bx = edge.from.x + edge.from.w / 2;
+        const by = edge.from.y + edge.from.h / 2;
+        root.append('line')
+          .attr('class', 'edge edge-l2'
+            + (edge.is_mock ? ' mock' : ''))
+          .attr('x1', bx).attr('y1', by)
+          .attr('x2', scene.segment.x)
+          .attr('y2', scene.segment.y);
+        root.append('text')
+          .attr('class', 'edge-iface'
+            + (edge.is_mock ? ' mock' : ''))
+          .attr('x', (bx + scene.segment.x) / 2)
+          .attr('y', (by + scene.segment.y) / 2 - 5)
+          .text(edge.label);
+      }
+    }
 
-      const node = root.append('g').selectAll('g')
-        .data(nodes as any).join('g')
-        .attr('class', (d: any) => `node node-${d.kind}`
-          + (d.is_mock ? ' mock' : ''))
-        .call((d3.drag() as any)
-          .on('start', (event: any, d: any) => {
-            if (!event.active) { this.sim?.alphaTarget(0.25)
-              .restart(); }
-            d.fx = d.x; d.fy = d.y;
-          })
-          .on('drag', (event: any, d: any) => { d.fx = event.x;
-            d.fy = event.y; })
-          .on('end', (event: any, d: any) => {
-            if (!event.active) { this.sim?.alphaTarget(0); }
-            d.fx = null; d.fy = null;
-          }))
-        .on('click', (_event: any, d: any) => this.zone.run(
-          () => this.select(d)));
+    // ---- device boxes
+    const boxG = root.selectAll('g.device-box')
+      .data(scene.boxes).join('g')
+      .attr('class', (b: any) => 'device-box'
+        + (b.is_mock ? ' mock' : ''))
+      .attr('transform',
+            (b: any) => `translate(${b.x},${b.y})`);
+    boxG.append('rect')
+      .attr('class', 'box-body')
+      .attr('width', (b: any) => b.w)
+      .attr('height', (b: any) => b.h)
+      .attr('rx', 10);
+    boxG.append('rect')
+      .attr('class', 'box-title-bar')
+      .attr('width', (b: any) => b.w)
+      .attr('height', 30)
+      .attr('rx', 10);
+    boxG.append('text')
+      .attr('class', 'box-title')
+      .attr('x', (b: any) => b.w / 2)
+      .attr('y', 20)
+      .text((b: any) => b.device
+        + (b.is_mock ? '  (mock)' : ''))
+      .on('click', (_e: any, b: any) => b.node && select(b.node));
+    boxG.filter((b: any) => !b.members.length)
+      .append('text')
+      .attr('class', 'box-empty')
+      .attr('x', (b: any) => b.w / 2)
+      .attr('y', (b: any) => (30 + b.h) / 2 + 4)
+      .text('no isle containers yet');
 
-      node.append('circle')
-        .attr('r', (d: any) => NODE_RADIUS[d.kind] || 18)
-        .attr('fill', (d: any) => NODE_COLORS[d.kind] || '#455a64');
+    // ---- segment hub
+    if (scene.segment) {
+      const seg = root.append('g')
+        .attr('class', 'node node-segment')
+        .attr('transform',
+              `translate(${scene.segment.x},${scene.segment.y})`)
+        .on('click', () => select(scene.segment!.node));
+      seg.append('circle').attr('r', 22)
+        .attr('fill', NODE_COLORS['segment']);
+      seg.append('text').attr('class', 'node-glyph')
+        .attr('dy', 4).text('L2');
+      seg.append('text').attr('class', 'node-label')
+        .attr('dy', 40).text(scene.segment.node.label);
+    }
 
-      node.append('text')
-        .attr('class', 'node-label')
-        .attr('dy', (d: any) => (NODE_RADIUS[d.kind] || 18) + 16)
-        .text((d: any) => d.label);
+    // ---- serves edges (bundled) + stacked URL labels
+    for (const bundle of scene.serves) {
+      const { from, to } = bundle;
+      let midX: number;
+      let midY: number;
+      let path: string;
+      if (bundle.sameBox) {
+        // bracket arc out the LEFT of the box so labels hang in
+        // clear space instead of over box contents
+        const bend = Math.max(70, 40 + bundle.urls.length * 14);
+        const bx = Math.min(from.x, to.x) - bend;
+        midX = bx;
+        midY = (from.y + to.y) / 2;
+        path = `M ${from.x - from.r} ${from.y}`
+          + ` C ${bx} ${from.y}, ${bx} ${to.y},`
+          + ` ${to.x - to.r} ${to.y}`;
+      } else {
+        midX = (from.x + to.x) / 2;
+        midY = (from.y + to.y) / 2;
+        path = `M ${from.x} ${from.y} L ${to.x} ${to.y}`;
+      }
+      root.append('path')
+        .attr('class', 'edge edge-serves'
+          + (bundle.is_mock ? ' mock' : ''))
+        .attr('d', path);
+      bundle.urls.forEach((u, i) => {
+        root.append('text')
+          .attr('class', 'edge-url'
+            + (u.is_mock ? ' mock' : '')
+            + (u.protocol === 'https-mtls' ? ' mtls' : ''))
+          .attr('x', bundle.sameBox ? midX - 6 : midX)
+          .attr('y', midY - 6
+            + (i - (bundle.urls.length - 1) / 2) * 15)
+          .attr('text-anchor',
+                bundle.sameBox ? 'end' : 'middle')
+          .text(u.protocol === 'https-mtls'
+            ? `${u.label} (mTLS)` : u.label);
+      });
+    }
 
-      // tiny kind glyph inside the circle
-      node.append('text')
-        .attr('class', 'node-glyph')
-        .attr('dy', 5)
-        .text((d: any) => ({ device: '🖥', proxy: 'ngx', router: '⇄',
-          app: 'app' } as Record<string, string>)[d.kind] || '');
-
-      const updatePositions = () => {
-        link
-          .attr('x1', (d: any) => (d.source as IsleNode).x || 0)
-          .attr('y1', (d: any) => (d.source as IsleNode).y || 0)
-          .attr('x2', (d: any) => (d.target as IsleNode).x || 0)
-          .attr('y2', (d: any) => (d.target as IsleNode).y || 0);
-        edgeLabel
-          .attr('x', (d: any) => (((d.source as IsleNode).x || 0)
-            + ((d.target as IsleNode).x || 0)) / 2)
-          .attr('y', (d: any) => (((d.source as IsleNode).y || 0)
-            + ((d.target as IsleNode).y || 0)) / 2 - 6);
-        node.attr('transform',
-                  (d: any) => `translate(${d.x || 0},${d.y || 0})`);
-      };
-      // Warm-start: settle the layout synchronously (tick() fires
-      // no events), then let the last bit animate.
-      for (let i = 0; i < 150; i++) { this.sim.tick(); }
-      updatePositions();
-      this.sim.alpha(0.05);
-      this.sim.on('tick', updatePositions);
-    });
+    // ---- inner nodes (proxies, routers, apps) + floats
+    const drawNode = (placed: PlacedNode) => {
+      const n = placed.node;
+      const g = root.append('g')
+        .attr('class', `node node-${n.kind}`
+          + (n.is_mock ? ' mock' : ''))
+        .attr('transform',
+              `translate(${placed.x},${placed.y})`)
+        .on('click', () => select(n));
+      g.append('circle').attr('r', placed.r)
+        .attr('fill', NODE_COLORS[n.kind] || '#455a64');
+      g.append('text').attr('class', 'node-glyph').attr('dy', 4)
+        .text(({ proxy: 'ngx', router: '⇄', app: 'app' } as
+          Record<string, string>)[n.kind] || '');
+      g.append('text').attr('class', 'node-label')
+        .attr('dy', placed.r + 14)
+        .text(n.label);
+    };
+    scene.boxes.forEach((b) => b.members.forEach(drawNode));
+    scene.floats.forEach(drawNode);
   }
 }
