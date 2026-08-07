@@ -47,11 +47,16 @@
 
 .graph-canvas {
   flex: 1 1 auto;
-  min-height: 560px;
+  /* Fit the viewport: page chrome (banner + header + legend)
+     stays visible, the graph takes what remains — no page
+     scroll just to see the canvas. */
+  height: clamp(380px, calc(100vh - 330px), 720px);
   border: 1px solid var(--border-light);
   border-radius: 8px;
   background: var(--surface-primary);
   overflow: hidden;
+
+  svg { display: block; width: 100%; height: 100%; }
 
   &.loading { opacity: 0.5; }
 

@@ -97,6 +97,7 @@ export class IsleMeshGraphComponent implements AfterViewInit,
 
   private sim: any = null;
   private resizeObserver: ResizeObserver | null = null;
+  private paintedWidth = 0;
 
   constructor(private http: HttpClient,
               private polariService: PolariService,
@@ -104,7 +105,15 @@ export class IsleMeshGraphComponent implements AfterViewInit,
 
   ngAfterViewInit(): void {
     this.refresh();
-    this.resizeObserver = new ResizeObserver(() => this.paint());
+    // Repaint ONLY on real width changes — a naive observer loops:
+    // paint changes host size → observer fires → paint… leaving
+    // the sim eternally at its spawn positions.
+    this.resizeObserver = new ResizeObserver(() => {
+      const w = this.canvasRef?.nativeElement.clientWidth || 0;
+      if (w > 0 && Math.abs(w - this.paintedWidth) > 24) {
+        this.paint();
+      }
+    });
     this.resizeObserver.observe(this.canvasRef.nativeElement);
   }
 
@@ -142,16 +151,32 @@ export class IsleMeshGraphComponent implements AfterViewInit,
   private paint(): void {
     if (!this.graph?.ok || !this.canvasRef) { return; }
     const host = this.canvasRef.nativeElement;
-    const width = host.clientWidth || 900;
-    const height = Math.max(560, host.clientHeight || 560);
+    const width = host.clientWidth;
+    if (!width) {
+      // layout not settled yet — try again next frame
+      requestAnimationFrame(() => this.paint());
+      return;
+    }
+    this.paintedWidth = width;
+    const height = host.clientHeight || 480;
     d3.select(host).selectAll('*').remove();
 
-    const nodes = this.graph.nodes.map((n) => ({ ...n }));
+    // Seed positions around the center so the first frames are
+    // already readable (d3's default seeds cluster near origin).
+    const cx = width / 2, cy = height / 2;
+    const spread = Math.min(width, height) / 2.8;
+    const nodes = this.graph.nodes.map((n, i) => ({
+      ...n,
+      x: cx + spread * Math.cos(
+        (2 * Math.PI * i) / this.graph!.nodes.length),
+      y: cy + spread * Math.sin(
+        (2 * Math.PI * i) / this.graph!.nodes.length),
+    }));
     const links = this.graph.links.map((l) => ({ ...l }));
 
     const svg = d3.select(host).append('svg')
-      .attr('width', width).attr('height', height)
-      .attr('viewBox', `0 0 ${width} ${height}`);
+      .attr('viewBox', `0 0 ${width} ${height}`)
+      .attr('preserveAspectRatio', 'xMidYMid meet');
     const root = svg.append('g');
     svg.call(d3.zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.3, 3])
@@ -221,7 +246,7 @@ export class IsleMeshGraphComponent implements AfterViewInit,
         .text((d: any) => ({ device: '🖥', proxy: 'ngx', router: '⇄',
           app: 'app' } as Record<string, string>)[d.kind] || '');
 
-      this.sim.on('tick', () => {
+      const updatePositions = () => {
         link
           .attr('x1', (d: any) => (d.source as IsleNode).x || 0)
           .attr('y1', (d: any) => (d.source as IsleNode).y || 0)
@@ -234,7 +259,13 @@ export class IsleMeshGraphComponent implements AfterViewInit,
             + ((d.target as IsleNode).y || 0)) / 2 - 6);
         node.attr('transform',
                   (d: any) => `translate(${d.x || 0},${d.y || 0})`);
-      });
+      };
+      // Warm-start: settle the layout synchronously (tick() fires
+      // no events), then let the last bit animate.
+      for (let i = 0; i < 150; i++) { this.sim.tick(); }
+      updatePositions();
+      this.sim.alpha(0.05);
+      this.sim.on('tick', updatePositions);
     });
   }
 }
