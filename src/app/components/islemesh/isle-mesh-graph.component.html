@@ -1,0 +1,78 @@
+<div class="isle-page">
+  <!-- THE mock signal: large, unmissable, only when the payload
+       carries the flag real data never has. -->
+  <div class="mock-banner" *ngIf="graph?.mock_network">
+    ⚠ {{ graph?.banner }}
+  </div>
+
+  <div class="isle-header">
+    <div>
+      <h1>Isle mesh</h1>
+      <p class="sub">
+        nginx proxies and the apps they serve — every edge label is
+        a real access URL parsed from the agent's own config
+        (the proxies ARE the policy).
+      </p>
+    </div>
+    <button mat-stroked-button (click)="refresh()"
+            [disabled]="loading">
+      <mat-icon>refresh</mat-icon> Refresh
+    </button>
+  </div>
+
+  <div class="load-error" *ngIf="loadError">{{ loadError }}</div>
+
+  <div class="isle-body">
+    <div #canvas class="graph-canvas"
+         [class.loading]="loading"></div>
+
+    <aside class="detail" *ngIf="selected">
+      <h2>
+        <span class="kind-chip kind-{{ selected.kind }}">
+          {{ selected.kind }}</span>
+        {{ selected.label }}
+        <span class="mock-chip" *ngIf="selected.is_mock">MOCK</span>
+      </h2>
+      <dl>
+        <ng-container *ngIf="selected.device">
+          <dt>Device</dt><dd>{{ selected.device }}</dd>
+        </ng-container>
+        <ng-container *ngIf="selected.kind === 'device'">
+          <dt>Agent</dt>
+          <dd>{{ selected.agent_present ? 'present' : 'not seen' }}</dd>
+          <dt>Router</dt>
+          <dd>{{ selected.router_running ? 'running here' : '—' }}</dd>
+          <dt>Connectivity</dt>
+          <dd>{{ selected.connectivity_mode || 'undeclared' }}</dd>
+        </ng-container>
+        <ng-container *ngIf="selected.kind === 'app'">
+          <dt>Domain</dt><dd>{{ selected.domain || '—' }}</dd>
+          <dt>Availability</dt>
+          <dd>{{ selected.availability_mode || '—' }}</dd>
+          <dt>Status</dt><dd>{{ selected.status || 'unknown' }}</dd>
+        </ng-container>
+      </dl>
+      <h3 *ngIf="selectedLinks.length">Connections</h3>
+      <ul class="links">
+        <li *ngFor="let l of selectedLinks">
+          <span class="link-kind">{{ l.kind }}</span>
+          <a *ngIf="l.kind === 'serves'" [href]="l.label"
+             target="_blank" rel="noopener">{{ l.label }}</a>
+          <span class="upstream" *ngIf="l.upstream">
+            → {{ l.upstream }}</span>
+          <span class="fragment" *ngIf="l.fragment">
+            [{{ l.fragment }}]</span>
+        </li>
+      </ul>
+      <button mat-button (click)="select(null)">Close</button>
+    </aside>
+  </div>
+
+  <div class="legend">
+    <span><i class="dot device"></i> device</span>
+    <span><i class="dot proxy"></i> nginx proxy (isle-agent)</span>
+    <span><i class="dot router"></i> OpenWRT router</span>
+    <span><i class="dot app"></i> app</span>
+    <span class="mock-key">dashed amber = mock</span>
+  </div>
+</div>

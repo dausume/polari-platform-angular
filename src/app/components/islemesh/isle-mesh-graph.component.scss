@@ -1,0 +1,185 @@
+.isle-page {
+  padding: 16px 20px 24px;
+  color: var(--text-on-card);
+  background: var(--surface-app-background);
+  min-height: 100%;
+}
+
+/* THE mock signal — large, top, unmissable. Real data never
+   triggers it (the flag does not exist in real ingests). */
+.mock-banner {
+  background: var(--color-warn);
+  color: var(--color-warn-text);
+  border: 2px dashed var(--color-warn-text);
+  border-radius: 8px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 14px 18px;
+  margin-bottom: 14px;
+  text-align: center;
+}
+
+.isle-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+
+  h1 { margin: 0 0 4px; font-size: 1.4rem; }
+  .sub { margin: 0 0 12px; color: var(--text-on-card-muted); }
+}
+
+.load-error {
+  background: var(--color-error-bg);
+  border: 1px solid var(--color-error-border);
+  color: var(--color-error-text);
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+}
+
+.isle-body {
+  display: flex;
+  gap: 14px;
+  align-items: stretch;
+}
+
+.graph-canvas {
+  flex: 1 1 auto;
+  min-height: 560px;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  background: var(--surface-primary);
+  overflow: hidden;
+
+  &.loading { opacity: 0.5; }
+
+  /* d3-managed contents */
+  ::ng-deep {
+    .edge {
+      stroke: var(--text-on-card-muted);
+      stroke-width: 1;
+      &.edge-serves { stroke: #2e7d32; stroke-width: 2; }
+      &.mock { stroke: #ff8f00; stroke-dasharray: 5 4; }
+    }
+    .edge-url {
+      font-size: 11px;
+      fill: var(--text-on-card);
+      paint-order: stroke;
+      stroke: var(--surface-primary);
+      stroke-width: 3px;
+      text-anchor: middle;
+      &.mock { fill: #ff8f00; }
+      &.mtls { font-weight: 700; }
+    }
+    .node {
+      cursor: pointer;
+      circle { stroke: var(--surface-primary); stroke-width: 2; }
+      &.mock circle { stroke: #ff8f00; stroke-dasharray: 5 4; }
+      .node-label {
+        font-size: 12px;
+        fill: var(--text-on-card);
+        text-anchor: middle;
+        paint-order: stroke;
+        stroke: var(--surface-primary);
+        stroke-width: 3px;
+      }
+      .node-glyph {
+        font-size: 10px;
+        fill: #fff;
+        text-anchor: middle;
+        pointer-events: none;
+      }
+    }
+  }
+}
+
+.detail {
+  flex: 0 0 300px;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  background: var(--surface-secondary);
+  padding: 14px 16px;
+
+  h2 {
+    margin: 0 0 10px;
+    font-size: 1.05rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  h3 { margin: 12px 0 6px; font-size: 0.9rem; }
+
+  dl {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 4px 10px;
+    margin: 0;
+    dt { color: var(--text-on-card-muted); }
+    dd { margin: 0; }
+  }
+
+  .links {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    li { margin-bottom: 6px; word-break: break-all; }
+    .link-kind {
+      display: inline-block;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      color: var(--text-on-card-muted);
+      margin-right: 6px;
+    }
+    .upstream, .fragment {
+      color: var(--text-on-card-muted);
+      font-size: 0.8rem;
+    }
+  }
+}
+
+.kind-chip {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  border-radius: 4px;
+  padding: 2px 6px;
+  color: #fff;
+  &.kind-device { background: #546e7a; }
+  &.kind-proxy { background: #2e7d32; }
+  &.kind-router { background: #6a1b9a; }
+  &.kind-app { background: #1565c0; }
+}
+
+.mock-chip {
+  font-size: 0.7rem;
+  font-weight: 700;
+  border-radius: 4px;
+  padding: 2px 6px;
+  background: var(--color-warn);
+  color: var(--color-warn-text);
+  border: 1px dashed var(--color-warn-text);
+}
+
+.legend {
+  margin-top: 10px;
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  color: var(--text-on-card-muted);
+  font-size: 0.85rem;
+
+  .dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 5px;
+    &.device { background: #546e7a; }
+    &.proxy { background: #2e7d32; }
+    &.router { background: #6a1b9a; }
+    &.app { background: #1565c0; }
+  }
+  .mock-key { color: #ff8f00; }
+}

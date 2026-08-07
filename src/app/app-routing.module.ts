@@ -69,6 +69,8 @@ const routes: Routes = [
   { path: 'scoring/accountability', loadComponent: () => import('@components/scoring/policy-accountability.component').then(m => m.PolicyAccountabilityComponent) },
   { path: 'scoring/survival', loadComponent: () => import('@components/scoring/survival-costs.component').then(m => m.SurvivalCostsComponent) },
   { path: 'topology', loadComponent: () => import('@components/topology/topology-home.component').then(m => m.TopologyHomeComponent) },
+  // mac-1: the isle as a D3 graph — proxies, apps, URL-labeled edges.
+  { path: 'isle-mesh', loadComponent: () => import('@components/islemesh/isle-mesh-graph.component').then(m => m.IsleMeshGraphComponent) },
   // Which instance is responsible for which objects, and the database
   // each instance is bound to.
   { path: 'topology/databases', loadComponent: () => import('@components/topology/object-ownership.component').then(m => m.ObjectOwnershipComponent) },
