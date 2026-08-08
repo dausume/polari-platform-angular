@@ -1,0 +1,79 @@
+<div class="store-page">
+  <div class="store-header">
+    <div>
+      <h1>Isle app store</h1>
+      <p class="sub">
+        Install arbitrary apps as <code>.isle</code> endpoints,
+        polari apps as native shells, and engines that wire into
+        polari — one front door, everything auto-configured.
+      </p>
+    </div>
+    <button mat-stroked-button (click)="refresh()"
+            [disabled]="loading">
+      <mat-icon>refresh</mat-icon> Refresh
+    </button>
+  </div>
+
+  <div class="load-error" *ngIf="loadError">{{ loadError }}</div>
+  <div class="loading" *ngIf="loading">Loading catalog…</div>
+
+  <div class="store-body" *ngIf="!loading && !loadError">
+    <div class="catalog">
+      <section *ngFor="let kind of kindsPresent()">
+        <h2>{{ kindLabel[kind] || kind }}</h2>
+        <div class="cards">
+          <button class="card" *ngFor="let e of entriesOfKind(kind)"
+                  [class.active]="selected?.name === e.name"
+                  (click)="select(e)">
+            <div class="card-top">
+              <mat-icon>{{ kind === 'polari-app' ? 'desktop_windows'
+                : kind === 'polari-module' ? 'extension'
+                : 'dns' }}</mat-icon>
+              <span class="card-title">{{ e.title }}</span>
+              <span class="engine-badge" *ngIf="e.provides_engine">
+                engine: {{ e.provides_engine }}</span>
+            </div>
+            <p class="card-desc">{{ e.description }}</p>
+            <div class="card-meta">
+              <span class="src">{{ e.source_ref }}</span>
+              <span class="cat" *ngIf="e.category">{{ e.category }}</span>
+            </div>
+          </button>
+        </div>
+      </section>
+    </div>
+
+    <aside class="detail" *ngIf="selected">
+      <h2>{{ selected.title }}</h2>
+      <span class="kind-chip kind-{{ selected.kind }}">
+        {{ kindLabel[selected.kind] || selected.kind }}</span>
+      <span class="engine-badge" *ngIf="selected.provides_engine">
+        provides engine: {{ selected.provides_engine }}</span>
+      <p>{{ selected.description }}</p>
+      <dl>
+        <dt>Source</dt><dd>{{ selected.source_ref }}</dd>
+        <dt>Curated</dt><dd>{{ selected.source }}</dd>
+      </dl>
+
+      <h3>Install</h3>
+      <p class="run-hint">Run on any isle host:</p>
+      <div class="cmd">
+        <code>{{ installCommand(selected) }}</code>
+        <button mat-icon-button
+                (click)="copy(installCommand(selected))"
+                title="copy">
+          <mat-icon>content_copy</mat-icon>
+        </button>
+      </div>
+
+      <div class="plan" *ngIf="planLoading">resolving plan…</div>
+      <div class="plan" *ngIf="plan">
+        <p class="plan-note">{{ plan.note }}</p>
+        <p class="plan-label">what it runs:</p>
+        <pre *ngFor="let s of plan.steps">$ {{ s }}</pre>
+      </div>
+
+      <button mat-button (click)="selected = null">Close</button>
+    </aside>
+  </div>
+</div>
