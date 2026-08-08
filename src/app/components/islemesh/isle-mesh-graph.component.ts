@@ -60,6 +60,11 @@ export class IsleMeshGraphComponent implements AfterViewInit,
   loading = true;
   selected: SceneNode | null = null;
   selectedLinks: SceneLink[] = [];
+  selectedEdge: {
+    kind: string; title: string; is_mock: boolean;
+    urls: Array<{ label: string; protocol?: string;
+      upstream?: string; fragment?: string; is_mock: boolean }>;
+  } | null = null;
 
   private resizeObserver: ResizeObserver | null = null;
   private paintedWidth = 0;
@@ -101,7 +106,13 @@ export class IsleMeshGraphComponent implements AfterViewInit,
     this.paint();
   }
 
+  selectEdge(edge: typeof this.selectedEdge): void {
+    this.selectedEdge = edge;
+    if (edge) { this.selected = null; this.selectedLinks = []; }
+  }
+
   select(node: SceneNode | null): void {
+    if (node) { this.selectedEdge = null; }
     this.selected = node;
     this.selectedLinks = !node || !this.graph ? []
       : this.graph.links.filter((l) =>
@@ -156,6 +167,17 @@ export class IsleMeshGraphComponent implements AfterViewInit,
           .attr('x1', bx).attr('y1', by)
           .attr('x2', scene.segment.x)
           .attr('y2', scene.segment.y);
+        root.append('line')
+          .attr('class', 'edge-hit')
+          .attr('x1', bx).attr('y1', by)
+          .attr('x2', scene.segment.x)
+          .attr('y2', scene.segment.y)
+          .on('click', () => this.zone.run(() => this.selectEdge({
+            kind: 'l2', is_mock: edge.is_mock,
+            title: `${edge.from.device} — isle L2 segment`,
+            urls: [{ label: `interface ${edge.label}`,
+              is_mock: edge.is_mock }],
+          })));
         root.append('text')
           .attr('class', 'edge-iface'
             + (edge.is_mock ? ' mock' : ''))
@@ -236,6 +258,15 @@ export class IsleMeshGraphComponent implements AfterViewInit,
         .attr('class', 'edge edge-serves'
           + (bundle.is_mock ? ' mock' : ''))
         .attr('d', path);
+      root.append('path')
+        .attr('class', 'edge-hit')
+        .attr('d', path)
+        .on('click', () => this.zone.run(() => this.selectEdge({
+          kind: 'serves', is_mock: bundle.is_mock,
+          title: `${bundle.from.node.label} → `
+            + `${bundle.to.node.label}`,
+          urls: bundle.urls,
+        })));
       bundle.urls.forEach((u, i) => {
         root.append('text')
           .attr('class', 'edge-url'
@@ -265,9 +296,14 @@ export class IsleMeshGraphComponent implements AfterViewInit,
       g.append('text').attr('class', 'node-glyph').attr('dy', 4)
         .text(({ proxy: 'ngx', router: '⇄', app: 'app' } as
           Record<string, string>)[n.kind] || '');
+      // SHORT labels inside boxes — the full label lives in the
+      // detail panel (long ones caused the isle-core overlap).
+      const short = ({ proxy: 'nginx agent', router: 'router' } as
+        Record<string, string>)[n.kind] || n.label;
       g.append('text').attr('class', 'node-label')
         .attr('dy', placed.r + 14)
-        .text(n.label);
+        .text(short.length > 16
+          ? short.slice(0, 15) + '…' : short);
     };
     scene.boxes.forEach((b) => b.members.forEach(drawNode));
     scene.floats.forEach(drawNode);

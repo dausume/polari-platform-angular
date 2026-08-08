@@ -26,6 +26,28 @@
     <div #canvas class="graph-canvas"
          [class.loading]="loading"></div>
 
+    <aside class="detail" *ngIf="selectedEdge">
+      <h2>
+        <span class="kind-chip kind-{{ selectedEdge.kind }}">
+          {{ selectedEdge.kind === 'l2' ? 'L2 link' : 'serves' }}</span>
+        {{ selectedEdge.title }}
+        <span class="mock-chip" *ngIf="selectedEdge.is_mock">MOCK</span>
+      </h2>
+      <ul class="links">
+        <li *ngFor="let u of selectedEdge.urls">
+          <a *ngIf="u.label.startsWith('http')" [href]="u.label"
+             target="_blank" rel="noopener">{{ u.label }}</a>
+          <span *ngIf="!u.label.startsWith('http')">{{ u.label }}</span>
+          <span *ngIf="u.protocol === 'https-mtls'"> (mTLS)</span>
+          <span class="upstream" *ngIf="u.upstream">
+            → {{ u.upstream }}</span>
+          <span class="fragment" *ngIf="u.fragment">
+            [{{ u.fragment }}]</span>
+        </li>
+      </ul>
+      <button mat-button (click)="selectEdge(null)">Close</button>
+    </aside>
+
     <aside class="detail" *ngIf="selected">
       <h2>
         <span class="kind-chip kind-{{ selected.kind }}">

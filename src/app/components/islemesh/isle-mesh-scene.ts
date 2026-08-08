@@ -72,10 +72,10 @@ export interface Scene {
   bbox: { x: number; y: number; w: number; h: number };
 }
 
-const CELL_W = 96;
-const CELL_H = 66;
+const CELL_W = 124;
+const CELL_H = 86;
 const TITLE_H = 30;
-const PAD = 16;
+const PAD = 20;
 const INNER_R: Record<string, number> = {
   proxy: 15, router: 15, app: 16,
 };
@@ -101,7 +101,7 @@ export function buildScene(nodes: SceneNode[],
       rows.push(apps.slice(i, i + 3));
     }
     const maxRow = Math.max(1, ...rows.map((r) => r.length));
-    const w = Math.max(170, maxRow * CELL_W + PAD * 2);
+    const w = Math.max(190, maxRow * CELL_W + PAD * 2);
     const h = TITLE_H + PAD
       + Math.max(1, rows.length) * CELL_H + PAD / 2;
     const placed: PlacedNode[] = [];
@@ -123,7 +123,7 @@ export function buildScene(nodes: SceneNode[],
   // ---- ring the boxes around the hub; radius from box sizes so
   // neighbors never collide but nothing drifts unnecessarily far.
   const circumference = boxes.reduce(
-    (sum, b) => sum + Math.max(b.w, b.h) + 70, 0);
+    (sum, b) => sum + Math.max(b.w, b.h) + 90, 0);
   const radius = Math.max(240, circumference / (2 * Math.PI));
   boxes.forEach((b, i) => {
     const angle = (2 * Math.PI * i) / Math.max(1, boxes.length)

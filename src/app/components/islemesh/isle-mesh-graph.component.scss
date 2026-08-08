@@ -235,3 +235,14 @@
   }
   .node-segment .node-label { font-size: 11px; }
 }
+
+/* invisible wide hit areas make edges clickable */
+::ng-deep .graph-canvas .edge-hit {
+  stroke: transparent;
+  stroke-width: 14;
+  fill: none;
+  cursor: pointer;
+}
+::ng-deep .graph-canvas .kind-chip.kind-l2,
+.kind-chip.kind-l2 { background: #37474f; }
+.kind-chip.kind-serves { background: #2e7d32; }
