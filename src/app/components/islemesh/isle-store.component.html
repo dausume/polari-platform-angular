@@ -56,7 +56,27 @@
       </dl>
 
       <h3>Install</h3>
-      <p class="run-hint">Run on any isle host:</p>
+
+      <!-- Native shell: install on THIS device, password-prompted -->
+      <div class="native-install" *ngIf="nativeInstall">
+        <button mat-raised-button color="primary"
+                [disabled]="installing"
+                (click)="installNative(selected)">
+          <mat-icon>download</mat-icon>
+          {{ installing ? 'Installing…'
+             : 'Install on this device' }}
+        </button>
+        <p class="native-hint">
+          You'll be asked for your password to install.
+        </p>
+        <pre class="install-log"
+             *ngIf="installLog"
+             [class.ok]="installOk === true"
+             [class.err]="installOk === false">{{ installLog }}</pre>
+      </div>
+
+      <!-- Plain browser: the copyable host command -->
+      <p class="run-hint">Or run on any isle host:</p>
       <div class="cmd">
         <code>{{ installCommand(selected) }}</code>
         <button mat-icon-button

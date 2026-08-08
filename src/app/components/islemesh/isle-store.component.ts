@@ -17,6 +17,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { firstValueFrom } from 'rxjs';
 
 import { PolariService } from '@services/polari-service';
+import { ShellBridgeService } from
+  '@services/shell-bridge.service';
 
 interface CatalogEntry {
   name: string;
@@ -50,6 +52,11 @@ export class IsleStoreComponent implements OnInit {
   plan: InstallPlan | null = null;
   planLoading = false;
 
+  // native-shell install state (handoff §31)
+  installing = false;
+  installLog = '';
+  installOk: boolean | null = null;
+
   readonly kindLabel: Record<string, string> = {
     'mesh-app': 'Mesh app',
     'polari-app': 'Polari app',
@@ -57,7 +64,33 @@ export class IsleStoreComponent implements OnInit {
   };
 
   constructor(private http: HttpClient,
-              private polariService: PolariService) {}
+              private polariService: PolariService,
+              public bridge: ShellBridgeService) {}
+
+  /** True when running inside the native JavaFX/JCEF shell — the
+   *  page can then install locally (pkexec) instead of only
+   *  showing a copyable command. */
+  get nativeInstall(): boolean {
+    return this.bridge.available;
+  }
+
+  async installNative(entry: CatalogEntry): Promise<void> {
+    this.installing = true;
+    this.installLog = `Requesting install of ${entry.name}… `
+      + `(you'll be asked for your password)`;
+    this.installOk = null;
+    try {
+      const res = await this.bridge.install(entry.name);
+      this.installOk = !!res.ok;
+      this.installLog = (res.output || res.error
+        || (res.ok ? 'installed' : 'failed')).trim();
+    } catch (e: any) {
+      this.installOk = false;
+      this.installLog = e?.message || 'install bridge error';
+    } finally {
+      this.installing = false;
+    }
+  }
 
   ngOnInit(): void {
     this.refresh();
@@ -87,6 +120,8 @@ export class IsleStoreComponent implements OnInit {
     this.selected = entry;
     this.plan = null;
     this.planLoading = true;
+    this.installLog = '';
+    this.installOk = null;
     const data: any = await firstValueFrom(this.http.get(
       `${this.base()}/api/islemesh/catalog/${entry.name}`,
       this.polariService.backendRequestOptions))
