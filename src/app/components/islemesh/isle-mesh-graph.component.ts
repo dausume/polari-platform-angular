@@ -240,15 +240,20 @@ export class IsleMeshGraphComponent implements AfterViewInit,
       let midY: number;
       let path: string;
       if (bundle.sameBox) {
-        // bracket arc out the LEFT EDGE of the box — labels hang
-        // entirely outside it, never over box contents
+        // short straight edge INSIDE the box; URL labels hang
+        // outside the left edge, tied by a dashed leader line —
+        // nothing crosses other members, nothing covers them
         const edge = bundle.boxLeft ?? Math.min(from.x, to.x) - 60;
-        const bx = edge - 46;
+        const emx = (from.x + to.x) / 2;
+        const emy = (from.y + to.y) / 2;
         midX = edge - 10;
-        midY = (from.y + to.y) / 2;
-        path = `M ${from.x - from.r} ${from.y}`
-          + ` C ${bx} ${from.y}, ${bx} ${to.y},`
-          + ` ${to.x - to.r} ${to.y}`;
+        midY = emy;
+        path = `M ${from.x} ${from.y} L ${to.x} ${to.y}`;
+        root.append('line')
+          .attr('class', 'edge edge-leader'
+            + (bundle.is_mock ? ' mock' : ''))
+          .attr('x1', emx).attr('y1', emy)
+          .attr('x2', edge - 6).attr('y2', emy);
       } else {
         midX = (from.x + to.x) / 2;
         midY = (from.y + to.y) / 2;

@@ -246,3 +246,11 @@
 ::ng-deep .graph-canvas .kind-chip.kind-l2,
 .kind-chip.kind-l2 { background: #37474f; }
 .kind-chip.kind-serves { background: #2e7d32; }
+
+::ng-deep .graph-canvas .edge-leader {
+  stroke: var(--text-on-card-muted);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  opacity: 0.7;
+  &.mock { stroke: #ff8f00; }
+}
