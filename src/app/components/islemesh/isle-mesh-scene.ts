@@ -52,6 +52,9 @@ export interface ServesBundle {
   from: PlacedNode;
   to: PlacedNode;
   sameBox: boolean;
+  /** Left edge of the containing box (sameBox only) — labels hang
+   *  fully OUTSIDE it, never over box contents. */
+  boxLeft?: number;
   is_mock: boolean;
   urls: Array<{ label: string; protocol?: string;
     upstream?: string; fragment?: string; is_mock: boolean }>;
@@ -169,9 +172,14 @@ export function buildScene(nodes: SceneNode[],
     const key = `${link.source}→${link.target}`;
     let bundle = bundles.get(key);
     if (!bundle) {
+      const sameBox =
+        boxOf.get(link.source) === boxOf.get(link.target);
+      const box = sameBox
+        ? boxes.find((b) => b.device === boxOf.get(link.source))
+        : undefined;
       bundle = {
-        from, to,
-        sameBox: boxOf.get(link.source) === boxOf.get(link.target),
+        from, to, sameBox,
+        boxLeft: box ? box.x : undefined,
         is_mock: link.is_mock,
         urls: [],
       };

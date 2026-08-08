@@ -240,11 +240,11 @@ export class IsleMeshGraphComponent implements AfterViewInit,
       let midY: number;
       let path: string;
       if (bundle.sameBox) {
-        // bracket arc out the LEFT of the box so labels hang in
-        // clear space instead of over box contents
-        const bend = Math.max(70, 40 + bundle.urls.length * 14);
-        const bx = Math.min(from.x, to.x) - bend;
-        midX = bx;
+        // bracket arc out the LEFT EDGE of the box — labels hang
+        // entirely outside it, never over box contents
+        const edge = bundle.boxLeft ?? Math.min(from.x, to.x) - 60;
+        const bx = edge - 46;
+        midX = edge - 10;
         midY = (from.y + to.y) / 2;
         path = `M ${from.x - from.r} ${from.y}`
           + ` C ${bx} ${from.y}, ${bx} ${to.y},`
