@@ -55,9 +55,11 @@ section h2 {
   &.active { border-color: #1565c0; border-width: 2px; }
 
   .card-top {
+    // badges WRAP inside the card instead of running off its edge
     display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+    flex-wrap: wrap;
     mat-icon { color: #1565c0; }
-    .card-title { font-weight: 600; flex: 1; }
+    .card-title { font-weight: 600; flex: 1; min-width: 40%; }
   }
   .card-desc { margin: 0 0 8px; font-size: .88rem;
     color: var(--text-on-card-muted); }
@@ -73,7 +75,10 @@ section h2 {
 .engine-badge {
   font-size: .7rem; font-weight: 600;
   background: #00897b; color: #fff;
-  border-radius: 4px; padding: 2px 6px; white-space: nowrap;
+  border-radius: 4px; padding: 2px 6px;
+  // long device lists wrap WITHIN the badge, never off the card
+  white-space: normal; overflow-wrap: anywhere;
+  max-width: 100%; text-align: left;
 }
 
 .detail {
