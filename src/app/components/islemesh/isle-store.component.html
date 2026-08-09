@@ -67,6 +67,8 @@
             <code>{{ i.app }}</code> on
             <strong>{{ i.device || '?' }}</strong>
             <span *ngIf="i.domain"> — {{ i.domain }}</span>
+            <span class="modules" *ngIf="i.modules?.length">
+              · modules: {{ i.modules!.join(', ') }}</span>
           </li>
         </ul>
         <p class="dup-hint" *ngIf="selected.kind === 'mesh-app'">

@@ -24,6 +24,7 @@ interface AppInstance {
   app: string;
   device: string;
   domain: string;
+  modules?: string[];
 }
 
 interface CatalogEntry {
@@ -68,9 +69,10 @@ export class IsleStoreComponent implements OnInit {
   installOk: boolean | null = null;
 
   readonly kindLabel: Record<string, string> = {
-    'mesh-app': 'Mesh app',
-    'polari-app': 'Polari app',
-    'polari-module': 'Module',
+    'mesh-app': 'Mesh apps — run as containers on a device',
+    'polari-app': 'Polari apps — doors onto running instances',
+    'polari-instance': 'Polari instances — runtimes that host modules',
+    'polari-module': 'Polari modules',
   };
 
   constructor(private http: HttpClient,
