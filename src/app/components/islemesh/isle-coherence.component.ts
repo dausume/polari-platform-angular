@@ -14,12 +14,26 @@ import { firstValueFrom } from 'rxjs';
 
 import { PolariService } from '@services/polari-service';
 
+interface CoherenceApp {
+  name: string;
+  domain: string;
+  subdomains: string[];
+}
+
 interface CoherenceDevice {
   name: string;
   agent_present: boolean;
   app_count: number;
-  apps: string[];
+  apps: CoherenceApp[];
   polari_instances: string[];
+}
+
+interface PolariInstance {
+  app: string;
+  device: string;
+  domain: string;
+  role: string;
+  subdomains: string[];
 }
 
 interface Assessment {
@@ -66,11 +80,41 @@ interface Assessment {
           </li>
         </ul>
 
+        <h2>Polari instances</h2>
+        <div class="dev-table">
+          <div class="dev-row pol-head dev-head">
+            <span>instance</span><span>role</span>
+            <span>device</span><span>domains</span>
+          </div>
+          <div class="dev-row pol-row" *ngFor="let i of polari">
+            <span class="dev-name mono">{{ i.app }}</span>
+            <span>
+              <span class="role role-{{ i.role }}">{{ i.role }}
+              </span>
+            </span>
+            <span>{{ i.device || '?' }}</span>
+            <span class="mono">{{ i.domain }}
+              <span class="subs" *ngIf="i.subdomains.length">
+                + {{ i.subdomains.join(', ') }}</span>
+            </span>
+          </div>
+        </div>
+        <p class="comp-hint" *ngIf="components">
+          Component shape: polari installs as SUBSECTIONS of
+          itself —
+          <span *ngFor="let c of componentKeys(); let last = last">
+            <code>{{ c }}</code>
+            <em>({{ components[c] }})</em><span *ngIf="!last">,
+            </span>
+          </span>. Backends are the replicable part; component
+          installs land with the shared-db profile arc.
+        </p>
+
         <h2>Devices × what runs where</h2>
         <div class="dev-table">
           <div class="dev-row dev-head">
             <span>device</span><span>member</span>
-            <span>polari instances</span><span>apps</span>
+            <span>polari instances</span><span>apps + subdomains</span>
           </div>
           <div class="dev-row" *ngFor="let d of devices">
             <span class="dev-name">{{ d.name }}</span>
@@ -83,7 +127,14 @@ interface Assessment {
             </span>
             <span class="mono">
               {{ d.polari_instances.join(', ') || '—' }}</span>
-            <span class="mono">{{ d.apps.join(', ') || '—' }}</span>
+            <span class="mono apps-cell">
+              <span class="app-line" *ngFor="let a of d.apps">
+                {{ a.name }}
+                <span class="subs" *ngIf="a.subdomains.length">
+                  ({{ a.subdomains.join(', ') }})</span>
+              </span>
+              <span *ngIf="!d.apps.length">—</span>
+            </span>
           </div>
         </div>
 
@@ -129,6 +180,16 @@ interface Assessment {
             overflow-wrap: anywhere; }
     mat-icon.yes { color: #2e7d32; }
     mat-icon.no { color: #c62828; }
+    .role { font-size: .7rem; font-weight: 700;
+      text-transform: uppercase; border-radius: 4px;
+      padding: 2px 6px; }
+    .role-core { background: #1565c0; color: #fff; }
+    .role-additional { background: #00897b; color: #fff; }
+    .subs { color: var(--text-muted, #777); font-size: .8rem; }
+    .apps-cell .app-line { display: block; }
+    .comp-hint { font-size: .85rem; color: var(--text-muted, #666);
+      code { background: var(--surface-2, #f4f4f6);
+             padding: 1px 5px; border-radius: 4px; } }
     .scale-hint code { background: var(--surface-2, #f4f4f6);
                        padding: 2px 6px; border-radius: 4px; }
   `],
@@ -137,8 +198,14 @@ export class IsleCoherenceComponent implements OnInit {
   devices: CoherenceDevice[] = [];
   assessments: Assessment[] = [];
   candidates: string[] = [];
+  polari: PolariInstance[] = [];
+  components: Record<string, string> | null = null;
   loading = true;
   loadError = '';
+
+  componentKeys(): string[] {
+    return this.components ? Object.keys(this.components) : [];
+  }
 
   constructor(private http: HttpClient,
               private polariService: PolariService) {}
@@ -164,5 +231,7 @@ export class IsleCoherenceComponent implements OnInit {
     this.devices = data.devices ?? [];
     this.assessments = data.assessments ?? [];
     this.candidates = data.polari?.candidates ?? [];
+    this.polari = data.polari?.instances ?? [];
+    this.components = data.polari?.components ?? null;
   }
 }
