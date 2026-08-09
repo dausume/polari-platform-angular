@@ -14,6 +14,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { IsleStoreComponent } from './isle-store.component';
 import { IsleMeshGraphComponent } from
   './isle-mesh-graph.component';
+import { IsleCoherenceComponent } from
+  './isle-coherence.component';
 
 @Component({
   selector: 'app-isle-hub',
@@ -21,6 +23,7 @@ import { IsleMeshGraphComponent } from
   imports: [
     CommonModule, MatTabsModule, MatIconModule,
     IsleStoreComponent, IsleMeshGraphComponent,
+    IsleCoherenceComponent,
   ],
   template: `
     <div class="isle-hub">
@@ -39,6 +42,13 @@ import { IsleMeshGraphComponent } from
           </ng-template>
           <app-isle-mesh-graph *ngIf="tab === 1">
           </app-isle-mesh-graph>
+        </mat-tab>
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <mat-icon>fact_check</mat-icon>&nbsp;Coherence
+          </ng-template>
+          <app-isle-coherence *ngIf="tab === 2">
+          </app-isle-coherence>
         </mat-tab>
       </mat-tab-group>
     </div>
