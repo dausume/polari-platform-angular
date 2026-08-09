@@ -80,7 +80,7 @@ const CELL_H = 86;
 const TITLE_H = 30;
 const PAD = 20;
 const INNER_R: Record<string, number> = {
-  proxy: 15, router: 15, app: 16,
+  proxy: 15, router: 15, app: 16, exposure: 13,
 };
 
 export function buildScene(nodes: SceneNode[],
@@ -94,6 +94,9 @@ export function buildScene(nodes: SceneNode[],
   const boxes: DeviceBox[] = deviceNodes.map((dev) => {
     const members = nodes.filter((n) =>
       n.kind !== 'device' && n.kind !== 'segment'
+      // exposures are OUTSIDE the device (external doors) — floated,
+      // not boxed with the device's internal proxy/apps
+      && n.kind !== 'exposure'
       && n.device === dev.device);
     // row 0: infrastructure (proxy, router); rows 1+: apps, 3/row
     const infra = members.filter((m) => m.kind !== 'app');
@@ -141,7 +144,8 @@ export function buildScene(nodes: SceneNode[],
   const boxedDevices = new Set(boxes.map((b) => b.device));
   const floats: PlacedNode[] = nodes
     .filter((n) => n.kind !== 'device' && n.kind !== 'segment'
-      && !boxedDevices.has(n.device))
+      // implied apps with no box, plus exposures (external doors)
+      && (!boxedDevices.has(n.device) || n.kind === 'exposure'))
     .map((n, i) => ({
       node: n,
       x: (i - 0.5) * 120,

@@ -20,9 +20,18 @@ interface CoherenceApp {
   subdomains: string[];
 }
 
+interface Exposure {
+  port: number;
+  internal: string;
+  protocol: string;
+  access?: { level: number; user?: string; group?: string };
+}
+
 interface CoherenceDevice {
   name: string;
   agent_present: boolean;
+  is_entrypoint: boolean;
+  exposures: Exposure[];
   app_count: number;
   apps: CoherenceApp[];
   polari_instances: string[];
@@ -110,6 +119,44 @@ interface Assessment {
           installs land with the shared-db profile arc.
         </p>
 
+        <h2>Web exposure (the containment boundary)</h2>
+        <p class="sub">
+          <code>.isle</code> is always internal (agent-only, fully
+          contained). Outside doors open ONLY on designated
+          entrypoint devices, and each admits exactly one
+          credentialed person (level 1) or a Keycloak group
+          (level 2). Configure with
+          <code>isle url entrypoint enable</code> +
+          <code>isle url expose &lt;name&gt;.isle --port P --user U</code>.
+        </p>
+        <div class="dev-table">
+          <div class="dev-row exp-head dev-head">
+            <span>device</span><span>entrypoint</span>
+            <span>outside doors</span>
+          </div>
+          <div class="dev-row exp-row" *ngFor="let d of devices">
+            <span class="dev-name">{{ d.name }}</span>
+            <span>
+              <mat-icon inline class="{{ d.is_entrypoint
+                ? 'yes' : 'no' }}">
+                {{ d.is_entrypoint ? 'public' : 'lock' }}
+              </mat-icon>
+              {{ d.is_entrypoint ? 'entrypoint' : 'internal only' }}
+            </span>
+            <span class="mono apps-cell">
+              <span class="app-line" *ngFor="let e of d.exposures">
+                :{{ e.port }} → {{ e.internal }}
+                <span class="role"
+                  [class.role-core]="e.access?.level === 2">
+                  L{{ e.access?.level }}:
+                  {{ e.access?.user || e.access?.group || '?' }}
+                </span>
+              </span>
+              <span *ngIf="!d.exposures.length">—</span>
+            </span>
+          </div>
+        </div>
+
         <h2>Devices × what runs where</h2>
         <div class="dev-table">
           <div class="dev-row dev-head">
@@ -174,6 +221,8 @@ interface Assessment {
       border-top: 1px solid var(--border, #eee);
       &.dev-head { font-weight: 600; border-top: none;
                    background: var(--surface-2, #f4f4f6); }
+      &.exp-row, &.exp-head {
+        grid-template-columns: 1.4fr 1fr 2.2fr; }
     }
     .dev-name { font-weight: 600; }
     .mono { font-family: monospace; font-size: .85rem;
