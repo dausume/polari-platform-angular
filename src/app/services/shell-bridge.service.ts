@@ -65,4 +65,12 @@ export class ShellBridgeService {
   install(name: string): Promise<InstallResult> {
     return this.call('store.install', { name });
   }
+
+  /** Read-only: is this app's native launcher installed on THIS
+   *  device, and at what version (dpkg, unprivileged)? */
+  status(name: string):
+      Promise<{ ok: boolean; installed?: boolean;
+                version?: string; error?: string }> {
+    return this.call('store.status', { name });
+  }
 }

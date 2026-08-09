@@ -81,11 +81,18 @@
 
       <!-- Native shell: install on THIS device, password-prompted -->
       <div class="native-install" *ngIf="nativeInstall">
+        <p class="installed-here" *ngIf="localInstalled">
+          <mat-icon inline>check_circle</mat-icon>
+          Installed on this device
+          <span *ngIf="localVersion">(v{{ localVersion }})</span>
+          — installing again reinstalls/upgrades.
+        </p>
         <button mat-raised-button color="primary"
                 [disabled]="installing"
                 (click)="installNative(selected)">
           <mat-icon>download</mat-icon>
           {{ installing ? 'Installing…'
+             : localInstalled ? 'Reinstall / upgrade'
              : 'Install on this device' }}
         </button>
         <p class="native-hint">

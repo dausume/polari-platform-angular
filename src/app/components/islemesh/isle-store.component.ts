@@ -126,12 +126,26 @@ export class IsleStoreComponent implements OnInit {
     this.entries = data.entries;
   }
 
+  // installed-on-this-device state (native shell only)
+  localInstalled: boolean | null = null;
+  localVersion = '';
+
   async select(entry: CatalogEntry): Promise<void> {
     this.selected = entry;
     this.plan = null;
     this.planLoading = true;
     this.installLog = '';
     this.installOk = null;
+    this.localInstalled = null;
+    this.localVersion = '';
+    if (this.nativeInstall && entry.kind === 'polari-app') {
+      this.bridge.status(entry.name).then((s) => {
+        if (this.selected?.name === entry.name && s?.ok) {
+          this.localInstalled = !!s.installed;
+          this.localVersion = s.version || '';
+        }
+      }).catch(() => {});
+    }
     const data: any = await firstValueFrom(this.http.get(
       `${this.base()}/api/islemesh/catalog/${entry.name}`,
       this.polariService.backendRequestOptions))
