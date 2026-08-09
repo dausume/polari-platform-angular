@@ -20,6 +20,12 @@ import { PolariService } from '@services/polari-service';
 import { ShellBridgeService } from
   '@services/shell-bridge.service';
 
+interface AppInstance {
+  app: string;
+  device: string;
+  domain: string;
+}
+
 interface CatalogEntry {
   name: string;
   title: string;
@@ -29,6 +35,10 @@ interface CatalogEntry {
   provides_engine: string;
   category: string;
   source: string;
+  // running instances across the isle (duplicates are deliberate —
+  // scaling is a genuine need; this is the tracking half)
+  instances?: AppInstance[];
+  instance_count?: number;
 }
 
 interface InstallPlan {
@@ -132,6 +142,22 @@ export class IsleStoreComponent implements OnInit {
 
   installCommand(entry: CatalogEntry): string {
     return `isle store install ${entry.name}`;
+  }
+
+  /** Devices an entry currently runs on (deduped, for the chip). */
+  runsOn(entry: CatalogEntry): string {
+    const devs = [...new Set((entry.instances ?? [])
+      .map((i) => i.device || '?'))];
+    return devs.join(', ');
+  }
+
+  /** Installing a mesh-app that already runs somewhere creates a
+   *  DUPLICATE instance under the next -N name — say so. */
+  nextDuplicateName(entry: CatalogEntry): string {
+    const taken = new Set((entry.instances ?? []).map((i) => i.app));
+    let n = 2;
+    while (taken.has(`${entry.name}-${n}`)) { n += 1; }
+    return `${entry.name}-${n}`;
   }
 
   copy(text: string): void {

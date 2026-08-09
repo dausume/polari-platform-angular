@@ -32,6 +32,10 @@
               <span class="card-title">{{ e.title }}</span>
               <span class="engine-badge" *ngIf="e.provides_engine">
                 engine: {{ e.provides_engine }}</span>
+              <span class="engine-badge runs-badge"
+                    *ngIf="e.instance_count"
+                    title="running instances across the isle">
+                runs ×{{ e.instance_count }} on {{ runsOn(e) }}</span>
             </div>
             <p class="card-desc">{{ e.description }}</p>
             <div class="card-meta">
@@ -54,6 +58,24 @@
         <dt>Source</dt><dd>{{ selected.source_ref }}</dd>
         <dt>Curated</dt><dd>{{ selected.source }}</dd>
       </dl>
+
+      <!-- running instances: duplicates are a CHOICE, tracked -->
+      <div class="instances" *ngIf="selected.instance_count">
+        <h3>Running instances ({{ selected.instance_count }})</h3>
+        <ul>
+          <li *ngFor="let i of selected.instances">
+            <code>{{ i.app }}</code> on
+            <strong>{{ i.device || '?' }}</strong>
+            <span *ngIf="i.domain"> — {{ i.domain }}</span>
+          </li>
+        </ul>
+        <p class="dup-hint" *ngIf="selected.kind === 'mesh-app'">
+          Installing again creates a <strong>duplicate</strong>
+          instance ({{ nextDuplicateName(selected) }}) on the
+          installing device — scaling is per-device and tracked
+          here.
+        </p>
+      </div>
 
       <h3>Install</h3>
 
