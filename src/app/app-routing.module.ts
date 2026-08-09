@@ -73,6 +73,9 @@ const routes: Routes = [
   { path: 'isle-mesh', loadComponent: () => import('@components/islemesh/isle-mesh-graph.component').then(m => m.IsleMeshGraphComponent) },
   // §25: the general isle app store as a browsable page.
   { path: 'isle-store', loadComponent: () => import('@components/islemesh/isle-store.component').then(m => m.IsleStoreComponent) },
+  // §32: the unified isle hub — app store + topology as tabs (the
+  // genuine isle store; the shell opens this).
+  { path: 'isle', loadComponent: () => import('@components/islemesh/isle-hub.component').then(m => m.IsleHubComponent) },
   // Which instance is responsible for which objects, and the database
   // each instance is bound to.
   { path: 'topology/databases', loadComponent: () => import('@components/topology/object-ownership.component').then(m => m.ObjectOwnershipComponent) },
