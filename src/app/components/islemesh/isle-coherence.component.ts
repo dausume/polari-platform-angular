@@ -27,11 +27,16 @@ interface Exposure {
   access?: { level: number; user?: string; group?: string };
 }
 
+interface Pool { name: string; cidr: string; }
+interface PortRow { port: number; container: string; }
+
 interface CoherenceDevice {
   name: string;
   agent_present: boolean;
   is_entrypoint: boolean;
   exposures: Exposure[];
+  pools: Pool[];
+  ports: PortRow[];
   app_count: number;
   apps: CoherenceApp[];
   polari_instances: string[];
@@ -185,6 +190,37 @@ interface Assessment {
           </div>
         </div>
 
+        <h2>Network resources (subnets & ports)</h2>
+        <p class="sub">
+          Every docker pool and published port is tracked per
+          device, so apps and engines scale without collision. A
+          new network that would overlap an existing pool is flagged
+          above; deploy verbs pick free pools/ports
+          (<code>isle net free-subnet</code> /
+          <code>isle net free-port</code>).
+        </p>
+        <div class="dev-table">
+          <div class="dev-row net-head dev-head">
+            <span>device</span><span>docker pools</span>
+            <span>published ports</span>
+          </div>
+          <div class="dev-row net-row" *ngFor="let d of devices">
+            <span class="dev-name">{{ d.name }}</span>
+            <span class="mono apps-cell">
+              <span class="app-line" *ngFor="let p of d.pools">
+                {{ p.name }} <span class="subs">{{ p.cidr }}</span>
+              </span>
+              <span *ngIf="!d.pools.length">—</span>
+            </span>
+            <span class="mono apps-cell">
+              <span class="app-line" *ngFor="let p of d.ports">
+                :{{ p.port }} <span class="subs">{{ p.container }}</span>
+              </span>
+              <span *ngIf="!d.ports.length">—</span>
+            </span>
+          </div>
+        </div>
+
         <h2>Scaling polari</h2>
         <p *ngIf="candidates.length" class="scale-hint">
           polari could also run on
@@ -223,6 +259,8 @@ interface Assessment {
                    background: var(--surface-2, #f4f4f6); }
       &.exp-row, &.exp-head {
         grid-template-columns: 1.4fr 1fr 2.2fr; }
+      &.net-row, &.net-head {
+        grid-template-columns: 1.4fr 2fr 2fr; }
     }
     .dev-name { font-weight: 600; }
     .mono { font-family: monospace; font-size: .85rem;
@@ -282,5 +320,10 @@ export class IsleCoherenceComponent implements OnInit {
     this.candidates = data.polari?.candidates ?? [];
     this.polari = data.polari?.instances ?? [];
     this.components = data.polari?.components ?? null;
+    // devices already carry pools/ports; default missing to []
+    this.devices.forEach((d) => {
+      d.pools = d.pools ?? [];
+      d.ports = d.ports ?? [];
+    });
   }
 }
