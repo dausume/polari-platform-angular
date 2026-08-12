@@ -18,6 +18,7 @@ import {
   CollabService,
   MeetingToken,
 } from '@services/collab/collab.service';
+import { RealtimeCodec } from '@services/collab/realtime';
 
 /**
  * mtg-3: the group-meeting client — THE milestone of the LiveKit arc
@@ -43,6 +44,10 @@ interface Tile {
   audio: boolean;
   video: boolean;
   screen: boolean;
+  /** mtg-4: what SURFACE the peer is on, from their presence
+   *  message — 'web' | 'vr' | 'desktop'. A browser labels the
+   *  headset in the room without rendering a body. */
+  client?: string;
 }
 
 @Component({
@@ -73,6 +78,14 @@ export class MeetingsComponent implements OnInit, OnDestroy {
 
   tiles: Tile[] = [];
 
+  /** mtg-4 wire state. `peerClients` is what other surfaces told us
+   *  they are; `protocolVersion` is shown so a mismatch in the room
+   *  is visible rather than mysterious. */
+  protocolVersion = '';
+  peerClients = new Map<string, string>();
+  wireNote = '';
+
+  private codec: RealtimeCodec | null = null;
   private tileTimer: any = null;
 
   constructor(
@@ -91,6 +104,11 @@ export class MeetingsComponent implements OnInit, OnDestroy {
   async ngOnInit(): Promise<void> {
     this.capability = await this.collab.capability();
     this.sessions = await this.collab.sessions();
+    const catalog = await this.collab.realtimeCatalog();
+    if (catalog?.kinds) {
+      this.codec = new RealtimeCodec(catalog, this.username || 'me');
+      this.protocolVersion = catalog.protocolVersion;
+    }
     if (!this.sessionName && this.sessions.length) {
       this.sessionName = this.sessions[0]?.name ?? '';
     }
@@ -160,6 +178,8 @@ export class MeetingsComponent implements OnInit, OnDestroy {
       .on(RoomEvent.LocalTrackPublished, () => this.refreshTiles())
       .on(RoomEvent.LocalTrackUnpublished, () => this.refreshTiles())
       .on(RoomEvent.ActiveSpeakersChanged, () => this.refreshTiles())
+      .on(RoomEvent.DataReceived, (payload, participant) =>
+        this.onWireMessage(payload, participant?.identity ?? ''))
       .on(RoomEvent.Disconnected, () => {
         this.connection = 'idle';
         this.joinedRoom = '';
@@ -186,6 +206,71 @@ export class MeetingsComponent implements OnInit, OnDestroy {
     }
     this.refreshTiles();
     this.tileTimer = setInterval(() => this.refreshTiles(), 1000);
+    // mtg-4: say who we are on the wire. Presence is sent on join and
+    // on change — not a heartbeat; LiveKit already reports connection
+    // state, and duplicating it would just spend bandwidth.
+    this.emit('presence', { displayName: this.identity, client: 'web' });
+  }
+
+  /** Send one catalog-validated message. Returns false when the
+   *  catalog is absent, the message is malformed, or the kind's rate
+   *  ceiling says not yet — all three are the sender's problem, and
+   *  none of them should reach a peer. */
+  private emit(kind: string, data: Record<string, any>): boolean {
+    if (!this.codec || !this.room) { return false; }
+    const message = this.codec.encode(kind, data);
+    if (!message) { return false; }
+    this.room.localParticipant.publishData(
+      new TextEncoder().encode(JSON.stringify(message)),
+      { reliable: kind === 'presence' },
+    );
+    return true;
+  }
+
+  /** Everything arriving here is EPHEMERAL (plan §2). It may move a
+   *  marker, label a tile, or draw a preview — it may never write a
+   *  Polari row. */
+  private onWireMessage(payload: Uint8Array, from: string): void {
+    if (!this.codec) { return; }
+    let raw: any;
+    try {
+      raw = JSON.parse(new TextDecoder().decode(payload));
+    } catch {
+      return;   // not ours; another data-channel user is not an error
+    }
+    const decoded = this.codec.decode(raw);
+    if (!decoded.ok) {
+      // Ignored kinds are forward compatibility working. A REFUSAL is
+      // worth surfacing: it means a peer in this room disagrees with
+      // us about the protocol, and a silent mismatch is how a VR
+      // client "mysteriously does nothing".
+      if ('refused' in decoded) {
+        this.wireNote = `Message from ${from || 'a peer'} refused: ${decoded.reason}`;
+      }
+      return;
+    }
+    if (decoded.kind === 'presence') {
+      this.peerClients.set(decoded.sender || from, String(decoded.data['client'] ?? ''));
+      this.refreshTiles();
+      // Answer a newcomer so they learn about us too — presence is
+      // exchanged, not broadcast into the void.
+      this.emit('presence', { displayName: this.identity, client: 'web' });
+    }
+  }
+
+  /** Cursor is the flat equivalent of a hand (mtg-4). Normalised so
+   *  peers with different viewports agree; the codec's rate ceiling
+   *  drops the excess rather than flooding the channel. */
+  onPointerMove(event: PointerEvent): void {
+    if (!this.joinedRoom) { return; }
+    const host = event.currentTarget as HTMLElement;
+    const box = host.getBoundingClientRect();
+    if (!box.width || !box.height) { return; }
+    this.emit('cursor', {
+      x: Math.min(1, Math.max(0, (event.clientX - box.left) / box.width)),
+      y: Math.min(1, Math.max(0, (event.clientY - box.top) / box.height)),
+      surface: `/meetings#${this.joinedRoom}`,
+    });
   }
 
   private attach(track: Track, participant: Participant): void {
@@ -221,6 +306,7 @@ export class MeetingsComponent implements OnInit, OnDestroy {
       audio: this.hasTrack(p, Track.Source.Microphone),
       video: this.hasTrack(p, Track.Source.Camera),
       screen: this.hasTrack(p, Track.Source.ScreenShare),
+      client: isLocal ? 'web' : this.peerClients.get(p.identity),
     });
     rows.push(describe(room.localParticipant as LocalParticipant, true));
     room.remoteParticipants.forEach((p: RemoteParticipant) =>
@@ -277,6 +363,8 @@ export class MeetingsComponent implements OnInit, OnDestroy {
 
   leave(): void {
     if (this.tileTimer) { clearInterval(this.tileTimer); this.tileTimer = null; }
+    this.peerClients.clear();
+    this.wireNote = '';
     document.querySelectorAll('[data-lk-audio]').forEach((el) => el.remove());
     if (this.room) {
       this.room.disconnect();

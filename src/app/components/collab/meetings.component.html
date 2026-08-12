@@ -68,7 +68,7 @@
     </p>
 
     <!-- In a meeting -->
-    <div class="card meeting" *ngIf="joinedRoom">
+    <div class="card meeting" *ngIf="joinedRoom" (pointermove)="onPointerMove($event)">
       <div class="meeting-head rc-stack-on-narrow">
         <div>
           <h2>{{ joinedRoom }}</h2>
@@ -76,6 +76,7 @@
             You are <strong>{{ identity }}</strong> · {{ connection }}
             <span *ngIf="moderation"> · you moderate</span>
             <span *ngIf="!moderation && moderator"> · moderator: {{ moderator }}</span>
+            <span *ngIf="protocolVersion"> · wire v{{ protocolVersion }}</span>
           </p>
         </div>
         <div class="controls">
@@ -102,6 +103,9 @@
           <div class="tile-foot">
             <span class="who">{{ t.identity }}<span *ngIf="t.isLocal"> (me)</span></span>
             <span class="badges">
+              <span class="chip is-info" *ngIf="t.client && t.client !== 'web'">
+                {{ t.client }}
+              </span>
               <span class="chip is-info" *ngIf="t.screen">screen</span>
               <span class="chip" *ngIf="!t.audio">muted</span>
             </span>
@@ -117,4 +121,7 @@
 
   <p *ngIf="error" class="error-note">{{ error }}</p>
   <p *ngIf="notice" class="muted-note">{{ notice }}</p>
+  <!-- A protocol disagreement in the room is worth SAYING; a silent
+       mismatch is how a VR client mysteriously does nothing. -->
+  <p *ngIf="wireNote" class="error-note">{{ wireNote }}</p>
 </div>

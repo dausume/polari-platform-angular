@@ -3,6 +3,7 @@ import { Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
 import { PolariService } from '@services/polari-service';
+import { RealtimeCatalog } from '@services/collab/realtime';
 
 /**
  * mtg-3: the backend half of a meeting (collab module).
@@ -84,6 +85,13 @@ export class CollabService {
 
   capability(): Promise<CollabCapability | null> {
     return this.get<CollabCapability>('/capability');
+  }
+
+  /** mtg-4: the realtime catalog, fetched rather than mirrored — the
+   *  client validates against what the server declares, so there is
+   *  no second copy to drift out of lockstep. */
+  realtimeCatalog(): Promise<RealtimeCatalog | null> {
+    return this.get<RealtimeCatalog>('/realtime-schema');
   }
 
   joinInfo(session: string): Promise<JoinInfo | null> {
