@@ -19,6 +19,13 @@ import {
   MeetingToken,
 } from '@services/collab/collab.service';
 import { RealtimeCodec } from '@services/collab/realtime';
+import {
+  PeerState,
+  applyMessage,
+  localPoseFrom,
+  reseat,
+} from '@services/collab/meeting-xr';
+import { XrCapabilityService } from '@services/xr/xr-capability.service';
 
 /**
  * mtg-3: the group-meeting client — THE milestone of the LiveKit arc
@@ -85,12 +92,21 @@ export class MeetingsComponent implements OnInit, OnDestroy {
   peerClients = new Map<string, string>();
   wireNote = '';
 
+  /** mtg-5: what this DEVICE can do — never conflated with what the
+   *  meeting supports (the xr-1 honesty matrix). A disabled button
+   *  with a reason, never a hidden affordance. */
+  xrVr = false;
+  xrReason: string | null = null;
+  xrPeers: PeerState[] = [];
+
   private codec: RealtimeCodec | null = null;
+  private peers = new Map<string, PeerState>();
   private tileTimer: any = null;
 
   constructor(
     private collab: CollabService,
     private auth: AuthSessionService,
+    private xrCapability: XrCapabilityService,
   ) {}
 
   get signedIn(): boolean {
@@ -112,6 +128,9 @@ export class MeetingsComponent implements OnInit, OnDestroy {
     if (!this.sessionName && this.sessions.length) {
       this.sessionName = this.sessions[0]?.name ?? '';
     }
+    const xr = await this.xrCapability.capability();
+    this.xrVr = xr.vr;
+    this.xrReason = xr.reason;
     this.loading = false;
   }
 
@@ -249,6 +268,12 @@ export class MeetingsComponent implements OnInit, OnDestroy {
       }
       return;
     }
+    // mtg-5: the same messages drive the VR scene's peer table. Pure
+    // functions decide seating/placement; nothing here writes a row.
+    const seats = Math.max((this.room?.remoteParticipants.size ?? 0) + 1, 1);
+    this.peers = applyMessage(this.peers, decoded, Date.now(), seats);
+    this.xrPeers = [...reseat(this.peers, Date.now()).values()];
+
     if (decoded.kind === 'presence') {
       this.peerClients.set(decoded.sender || from, String(decoded.data['client'] ?? ''));
       this.refreshTiles();
@@ -256,6 +281,16 @@ export class MeetingsComponent implements OnInit, OnDestroy {
       // exchanged, not broadcast into the void.
       this.emit('presence', { displayName: this.identity, client: 'web' });
     }
+  }
+
+  /** mtg-5: publish this device's tracked pose, from an XR frame.
+   *  Wired by the immersive session's frame loop; the catalog's
+   *  20Hz ceiling throttles it. Public so the session runtime (and
+   *  the specs) can drive it without reaching into private state. */
+  publishPose(viewerTransform: any, hands: any[] = []): boolean {
+    const pose = localPoseFrom(viewerTransform, hands);
+    if (!pose) { return false; }   // tracking still settling
+    return this.emit('pose', pose as unknown as Record<string, any>);
   }
 
   /** Cursor is the flat equivalent of a hand (mtg-4). Normalised so

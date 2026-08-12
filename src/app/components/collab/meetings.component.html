@@ -89,6 +89,14 @@
           <button (click)="toggleScreen()" [class.on]="screenOn">
             {{ screenOn ? 'Stop sharing' : 'Share screen' }}
           </button>
+          <!-- mtg-5: the device says what it can do, and a NO is
+               shown with its reason rather than hidden. -->
+          <button *ngIf="xrVr" title="Join this meeting in VR">
+            Enter in VR
+          </button>
+          <button *ngIf="!xrVr" disabled [title]="xrReason || 'No XR device'">
+            VR unavailable
+          </button>
           <button class="leave" (click)="leave()">Leave</button>
         </div>
       </div>
