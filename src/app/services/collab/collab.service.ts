@@ -117,6 +117,19 @@ export class CollabService {
     return this.post<MeetingToken>(`/sessions/${encodeURIComponent(session)}/token`);
   }
 
+  /** mtg-8: make a drag real. The drag itself rode LiveKit as
+   *  ephemeral previews; THIS returns a PROPOSAL (202, applied
+   *  false) — applying is a separate confirmed act through the
+   *  normal execute path, never something a message did. */
+  commitDrag(session: string, objectRef: string, updateData: Record<string, any>) {
+    return this.post<{
+      ok: boolean; applied: boolean;
+      proposal?: { proposal_id: string; authority_level: number; summary: string };
+      note?: string; error?: string;
+    }>(`/sessions/${encodeURIComponent(session)}/commit-drag`,
+       { objectRef, updateData });
+  }
+
   participants(session: string) {
     return this.get<{ ok: boolean; room?: string; participants?: ServerParticipant[]; error?: string }>(
       `/sessions/${encodeURIComponent(session)}/participants`,
