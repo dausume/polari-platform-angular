@@ -94,6 +94,18 @@ export class CollabService {
     return this.get<RealtimeCatalog>('/realtime-schema');
   }
 
+  /** mtg-6: the meeting bound to this page/object, if any. An empty
+   *  list is a normal answer — most pages have no meeting. */
+  sessionsForSurface(route: string, ref = '') {
+    const query = ref
+      ? `ref=${encodeURIComponent(ref)}`
+      : `route=${encodeURIComponent(route)}`;
+    return this.get<{
+      ok: boolean;
+      sessions?: Array<{ name: string; title: string; room: string }>;
+    }>(`/sessions/for-surface?${query}`);
+  }
+
   joinInfo(session: string): Promise<JoinInfo | null> {
     return this.get<JoinInfo>(`/sessions/${encodeURIComponent(session)}/join-info`);
   }
