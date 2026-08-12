@@ -116,14 +116,16 @@ export class CollabService {
   }
 
   /** Sessions are plain CRUDE rows — the generic surface, not a
-   *  bespoke endpoint (object coherence). */
+   *  bespoke endpoint (object coherence).
+   *
+   *  The envelope is `[{ClassName: [{class, varsLimited, data:[…]}]}]`
+   *  — the same unwrap CrudeClassService.read uses. Guessing a
+   *  flatter shape silently yields an empty list (caught live). */
   async sessions(): Promise<any[]> {
     const base = this.polariService.getBackendBaseUrl();
-    const body = await firstValueFrom(
+    const envelope = await firstValueFrom(
       this.http.get<any>(`${base}/CollaborationSession`, this.polariService.backendRequestOptions),
     ).catch(() => null);
-    if (!body) { return []; }
-    if (Array.isArray(body)) { return body; }
-    return body.data ?? body.rows ?? body.CollaborationSession ?? [];
+    return envelope?.[0]?.['CollaborationSession']?.[0]?.data ?? [];
   }
 }
