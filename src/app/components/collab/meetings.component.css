@@ -1,0 +1,202 @@
+/* mtg-3 meeting client. Tokens only (the check:styles guardrail):
+   background and text always move together, and the tile grid is
+   auto-fit so a phone gets one column without a media query. */
+
+.page-title {
+  color: var(--text-on-bg);
+  font-size: var(--font-size-xxl);
+  margin-bottom: var(--spacing-xs);
+}
+
+.page-lede {
+  color: var(--text-on-bg-muted);
+  margin-bottom: var(--spacing-lg);
+}
+
+.muted-note {
+  color: var(--text-on-card-muted);
+  font-size: var(--font-size-sm);
+}
+
+.error-note {
+  color: var(--color-error-text);
+  background: var(--color-error-bg);
+  border: 1px solid var(--color-error-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  margin-top: var(--spacing-md);
+}
+
+.warn-inline {
+  color: var(--color-warn-text);
+  font-size: var(--font-size-sm);
+}
+
+.refusal h2 {
+  color: var(--text-on-card);
+  font-size: var(--font-size-lg);
+  margin-bottom: var(--spacing-sm);
+}
+
+.refusal p,
+.refusal dd,
+.refusal dt {
+  color: var(--text-on-card);
+}
+
+.evidence {
+  color: var(--text-on-card-muted);
+  font-style: italic;
+}
+
+.capability-list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--spacing-xs) var(--spacing-md);
+  margin: var(--spacing-sm) 0;
+}
+
+.capability-list dt {
+  font-weight: 600;
+}
+
+.join-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.join-bar label {
+  color: var(--text-on-card);
+}
+
+.session-select {
+  background: var(--surface-primary);
+  color: var(--text-on-card);
+  border: 1px solid var(--surface-outline);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  max-width: 100%;
+  flex: 1 1 14rem;
+}
+
+button {
+  background: var(--surface-secondary);
+  color: var(--text-on-card);
+  border: 1px solid var(--surface-outline);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-xs) var(--spacing-md);
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text-on-card);
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+button.primary,
+button.on {
+  background: var(--brand-indigo);
+  color: var(--text-on-primary);
+  border-color: var(--brand-indigo);
+}
+
+button.leave {
+  background: var(--color-error-bg);
+  color: var(--color-error-text);
+  border-color: var(--color-error-border);
+}
+
+.meeting-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.meeting-head h2 {
+  color: var(--text-on-card);
+  font-size: var(--font-size-lg);
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+}
+
+/* auto-fit: one column on a phone, more as the container grows —
+   @container/intrinsic sizing, never a fixed track count */
+.tile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: var(--grid-gap);
+}
+
+.tile {
+  background: var(--surface-secondary);
+  color: var(--text-on-card);
+  border: 1px solid var(--surface-outline);
+  border-radius: var(--card-radius);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.tile.speaking {
+  border-color: var(--brand-green);
+  box-shadow: var(--card-shadow-hover);
+}
+
+.video-host {
+  aspect-ratio: 16 / 9;
+  background: var(--surface-tertiary);
+  color: var(--text-on-card-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.no-video {
+  font-size: var(--font-size-xxl);
+  color: var(--text-on-card-muted);
+}
+
+.tile-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-sm);
+}
+
+.who {
+  color: var(--text-on-card);
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+.badges {
+  display: flex;
+  gap: var(--spacing-xs);
+}
+
+.tile-mod {
+  display: flex;
+  gap: var(--spacing-xs);
+  padding: 0 var(--spacing-sm) var(--spacing-sm);
+}
+
+.tile-mod button {
+  font-size: var(--font-size-xs);
+  flex: 1 1 auto;
+}

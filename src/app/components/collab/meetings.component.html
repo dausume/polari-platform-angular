@@ -1,0 +1,120 @@
+<div class="page-shell rc">
+  <h1 class="page-title">Meetings</h1>
+  <p class="prose-measure page-lede">
+    Group audio, video and screen share on the LAN, around the same Polari
+    objects. Sessions are rows; every join is a fresh short-lived token
+    minted for your Keycloak identity.
+  </p>
+
+  <p *ngIf="loading" class="muted-note">Loading…</p>
+
+  <!-- The module itself is not served here -->
+  <div *ngIf="!loading && !capability" class="card refusal">
+    <h2>Meetings are not available on this instance</h2>
+    <p>
+      The <code>collab</code> module is not active here. Bring it online from
+      <a routerLink="/modules/bringup">module bringup</a>, or use an instance
+      that carries it.
+    </p>
+  </div>
+
+  <!-- Served, but the media server half is missing: SAY WHY -->
+  <div *ngIf="!loading && capability && !meetingsPossible" class="card refusal">
+    <h2>The meeting server is not ready</h2>
+    <dl class="capability-list">
+      <dt>Signing keys</dt>
+      <dd>{{ capability.keysConfigured ? 'configured' : 'missing' }}</dd>
+      <dt>Server</dt>
+      <dd>{{ capability.serverUrl || 'unresolved' }}
+        <span *ngIf="capability.serverReachable === false">(not answering)</span>
+      </dd>
+      <dt>Client URL</dt>
+      <dd>{{ capability.clientUrl || 'undeclared' }}</dd>
+    </dl>
+    <p *ngIf="capability.suggestion?.evidence" class="evidence">
+      {{ capability.suggestion?.evidence }}
+    </p>
+    <p *ngIf="capability.suggestion?.action">
+      <strong>To fix:</strong> {{ capability.suggestion?.action }}
+    </p>
+    <p *ngIf="capability.suggestion?.knob" class="muted-note">
+      Knobs: {{ capability.suggestion?.knob }}
+    </p>
+  </div>
+
+  <ng-container *ngIf="!loading && meetingsPossible">
+    <!-- Join bar -->
+    <div class="card join-bar" *ngIf="!joinedRoom">
+      <label for="session-pick">Session</label>
+      <select id="session-pick" [(ngModel)]="sessionName" class="session-select">
+        <option *ngFor="let s of sessions" [value]="s.name">
+          {{ s.title || s.name }}{{ s.status === 'closed' ? ' (closed)' : '' }}
+        </option>
+      </select>
+      <input *ngIf="!sessions.length" [(ngModel)]="sessionName"
+             placeholder="session row name" class="session-select" />
+      <button class="primary" (click)="join()" [disabled]="!sessionName">
+        Join meeting
+      </button>
+      <span *ngIf="!signedIn" class="warn-inline">
+        Sign in first — tokens require a verified identity.
+      </span>
+    </div>
+
+    <p *ngIf="!sessions.length && !joinedRoom" class="muted-note">
+      No CollaborationSession rows yet — create one from
+      <a routerLink="/class-main-page/CollaborationSession">the session class page</a>,
+      then join it here.
+    </p>
+
+    <!-- In a meeting -->
+    <div class="card meeting" *ngIf="joinedRoom">
+      <div class="meeting-head rc-stack-on-narrow">
+        <div>
+          <h2>{{ joinedRoom }}</h2>
+          <p class="muted-note">
+            You are <strong>{{ identity }}</strong> · {{ connection }}
+            <span *ngIf="moderation"> · you moderate</span>
+            <span *ngIf="!moderation && moderator"> · moderator: {{ moderator }}</span>
+          </p>
+        </div>
+        <div class="controls">
+          <button (click)="toggleMic()" [class.on]="micOn">
+            {{ micOn ? 'Mute me' : 'Unmute me' }}
+          </button>
+          <button (click)="toggleCam()" [class.on]="camOn">
+            {{ camOn ? 'Stop camera' : 'Start camera' }}
+          </button>
+          <button (click)="toggleScreen()" [class.on]="screenOn">
+            {{ screenOn ? 'Stop sharing' : 'Share screen' }}
+          </button>
+          <button class="leave" (click)="leave()">Leave</button>
+        </div>
+      </div>
+
+      <div class="tile-grid">
+        <div class="tile" *ngFor="let t of tiles" [class.speaking]="t.speaking">
+          <div class="video-host" [id]="'video-' + t.identity">
+            <span class="no-video" *ngIf="!t.video && !t.screen">
+              {{ t.identity.charAt(0).toUpperCase() }}
+            </span>
+          </div>
+          <div class="tile-foot">
+            <span class="who">{{ t.identity }}<span *ngIf="t.isLocal"> (me)</span></span>
+            <span class="badges">
+              <span class="chip is-info" *ngIf="t.screen">screen</span>
+              <span class="chip" *ngIf="!t.audio">muted</span>
+            </span>
+          </div>
+          <div class="tile-mod" *ngIf="moderation && !t.isLocal">
+            <button (click)="mute(t.identity)">Mute</button>
+            <button (click)="removeParticipant(t.identity)">Remove</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+
+  <p *ngIf="error" class="error-note">{{ error }}</p>
+  <p *ngIf="notice" class="muted-note">{{ notice }}</p>
+</div>
