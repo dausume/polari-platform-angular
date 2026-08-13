@@ -1,0 +1,175 @@
+<div class="page-shell rc">
+  <h1 class="page-title">The archipelago</h1>
+  <p class="prose-measure page-lede">
+    Isles as blocks — radios and apps inside each, measured latency
+    between them, and what the apps ask for against what the radios
+    can carry. Declared and measured numbers are labelled; nothing is
+    guessed.
+  </p>
+
+  <p *ngIf="loading" class="muted-note">Loading…</p>
+
+  <!-- The module itself is not served here -->
+  <div *ngIf="!loading && !topo" class="card refusal">
+    <h2>The archipelago view is not available on this instance</h2>
+    <p>
+      The <code>reticulum</code> module is not active here. Bring it
+      online from <a routerLink="/modules/bringup">module bringup</a>,
+      or use an instance that carries it.
+    </p>
+  </div>
+
+  <ng-container *ngIf="!loading && topo">
+    <!-- Isle blocks -->
+    <div class="isle-grid">
+      <section *ngFor="let isle of isles; trackBy: trackByName"
+               class="card isle-block"
+               [class.isle-local]="isle.kind === 'local'">
+        <header class="isle-head">
+          <h2>{{ isle.name }}</h2>
+          <span class="kind-chip">{{ isle.kind }}</span>
+          <span *ngIf="isle.kind === 'peer-isle'"
+                class="reach-chip"
+                [class.reach-ok]="isle.reachableNow"
+                [class.reach-stale]="!isle.reachableNow">
+            {{ isle.reachableNow ? 'reachable now'
+               : 'not heard within the horizon' }}
+          </span>
+          <span *ngIf="isle.trust" class="muted-note">
+            trust: {{ isle.trust }}</span>
+        </header>
+
+        <!-- Radios / devices -->
+        <div *ngIf="isle.devices?.length" class="device-row">
+          <div *ngFor="let device of isle.devices; trackBy: trackByName"
+               class="device-chip"
+               [class.device-disabled]="!device.enabled">
+            <span class="device-kind">
+              {{ deviceKindLabel(device.bearer, device.regulatoryDomain) }}
+            </span>
+            <span class="device-name">{{ device.name }}</span>
+            <span class="direction-badge"
+                  [class.badge-rx-only]="!offersTransmit(device.direction)">
+              {{ directionBadge(device.direction) }}
+            </span>
+            <span class="muted-note" *ngIf="device.model">
+              {{ device.model }}</span>
+            <dl class="device-capacity">
+              <dt>declared</dt>
+              <dd>{{ formatBps(device.capacity.declaredAirRateBps) }}</dd>
+              <dt>measured</dt>
+              <dd>
+                {{ formatBps(device.capacity.measuredThroughputBps) }}
+                <em *ngIf="device.capacity.measuredFidelity">
+                  ({{ device.capacity.measuredFidelity }})</em>
+                <em *ngIf="!device.capacity.measurementFresh
+                           && device.capacity.staleMeasurements">
+                  — {{ device.capacity.staleMeasurements }} stale
+                  measurement(s) not shown</em>
+              </dd>
+              <ng-container *ngIf="device.capacity.airtimeBudget">
+                <dt>airtime</dt>
+                <dd>{{ device.capacity.airtimeBudget.consumedMs }} /
+                    {{ device.capacity.airtimeBudget.budgetMs }} ms per
+                    {{ device.capacity.airtimeBudget.windowSeconds }} s</dd>
+              </ng-container>
+            </dl>
+            <span class="muted-note">idle: {{ device.idlePolicy }}</span>
+          </div>
+        </div>
+
+        <!-- Apps and their asks -->
+        <div *ngIf="isle.apps?.length" class="apps-list">
+          <h3>Apps</h3>
+          <div *ngFor="let app of isle.apps; trackBy: trackByName"
+               class="app-row">
+            <span class="app-name">{{ app.name }}</span>
+            <span *ngIf="app.domain" class="muted-note">
+              {{ app.domain }}</span>
+            <span *ngIf="app.bytesPerMin != null" class="app-demand">
+              asks {{ formatBytesPerMin(app.bytesPerMin) }}
+            </span>
+            <ul *ngIf="app.bindings?.length" class="binding-list">
+              <li *ngFor="let binding of app.bindings">
+                <code>{{ binding.protocol || binding.name }}</code>
+                → {{ binding.destination || 'unbound' }} ·
+                {{ binding.demand.messagesPerMin }}/min ×
+                {{ binding.demand.maxMessageBytes }} B
+                ({{ binding.demand.encoding }},
+                {{ binding.demand.fidelity }})
+                <em *ngIf="!binding.enabled">— disabled</em>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <p *ngIf="!isle.devices?.length && !isle.apps?.length"
+           class="muted-note">
+          {{ isle.note || 'Nothing reported yet.' }}
+        </p>
+
+        <!-- Demand vs capacity -->
+        <footer *ngIf="isle.kind === 'local'" class="verdict-box"
+                [ngClass]="verdictTone(isle.verdict?.state)">
+          <div class="demand-line">
+            <span>demand {{ formatBytesPerMin(isle.demandBytesPerMin) }}</span>
+            <span>capacity {{ formatBytesPerMin(isle.capacityBytesPerMin) }}</span>
+          </div>
+          <div class="demand-bar"
+               *ngIf="demandPercent(isle.demandBytesPerMin,
+                                    isle.capacityBytesPerMin) !== null">
+            <div class="demand-fill"
+                 [style.width.%]="demandPercent(isle.demandBytesPerMin,
+                                                isle.capacityBytesPerMin)">
+            </div>
+          </div>
+          <strong class="verdict-state">
+            {{ isle.verdict?.state === 'unknown'
+               ? 'unknown — measure first' : isle.verdict?.state }}
+          </strong>
+          <p class="evidence">{{ isle.verdict?.evidence }}</p>
+          <p *ngIf="isle.verdict?.action">
+            <strong>To fix:</strong> {{ isle.verdict?.action }}</p>
+        </footer>
+      </section>
+    </div>
+
+    <!-- Measured paths -->
+    <div class="card paths-card">
+      <h2>Measured paths</h2>
+      <p *ngIf="!paths.length" class="muted-note">
+        No path measurements yet — run the ret-6 battery against a
+        peer, then latency appears here per (destination, bearer).
+      </p>
+      <table *ngIf="paths.length" class="paths-table">
+        <thead>
+          <tr>
+            <th>from</th><th>to</th><th>bearer (worst hop)</th>
+            <th>hops</th><th>RTT</th><th>throughput</th>
+            <th>loss</th><th>fidelity</th><th>freshness</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let path of paths" [class.path-stale]="!path.fresh">
+            <td>{{ path.from }}</td>
+            <td>{{ path.to }}</td>
+            <td>{{ path.worstHopBearer || '—' }}</td>
+            <td>{{ path.hopCount ?? '—' }}</td>
+            <td>{{ path.rttMs != null ? (path.rttMs | number:'1.0-1')
+                   + ' ms' : '—' }}</td>
+            <td>{{ formatBps(path.throughputBps) }}</td>
+            <td>{{ path.lossRate != null
+                   ? (path.lossRate | percent:'1.0-1') : '—' }}</td>
+            <td>{{ path.fidelity || '—' }}</td>
+            <td>{{ freshnessLabel(path.fresh, path.measuredAtMs, nowMs) }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- The backend's honesty notes, verbatim -->
+    <ul class="notes-list">
+      <li *ngFor="let note of topo.notes" class="muted-note">{{ note }}</li>
+    </ul>
+  </ng-container>
+</div>

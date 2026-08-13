@@ -109,7 +109,9 @@ const routes: Routes = [
   { path: 'co2/health', loadComponent: () => import('@components/climate/co2-health.component').then(m => m.Co2HealthComponent) },
   { path: 'display/:id', loadComponent: () => import('@components/dashboard/display-page/display-page').then(m => m.DisplayPageComponent) },
   { path: 'video-assets', loadComponent: () => import('@components/video/video-assets-page.component').then(m => m.VideoAssetsPageComponent) },
-  { path: 'meetings', loadComponent: () => import('@components/collab/meetings.component').then(m => m.MeetingsComponent) }
+  { path: 'meetings', loadComponent: () => import('@components/collab/meetings.component').then(m => m.MeetingsComponent) },
+  // ret-1b: the .arch topology — isles as blocks, demand vs capacity
+  { path: 'arch', loadComponent: () => import('@components/reticulum/arch.component').then(m => m.ArchComponent) }
 ];
 
 @NgModule({

@@ -1,0 +1,312 @@
+/* ret-1b .arch topology. Tokens only (check:styles guardrail):
+   backgrounds and text move together, grids are auto-fit so a phone
+   gets one column, and container queries — never @media — shape the
+   blocks (MESH IS NOT A WIDTH). */
+
+.page-title {
+  color: var(--text-on-bg);
+  font-size: var(--font-size-xxl);
+  margin-bottom: var(--spacing-xs);
+}
+
+.page-lede {
+  color: var(--text-on-bg-muted);
+  margin-bottom: var(--spacing-lg);
+}
+
+.muted-note {
+  color: var(--text-on-card-muted);
+  font-size: var(--font-size-sm);
+}
+
+.refusal h2 {
+  color: var(--text-on-card);
+  font-size: var(--font-size-lg);
+  margin-bottom: var(--spacing-sm);
+}
+
+.refusal p {
+  color: var(--text-on-card);
+}
+
+/* --- isle blocks ---------------------------------------------------- */
+
+.isle-grid {
+  display: grid;
+  /* auto-fit: one column on a phone, more as the container grows —
+     never a fixed track count */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
+  gap: var(--spacing-md);
+  container-type: inline-size;
+}
+
+.isle-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.isle-local {
+  border: 2px solid var(--brand-indigo);
+}
+
+.isle-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--spacing-sm);
+}
+
+.isle-head h2 {
+  color: var(--text-on-card);
+  font-size: var(--font-size-lg);
+  margin: 0;
+}
+
+.kind-chip {
+  color: var(--text-on-card-muted);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-lg);
+  padding: 0 var(--spacing-sm);
+  font-size: var(--font-size-xs);
+}
+
+.reach-chip {
+  border-radius: var(--radius-lg);
+  padding: 0 var(--spacing-sm);
+  font-size: var(--font-size-xs);
+}
+
+.reach-ok {
+  color: var(--color-success-text);
+  background: var(--color-success-bg);
+  border: 1px solid var(--color-success-border);
+}
+
+.reach-stale {
+  color: var(--color-warn-text);
+  background: var(--color-warn-bg);
+  border: 1px solid var(--color-warn-border);
+}
+
+/* --- devices --------------------------------------------------------- */
+
+.device-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: var(--spacing-sm);
+}
+
+.device-chip {
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.device-disabled {
+  opacity: 0.6;
+}
+
+.device-kind {
+  color: var(--text-on-card);
+  font-weight: 700;
+  font-size: var(--font-size-base);
+}
+
+.device-name {
+  color: var(--text-on-card-muted);
+  font-family: monospace;
+  font-size: var(--font-size-sm);
+}
+
+.direction-badge {
+  align-self: flex-start;
+  color: var(--color-success-text);
+  background: var(--color-success-bg);
+  border: 1px solid var(--color-success-border);
+  border-radius: var(--radius-lg);
+  padding: 0 var(--spacing-sm);
+  font-size: var(--font-size-xs);
+}
+
+/* a device that cannot transmit is a listener, styled as the quiet
+   fact it is — never an error, never a TX affordance */
+.badge-rx-only {
+  color: var(--text-on-card-muted);
+  background: var(--surface-tertiary);
+  border-color: var(--border-medium);
+}
+
+.device-capacity {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0 var(--spacing-sm);
+  margin: 0;
+}
+
+.device-capacity dt {
+  color: var(--text-on-card-muted);
+  font-size: var(--font-size-xs);
+}
+
+.device-capacity dd {
+  color: var(--text-on-card);
+  font-size: var(--font-size-sm);
+  margin: 0;
+}
+
+.device-capacity em {
+  color: var(--text-on-card-muted);
+  font-style: italic;
+}
+
+/* --- apps ------------------------------------------------------------ */
+
+.apps-list h3 {
+  color: var(--text-on-card);
+  font-size: var(--font-size-base);
+  margin: 0 0 var(--spacing-xs) 0;
+}
+
+.app-row {
+  padding: var(--spacing-xs) 0;
+  border-top: 1px solid var(--border-medium);
+}
+
+.app-name {
+  color: var(--text-on-card);
+  font-weight: 600;
+}
+
+.app-demand {
+  color: var(--text-on-card);
+  margin-left: var(--spacing-sm);
+}
+
+.binding-list {
+  margin: var(--spacing-xs) 0 0 var(--spacing-md);
+  padding: 0;
+}
+
+.binding-list li {
+  color: var(--text-on-card-muted);
+  font-size: var(--font-size-sm);
+  list-style: none;
+}
+
+.binding-list code {
+  color: var(--text-on-card);
+  background: var(--surface-tertiary);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--spacing-xs);
+}
+
+/* --- verdict --------------------------------------------------------- */
+
+.verdict-box {
+  border-radius: var(--radius-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  margin-top: var(--spacing-sm);
+}
+
+.tone-ok {
+  color: var(--color-success-text);
+  background: var(--color-success-bg);
+  border: 1px solid var(--color-success-border);
+}
+
+.tone-error {
+  color: var(--color-error-text);
+  background: var(--color-error-bg);
+  border: 1px solid var(--color-error-border);
+}
+
+.tone-quiet,
+.tone-unknown {
+  color: var(--text-on-card-muted);
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-medium);
+}
+
+.demand-line {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  font-size: var(--font-size-sm);
+}
+
+.demand-bar {
+  background: var(--surface-tertiary);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-lg);
+  height: var(--spacing-sm);
+  overflow: hidden;
+  margin: var(--spacing-xs) 0;
+}
+
+.demand-fill {
+  background: var(--brand-indigo);
+  height: 100%;
+}
+
+.verdict-state {
+  display: block;
+  font-size: var(--font-size-base);
+}
+
+.evidence {
+  color: inherit;
+  font-style: italic;
+  margin: var(--spacing-xs) 0 0 0;
+  font-size: var(--font-size-sm);
+}
+
+/* --- paths matrix ----------------------------------------------------- */
+
+.paths-card {
+  margin-top: var(--spacing-md);
+}
+
+.paths-card h2 {
+  color: var(--text-on-card);
+  font-size: var(--font-size-lg);
+  margin-bottom: var(--spacing-sm);
+}
+
+/* wide table scrolls inside its card, the page never scrolls sideways */
+.paths-table {
+  display: block;
+  overflow-x: auto;
+  border-collapse: collapse;
+}
+
+.paths-table th {
+  color: var(--text-on-card-muted);
+  font-size: var(--font-size-xs);
+  text-align: left;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-bottom: 1px solid var(--border-medium);
+}
+
+.paths-table td {
+  color: var(--text-on-card);
+  font-size: var(--font-size-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-bottom: 1px solid var(--border-medium);
+}
+
+/* stale rows are visibly dimmed AND say their age in the freshness
+   column — dimming alone is not information */
+.path-stale td {
+  color: var(--text-on-card-muted);
+  opacity: 0.7;
+}
+
+.notes-list {
+  margin: var(--spacing-md) 0 0 0;
+  padding-left: var(--spacing-lg);
+}
