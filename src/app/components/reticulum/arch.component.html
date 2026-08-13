@@ -172,4 +172,268 @@
       <li *ngFor="let note of topo.notes" class="muted-note">{{ note }}</li>
     </ul>
   </ng-container>
+
+  <!-- ================= ret-1d: peers heard, adjudicated ============= -->
+  <div *ngIf="!peersLoading && peersReport" class="card peers-card">
+    <h2>Peers heard</h2>
+    <p class="prose-measure muted-note">
+      Hearing is not admitting: an announce heard on any bearer shows
+      up here, and a named human decides — ours into
+      <code>.arch</code>, a stranger worth seeing into
+      <code>.mesh</code>, or ignored (still recorded).
+    </p>
+
+    <div *ngIf="!peersReport.sidecarLive" class="banner banner-warn">
+      The reticulum sidecar is not answering, so nothing is being
+      heard live — persisted sightings still show. Bring it up with
+      <code>pol compose reticulum up</code> (or point
+      <code>RETICULUM_URL</code> at it).
+    </div>
+
+    <!-- undecided: the prominent bucket -->
+    <h3 class="bucket-title">Heard — undecided
+      <span class="bucket-count">{{ undecided.length }}</span></h3>
+    <p *ngIf="!undecided.length" class="muted-note">
+      Nothing waiting on a decision.
+    </p>
+    <div class="peer-grid">
+      <div *ngFor="let peer of undecided; trackBy: trackByName"
+           class="peer-card">
+        <div class="peer-head">
+          <span *ngIf="peer.hearingNow" class="hearing-pulse"
+                title="announces arriving right now">●</span>
+          <code [title]="peerDest(peer)">
+            {{ truncateHash(peerDest(peer)) }}</code>
+          <span class="muted-note" [title]="peerIdentity(peer)">
+            id {{ truncateHash(peerIdentity(peer)) }}</span>
+        </div>
+        <div class="peer-facts">
+          <span *ngFor="let via of heardViaList(peer)"
+                class="via-chip">{{ via }}</span>
+          <span class="muted-note">
+            {{ peerCount(peer) }} announce(s), last
+            {{ agoLabel(peerLastHeard(peer), peersNowMs) }}
+          </span>
+        </div>
+        <div class="adjudicate-row">
+          <input class="arch-name-input" type="text"
+                 [(ngModel)]="archNameInput[peer.name || peerDest(peer)]"
+                 placeholder="name it, e.g. barn-isle"
+                 title="admission IS naming" />
+          <button class="btn-arch"
+                  [disabled]="adjudicating !== null
+                              || archNameMissing(peer)"
+                  (click)="adjudicate(peer, 'archipelago')">
+            Ours → .arch
+          </button>
+          <button class="btn-mesh" [disabled]="adjudicating !== null"
+                  (click)="adjudicate(peer, 'mesh')">
+            Wider mesh → .mesh
+          </button>
+          <button class="btn-ignore" [disabled]="adjudicating !== null"
+                  (click)="adjudicate(peer, 'ignored')">
+            Ignore
+          </button>
+        </div>
+        <p *ngIf="archNameMissing(peer)" class="muted-note">
+          admission IS naming — .arch needs a name first
+        </p>
+      </div>
+    </div>
+
+    <!-- adjudication outcome, honest either way -->
+    <div *ngIf="adjudicationOutcome" class="verdict-box"
+         [ngClass]="adjudicationOutcome.ok ? 'tone-ok' : 'tone-error'">
+      <ng-container *ngIf="adjudicationOutcome.ok">
+        <strong>{{ adjudicatedPeer }} → {{ adjudicationOutcome.decision }}</strong>
+        <p *ngIf="adjudicationOutcome.archNodeCreated">
+          created <code>{{ adjudicationOutcome.archNodeCreated }}</code></p>
+        <p class="muted-note">{{ adjudicationOutcome.note }}</p>
+      </ng-container>
+      <ng-container *ngIf="!adjudicationOutcome.ok">
+        <strong *ngIf="adjudicationOutcome.status === 401">
+          Sign-in required — admission is a named human act, and this
+          refusal is the system working.
+        </strong>
+        <strong *ngIf="adjudicationOutcome.status !== 401">
+          Refused: {{ adjudicationOutcome.error }}
+        </strong>
+        <p *ngIf="adjudicationOutcome.suggestion?.action"
+           class="muted-note">
+          {{ adjudicationOutcome.suggestion?.action }}
+        </p>
+      </ng-container>
+    </div>
+
+    <!-- the decided buckets, quieter -->
+    <details *ngFor="let bucket of ['archipelago', 'mesh', 'ignored']"
+             class="peer-bucket">
+      <summary>
+        .{{ bucket === 'archipelago' ? 'arch' : bucket }}
+        <span class="bucket-count">
+          {{ peerBucket($any(bucket)).length }}</span>
+      </summary>
+      <p *ngIf="!peerBucket($any(bucket)).length" class="muted-note">
+        Empty.</p>
+      <div *ngFor="let peer of peerBucket($any(bucket));
+                   trackBy: trackByName" class="peer-row">
+        <code [title]="peerDest(peer)">
+          {{ truncateHash(peerDest(peer)) }}</code>
+        <span *ngIf="peer.arch_node_name" class="via-chip">
+          {{ peer.arch_node_name }}</span>
+        <span class="muted-note">
+          {{ peerCount(peer) }} announce(s), last
+          {{ agoLabel(peerLastHeard(peer), peersNowMs) }}
+          <ng-container *ngIf="peer.adjudicated_by">
+            · decided by {{ peer.adjudicated_by }}</ng-container>
+        </span>
+        <button *ngIf="bucket === 'ignored'" class="btn-mesh"
+                [disabled]="adjudicating !== null"
+                (click)="adjudicate(peer, 'mesh')">
+          reconsider → .mesh
+        </button>
+      </div>
+    </details>
+
+    <p *ngIf="peersReport.note" class="muted-note">
+      {{ peersReport.note }}</p>
+  </div>
+
+  <!-- ================= ret-1e: the mesh planner ===================== -->
+  <div class="card planner-card">
+    <h2>Mesh planner</h2>
+    <p class="prose-measure muted-note">
+      Spacing and relay allowance for a mesh of known devices —
+      planning math with every assumption listed, not a promise.
+    </p>
+
+    <form class="planner-form" (ngSubmit)="runPlan()">
+      <label>
+        scenario
+        <select [(ngModel)]="plannerForm.bearerSet" name="bearerSet">
+          <option *ngFor="let set of bearerSets" [value]="set">
+            {{ set }}</option>
+        </select>
+      </label>
+      <label>
+        propagation
+        <select [(ngModel)]="plannerForm.propagationMode"
+                name="propagationMode">
+          <option *ngFor="let mode of propagationModes"
+                  [value]="mode.value">{{ mode.label }}</option>
+        </select>
+      </label>
+      <label>
+        nodes
+        <input type="number" min="2"
+               [(ngModel)]="plannerForm.meshSizeNodes"
+               name="meshSizeNodes" />
+      </label>
+      <label>
+        per-peer target (bps)
+        <input type="number" min="1"
+               [(ngModel)]="plannerForm.targetPerPeerBps"
+               name="targetPerPeerBps" />
+      </label>
+      <label>
+        area (km²)
+        <input type="number" min="0" step="0.1"
+               [(ngModel)]="plannerForm.areaKm2" name="areaKm2" />
+      </label>
+      <button type="submit" [disabled]="planning">
+        {{ planning ? 'planning…' : 'plan it' }}</button>
+    </form>
+
+    <div *ngIf="planAbsent" class="refusal">
+      <p>
+        The planner endpoint is not served here — the backend
+        predates ret-1e or the <code>reticulum</code> module is not
+        active. Bring it online from
+        <a routerLink="/modules/bringup">module bringup</a>.
+      </p>
+    </div>
+
+    <ng-container *ngIf="plan">
+      <!-- THE disclaimer: on every result, refusals included -->
+      <div class="banner banner-disclaimer">
+        {{ plan.disclaimer || fallbackDisclaimer }}
+      </div>
+
+      <div *ngIf="!plan.ok" class="verdict-box tone-error">
+        <strong>Refused: {{ plan.error }}</strong>
+        <p *ngIf="plan.suggestion?.action" class="muted-note">
+          {{ plan.suggestion?.action }}</p>
+      </div>
+
+      <div *ngIf="plan.ok" class="bearer-grid">
+        <section *ngFor="let item of planBearers;
+                         trackBy: trackByBearer" class="bearer-card">
+          <h3>{{ deviceKindLabel(item.bearer, undefined) }}</h3>
+
+          <p *ngIf="item.entry.reason" class="muted-note">
+            {{ item.entry.reason }}</p>
+
+          <ng-container *ngIf="!item.entry.reason">
+            <p class="range-line">
+              predicted range
+              <strong>{{ formatMeters(item.entry.rangeM) }}</strong>
+              <span class="fidelity-badge">
+                {{ rangeFidelityLabel(item.entry.rangeFidelity) }}
+              </span>
+            </p>
+            <p *ngIf="item.entry.rangeEvidence" class="muted-note">
+              {{ item.entry.rangeEvidence }}</p>
+
+            <dl *ngIf="item.entry.spacing" class="spacing-facts">
+              <dt>node spacing</dt>
+              <dd>{{ formatMeters(item.entry.spacing.spacingM) }}</dd>
+              <dt>nodes for the area</dt>
+              <dd>{{ item.entry.spacing.nodesForArea }}</dd>
+            </dl>
+
+            <div *ngIf="item.entry.relay" class="verdict-box"
+                 [ngClass]="plannerVerdictTone(item.entry.relay.fits)">
+              <strong *ngIf="item.entry.relay.fits">fits</strong>
+              <strong *ngIf="item.entry.relay.fits === false">
+                oversubscribed</strong>
+              <p>{{ item.entry.relay.verdict
+                    || item.entry.relay.evidence }}</p>
+              <dl class="relay-facts">
+                <dt>avg hops</dt>
+                <dd>{{ item.entry.relay.avgHops ?? '—' }}</dd>
+                <dt>relay allowance / node</dt>
+                <dd>{{ formatBps(item.entry.relay.relayAllowanceBpsPerNode) }}
+                </dd>
+                <dt>airtime share</dt>
+                <dd>{{ item.entry.relay.relayAirtimeShare != null
+                       ? (item.entry.relay.relayAirtimeShare
+                          | percent:'1.0-1') : '—' }}</dd>
+                <dt>max achievable / peer</dt>
+                <dd>{{ formatBps(item.entry.relay.maxAchievablePerPeerBps) }}
+                </dd>
+              </dl>
+            </div>
+          </ng-container>
+        </section>
+      </div>
+
+      <div *ngIf="plan.ok && plan.interference?.suspicions?.length"
+           class="verdict-box tone-error interference-box">
+        <strong>Interference suspicions</strong>
+        <ul>
+          <li *ngFor="let s of plan.interference?.suspicions">
+            {{ s.bearingFromDeg }}°–{{ s.bearingToDeg }}°:
+            {{ s.evidence }}
+          </li>
+        </ul>
+      </div>
+      <p *ngIf="plan.ok && plan.interference?.note" class="muted-note">
+        {{ plan.interference?.note }}</p>
+
+      <ul class="notes-list">
+        <li *ngFor="let assumption of plan.assumptions"
+            class="muted-note">{{ assumption }}</li>
+      </ul>
+    </ng-container>
+  </div>
 </div>
