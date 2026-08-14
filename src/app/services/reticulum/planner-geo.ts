@@ -244,6 +244,8 @@ export interface PlacementOption {
   bindingConstraint?: string;
   rangeScenario?: string;
   rangeEvidence?: string;
+  /** antennas: which antenna the option was planned with */
+  antenna?: string;
   reason?: string;
 }
 
@@ -259,16 +261,37 @@ export interface PlacementWinner {
   bindingConstraint?: string;
   rangeScenario?: string;
   rangeEvidence?: string;
+  antenna?: string;
+}
+
+/** drone bridges: one profile's answer for one uncovered gap —
+ *  either an intermittent-bridge schedule or a three-key refusal
+ *  (the seeded profile refuses until flight rules are confirmed;
+ *  that refusal is the system working). */
+export interface GapBridge {
+  profile: string;
+  ok: boolean;
+  intermittent?: boolean;
+  transitMinEachWay?: number;
+  onStationMin?: number;
+  cycleMin?: number;
+  bridgesPerDay?: number;
+  dutyCyclePct?: number;
+  note?: string;
+  refusal?: { evidence?: string; knob?: string; action?: string };
 }
 
 export interface FixedAssessment {
   coveredPct?: number;
   uncoveredGaps: Array<{ centroid?: [number, number];
-                         size?: number; note?: string }>;
+                         size?: number; note?: string;
+                         bridges?: GapBridge[] }>;
   connected?: boolean;
   isolatedNodes: string[];
+  /** antennas: nodes whose directional antenna faces >2 neighbours */
+  directionalViolations: string[];
   perNode: Record<string, { type?: string; cost?: number;
-                            units?: number }>;
+                            units?: number; antenna?: string }>;
   totalCost?: number;
   verdict?: string;
 }
@@ -283,6 +306,56 @@ export interface NormalizedPlacement {
   error?: string;
 }
 
+/** gapBridges may ride ON each gap, or as a sibling collection
+ *  keyed/indexed by gap — hand this the per-gap slice. */
+function gapBridgeFor(collection: unknown, index: number): unknown {
+  if (Array.isArray(collection)) { return collection[index]; }
+  if (collection && typeof collection === 'object') {
+    return (collection as Record<string, unknown>)[String(index)];
+  }
+  return undefined;
+}
+
+/** One gap's bridge results: an array of per-profile entries, or a
+ *  {profile: result} map. Refusals keep their three keys. */
+function normalizeGapBridges(raw: unknown): GapBridge[] | undefined {
+  if (!raw) { return undefined; }
+  const fold = (profile: string,
+                e: Record<string, unknown>): GapBridge => {
+    const refusalRaw = e['refusal'] as
+      Record<string, unknown> | undefined;
+    return {
+      profile: strOr(e['profile']) ?? profile,
+      ok: e['ok'] !== false,
+      intermittent: e['intermittent'] as boolean | undefined,
+      transitMinEachWay: numOr(e['transitMinEachWay']
+        ?? e['transit_min_each_way']),
+      onStationMin: numOr(e['onStationMin'] ?? e['on_station_min']),
+      cycleMin: numOr(e['cycleMin'] ?? e['cycle_min']),
+      bridgesPerDay: numOr(e['bridgesPerDay']
+        ?? e['bridges_per_day']),
+      dutyCyclePct: numOr(e['dutyCyclePct'] ?? e['duty_cycle_pct']),
+      note: strOr(e['note']),
+      refusal: refusalRaw ? {
+        evidence: strOr(refusalRaw['evidence']),
+        knob: strOr(refusalRaw['knob']),
+        action: strOr(refusalRaw['action']),
+      } : undefined,
+    };
+  };
+  if (Array.isArray(raw)) {
+    return (raw as Array<Record<string, unknown>>)
+      .map((e) => fold('?', e));
+  }
+  if (typeof raw === 'object') {
+    return Object.entries(raw as Record<string, unknown>)
+      .filter(([, e]) => e && typeof e === 'object')
+      .map(([profile, e]) =>
+        fold(profile, e as Record<string, unknown>));
+  }
+  return undefined;
+}
+
 /** perNode entries may be arrays or keyed objects, and cost arrives
  *  as cost or costUsd (loadouts add units). */
 function normalizePerNode(raw: unknown): FixedAssessment['perNode'] {
@@ -292,6 +365,7 @@ function normalizePerNode(raw: unknown): FixedAssessment['perNode'] {
       type: strOr(e['type'] ?? e['model']),
       cost: numOr(e['costUsd'] ?? e['cost']),
       units: numOr(e['units']),
+      antenna: strOr(e['antenna']),
     };
   };
   if (Array.isArray(raw)) {
@@ -327,10 +401,15 @@ export function normalizePlacement(
 ): NormalizedPlacement | null {
   if (!raw || typeof raw !== 'object') { return null; }
   const p = raw as Record<string, unknown>;
-  const optionsRaw = (p['options'] ?? p['ranked']
+  const rankedRaw = (p['options'] ?? p['ranked']
     ?? p['rankedOptions'] ?? []) as Array<Record<string, unknown>>;
-  const options: PlacementOption[] = Array.isArray(optionsRaw)
-    ? optionsRaw.map((o) => ({
+  const refusedRaw = (p['refused']
+    ?? []) as Array<Record<string, unknown>>;
+  const optionsRaw = [
+    ...(Array.isArray(rankedRaw) ? rankedRaw : []),
+    ...(Array.isArray(refusedRaw) ? refusedRaw : []),
+  ];
+  const options: PlacementOption[] = optionsRaw.map((o) => ({
       model: String(o['model'] ?? o['name'] ?? '?'),
       count: numOr(o['count']),
       spacingM: numOr(o['spacingM'] ?? o['spacing_m']),
@@ -344,9 +423,10 @@ export function normalizePlacement(
         ?? o['binding_constraint']),
       rangeScenario: strOr(o['rangeScenario'] ?? o['range_scenario']),
       rangeEvidence: strOr(o['rangeEvidence'] ?? o['range_evidence']),
-      reason: strOr(o['reason'] ?? o['refusal']),
-    }))
-    : [];
+      antenna: strOr(o['antenna']),
+      reason: strOr(typeof o['refusal'] === 'string'
+        ? o['refusal'] : o['reason']),
+    }));
   const winnerRaw = p['winner'] as Record<string, unknown> | undefined;
   const winner: PlacementWinner | undefined = winnerRaw
     ? {
@@ -367,6 +447,7 @@ export function normalizePlacement(
         ?? winnerRaw['range_scenario']),
       rangeEvidence: strOr(winnerRaw['rangeEvidence']
         ?? winnerRaw['range_evidence']),
+      antenna: strOr(winnerRaw['antenna']),
       positions: (Array.isArray(winnerRaw['positions'])
         ? (winnerRaw['positions'] as unknown[]) : [])
         .map(asPosition)
@@ -379,19 +460,25 @@ export function normalizePlacement(
     || p['covered_pct'] != null || p['perNode'] != null
     || p['per_node'] != null || gapsRaw.length > 0
     || p['connected'] != null;
+  const gapBridgesRaw = p['gapBridges'] ?? p['gap_bridges'];
   const fixed: FixedAssessment | undefined = hasFixed
     ? {
       coveredPct: numOr(p['coveredPct'] ?? p['covered_pct']),
       uncoveredGaps: Array.isArray(gapsRaw)
-        ? gapsRaw.map((g) => ({
+        ? gapsRaw.map((g, i) => ({
           centroid: asPosition(g['centroid']) ?? undefined,
           size: numOr(g['size'] ?? g['sizeM2'] ?? g['size_m2']),
           note: strOr(g['note'] ?? g['evidence']),
+          bridges: normalizeGapBridges(
+            g['bridges'] ?? gapBridgeFor(gapBridgesRaw, i)),
         }))
         : [],
       connected: p['connected'] as boolean | undefined,
       isolatedNodes: ((p['isolatedNodes'] ?? p['isolated_nodes']
         ?? p['isolated'] ?? []) as unknown[]).map(String),
+      directionalViolations: ((p['directionalViolations']
+        ?? p['directional_violations'] ?? []) as unknown[])
+        .map(String),
       perNode: normalizePerNode(p['perNode'] ?? p['per_node']),
       totalCost: numOr(p['totalCostUsd'] ?? p['totalCost']
         ?? p['total_cost']),

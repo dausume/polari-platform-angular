@@ -813,3 +813,42 @@
 .cohort-profile {
   grid-column: span 2;
 }
+
+/* ---- ret-1f wave 4: antennas + drone bridges ---- */
+
+.tone-warn {
+  background: var(--color-warn-bg);
+  border: 1px solid var(--color-warn-border);
+  color: var(--color-warn-text);
+}
+
+.bridge-card {
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  color: var(--text-on-card);
+  font-size: var(--font-size-sm);
+}
+
+.bridge-ok {
+  margin: var(--spacing-xs) 0 0;
+}
+
+.bridge-refusal {
+  margin-top: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: var(--color-warn-bg);
+  border: 1px solid var(--color-warn-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-warn-text);
+}
+
+.bridge-refusal p {
+  margin: var(--spacing-xs) 0 0;
+}
+
+.bridge-knob {
+  font-weight: 600;
+}

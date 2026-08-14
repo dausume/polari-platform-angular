@@ -551,6 +551,14 @@
                        [(ngModel)]="device.unitsMax"
                        [name]="'catalogUnits' + i" />
               </label>
+              <label class="kit-unit">
+                antenna
+                <select [(ngModel)]="device.antenna"
+                        [name]="'catalogAntenna' + i">
+                  <option *ngFor="let a of antennaChoices"
+                          [value]="a.value">{{ a.label }}</option>
+                </select>
+              </label>
             </div>
             <div *ngFor="let device of extraDevices; let i = index"
                  class="device-row">
@@ -566,12 +574,29 @@
                        [(ngModel)]="device.unitsMax"
                        [name]="'extraUnits' + i" />
               </label>
+              <label class="kit-unit">
+                antenna
+                <select [(ngModel)]="device.antenna"
+                        [name]="'extraAntenna' + i">
+                  <option *ngFor="let a of antennaChoices"
+                          [value]="a.value">{{ a.label }}</option>
+                </select>
+              </label>
               <button type="button" class="linkish"
                       (click)="removeExtraDevice(i)">remove</button>
             </div>
             <button type="button" class="linkish"
                     (click)="addExtraDevice()">
               + another device model</button>
+            <label *ngIf="placementMode === 'fixed-locations'"
+                   class="toggle-line">
+              <input type="checkbox" [(ngModel)]="dronesEnabled"
+                     name="dronesEnabled" />
+              try drone bridges over uncovered gaps
+              <span class="muted-note">
+                ({{ droneProfileName }} — seeded profile; refuses
+                until flight rules are confirmed)</span>
+            </label>
           </div>
         </div>
       </section>
@@ -757,7 +782,13 @@
             <tbody>
               <tr *ngFor="let option of placed.options"
                   [class.option-refused]="option.reason">
-                <td>{{ option.model }}</td>
+                <td>
+                  {{ option.model }}
+                  <span *ngIf="option.antenna
+                               && option.antenna !== 'stock'"
+                        class="muted-note">
+                    · {{ option.antenna }}</span>
+                </td>
                 <td>{{ option.count ?? '—' }}</td>
                 <td>
                   {{ option.unitsPerNode ?? 1 }}
@@ -780,6 +811,9 @@
 
         <p *ngIf="placed.winner as winner" class="winner-line">
           winner: <strong>{{ winner.model }}</strong>
+          <span *ngIf="winner.antenna && winner.antenna !== 'stock'"
+                class="muted-note"> · {{ winner.antenna }}
+            antenna</span>
           — {{ winner.positions.length || winner.count }} nodes<ng-container
             *ngIf="(winner.unitsPerNode ?? 1) > 1"> ×
             {{ winner.unitsPerNode }} units<ng-container
@@ -827,6 +861,50 @@
               <strong>${{ fixed.totalCost | number:'1.2-2' }}
               </strong></p>
           </div>
+          <div *ngIf="fixed.directionalViolations.length"
+               class="verdict-box tone-warn">
+            <strong>Directional antennas with &gt;2 neighbours</strong>
+            <p>
+              {{ fixed.directionalViolations.join(', ') }} — a
+              directional antenna cannot face them all at once.
+            </p>
+          </div>
+          <div *ngFor="let gap of fixed.uncoveredGaps; let gi = index">
+            <div *ngIf="gap.bridges?.length" class="bridge-card">
+              <strong>gap {{ gi + 1 }}
+                <span *ngIf="gap.centroid" class="muted-note">
+                  (at {{ gap.centroid[0] | number:'1.0-0' }},
+                  {{ gap.centroid[1] | number:'1.0-0' }} m)
+                </span></strong>
+              <div *ngFor="let bridge of gap.bridges">
+                <p *ngIf="bridge.ok" class="bridge-ok">
+                  <strong>{{ bridge.profile }}</strong> —
+                  intermittent bridge:
+                  {{ bridge.onStationMin ?? '?' }} min on station
+                  per {{ bridge.cycleMin ?? '?' }} min cycle,
+                  {{ bridge.bridgesPerDay ?? '?' }} sorties/day
+                  <span *ngIf="bridge.dutyCyclePct != null"
+                        class="muted-note">
+                    ({{ bridge.dutyCyclePct | number:'1.0-0' }}%
+                    duty)</span>
+                  <span *ngIf="bridge.note" class="muted-note">
+                    — {{ bridge.note }}</span>
+                </p>
+                <div *ngIf="!bridge.ok" class="bridge-refusal">
+                  <strong>{{ bridge.profile }} refused — the system
+                    working, not a fault</strong>
+                  <p *ngIf="bridge.refusal?.evidence">
+                    {{ bridge.refusal?.evidence }}</p>
+                  <p *ngIf="bridge.refusal?.knob"
+                     class="bridge-knob">
+                    knob: {{ bridge.refusal?.knob }}</p>
+                  <p *ngIf="bridge.refusal?.action"
+                     class="muted-note">
+                    {{ bridge.refusal?.action }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
           <div *ngIf="(fixed.perNode | keyvalue).length"
                class="table-scroll">
             <table>
@@ -836,7 +914,13 @@
               <tbody>
                 <tr *ngFor="let entry of fixed.perNode | keyvalue">
                   <td>{{ entry.key }}</td>
-                  <td>{{ entry.value.type ?? '—' }}</td>
+                  <td>
+                    {{ entry.value.type ?? '—' }}
+                    <span *ngIf="entry.value.antenna
+                                 && entry.value.antenna !== 'stock'"
+                          class="muted-note">
+                      · {{ entry.value.antenna }}</span>
+                  </td>
                   <td>{{ entry.value.units ?? 1 }}</td>
                   <td>{{ entry.value.cost != null
                          ? '$' + (entry.value.cost

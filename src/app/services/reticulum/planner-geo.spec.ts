@@ -173,6 +173,62 @@ describe('planner-geo: tolerant normalizers', () => {
     expect(norm?.winner?.rangeEvidence).toContain('override');
   });
 
+  it('antennas: the antenna rides options/winner/perNode; a refused '
+     + 'sibling collection folds into the options with its reason; '
+     + 'directional violations surface as names', () => {
+    const norm = normalizePlacement({
+      options: [{ model: 'a', antenna: 'high-gain-omni',
+                  range_evidence: '1000 m × 1.8 antenna factor '
+                    + '(high-gain-omni)' }],
+      refused: [{ model: 'a', antenna: 'directional',
+                  refusal: 'directional × max-spread: a ring of '
+                    + 'neighbours defeats a beam' }],
+      winner: { model: 'a', antenna: 'high-gain-omni',
+                positions: [[0, 0]] },
+      covered_pct: 90,
+      per_node: { barn: { type: 'a', antenna: 'directional' } },
+      directional_violations: ['barn'],
+    });
+    expect(norm?.options.length).toBe(2);
+    expect(norm?.options[0].antenna).toBe('high-gain-omni');
+    expect(norm?.options[0].rangeEvidence)
+      .toContain('× 1.8 antenna factor');
+    expect(norm?.options[1].reason).toContain('defeats a beam');
+    expect(norm?.winner?.antenna).toBe('high-gain-omni');
+    expect(norm?.fixed?.perNode['barn'].antenna).toBe('directional');
+    expect(norm?.fixed?.directionalViolations).toEqual(['barn']);
+  });
+
+  it('drone bridges: per-gap results normalize from on-gap arrays '
+     + 'or sibling collections; refusals keep their three keys', () => {
+    const norm = normalizePlacement({
+      covered_pct: 70,
+      uncovered_gaps: [{ centroid: [10, 10] }, { centroid: [90, 90] }],
+      gap_bridges: {
+        0: { 'generic-quadcopter-bridge': {
+          ok: true, intermittent: true, transit_min_each_way: 4,
+          on_station_min: 12, cycle_min: 20, bridges_per_day: 18,
+          duty_cycle_pct: 60 } },
+        1: [{ profile: 'generic-quadcopter-bridge', ok: false,
+              refusal: { evidence: 'no confirmed flight rules on '
+                           + 'file for this airspace',
+                         knob: 'DroneProfile.flight_rules_confirmed',
+                         action: 'confirm the rules, then re-plan' },
+            }],
+      },
+    });
+    const first = norm?.fixed?.uncoveredGaps[0].bridges?.[0];
+    expect(first?.ok).toBeTrue();
+    expect(first?.profile).toBe('generic-quadcopter-bridge');
+    expect(first?.onStationMin).toBe(12);
+    expect(first?.bridgesPerDay).toBe(18);
+    const second = norm?.fixed?.uncoveredGaps[1].bridges?.[0];
+    expect(second?.ok).toBeFalse();
+    expect(second?.refusal?.knob)
+      .toContain('flight_rules_confirmed');
+    expect(second?.refusal?.evidence).toContain('no confirmed');
+  });
+
   it('placement: fixed-locations facts surface gaps and isolated '
      + 'nodes; absent sections stay absent, not invented', () => {
     const norm = normalizePlacement({

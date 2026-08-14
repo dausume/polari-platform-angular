@@ -158,28 +158,38 @@ export class ArchComponent implements OnInit {
    *  as informative refused-costing rows in cheapest-coverage). */
   deviceCatalog: Array<{ model: string; label: string; hint: string;
                          capacityBps?: number; checked: boolean;
-                         unitsMax: number }> = [
+                         unitsMax: number; antenna: string }> = [
     { model: 'dsd-tech-sh-l1a',
       label: 'DSD TECH SH-L1A',
       hint: 'catalogued, measured 6 568 bps',
-      capacityBps: 6568, checked: true, unitsMax: 4 },
+      capacityBps: 6568, checked: true, unitsMax: 4,
+      antenna: 'stock' },
     { model: 'generic-lora', label: 'generic LoRa',
       hint: 'reference class — typical figures, not a SKU; unpriced',
-      checked: false, unitsMax: 4 },
+      checked: false, unitsMax: 4, antenna: 'stock' },
     { model: 'generic-ham-vhf-uhf', label: 'generic HAM VHF/UHF',
       hint: 'reference class — typical figures, not a SKU; unpriced',
-      checked: false, unitsMax: 4 },
+      checked: false, unitsMax: 4, antenna: 'stock' },
     { model: 'generic-wifi-24', label: 'generic WiFi 2.4',
       hint: 'reference class — typical figures, not a SKU; unpriced',
-      checked: false, unitsMax: 4 },
+      checked: false, unitsMax: 4, antenna: 'stock' },
     { model: 'generic-wifi-halow', label: 'generic WiFi HaLow',
       hint: 'reference class — typical figures, not a SKU; $134.97',
-      checked: false, unitsMax: 4 },
+      checked: false, unitsMax: 4, antenna: 'stock' },
+  ];
+  antennaChoices = [
+    { value: 'stock', label: 'stock' },
+    { value: 'high-gain-omni', label: 'high-gain omni (×1.8)' },
+    { value: 'directional', label: 'directional (×3.0)' },
   ];
   extraDevices: Array<{ model: string; capacityBps: number | null;
-                        unitsMax: number }> = [];
+                        unitsMax: number; antenna: string }> = [];
   rangeScenario: 'pessimistic' | 'typical' | 'optimistic' = 'typical';
   rangeOverrideM: number | null = null;
+  /** drone bridges — the one seeded profile, hardcoded until a
+   *  DroneProfile listing endpoint replaces it. */
+  dronesEnabled = false;
+  droneProfileName = 'generic-quadcopter-bridge';
   readonly svgW = 420;
   readonly svgH = 320;
   fallbackDisclaimer =
@@ -290,7 +300,7 @@ export class ArchComponent implements OnInit {
   addExtraDevice(): void {
     this.extraDevices = [...this.extraDevices,
                          { model: '', capacityBps: null,
-                           unitsMax: 4 }];
+                           unitsMax: 4, antenna: 'stock' }];
   }
 
   addCohort(): void {
@@ -451,6 +461,7 @@ export class ArchComponent implements OnInit {
           .map((d) => ({
             model: d.model,
             unitsMax: d.unitsMax,
+            antenna: d.antenna,
             ...(d.capacityBps
               ? { capacityBps: d.capacityBps } : {}),
           })),
@@ -459,6 +470,7 @@ export class ArchComponent implements OnInit {
           .map((d) => ({
             model: d.model.trim(),
             unitsMax: d.unitsMax,
+            antenna: d.antenna,
             ...(d.capacityBps ? { capacityBps: d.capacityBps } : {}),
           })),
       ];
@@ -472,6 +484,9 @@ export class ArchComponent implements OnInit {
         ...(this.placementMode !== 'cheapest-coverage'
           ? { nodes: this.fixedNodes } : {}),
         ...(deviceOptions.length ? { deviceOptions } : {}),
+        ...(this.dronesEnabled
+            && this.placementMode === 'fixed-locations'
+          ? { droneProfiles: [this.droneProfileName] } : {}),
       };
     }
     const result = await this.meshSimService.plan(request);
