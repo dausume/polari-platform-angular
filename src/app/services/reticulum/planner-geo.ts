@@ -206,16 +206,26 @@ export const POPULATION_BUILDS =
   ['lora', 'ham-rx', 'ham-tx', 'wifi', 'wifi-halow', 'lorawan'] as
   const;
 
-export function mixSum(mix: Record<string, number>): number {
+/** A mix value is a plain percentage, or a KIT entry — a person
+ *  carrying several devices ({kit: {lora: 2, wifi: 1}, pct: 30}). */
+export type MixValue = number | { kit?: Record<string, number>;
+                                  pct: number };
+
+function mixPct(v: MixValue): number {
+  const pct = typeof v === 'number' ? v : v?.pct;
+  return Number.isFinite(pct) ? (pct as number) : 0;
+}
+
+export function mixSum(mix: Record<string, MixValue>): number {
   return Object.values(mix)
-    .reduce((s, v) => s + (Number.isFinite(v) ? v : 0), 0);
+    .reduce((s: number, v: MixValue) => s + mixPct(v), 0);
 }
 
 /** A mix must account for the whole population — 100% within a
- *  rounding hair. */
-export function mixValid(mix: Record<string, number>): boolean {
+ *  rounding hair — whether the shares are plain builds or kits. */
+export function mixValid(mix: Record<string, MixValue>): boolean {
   return Math.abs(mixSum(mix) - 100) < 0.01
-    && Object.values(mix).every((v) => v >= 0);
+    && Object.values(mix).every((v) => mixPct(v) >= 0);
 }
 
 // ---- tolerant result normalizers ------------------------------------
@@ -225,6 +235,10 @@ export interface PlacementOption {
   count?: number;
   spacingM?: number;
   totalCost?: number;
+  /** loadouts: several units of a device per node */
+  unitsPerNode?: number;
+  unitsCap?: number;
+  perNodeCostUsd?: number;
   reason?: string;
 }
 
@@ -234,6 +248,9 @@ export interface PlacementWinner {
   totalCost?: number;
   count?: number;
   rangeM?: number;
+  unitsPerNode?: number;
+  unitsCap?: number;
+  perNodeCostUsd?: number;
 }
 
 export interface FixedAssessment {
@@ -242,7 +259,8 @@ export interface FixedAssessment {
                          size?: number; note?: string }>;
   connected?: boolean;
   isolatedNodes: string[];
-  perNode: Record<string, { type?: string; cost?: number }>;
+  perNode: Record<string, { type?: string; cost?: number;
+                            units?: number }>;
   totalCost?: number;
   verdict?: string;
 }
@@ -255,6 +273,32 @@ export interface NormalizedPlacement {
   resilience?: Array<{ node?: string; evidence?: string }>;
   assumptions: string[];
   error?: string;
+}
+
+/** perNode entries may be arrays or keyed objects, and cost arrives
+ *  as cost or costUsd (loadouts add units). */
+function normalizePerNode(raw: unknown): FixedAssessment['perNode'] {
+  const out: FixedAssessment['perNode'] = {};
+  const fold = (name: string, e: Record<string, unknown>) => {
+    out[name] = {
+      type: strOr(e['type'] ?? e['model']),
+      cost: numOr(e['costUsd'] ?? e['cost']),
+      units: numOr(e['units']),
+    };
+  };
+  if (Array.isArray(raw)) {
+    for (const e of raw as Array<Record<string, unknown>>) {
+      fold(String(e['name'] ?? e['node'] ?? '?'), e);
+    }
+  } else if (raw && typeof raw === 'object') {
+    for (const [name, e] of
+        Object.entries(raw as Record<string, unknown>)) {
+      if (e && typeof e === 'object') {
+        fold(name, e as Record<string, unknown>);
+      }
+    }
+  }
+  return out;
 }
 
 function asPosition(raw: unknown): [number, number] | null {
@@ -282,8 +326,12 @@ export function normalizePlacement(
       model: String(o['model'] ?? o['name'] ?? '?'),
       count: numOr(o['count']),
       spacingM: numOr(o['spacingM'] ?? o['spacing_m']),
-      totalCost: numOr(o['totalCost'] ?? o['total_cost']
-        ?? o['costUsd']),
+      totalCost: numOr(o['totalCostUsd'] ?? o['totalCost']
+        ?? o['total_cost'] ?? o['costUsd']),
+      unitsPerNode: numOr(o['unitsPerNode'] ?? o['units_per_node']),
+      unitsCap: numOr(o['unitsCap'] ?? o['units_cap']),
+      perNodeCostUsd: numOr(o['perNodeCostUsd']
+        ?? o['per_node_cost_usd']),
       reason: strOr(o['reason'] ?? o['refusal']),
     }))
     : [];
@@ -291,10 +339,16 @@ export function normalizePlacement(
   const winner: PlacementWinner | undefined = winnerRaw
     ? {
       model: strOr(winnerRaw['model']),
-      totalCost: numOr(winnerRaw['totalCost']
-        ?? winnerRaw['total_cost']),
+      totalCost: numOr(winnerRaw['totalCostUsd']
+        ?? winnerRaw['totalCost'] ?? winnerRaw['total_cost']),
       count: numOr(winnerRaw['count']),
       rangeM: numOr(winnerRaw['rangeM'] ?? winnerRaw['range_m']),
+      unitsPerNode: numOr(winnerRaw['unitsPerNode']
+        ?? winnerRaw['units_per_node']),
+      unitsCap: numOr(winnerRaw['unitsCap']
+        ?? winnerRaw['units_cap']),
+      perNodeCostUsd: numOr(winnerRaw['perNodeCostUsd']
+        ?? winnerRaw['per_node_cost_usd']),
       positions: (Array.isArray(winnerRaw['positions'])
         ? (winnerRaw['positions'] as unknown[]) : [])
         .map(asPosition)
@@ -320,9 +374,9 @@ export function normalizePlacement(
       connected: p['connected'] as boolean | undefined,
       isolatedNodes: ((p['isolatedNodes'] ?? p['isolated_nodes']
         ?? p['isolated'] ?? []) as unknown[]).map(String),
-      perNode: (p['perNode'] ?? p['per_node']
-        ?? {}) as FixedAssessment['perNode'],
-      totalCost: numOr(p['totalCost'] ?? p['total_cost']),
+      perNode: normalizePerNode(p['perNode'] ?? p['per_node']),
+      totalCost: numOr(p['totalCostUsd'] ?? p['totalCost']
+        ?? p['total_cost']),
       verdict: strOr(p['verdict']),
     }
     : undefined;
@@ -351,6 +405,9 @@ export interface PopulationRow {
   oneWayListensTo: string[];
   isolated?: boolean;
   why?: string;
+  /** loadouts: a kit row echoes its device counts */
+  devices?: Record<string, number>;
+  capacityNote?: string;
 }
 
 export interface NormalizedPopulation {
@@ -380,6 +437,9 @@ export function normalizePopulation(
       why: strOr(r['why'] ?? r['reason']
         ?? (typeof r['isolated'] === 'string'
           ? r['isolated'] : undefined)),
+      devices: (r['devices'] && typeof r['devices'] === 'object')
+        ? r['devices'] as Record<string, number> : undefined,
+      capacityNote: strOr(r['capacityNote'] ?? r['capacity_note']),
     });
   };
   if (Array.isArray(source)) {

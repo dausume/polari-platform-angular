@@ -100,6 +100,18 @@ describe('planner-geo: population mix', () => {
     expect(mixValid({ lora: 60, wifi: 39 })).toBeFalse();
     expect(mixValid({ lora: 110, wifi: -10 })).toBeFalse();
   });
+
+  it('kit entries count by their pct — a person with several '
+     + 'devices is still one share of the population', () => {
+    const mix = {
+      lora: 70,
+      scout: { kit: { lora: 2, 'ham-rx': 1 }, pct: 30 },
+    };
+    expect(mixSum(mix)).toBe(100);
+    expect(mixValid(mix)).toBeTrue();
+    expect(mixValid({ lora: 70,
+                      scout: { kit: {}, pct: 20 } })).toBeFalse();
+  });
 });
 
 describe('planner-geo: tolerant normalizers', () => {
@@ -117,6 +129,25 @@ describe('planner-geo: tolerant normalizers', () => {
     expect(norm?.options[0].totalCost).toBe(120);
     expect(norm?.options[1].reason).toContain('no price');
     expect(norm?.winner?.positions).toEqual([[0, 0], [700, 0]]);
+  });
+
+  it('placement loadouts: units + per-node cost surface on options '
+     + 'and winner; totalCostUsd wins the fallback chain; perNode '
+     + 'entries carry units and costUsd-as-cost', () => {
+    const norm = normalizePlacement({
+      options: [{ model: 'a', unitsPerNode: 2, unitsCap: 4,
+                  perNodeCostUsd: 55.98, totalCostUsd: 167.94 }],
+      winner: { model: 'a', unitsPerNode: 2, perNodeCostUsd: 55.98,
+                totalCostUsd: 167.94, positions: [[0, 0]] },
+      per_node: { barn: { type: 'a', units: 2, costUsd: 55.98 } },
+    });
+    expect(norm?.options[0].unitsPerNode).toBe(2);
+    expect(norm?.options[0].unitsCap).toBe(4);
+    expect(norm?.options[0].totalCost).toBe(167.94);
+    expect(norm?.winner?.unitsPerNode).toBe(2);
+    expect(norm?.winner?.perNodeCostUsd).toBe(55.98);
+    expect(norm?.fixed?.perNode['barn'].units).toBe(2);
+    expect(norm?.fixed?.perNode['barn'].cost).toBe(55.98);
   });
 
   it('placement: fixed-locations facts surface gaps and isolated '
@@ -152,5 +183,18 @@ describe('planner-geo: tolerant normalizers', () => {
     expect(hamRx?.oneWayListensTo).toEqual(['ham-tx']);
     expect(norm?.isolatedShare).toBe(0.1);
     expect(normalizePopulation({})).toBeNull();
+  });
+
+  it('population loadouts: kit rows echo their devices and carry '
+     + 'the capacity note', () => {
+    const norm = normalizePopulation({
+      builds: [{ build: 'scout', count: 15,
+                 devices: { lora: 2, 'ham-rx': 1 },
+                 capacityNote: '2× lora on distinct channels',
+                 peers: ['lora'] }],
+    });
+    expect(norm?.rows[0].devices).toEqual({ lora: 2, 'ham-rx': 1 });
+    expect(norm?.rows[0].capacityNote)
+      .toContain('distinct channels');
   });
 });

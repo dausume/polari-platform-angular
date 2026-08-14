@@ -360,11 +360,38 @@
                    [(ngModel)]="populationMix[build]"
                    [name]="'mix-' + build" />
           </label>
+          <div class="kit-rows">
+            <div *ngFor="let kit of kitRows; let i = index"
+                 class="kit-row">
+              <input type="text" class="kit-label"
+                     [(ngModel)]="kit.label"
+                     [name]="'kitLabel' + i"
+                     placeholder="kit name" />
+              <label *ngFor="let build of populationBuilds"
+                     class="kit-unit">
+                {{ build }}
+                <input type="number" min="0"
+                       [(ngModel)]="kit.units[build]"
+                       [name]="'kit' + i + '-' + build" />
+              </label>
+              <label class="kit-unit">
+                %
+                <input type="number" min="0" max="100"
+                       [(ngModel)]="kit.pct"
+                       [name]="'kitPct' + i" />
+              </label>
+              <button type="button" class="linkish"
+                      (click)="removeKitRow(i)">remove</button>
+            </div>
+            <button type="button" class="linkish"
+                    (click)="addKitRow()">
+              + kit (one person, several devices)</button>
+          </div>
           <p class="mix-sum"
-             [class.mix-sum-bad]="!mixValid(populationMix)">
-            sum: {{ mixSum(populationMix) }}%
-            <span *ngIf="!mixValid(populationMix)">
-              — must total exactly 100</span>
+             [class.mix-sum-bad]="!mixValid(combinedMix)">
+            sum: {{ mixSum(combinedMix) }}%
+            <span *ngIf="!mixValid(combinedMix)">
+              — must total exactly 100 (builds + kits)</span>
           </p>
         </div>
       </section>
@@ -488,11 +515,19 @@
           </div>
 
           <div class="device-options">
-            <label class="toggle-line">
-              <input type="checkbox" [(ngModel)]="useShL1a"
-                     name="useShL1a" />
-              DSD TECH SH-L1A (catalogued, measured 6 568 bps)
-            </label>
+            <div class="device-row">
+              <label class="toggle-line">
+                <input type="checkbox" [(ngModel)]="useShL1a"
+                       name="useShL1a" />
+                DSD TECH SH-L1A (catalogued, measured 6 568 bps)
+              </label>
+              <label class="kit-unit">
+                max units
+                <input type="number" min="1"
+                       [(ngModel)]="shL1aUnitsMax"
+                       name="shL1aUnitsMax" />
+              </label>
+            </div>
             <div *ngFor="let device of extraDevices; let i = index"
                  class="device-row">
               <input type="text" placeholder="DeviceModel row name"
@@ -501,6 +536,12 @@
               <input type="number" placeholder="capacity bps"
                      [(ngModel)]="device.capacityBps"
                      [name]="'extraCap' + i" />
+              <label class="kit-unit">
+                max units
+                <input type="number" min="1"
+                       [(ngModel)]="device.unitsMax"
+                       [name]="'extraUnits' + i" />
+              </label>
               <button type="button" class="linkish"
                       (click)="removeExtraDevice(i)">remove</button>
             </div>
@@ -514,7 +555,7 @@
       <button type="submit"
               [disabled]="planning
                           || (populationEnabled
-                              && !mixValid(populationMix))
+                              && !mixValid(combinedMix))
                           || !placementReady">
         {{ planning ? 'planning…' : 'plan it' }}</button>
       <p *ngIf="placementEnabled && !placementReady"
@@ -635,7 +676,11 @@
             </thead>
             <tbody>
               <tr *ngFor="let row of pop.rows">
-                <td>{{ row.build }}</td>
+                <td>
+                  {{ row.build }}
+                  <span *ngIf="row.devices" class="muted-note">
+                    ({{ kitDeviceList(row.devices) }})</span>
+                </td>
                 <td>{{ row.count ?? '—' }}</td>
                 <td>{{ row.peersWith.length
                        ? row.peersWith.join(', ') : '—' }}</td>
@@ -648,6 +693,8 @@
                         class="badge badge-connected">connected</span>
                   <span *ngIf="row.why" class="muted-note">
                     {{ row.why }}</span>
+                  <span *ngIf="row.capacityNote" class="muted-note">
+                    {{ row.capacityNote }}</span>
                 </td>
               </tr>
             </tbody>
@@ -669,7 +716,8 @@
         <div *ngIf="placed.options.length" class="table-scroll">
           <table>
             <thead>
-              <tr><th>device</th><th>nodes</th><th>spacing</th>
+              <tr><th>device</th><th>nodes</th>
+                  <th>units/node</th><th>spacing</th>
                   <th>total cost</th></tr>
             </thead>
             <tbody>
@@ -677,6 +725,13 @@
                   [class.option-refused]="option.reason">
                 <td>{{ option.model }}</td>
                 <td>{{ option.count ?? '—' }}</td>
+                <td>
+                  {{ option.unitsPerNode ?? 1 }}
+                  <span *ngIf="option.perNodeCostUsd != null"
+                        class="muted-note">
+                    (${{ option.perNodeCostUsd
+                         | number:'1.2-2' }}/node)</span>
+                </td>
                 <td>{{ formatMeters(option.spacingM ?? null) }}</td>
                 <td>
                   <span *ngIf="option.totalCost != null">
@@ -691,7 +746,12 @@
 
         <p *ngIf="placed.winner as winner" class="winner-line">
           winner: <strong>{{ winner.model }}</strong>
-          — {{ winner.positions.length || winner.count }} nodes,
+          — {{ winner.positions.length || winner.count }} nodes<ng-container
+            *ngIf="(winner.unitsPerNode ?? 1) > 1"> ×
+            {{ winner.unitsPerNode }} units<ng-container
+              *ngIf="winner.perNodeCostUsd != null">,
+              ${{ winner.perNodeCostUsd | number:'1.2-2' }}/node
+            </ng-container></ng-container>,
           <strong *ngIf="winner.totalCost != null">
             ${{ winner.totalCost | number:'1.2-2' }}</strong>
           <span class="muted-note"> (drawn on the map above)</span>
@@ -724,12 +784,14 @@
           <div *ngIf="(fixed.perNode | keyvalue).length"
                class="table-scroll">
             <table>
-              <thead><tr><th>node</th><th>device</th><th>cost</th>
+              <thead><tr><th>node</th><th>device</th>
+                  <th>units</th><th>cost</th>
               </tr></thead>
               <tbody>
                 <tr *ngFor="let entry of fixed.perNode | keyvalue">
                   <td>{{ entry.key }}</td>
                   <td>{{ entry.value.type ?? '—' }}</td>
+                  <td>{{ entry.value.units ?? 1 }}</td>
                   <td>{{ entry.value.cost != null
                          ? '$' + (entry.value.cost
                                   | number:'1.2-2') : '—' }}</td>

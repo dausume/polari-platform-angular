@@ -764,3 +764,36 @@
   color: var(--text-on-card);
   font-size: var(--font-size-base);
 }
+
+/* ---- ret-1f loadouts: kit rows + unit inputs ---- */
+
+.kit-rows {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-xs);
+}
+
+.kit-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 72px), 1fr));
+  gap: var(--spacing-xs);
+  align-items: end;
+}
+
+.kit-label {
+  min-width: 0;
+}
+
+.kit-unit {
+  display: flex;
+  flex-direction: column;
+  font-size: var(--font-size-xs);
+  color: var(--text-on-card-muted);
+}
+
+.kit-unit input {
+  width: 100%;
+  min-width: 0;
+}

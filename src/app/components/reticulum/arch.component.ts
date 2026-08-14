@@ -130,6 +130,9 @@ export class ArchComponent implements OnInit {
     lora: 40, 'ham-rx': 20, 'ham-tx': 5,
     wifi: 25, 'wifi-halow': 10, lorawan: 0,
   };
+  /** loadouts: kit rows — one person carrying several devices */
+  kitRows: Array<{ label: string; pct: number;
+                   units: Record<string, number> }> = [];
 
   // ---- ret-1f: map placement ----------------------------------------
   placementEnabled = false;
@@ -147,8 +150,9 @@ export class ArchComponent implements OnInit {
   // for models the catalog endpoint will serve later (said in a
   // comment where the list is built).
   useShL1a = true;
-  extraDevices: Array<{ model: string; capacityBps: number | null }> =
-    [];
+  shL1aUnitsMax = 4;
+  extraDevices: Array<{ model: string; capacityBps: number | null;
+                        unitsMax: number }> = [];
   readonly svgW = 420;
   readonly svgH = 320;
   fallbackDisclaimer =
@@ -261,7 +265,46 @@ export class ArchComponent implements OnInit {
 
   addExtraDevice(): void {
     this.extraDevices = [...this.extraDevices,
-                         { model: '', capacityBps: null }];
+                         { model: '', capacityBps: null,
+                           unitsMax: 4 }];
+  }
+
+  addKitRow(): void {
+    const units: Record<string, number> = {};
+    for (const build of this.populationBuilds) { units[build] = 0; }
+    this.kitRows = [...this.kitRows, {
+      label: `kit-${this.kitRows.length + 1}`, pct: 0, units,
+    }];
+  }
+
+  removeKitRow(index: number): void {
+    this.kitRows = this.kitRows.filter((_, i) => i !== index);
+  }
+
+  /** simple builds + kit rows as one mix — what both the 100% rule
+   *  and the request see. Kit labels colliding with a build name or
+   *  each other get suffixed rather than silently merged. */
+  get combinedMix(): Record<string,
+      number | { kit: Record<string, number>; pct: number }> {
+    const mix: Record<string,
+      number | { kit: Record<string, number>; pct: number }> =
+      { ...this.populationMix };
+    for (const row of this.kitRows) {
+      let label = (row.label || 'kit').trim() || 'kit';
+      while (label in mix) { label = `${label}+`; }
+      const kit: Record<string, number> = {};
+      for (const [build, n] of Object.entries(row.units)) {
+        if (n > 0) { kit[build] = n; }  // zeros omitted from payload
+      }
+      mix[label] = { kit, pct: row.pct };
+    }
+    return mix;
+  }
+
+  kitDeviceList(devices: Record<string, number>): string {
+    return Object.entries(devices)
+      .map(([build, n]) => `${n}× ${build}`)
+      .join(', ');
   }
 
   removeExtraDevice(index: number): void {
@@ -351,7 +394,7 @@ export class ArchComponent implements OnInit {
   }
 
   async runPlan(): Promise<void> {
-    if (this.populationEnabled && !mixValid(this.populationMix)) {
+    if (this.populationEnabled && !mixValid(this.combinedMix)) {
       return; // the sum indicator is already saying why
     }
     if (!this.placementReady) { return; }
@@ -366,7 +409,7 @@ export class ArchComponent implements OnInit {
       areaM2: km2ToM2(this.plannerForm.areaKm2),
     };
     if (this.populationEnabled) {
-      request.population = { mix: { ...this.populationMix },
+      request.population = { mix: this.combinedMix,
                              n: this.populationN };
     }
     if (this.placementEnabled && this.localPolygon) {
@@ -374,11 +417,13 @@ export class ArchComponent implements OnInit {
       // until a catalog-listing endpoint exists to populate a picker.
       const deviceOptions = [
         ...(this.useShL1a
-          ? [{ model: 'dsd-tech-sh-l1a', capacityBps: 6568 }] : []),
+          ? [{ model: 'dsd-tech-sh-l1a', capacityBps: 6568,
+               unitsMax: this.shL1aUnitsMax }] : []),
         ...this.extraDevices
           .filter((d) => d.model.trim())
           .map((d) => ({
             model: d.model.trim(),
+            unitsMax: d.unitsMax,
             ...(d.capacityBps ? { capacityBps: d.capacityBps } : {}),
           })),
       ];

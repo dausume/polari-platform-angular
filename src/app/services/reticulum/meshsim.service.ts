@@ -78,11 +78,15 @@ export interface PlacementRequest {
   polygon: unknown;               // geojson, backend-authoritative
   reachMode: 'max-spread' | 'linear';
   nodes?: Array<{ name: string; x_m: number; y_m: number }>;
-  deviceOptions?: Array<{ model: string; capacityBps?: number }>;
+  deviceOptions?: Array<{ model: string; capacityBps?: number;
+                          unitsMax?: number }>;
 }
 
 export interface PopulationRequest {
-  mix: Record<string, number>;    // build -> percent, sums to 100
+  /** build -> percent, or a kit entry {kit: {build: units}, pct};
+   *  percentages sum to 100 across both forms */
+  mix: Record<string,
+              number | { kit: Record<string, number>; pct: number }>;
   n: number;
 }
 
