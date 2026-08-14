@@ -346,52 +346,58 @@
         <label class="toggle-line">
           <input type="checkbox" [(ngModel)]="populationEnabled"
                  name="populationEnabled" />
-          simulate a population build mix
+          simulate population cohorts (counts-first)
         </label>
-        <div *ngIf="populationEnabled" class="mix-grid">
-          <label>
-            people
-            <input type="number" min="1" [(ngModel)]="populationN"
-                   name="populationN" />
-          </label>
-          <label *ngFor="let build of populationBuilds">
-            {{ build }} %
-            <input type="number" min="0" max="100"
-                   [(ngModel)]="populationMix[build]"
-                   [name]="'mix-' + build" />
-          </label>
-          <div class="kit-rows">
-            <div *ngFor="let kit of kitRows; let i = index"
-                 class="kit-row">
+        <div *ngIf="populationEnabled" class="kit-rows">
+          <div *ngFor="let cohort of cohorts; let i = index"
+               class="kit-row">
+            <label class="kit-unit cohort-kind">
+              cohort
+              <select [(ngModel)]="cohort.mode"
+                      [name]="'cohortMode' + i">
+                <option value="profile">profile</option>
+                <option value="kit">custom kit</option>
+              </select>
+            </label>
+            <label *ngIf="cohort.mode === 'profile'"
+                   class="kit-unit cohort-profile">
+              profile
+              <select [(ngModel)]="cohort.profile"
+                      [name]="'cohortProfile' + i">
+                <option *ngFor="let p of kitProfiles"
+                        [value]="p.name">
+                  {{ p.name }} — {{ p.hint }}</option>
+              </select>
+            </label>
+            <ng-container *ngIf="cohort.mode === 'kit'">
               <input type="text" class="kit-label"
-                     [(ngModel)]="kit.label"
-                     [name]="'kitLabel' + i"
+                     [(ngModel)]="cohort.label"
+                     [name]="'cohortLabel' + i"
                      placeholder="kit name" />
               <label *ngFor="let build of populationBuilds"
                      class="kit-unit">
                 {{ build }}
                 <input type="number" min="0"
-                       [(ngModel)]="kit.units[build]"
-                       [name]="'kit' + i + '-' + build" />
+                       [(ngModel)]="cohort.units[build]"
+                       [name]="'cohort' + i + '-' + build" />
               </label>
-              <label class="kit-unit">
-                %
-                <input type="number" min="0" max="100"
-                       [(ngModel)]="kit.pct"
-                       [name]="'kitPct' + i" />
-              </label>
-              <button type="button" class="linkish"
-                      (click)="removeKitRow(i)">remove</button>
-            </div>
+            </ng-container>
+            <label class="kit-unit">
+              people
+              <input type="number" min="0"
+                     [(ngModel)]="cohort.count"
+                     [name]="'cohortCount' + i" />
+            </label>
             <button type="button" class="linkish"
-                    (click)="addKitRow()">
-              + kit (one person, several devices)</button>
+                    (click)="removeCohort(i)">remove</button>
           </div>
-          <p class="mix-sum"
-             [class.mix-sum-bad]="!mixValid(combinedMix)">
-            sum: {{ mixSum(combinedMix) }}%
-            <span *ngIf="!mixValid(combinedMix)">
-              — must total exactly 100 (builds + kits)</span>
+          <button type="button" class="linkish"
+                  (click)="addCohort()">+ cohort</button>
+          <p class="mix-sum" [class.mix-sum-bad]="!cohortsValid">
+            {{ populationTotal }} people total
+            <span *ngIf="!cohortsValid">
+              — needs at least one counted cohort, and custom kits
+              need at least one device</span>
           </p>
         </div>
       </section>
@@ -425,6 +431,22 @@
                 <option value="linear">
                   linear corridor (the relay stress case)</option>
               </select>
+            </label>
+            <label>
+              range scenario
+              <select [(ngModel)]="rangeScenario"
+                      name="rangeScenario">
+                <option value="pessimistic">pessimistic</option>
+                <option value="typical">typical</option>
+                <option value="optimistic">optimistic</option>
+              </select>
+            </label>
+            <label>
+              operator override (m) — your assertion, recorded
+              <input type="number" min="1"
+                     [(ngModel)]="rangeOverrideM"
+                     name="rangeOverrideM"
+                     placeholder="wins over scenario" />
             </label>
             <label>
               shape
@@ -515,17 +537,19 @@
           </div>
 
           <div class="device-options">
-            <div class="device-row">
+            <div *ngFor="let device of deviceCatalog; let i = index"
+                 class="device-row">
               <label class="toggle-line">
-                <input type="checkbox" [(ngModel)]="useShL1a"
-                       name="useShL1a" />
-                DSD TECH SH-L1A (catalogued, measured 6 568 bps)
+                <input type="checkbox" [(ngModel)]="device.checked"
+                       [name]="'catalog' + i" />
+                {{ device.label }}
+                <span class="muted-note">{{ device.hint }}</span>
               </label>
               <label class="kit-unit">
                 max units
                 <input type="number" min="1"
-                       [(ngModel)]="shL1aUnitsMax"
-                       name="shL1aUnitsMax" />
+                       [(ngModel)]="device.unitsMax"
+                       [name]="'catalogUnits' + i" />
               </label>
             </div>
             <div *ngFor="let device of extraDevices; let i = index"
@@ -554,8 +578,7 @@
 
       <button type="submit"
               [disabled]="planning
-                          || (populationEnabled
-                              && !mixValid(combinedMix))
+                          || (populationEnabled && !cohortsValid)
                           || !placementReady">
         {{ planning ? 'planning…' : 'plan it' }}</button>
       <p *ngIf="placementEnabled && !placementReady"
@@ -675,13 +698,24 @@
                   <th>listens to (one-way)</th><th>status</th></tr>
             </thead>
             <tbody>
-              <tr *ngFor="let row of pop.rows">
+              <tr *ngFor="let row of pop.rows"
+                  [class.option-refused]="row.error">
                 <td>
                   {{ row.build }}
+                  <span *ngIf="row.profile" class="muted-note">
+                    ({{ row.profile }})</span>
                   <span *ngIf="row.devices" class="muted-note">
                     ({{ kitDeviceList(row.devices) }})</span>
+                  <span *ngIf="row.error" class="refusal-inline">
+                    {{ row.error }}</span>
                 </td>
-                <td>{{ row.count ?? '—' }}</td>
+                <td>
+                  {{ row.count ?? '—' }}
+                  <span *ngIf="row.pctOfPopulation != null"
+                        class="muted-note">
+                    ({{ row.pctOfPopulation | number:'1.0-1' }}%)
+                  </span>
+                </td>
                 <td>{{ row.peersWith.length
                        ? row.peersWith.join(', ') : '—' }}</td>
                 <td>{{ row.oneWayListensTo.length
@@ -755,6 +789,18 @@
           <strong *ngIf="winner.totalCost != null">
             ${{ winner.totalCost | number:'1.2-2' }}</strong>
           <span class="muted-note"> (drawn on the map above)</span>
+        </p>
+        <div *ngIf="placed.winner?.bindingConstraint"
+             class="verdict-box tone-ok binding-constraint">
+          <strong>why this count:</strong>
+          {{ placed.winner?.bindingConstraint }}
+        </div>
+        <p *ngIf="placed.winner?.rangeScenario
+                  || placed.winner?.rangeEvidence"
+           class="muted-note">
+          range scenario: {{ placed.winner?.rangeScenario ?? '—' }}
+          <span *ngIf="placed.winner?.rangeEvidence">
+            — {{ placed.winner?.rangeEvidence }}</span>
         </p>
 
         <ng-container *ngIf="placed.fixed as fixed">

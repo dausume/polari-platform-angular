@@ -150,6 +150,29 @@ describe('planner-geo: tolerant normalizers', () => {
     expect(norm?.fixed?.perNode['barn'].cost).toBe(55.98);
   });
 
+  it('placement range scenarios: bindingConstraint + scenario + '
+     + 'evidence surface on winner and options; a single-node '
+     + 'winner may carry a null spacing', () => {
+    const norm = normalizePlacement({
+      options: [{ model: 'a', count: 1, spacingM: null,
+                  binding_constraint: 'coverage: one node spans '
+                    + 'the shape at typical range',
+                  range_scenario: 'typical' }],
+      winner: { model: 'a', count: 1, positions: [[0, 0]],
+                bindingConstraint: 'coverage-bound, not '
+                  + 'bandwidth-bound',
+                rangeScenario: 'pessimistic',
+                rangeEvidence: 'operator override 900 m' },
+    });
+    expect(norm?.options[0].bindingConstraint)
+      .toContain('one node spans');
+    expect(norm?.options[0].spacingM ?? null).toBeNull();
+    expect(norm?.winner?.bindingConstraint)
+      .toContain('coverage-bound');
+    expect(norm?.winner?.rangeScenario).toBe('pessimistic');
+    expect(norm?.winner?.rangeEvidence).toContain('override');
+  });
+
   it('placement: fixed-locations facts surface gaps and isolated '
      + 'nodes; absent sections stay absent, not invented', () => {
     const norm = normalizePlacement({
@@ -196,5 +219,23 @@ describe('planner-geo: tolerant normalizers', () => {
     expect(norm?.rows[0].devices).toEqual({ lora: 2, 'ham-rx': 1 });
     expect(norm?.rows[0].capacityNote)
       .toContain('distinct channels');
+  });
+
+  it('population counts-first: counts lead, pct is derived '
+     + 'analytics; unknown profiles come back as error rows', () => {
+    const norm = normalizePopulation({
+      countsFirst: true,
+      builds: [
+        { build: 'everyday-node', profile: 'everyday-node',
+          count: 12, pctOfPopulation: 80 },
+        { build: 'mystery', count: 3,
+          error: 'unknown profile "mystery"' },
+      ],
+    });
+    expect(norm?.countsFirst).toBeTrue();
+    expect(norm?.rows[0].count).toBe(12);
+    expect(norm?.rows[0].pctOfPopulation).toBe(80);
+    expect(norm?.rows[0].profile).toBe('everyday-node');
+    expect(norm?.rows[1].error).toContain('unknown profile');
   });
 });

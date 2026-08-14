@@ -35,8 +35,6 @@ import {
 } from '@services/reticulum/meshsim.service';
 import {
   LocalPolygon,
-  mixSum,
-  mixValid,
   ParsedPolygon,
   parsePolygonGeojson,
   POPULATION_BUILDS,
@@ -122,16 +120,22 @@ export class ArchComponent implements OnInit {
   planAbsent = false;
   planning = false;
 
-  // ---- ret-1f: population mix ---------------------------------------
+  // ---- ret-1f: population, COUNTS-FIRST ------------------------------
   populationEnabled = false;
-  populationN = 50;
   populationBuilds = [...POPULATION_BUILDS];
-  populationMix: Record<string, number> = {
-    lora: 40, 'ham-rx': 20, 'ham-tx': 5,
-    wifi: 25, 'wifi-halow': 10, lorawan: 0,
-  };
-  /** loadouts: kit rows — one person carrying several devices */
-  kitRows: Array<{ label: string; pct: number;
+  /** seeded KitProfile names — hardcoded until a KitProfile listing
+   *  endpoint exists to populate this dropdown. */
+  kitProfiles = [
+    { name: 'everyday-node',
+      hint: '1 lora + 1 ham-rx + 1 wifi-halow' },
+    { name: 'meshapp-broadcaster',
+      hint: '1 ham-tx + 3 wifi-halow' },
+    { name: 'bandwidth-backbone', hint: '4 wifi-halow' },
+  ];
+  /** cohorts: N people with a profile or a custom kit. The counts
+   *  ARE the configuration; percentages come back as analytics. */
+  cohorts: Array<{ mode: 'profile' | 'kit'; profile: string;
+                   label: string; count: number;
                    units: Record<string, number> }> = [];
 
   // ---- ret-1f: map placement ----------------------------------------
@@ -149,10 +153,33 @@ export class ArchComponent implements OnInit {
   // devices for the solver: the catalogued pair by default; free rows
   // for models the catalog endpoint will serve later (said in a
   // comment where the list is built).
-  useShL1a = true;
-  shL1aUnitsMax = 4;
+  /** catalog options: the measured pair + the four generic
+   *  reference rows (typical figures, not SKUs — unpriced ones show
+   *  as informative refused-costing rows in cheapest-coverage). */
+  deviceCatalog: Array<{ model: string; label: string; hint: string;
+                         capacityBps?: number; checked: boolean;
+                         unitsMax: number }> = [
+    { model: 'dsd-tech-sh-l1a',
+      label: 'DSD TECH SH-L1A',
+      hint: 'catalogued, measured 6 568 bps',
+      capacityBps: 6568, checked: true, unitsMax: 4 },
+    { model: 'generic-lora', label: 'generic LoRa',
+      hint: 'reference class — typical figures, not a SKU; unpriced',
+      checked: false, unitsMax: 4 },
+    { model: 'generic-ham-vhf-uhf', label: 'generic HAM VHF/UHF',
+      hint: 'reference class — typical figures, not a SKU; unpriced',
+      checked: false, unitsMax: 4 },
+    { model: 'generic-wifi-24', label: 'generic WiFi 2.4',
+      hint: 'reference class — typical figures, not a SKU; unpriced',
+      checked: false, unitsMax: 4 },
+    { model: 'generic-wifi-halow', label: 'generic WiFi HaLow',
+      hint: 'reference class — typical figures, not a SKU; $134.97',
+      checked: false, unitsMax: 4 },
+  ];
   extraDevices: Array<{ model: string; capacityBps: number | null;
                         unitsMax: number }> = [];
+  rangeScenario: 'pessimistic' | 'typical' | 'optimistic' = 'typical';
+  rangeOverrideM: number | null = null;
   readonly svgW = 420;
   readonly svgH = 320;
   fallbackDisclaimer =
@@ -175,9 +202,6 @@ export class ArchComponent implements OnInit {
   heardViaList = heardViaList;
   plannerVerdictTone = plannerVerdictTone;
   rangeFidelityLabel = rangeFidelityLabel;
-
-  mixSum = mixSum;
-  mixValid = mixValid;
 
   constructor(
     private archService: ArchTopologyService,
@@ -269,36 +293,31 @@ export class ArchComponent implements OnInit {
                            unitsMax: 4 }];
   }
 
-  addKitRow(): void {
+  addCohort(): void {
     const units: Record<string, number> = {};
     for (const build of this.populationBuilds) { units[build] = 0; }
-    this.kitRows = [...this.kitRows, {
-      label: `kit-${this.kitRows.length + 1}`, pct: 0, units,
+    this.cohorts = [...this.cohorts, {
+      mode: 'profile', profile: 'everyday-node',
+      label: `custom-${this.cohorts.length + 1}`, count: 10, units,
     }];
   }
 
-  removeKitRow(index: number): void {
-    this.kitRows = this.kitRows.filter((_, i) => i !== index);
+  removeCohort(index: number): void {
+    this.cohorts = this.cohorts.filter((_, i) => i !== index);
   }
 
-  /** simple builds + kit rows as one mix — what both the 100% rule
-   *  and the request see. Kit labels colliding with a build name or
-   *  each other get suffixed rather than silently merged. */
-  get combinedMix(): Record<string,
-      number | { kit: Record<string, number>; pct: number }> {
-    const mix: Record<string,
-      number | { kit: Record<string, number>; pct: number }> =
-      { ...this.populationMix };
-    for (const row of this.kitRows) {
-      let label = (row.label || 'kit').trim() || 'kit';
-      while (label in mix) { label = `${label}+`; }
-      const kit: Record<string, number> = {};
-      for (const [build, n] of Object.entries(row.units)) {
-        if (n > 0) { kit[build] = n; }  // zeros omitted from payload
-      }
-      mix[label] = { kit, pct: row.pct };
-    }
-    return mix;
+  get populationTotal(): number {
+    return this.cohorts
+      .reduce((s, c) => s + (c.count > 0 ? c.count : 0), 0);
+  }
+
+  /** at least one counted cohort; a kit cohort needs at least one
+   *  device (an empty kit is nobody carrying nothing). */
+  get cohortsValid(): boolean {
+    if (!this.cohorts.some((c) => c.count > 0)) { return false; }
+    return this.cohorts.every((c) => c.count <= 0
+      || c.mode === 'profile'
+      || Object.values(c.units).some((n) => n > 0));
   }
 
   kitDeviceList(devices: Record<string, number>): string {
@@ -394,8 +413,8 @@ export class ArchComponent implements OnInit {
   }
 
   async runPlan(): Promise<void> {
-    if (this.populationEnabled && !mixValid(this.combinedMix)) {
-      return; // the sum indicator is already saying why
+    if (this.populationEnabled && !this.cohortsValid) {
+      return; // the cohort hint is already saying why
     }
     if (!this.placementReady) { return; }
     this.planning = true;
@@ -409,16 +428,32 @@ export class ArchComponent implements OnInit {
       areaM2: km2ToM2(this.plannerForm.areaKm2),
     };
     if (this.populationEnabled) {
-      request.population = { mix: this.combinedMix,
-                             n: this.populationN };
+      request.population = {
+        cohorts: this.cohorts
+          .filter((c) => c.count > 0)
+          .map((c) => c.mode === 'profile'
+            ? { profile: c.profile, count: c.count }
+            : {
+              kit: Object.fromEntries(
+                Object.entries(c.units)
+                  .filter(([, n]) => n > 0)),  // zeros omitted
+              count: c.count,
+              label: c.label.trim() || 'custom',
+            }),
+      };
     }
     if (this.placementEnabled && this.localPolygon) {
       // device options: the catalogued pair by default; free rows
       // until a catalog-listing endpoint exists to populate a picker.
       const deviceOptions = [
-        ...(this.useShL1a
-          ? [{ model: 'dsd-tech-sh-l1a', capacityBps: 6568,
-               unitsMax: this.shL1aUnitsMax }] : []),
+        ...this.deviceCatalog
+          .filter((d) => d.checked)
+          .map((d) => ({
+            model: d.model,
+            unitsMax: d.unitsMax,
+            ...(d.capacityBps
+              ? { capacityBps: d.capacityBps } : {}),
+          })),
         ...this.extraDevices
           .filter((d) => d.model.trim())
           .map((d) => ({
@@ -430,6 +465,9 @@ export class ArchComponent implements OnInit {
       request.placement = {
         mode: this.placementMode,
         reachMode: this.reachMode,
+        rangeScenario: this.rangeScenario,
+        ...(this.rangeOverrideM
+          ? { rangeOverrideM: this.rangeOverrideM } : {}),
         polygon: JSON.parse(this.geojsonText),
         ...(this.placementMode !== 'cheapest-coverage'
           ? { nodes: this.fixedNodes } : {}),

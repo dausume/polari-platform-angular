@@ -233,12 +233,17 @@ export function mixValid(mix: Record<string, MixValue>): boolean {
 export interface PlacementOption {
   model: string;
   count?: number;
-  spacingM?: number;
+  /** null for single-node winners — there is nothing to space */
+  spacingM?: number | null;
   totalCost?: number;
   /** loadouts: several units of a device per node */
   unitsPerNode?: number;
   unitsCap?: number;
   perNodeCostUsd?: number;
+  /** range scenarios: WHY this node count (the 8-nodes-for-2km fix) */
+  bindingConstraint?: string;
+  rangeScenario?: string;
+  rangeEvidence?: string;
   reason?: string;
 }
 
@@ -251,6 +256,9 @@ export interface PlacementWinner {
   unitsPerNode?: number;
   unitsCap?: number;
   perNodeCostUsd?: number;
+  bindingConstraint?: string;
+  rangeScenario?: string;
+  rangeEvidence?: string;
 }
 
 export interface FixedAssessment {
@@ -332,6 +340,10 @@ export function normalizePlacement(
       unitsCap: numOr(o['unitsCap'] ?? o['units_cap']),
       perNodeCostUsd: numOr(o['perNodeCostUsd']
         ?? o['per_node_cost_usd']),
+      bindingConstraint: strOr(o['bindingConstraint']
+        ?? o['binding_constraint']),
+      rangeScenario: strOr(o['rangeScenario'] ?? o['range_scenario']),
+      rangeEvidence: strOr(o['rangeEvidence'] ?? o['range_evidence']),
       reason: strOr(o['reason'] ?? o['refusal']),
     }))
     : [];
@@ -349,6 +361,12 @@ export function normalizePlacement(
         ?? winnerRaw['units_cap']),
       perNodeCostUsd: numOr(winnerRaw['perNodeCostUsd']
         ?? winnerRaw['per_node_cost_usd']),
+      bindingConstraint: strOr(winnerRaw['bindingConstraint']
+        ?? winnerRaw['binding_constraint']),
+      rangeScenario: strOr(winnerRaw['rangeScenario']
+        ?? winnerRaw['range_scenario']),
+      rangeEvidence: strOr(winnerRaw['rangeEvidence']
+        ?? winnerRaw['range_evidence']),
       positions: (Array.isArray(winnerRaw['positions'])
         ? (winnerRaw['positions'] as unknown[]) : [])
         .map(asPosition)
@@ -401,6 +419,9 @@ export function normalizePlacement(
 export interface PopulationRow {
   build: string;
   count?: number;
+  /** counts-first: derived analytics, rendered SECONDARY to count */
+  pctOfPopulation?: number;
+  profile?: string;
   peersWith: string[];
   oneWayListensTo: string[];
   isolated?: boolean;
@@ -408,10 +429,14 @@ export interface PopulationRow {
   /** loadouts: a kit row echoes its device counts */
   devices?: Record<string, number>;
   capacityNote?: string;
+  /** an unknown profile comes back as an error row, rendered as
+   *  a refusal — informative, not broken */
+  error?: string;
 }
 
 export interface NormalizedPopulation {
   rows: PopulationRow[];
+  countsFirst?: boolean;
   largestInterconnected?: number;
   isolatedShare?: number;
   notes: string[];
@@ -440,6 +465,10 @@ export function normalizePopulation(
       devices: (r['devices'] && typeof r['devices'] === 'object')
         ? r['devices'] as Record<string, number> : undefined,
       capacityNote: strOr(r['capacityNote'] ?? r['capacity_note']),
+      pctOfPopulation: numOr(r['pctOfPopulation']
+        ?? r['pct_of_population']),
+      profile: strOr(r['profile']),
+      error: strOr(r['error']),
     });
   };
   if (Array.isArray(source)) {
@@ -457,6 +486,8 @@ export function normalizePopulation(
   if (!rows.length) { return null; }
   return {
     rows,
+    countsFirst: p['countsFirst'] === true
+      || p['counts_first'] === true || undefined,
     largestInterconnected: numOr(p['largestInterconnected']
       ?? p['largest_interconnected']),
     isolatedShare: numOr(p['isolatedShare'] ?? p['isolated_share']),

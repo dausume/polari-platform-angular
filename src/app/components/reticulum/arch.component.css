@@ -797,3 +797,19 @@
   width: 100%;
   min-width: 0;
 }
+
+/* ---- ret-1f wave 3: scenarios + cohorts ---- */
+
+.binding-constraint {
+  margin-top: var(--spacing-xs);
+}
+
+.cohort-kind select,
+.cohort-profile select {
+  width: 100%;
+  min-width: 0;
+}
+
+.cohort-profile {
+  grid-column: span 2;
+}

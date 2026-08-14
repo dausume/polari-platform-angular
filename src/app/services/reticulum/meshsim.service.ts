@@ -77,17 +77,32 @@ export interface PlacementRequest {
   mode: 'cheapest-coverage' | 'fixed-locations' | 'resilience';
   polygon: unknown;               // geojson, backend-authoritative
   reachMode: 'max-spread' | 'linear';
+  /** range scenarios: which figure the solver plans against */
+  rangeScenario?: 'pessimistic' | 'typical' | 'optimistic';
+  /** the operator's own assertion — wins over the scenario */
+  rangeOverrideM?: number;
   nodes?: Array<{ name: string; x_m: number; y_m: number }>;
   deviceOptions?: Array<{ model: string; capacityBps?: number;
                           unitsMax?: number }>;
 }
 
+/** counts-first: a cohort is N people with a profile or a custom
+ *  kit — the counts ARE the configuration, percentages are derived
+ *  analytics on the response. */
+export interface CohortRequest {
+  profile?: string;
+  kit?: Record<string, number>;
+  label?: string;
+  count: number;
+}
+
 export interface PopulationRequest {
-  /** build -> percent, or a kit entry {kit: {build: units}, pct};
-   *  percentages sum to 100 across both forms */
-  mix: Record<string,
-              number | { kit: Record<string, number>; pct: number }>;
-  n: number;
+  cohorts?: CohortRequest[];
+  /** legacy percentage form — still accepted by the backend
+   *  (flagged legacyPctForm), no longer produced by this UI */
+  mix?: Record<string,
+               number | { kit: Record<string, number>; pct: number }>;
+  n?: number;
 }
 
 export interface PlannerRequest {
