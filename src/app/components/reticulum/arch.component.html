@@ -340,8 +340,189 @@
         <input type="number" min="0" step="0.1"
                [(ngModel)]="plannerForm.areaKm2" name="areaKm2" />
       </label>
-      <button type="submit" [disabled]="planning">
+
+      <!-- ============ ret-1f: population build mix ============ -->
+      <section class="planner-sub">
+        <label class="toggle-line">
+          <input type="checkbox" [(ngModel)]="populationEnabled"
+                 name="populationEnabled" />
+          simulate a population build mix
+        </label>
+        <div *ngIf="populationEnabled" class="mix-grid">
+          <label>
+            people
+            <input type="number" min="1" [(ngModel)]="populationN"
+                   name="populationN" />
+          </label>
+          <label *ngFor="let build of populationBuilds">
+            {{ build }} %
+            <input type="number" min="0" max="100"
+                   [(ngModel)]="populationMix[build]"
+                   [name]="'mix-' + build" />
+          </label>
+          <p class="mix-sum"
+             [class.mix-sum-bad]="!mixValid(populationMix)">
+            sum: {{ mixSum(populationMix) }}%
+            <span *ngIf="!mixValid(populationMix)">
+              — must total exactly 100</span>
+          </p>
+        </div>
+      </section>
+
+      <!-- ============ ret-1f: map placement =================== -->
+      <section class="planner-sub">
+        <label class="toggle-line">
+          <input type="checkbox" [(ngModel)]="placementEnabled"
+                 name="placementEnabled" />
+          place nodes on a drawn area
+        </label>
+        <div *ngIf="placementEnabled" class="placement-config">
+          <div class="placement-selects">
+            <label>
+              simulation
+              <select [(ngModel)]="placementMode"
+                      name="placementMode">
+                <option value="cheapest-coverage">
+                  cheapest optimal placement</option>
+                <option value="fixed-locations">
+                  fixed locations — feasibility + cost</option>
+                <option value="resilience">
+                  resilience (single points of failure)</option>
+              </select>
+            </label>
+            <label>
+              reach
+              <select [(ngModel)]="reachMode" name="reachMode">
+                <option value="max-spread">
+                  max spread (fewest nodes)</option>
+                <option value="linear">
+                  linear corridor (the relay stress case)</option>
+              </select>
+            </label>
+            <label>
+              shape
+              <select [(ngModel)]="polygonSource"
+                      name="polygonSource">
+                <option value="stored">a shape drawn in Polari</option>
+                <option value="geojson">pasted geojson</option>
+              </select>
+            </label>
+            <label *ngIf="polygonSource === 'stored'">
+              drawn shape
+              <select [(ngModel)]="storedPolygonId"
+                      name="storedPolygonId"
+                      (ngModelChange)="selectStoredPolygon()">
+                <option value="" disabled>choose…</option>
+                <option *ngFor="let p of storedPolygons"
+                        [value]="p.id">
+                  {{ p.name }} ({{ p.areaSqKilometers
+                     | number:'1.2-2' }} km²)</option>
+              </select>
+            </label>
+          </div>
+          <p *ngIf="polygonSource === 'stored' && storedPolygonsNote"
+             class="muted-note">{{ storedPolygonsNote }}</p>
+          <label *ngIf="polygonSource === 'geojson'"
+                 class="geojson-label">
+            geojson polygon
+            <textarea rows="4" [(ngModel)]="geojsonText"
+                      name="geojsonText" (blur)="parsePolygon()"
+                      placeholder='{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[lng,lat],…]]}}'>
+            </textarea>
+          </label>
+          <p *ngIf="parsedPolygon?.error" class="refusal-inline">
+            {{ parsedPolygon?.error }}</p>
+          <p *ngIf="localPolygon" class="muted-note">
+            parsed: {{ (localPolygon.areaM2 / 1000000)
+                       | number:'1.2-2' }} km² —
+            {{ localPolygon.note }}</p>
+
+          <div *ngIf="localPolygon" class="svg-map-wrap">
+            <svg [attr.viewBox]="'0 0 ' + svgW + ' ' + svgH"
+                 class="planner-map"
+                 [class.map-clickable]="clickToPlace"
+                 (click)="svgClick($event)">
+              <path [attr.d]="polygonPath" class="map-polygon" />
+              <!-- fixed nodes the user placed -->
+              <g *ngFor="let node of fixedNodes; let i = index">
+                <circle *ngIf="marker(node.x_m, node.y_m) as m"
+                        [attr.cx]="m[0]" [attr.cy]="m[1]" r="5"
+                        class="map-node-fixed" />
+              </g>
+              <!-- winner placement from the result -->
+              <ng-container
+                  *ngIf="plan?.placement?.winner as winner">
+                <g *ngFor="let pos of winner.positions">
+                  <ng-container
+                      *ngIf="marker(pos[0], pos[1]) as m">
+                    <circle [attr.cx]="m[0]" [attr.cy]="m[1]"
+                            [attr.r]="metersToSvg(winner.rangeM)"
+                            class="map-range" />
+                    <circle [attr.cx]="m[0]" [attr.cy]="m[1]" r="4"
+                            class="map-node-planned" />
+                  </ng-container>
+                </g>
+              </ng-container>
+              <!-- uncovered gaps (fixed-locations mode) -->
+              <ng-container
+                  *ngFor="let gap of
+                          plan?.placement?.fixed?.uncoveredGaps
+                          ?? []">
+                <ng-container *ngIf="gap.centroid
+                    && marker(gap.centroid[0], gap.centroid[1])
+                       as m">
+                  <circle [attr.cx]="m[0]" [attr.cy]="m[1]" r="7"
+                          class="map-gap" />
+                </ng-container>
+              </ng-container>
+            </svg>
+            <p *ngIf="clickToPlace" class="muted-note">
+              click the map to place nodes</p>
+            <ul *ngIf="fixedNodes.length" class="fixed-node-list">
+              <li *ngFor="let node of fixedNodes; let i = index">
+                {{ node.name }} ({{ node.x_m }}, {{ node.y_m }}) m
+                <button type="button" class="linkish"
+                        (click)="removeFixedNode(i)">remove</button>
+              </li>
+            </ul>
+          </div>
+
+          <div class="device-options">
+            <label class="toggle-line">
+              <input type="checkbox" [(ngModel)]="useShL1a"
+                     name="useShL1a" />
+              DSD TECH SH-L1A (catalogued, measured 6 568 bps)
+            </label>
+            <div *ngFor="let device of extraDevices; let i = index"
+                 class="device-row">
+              <input type="text" placeholder="DeviceModel row name"
+                     [(ngModel)]="device.model"
+                     [name]="'extraModel' + i" />
+              <input type="number" placeholder="capacity bps"
+                     [(ngModel)]="device.capacityBps"
+                     [name]="'extraCap' + i" />
+              <button type="button" class="linkish"
+                      (click)="removeExtraDevice(i)">remove</button>
+            </div>
+            <button type="button" class="linkish"
+                    (click)="addExtraDevice()">
+              + another device model</button>
+          </div>
+        </div>
+      </section>
+
+      <button type="submit"
+              [disabled]="planning
+                          || (populationEnabled
+                              && !mixValid(populationMix))
+                          || !placementReady">
         {{ planning ? 'planning…' : 'plan it' }}</button>
+      <p *ngIf="placementEnabled && !placementReady"
+         class="muted-note">
+        placement needs a parsed shape{{
+          placementMode === 'cheapest-coverage'
+            ? '' : ' and at least one placed node' }}
+      </p>
     </form>
 
     <div *ngIf="planAbsent" class="refusal">
@@ -429,6 +610,150 @@
       </div>
       <p *ngIf="plan.ok && plan.interference?.note" class="muted-note">
         {{ plan.interference?.note }}</p>
+
+      <!-- ============ ret-1f: population result ================ -->
+      <section *ngIf="plan.ok && plan.population as pop"
+               class="population-result">
+        <h3>Population interconnection</h3>
+        <p class="muted-note"
+           *ngIf="pop.largestInterconnected != null
+                  || pop.isolatedShare != null">
+          <span *ngIf="pop.largestInterconnected != null">
+            largest interconnected group:
+            <strong>{{ pop.largestInterconnected }}</strong>
+          </span>
+          <span *ngIf="pop.isolatedShare != null">
+            · isolated share:
+            <strong>{{ pop.isolatedShare | percent:'1.0-1' }}</strong>
+          </span>
+        </p>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr><th>build</th><th>people</th><th>peers with</th>
+                  <th>listens to (one-way)</th><th>status</th></tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let row of pop.rows">
+                <td>{{ row.build }}</td>
+                <td>{{ row.count ?? '—' }}</td>
+                <td>{{ row.peersWith.length
+                       ? row.peersWith.join(', ') : '—' }}</td>
+                <td>{{ row.oneWayListensTo.length
+                       ? row.oneWayListensTo.join(', ') : '—' }}</td>
+                <td>
+                  <span *ngIf="row.isolated"
+                        class="badge badge-isolated">isolated</span>
+                  <span *ngIf="!row.isolated"
+                        class="badge badge-connected">connected</span>
+                  <span *ngIf="row.why" class="muted-note">
+                    {{ row.why }}</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <ul class="notes-list">
+          <li *ngFor="let note of pop.notes" class="muted-note">
+            {{ note }}</li>
+        </ul>
+      </section>
+
+      <!-- ============ ret-1f: placement result ================= -->
+      <section *ngIf="plan.ok && plan.placement as placed"
+               class="placement-result">
+        <h3>Placement</h3>
+        <p *ngIf="placed.error" class="refusal-inline">
+          {{ placed.error }}</p>
+
+        <div *ngIf="placed.options.length" class="table-scroll">
+          <table>
+            <thead>
+              <tr><th>device</th><th>nodes</th><th>spacing</th>
+                  <th>total cost</th></tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let option of placed.options"
+                  [class.option-refused]="option.reason">
+                <td>{{ option.model }}</td>
+                <td>{{ option.count ?? '—' }}</td>
+                <td>{{ formatMeters(option.spacingM ?? null) }}</td>
+                <td>
+                  <span *ngIf="option.totalCost != null">
+                    ${{ option.totalCost | number:'1.2-2' }}</span>
+                  <span *ngIf="option.reason" class="muted-note">
+                    {{ option.reason }}</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p *ngIf="placed.winner as winner" class="winner-line">
+          winner: <strong>{{ winner.model }}</strong>
+          — {{ winner.positions.length || winner.count }} nodes,
+          <strong *ngIf="winner.totalCost != null">
+            ${{ winner.totalCost | number:'1.2-2' }}</strong>
+          <span class="muted-note"> (drawn on the map above)</span>
+        </p>
+
+        <ng-container *ngIf="placed.fixed as fixed">
+          <div class="verdict-box"
+               [ngClass]="fixed.uncoveredGaps.length
+                          || fixed.isolatedNodes.length
+                          || fixed.connected === false
+                          ? 'tone-error' : 'tone-ok'">
+            <strong>
+              {{ fixed.coveredPct != null
+                 ? (fixed.coveredPct | number:'1.0-1') + '% covered'
+                 : 'coverage unknown' }}
+              <ng-container *ngIf="fixed.connected === false">
+                — mesh NOT connected</ng-container>
+            </strong>
+            <p *ngIf="fixed.verdict">{{ fixed.verdict }}</p>
+            <p *ngIf="fixed.isolatedNodes.length">
+              isolated: {{ fixed.isolatedNodes.join(', ') }}</p>
+            <p *ngIf="fixed.uncoveredGaps.length">
+              {{ fixed.uncoveredGaps.length }} uncovered gap(s)
+              marked on the map</p>
+            <p *ngIf="fixed.totalCost != null">
+              cost-optimized total:
+              <strong>${{ fixed.totalCost | number:'1.2-2' }}
+              </strong></p>
+          </div>
+          <div *ngIf="(fixed.perNode | keyvalue).length"
+               class="table-scroll">
+            <table>
+              <thead><tr><th>node</th><th>device</th><th>cost</th>
+              </tr></thead>
+              <tbody>
+                <tr *ngFor="let entry of fixed.perNode | keyvalue">
+                  <td>{{ entry.key }}</td>
+                  <td>{{ entry.value.type ?? '—' }}</td>
+                  <td>{{ entry.value.cost != null
+                         ? '$' + (entry.value.cost
+                                  | number:'1.2-2') : '—' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </ng-container>
+
+        <div *ngIf="placed.resilience?.length"
+             class="verdict-box tone-error">
+          <strong>Single points of failure</strong>
+          <ul>
+            <li *ngFor="let finding of placed.resilience">
+              <strong>{{ finding.node }}</strong>:
+              {{ finding.evidence }}</li>
+          </ul>
+        </div>
+
+        <ul class="notes-list">
+          <li *ngFor="let assumption of placed.assumptions"
+              class="muted-note">{{ assumption }}</li>
+        </ul>
+      </section>
 
       <ul class="notes-list">
         <li *ngFor="let assumption of plan.assumptions"

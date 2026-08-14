@@ -567,3 +567,200 @@
   margin: var(--spacing-xs) 0 0;
   padding-left: var(--spacing-lg);
 }
+
+/* ================= ret-1f: population + placement ================= */
+
+.planner-sub {
+  grid-column: 1 / -1;
+  border-top: 1px solid var(--border-medium);
+  padding-top: var(--spacing-sm);
+  margin-top: var(--spacing-xs);
+}
+
+.toggle-line {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  color: var(--text-on-card);
+  font-size: var(--font-size-sm);
+}
+
+.mix-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 110px), 1fr));
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-sm);
+}
+
+.mix-sum {
+  grid-column: 1 / -1;
+  font-size: var(--font-size-sm);
+  color: var(--color-success-text);
+  margin: 0;
+}
+
+.mix-sum-bad {
+  color: var(--color-error-text);
+  font-weight: 600;
+}
+
+.placement-config {
+  margin-top: var(--spacing-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.placement-selects {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  gap: var(--spacing-sm);
+}
+
+.geojson-label textarea {
+  width: 100%;
+  font-size: var(--font-size-xs);
+  background: var(--surface-tertiary);
+  color: var(--text-on-card);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-xs);
+}
+
+.refusal-inline {
+  color: var(--color-error-text);
+  font-size: var(--font-size-sm);
+  margin: 0;
+}
+
+.svg-map-wrap {
+  max-width: 480px;
+}
+
+.planner-map {
+  width: 100%;
+  height: auto;
+  background: var(--surface-tertiary);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+}
+
+.map-clickable {
+  cursor: crosshair;
+}
+
+.map-polygon {
+  fill: var(--surface-secondary);
+  stroke: var(--brand-indigo); /* mark color, never text */
+  stroke-width: 2;
+}
+
+.map-node-fixed {
+  fill: var(--color-warn-text);
+}
+
+.map-node-planned {
+  fill: var(--brand-indigo); /* mark color, never text */
+}
+
+.map-range {
+  fill: none;
+  stroke: var(--brand-indigo); /* mark color, never text */
+  stroke-opacity: 0.35;
+  stroke-dasharray: 4 3;
+}
+
+.map-gap {
+  fill: none;
+  stroke: var(--color-error-text);
+  stroke-width: 2;
+}
+
+.fixed-node-list {
+  list-style: none;
+  margin: var(--spacing-xs) 0 0;
+  padding: 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-on-card);
+}
+
+.device-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.device-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
+  gap: var(--spacing-xs);
+}
+
+.linkish {
+  background: none;
+  border: none;
+  color: var(--text-on-card-muted);
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  padding: 0;
+  justify-self: start;
+}
+
+.population-result,
+.placement-result {
+  margin-top: var(--spacing-md);
+  border-top: 1px solid var(--border-medium);
+  padding-top: var(--spacing-sm);
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+.table-scroll table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: var(--font-size-sm);
+}
+
+.table-scroll th {
+  text-align: left;
+  color: var(--text-on-card-muted);
+  padding: var(--spacing-xs);
+  border-bottom: 1px solid var(--border-medium);
+}
+
+.table-scroll td {
+  color: var(--text-on-card);
+  padding: var(--spacing-xs);
+  border-bottom: 1px solid var(--border-medium);
+}
+
+.badge {
+  display: inline-block;
+  border-radius: var(--radius-sm);
+  padding: 0 var(--spacing-xs);
+  font-size: var(--font-size-xs);
+}
+
+.badge-isolated {
+  background: var(--color-error-bg);
+  color: var(--color-error-text);
+  border: 1px solid var(--color-error-border);
+}
+
+.badge-connected {
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
+  border: 1px solid var(--color-success-border);
+}
+
+.option-refused td {
+  color: var(--text-on-card-muted);
+}
+
+.winner-line {
+  color: var(--text-on-card);
+  font-size: var(--font-size-base);
+}

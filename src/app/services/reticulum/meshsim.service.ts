@@ -3,6 +3,12 @@ import { Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
 import { PolariService } from '@services/polari-service';
+import {
+  NormalizedPlacement,
+  NormalizedPopulation,
+  normalizePlacement,
+  normalizePopulation,
+} from '@services/reticulum/planner-geo';
 
 /**
  * ret-1e: the mesh planner. POST a scenario, get spacing + relay
@@ -60,6 +66,24 @@ export interface PlannerResult {
   assumptions?: string[];
   error?: string;
   suggestion?: { evidence?: string; knob?: string; action?: string };
+  /** ret-1f: normalized by planner-geo — raw backend shapes vary */
+  placement?: NormalizedPlacement | null;
+  population?: NormalizedPopulation | null;
+}
+
+/** ret-1f request sections (plan §5q). Optional — a plain §5p plan
+ *  still works without them. */
+export interface PlacementRequest {
+  mode: 'cheapest-coverage' | 'fixed-locations' | 'resilience';
+  polygon: unknown;               // geojson, backend-authoritative
+  reachMode: 'max-spread' | 'linear';
+  nodes?: Array<{ name: string; x_m: number; y_m: number }>;
+  deviceOptions?: Array<{ model: string; capacityBps?: number }>;
+}
+
+export interface PopulationRequest {
+  mix: Record<string, number>;    // build -> percent, sums to 100
+  n: number;
 }
 
 export interface PlannerRequest {
@@ -68,6 +92,8 @@ export interface PlannerRequest {
   meshSizeNodes: number;
   targetPerPeerBps: number;
   areaM2: number;
+  placement?: PlacementRequest;
+  population?: PopulationRequest;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -98,9 +124,18 @@ export class MeshSimService {
 export function normalizePlan(
   result: PlannerResult | null,
 ): PlannerResult | null {
-  if (!result?.perBearer) { return result; }
+  if (!result) { return result; }
+  const withSections: PlannerResult = {
+    ...result,
+    placement: normalizePlacement(
+      (result as unknown as Record<string, unknown>)['placement']),
+    population: normalizePopulation(
+      (result as unknown as Record<string, unknown>)['population']),
+  };
+  if (!withSections.perBearer) { return withSections; }
   const flat: Record<string, PlannerBearer> = {};
-  for (const [bearer, entryRaw] of Object.entries(result.perBearer)) {
+  for (const [bearer, entryRaw] of
+      Object.entries(withSections.perBearer)) {
     const entry = entryRaw as PlannerBearer
       & { range?: { rangeM?: number; fidelity?: string;
                     evidence?: string } };
@@ -111,5 +146,5 @@ export function normalizePlan(
       rangeEvidence: entry.rangeEvidence ?? entry.range?.evidence,
     };
   }
-  return { ...result, perBearer: flat };
+  return { ...withSections, perBearer: flat };
 }

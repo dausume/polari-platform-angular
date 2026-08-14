@@ -28,9 +28,31 @@ import {
 } from '@services/reticulum/arch-view';
 import {
   MeshSimService,
+  PlacementRequest,
   PlannerBearer,
+  PlannerRequest,
   PlannerResult,
 } from '@services/reticulum/meshsim.service';
+import {
+  LocalPolygon,
+  mixSum,
+  mixValid,
+  ParsedPolygon,
+  parsePolygonGeojson,
+  POPULATION_BUILDS,
+  projectPoint,
+  ringToSvgPath,
+  SvgProjection,
+  svgProjection,
+  toLocalMeters,
+  unprojectPoint,
+} from '@services/reticulum/planner-geo';
+import {
+  MapPolygonDefinition,
+} from '@models/geojson/MapPolygonDefinition';
+import {
+  MapPolygonDefinitionService,
+} from '@services/geojson/map-polygon-definition.service';
 import {
   AdjudicationOutcome,
   PeerEntry,
@@ -99,6 +121,36 @@ export class ArchComponent implements OnInit {
   plan: PlannerResult | null = null;
   planAbsent = false;
   planning = false;
+
+  // ---- ret-1f: population mix ---------------------------------------
+  populationEnabled = false;
+  populationN = 50;
+  populationBuilds = [...POPULATION_BUILDS];
+  populationMix: Record<string, number> = {
+    lora: 40, 'ham-rx': 20, 'ham-tx': 5,
+    wifi: 25, 'wifi-halow': 10, lorawan: 0,
+  };
+
+  // ---- ret-1f: map placement ----------------------------------------
+  placementEnabled = false;
+  placementMode: PlacementRequest['mode'] = 'cheapest-coverage';
+  reachMode: PlacementRequest['reachMode'] = 'max-spread';
+  polygonSource: 'stored' | 'geojson' = 'stored';
+  storedPolygons: MapPolygonDefinition[] = [];
+  storedPolygonId = '';
+  storedPolygonsNote = '';
+  geojsonText = '';
+  parsedPolygon: ParsedPolygon | null = null;
+  localPolygon: LocalPolygon | null = null;
+  fixedNodes: Array<{ name: string; x_m: number; y_m: number }> = [];
+  // devices for the solver: the catalogued pair by default; free rows
+  // for models the catalog endpoint will serve later (said in a
+  // comment where the list is built).
+  useShL1a = true;
+  extraDevices: Array<{ model: string; capacityBps: number | null }> =
+    [];
+  readonly svgW = 420;
+  readonly svgH = 320;
   fallbackDisclaimer =
     'TERRAIN IS NOT ACCOUNTED FOR: predictions assume flat terrain. '
     + 'Treat every predicted range as an upper bound that real '
@@ -120,10 +172,14 @@ export class ArchComponent implements OnInit {
   plannerVerdictTone = plannerVerdictTone;
   rangeFidelityLabel = rangeFidelityLabel;
 
+  mixSum = mixSum;
+  mixValid = mixValid;
+
   constructor(
     private archService: ArchTopologyService,
     private peersService: ReticulumPeersService,
     private meshSimService: MeshSimService,
+    private polygonService: MapPolygonDefinitionService,
   ) {}
 
   async ngOnInit(): Promise<void> {
@@ -133,6 +189,100 @@ export class ArchComponent implements OnInit {
     ]);
     this.loading = false;
     this.peersLoading = false;
+    // the drawn shapes already in Polari (geojson-config rows) —
+    // absent/erroring quietly leaves the raw-geojson path available.
+    this.polygonService.fetchAllResolved().subscribe({
+      next: (polygons) => {
+        this.storedPolygons =
+          polygons.filter((p) => p.toGeoJsonFeature() !== null);
+        this.storedPolygonsNote = this.storedPolygons.length
+          ? ''
+          : 'no drawn shapes stored yet — draw one on the maps page '
+            + 'or paste geojson below';
+      },
+      error: () => {
+        this.storedPolygonsNote =
+          'stored shapes unavailable — paste geojson below';
+      },
+    });
+  }
+
+  // ---- ret-1f handlers ----------------------------------------------
+
+  selectStoredPolygon(): void {
+    const polygon = this.storedPolygons
+      .find((p) => p.id === this.storedPolygonId);
+    const feature = polygon?.toGeoJsonFeature();
+    if (feature) {
+      this.geojsonText = JSON.stringify(feature);
+      this.parsePolygon();
+    }
+  }
+
+  parsePolygon(): void {
+    this.parsedPolygon = parsePolygonGeojson(this.geojsonText);
+    this.localPolygon = this.parsedPolygon.error
+      ? null : toLocalMeters(this.parsedPolygon);
+  }
+
+  get svgProj(): SvgProjection | null {
+    return this.localPolygon
+      ? svgProjection(this.localPolygon.bbox, this.svgW, this.svgH)
+      : null;
+  }
+
+  get polygonPath(): string {
+    return this.svgProj && this.localPolygon
+      ? ringToSvgPath(this.svgProj, this.localPolygon.ringM) : '';
+  }
+
+  get clickToPlace(): boolean {
+    return this.placementEnabled
+      && this.placementMode !== 'cheapest-coverage';
+  }
+
+  svgClick(event: MouseEvent): void {
+    if (!this.clickToPlace || !this.svgProj) { return; }
+    const svg = event.currentTarget as SVGSVGElement;
+    const rect = svg.getBoundingClientRect();
+    const sx = ((event.clientX - rect.left) / rect.width) * this.svgW;
+    const sy = ((event.clientY - rect.top) / rect.height) * this.svgH;
+    const [x, y] = unprojectPoint(this.svgProj, sx, sy);
+    this.fixedNodes = [...this.fixedNodes, {
+      name: `n${this.fixedNodes.length + 1}`,
+      x_m: Math.round(x), y_m: Math.round(y),
+    }];
+  }
+
+  removeFixedNode(index: number): void {
+    this.fixedNodes = this.fixedNodes
+      .filter((_, i) => i !== index);
+  }
+
+  addExtraDevice(): void {
+    this.extraDevices = [...this.extraDevices,
+                         { model: '', capacityBps: null }];
+  }
+
+  removeExtraDevice(index: number): void {
+    this.extraDevices = this.extraDevices
+      .filter((_, i) => i !== index);
+  }
+
+  marker(x: number, y: number): [number, number] | null {
+    return this.svgProj ? projectPoint(this.svgProj, x, y) : null;
+  }
+
+  metersToSvg(meters: number | undefined): number {
+    return this.svgProj && meters
+      ? meters * this.svgProj.scale : 0;
+  }
+
+  get placementReady(): boolean {
+    if (!this.placementEnabled) { return true; }
+    if (!this.localPolygon) { return false; }
+    return this.placementMode === 'cheapest-coverage'
+      || this.fixedNodes.length > 0;
   }
 
   get isles(): ArchIsle[] {
@@ -201,16 +351,47 @@ export class ArchComponent implements OnInit {
   }
 
   async runPlan(): Promise<void> {
+    if (this.populationEnabled && !mixValid(this.populationMix)) {
+      return; // the sum indicator is already saying why
+    }
+    if (!this.placementReady) { return; }
     this.planning = true;
     this.plan = null;
     this.planAbsent = false;
-    const result = await this.meshSimService.plan({
+    const request: PlannerRequest = {
       bearerSet: this.plannerForm.bearerSet,
       propagationMode: this.plannerForm.propagationMode,
       meshSizeNodes: this.plannerForm.meshSizeNodes,
       targetPerPeerBps: this.plannerForm.targetPerPeerBps,
       areaM2: km2ToM2(this.plannerForm.areaKm2),
-    });
+    };
+    if (this.populationEnabled) {
+      request.population = { mix: { ...this.populationMix },
+                             n: this.populationN };
+    }
+    if (this.placementEnabled && this.localPolygon) {
+      // device options: the catalogued pair by default; free rows
+      // until a catalog-listing endpoint exists to populate a picker.
+      const deviceOptions = [
+        ...(this.useShL1a
+          ? [{ model: 'dsd-tech-sh-l1a', capacityBps: 6568 }] : []),
+        ...this.extraDevices
+          .filter((d) => d.model.trim())
+          .map((d) => ({
+            model: d.model.trim(),
+            ...(d.capacityBps ? { capacityBps: d.capacityBps } : {}),
+          })),
+      ];
+      request.placement = {
+        mode: this.placementMode,
+        reachMode: this.reachMode,
+        polygon: JSON.parse(this.geojsonText),
+        ...(this.placementMode !== 'cheapest-coverage'
+          ? { nodes: this.fixedNodes } : {}),
+        ...(deviceOptions.length ? { deviceOptions } : {}),
+      };
+    }
+    const result = await this.meshSimService.plan(request);
     this.planning = false;
     if (result === null) {
       this.planAbsent = true;
