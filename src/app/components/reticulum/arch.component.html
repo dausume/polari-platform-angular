@@ -588,15 +588,6 @@
             <button type="button" class="linkish"
                     (click)="addExtraDevice()">
               + another device model</button>
-            <label *ngIf="placementMode === 'fixed-locations'"
-                   class="toggle-line">
-              <input type="checkbox" [(ngModel)]="dronesEnabled"
-                     name="dronesEnabled" />
-              try drone bridges over uncovered gaps
-              <span class="muted-note">
-                ({{ droneProfileName }} — seeded profile; refuses
-                until flight rules are confirmed)</span>
-            </label>
           </div>
         </div>
       </section>
@@ -868,42 +859,6 @@
               {{ fixed.directionalViolations.join(', ') }} — a
               directional antenna cannot face them all at once.
             </p>
-          </div>
-          <div *ngFor="let gap of fixed.uncoveredGaps; let gi = index">
-            <div *ngIf="gap.bridges?.length" class="bridge-card">
-              <strong>gap {{ gi + 1 }}
-                <span *ngIf="gap.centroid" class="muted-note">
-                  (at {{ gap.centroid[0] | number:'1.0-0' }},
-                  {{ gap.centroid[1] | number:'1.0-0' }} m)
-                </span></strong>
-              <div *ngFor="let bridge of gap.bridges">
-                <p *ngIf="bridge.ok" class="bridge-ok">
-                  <strong>{{ bridge.profile }}</strong> —
-                  intermittent bridge:
-                  {{ bridge.onStationMin ?? '?' }} min on station
-                  per {{ bridge.cycleMin ?? '?' }} min cycle,
-                  {{ bridge.bridgesPerDay ?? '?' }} sorties/day
-                  <span *ngIf="bridge.dutyCyclePct != null"
-                        class="muted-note">
-                    ({{ bridge.dutyCyclePct | number:'1.0-0' }}%
-                    duty)</span>
-                  <span *ngIf="bridge.note" class="muted-note">
-                    — {{ bridge.note }}</span>
-                </p>
-                <div *ngIf="!bridge.ok" class="bridge-refusal">
-                  <strong>{{ bridge.profile }} refused — the system
-                    working, not a fault</strong>
-                  <p *ngIf="bridge.refusal?.evidence">
-                    {{ bridge.refusal?.evidence }}</p>
-                  <p *ngIf="bridge.refusal?.knob"
-                     class="bridge-knob">
-                    knob: {{ bridge.refusal?.knob }}</p>
-                  <p *ngIf="bridge.refusal?.action"
-                     class="muted-note">
-                    {{ bridge.refusal?.action }}</p>
-                </div>
-              </div>
-            </div>
           </div>
           <div *ngIf="(fixed.perNode | keyvalue).length"
                class="table-scroll">

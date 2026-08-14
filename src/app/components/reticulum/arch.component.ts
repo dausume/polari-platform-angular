@@ -186,10 +186,6 @@ export class ArchComponent implements OnInit {
                         unitsMax: number; antenna: string }> = [];
   rangeScenario: 'pessimistic' | 'typical' | 'optimistic' = 'typical';
   rangeOverrideM: number | null = null;
-  /** drone bridges — the one seeded profile, hardcoded until a
-   *  DroneProfile listing endpoint replaces it. */
-  dronesEnabled = false;
-  droneProfileName = 'generic-quadcopter-bridge';
   readonly svgW = 420;
   readonly svgH = 320;
   fallbackDisclaimer =
@@ -484,9 +480,6 @@ export class ArchComponent implements OnInit {
         ...(this.placementMode !== 'cheapest-coverage'
           ? { nodes: this.fixedNodes } : {}),
         ...(deviceOptions.length ? { deviceOptions } : {}),
-        ...(this.dronesEnabled
-            && this.placementMode === 'fixed-locations'
-          ? { droneProfiles: [this.droneProfileName] } : {}),
       };
     }
     const result = await this.meshSimService.plan(request);

@@ -199,34 +199,17 @@ describe('planner-geo: tolerant normalizers', () => {
     expect(norm?.fixed?.directionalViolations).toEqual(['barn']);
   });
 
-  it('drone bridges: per-gap results normalize from on-gap arrays '
-     + 'or sibling collections; refusals keep their three keys', () => {
+  it('uncovered gaps keep their plain shape (centroid + size + '
+     + 'note; unknown extra fields ignored)', () => {
     const norm = normalizePlacement({
       covered_pct: 70,
-      uncovered_gaps: [{ centroid: [10, 10] }, { centroid: [90, 90] }],
-      gap_bridges: {
-        0: { 'generic-quadcopter-bridge': {
-          ok: true, intermittent: true, transit_min_each_way: 4,
-          on_station_min: 12, cycle_min: 20, bridges_per_day: 18,
-          duty_cycle_pct: 60 } },
-        1: [{ profile: 'generic-quadcopter-bridge', ok: false,
-              refusal: { evidence: 'no confirmed flight rules on '
-                           + 'file for this airspace',
-                         knob: 'DroneProfile.flight_rules_confirmed',
-                         action: 'confirm the rules, then re-plan' },
-            }],
-      },
+      uncovered_gaps: [{ centroid: [10, 10], size_m2: 4000,
+                         note: 'north hollow',
+                         someFutureField: { ignored: true } }],
     });
-    const first = norm?.fixed?.uncoveredGaps[0].bridges?.[0];
-    expect(first?.ok).toBeTrue();
-    expect(first?.profile).toBe('generic-quadcopter-bridge');
-    expect(first?.onStationMin).toBe(12);
-    expect(first?.bridgesPerDay).toBe(18);
-    const second = norm?.fixed?.uncoveredGaps[1].bridges?.[0];
-    expect(second?.ok).toBeFalse();
-    expect(second?.refusal?.knob)
-      .toContain('flight_rules_confirmed');
-    expect(second?.refusal?.evidence).toContain('no confirmed');
+    expect(norm?.fixed?.uncoveredGaps[0].centroid).toEqual([10, 10]);
+    expect(norm?.fixed?.uncoveredGaps[0].size).toBe(4000);
+    expect(norm?.fixed?.uncoveredGaps[0].note).toBe('north hollow');
   });
 
   it('placement: fixed-locations facts surface gaps and isolated '

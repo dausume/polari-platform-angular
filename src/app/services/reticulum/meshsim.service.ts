@@ -84,8 +84,6 @@ export interface PlacementRequest {
   nodes?: Array<{ name: string; x_m: number; y_m: number }>;
   deviceOptions?: Array<{ model: string; capacityBps?: number;
                           unitsMax?: number; antenna?: string }>;
-  /** drone bridges (fixed-locations): profiles to try over gaps */
-  droneProfiles?: string[];
 }
 
 /** counts-first: a cohort is N people with a profile or a custom
