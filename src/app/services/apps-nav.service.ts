@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { Router } from '@angular/router';
 import { filter } from 'rxjs/operators';
 import { BehaviorSubject, firstValueFrom } from 'rxjs';
 import { PolariService } from '@services/polari-service';
@@ -68,12 +69,47 @@ export class AppsNavService {
    * clears the lock. Locking hides chrome and redirects foreign
    * routes; it never changes what KC authorizes.
    */
-  readonly lockedAppName: string | null;
+  private _lockedAppName: string | null;
   private warnedUnknownLock = false;
+
+  get lockedAppName(): string | null {
+    return this._lockedAppName;
+  }
 
   constructor(private http: HttpClient,
               private polariService: PolariService) {
-    this.lockedAppName = AppsNavService.readLock();
+    this._lockedAppName = AppsNavService.readLock();
+  }
+
+  /** sep-7 (decision 11a): lock programmatically — same
+   *  session-sticky semantics as ?shellApp=. */
+  lockTo(name: string): void {
+    try {
+      sessionStorage.setItem(AppsNavService.LOCK_KEY, name);
+    } catch { /* private mode — lock still holds in-memory */ }
+    this._lockedAppName = name;
+  }
+
+  /** sep-7 (decision 11a): a signed-in user whose grants cover
+   *  exactly ONE app, arriving at the MAIN URL, enters it clamped.
+   *  Applies only when the permission system is ON (mode!=off) and
+   *  nothing else already locked; admins are never auto-clamped. */
+  async autoRouteIfSingleApp(router: Router): Promise<boolean> {
+    if (this.locked) { return false; }
+    if ((router.url.split('?')[0] || '/') !== '/') { return false; }
+    const grants: any = await firstValueFrom(this.http.get(
+      `${this.polariService.getBackendBaseUrl()}`
+      + '/api/apps/permissions/my',
+      this.polariService.backendRequestOptions))
+      .catch(() => null);
+    if (!grants?.ok || grants.mode === 'off' || grants.admin) {
+      return false;
+    }
+    const apps: string[] = grants.apps ?? [];
+    if (apps.length !== 1) { return false; }
+    this.lockTo(apps[0]);
+    router.navigateByUrl('/app/' + apps[0]);
+    return true;
   }
 
   private static readonly LOCK_KEY = 'polari.shellApp';

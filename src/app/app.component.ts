@@ -9,6 +9,7 @@ import { map } from 'rxjs/operators'
 //
 import { PolariConfigComponent } from '@components/polari-config/polari-config';
 import { PolariService } from '@services/polari-service';
+import { AuthSessionService } from '@services/auth/auth-session.service';
 import {ClassTypingService} from '@services/class-typing-service'
 import { polariNode } from '@models/polariNode';
 import { CRUDEservicesManager } from '@services/crude-services-manager';
@@ -72,7 +73,7 @@ export class AppComponent {
   navMode: 'side' | 'over' = 'side';
   private navOverlays = false;
 
-  constructor(router: Router, polariService: PolariService, typingService: ClassTypingService, crudeServicesManager: CRUDEservicesManager, displayManager: DisplayManagerService, private appsNav: AppsNavService, private breakpoints: BreakpointObserver)
+  constructor(router: Router, polariService: PolariService, typingService: ClassTypingService, crudeServicesManager: CRUDEservicesManager, displayManager: DisplayManagerService, private appsNav: AppsNavService, private breakpoints: BreakpointObserver, private authSession: AuthSessionService)
   {
     this.router = router
     this.polariService = polariService
@@ -125,6 +126,16 @@ export class AppComponent {
     //Attempt to get connection value from polariService
     this.polariService.connectionSuccessSubject.subscribe(connectionVal => {
       this.isConnected = connectionVal
+    });
+
+    // sep-7 (decision 11a): once signed in at the MAIN URL, a user
+    // whose grants cover exactly one app enters it clamped — for
+    // them that app simply IS Polari. No-op when permissions are
+    // off, when multiple apps are granted, or for admins.
+    this.authSession.currentUser$.subscribe(user => {
+      if (user) {
+        void this.appsNav.autoRouteIfSingleApp(this.router);
+      }
     });
 
     // nav-3: app context for the side nav (menus are rows; the

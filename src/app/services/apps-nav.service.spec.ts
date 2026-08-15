@@ -9,7 +9,9 @@
  * keeping the app's territory (nav routes, bringup, /callback).
  */
 import { TestBed } from '@angular/core/testing';
-import { HttpClientTestingModule } from '@angular/common/http/testing';
+import {
+  HttpClientTestingModule, HttpTestingController,
+} from '@angular/common/http/testing';
 import { Router, provideRouter, UrlTree } from '@angular/router';
 
 import {
@@ -86,6 +88,48 @@ describe('AppsNavService single-app clamp (sep-0)', () => {
     svc.payload$.next(payloadOf(appOf('app-a', ['/magnetics'])));
     expect(svc.locked).toBeFalse();
     expect(svc.appForUrl('/magnetics')?.name).toBe('app-a');
+  });
+});
+
+describe('single-app auto-route (sep-7, decision 11a)', () => {
+  afterEach(() => sessionStorage.removeItem(LOCK_KEY));
+
+  function grantsFlush(svc: AppsNavService, router: Router,
+                       body: any): Promise<boolean> {
+    const done = svc.autoRouteIfSingleApp(router);
+    const httpMock = TestBed.inject(HttpTestingController);
+    httpMock.expectOne(r => r.url.endsWith(
+      '/api/apps/permissions/my')).flush(body);
+    return done;
+  }
+
+  it('locks + enters the one granted app at the main URL', async () => {
+    const svc = setup();
+    const router = TestBed.inject(Router);
+    const nav = spyOn(router, 'navigateByUrl');
+    const routed = await grantsFlush(svc, router, {
+      ok: true, mode: 'advisory', admin: false, apps: ['app-a'],
+    });
+    expect(routed).toBeTrue();
+    expect(svc.lockedAppName).toBe('app-a');
+    expect(nav).toHaveBeenCalledWith('/app/app-a');
+  });
+
+  it('never auto-clamps when off, multi-app, or admin', async () => {
+    const svc = setup();
+    const router = TestBed.inject(Router);
+    spyOn(router, 'navigateByUrl');
+    expect(await grantsFlush(svc, router, {
+      ok: true, mode: 'off', admin: false, apps: ['app-a'],
+    })).toBeFalse();
+    expect(await grantsFlush(svc, router, {
+      ok: true, mode: 'enforce', admin: false,
+      apps: ['app-a', 'app-b'],
+    })).toBeFalse();
+    expect(await grantsFlush(svc, router, {
+      ok: true, mode: 'enforce', admin: true, apps: ['app-a'],
+    })).toBeFalse();
+    expect(svc.lockedAppName).toBeNull();
   });
 });
 
