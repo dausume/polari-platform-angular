@@ -56,8 +56,62 @@ export class AppsNavService {
   readonly payload$ = new BehaviorSubject<AppsNavPayload | null>(null);
   private loading = false;
 
+  /**
+   * sep-0: the single-app clamp. `?shellApp=<name>` locks the shell
+   * to ONE app for the whole browser session — the URL is the
+   * channel (works in a plain browser, survives reloads; the native
+   * shell appends it in sep-1). An explicit empty `?shellApp=`
+   * clears the lock. Locking hides chrome and redirects foreign
+   * routes; it never changes what KC authorizes.
+   */
+  readonly lockedAppName: string | null;
+  private warnedUnknownLock = false;
+
   constructor(private http: HttpClient,
-              private polariService: PolariService) {}
+              private polariService: PolariService) {
+    this.lockedAppName = AppsNavService.readLock();
+  }
+
+  private static readonly LOCK_KEY = 'polari.shellApp';
+
+  private static readLock(): string | null {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.has('shellApp')) {
+        const name = (params.get('shellApp') ?? '').trim();
+        if (name) {
+          sessionStorage.setItem(AppsNavService.LOCK_KEY, name);
+          return name;
+        }
+        sessionStorage.removeItem(AppsNavService.LOCK_KEY);
+        return null;
+      }
+      return sessionStorage.getItem(AppsNavService.LOCK_KEY);
+    } catch {
+      return null;
+    }
+  }
+
+  /** True while the clamp is in force. A locked name the loaded
+   *  payload does not know falls OPEN (full shell + one console
+   *  warning) — a typo'd shellApp must not render a dead end. */
+  get locked(): boolean {
+    if (!this.lockedAppName) { return false; }
+    const p = this.payload$.value;
+    if (p?.ok && !this.appByName(this.lockedAppName)) {
+      if (!this.warnedUnknownLock) {
+        this.warnedUnknownLock = true;
+        console.warn(`shellApp '${this.lockedAppName}' is not a known ` +
+          'app — single-app clamp disabled, full shell shown');
+      }
+      return false;
+    }
+    return true;
+  }
+
+  lockedApp(): AppNav | null {
+    return this.lockedAppName ? this.appByName(this.lockedAppName) : null;
+  }
 
   /** Fetch once (idempotent); refusal-shaped result on failure so a
    *  gated-off backend renders as a message, never a blank shell. */
@@ -106,6 +160,9 @@ export class AppsNavService {
    *  scorecards rather than policy only when its match is longer).
    *  Null = no app context (core shell). */
   appForUrl(url: string): AppNav | null {
+    // sep-0: under the clamp every URL belongs to the locked app —
+    // both chrome consumers derive currentApp from this one answer.
+    if (this.locked) { return this.lockedApp(); }
     const apps = this.payload$.value?.apps ?? [];
     const path = (url.split('?')[0] || '/');
     const direct = /^\/app\/([^/]+)/.exec(path);

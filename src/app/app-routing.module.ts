@@ -15,6 +15,7 @@ import { GraphsComponent } from '@components/graphs/graphs.component';
 import { DataSetsComponent } from '@components/datasets/datasets.component';
 import { EquationsComponent } from '@components/equations/equations.component';
 import { EquationConfigEditComponent } from '@components/equation-config/equation-config-edit/equation-config-edit.component';
+import { shellAppGuard } from './guards/shell-app.guard';
 
 const routes: Routes = [
   { path: '', loadComponent: () => import('@components/home/home').then(m => m.HomeComponent) },
@@ -115,7 +116,11 @@ const routes: Routes = [
 ];
 
 @NgModule({
-  imports: [RouterModule.forRoot(routes)],
+  // sep-0: one componentless parent puts the single-app clamp guard
+  // over every route without touching each row.
+  imports: [RouterModule.forRoot([
+    { path: '', canActivateChild: [shellAppGuard], children: routes },
+  ])],
   exports: [RouterModule]
 })
 export class AppRoutingModule { }

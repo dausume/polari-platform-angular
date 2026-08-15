@@ -3,8 +3,11 @@
         <img class="header-polari-icon" width=50 height=50 [src]="polariImgUrl">
         <span class="header-page-button">{{currentComponentTitle}}</span>
 
-        <!-- nav-3 base top nav: ALWAYS present — enter apps, reach
-             the higher-level views (topology, modules, trees...). -->
+        <!-- nav-3 base top nav: present outside the single-app clamp
+             — enter apps, reach the higher-level views (topology,
+             modules, trees...). sep-0: a locked shell hides both
+             switchers; the app's own topMenu groups stay. -->
+        <ng-container *ngIf="!shellLocked">
         <button mat-button [matMenuTriggerFor]="appsMenu" class="header-nav-button">
             <mat-icon>apps</mat-icon><span class="header-nav-label">Apps</span>
             <mat-icon class="header-nav-caret">arrow_drop_down</mat-icon>
@@ -32,6 +35,7 @@
                 <mat-icon>{{ v.icon }}</mat-icon><span>{{ v.label }}</span>
             </button>
         </mat-menu>
+        </ng-container>
 
         <!-- The app in context leverages the top bar: its topMenu
              groups render as dropdowns beside the base nav. -->

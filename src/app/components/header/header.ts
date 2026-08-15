@@ -68,6 +68,12 @@ export class HeaderComponent implements OnInit, OnDestroy {
     this.assistant.toggle();
   }
 
+  /** sep-0: the single-app clamp hides the Apps switcher and Core
+   *  menu — presentation only, capability stays with KC. */
+  get shellLocked(): boolean {
+    return this.appsNav.locked;
+  }
+
   ngOnInit(): void {
     this.themeSub = this.themeService.currentTheme.subscribe(theme => {
       this.isDark = theme === 'dark';

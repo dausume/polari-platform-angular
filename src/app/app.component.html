@@ -20,12 +20,14 @@
                  below, collapsible but always reachable. -->
             <app-nav-panel *ngIf="currentApp" [app]="currentApp"></app-nav-panel>
 
-            <mat-list-item *ngIf="currentApp" (click)="toggleCoreNav()" class="dropdown-header">
+            <!-- sep-0: a locked shell shows only the app's map — no
+                 "Polari core" expander, no core nav underneath. -->
+            <mat-list-item *ngIf="currentApp && !shellLocked" (click)="toggleCoreNav()" class="dropdown-header">
                 <mat-icon>{{ coreNavExpanded ? 'expand_less' : 'expand_more' }}</mat-icon>
                 <span>Polari core</span>
             </mat-list-item>
 
-            <ng-container *ngIf="coreNavExpanded">
+            <ng-container *ngIf="coreNavExpanded && !shellLocked">
             <!-- Static Navigation Items -->
             <mat-list-item *ngFor="let navComp of staticNavComponents" (click)="pageNav(navComp); closeNavIfOverlay()">
                {{ navComp.title }}

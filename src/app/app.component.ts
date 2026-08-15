@@ -108,6 +108,12 @@ export class AppComponent {
     }
   }
 
+  /** sep-0: the single-app clamp hides the "Polari core" nav block
+   *  entirely — the locked app's own map is the whole side nav. */
+  get shellLocked(): boolean {
+    return this.appsNav.locked;
+  }
+
   toggleCoreNav(): void {
     this.coreNavExpanded = !this.coreNavExpanded;
     this.coreNavToggledByUser = true;
