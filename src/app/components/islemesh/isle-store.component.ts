@@ -40,6 +40,12 @@ interface CatalogEntry {
   // scaling is a genuine need; this is the tracking half)
   instances?: AppInstance[];
   instance_count?: number;
+  // sep-3: derived app OPTIONS (§43 projection — never rows)
+  derived?: boolean;
+  standard?: boolean;
+  converted?: boolean;
+  shell?: string;
+  placement?: { complete: boolean; missing: string[] };
 }
 
 interface InstallPlan {
@@ -73,6 +79,10 @@ export class IsleStoreComponent implements OnInit {
     'polari-app': 'Polari apps — doors onto running instances',
     'polari-instance': 'Polari instances — runtimes that host modules',
     'polari-module': 'Polari modules',
+    // sep-3: every PolariAppDefinition, projected as an OPTION —
+    // launcher debs materialize at install time, never a shelf.
+    'polari-app-option':
+      'Polari app options — any app, installable as its own shell',
   };
 
   constructor(private http: HttpClient,
@@ -157,7 +167,11 @@ export class IsleStoreComponent implements OnInit {
   }
 
   installCommand(entry: CatalogEntry): string {
-    return `isle store install ${entry.name}`;
+    // sep-3: options convert+build through the one idempotent
+    // command; everything else installs via the isle store verb.
+    return entry.kind === 'polari-app-option'
+      ? `pol apps shell ${entry.name}`
+      : `isle store install ${entry.name}`;
   }
 
   /** Devices an entry currently runs on (deduped, for the chip). */

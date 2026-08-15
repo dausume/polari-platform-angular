@@ -27,6 +27,7 @@
                   (click)="select(e)">
             <div class="card-top">
               <mat-icon>{{ kind === 'polari-app' ? 'desktop_windows'
+                : kind === 'polari-app-option' ? 'apps'
                 : kind === 'polari-module' ? 'extension'
                 : 'dns' }}</mat-icon>
               <span class="card-title">{{ e.title }}</span>
@@ -36,6 +37,18 @@
                     *ngIf="e.instance_count"
                     title="running instances across the isle">
                 runs ×{{ e.instance_count }} on {{ runsOn(e) }}</span>
+              <!-- sep-3 option markers: standard (seeded) /
+                   converted (has its launcher row) / placement -->
+              <span class="engine-badge" *ngIf="e.standard"
+                    title="seeded standard app">standard</span>
+              <span class="engine-badge" *ngIf="e.converted"
+                    title="scope=app launcher row exists">
+                isle app</span>
+              <span class="engine-badge" *ngIf="e.derived
+                      && e.placement && !e.placement.complete"
+                    title="modules not all live yet: {{
+                      e.placement.missing.join(', ') }}">
+                modules missing</span>
             </div>
             <p class="card-desc">{{ e.description }}</p>
             <div class="card-meta">
@@ -81,8 +94,29 @@
 
       <h3>Install</h3>
 
-      <!-- Native shell: install on THIS device, password-prompted -->
-      <div class="native-install" *ngIf="nativeInstall">
+      <!-- sep-3: an option's honest state — where it stands before
+           anyone installs anything -->
+      <div class="instances" *ngIf="selected.derived">
+        <h3>Option state</h3>
+        <ul>
+          <li>{{ selected.standard ? 'Standard (seeded) app'
+                 : 'Authored app' }} — defined at isle level</li>
+          <li>{{ selected.converted
+                 ? 'Launcher row exists (' + selected.shell + ')'
+                 : 'Not yet converted — the command below creates '
+                   + 'the launcher row and builds the deb' }}</li>
+          <li *ngIf="selected.placement">
+            Modules {{ selected.placement.complete ? 'all live on '
+              + 'the isle' : 'missing: '
+              + selected.placement.missing.join(', ') }}</li>
+        </ul>
+      </div>
+
+      <!-- Native shell: install on THIS device, password-prompted.
+           sep-3 options build their deb host-side (pol apps shell) —
+           no native path until the isle-side verb lands. -->
+      <div class="native-install"
+           *ngIf="nativeInstall && selected.kind !== 'polari-app-option'">
         <p class="installed-here" *ngIf="localInstalled">
           <mat-icon inline>check_circle</mat-icon>
           Installed on this device
