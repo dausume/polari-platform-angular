@@ -35,6 +35,10 @@ export interface AppNav {
   title: string;
   useCase: string;
   discipline: string;
+  // sep-4: the engine DATA PAGE this app carries ('' = not an
+  // engine). Duals (odoo-likes) keep their own UI as the front;
+  // this rides as the secondary view.
+  enginePage?: string;
   personas: string[];
   pages: string[];
   modules: string[];

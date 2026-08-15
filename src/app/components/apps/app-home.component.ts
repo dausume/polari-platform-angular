@@ -30,6 +30,14 @@ import {
     </div>
     <p class="ah-usecase">{{ app.useCase }}</p>
 
+    <!-- sep-4 (decision 9): the engine's second nature — its data
+         page (placement, reachability, usage) rides the same tile. -->
+    <button class="ah-chip engine" *ngIf="app.enginePage"
+            matTooltip="where this engine lives, whether it is
+              reachable, and what flows through it"
+            (click)="go(app.enginePage!)">
+      <mat-icon inline>memory</mat-icon> engine data page</button>
+
     <div class="ah-modstrip" *ngIf="app.modules.length">
       <span class="ah-mod" *ngFor="let m of moduleStates"
             [class.on]="m.state === 'enabled'"

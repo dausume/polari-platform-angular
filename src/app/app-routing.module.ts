@@ -112,7 +112,11 @@ const routes: Routes = [
   { path: 'video-assets', loadComponent: () => import('@components/video/video-assets-page.component').then(m => m.VideoAssetsPageComponent) },
   { path: 'meetings', loadComponent: () => import('@components/collab/meetings.component').then(m => m.MeetingsComponent) },
   // ret-1b: the .arch topology — isles as blocks, demand vs capacity
-  { path: 'arch', loadComponent: () => import('@components/reticulum/arch.component').then(m => m.ArchComponent) }
+  { path: 'arch', loadComponent: () => import('@components/reticulum/arch.component').then(m => m.ArchComponent) },
+  // sep-4 (decision 9): engine data pages — placement, the
+  // reachability ladder, usage windows; duals link here as their
+  // secondary view.
+  { path: 'engines/:engine', loadComponent: () => import('@components/engines/engine-page.component').then(m => m.EnginePageComponent) }
 ];
 
 @NgModule({
