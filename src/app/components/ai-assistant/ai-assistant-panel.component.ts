@@ -14,7 +14,9 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { AiAssistantService } from '@services/ai-assistant/ai-assistant.service';
-import { ChatTurn, ProvidersStatus, AiProposal } from '@models/ai-assistant/ai-assistant.model';
+import {
+  ChatTurn, ProvidersStatus, AiProposal, VoiceStatus,
+} from '@models/ai-assistant/ai-assistant.model';
 import { XR_PANEL_CONTEXT } from '@models/xr/xr-panel-context';
 
 @Component({
@@ -94,8 +96,11 @@ import { XR_PANEL_CONTEXT } from '@models/xr/xr-panel-context';
       </div>
 
       <div class="ai-input-row" *ngIf="!showSetup()">
+        <!-- ai-4: the mic states its path — sovereign (provider-
+             backed, on-isle when the provider is) vs the browser
+             fallback (Chrome STT is cloud-backed). Never silent. -->
         <button *ngIf="voiceSupported()" mat-icon-button (click)="toggleListen()"
-                [class.listening]="listening()" matTooltip="Push to talk">
+                [class.listening]="listening()" [matTooltip]="micTooltip()">
           <mat-icon>{{ listening() ? 'mic' : 'mic_none' }}</mat-icon>
         </button>
         <input *ngIf="!xrMode" class="ai-input" [(ngModel)]="inputText"
@@ -193,10 +198,35 @@ export class AiAssistantPanelComponent implements OnInit, OnDestroy {
 
   private recognition: any = null;
 
+  // ai-4: provider-backed voice. When the backend says a direction
+  // is available it is PREFERRED; browser Web Speech is the stated
+  // fallback, never the silent default.
+  readonly voice = signal<VoiceStatus | null>(null);
+  private recorder: MediaRecorder | null = null;
+  private recorderStream: MediaStream | null = null;
+  private playback: HTMLAudioElement | null = null;
+
+  micTooltip(): string {
+    const v = this.voice();
+    if (v?.stt?.available) {
+      return v.sovereign
+        ? 'Push to talk — transcribed on the isle (sovereign)'
+        : 'Push to talk — transcribed by the AI provider (remote)';
+    }
+    return 'Push to talk — browser speech (Chrome STT is cloud-backed)';
+  }
+
   loadStatus(): void {
     this.svc.providersStatus().subscribe({
       next: (s) => this.setup.set(s),
       error: () => this.setup.set(null),
+    });
+    this.svc.voiceStatus().subscribe({
+      next: (v) => {
+        this.voice.set(v);
+        if (v?.stt?.available) { this.voiceSupported.set(true); }
+      },
+      error: () => this.voice.set(null),
     });
   }
 
@@ -225,10 +255,17 @@ export class AiAssistantPanelComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     try { this.recognition?.stop(); } catch { /* ignore */ }
+    this.stopRecording(true);
     this.stopSpeaking();
   }
 
   toggleListen(): void {
+    // sovereign path first: record locally, transcribe on the
+    // provider; only when unavailable fall back to Web Speech.
+    if (this.voice()?.stt?.available) {
+      if (this.listening()) { this.stopRecording(); } else { this.startRecording(); }
+      return;
+    }
     if (!this.recognition) { return; }
     if (this.listening()) {
       try { this.recognition.stop(); } catch { /* ignore */ }
@@ -237,6 +274,48 @@ export class AiAssistantPanelComponent implements OnInit, OnDestroy {
       this.listening.set(true);
       try { this.recognition.start(); } catch { this.listening.set(false); }
     }
+  }
+
+  private async startRecording(): Promise<void> {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const rec = new MediaRecorder(stream);
+      const chunks: Blob[] = [];
+      rec.ondataavailable = (e) => { if (e.data?.size) { chunks.push(e.data); } };
+      rec.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(chunks, { type: rec.mimeType || 'audio/webm' });
+        this.zone.run(() => this.listening.set(false));
+        if (!blob.size) { return; }
+        this.svc.transcribe(blob).then((text) => this.zone.run(() => {
+          this.inputText = text;
+          if (text.trim()) { this.send(true); }
+        })).catch((e) => this.zone.run(() => {
+          this.messages.update((m) => [...m, {
+            role: 'assistant',
+            content: `Voice transcription failed (${e?.message ?? 'error'}) — `
+              + `type instead, or check /ai/voice.`,
+          }]);
+        }));
+      };
+      this.recorder = rec;
+      this.recorderStream = stream;
+      this.listening.set(true);
+      rec.start();
+    } catch {
+      this.listening.set(false);  // mic permission denied etc.
+    }
+  }
+
+  private stopRecording(silent = false): void {
+    try {
+      if (silent && this.recorder) { this.recorder.onstop = null; }
+      this.recorder?.stop();
+      if (silent) { this.recorderStream?.getTracks().forEach((t) => t.stop()); }
+    } catch { /* ignore */ }
+    this.recorder = null;
+    this.recorderStream = null;
+    if (silent) { this.listening.set(false); }
   }
 
   send(fromVoice = false): void {
@@ -295,6 +374,30 @@ export class AiAssistantPanelComponent implements OnInit, OnDestroy {
   }
 
   speak(text: string): void {
+    // ai-4: provider-backed TTS preferred; on any failure fall THROUGH
+    // to the browser synthesizer rather than going quiet.
+    if (this.voice()?.tts?.available) {
+      this.speaking.set(true);
+      this.svc.speakAudio(text).then((blob) => this.zone.run(() => {
+        if (!this.speaking()) { return; }  // user hit stop meanwhile
+        const audio = new Audio(URL.createObjectURL(blob));
+        audio.onended = () => this.zone.run(() => {
+          this.speaking.set(false);
+          URL.revokeObjectURL(audio.src);
+        });
+        audio.onerror = () => this.zone.run(() => this.speaking.set(false));
+        this.playback = audio;
+        audio.play().catch(() => this.speaking.set(false));
+      })).catch(() => this.zone.run(() => {
+        this.speaking.set(false);
+        this.browserSpeak(text);
+      }));
+      return;
+    }
+    this.browserSpeak(text);
+  }
+
+  private browserSpeak(text: string): void {
     const synth = (window as any).speechSynthesis;
     if (!synth) { return; }
     try {
@@ -309,6 +412,8 @@ export class AiAssistantPanelComponent implements OnInit, OnDestroy {
 
   stopSpeaking(): void {
     try { (window as any).speechSynthesis?.cancel(); } catch { /* ignore */ }
+    try { this.playback?.pause(); } catch { /* ignore */ }
+    this.playback = null;
     this.speaking.set(false);
   }
 }

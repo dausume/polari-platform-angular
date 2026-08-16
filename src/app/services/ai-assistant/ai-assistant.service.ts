@@ -9,6 +9,7 @@ import { Observable } from 'rxjs';
 import { RuntimeConfigService } from '@services/runtime-config.service';
 import {
   AiChatRequest, AiChatResponse, ProvidersStatus, AiActResult,
+  VoiceStatus,
 } from '@models/ai-assistant/ai-assistant.model';
 
 @Injectable({ providedIn: 'root' })
@@ -39,6 +40,45 @@ export class AiAssistantService {
   providersStatus(): Observable<ProvidersStatus> {
     const baseUrl = this.runtimeConfig.getBackendBaseUrl();
     return this.http.get<ProvidersStatus>(`${baseUrl}/ai/providers`);
+  }
+
+  /** GET /ai/voice — per-direction voice availability (ai-4). */
+  voiceStatus(): Observable<VoiceStatus> {
+    const baseUrl = this.runtimeConfig.getBackendBaseUrl();
+    return this.http.get<VoiceStatus>(`${baseUrl}/ai/voice`);
+  }
+
+  /** POST /ai/voice/transcribe — provider-backed STT. The audio
+   *  blob goes as the raw body (fetch: HttpClient would wrap it);
+   *  returns the transcript text or throws with the honest why. */
+  async transcribe(audio: Blob): Promise<string> {
+    const baseUrl = this.runtimeConfig.getBackendBaseUrl();
+    const resp = await fetch(`${baseUrl}/ai/voice/transcribe`, {
+      method: 'POST',
+      headers: { 'Content-Type': audio.type || 'audio/webm' },
+      body: audio,
+    });
+    const data = await resp.json();
+    if (!resp.ok || !data.ok) {
+      throw new Error(data.error ?? `transcribe failed (${resp.status})`);
+    }
+    return data.text ?? '';
+  }
+
+  /** POST /ai/voice/speak — provider-backed TTS; resolves to the
+   *  audio blob for playback. */
+  async speakAudio(text: string): Promise<Blob> {
+    const baseUrl = this.runtimeConfig.getBackendBaseUrl();
+    const resp = await fetch(`${baseUrl}/ai/voice/speak`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+    if (!resp.ok) {
+      const data = await resp.json().catch(() => ({}));
+      throw new Error((data as any).error ?? `speak failed (${resp.status})`);
+    }
+    return resp.blob();
   }
 
   /** POST /ai/act — confirm (or deny) a proposed gated action. */

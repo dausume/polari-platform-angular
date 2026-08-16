@@ -66,3 +66,23 @@ export interface ProvidersStatus {
   active_via_env?: boolean;
   providers: ProviderStatus[];
 }
+
+// ai-4: the sovereign voice seam (polariApiServer/voiceAPI.py).
+// Per-direction availability is honest — an unavailable direction
+// names WHY, and the browser fallback is stated, never silent.
+export interface VoiceDirection {
+  available: boolean;
+  why?: string;
+  model?: string;
+  voice?: string;
+}
+
+export interface VoiceStatus {
+  ok: boolean;
+  provider: string;
+  stt: VoiceDirection;
+  tts: VoiceDirection;
+  sovereign: boolean;
+  sovereignty_note: string;
+  fallback: string;
+}
