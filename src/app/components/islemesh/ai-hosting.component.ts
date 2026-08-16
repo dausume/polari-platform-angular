@@ -26,6 +26,34 @@ interface HostingFit {
   detail: string[];
 }
 
+/** ai-8: one buyable build from the computerparts module. */
+interface BuildReport {
+  name: string;
+  title: string;
+  purpose: string;
+  specs: { cores?: number; ram_mb?: number; disk_mb?: number;
+           gpu_model?: string; vram_mb?: number };
+  parts: { name: string; title: string; price_amount: number;
+           price_as_of: string; price_note: string }[];
+  missing_parts: string[];
+  total_usd: number;
+  price_as_of_oldest: string;
+  notes: string;
+  assembly?: { feasible: boolean | null; note: string;
+               checks: { check: string; verdict: string;
+                         detail: string }[] };
+  fit?: HostingFit[];
+  break_even?: { vs: string; monthly_usd: number;
+                 months: number | null }[];
+}
+
+interface BuySection {
+  available: boolean;
+  note?: string;
+  builds?: BuildReport[];
+  advisory?: { sparing: string; sustained: string };
+}
+
 interface HostingOption {
   name: string;
   provider: string;
@@ -83,6 +111,14 @@ interface HostingOption {
       <div class="load-error" *ngIf="loadError">{{ loadError }}</div>
       <div class="loading" *ngIf="loading">Loading options…</div>
 
+      <!-- ai-8: rent vs buy, said plainly -->
+      <div class="advisory" *ngIf="buy?.advisory">
+        <p><mat-icon inline>schedule</mat-icon>
+          {{ buy!.advisory!.sparing }}</p>
+        <p><mat-icon inline>savings</mat-icon>
+          {{ buy!.advisory!.sustained }}</p>
+      </div>
+
       <section *ngFor="let kind of kindsPresent()">
         <h2>{{ kindLabel[kind] || kind }}</h2>
         <div class="option" *ngFor="let o of ofKind(kind)">
@@ -114,6 +150,58 @@ interface HostingOption {
           </div>
           <p class="note" *ngIf="o.price_note">{{ o.price_note }}</p>
           <p class="note dim" *ngIf="o.notes">{{ o.notes }}</p>
+        </div>
+      </section>
+
+      <!-- ai-8: buy the machine instead — builds from the
+           computerparts module, cost DERIVED from part rows,
+           assembly checks derived from declared specs. -->
+      <section *ngIf="buy">
+        <h2>Or buy the machine (own it outright)</h2>
+        <p class="sub" *ngIf="!buy.available">{{ buy.note }}</p>
+        <div class="option" *ngFor="let b of buy.builds ?? []">
+          <div class="option-head">
+            <strong>{{ b.title }}</strong>
+            <span class="badge badge-gpu"
+                  *ngIf="b.specs.gpu_model">
+              {{ b.specs.gpu_model }}</span>
+            <span class="badge"
+                  *ngIf="b.assembly?.feasible === true"
+                  [title]="assemblyDetail(b)">assembly: checks
+              pass</span>
+            <span class="badge badge-warn"
+                  *ngIf="b.assembly?.feasible === false"
+                  [title]="assemblyDetail(b)">assembly:
+              MISMATCH</span>
+          </div>
+          <p class="note">{{ b.purpose }}</p>
+          <div class="price-row">
+            <span class="price">\${{ b.total_usd }}</span>
+            <span class="badge"
+                  [class.badge-warn]="isStale(b.price_as_of_oldest)"
+                  title="derived from the part rows — freshness of
+                         the stalest part price">
+              parts priced as of {{ b.price_as_of_oldest }}
+              {{ isStale(b.price_as_of_oldest) ? '⚠ stale' : ''
+              }}</span>
+          </div>
+          <div class="fit-row" *ngIf="b.fit">
+            <span *ngFor="let f of b.fit"
+                  class="badge fit-{{ f.verdict }}"
+                  [title]="f.detail.join('; ') || 'fits'">
+              {{ f.profile }}: {{ f.verdict }}</span>
+          </div>
+          <div class="fit-row" *ngIf="b.break_even?.length">
+            <span class="badge" *ngFor="let be of b.break_even">
+              pays for itself in {{ be.months }} mo vs
+              {{ be.vs }} (\${{ be.monthly_usd }}/mo)</span>
+          </div>
+          <p class="note dim" *ngIf="b.notes">{{ b.notes }}</p>
+          <p class="note dim">
+            Parts: <span *ngFor="let p of b.parts; let last = last">
+              {{ p.title }} (\${{ p.price_amount }}){{ last ? ''
+              : ' · ' }}</span>
+          </p>
         </div>
       </section>
     </div>
@@ -152,10 +240,15 @@ interface HostingOption {
       border: none; }
     .note { margin: 4px 0 0; font-size: .82rem; }
     .dim { color: var(--text-on-card-muted); }
+    .advisory { border: 1px solid var(--border-light);
+      border-radius: 8px; padding: 8px 12px; margin: 10px 0;
+      background: var(--surface-secondary);
+      p { margin: 4px 0; font-size: .88rem; } }
   `],
 })
 export class AiHostingComponent implements OnInit {
   options: HostingOption[] = [];
+  buy: BuySection | null = null;
   honesty = '';
   loading = true;
   loadError = '';
@@ -189,7 +282,14 @@ export class AiHostingComponent implements OnInit {
       return;
     }
     this.options = data.options;
+    this.buy = data.buy ?? null;
     this.honesty = data.honesty ?? '';
+  }
+
+  assemblyDetail(b: BuildReport): string {
+    return (b.assembly?.checks ?? [])
+      .map((c) => `${c.check}: ${c.verdict} (${c.detail})`)
+      .join('\n');
   }
 
   kindsPresent(): string[] {
