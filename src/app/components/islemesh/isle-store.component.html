@@ -145,33 +145,99 @@
           Hover a row for the detail.</p>
       </div>
 
+      <!-- ai-6: the honest hosting gauge — gauge BEFORE promising.
+           Per-machine verdicts with the failing numbers; when the
+           isle can't realistically host it, the remote-hosting
+           paths are recommended (your rented server, connected
+           back by base_url below). -->
+      <div class="instances ai-host"
+           *ngIf="selected.kind === 'ai-tool' && hostCheck">
+        <h3>Can this isle host it?</h3>
+        <p class="host-note"
+           [class.host-ok]="hostCheck.realistic"
+           [class.host-no]="hostCheck.realistic === false">
+          {{ hostCheck.note || hostCheck.resources_unavailable }}
+        </p>
+        <table class="link-table" *ngIf="hostCheck.machines?.length">
+          <tr><th>machine</th><th>profile</th><th>verdict</th></tr>
+          <ng-container *ngFor="let m of hostCheck.machines">
+            <tr *ngFor="let p of m.profiles"
+                [title]="p.detail.join('; ') || 'fits'">
+              <td>{{ m.name }}</td>
+              <td>{{ p.profile }}</td>
+              <td [class.proven]="p.verdict === 'fits'">
+                {{ p.verdict }}</td>
+            </tr>
+          </ng-container>
+        </table>
+        <p class="link-hint" *ngIf="hostCheck.unknown_machines?.length">
+          Unobserved (no verdict possible):
+          {{ hostCheck.unknown_machines!.join(', ') }} — refresh
+          the resource inventory to include them.</p>
+        <p class="link-hint">Hover a row for the numbers behind
+          the verdict. Profiles are guidance, not guarantees.</p>
+        <div *ngIf="hostCheck.cloud_recommended && hostCheck.cloud">
+          <h3>Host it remotely instead</h3>
+          <div class="cloud-option" *ngFor="let c of hostCheck.cloud">
+            <div class="cloud-head">
+              <strong>{{ c.title }}</strong>
+              <span class="engine-badge"
+                    [class.leaves-badge]="c.sovereignty === 'intermediary'"
+                    [class.sovereign-badge]="c.sovereignty === 'your-cloud'">
+                {{ c.sovereignty }}</span>
+            </div>
+            <p>{{ c.how }}</p>
+            <p class="link-hint">{{ c.note }}</p>
+          </div>
+        </div>
+      </div>
+
       <!-- ai-5: the thin intermediary tiles are INSTALLABLE — the
            install IS the binding flow, run right here. The
            credential is typed by you and goes straight to this
            instance's backend; it is never echoed back, never
-           stored in git, and must never pass through an AI. -->
+           stored in git, and must never pass through an AI.
+           ai-6: local-hosted tools bind here too when the server
+           runs remotely — the base_url IS the connection. -->
       <div class="instances ai-bind"
            *ngIf="selected.kind === 'ai-tool' && bindable(selected)">
         <h3>{{ selected.hosting === 'built-in'
                ? 'Use the built-in responder'
+               : selected.hosting === 'local-hosted'
+               ? 'Connect a remotely-hosted instance'
                : 'Bind this AI (install)' }}</h3>
         <p class="privacy-hint"
            *ngIf="aiTool?.privacy_recommendation">
           {{ aiTool!.privacy_recommendation }}
         </p>
+        <p class="privacy-hint"
+           *ngIf="selected.hosting === 'local-hosted'">
+          Deployed ON the isle it binds itself automatically. Use
+          this when the server runs elsewhere (your rented cloud
+          machine): paste its endpoint — data goes to that server.
+        </p>
+        <input class="bind-secret" type="url"
+               *ngIf="bindNeedsBaseUrl(selected)"
+               [(ngModel)]="bindBaseUrl"
+               [disabled]="bindBusy"
+               placeholder="base_url, e.g. https://your-server:8080/v1" />
         <input class="bind-secret" type="password"
-               *ngIf="selected.hosting === 'remote-intermediary'"
+               *ngIf="selected.hosting !== 'built-in'"
                [(ngModel)]="bindSecret"
                [disabled]="bindBusy"
                placeholder="API key (typed by you — stored on the
-backend, never shown again; leave empty to keep the existing one)" />
+backend, never shown again; optional for your own servers)" />
         <button mat-flat-button color="primary"
-                [disabled]="bindBusy"
+                [disabled]="bindBusy || (bindNeedsBaseUrl(selected)
+                            && !bindBaseUrl.trim())"
                 (click)="bindTool(selected)">
           <mat-icon>link</mat-icon>
           {{ bindBusy ? 'Binding…'
+             : selected.hosting === 'built-in'
+               ? (aiTool?.active ? 'Re-validate' : 'Activate')
+             : selected.hosting === 'local-hosted'
+               ? 'Connect & validate'
              : aiTool?.active ? 'Re-validate'
-             : selected.hosting === 'built-in' ? 'Activate'
              : 'Select, save key & validate' }}
         </button>
         <ul class="bind-log" *ngIf="bindLog.length">

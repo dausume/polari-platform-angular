@@ -81,6 +81,28 @@ interface AiToolReport {
   readiness_note: string;
   active: boolean;
   privacy_recommendation?: string;
+  // ai-6: hosting profiles (guidance) — presence drives host-check
+  requirements?: { name: string; note: string }[];
+}
+
+/** ai-6: the hosting gauge (GET .../host-check). */
+interface HostCheck {
+  ok: boolean;
+  nothing_to_host?: boolean;
+  resources_unavailable?: string;
+  note?: string;
+  realistic?: boolean;
+  tight?: boolean;
+  best?: { machine: string; profile: string } | null;
+  machines?: {
+    name: string; source: string; observedAt: string;
+    profiles: { profile: string; verdict: string;
+                detail: string[] }[];
+  }[];
+  unknown_machines?: string[];
+  cloud_recommended?: boolean;
+  cloud?: { name: string; title: string; sovereignty: string;
+            how: string; note: string }[];
 }
 
 interface InstallPlan {
@@ -193,25 +215,42 @@ export class IsleStoreComponent implements OnInit {
   bindBusy = false;
   bindLog: { step: string; ok: boolean; detail: string }[] = [];
 
-  /** The binding flow applies to tools that ARE reasoning
-   *  providers and need no container: remote intermediaries and
-   *  the built-in. local-hosted binds itself at deploy (ai-3). */
+  // ai-6: the hosting gauge for local-hosted tools + the
+  // connect-remote-hosted flow (your rented server's base_url).
+  hostCheck: HostCheck | null = null;
+  bindBaseUrl = '';
+
+  /** The binding flow applies to every tool that IS a reasoning
+   *  provider. Remote intermediaries + built-in bind directly;
+   *  local-hosted tools bind here too when the server runs
+   *  REMOTELY (ai-6: your rented machine's base_url) — an
+   *  on-isle deploy still binds itself automatically (ai-3). */
   bindable(entry: CatalogEntry): boolean {
-    return entry.kind === 'ai-tool' && !!entry.provider_name
-      && entry.hosting !== 'local-hosted';
+    return entry.kind === 'ai-tool' && !!entry.provider_name;
+  }
+
+  /** ai-6: local-hosted binds need the server's address. */
+  bindNeedsBaseUrl(entry: CatalogEntry): boolean {
+    return entry.hosting === 'local-hosted';
   }
 
   async bindTool(entry: CatalogEntry): Promise<void> {
     if (this.bindBusy || !entry.provider_name) { return; }
+    const baseUrl = this.bindBaseUrl.trim();
+    if (this.bindNeedsBaseUrl(entry) && !baseUrl) { return; }
     this.bindBusy = true;
     this.bindLog = [];
     const provider = entry.provider_name;
     const log = (step: string, ok: boolean, detail: string) =>
       this.bindLog.push({ step, ok, detail });
     try {
-      await firstValueFrom(this.ai.providerAction(
-        { action: 'select', provider }));
-      log('select', true, `${provider} is now the active provider`);
+      await firstValueFrom(this.ai.providerAction({
+        action: 'select', provider,
+        ...(baseUrl ? { settings: { base_url: baseUrl } } : {}),
+      }));
+      log('select', true, baseUrl
+        ? `${provider} is now active at ${baseUrl}`
+        : `${provider} is now the active provider`);
     } catch (e: any) {
       log('select', false, e?.error?.error ?? 'failed');
       this.bindBusy = false;
@@ -263,7 +302,9 @@ export class IsleStoreComponent implements OnInit {
     this.localVersion = '';
     this.aiTool = null;
     this.bindSecret = '';
+    this.bindBaseUrl = '';
     this.bindLog = [];
+    this.hostCheck = null;
     if (entry.kind === 'ai-tool') {
       firstValueFrom(this.http.get(
         `${this.base()}/api/appstore/ai-tools/${entry.name}`,
@@ -273,6 +314,18 @@ export class IsleStoreComponent implements OnInit {
             this.aiTool = d.tool;
           }
         }).catch(() => {});
+      // ai-6: gauge hosting realism for tools that run a server
+      if (entry.hosting === 'local-hosted') {
+        firstValueFrom(this.http.get(
+          `${this.base()}/api/appstore/ai-tools/${entry.name}`
+          + '/host-check',
+          this.polariService.backendRequestOptions))
+          .then((d: any) => {
+            if (this.selected?.name === entry.name && d?.ok) {
+              this.hostCheck = d;
+            }
+          }).catch(() => {});
+      }
     }
     if (this.nativeInstall && entry.kind === 'polari-app') {
       this.bridge.status(entry.name).then((s) => {

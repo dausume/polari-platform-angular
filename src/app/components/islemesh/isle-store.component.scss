@@ -103,6 +103,20 @@ section h2 {
     color: var(--text-on-card-muted); }
 }
 
+// ai-6: the hosting gauge + cloud options.
+.ai-host {
+  .host-note { font-size: .85rem; font-weight: 600; }
+  .host-ok { color: var(--color-success-text, inherit); }
+  .host-no { color: var(--color-error-text, inherit); }
+  .cloud-option {
+    border-top: 1px solid var(--border-light);
+    padding: 6px 0; font-size: .82rem;
+    p { margin: 2px 0; }
+    .cloud-head { display: flex; align-items: center; gap: 6px;
+      flex-wrap: wrap; }
+  }
+}
+
 // ai-5: the in-store binding flow.
 .ai-bind {
   .bind-secret {
