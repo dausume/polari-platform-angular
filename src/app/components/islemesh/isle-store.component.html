@@ -145,6 +145,45 @@
           Hover a row for the detail.</p>
       </div>
 
+      <!-- ai-5: the thin intermediary tiles are INSTALLABLE — the
+           install IS the binding flow, run right here. The
+           credential is typed by you and goes straight to this
+           instance's backend; it is never echoed back, never
+           stored in git, and must never pass through an AI. -->
+      <div class="instances ai-bind"
+           *ngIf="selected.kind === 'ai-tool' && bindable(selected)">
+        <h3>{{ selected.hosting === 'built-in'
+               ? 'Use the built-in responder'
+               : 'Bind this AI (install)' }}</h3>
+        <p class="privacy-hint"
+           *ngIf="aiTool?.privacy_recommendation">
+          {{ aiTool!.privacy_recommendation }}
+        </p>
+        <input class="bind-secret" type="password"
+               *ngIf="selected.hosting === 'remote-intermediary'"
+               [(ngModel)]="bindSecret"
+               [disabled]="bindBusy"
+               placeholder="API key (typed by you — stored on the
+backend, never shown again; leave empty to keep the existing one)" />
+        <button mat-flat-button color="primary"
+                [disabled]="bindBusy"
+                (click)="bindTool(selected)">
+          <mat-icon>link</mat-icon>
+          {{ bindBusy ? 'Binding…'
+             : aiTool?.active ? 'Re-validate'
+             : selected.hosting === 'built-in' ? 'Activate'
+             : 'Select, save key & validate' }}
+        </button>
+        <ul class="bind-log" *ngIf="bindLog.length">
+          <li *ngFor="let l of bindLog"
+              [class.ok]="l.ok" [class.err]="!l.ok">
+            <mat-icon inline>{{ l.ok ? 'check_circle'
+              : 'error' }}</mat-icon>
+            <strong>{{ l.step }}</strong> — {{ l.detail }}
+          </li>
+        </ul>
+      </div>
+
       <h3>Install</h3>
 
       <!-- sep-3: an option's honest state — where it stands before

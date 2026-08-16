@@ -103,6 +103,23 @@ section h2 {
     color: var(--text-on-card-muted); }
 }
 
+// ai-5: the in-store binding flow.
+.ai-bind {
+  .bind-secret {
+    width: 100%; box-sizing: border-box; margin: 6px 0;
+    background: var(--surface-primary);
+    border: 1px solid var(--border-light); border-radius: 6px;
+    color: var(--text-on-card); padding: 8px 10px; font: inherit;
+  }
+  .bind-log {
+    list-style: none; margin: 8px 0 0; padding: 0;
+    font-size: .8rem;
+    li { display: flex; align-items: center; gap: 6px;
+      padding: 2px 0; }
+    li.err { color: var(--color-error-text); }
+  }
+}
+
 .detail {
   flex: 0 0 340px;
   border: 1px solid var(--border-light);

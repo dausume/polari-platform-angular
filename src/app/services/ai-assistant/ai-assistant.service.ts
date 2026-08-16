@@ -42,6 +42,20 @@ export class AiAssistantService {
     return this.http.get<ProvidersStatus>(`${baseUrl}/ai/providers`);
   }
 
+  /** POST /ai/providers — one provider action (ai-5: the store's
+   *  binding flow). action: 'select' | 'set_auth' | 'validate'.
+   *  A secret only ever arrives here from a HUMAN-typed field —
+   *  never from an AI channel — and is never echoed back. */
+  providerAction(body: {
+    action: 'select' | 'set_auth' | 'validate';
+    provider: string;
+    secret?: string;
+    settings?: Record<string, unknown>;
+  }): Observable<any> {
+    const baseUrl = this.runtimeConfig.getBackendBaseUrl();
+    return this.http.post(`${baseUrl}/ai/providers`, body);
+  }
+
   /** GET /ai/voice — per-direction voice availability (ai-4). */
   voiceStatus(): Observable<VoiceStatus> {
     const baseUrl = this.runtimeConfig.getBackendBaseUrl();

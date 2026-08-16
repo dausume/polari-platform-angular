@@ -11,12 +11,15 @@
  */
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { firstValueFrom } from 'rxjs';
 
 import { PolariService } from '@services/polari-service';
+import { AiAssistantService } from
+  '@services/ai-assistant/ai-assistant.service';
 import { ShellBridgeService } from
   '@services/shell-bridge.service';
 
@@ -89,7 +92,7 @@ interface InstallPlan {
 @Component({
   selector: 'app-isle-store',
   standalone: true,
-  imports: [CommonModule, MatButtonModule, MatIconModule],
+  imports: [CommonModule, FormsModule, MatButtonModule, MatIconModule],
   templateUrl: './isle-store.component.html',
   styleUrls: ['./isle-store.component.scss'],
 })
@@ -123,6 +126,7 @@ export class IsleStoreComponent implements OnInit {
 
   constructor(private http: HttpClient,
               private polariService: PolariService,
+              private ai: AiAssistantService,
               public bridge: ShellBridgeService) {}
 
   /** True when running inside the native JavaFX/JCEF shell — the
@@ -181,6 +185,74 @@ export class IsleStoreComponent implements OnInit {
   // ai-2: the readiness join for the selected AI tool (ai-1 API).
   aiTool: AiToolReport | null = null;
 
+  // ai-5: the in-store binding flow — "install" for a remote
+  // intermediary IS select -> set_auth -> validate. The secret is
+  // typed by the HUMAN into the password field and goes straight
+  // to the backend (never an AI channel, never echoed, never git).
+  bindSecret = '';
+  bindBusy = false;
+  bindLog: { step: string; ok: boolean; detail: string }[] = [];
+
+  /** The binding flow applies to tools that ARE reasoning
+   *  providers and need no container: remote intermediaries and
+   *  the built-in. local-hosted binds itself at deploy (ai-3). */
+  bindable(entry: CatalogEntry): boolean {
+    return entry.kind === 'ai-tool' && !!entry.provider_name
+      && entry.hosting !== 'local-hosted';
+  }
+
+  async bindTool(entry: CatalogEntry): Promise<void> {
+    if (this.bindBusy || !entry.provider_name) { return; }
+    this.bindBusy = true;
+    this.bindLog = [];
+    const provider = entry.provider_name;
+    const log = (step: string, ok: boolean, detail: string) =>
+      this.bindLog.push({ step, ok, detail });
+    try {
+      await firstValueFrom(this.ai.providerAction(
+        { action: 'select', provider }));
+      log('select', true, `${provider} is now the active provider`);
+    } catch (e: any) {
+      log('select', false, e?.error?.error ?? 'failed');
+      this.bindBusy = false;
+      return;
+    }
+    if (this.bindSecret.trim()) {
+      try {
+        await firstValueFrom(this.ai.providerAction(
+          { action: 'set_auth', provider,
+            secret: this.bindSecret.trim() }));
+        log('set_auth', true,
+            'credential stored on the backend (never echoed)');
+      } catch (e: any) {
+        log('set_auth', false, e?.error?.error ?? 'failed');
+      }
+      this.bindSecret = '';
+    }
+    try {
+      const v: any = await firstValueFrom(this.ai.providerAction(
+        { action: 'validate', provider }));
+      log('validate', !!v?.ok,
+          v?.detail ?? (v?.ok ? 'responded' : 'no reply'));
+    } catch (e: any) {
+      log('validate', false, e?.error?.error ?? 'failed');
+    }
+    this.bindBusy = false;
+    // re-join readiness so ready/active flip in place
+    this.refreshAiTool(entry);
+  }
+
+  private refreshAiTool(entry: CatalogEntry): void {
+    firstValueFrom(this.http.get(
+      `${this.base()}/api/appstore/ai-tools/${entry.name}`,
+      this.polariService.backendRequestOptions))
+      .then((d: any) => {
+        if (this.selected?.name === entry.name && d?.ok) {
+          this.aiTool = d.tool;
+        }
+      }).catch(() => {});
+  }
+
   async select(entry: CatalogEntry): Promise<void> {
     this.selected = entry;
     this.plan = null;
@@ -190,6 +262,8 @@ export class IsleStoreComponent implements OnInit {
     this.localInstalled = null;
     this.localVersion = '';
     this.aiTool = null;
+    this.bindSecret = '';
+    this.bindLog = [];
     if (entry.kind === 'ai-tool') {
       firstValueFrom(this.http.get(
         `${this.base()}/api/appstore/ai-tools/${entry.name}`,
