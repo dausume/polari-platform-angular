@@ -178,6 +178,10 @@
           the verdict. Profiles are guidance, not guarantees.</p>
         <div *ngIf="hostCheck.cloud_recommended && hostCheck.cloud">
           <h3>Host it remotely instead</h3>
+          <p class="link-hint">
+            <a routerLink="/ai-hosting">Concrete options with
+            dated prices →</a>
+          </p>
           <div class="cloud-option" *ngFor="let c of hostCheck.cloud">
             <div class="cloud-head">
               <strong>{{ c.title }}</strong>

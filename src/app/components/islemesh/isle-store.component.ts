@@ -15,6 +15,7 @@ import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { RouterModule } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 
 import { PolariService } from '@services/polari-service';
@@ -114,7 +115,8 @@ interface InstallPlan {
 @Component({
   selector: 'app-isle-store',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatButtonModule, MatIconModule],
+  imports: [CommonModule, FormsModule, MatButtonModule,
+            MatIconModule, RouterModule],
   templateUrl: './isle-store.component.html',
   styleUrls: ['./isle-store.component.scss'],
 })

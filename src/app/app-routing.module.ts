@@ -74,6 +74,8 @@ const routes: Routes = [
   { path: 'isle-mesh', loadComponent: () => import('@components/islemesh/isle-mesh-graph.component').then(m => m.IsleMeshGraphComponent) },
   // §25: the general isle app store as a browsable page.
   { path: 'isle-store', loadComponent: () => import('@components/islemesh/isle-store.component').then(m => m.IsleStoreComponent) },
+  // ai-7: remote-hosting suggestions with dated prices.
+  { path: 'ai-hosting', loadComponent: () => import('@components/islemesh/ai-hosting.component').then(m => m.AiHostingComponent) },
   // §32: the unified isle hub — app store + topology as tabs (the
   // genuine isle store; the shell opens this).
   { path: 'isle', loadComponent: () => import('@components/islemesh/isle-hub.component').then(m => m.IsleHubComponent) },
