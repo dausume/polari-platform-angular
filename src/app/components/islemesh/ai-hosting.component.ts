@@ -54,6 +54,21 @@ interface BuySection {
   advisory?: { sparing: string; sustained: string };
 }
 
+/** ai-9: one fork pin (or named gap). */
+interface ForkPinRow {
+  name: string;
+  title: string;
+  upstream_url: string;
+  fork_url: string;
+  license: string;
+  role: string;
+  status: string;
+  cpu_ok: boolean;
+  needed_for: string;
+  verified_at: string;
+  notes: string;
+}
+
 interface HostingOption {
   name: string;
   provider: string;
@@ -204,6 +219,43 @@ interface HostingOption {
           </p>
         </div>
       </section>
+
+      <!-- ai-9: the SOFTWARE half of self-hosting — every upstream
+           pinned as a fork under dausume/ (upstreams can relicense;
+           a fork cannot be retroactively changed), plus the named
+           not-pinned gaps. verified_at = last checked on GitHub. -->
+      <section *ngIf="pins.length">
+        <h2>The pinned forks — software for self-hosting</h2>
+        <p class="sub">
+          Forks under <code>github.com/dausume/</code> are this
+          project's license pins (the rns relicensing lesson).
+          A CPU-only machine needs the <strong>LocalAI</strong> pin
+          + the cpu-ok backends; weights carry their own licenses —
+          check both.
+        </p>
+        <table class="link-table pins-table">
+          <tr><th>pin</th><th>role</th><th>license</th>
+            <th>cpu</th><th>status</th><th>verified</th></tr>
+          <tr *ngFor="let p of pins"
+              [class.pin-dim]="p.status !== 'forked'"
+              [title]="p.needed_for + (p.notes ? ' — ' + p.notes
+                       : '')">
+            <td>
+              <a *ngIf="p.fork_url" [href]="p.fork_url"
+                 target="_blank" rel="noopener">{{ p.name }}</a>
+              <span *ngIf="!p.fork_url">{{ p.name }}</span>
+            </td>
+            <td>{{ p.role }}</td>
+            <td>{{ p.license }}</td>
+            <td>{{ p.cpu_ok ? 'yes' : '—' }}</td>
+            <td [class.proven]="p.status === 'forked'">
+              {{ p.status }}</td>
+            <td>{{ p.verified_at }}</td>
+          </tr>
+        </table>
+        <p class="link-hint">{{ pinsHonesty }} Hover a row for
+          what it serves.</p>
+      </section>
     </div>
   `,
   styles: [`
@@ -244,11 +296,24 @@ interface HostingOption {
       border-radius: 8px; padding: 8px 12px; margin: 10px 0;
       background: var(--surface-secondary);
       p { margin: 4px 0; font-size: .88rem; } }
+    .link-table { width: 100%; border-collapse: collapse;
+      font-size: .8rem;
+      th { text-align: left; color: var(--text-on-card-muted);
+        padding: 2px 8px 2px 0; }
+      td { padding: 3px 8px 3px 0;
+        border-top: 1px solid var(--border-light); }
+      td.proven { font-weight: 600; } }
+    .pins-table { display: block; overflow-x: auto; }
+    .pin-dim { opacity: .55; }
+    .link-hint { font-size: .75rem;
+      color: var(--text-on-card-muted); }
   `],
 })
 export class AiHostingComponent implements OnInit {
   options: HostingOption[] = [];
   buy: BuySection | null = null;
+  pins: ForkPinRow[] = [];
+  pinsHonesty = '';
   honesty = '';
   loading = true;
   loadError = '';
@@ -284,6 +349,15 @@ export class AiHostingComponent implements OnInit {
     this.options = data.options;
     this.buy = data.buy ?? null;
     this.honesty = data.honesty ?? '';
+    const forks: any = await firstValueFrom(this.http.get(
+      `${this.polariService.getBackendBaseUrl()}`
+      + '/api/appstore/ai-tools/fork-pins',
+      this.polariService.backendRequestOptions))
+      .catch(() => null);
+    if (forks?.ok) {
+      this.pins = forks.pins;
+      this.pinsHonesty = forks.honesty ?? '';
+    }
   }
 
   assemblyDetail(b: BuildReport): string {
