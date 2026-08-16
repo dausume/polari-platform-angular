@@ -81,6 +81,28 @@ section h2 {
   max-width: 100%; text-align: left;
 }
 
+// ai-2 sovereignty badges (decision 6): the fact, not a vibe —
+// amber when data leaves the isle, green when it never does.
+.leaves-badge { background: #b26a00; }
+.sovereign-badge { background: #2e7d32; }
+
+// ai-2 detail pane: readiness + the linkage table.
+.ai-detail {
+  .ai-active { color: var(--color-success-text, inherit); }
+  .privacy-hint { font-size: .8rem;
+    color: var(--text-on-card-muted); }
+  .link-table {
+    width: 100%; border-collapse: collapse; font-size: .8rem;
+    th { text-align: left; color: var(--text-on-card-muted);
+      font-weight: 600; padding: 2px 6px 2px 0; }
+    td { padding: 2px 6px 2px 0;
+      border-top: 1px solid var(--border-light); }
+    td.proven { font-weight: 600; }
+  }
+  .link-hint { font-size: .75rem;
+    color: var(--text-on-card-muted); }
+}
+
 .detail {
   flex: 0 0 340px;
   border: 1px solid var(--border-light);

@@ -46,6 +46,38 @@ interface CatalogEntry {
   converted?: boolean;
   shell?: string;
   placement?: { complete: boolean; missing: string[] };
+  // ai-2: derived AI-tool entries (dedicated section) — hosting
+  // kind + sovereignty facts ride the tile; the full readiness
+  // join is fetched from /api/appstore/ai-tools on select.
+  hosting?: string;
+  api_family?: string;
+  provider_name?: string;
+  internet_required?: boolean;
+  data_leaves_isle?: boolean;
+  linkages?: { kind: string; status: string }[];
+  detail?: string;
+}
+
+/** ai-1: one linkage claim annotated with the vocabulary. */
+interface AiLinkage {
+  kind: string;
+  status: string;    // proven | feasible (the claim)
+  note: string;
+  consumer: string;  // the polari seam/knob it wires
+  seam: string;      // live | unbuilt (does the polari side exist)
+}
+
+/** ai-1: the live readiness join for one AI tool. */
+interface AiToolReport {
+  name: string;
+  linkages: AiLinkage[];
+  readiness: {
+    ready: boolean; needs: string[];
+    sdk_installed: boolean; has_credential: boolean;
+  } | null;
+  readiness_note: string;
+  active: boolean;
+  privacy_recommendation?: string;
 }
 
 interface InstallPlan {
@@ -83,6 +115,10 @@ export class IsleStoreComponent implements OnInit {
     // launcher debs materialize at install time, never a shelf.
     'polari-app-option':
       'Polari app options — any app, installable as its own shell',
+    // ai-2 (decision 1): the DEDICATED AI section — never buried
+    // under generic apps.
+    'ai-tool':
+      'AI tools — reasoning, voice, and vision bindings for polari',
   };
 
   constructor(private http: HttpClient,
@@ -142,6 +178,9 @@ export class IsleStoreComponent implements OnInit {
   localInstalled: boolean | null = null;
   localVersion = '';
 
+  // ai-2: the readiness join for the selected AI tool (ai-1 API).
+  aiTool: AiToolReport | null = null;
+
   async select(entry: CatalogEntry): Promise<void> {
     this.selected = entry;
     this.plan = null;
@@ -150,6 +189,17 @@ export class IsleStoreComponent implements OnInit {
     this.installOk = null;
     this.localInstalled = null;
     this.localVersion = '';
+    this.aiTool = null;
+    if (entry.kind === 'ai-tool') {
+      firstValueFrom(this.http.get(
+        `${this.base()}/api/appstore/ai-tools/${entry.name}`,
+        this.polariService.backendRequestOptions))
+        .then((d: any) => {
+          if (this.selected?.name === entry.name && d?.ok) {
+            this.aiTool = d.tool;
+          }
+        }).catch(() => {});
+    }
     if (this.nativeInstall && entry.kind === 'polari-app') {
       this.bridge.status(entry.name).then((s) => {
         if (this.selected?.name === entry.name && s?.ok) {
@@ -169,6 +219,13 @@ export class IsleStoreComponent implements OnInit {
   installCommand(entry: CatalogEntry): string {
     // sep-3: options convert+build through the one idempotent
     // command; everything else installs via the isle store verb.
+    // ai-2: AI tools have no single host command — built-in needs
+    // nothing, remote intermediaries bind via /ai/providers, only
+    // local-hosted deploys (the plan states each; '' hides the row).
+    if (entry.kind === 'ai-tool') {
+      return entry.hosting === 'local-hosted'
+        ? `isle store install ${entry.name}` : '';
+    }
     return entry.kind === 'polari-app-option'
       ? `pol apps shell ${entry.name}`
       : `isle store install ${entry.name}`;

@@ -29,6 +29,7 @@
               <mat-icon>{{ kind === 'polari-app' ? 'desktop_windows'
                 : kind === 'polari-app-option' ? 'apps'
                 : kind === 'polari-module' ? 'extension'
+                : kind === 'ai-tool' ? 'smart_toy'
                 : 'dns' }}</mat-icon>
               <span class="card-title">{{ e.title }}</span>
               <span class="engine-badge" *ngIf="e.provides_engine">
@@ -49,6 +50,21 @@
                     title="modules not all live yet: {{
                       e.placement.missing.join(', ') }}">
                 modules missing</span>
+              <!-- ai-2 (decisions 2+6): hosting kind + sovereignty
+                   stated on every AI tile -->
+              <span class="engine-badge" *ngIf="e.hosting"
+                    title="how this AI tool is hosted">
+                {{ e.hosting }}</span>
+              <span class="engine-badge leaves-badge"
+                    *ngIf="e.data_leaves_isle"
+                    title="conversations go to a remote server over
+                           the internet">
+                data leaves isle</span>
+              <span class="engine-badge sovereign-badge"
+                    *ngIf="e.kind === 'ai-tool'
+                           && !e.data_leaves_isle"
+                    title="nothing leaves the isle">
+                stays on isle</span>
             </div>
             <p class="card-desc">{{ e.description }}</p>
             <div class="card-meta">
@@ -92,6 +108,43 @@
         </p>
       </div>
 
+      <!-- ai-2: the linkage table + live readiness (decision 4 —
+           "feasibly map to and interact with capably" as data) -->
+      <div class="instances ai-detail"
+           *ngIf="selected.kind === 'ai-tool' && aiTool">
+        <h3>Readiness (live)</h3>
+        <p *ngIf="aiTool.active" class="ai-active">
+          <mat-icon inline>check_circle</mat-icon>
+          This is the ACTIVE reasoning provider.
+        </p>
+        <p *ngIf="aiTool.readiness">
+          {{ aiTool.readiness.ready
+             ? 'Ready — configured and usable now.'
+             : 'Not ready yet — needs: '
+               + aiTool.readiness.needs.join('; ') }}
+        </p>
+        <p *ngIf="!aiTool.readiness">{{ aiTool.readiness_note }}</p>
+        <p class="privacy-hint"
+           *ngIf="aiTool.privacy_recommendation">
+          {{ aiTool.privacy_recommendation }}
+        </p>
+        <h3>Linkages — what it can plug into</h3>
+        <table class="link-table">
+          <tr><th>linkage</th><th>claim</th><th>polari seam</th></tr>
+          <tr *ngFor="let l of aiTool.linkages"
+              [title]="l.note + ' — ' + l.consumer">
+            <td>{{ l.kind }}</td>
+            <td [class.proven]="l.status === 'proven'">
+              {{ l.status }}</td>
+            <td>{{ l.seam }}</td>
+          </tr>
+        </table>
+        <p class="link-hint">proven = the wire is exercised code;
+          feasible = the wire exists, this pair is unproven; an
+          unbuilt seam means the polari side isn't built yet.
+          Hover a row for the detail.</p>
+      </div>
+
       <h3>Install</h3>
 
       <!-- sep-3: an option's honest state — where it stands before
@@ -116,7 +169,8 @@
            sep-3 options build their deb host-side (pol apps shell) —
            no native path until the isle-side verb lands. -->
       <div class="native-install"
-           *ngIf="nativeInstall && selected.kind !== 'polari-app-option'">
+           *ngIf="nativeInstall && selected.kind !== 'polari-app-option'
+                  && selected.kind !== 'ai-tool'">
         <p class="installed-here" *ngIf="localInstalled">
           <mat-icon inline>check_circle</mat-icon>
           Installed on this device
@@ -140,16 +194,19 @@
              [class.err]="installOk === false">{{ installLog }}</pre>
       </div>
 
-      <!-- Plain browser: the copyable host command -->
-      <p class="run-hint">Or run on any isle host:</p>
-      <div class="cmd">
-        <code>{{ installCommand(selected) }}</code>
-        <button mat-icon-button
-                (click)="copy(installCommand(selected))"
-                title="copy">
-          <mat-icon>content_copy</mat-icon>
-        </button>
-      </div>
+      <!-- Plain browser: the copyable host command ('' = no single
+           host command, e.g. AI binding flows — the plan says all) -->
+      <ng-container *ngIf="installCommand(selected)">
+        <p class="run-hint">Or run on any isle host:</p>
+        <div class="cmd">
+          <code>{{ installCommand(selected) }}</code>
+          <button mat-icon-button
+                  (click)="copy(installCommand(selected))"
+                  title="copy">
+            <mat-icon>content_copy</mat-icon>
+          </button>
+        </div>
+      </ng-container>
 
       <div class="plan" *ngIf="planLoading">resolving plan…</div>
       <div class="plan" *ngIf="plan">
