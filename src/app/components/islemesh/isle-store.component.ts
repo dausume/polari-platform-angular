@@ -160,6 +160,64 @@ export class IsleStoreComponent implements OnInit {
     return this.bridge.available;
   }
 
+  // unin-4: the Uninstall buttons are THIN — one pkexec invocation
+  // of `isle store uninstall <name> [--purge]`; the engine verb owns
+  // every teardown step and the data policy. Two buttons (Q2):
+  // plain uninstall PRESERVES data; the erase variant backs volumes
+  // up to /var/backups/ first, then deletes them.
+  uninstalling = false;
+
+  async uninstallNative(entry: CatalogEntry,
+                        purge: boolean): Promise<void> {
+    this.uninstalling = true;
+    this.installLog = `Requesting uninstall of ${entry.name}… `
+      + `(you'll be asked for your password)`;
+    this.installOk = null;
+    try {
+      const res = await this.bridge.uninstall(entry.name, purge);
+      this.installOk = !!res.ok;
+      this.installLog = (res.output || res.error
+        || (res.ok ? 'uninstalled' : 'failed')).trim();
+      if (res.ok) {
+        this.localInstalled = false;
+        this.localVersion = '';
+        this.localDeployed = false;
+      }
+    } catch (e: any) {
+      this.installOk = false;
+      this.installLog = e?.message || 'uninstall bridge error';
+    } finally {
+      this.uninstalling = false;
+    }
+  }
+
+  /** The terminal equivalent shown beside each Uninstall button —
+   *  the UI runs exactly this via polkit, nothing more. */
+  uninstallCommand(entry: CatalogEntry, purge: boolean): string {
+    return `isle store uninstall ${entry.name}`
+      + (purge ? ' --purge' : '');
+  }
+
+  // unin-4: "remove isle-mesh from this device" — the shell opens a
+  // terminal running `pkexec isle uninstall --everything`; the
+  // verb's own confirmations (yes/no, and the typed core-cascade
+  // phrase) happen THERE, so a stray click cannot delete anything.
+  removeIsleMsg = '';
+
+  async removeIsle(): Promise<void> {
+    this.removeIsleMsg = '';
+    try {
+      const res = await this.bridge.removeIsle();
+      this.removeIsleMsg = res.ok
+        ? `A terminal (${res.terminal}) opened — the uninstall asks `
+          + 'its questions there. Nothing is removed until you '
+          + 'confirm in that window.'
+        : (res.error || 'could not open a terminal');
+    } catch (e: any) {
+      this.removeIsleMsg = e?.message || 'bridge error';
+    }
+  }
+
   async installNative(entry: CatalogEntry): Promise<void> {
     this.installing = true;
     this.installLog = `Requesting install of ${entry.name}… `
@@ -202,9 +260,12 @@ export class IsleStoreComponent implements OnInit {
     this.entries = data.entries;
   }
 
-  // installed-on-this-device state (native shell only)
+  // installed-on-this-device state (native shell only). unin-4:
+  // localDeployed = the mesh-app's compose project runs HERE (a
+  // mesh-app installs as containers, not a launcher deb).
   localInstalled: boolean | null = null;
   localVersion = '';
+  localDeployed = false;
 
   // ai-2: the readiness join for the selected AI tool (ai-1 API).
   aiTool: AiToolReport | null = null;
@@ -302,6 +363,7 @@ export class IsleStoreComponent implements OnInit {
     this.installOk = null;
     this.localInstalled = null;
     this.localVersion = '';
+    this.localDeployed = false;
     this.aiTool = null;
     this.bindSecret = '';
     this.bindBaseUrl = '';
@@ -329,11 +391,15 @@ export class IsleStoreComponent implements OnInit {
           }).catch(() => {});
       }
     }
-    if (this.nativeInstall && entry.kind === 'polari-app') {
+    // unin-4: mesh-apps get the same this-device probe — `deployed`
+    // (compose project present) is their "installed here"
+    if (this.nativeInstall && (entry.kind === 'polari-app'
+        || entry.kind === 'mesh-app')) {
       this.bridge.status(entry.name).then((s) => {
         if (this.selected?.name === entry.name && s?.ok) {
           this.localInstalled = !!s.installed;
           this.localVersion = s.version || '';
+          this.localDeployed = !!s.deployed;
         }
       }).catch(() => {});
     }

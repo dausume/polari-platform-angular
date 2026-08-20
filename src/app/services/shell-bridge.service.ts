@@ -67,10 +67,27 @@ export class ShellBridgeService {
   }
 
   /** Read-only: is this app's native launcher installed on THIS
-   *  device, and at what version (dpkg, unprivileged)? */
+   *  device, and at what version (dpkg, unprivileged)? unin-4:
+   *  `deployed` = its mesh-app compose project runs here. */
   status(name: string):
       Promise<{ ok: boolean; installed?: boolean;
-                version?: string; error?: string }> {
+                version?: string; deployed?: boolean;
+                error?: string }> {
     return this.call('store.status', { name });
+  }
+
+  /** unin-4: uninstall THIS device's copy via pkexec — one thin
+   *  invocation of `isle store uninstall <name> [--purge]`; the
+   *  engine verb owns the data policy (purge = backup then erase). */
+  uninstall(name: string, purge: boolean): Promise<InstallResult> {
+    return this.call('store.uninstall', { name, purge });
+  }
+
+  /** unin-4: "remove isle-mesh from this device" — the shell opens
+   *  a terminal running `pkexec isle uninstall --everything` (the
+   *  verb is interactive: its confirmations happen there). */
+  removeIsle():
+      Promise<{ ok: boolean; terminal?: string; error?: string }> {
+    return this.call('store.removeIsle', {});
   }
 }

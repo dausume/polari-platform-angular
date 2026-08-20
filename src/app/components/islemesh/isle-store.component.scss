@@ -193,4 +193,32 @@ section h2 {
     &.ok { border-color: #2e7d32; }
     &.err { border-color: var(--color-error-border); }
   }
+  // unin-4: thin uninstall buttons + their terminal equivalents
+  .native-uninstall {
+    margin-top: 14px; padding-top: 10px;
+    border-top: 1px solid var(--border-light);
+    button { margin-right: 8px; }
+    .cmd { margin-bottom: 4px; }
+  }
+}
+
+// unin-4: the whole-device flow — a footer, deliberately below the
+// catalog; the terminal it opens holds every confirmation
+.remove-isle {
+  margin-top: 28px; padding: 14px 16px;
+  border: 1px solid var(--color-error-border);
+  border-radius: 8px; max-width: 560px;
+  h3 { margin: 0 0 6px; }
+  p { margin: 0 0 10px; font-size: .85rem;
+    color: var(--text-on-card-muted); }
+  .native-hint { margin: 10px 0 4px; font-size: .78rem; }
+  .cmd {
+    display: flex; align-items: center; gap: 4px;
+    background: var(--surface-primary);
+    border: 1px solid var(--border-light);
+    border-radius: 6px; padding: 4px 4px 4px 10px;
+    code { flex: 1; font-size: .85rem; }
+  }
+  .remove-isle-msg { margin-top: 10px;
+    color: var(--text-on-card); }
 }

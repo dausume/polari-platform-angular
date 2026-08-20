@@ -301,6 +301,49 @@ backend, never shown again; optional for your own servers)" />
              *ngIf="installLog"
              [class.ok]="installOk === true"
              [class.err]="installOk === false">{{ installLog }}</pre>
+
+        <!-- unin-4: THIN uninstall buttons — each is one pkexec
+             invocation of the terminal verb printed beside it; the
+             engine owns every step and the data policy. Two buttons
+             (Q2): plain uninstall preserves data; the erase variant
+             backs volumes up to /var/backups/ first. -->
+        <div class="native-uninstall"
+             *ngIf="localInstalled || localDeployed">
+          <button mat-stroked-button color="warn"
+                  [disabled]="installing || uninstalling"
+                  (click)="uninstallNative(selected, false)">
+            <mat-icon>delete_outline</mat-icon>
+            {{ uninstalling ? 'Uninstalling…' : 'Uninstall' }}
+          </button>
+          <button mat-stroked-button color="warn"
+                  [disabled]="installing || uninstalling"
+                  (click)="uninstallNative(selected, true)">
+            <mat-icon>delete_forever</mat-icon>
+            Uninstall + erase data
+          </button>
+          <p class="native-hint">
+            Uninstall keeps this app's data (volumes + config) for a
+            reinstall. Erase backs it up to
+            <code>/var/backups/</code> first, then deletes it.
+            The buttons run exactly these, via polkit:
+          </p>
+          <div class="cmd">
+            <code>{{ uninstallCommand(selected, false) }}</code>
+            <button mat-icon-button
+                    (click)="copy(uninstallCommand(selected, false))"
+                    title="copy">
+              <mat-icon>content_copy</mat-icon>
+            </button>
+          </div>
+          <div class="cmd">
+            <code>{{ uninstallCommand(selected, true) }}</code>
+            <button mat-icon-button
+                    (click)="copy(uninstallCommand(selected, true))"
+                    title="copy">
+              <mat-icon>content_copy</mat-icon>
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Plain browser: the copyable host command ('' = no single
@@ -327,4 +370,33 @@ backend, never shown again; optional for your own servers)" />
       <button mat-button (click)="selected = null">Close</button>
     </aside>
   </div>
+
+  <!-- unin-4: the whole-device flow. The button only OPENS a
+       terminal running the same interactive verb the terminal route
+       uses — every confirmation (and the core-cascade warning)
+       happens there, so a stray click removes nothing. -->
+  <footer class="remove-isle" *ngIf="nativeInstall">
+    <h3>Remove isle-mesh from this device</h3>
+    <p>
+      Stops every isle app, hands networking back to the OS, backs
+      data up, and removes all isle packages. A terminal opens and
+      asks before anything is touched — on an isle CORE it warns
+      that deleting the core ends the isle for every member.
+    </p>
+    <button mat-stroked-button color="warn" (click)="removeIsle()">
+      <mat-icon>power_settings_new</mat-icon>
+      Remove isle-mesh…
+    </button>
+    <p class="native-hint">Terminal equivalent:</p>
+    <div class="cmd">
+      <code>sudo isle uninstall --everything</code>
+      <button mat-icon-button
+              (click)="copy('sudo isle uninstall --everything')"
+              title="copy">
+        <mat-icon>content_copy</mat-icon>
+      </button>
+    </div>
+    <p class="remove-isle-msg" *ngIf="removeIsleMsg">
+      {{ removeIsleMsg }}</p>
+  </footer>
 </div>
