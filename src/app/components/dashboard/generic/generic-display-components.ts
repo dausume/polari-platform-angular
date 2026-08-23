@@ -2,6 +2,7 @@ import { registerDisplayComponent } from '@models/dashboards/ComponentRegistry';
 import { ZonesBoardComponent } from '@components/zones/zones-board.component';
 import { ApiJsonPanelComponent } from './api-json-panel.component';
 import { ClassRowsTableComponent } from './class-rows-table.component';
+import { MicrochipLadderComponent } from './microchip-ladder.component';
 
 let registered = false;
 
@@ -42,5 +43,16 @@ export function registerGenericDisplayComponents(): void {
       description: 'GET a backend path and render flat fields as '
         + 'key/values + nested structure as JSON (input: path)',
       defaultInputs: { path: '' },
+    });
+
+  registerDisplayComponent(
+    'microchip-ladder', MicrochipLadderComponent, {
+      displayName: 'Microchip Design Ladder',
+      description: 'Traverse the design-level ladder (device -> '
+        + 'cell -> block -> core -> chip): design picker, level '
+        + 'rail with live/refusing rungs, click-to-traverse nodes '
+        + 'with resolved artifact + citation links (optional '
+        + 'input: design)',
+      defaultInputs: { design: '' },
     });
 }
