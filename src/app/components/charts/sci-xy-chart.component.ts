@@ -5,11 +5,15 @@ import { CommonModule } from '@angular/common';
 
 export interface SciSeries {
   label: string;
-  /** stick = vertical rule from 0 to y (XRD-pattern idiom). */
-  kind: 'line' | 'scatter' | 'band' | 'stick';
-  /** band series read lo/hi; line/scatter/stick read y. */
+  /** stick = vertical rule from 0 to y (XRD-pattern idiom);
+   *  errorbar = vertical lo..hi segment per point (digitization
+   *  error bars — the figure-replica idiom). */
+  kind: 'line' | 'scatter' | 'band' | 'stick' | 'errorbar';
+  /** band/errorbar series read lo/hi; line/scatter/stick read y. */
   points: { x: number; y?: number; lo?: number; hi?: number }[];
   color?: string;
+  /** dashed line stroke (e.g. a Laplace seed vs its SCF result). */
+  dash?: boolean;
 }
 
 export interface SciTick {
@@ -55,6 +59,7 @@ export class SciXyChartComponent implements OnChanges {
   @Input() xLabel = '';
   @Input() yLabel = '';
   @Input() logY = false;
+  @Input() logX = false;
   @Input() zeroLine = false;
   /** Categorical ticks: draws ONLY these x ticks + vertical guides. */
   @Input() xTicks: SciTick[] | null = null;
@@ -83,6 +88,10 @@ export class SciXyChartComponent implements OnChanges {
         marks.push(Plot.areaY(s.points, {
           x: 'x', y1: 'lo', y2: 'hi',
           fill: stroke ?? s.label, fillOpacity: 0.15 }));
+      } else if (s.kind === 'errorbar') {
+        marks.push(Plot.ruleX(s.points, {
+          x: 'x', y1: 'lo', y2: 'hi', strokeWidth: 1.5,
+          stroke: stroke ?? s.label }));
       } else if (s.kind === 'stick') {
         marks.push(Plot.ruleX(s.points, {
           x: 'x', y: 'y', strokeWidth: 1.6,
@@ -95,7 +104,8 @@ export class SciXyChartComponent implements OnChanges {
       } else {
         marks.push(Plot.lineY(s.points, {
           x: 'x', y: 'y', strokeWidth: 1.4,
-          stroke: stroke ?? s.label }));
+          stroke: stroke ?? s.label,
+          strokeDasharray: s.dash ? '6,4' : undefined }));
       }
     }
     const tickMap = new Map(
@@ -104,6 +114,7 @@ export class SciXyChartComponent implements OnChanges {
       width: this.width, height: this.height, grid: !this.xTicks,
       x: {
         label: this.xLabel || null,
+        type: this.logX ? 'log' : 'linear',
         ...(this.xTicks?.length ? {
           ticks: this.xTicks.map(t => t.value),
           tickFormat: (v: number) => tickMap.get(v) ?? '',

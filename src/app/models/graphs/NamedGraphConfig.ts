@@ -44,6 +44,24 @@ export interface GraphConfigData {
 
   /** Aggregation settings (groupBy X, aggregate Y values) */
   aggregation: AggregationConfig;
+
+  /** LONG-FORM mode (figure-replica graphs): the column whose
+   *  value names each series — rows split into per-series groups
+   *  with independent x-grids (digitized paper points vs model
+   *  curves). When set, yDimensions[0] is the value column. */
+  seriesDimension?: string;
+
+  /** Long-form only: column carrying the per-series mark style
+   *  ('dot' for measured/digitized points, anything else = line);
+   *  a 'dash' column on the rows dashes a line series (the
+   *  Laplace-seed idiom). */
+  styleDimension?: string;
+
+  /** Long-form only: columns carrying an error interval
+   *  (digitization error bars) — rows with both render a
+   *  vertical rule behind the mark. */
+  errorLoDimension?: string;
+  errorHiDimension?: string;
 }
 
 const DEFAULT_AGGREGATION: AggregationConfig = {
@@ -177,6 +195,49 @@ export class NamedGraphConfig {
         categoryBound.xAxis = true;
         figure.addXAxis({ dimension: categoryBound });
       }
+    }
+
+    // 6a. LONG-FORM branch: rows carry a series column; each
+    // distinct value is one group with its own x-grid, mark
+    // style ('dot' vs line via styleDimension), optional dash,
+    // and optional error interval — the figure-replica idiom.
+    // The ordinary dimension-plot path is skipped; marks come
+    // from figure.longForm inside the SAME render pipeline.
+    if (gc.seriesDimension && gc.yDimensions.length > 0) {
+      const yDim = gc.yDimensions[0];
+      const valueBound = new PlotBoundDimension(yDim);
+      valueBound.yAxis = true;
+      figure.addYAxis({ dimension: valueBound });
+      const groups = new Map<string, any[]>();
+      for (const row of instanceData) {
+        const key = String(row[gc.seriesDimension] ?? '');
+        if (!groups.has(key)) { groups.set(key, []); }
+        groups.get(key)!.push(row);
+      }
+      let i = 0;
+      for (const [label, rows] of groups) {
+        const first = rows[0] || {};
+        const style = gc.styleDimension
+          && String(first[gc.styleDimension]) === 'dot'
+          ? 'dot' : 'lineY';
+        const points = rows.map(row => ({
+          x: Number(row[gc.xDimension]),
+          y: Number(row[yDim]),
+          lo: gc.errorLoDimension
+            && row[gc.errorLoDimension] != null
+            ? Number(row[gc.errorLoDimension]) : null,
+          hi: gc.errorHiDimension
+            && row[gc.errorHiDimension] != null
+            ? Number(row[gc.errorHiDimension]) : null,
+        })).sort((a, b) => a.x - b.x);
+        figure.longForm.push({
+          label, style, points,
+          color: gc.seriesColors[i] || undefined,
+          dash: !!first['dash'],
+        });
+        i += 1;
+      }
+      return figure;
     }
 
     // 6. Create PlotDimensionRenderers for each value dimension

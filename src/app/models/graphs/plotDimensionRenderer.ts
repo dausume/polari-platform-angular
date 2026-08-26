@@ -13,6 +13,10 @@ interface PlotLibraryInterface {
     dot(data: any, options?: any): any;
     areaX(data: any, options?: any): any;
     areaY(data: any, options?: any): any;
+    /** Vertical/horizontal rules — long-form error bars
+     *  (PlotFigure.longForm) and reference lines. */
+    ruleX(data: any, options?: any): any;
+    ruleY(data: any, options?: any): any;
 }
 
 /**
