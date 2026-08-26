@@ -32,6 +32,21 @@ export interface PlotFigureOptions {
      *  dimension (field) name Observable Plot infers. */
     xLabel?: string;
     yLabel?: string;
+    /** Axis scale types ('log' | 'linear', default linear) — the
+     *  figure-replica graphs (v_xo vs Lg) need a log X. */
+    xType?: 'linear' | 'log';
+    yType?: 'linear' | 'log';
+}
+
+/** One long-form series group (see PlotFigure.longForm). */
+export interface LongFormGroup {
+    label: string;
+    /** Observable Plot mark family for this group. */
+    style: 'lineY' | 'dot';
+    color?: string;
+    dash?: boolean;
+    points: Array<{ x: number; y: number;
+                    lo?: number | null; hi?: number | null }>;
 }
 
 /**
@@ -169,13 +184,47 @@ export class PlotFigure {
         );
     }
 
+    /** Long-form series groups (rows carrying a series column,
+     *  irregular x-grids allowed — the figure-replica idiom:
+     *  paper points + error bars beside model curves). Marks are
+     *  built LAZILY in getAllPlotMarks, after render() has loaded
+     *  the Plot library — same lifecycle as dimensionPlots. */
+    longForm: LongFormGroup[] = [];
+
     /**
      * Gets all dimension plot marks for rendering
      */
     getAllPlotMarks(): any[] {
-        return this.dimensionPlots
+        const marks = this.dimensionPlots
             .map(plot => plot.createDimensionPlot())
             .filter(mark => mark !== null);
+        const Plot = PlotDimensionRenderer.getPlotLibrary();
+        if (Plot && this.longForm.length) {
+            for (const group of this.longForm) {
+                const withErr = group.points.filter(
+                    p => p.lo != null && p.hi != null);
+                if (withErr.length) {
+                    marks.push(Plot.ruleX(withErr, {
+                        x: 'x', y1: 'lo', y2: 'hi',
+                        strokeWidth: 1.5,
+                        stroke: group.color ?? group.label }));
+                }
+                if (group.style === 'dot') {
+                    marks.push(Plot.dot(group.points, {
+                        x: 'x', y: 'y', r: 3.5,
+                        fill: group.color ?? group.label,
+                        title: (d: any) =>
+                            `${group.label}: ${d.x}, ${d.y}` }));
+                } else {
+                    marks.push(Plot.lineY(group.points, {
+                        x: 'x', y: 'y', strokeWidth: 1.6,
+                        stroke: group.color ?? group.label,
+                        strokeDasharray: group.dash
+                            ? '6,4' : undefined }));
+                }
+            }
+        }
+        return marks;
     }
 
     /**
@@ -214,8 +263,17 @@ export class PlotFigure {
                 marginBottom: this.options.marginBottom || 40,
                 marginLeft: this.options.marginLeft || 50,
                 grid: this.options.showGrid ?? true,
-                x: xScale,
-                ...(this.options.yLabel ? { y: { label: this.options.yLabel } } : {})
+                x: {
+                    ...xScale,
+                    ...(this.options.xType === 'log'
+                        ? { type: 'log' } : {}),
+                },
+                y: {
+                    ...(this.options.yLabel
+                        ? { label: this.options.yLabel } : {}),
+                    ...(this.options.yType === 'log'
+                        ? { type: 'log' } : {}),
+                },
             });
         } catch (e) {
             console.error('[PlotFigure] Rendering failed:', e);

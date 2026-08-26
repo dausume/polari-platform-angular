@@ -63,6 +63,22 @@ export class GraphDefinitionService {
     });
   }
 
+  /** Load a definition by NAME (seeded graphs are addressed by
+   *  name — ids are instance-local). Same read path as
+   *  loadConfig, no draft side effects. */
+  loadConfigByName(name: string): Observable<NamedGraphConfig> {
+    return this.http.get<any>(this.baseUrl, this.polariService.backendRequestOptions).pipe(
+      map((response: any) => {
+        const items = this.parseReadAllResponse(response);
+        const backendObj = items.find((item: any) => (item.name || '') === name);
+        if (!backendObj) {
+          throw new Error(`GraphDefinition "${name}" not found`);
+        }
+        return NamedGraphConfig.fromBackend(backendObj);
+      })
+    );
+  }
+
   loadConfig(id: string): Observable<NamedGraphConfig> {
     this.loading$.next(true);
     return this.http.get<any>(this.baseUrl, this.polariService.backendRequestOptions).pipe(

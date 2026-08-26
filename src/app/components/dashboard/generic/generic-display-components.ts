@@ -3,6 +3,7 @@ import { ZonesBoardComponent } from '@components/zones/zones-board.component';
 import { ApiJsonPanelComponent } from './api-json-panel.component';
 import { ClassRowsTableComponent } from './class-rows-table.component';
 import { MicrochipLadderComponent } from './microchip-ladder.component';
+import { NamedGraphPanelComponent } from './named-graph-panel.component';
 
 let registered = false;
 
@@ -43,6 +44,19 @@ export function registerGenericDisplayComponents(): void {
       description: 'GET a backend path and render flat fields as '
         + 'key/values + nested structure as JSON (input: path)',
       defaultInputs: { path: '' },
+    });
+
+  registerDisplayComponent(
+    'named-graph-panel', NamedGraphPanelComponent, {
+      displayName: 'Named Graph Panel',
+      description: 'One GraphDefinition row (by name) rendered '
+        + 'through the original graphs machinery '
+        + '(graph-renderer/PlotFigure) — configurable in the '
+        + 'Graphs editor; optional dataPath GETs {ok, rows} '
+        + '(refusals render verbatim), else CRUDE rows of the '
+        + 'definition\'s source_class (inputs: graphName, '
+        + 'dataPath)',
+      defaultInputs: { graphName: '', dataPath: '' },
     });
 
   registerDisplayComponent(
