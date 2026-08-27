@@ -1,0 +1,98 @@
+/* Responds to the HOST width (container query) — a mesh/XR panel is
+   not a phone. Theme tokens only. */
+.cld {
+  display: block;
+  container-type: inline-size;
+  color: var(--text-on-card);
+  min-width: 0;
+}
+
+.state { padding: 16px; color: var(--text-on-card-muted); }
+.state.error { color: var(--color-error-text); }
+.muted { color: var(--text-on-card-muted); font-size: 12px; }
+.label {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--text-on-card-muted); margin-bottom: 4px;
+}
+
+.head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 8px; }
+.head h3 { margin: 0; font-size: 1.1em; }
+.drive { font-weight: 400; color: var(--text-on-card-muted); font-size: 0.8em; }
+.fn {
+  font-family: monospace; background: var(--surface-secondary);
+  border: 1px solid var(--surface-outline); border-radius: 6px; padding: 2px 8px;
+}
+
+.badge {
+  font-size: 11px; font-weight: 700; border-radius: 10px; padding: 2px 8px;
+  border: 1px solid var(--surface-outline); color: var(--text-on-card-muted);
+}
+.badge.ok { background: var(--primary-color); color: var(--primary-color-text, var(--text-on-primary)); border-color: transparent; }
+.badge.bad { background: var(--color-error-text); color: var(--surface-primary); border-color: transparent; }
+
+.controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 8px; }
+.toggles, .stepper { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+button {
+  font: inherit; color: inherit; cursor: pointer; border-radius: 6px;
+  border: 1px solid var(--border-medium); background: var(--surface-secondary); padding: 4px 10px;
+}
+button:hover { background: var(--surface-hover); }
+button:disabled { opacity: 0.5; cursor: default; }
+button.ghost { background: transparent; border-color: transparent; color: var(--text-on-card-muted); }
+button.tog { font-family: monospace; }
+button.tog.hi { background: var(--primary-color); color: var(--primary-color-text, var(--text-on-primary)); border-color: transparent; }
+
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, 260px); gap: 12px; }
+@container (max-width: 640px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+
+.svg-host {
+  border: 1px solid var(--surface-outline); border-radius: 8px;
+  background: var(--surface-primary); min-width: 0; overflow: hidden;
+}
+svg.diagram { display: block; width: 100%; height: 300px; cursor: grab; }
+svg.diagram.seq { height: 260px; }
+
+/* d3-drawn classes (::ng-deep not needed: styles are component-scoped via host
+   attribute on <svg>, but d3 nodes lack the attribute — so use :host ::ng-deep) */
+:host ::ng-deep {
+  .wire { fill: none; stroke-width: 2; stroke: var(--border-medium); }
+  .wire.hi { stroke: var(--primary-color); stroke-width: 3; }
+  .node .body { fill: var(--surface-secondary); stroke: var(--text-on-card); stroke-width: 1.5; }
+  .node.hi .body { stroke: var(--primary-color); }
+  .node .bubble { fill: var(--surface-primary); stroke: var(--text-on-card); stroke-width: 1.5; }
+  .node text { fill: var(--text-on-card); font-size: 12px; font-family: monospace; }
+  .node .gate-label { font-size: 10px; font-weight: 700; }
+  .node.input rect, .node.output rect { fill: var(--surface-secondary); stroke: var(--border-medium); }
+  .node.input.hi rect, .node.output.hi rect { fill: var(--primary-color); stroke: transparent; }
+  .node.input.hi text, .node.output.hi text { fill: var(--primary-color-text, var(--text-on-primary)); }
+  .arc { fill: none; stroke: var(--border-medium); stroke-width: 2; }
+  .arc.hi { stroke: var(--primary-color); stroke-width: 3; }
+  .arrow { fill: var(--border-medium); }
+  .arc-label { fill: var(--text-on-card-muted); font-size: 11px; font-family: monospace; }
+  .state circle { fill: var(--surface-secondary); stroke: var(--text-on-card); stroke-width: 1.5; }
+  .state.hi circle { fill: var(--primary-color); stroke: transparent; }
+  .state text { fill: var(--text-on-card); font-size: 12px; font-family: monospace; }
+  .state.hi text { fill: var(--primary-color-text, var(--text-on-primary)); }
+}
+
+.side { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.step-card {
+  border-left: 4px solid var(--primary-color); background: var(--surface-secondary);
+  padding: 8px 10px; border-radius: 0 6px 6px 0; font-size: 13px;
+}
+.vs { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 4px 0; }
+
+table.tt { border-collapse: collapse; font-family: monospace; font-size: 12px; width: 100%; }
+.tt th, .tt td { padding: 3px 8px; text-align: center; border-bottom: 1px solid var(--surface-outline); }
+.tt th { color: var(--text-on-card-muted); }
+.tt td.out { font-weight: 700; }
+.tt tr.active td { background: var(--primary-color); color: var(--primary-color-text, var(--text-on-primary)); }
+
+.proof { margin-top: 12px; }
+.proof ul { margin: 4px 0; padding-left: 18px; font-family: monospace; font-size: 12px; color: var(--color-error-text); }
+
+.honesty {
+  margin-top: 12px; padding: 8px 10px; font-size: 12px;
+  color: var(--text-on-card-muted); background: var(--surface-secondary);
+  border-radius: 6px; white-space: pre-wrap;
+}

@@ -40,6 +40,10 @@ export interface FetCharacteristicDetail {
   key: string;
   display_name: string;
   group: string;
+  /** fp-6 datasheet category: input | output | transfer | structure */
+  category?: string;
+  /** fp-6 plain-language explanation */
+  explain?: string;
   description?: string;
   performance_meaning?: string;
   equation?: string;

@@ -1,6 +1,8 @@
 import { registerDisplayComponent } from '@models/dashboards/ComponentRegistry';
 import { ZonesBoardComponent } from '@components/zones/zones-board.component';
 import { ApiJsonPanelComponent } from './api-json-panel.component';
+import { CellLogicDiagramComponent } from './cell-logic-diagram.component';
+import { CellSchematicComponent } from './cell-schematic.component';
 import { ClassRowsTableComponent } from './class-rows-table.component';
 import { FetCharacteristicExplorerComponent } from './fet-characteristic-explorer.component';
 import { MicrochipLadderComponent } from './microchip-ladder.component';
@@ -81,5 +83,30 @@ export function registerGenericDisplayComponents(): void {
         + 'api-json-panel / sim-space-viewer (inputs: device, '
         + 'optional listPath, initialKey, hideUnbuilt)',
       defaultInputs: { device: '', hideUnbuilt: false },
+    });
+
+  registerDisplayComponent(
+    'cell-logic-diagram', CellLogicDiagramComponent, {
+      displayName: 'Cell logic diagram (boolean proof)',
+      description: 'Gate-level d3 diagram of a CELL_LIBRARY cell from '
+        + '/api/cntfet/cell/{cell}/logic: click inputs to toggle '
+        + '(client-side DAG evaluation, wires coloured by value, '
+        + 'truth-table row highlighted) or Step/Play through the '
+        + 'switch-level state space comparing boolean vs switch '
+        + 'output per vector; sequential cells render their state '
+        + 'graph (inputs: cell, drive, optional path)',
+      defaultInputs: { cell: 'cinv', drive: 1 },
+    });
+
+  registerDisplayComponent(
+    'cell-schematic', CellSchematicComponent, {
+      displayName: 'Cell schematic (transistor level)',
+      description: 'Transistor-level d3 schematic from the cell\'s '
+        + 'netlist — VDD/GND rails, p devices above the output, n '
+        + 'below, nets as buses; toggle inputs (or pass '
+        + 'highlightVector) to colour conducting devices and the '
+        + 'Y→VDD/GND path (inputs: cell, drive, optional path, '
+        + 'highlightVector)',
+      defaultInputs: { cell: 'cinv', drive: 1 },
     });
 }

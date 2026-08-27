@@ -36,9 +36,15 @@
         <header class="detail-head">
           <h3>{{ detail.display_name }}</h3>
           <span class="chip chip-outline">{{ detail.group }}</span>
+          <span class="chip chip-outline" *ngIf="detail.category"
+                title="datasheet category: input / output / transfer / structure">
+            {{ detail.category }} characteristic</span>
           <span class="chip" *ngIf="detail.fidelity"
                 title="fidelity">{{ detail.fidelity }}</span>
         </header>
+
+        <!-- fp-6: the plain-language line first — for the average person -->
+        <p class="explain" *ngIf="detail.explain">{{ detail.explain }}</p>
 
         <p class="description" *ngIf="detail.description">
           {{ detail.description }}</p>

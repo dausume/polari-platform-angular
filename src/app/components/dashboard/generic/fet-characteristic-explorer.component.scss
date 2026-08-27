@@ -78,6 +78,9 @@
 .detail-head h3 { margin: 0; font-size: 1.15em; }
 
 .description { margin: 0 0 12px; line-height: 1.5; }
+/* fp-6: the plain-language line — larger, first, for the average person */
+.explain { margin: 0 0 12px; font-size: 1.05em; line-height: 1.55;
+           color: var(--text-on-card); }
 
 .callout {
   border-left: 4px solid var(--primary-color);

@@ -1,0 +1,90 @@
+<div class="cld">
+  <div *ngIf="loading" class="state"><mat-spinner diameter="28"></mat-spinner></div>
+  <div *ngIf="error" class="state error">{{ error }}</div>
+
+  <ng-container *ngIf="data && !loading && !error">
+    <div class="head">
+      <h3>{{ data.cell }} <span class="drive">drive {{ data.drive }}</span></h3>
+      <code class="fn" *ngIf="data.function">{{ data.output }} = {{ data.function }}</code>
+      <span class="badge" [class.ok]="data.proof.proven" [class.bad]="!data.proof.proven"
+            *ngIf="data.proof">
+        {{ data.proof.proven ? 'PROVEN ✓' : 'MISMATCH' }}
+        <ng-container *ngIf="data.proof.vectors != null"> · {{ data.proof.vectors }} vectors</ng-container>
+      </span>
+      <span class="muted" *ngIf="data.fetCount != null">{{ data.fetCount }} FETs</span>
+    </div>
+
+    <div class="controls">
+      <div class="toggles" *ngIf="!sequential">
+        <button type="button" class="tog" *ngFor="let i of data.inputs"
+                [class.hi]="vector[i] === 1" (click)="toggle(i)">{{ i }} = {{ vector[i] || 0 }}</button>
+      </div>
+      <div class="stepper">
+        <button type="button" (click)="step(-1)" [disabled]="!stepCount">Prev</button>
+        <button type="button" (click)="step(1)" [disabled]="!stepCount">Step</button>
+        <button type="button" (click)="play()" [disabled]="!stepCount">{{ playing ? 'Pause' : 'Play' }}</button>
+        <span class="muted" *ngIf="stepCount">{{ stepIndex < 0 ? '–' : stepIndex + 1 }} / {{ stepCount }}</span>
+        <button type="button" class="ghost" (click)="resetView()">Reset view</button>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="svg-host">
+        <svg #svg class="diagram" [class.seq]="!!sequential">
+          <defs>
+            <marker id="cld-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 Z" class="arrow"></path>
+            </marker>
+          </defs>
+          <g #canvas></g>
+        </svg>
+      </div>
+
+      <aside class="side">
+        <div class="step-card" *ngIf="currentStep as s">
+          <div class="label">Step {{ s.index + 1 }} · {{ vectorText(s.vector) }}</div>
+          <div class="vs">
+            <span>boolean {{ data.output }} = <b>{{ booleanOutput }}</b></span>
+            <span>switch {{ data.output }} = <b>{{ s.output === null ? 'Z/X' : s.output }}</b></span>
+            <span class="badge" [class.ok]="stepVerdict === 'proven'" [class.bad]="stepVerdict === 'mismatch'">
+              {{ stepVerdict === 'proven' ? 'PROVEN ✓' : 'MISMATCH' }}</span>
+          </div>
+          <div class="muted" *ngIf="s.conducting?.length">conducting: {{ s.conducting?.join(', ') }}</div>
+          <div class="muted" *ngFor="let st of s.stages || []">
+            {{ st.instance }} ({{ st.sub_cell }}): {{ vectorText(st.inputs) }} → {{ st.output }}</div>
+        </div>
+        <div class="step-card" *ngIf="currentTransition as t">
+          <div class="label">Transition {{ stepIndex + 1 }}</div>
+          <div>{{ t.from }} —[{{ vectorText(t.input) }}]→ <b>{{ t.to }}</b></div>
+        </div>
+
+        <table class="tt" *ngIf="data.truthTable as tt">
+          <thead><tr><th *ngFor="let i of tt.inputs">{{ i }}</th><th>{{ data.output }}</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let row of tt.rows" [class.active]="rowActive(row)">
+              <td *ngFor="let i of tt.inputs">{{ row.vector[i] }}</td>
+              <td class="out">{{ row.output }}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="seq-desc" *ngIf="sequential as sq">
+          <p *ngIf="sq.description">{{ sq.description }}</p>
+          <div class="muted" *ngIf="sq.latchNodes?.length">latch nodes: {{ sq.latchNodes?.join(', ') }}</div>
+        </div>
+      </aside>
+    </div>
+
+    <section class="proof" *ngIf="data.proof as p">
+      <div class="label">Switch-level proof</div>
+      <p *ngIf="p.note" class="muted">{{ p.note }}</p>
+      <ul *ngIf="p.mismatches?.length">
+        <li *ngFor="let m of p.mismatches">{{ vectorText(m.vector) }}: boolean {{ m.boolean }} vs switch {{ m.switch ?? 'Z/X' }}</li>
+      </ul>
+      <div class="muted" *ngIf="p.contention?.length">contention: {{ p.contention | json }}</div>
+      <div class="muted" *ngIf="p.floating?.length">floating: {{ p.floating | json }}</div>
+    </section>
+
+    <footer class="honesty" *ngIf="data.honesty">{{ data.honesty }}</footer>
+  </ng-container>
+</div>

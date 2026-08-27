@@ -1,0 +1,81 @@
+/* Container-query responsive; theme tokens only. */
+.csc {
+  display: block;
+  container-type: inline-size;
+  color: var(--text-on-card);
+  min-width: 0;
+}
+
+.state { padding: 16px; color: var(--text-on-card-muted); }
+.state.error { color: var(--color-error-text); }
+.muted { color: var(--text-on-card-muted); font-size: 12px; }
+
+.head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 8px; }
+.head h3 { margin: 0; font-size: 1.1em; }
+.drive { font-weight: 400; color: var(--text-on-card-muted); font-size: 0.8em; }
+.fn {
+  font-family: monospace; background: var(--surface-secondary);
+  border: 1px solid var(--surface-outline); border-radius: 6px; padding: 2px 8px;
+}
+
+.controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 8px; }
+.toggles { display: flex; flex-wrap: wrap; gap: 6px; }
+button {
+  font: inherit; color: inherit; cursor: pointer; border-radius: 6px;
+  border: 1px solid var(--border-medium); background: var(--surface-secondary); padding: 4px 10px;
+}
+button:hover { background: var(--surface-hover); }
+button.ghost { background: transparent; border-color: transparent; color: var(--text-on-card-muted); }
+button.tog { font-family: monospace; }
+button.tog.hi { background: var(--primary-color); color: var(--primary-color-text, var(--text-on-primary)); border-color: transparent; }
+
+.out { font-family: monospace; font-weight: 700; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--surface-outline); }
+.out.vdd { color: var(--primary-color); border-color: var(--primary-color); }
+.out.gnd { color: var(--text-on-card-muted); }
+.out.x { color: var(--color-error-text); border-color: var(--color-error-text); }
+
+.svg-host {
+  border: 1px solid var(--surface-outline); border-radius: 8px;
+  background: var(--surface-primary); min-width: 0; overflow: hidden;
+}
+svg.diagram { display: block; width: 100%; height: 340px; cursor: grab; }
+@container (max-width: 640px) { svg.diagram { height: 280px; } }
+
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; font-size: 12px; color: var(--text-on-card-muted); margin-top: 6px; }
+.sw { display: inline-block; width: 18px; height: 3px; border-radius: 2px; background: var(--border-medium); margin-right: 4px; }
+.sw.vdd { background: var(--primary-color); }
+.sw.gnd { background: var(--text-on-card-muted); }
+.sw.on { background: var(--accent-color, var(--primary-color)); height: 8px; width: 8px; border-radius: 50%; }
+
+/* d3-drawn nodes lack the component scope attribute */
+:host ::ng-deep {
+  .rail { stroke: var(--text-on-card); stroke-width: 3; }
+  .rail.vdd { stroke: var(--primary-color); }
+  .rail.gnd { stroke: var(--text-on-card-muted); }
+  .wire { stroke: var(--border-medium); stroke-width: 2; }
+  .wire.vdd { stroke: var(--primary-color); stroke-width: 3; }
+  .wire.gnd { stroke: var(--text-on-card-muted); stroke-width: 3; }
+  .wire.x { stroke: var(--color-error-text); stroke-width: 3; }
+  .dot { fill: var(--border-medium); }
+  .dot.vdd { fill: var(--primary-color); }
+  .dot.gnd { fill: var(--text-on-card-muted); }
+  .dot.x { fill: var(--color-error-text); }
+  .dev line { stroke: var(--text-on-card); stroke-width: 2; }
+  .dev .gate { stroke-width: 2.5; }
+  .dev .stub, .dev .lead { stroke-width: 1.5; }
+  .dev .bubble { fill: var(--surface-primary); stroke: var(--text-on-card); stroke-width: 1.5; }
+  .dev.on .chan { stroke: var(--accent-color, var(--primary-color)); stroke-width: 4; }
+  .dev.off .chan { stroke-dasharray: 3 3; opacity: 0.6; }
+  .dev text { fill: var(--text-on-card); font-size: 11px; font-family: monospace; }
+  .dev .dev-label { fill: var(--text-on-card-muted); }
+  .net-label { fill: var(--text-on-card-muted); font-size: 11px; font-family: monospace; }
+  .net-label.vdd, .gate-label.vdd { fill: var(--primary-color); font-weight: 700; }
+  .net-label.x { fill: var(--color-error-text); font-weight: 700; }
+  .composed { fill: var(--text-on-card-muted); font-size: 10px; font-family: monospace; }
+}
+
+.honesty {
+  margin-top: 12px; padding: 8px 10px; font-size: 12px;
+  color: var(--text-on-card-muted); background: var(--surface-secondary);
+  border-radius: 6px; white-space: pre-wrap;
+}

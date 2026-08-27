@@ -1,0 +1,36 @@
+<div class="csc">
+  <div *ngIf="loading" class="state"><mat-spinner diameter="28"></mat-spinner></div>
+  <div *ngIf="error" class="state error">{{ error }}</div>
+
+  <ng-container *ngIf="data && !loading && !error">
+    <div class="head">
+      <h3>{{ data.cell }} <span class="drive">drive {{ data.drive }}</span></h3>
+      <span class="muted" *ngIf="data.netlist?.fet_count != null || data.fetCount != null">
+        {{ data.netlist?.fet_count ?? data.fetCount }} FETs</span>
+      <code class="fn" *ngIf="data.function">{{ data.output }} = {{ data.function }}</code>
+    </div>
+
+    <div class="controls">
+      <div class="toggles">
+        <button type="button" class="tog" *ngFor="let i of inputNets"
+                [class.hi]="vector[i] === 1" (click)="toggle(i)">{{ i }} = {{ vector[i] || 0 }}</button>
+      </div>
+      <span class="out" [class.vdd]="conduction?.output === 1" [class.gnd]="conduction?.output === 0"
+            [class.x]="conduction?.contention || conduction?.output === null">
+        {{ outputNet }} = {{ outputText }}</span>
+      <span class="muted" *ngIf="conductingText">conducting: {{ conductingText }}</span>
+      <button type="button" class="ghost" (click)="resetView()">Reset view</button>
+    </div>
+
+    <div class="svg-host">
+      <svg #svg class="diagram"><g #canvas></g></svg>
+    </div>
+    <div class="legend">
+      <span class="sw vdd"></span> path to VDD
+      <span class="sw gnd"></span> path to GND
+      <span class="sw on"></span> conducting device
+    </div>
+
+    <footer class="honesty" *ngIf="data.honesty">{{ data.honesty }}</footer>
+  </ng-container>
+</div>
