@@ -45,11 +45,14 @@ export interface LongFormGroup {
      *  band  = shaded lo..hi area over x (operating-state regions,
      *          stochastic envelopes — fi-1);
      *  guide = labelled vertical rule at each x (state boundaries
-     *          such as Vt, Vt+Vov_min — fi-1). */
-    style: 'lineY' | 'dot' | 'band' | 'guide';
+     *          such as Vt, Vt+Vov_min — fi-1);
+     *  hguide = labelled horizontal rule at each y (the ideal line
+     *          on a score graph — fi-2).
+     *  x may be a category label (score terms, cell names). */
+    style: 'lineY' | 'dot' | 'band' | 'guide' | 'hguide';
     color?: string;
     dash?: boolean;
-    points: Array<{ x: number; y: number;
+    points: Array<{ x: number | string; y: number;
                     lo?: number | null; hi?: number | null;
                     label?: string }>;
 }
@@ -230,6 +233,21 @@ export class PlotFigure {
                         x: 'x', frameAnchor: 'top',
                         text: (d: any) => d.label ?? group.label,
                         dy: 8, dx: 4, textAnchor: 'start',
+                        fontSize: 10,
+                        fill: group.color ?? '#607d8b' }));
+                    continue;
+                }
+                if (group.style === 'hguide') {
+                    const hp = group.points.filter(p => Number.isFinite(p.y));
+                    marks.push(Plot.ruleY(hp, {
+                        y: 'y', stroke: group.color ?? '#607d8b',
+                        strokeWidth: 1,
+                        strokeDasharray: group.dash ? '4,3' : undefined,
+                        title: (d: any) => `${d.label ?? group.label}: ${d.y}` }));
+                    marks.push(Plot.text(hp, {
+                        y: 'y', frameAnchor: 'right',
+                        text: (d: any) => d.label ?? group.label,
+                        dy: -6, dx: -4, textAnchor: 'end',
                         fontSize: 10,
                         fill: group.color ?? '#607d8b' }));
                     continue;

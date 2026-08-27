@@ -219,22 +219,30 @@ export class NamedGraphConfig {
         const first = rows[0] || {};
         const styleValue = gc.styleDimension
           ? String(first[gc.styleDimension]) : '';
-        // 'dot' | 'band' | 'guide' are mark families; anything
-        // else (incl. 'line') is a line. band rows carry lo/hi
-        // (their own columns, or the configured error columns);
-        // guide rows carry x + label.
-        const style: 'lineY' | 'dot' | 'band' | 'guide' =
+        // 'dot' | 'band' | 'guide' | 'hguide' are mark families;
+        // anything else (incl. 'line') is a line. band rows carry
+        // lo/hi (their own columns, or the configured error
+        // columns); guide rows carry x + label; hguide rows carry
+        // y + label (a horizontal reference such as "ideal = 1.0"
+        // on a score graph — fi-2).
+        const style: 'lineY' | 'dot' | 'band' | 'guide' | 'hguide' =
           styleValue === 'dot' || styleValue === 'band'
-          || styleValue === 'guide' ? styleValue : 'lineY';
+          || styleValue === 'guide' || styleValue === 'hguide'
+          ? styleValue : 'lineY';
         const loKey = gc.errorLoDimension || 'lo';
         const hiKey = gc.errorHiDimension || 'hi';
+        // A categorical x (term labels, cell names) stays a string
+        // so Plot builds an ordinal scale; numeric x sorts.
+        const asX = (v: any) => (typeof v === 'string' && isNaN(Number(v)))
+          ? v : Number(v);
         const points = rows.map(row => ({
-          x: Number(row[gc.xDimension]),
+          x: asX(row[gc.xDimension]),
           y: row[yDim] == null ? NaN : Number(row[yDim]),
           lo: row[loKey] != null ? Number(row[loKey]) : null,
           hi: row[hiKey] != null ? Number(row[hiKey]) : null,
           label: row['label'] != null ? String(row['label']) : undefined,
-        })).sort((a, b) => a.x - b.x);
+        })).sort((a, b) => (typeof a.x === 'number' && typeof b.x === 'number')
+          ? a.x - b.x : 0);
         figure.longForm.push({
           label, style, points,
           color: gc.seriesColors[i] || undefined,
