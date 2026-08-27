@@ -1,0 +1,115 @@
+<div class="fce">
+  <div *ngIf="listLoading" class="state">
+    <mat-spinner diameter="28"></mat-spinner>
+  </div>
+  <div *ngIf="listError" class="state error">{{ listError }}</div>
+
+  <div class="fce-grid" *ngIf="!listLoading && !listError">
+
+    <!-- Left rail: characteristics grouped in the backend's order. -->
+    <nav class="rail" aria-label="Characteristics">
+      <div class="rail-group" *ngFor="let g of groups; trackBy: trackGroup">
+        <div class="rail-heading">{{ g.name }}</div>
+        <button type="button" class="rail-item"
+                *ngFor="let c of g.items; trackBy: trackKey"
+                [class.selected]="c.key === selectedKey"
+                [attr.aria-current]="c.key === selectedKey ? 'true' : null"
+                (click)="select(c.key)">
+          <span class="rail-name">{{ c.display_name }}</span>
+          <span class="rail-meaning" *ngIf="c.performance_meaning">
+            {{ c.performance_meaning }}</span>
+        </button>
+      </div>
+      <div class="state" *ngIf="groups.length === 0">
+        No characteristics listed for {{ device }}.
+      </div>
+    </nav>
+
+    <!-- Right: the selected characteristic and its resolved views. -->
+    <section class="detail">
+      <div *ngIf="detailLoading" class="state">
+        <mat-spinner diameter="28"></mat-spinner>
+      </div>
+      <div *ngIf="detailError" class="state error">{{ detailError }}</div>
+
+      <ng-container *ngIf="detail && !detailLoading && !detailError">
+        <header class="detail-head">
+          <h3>{{ detail.display_name }}</h3>
+          <span class="chip chip-outline">{{ detail.group }}</span>
+          <span class="chip" *ngIf="detail.fidelity"
+                title="fidelity">{{ detail.fidelity }}</span>
+        </header>
+
+        <p class="description" *ngIf="detail.description">
+          {{ detail.description }}</p>
+
+        <div class="callout" *ngIf="detail.performance_meaning">
+          <div class="callout-label">What it means for performance</div>
+          <div>{{ detail.performance_meaning }}</div>
+        </div>
+
+        <pre class="equation" *ngIf="detail.equation">{{ detail.equation }}</pre>
+
+        <div class="related" *ngIf="relatedChips().length">
+          <span class="chip is-muted" *ngFor="let r of relatedChips()"
+                [attr.title]="r.kind">
+            <em>{{ r.kind }}</em> {{ r.label }}
+          </span>
+        </div>
+
+        <ul class="citations" *ngIf="detail.citations?.length">
+          <li *ngFor="let c of detail.citations">
+            <a *ngIf="citationHref(c); else plainCite"
+               [href]="citationHref(c)" target="_blank" rel="noopener">
+              {{ citationText(c) }}</a>
+            <ng-template #plainCite>{{ citationText(c) }}</ng-template>
+          </li>
+        </ul>
+
+        <div class="views">
+          <article class="view-card" *ngFor="let v of visibleViews"
+                   [class.unbuilt]="v.status === 'unbuilt'">
+            <div class="view-title">
+              {{ v.title }}
+              <span class="chip is-muted">{{ v.kind }}</span>
+              <span class="chip is-warn" *ngIf="v.status === 'unbuilt'">unbuilt</span>
+            </div>
+            <p class="view-why" *ngIf="v.why">{{ v.why }}</p>
+
+            <ng-container *ngIf="v.status === 'ready'; else unbuiltTpl">
+              <named-graph-panel *ngIf="v.kind === 'graph'"
+                                 [graphName]="v.graphName || ''"
+                                 [dataPath]="v.dataPath || ''">
+              </named-graph-panel>
+              <api-json-panel *ngIf="v.kind === 'api'"
+                              [path]="v.dataPath"></api-json-panel>
+              <ng-container *ngIf="v.kind === 'simspace'">
+                <div class="sim-host">
+                  <sim-space-viewer [simSpaceName]="v.simSpaceName"
+                                    [run]="v.run"
+                                    [hideRunPanel]="true"
+                                    [clickNavigates]="false">
+                  </sim-space-viewer>
+                </div>
+                <p class="view-field" *ngIf="v.field">field: {{ v.field }}</p>
+              </ng-container>
+            </ng-container>
+
+            <ng-template #unbuiltTpl>
+              <div class="placeholder">
+                View not built on this node<ng-container *ngIf="v.owner">
+                  — owner: {{ v.owner }}</ng-container>.
+              </div>
+            </ng-template>
+          </article>
+
+          <div class="state" *ngIf="visibleViews.length === 0">
+            No views for this characteristic<ng-container
+              *ngIf="hideUnbuilt && detail.unbuiltViews?.length">
+              ({{ detail.unbuiltViews?.length }} unbuilt hidden)</ng-container>.
+          </div>
+        </div>
+      </ng-container>
+    </section>
+  </div>
+</div>

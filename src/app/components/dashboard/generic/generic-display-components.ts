@@ -2,6 +2,7 @@ import { registerDisplayComponent } from '@models/dashboards/ComponentRegistry';
 import { ZonesBoardComponent } from '@components/zones/zones-board.component';
 import { ApiJsonPanelComponent } from './api-json-panel.component';
 import { ClassRowsTableComponent } from './class-rows-table.component';
+import { FetCharacteristicExplorerComponent } from './fet-characteristic-explorer.component';
 import { MicrochipLadderComponent } from './microchip-ladder.component';
 import { NamedGraphPanelComponent } from './named-graph-panel.component';
 
@@ -68,5 +69,17 @@ export function registerGenericDisplayComponents(): void {
         + 'with resolved artifact + citation links (optional '
         + 'input: design)',
       defaultInputs: { design: '' },
+    });
+
+  registerDisplayComponent(
+    'fet-characteristic-explorer', FetCharacteristicExplorerComponent, {
+      displayName: 'FET characteristic explorer',
+      description: 'Grouped list of a device\'s characteristics; the '
+        + 'selected one renders its description, performance '
+        + 'meaning, equation, related chips, citations and its '
+        + 'backend-resolved views through named-graph-panel / '
+        + 'api-json-panel / sim-space-viewer (inputs: device, '
+        + 'optional listPath, initialKey, hideUnbuilt)',
+      defaultInputs: { device: '', hideUnbuilt: false },
     });
 }
