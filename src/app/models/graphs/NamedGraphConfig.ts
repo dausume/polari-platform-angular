@@ -217,18 +217,23 @@ export class NamedGraphConfig {
       let i = 0;
       for (const [label, rows] of groups) {
         const first = rows[0] || {};
-        const style = gc.styleDimension
-          && String(first[gc.styleDimension]) === 'dot'
-          ? 'dot' : 'lineY';
+        const styleValue = gc.styleDimension
+          ? String(first[gc.styleDimension]) : '';
+        // 'dot' | 'band' | 'guide' are mark families; anything
+        // else (incl. 'line') is a line. band rows carry lo/hi
+        // (their own columns, or the configured error columns);
+        // guide rows carry x + label.
+        const style: 'lineY' | 'dot' | 'band' | 'guide' =
+          styleValue === 'dot' || styleValue === 'band'
+          || styleValue === 'guide' ? styleValue : 'lineY';
+        const loKey = gc.errorLoDimension || 'lo';
+        const hiKey = gc.errorHiDimension || 'hi';
         const points = rows.map(row => ({
           x: Number(row[gc.xDimension]),
-          y: Number(row[yDim]),
-          lo: gc.errorLoDimension
-            && row[gc.errorLoDimension] != null
-            ? Number(row[gc.errorLoDimension]) : null,
-          hi: gc.errorHiDimension
-            && row[gc.errorHiDimension] != null
-            ? Number(row[gc.errorHiDimension]) : null,
+          y: row[yDim] == null ? NaN : Number(row[yDim]),
+          lo: row[loKey] != null ? Number(row[loKey]) : null,
+          hi: row[hiKey] != null ? Number(row[hiKey]) : null,
+          label: row['label'] != null ? String(row['label']) : undefined,
         })).sort((a, b) => a.x - b.x);
         figure.longForm.push({
           label, style, points,

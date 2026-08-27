@@ -41,12 +41,17 @@ export interface PlotFigureOptions {
 /** One long-form series group (see PlotFigure.longForm). */
 export interface LongFormGroup {
     label: string;
-    /** Observable Plot mark family for this group. */
-    style: 'lineY' | 'dot';
+    /** Observable Plot mark family for this group.
+     *  band  = shaded lo..hi area over x (operating-state regions,
+     *          stochastic envelopes — fi-1);
+     *  guide = labelled vertical rule at each x (state boundaries
+     *          such as Vt, Vt+Vov_min — fi-1). */
+    style: 'lineY' | 'dot' | 'band' | 'guide';
     color?: string;
     dash?: boolean;
     points: Array<{ x: number; y: number;
-                    lo?: number | null; hi?: number | null }>;
+                    lo?: number | null; hi?: number | null;
+                    label?: string }>;
 }
 
 /**
@@ -201,6 +206,34 @@ export class PlotFigure {
         const Plot = PlotDimensionRenderer.getPlotLibrary();
         if (Plot && this.longForm.length) {
             for (const group of this.longForm) {
+                if (group.style === 'band') {
+                    // shaded region: x-interval(s) with a lo..hi
+                    // extent — drawn FIRST so lines stay on top.
+                    const band = group.points.filter(
+                        p => p.lo != null && p.hi != null);
+                    if (band.length) {
+                        marks.unshift(Plot.areaY(band, {
+                            x: 'x', y1: 'lo', y2: 'hi',
+                            fill: group.color ?? group.label,
+                            fillOpacity: 0.12,
+                            title: () => group.label }));
+                    }
+                    continue;
+                }
+                if (group.style === 'guide') {
+                    marks.push(Plot.ruleX(group.points, {
+                        x: 'x', stroke: group.color ?? '#607d8b',
+                        strokeWidth: 1,
+                        strokeDasharray: group.dash ? '4,3' : undefined,
+                        title: (d: any) => `${d.label ?? group.label}: ${d.x}` }));
+                    marks.push(Plot.text(group.points, {
+                        x: 'x', frameAnchor: 'top',
+                        text: (d: any) => d.label ?? group.label,
+                        dy: 8, dx: 4, textAnchor: 'start',
+                        fontSize: 10,
+                        fill: group.color ?? '#607d8b' }));
+                    continue;
+                }
                 const withErr = group.points.filter(
                     p => p.lo != null && p.hi != null);
                 if (withErr.length) {

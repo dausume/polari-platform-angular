@@ -16,6 +16,8 @@ interface PlotLibraryInterface {
     /** Vertical/horizontal rules — long-form error bars
      *  (PlotFigure.longForm) and reference lines. */
     ruleX(data: any, options?: any): any;
+    /** text labels (fi-1 guide labels). */
+    text(data: any, options?: any): any;
     ruleY(data: any, options?: any): any;
 }
 
