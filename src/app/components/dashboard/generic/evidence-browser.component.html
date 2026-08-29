@@ -90,7 +90,7 @@
       <div class="table-wrap">
         <table class="tbl">
           <thead>
-            <tr><th>subject</th><th>kind</th><th>status</th><th>IP verdict</th>
+            <tr><th>subject</th><th>kind</th><th>usable?</th><th>status</th><th>IP verdict</th>
                 <th>evidence / verified</th><th>gaps</th></tr>
           </thead>
           <tbody>
@@ -101,6 +101,13 @@
                 (keydown.enter)="selectSubject(s)" (keydown.space)="selectSubject(s); $event.preventDefault()">
               <td class="title">{{ s.subject }}</td>
               <td><span class="chip chip-outline">{{ s.subject_kind }}</span></td>
+              <td [attr.title]="s.usage?.statement">
+                <span class="chip chip-strong" *ngIf="s.usage"
+                      [ngClass]="s.usage.usable_in_open_chips ? 'is-ok'
+                                 : (s.usage.intended_use === 'reference-only' ? 'is-muted' : 'is-warn')">
+                  {{ s.usage.usable_in_open_chips ? 'usable'
+                     : (s.usage.intended_use === 'reference-only' ? 'reference' : 'not yet') }}
+                </span></td>
               <td><span class="chip chip-strong" [ngClass]="statusClass(s.status)">
                 {{ s.status }}</span></td>
               <td>{{ s.ipVerdict || '' }}</td>

@@ -157,3 +157,9 @@
   border-top: 1px solid var(--border-light);
   padding-top: 6px;
 }
+
+/* usable-vs-reference binary (Dustin 2026-08-29): the first thing a reader sees */
+.usage { display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+         margin: 0 0 10px; font-size: 1.02em; }
+.usage .usage-text { color: var(--text-on-card); }
+.usage.is-reference .usage-text { color: var(--text-on-card-muted); }

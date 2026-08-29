@@ -1,3 +1,11 @@
+export interface UsageBlock {
+  intended_use: 'open-chip-candidate' | 'reference-only';
+  intended_use_meaning?: string;
+  usable_in_open_chips: boolean;
+  statement: string;
+  jurisdiction?: string;
+}
+
 /**
  * Shared shapes + helpers for the freedom-to-use proof surfaces
  * (freedom-proof-panel, evidence-browser, evidence-detail-drawer).
@@ -42,6 +50,8 @@ export interface ProofPayload {
   subject: string;
   status: ProofStatus | string;
   rule_applied: string;
+  /** the usable-vs-reference binary (Dustin 2026-08-29) */
+  usage?: UsageBlock;
   chain: ProofRecord[];
   gaps: string[];
   self_manufacture_answer?: string;
@@ -84,6 +94,7 @@ export interface LibrarySubject {
   verifiedCount?: number;
   gaps?: string[] | number;
   detailPath: string;
+  usage?: UsageBlock;
 }
 
 export interface LibraryProofPayload {

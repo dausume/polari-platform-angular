@@ -16,6 +16,18 @@
             [attr.title]="'proof status: ' + proof.status">
         {{ statusLabel }}</span>
     </header>
+    <!-- the binary: can Polari / the OSEB actually USE this, or is it reference material? -->
+    <p class="usage" *ngIf="proof.usage"
+       [class.is-usable]="proof.usage.usable_in_open_chips"
+       [class.is-reference]="proof.usage.intended_use === 'reference-only'">
+      <span class="chip chip-strong"
+            [ngClass]="proof.usage.usable_in_open_chips ? 'is-ok'
+                       : (proof.usage.intended_use === 'reference-only' ? 'is-muted' : 'is-warn')">
+        {{ proof.usage.usable_in_open_chips ? 'USABLE in open chips'
+           : (proof.usage.intended_use === 'reference-only' ? 'REFERENCE ONLY' : 'CANDIDATE — not yet usable') }}
+      </span>
+      <span class="usage-text">{{ proof.usage.statement }}</span>
+    </p>
     <p class="rule" *ngIf="proof.rule_applied">
       <span class="rule-label">Rule applied</span> {{ proof.rule_applied }}</p>
 
