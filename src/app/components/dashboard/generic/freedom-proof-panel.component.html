@@ -1,0 +1,84 @@
+<div class="fpp">
+  <div *ngIf="loading" class="state">
+    <mat-spinner diameter="28"></mat-spinner>
+  </div>
+  <div *ngIf="error" class="state error">{{ error }}</div>
+
+  <ng-container *ngIf="proof && !loading && !error">
+    <!-- Header: subject + big status badge + the rule that decided it -->
+    <header class="head">
+      <div class="head-main">
+        <span class="chip chip-outline kind">{{ proof.subject_kind }}</span>
+        <h3>{{ heading }}</h3>
+      </div>
+      <span class="status-badge chip chip-strong"
+            [ngClass]="statusClass(proof.status)"
+            [attr.title]="'proof status: ' + proof.status">
+        {{ statusLabel }}</span>
+    </header>
+    <p class="rule" *ngIf="proof.rule_applied">
+      <span class="rule-label">Rule applied</span> {{ proof.rule_applied }}</p>
+
+    <!-- Chain: expandable record cards -->
+    <section class="chain" aria-label="Evidence chain">
+      <div class="section-label">Evidence chain
+        <span class="muted">({{ proof.chain.length }} records)</span></div>
+      <div class="state" *ngIf="proof.chain.length === 0">
+        No records in this chain.</div>
+
+      <article class="record" *ngFor="let rec of proof.chain; trackBy: trackRecord"
+               [class.expanded]="isExpanded(rec)">
+        <button type="button" class="record-head" (click)="toggle(rec)"
+                [attr.aria-expanded]="isExpanded(rec)">
+          <span class="caret" aria-hidden="true">{{ isExpanded(rec) ? '▾' : '▸' }}</span>
+          <span class="record-name">{{ rec.display_name || rec.record }}</span>
+          <span class="chip chip-strong" [ngClass]="verdictClass(rec.verdict)">
+            {{ rec.verdict }}</span>
+          <span class="chip is-muted" *ngIf="rec.ip_kind">{{ rec.ip_kind }}</span>
+          <span class="muted count">{{ rec.evidence?.length || 0 }} evidence</span>
+        </button>
+
+        <p class="reasoning" *ngIf="isExpanded(rec) && rec.fto_reasoning">
+          {{ rec.fto_reasoning }}</p>
+
+        <div class="chip-row evidence" *ngIf="rec.evidence?.length">
+          <button type="button" class="chip ev-chip"
+                  *ngFor="let ev of rec.evidence; trackBy: trackEvidence"
+                  [class.is-ok]="ev.verified"
+                  [class.active]="isOpen(rec, ev)"
+                  [attr.aria-pressed]="isOpen(rec, ev)"
+                  [attr.title]="evidenceTitle(ev)"
+                  (click)="openDetail(rec, ev)">
+            <b class="letter" [attr.aria-label]="ev.kind">{{ kindLetter(ev.kind) }}</b>
+            <span class="ref">{{ ev.ref || ev.name }}</span>
+            <span class="date" *ngIf="ev.date">{{ ev.date }}</span>
+            <span class="tick" *ngIf="ev.verified" title="verified">✓</span>
+          </button>
+        </div>
+
+        <evidence-detail-drawer *ngIf="drawerFor(rec) as dp"
+                                [detailPath]="dp"
+                                (closed)="closeDetail()">
+        </evidence-detail-drawer>
+      </article>
+    </section>
+
+    <!-- Gaps: what would make this proven-free -->
+    <section class="gaps" *ngIf="proof.gaps.length">
+      <div class="section-label">What would make this proven-free</div>
+      <ul class="checklist">
+        <li *ngFor="let g of proof.gaps">
+          <span class="box" aria-hidden="true">☐</span> {{ g }}</li>
+      </ul>
+    </section>
+    <div class="callout ok" *ngIf="!proof.gaps.length && proof.status === 'proven-free'">
+      No gaps — every link in the chain is verified.</div>
+
+    <div class="callout" *ngIf="proof.self_manufacture_answer">
+      <div class="callout-label">Can I make this myself?</div>
+      <div>{{ proof.self_manufacture_answer }}</div>
+    </div>
+
+    <footer class="disclaimer" *ngIf="proof.disclaimer">{{ proof.disclaimer }}</footer>
+  </ng-container>
+</div>

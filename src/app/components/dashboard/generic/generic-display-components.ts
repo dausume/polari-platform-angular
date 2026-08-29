@@ -4,7 +4,9 @@ import { ApiJsonPanelComponent } from './api-json-panel.component';
 import { CellLogicDiagramComponent } from './cell-logic-diagram.component';
 import { CellSchematicComponent } from './cell-schematic.component';
 import { ClassRowsTableComponent } from './class-rows-table.component';
+import { EvidenceBrowserComponent } from './evidence-browser.component';
 import { FetCharacteristicExplorerComponent } from './fet-characteristic-explorer.component';
+import { FreedomProofPanelComponent } from './freedom-proof-panel.component';
 import { MicrochipLadderComponent } from './microchip-ladder.component';
 import { NamedGraphPanelComponent } from './named-graph-panel.component';
 
@@ -108,5 +110,30 @@ export function registerGenericDisplayComponents(): void {
         + 'Y→VDD/GND path (inputs: cell, drive, optional path, '
         + 'highlightVector)',
       defaultInputs: { cell: 'cinv', drive: 1 },
+    });
+
+  registerDisplayComponent(
+    'freedom-proof-panel', FreedomProofPanelComponent, {
+      displayName: 'Freedom-to-use proof (evidence chain)',
+      description: 'GET a proof endpoint (/api/cntfet/device/{name}/proof '
+        + 'or /api/cntfet/cell/{cell}/proof) and render subject + '
+        + 'status badge + rule applied, the evidence chain as '
+        + 'expandable record cards (verdict chips, fto reasoning, '
+        + 'clickable evidence chips opening an inline detail drawer), '
+        + 'gaps checklist, self-manufacture answer and disclaimer '
+        + '(inputs: path, optional title)',
+      defaultInputs: { path: '' },
+    });
+
+  registerDisplayComponent(
+    'evidence-browser', EvidenceBrowserComponent, {
+      displayName: 'Evidence browser (patents, papers, licences)',
+      description: 'Two tabs over the evidence library: Evidence '
+        + '(filter by kind / verified / search; rows open the shared '
+        + 'evidence detail drawer) and Proof status (per-subject '
+        + 'status table; rows load an embedded freedom-proof-panel), '
+        + 'with status counts on top (inputs: optional path, '
+        + 'libraryProofPath)',
+      defaultInputs: {},
     });
 }

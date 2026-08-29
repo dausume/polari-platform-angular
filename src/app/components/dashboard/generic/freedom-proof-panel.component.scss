@@ -1,0 +1,159 @@
+/* Layout follows the HOST width (container query), not the viewport. */
+.fpp {
+  display: block;
+  container-type: inline-size;
+  color: var(--text-on-card);
+  min-width: 0;
+}
+
+.state { padding: 16px; color: var(--text-on-card-muted); }
+.state.error { color: var(--color-error-text); }
+.muted { color: var(--text-on-card-muted); }
+
+/* ---- Header ------------------------------------------------------- */
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.head-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.head h3 { margin: 0; font-size: 1.15em; overflow-wrap: anywhere; }
+
+.status-badge {
+  font-size: 15px;
+  padding: 4px 14px;
+  border-radius: 14px;
+  text-transform: capitalize;
+}
+
+.rule {
+  margin: 0 0 14px;
+  line-height: 1.5;
+}
+.rule-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-on-card-muted);
+  margin-right: 6px;
+}
+
+.section-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-on-card-muted);
+  margin: 0 0 6px;
+}
+
+/* ---- Chain -------------------------------------------------------- */
+.chain { display: grid; gap: 8px; margin-bottom: 14px; }
+
+.record {
+  border: 1px solid var(--surface-outline);
+  border-radius: 8px;
+  background: var(--surface-primary);
+  padding: 6px 10px 8px;
+  min-width: 0;
+}
+.record.expanded { border-color: var(--border-medium); }
+
+.record-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 4px 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.record-head:focus-visible { outline: 2px solid var(--primary-color); border-radius: 4px; }
+.caret { width: 1em; color: var(--text-on-card-muted); }
+.record-name { font-weight: 600; flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.count { font-size: 11px; }
+
+.reasoning {
+  margin: 4px 0 8px 1.4em;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-on-card-muted);
+}
+
+.chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.evidence { margin-left: 1.4em; }
+
+/* Evidence chips are BUTTONS (keyboard reachable). */
+.ev-chip {
+  border: 1px solid var(--border-dark);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  color: var(--text-on-card);
+}
+.ev-chip:hover { background: var(--surface-hover); }
+.ev-chip:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 1px; }
+.ev-chip.active { border-color: var(--primary-color); box-shadow: 0 0 0 1px var(--primary-color) inset; }
+.ev-chip .letter {
+  display: inline-block;
+  min-width: 1.2em;
+  text-align: center;
+  border-radius: 4px;
+  background: var(--surface-tertiary);
+  font-weight: 700;
+}
+.ev-chip .date { opacity: 0.7; }
+.ev-chip .tick { color: var(--color-success-text); font-weight: 700; }
+
+@container (max-width: 480px) {
+  .evidence, .reasoning { margin-left: 0; }
+  .status-badge { font-size: 13px; }
+}
+
+/* ---- Gaps / callouts / footer ------------------------------------ */
+.gaps { margin-bottom: 12px; }
+.checklist { list-style: none; margin: 0; padding: 0; }
+.checklist li {
+  padding: 4px 0;
+  border-bottom: 1px dashed var(--border-light);
+  line-height: 1.4;
+}
+.checklist .box { margin-right: 6px; color: var(--color-warn-text); }
+
+.callout {
+  border-left: 4px solid var(--primary-color);
+  background: var(--surface-secondary);
+  padding: 8px 12px;
+  border-radius: 0 6px 6px 0;
+  margin-bottom: 12px;
+}
+.callout.ok { border-left-color: var(--color-success); color: var(--color-success-text); }
+.callout-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-on-card-muted);
+  margin-bottom: 4px;
+}
+
+.disclaimer {
+  font-size: 11px;
+  color: var(--text-on-card-muted);
+  border-top: 1px solid var(--border-light);
+  padding-top: 6px;
+}

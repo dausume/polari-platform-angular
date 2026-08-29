@@ -1,0 +1,126 @@
+/* Layout follows the HOST width (container query), not the viewport. */
+.evb {
+  display: block;
+  container-type: inline-size;
+  color: var(--text-on-card);
+  min-width: 0;
+}
+
+.state { padding: 16px; color: var(--text-on-card-muted); }
+.state.error { color: var(--color-error-text); }
+.muted { color: var(--text-on-card-muted); }
+.mono { font-family: monospace; font-size: 12px; }
+
+/* ---- Summary ------------------------------------------------------ */
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-bottom: 10px;
+}
+.stat { display: flex; align-items: center; gap: 6px; }
+.stat-n { font-size: 1.2em; font-weight: 700; }
+
+/* ---- Tabs --------------------------------------------------------- */
+.tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border-medium);
+  margin-bottom: 10px;
+}
+.tab {
+  font: inherit;
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 6px 12px;
+  color: var(--text-on-card-muted);
+  cursor: pointer;
+}
+.tab:hover { background: var(--surface-hover); }
+.tab.active {
+  color: var(--text-on-card);
+  border-bottom-color: var(--primary-color);
+  font-weight: 600;
+}
+.tab:focus-visible { outline: 2px solid var(--primary-color); outline-offset: -2px; }
+
+/* ---- Filters ------------------------------------------------------ */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--text-on-card-muted);
+}
+.filters label { display: flex; flex-direction: column; gap: 2px; }
+.filters label.check { flex-direction: row; align-items: center; gap: 6px; }
+.filters .grow { flex: 1 1 200px; }
+.filters select, .filters input[type="search"] {
+  font: inherit;
+  font-size: 13px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border-dark);
+  background: var(--surface-primary);
+  color: var(--text-on-card);
+}
+
+/* ---- Tables ------------------------------------------------------- */
+.table-wrap { overflow-x: auto; max-width: 100%; }
+
+.tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.tbl th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-on-card-muted);
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-medium);
+  white-space: nowrap;
+}
+.tbl td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-light);
+  vertical-align: top;
+}
+.tbl .num { text-align: right; white-space: nowrap; }
+.tbl .title { font-weight: 600; min-width: 160px; }
+.tbl .proves { color: var(--text-on-card-muted); }
+.tick { color: var(--color-success-text); font-weight: 700; }
+
+.row { cursor: pointer; }
+.row:hover { background: var(--surface-hover); }
+.row.selected { background: var(--surface-secondary); }
+.row:focus-visible { outline: 2px solid var(--primary-color); outline-offset: -2px; }
+
+@container (max-width: 560px) {
+  .tbl .proves { display: none; }
+  .summary { gap: 6px 10px; }
+  .stat-n { font-size: 1em; }
+}
+
+/* ---- Embedded proof panel ----------------------------------------- */
+.embedded {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-medium);
+  border-radius: 8px;
+  background: var(--surface-primary);
+}
+
+.disclaimer {
+  font-size: 11px;
+  color: var(--text-on-card-muted);
+  border-top: 1px solid var(--border-light);
+  padding-top: 6px;
+  margin-top: 10px;
+}

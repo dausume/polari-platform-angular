@@ -1,0 +1,55 @@
+<aside class="edd" role="dialog" aria-label="Evidence detail" aria-modal="false">
+  <header class="edd-head">
+    <div class="edd-title">
+      <span class="chip chip-outline kind" *ngIf="item">
+        {{ kindLetter(item.kind) }} · {{ item.kind }}</span>
+      <strong *ngIf="item">{{ item.title || item.name }}</strong>
+      <span *ngIf="!item" class="muted">Evidence</span>
+    </div>
+    <div class="edd-actions">
+      <a *ngIf="item?.url" class="btn" [href]="item?.url"
+         target="_blank" rel="noopener" title="Open source in a new tab">
+        Open source ↗</a>
+      <button type="button" class="btn" (click)="close()" aria-label="Close">
+        Close ✕</button>
+    </div>
+  </header>
+
+  <div *ngIf="loading" class="state">
+    <mat-spinner diameter="24"></mat-spinner>
+  </div>
+  <div *ngIf="error" class="state error">{{ error }}</div>
+
+  <ng-container *ngIf="detail && !loading && !error">
+    <dl class="kv">
+      <ng-container *ngFor="let f of fields">
+        <dt>{{ f.label }}</dt>
+        <dd [class.is-verified]="f.label === 'verified' && f.value === 'yes'">
+          {{ f.value }}</dd>
+      </ng-container>
+    </dl>
+
+    <section class="block" *ngIf="supportChips.length">
+      <div class="block-label">Supports</div>
+      <div class="chip-row">
+        <span class="chip is-muted" *ngFor="let c of supportChips"
+              [attr.title]="c.group">
+          <em>{{ c.group }}</em> {{ c.label }}</span>
+      </div>
+    </section>
+
+    <section class="block" *ngIf="detail.citedBy?.length">
+      <div class="block-label">Cited by</div>
+      <ul class="cited">
+        <li *ngFor="let c of detail.citedBy">
+          <span class="muted">{{ c.className }}</span>
+          {{ c.display_name || c.name }}
+          <span class="muted" *ngIf="c.display_name">({{ c.name }})</span>
+        </li>
+      </ul>
+    </section>
+
+    <footer class="disclaimer" *ngIf="detail.disclaimer">
+      {{ detail.disclaimer }}</footer>
+  </ng-container>
+</aside>

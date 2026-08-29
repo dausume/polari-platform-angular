@@ -1,0 +1,123 @@
+<div class="evb">
+  <!-- Status summary (library counts) -->
+  <div class="summary" aria-label="Proof status counts">
+    <div class="stat" *ngFor="let s of statuses">
+      <span class="chip chip-strong" [ngClass]="statusClass(s)">
+        {{ s.replace('-', ' ') }}</span>
+      <span class="stat-n">
+        <ng-container *ngIf="!libLoading; else dash">{{ countFor(s) }}</ng-container>
+        <ng-template #dash>–</ng-template>
+      </span>
+    </div>
+    <div class="stat" *ngIf="evidence">
+      <span class="chip chip-outline">evidence</span>
+      <span class="stat-n">{{ evidence.items.length }}
+        <small class="muted">({{ evidence.counts?.verified || 0 }} verified)</small></span>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs" role="tablist">
+    <button type="button" role="tab" class="tab"
+            [class.active]="tab === 'evidence'" [attr.aria-selected]="tab === 'evidence'"
+            (click)="setTab('evidence')">Evidence</button>
+    <button type="button" role="tab" class="tab"
+            [class.active]="tab === 'proof'" [attr.aria-selected]="tab === 'proof'"
+            (click)="setTab('proof')">Proof status</button>
+  </div>
+
+  <!-- ===== Evidence tab ===== -->
+  <section *ngIf="tab === 'evidence'" role="tabpanel">
+    <div class="filters">
+      <label>Kind
+        <select [(ngModel)]="kindFilter">
+          <option value="">all</option>
+          <option *ngFor="let k of kinds" [value]="k">{{ k }}</option>
+        </select>
+      </label>
+      <label class="check">
+        <input type="checkbox" [(ngModel)]="verifiedOnly"> verified only
+      </label>
+      <label class="grow">Search
+        <input type="search" [(ngModel)]="search" placeholder="title, ref, parties, proves…">
+      </label>
+    </div>
+
+    <div *ngIf="evLoading" class="state"><mat-spinner diameter="28"></mat-spinner></div>
+    <div *ngIf="evError" class="state error">{{ evError }}</div>
+
+    <ng-container *ngIf="evidence && !evLoading && !evError">
+      <div class="table-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>kind</th><th>title</th><th>ref</th><th>date</th>
+                <th>proves</th><th>subjects</th><th>verified</th></tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let it of filteredItems; trackBy: trackItem"
+                class="row" tabindex="0"
+                [class.selected]="openName === it.name"
+                (click)="openItem(it)"
+                (keydown.enter)="openItem(it)" (keydown.space)="openItem(it); $event.preventDefault()">
+              <td><span class="chip chip-outline kind">
+                {{ kindLetter(it.kind) }} · {{ it.kind }}</span></td>
+              <td class="title">{{ it.title || it.name }}</td>
+              <td class="mono">{{ it.ref }}</td>
+              <td>{{ it.date }}</td>
+              <td class="proves">{{ it.proves }}</td>
+              <td class="num">{{ it.subjectsCount ?? '' }}</td>
+              <td><span class="tick" *ngIf="it.verified" title="verified">✓</span>
+                  <span class="muted" *ngIf="!it.verified">–</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="state" *ngIf="filteredItems.length === 0">
+        No evidence matches the current filters.</div>
+
+      <evidence-detail-drawer *ngIf="openDetailPath"
+                              [detailPath]="openDetailPath"
+                              (closed)="closeItem()"></evidence-detail-drawer>
+    </ng-container>
+  </section>
+
+  <!-- ===== Proof status tab ===== -->
+  <section *ngIf="tab === 'proof'" role="tabpanel">
+    <div *ngIf="libLoading" class="state"><mat-spinner diameter="28"></mat-spinner></div>
+    <div *ngIf="libError" class="state error">{{ libError }}</div>
+
+    <ng-container *ngIf="library && !libLoading && !libError">
+      <div class="table-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>subject</th><th>kind</th><th>status</th><th>IP verdict</th>
+                <th>evidence / verified</th><th>gaps</th></tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let s of library.subjects; trackBy: trackSubject"
+                class="row" tabindex="0"
+                [class.selected]="selectedSubject?.detailPath === s.detailPath"
+                (click)="selectSubject(s)"
+                (keydown.enter)="selectSubject(s)" (keydown.space)="selectSubject(s); $event.preventDefault()">
+              <td class="title">{{ s.subject }}</td>
+              <td><span class="chip chip-outline">{{ s.subject_kind }}</span></td>
+              <td><span class="chip chip-strong" [ngClass]="statusClass(s.status)">
+                {{ s.status }}</span></td>
+              <td>{{ s.ipVerdict || '' }}</td>
+              <td class="num">{{ s.evidenceCount ?? 0 }} / {{ s.verifiedCount ?? 0 }}</td>
+              <td class="num">{{ gapCount(s.gaps) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="state" *ngIf="library.subjects.length === 0">
+        No subjects in the proof library.</div>
+
+      <div class="embedded" *ngIf="selectedSubject">
+        <freedom-proof-panel [path]="selectedSubject.detailPath"></freedom-proof-panel>
+      </div>
+
+      <footer class="disclaimer" *ngIf="library.disclaimer">{{ library.disclaimer }}</footer>
+    </ng-container>
+  </section>
+</div>
