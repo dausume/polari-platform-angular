@@ -235,14 +235,23 @@ export class NamedGraphConfig {
         // so Plot builds an ordinal scale; numeric x sorts.
         const asX = (v: any) => (typeof v === 'string' && isNaN(Number(v)))
           ? v : Number(v);
+        // Absent / null values become NaN (never 0 — a 0 on a log
+        // axis would poison the domain); the marks skip non-finite
+        // points per axis (PlotFigure.axisValueOk).
+        const asNum = (v: any) => (v == null || v === '') ? NaN : Number(v);
         const points = rows.map(row => ({
           x: asX(row[gc.xDimension]),
-          y: row[yDim] == null ? NaN : Number(row[yDim]),
-          lo: row[loKey] != null ? Number(row[loKey]) : null,
-          hi: row[hiKey] != null ? Number(row[hiKey]) : null,
+          y: asNum(row[yDim]),
+          lo: row[loKey] != null ? asNum(row[loKey]) : null,
+          hi: row[hiKey] != null ? asNum(row[hiKey]) : null,
           label: row['label'] != null ? String(row['label']) : undefined,
-        })).sort((a, b) => (typeof a.x === 'number' && typeof b.x === 'number')
-          ? a.x - b.x : 0);
+        })).sort((a, b) => {
+          if (typeof a.x !== 'number' || typeof b.x !== 'number') { return 0; }
+          // non-finite x sorts last, and never breaks the comparator
+          const af = Number.isFinite(a.x), bf = Number.isFinite(b.x);
+          if (af && bf) { return a.x - b.x; }
+          return af ? -1 : (bf ? 1 : 0);
+        });
         figure.longForm.push({
           label, style, points,
           color: gc.seriesColors[i] || undefined,

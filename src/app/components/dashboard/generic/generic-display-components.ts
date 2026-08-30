@@ -1,11 +1,13 @@
 import { registerDisplayComponent } from '@models/dashboards/ComponentRegistry';
 import { ZonesBoardComponent } from '@components/zones/zones-board.component';
 import { ApiJsonPanelComponent } from './api-json-panel.component';
+import { ApiStructuredPanelComponent } from './api-structured-panel.component';
 import { CellLogicDiagramComponent } from './cell-logic-diagram.component';
 import { CellSchematicComponent } from './cell-schematic.component';
 import { ClassRowsTableComponent } from './class-rows-table.component';
 import { EvidenceBrowserComponent } from './evidence-browser.component';
 import { FetCharacteristicExplorerComponent } from './fet-characteristic-explorer.component';
+import { FetOverviewComponent } from './fet-overview.component';
 import { FreedomProofPanelComponent } from './freedom-proof-panel.component';
 import { MicrochipLadderComponent } from './microchip-ladder.component';
 import { NamedGraphPanelComponent } from './named-graph-panel.component';
@@ -49,6 +51,33 @@ export function registerGenericDisplayComponents(): void {
       description: 'GET a backend path and render flat fields as '
         + 'key/values + nested structure as JSON (input: path)',
       defaultInputs: { path: '' },
+    });
+
+  registerDisplayComponent(
+    'api-structured-panel', ApiStructuredPanelComponent, {
+      displayName: 'API structured panel (chips / tables)',
+      description: 'GET a backend path, optionally descend to a '
+        + 'dot-path (pick, e.g. idealTable or ranking) and render it '
+        + 'through structured-payload-panel: scalars as chips, prose '
+        + 'as paragraphs, record arrays as tables, nested objects as '
+        + 'key/value — no JSON blobs; ok:false errors verbatim '
+        + '(inputs: path, optional title, pick, hideKeys)',
+      defaultInputs: { path: '', title: '', pick: '', hideKeys: [] },
+    });
+
+  registerDisplayComponent(
+    'fet-overview', FetOverviewComponent, {
+      displayName: 'FET overview (generic, all FETs)',
+      description: 'One display for every FET (CNT or Si): header '
+        + 'chips (technology, polarity, shape, optimization class, '
+        + 'usable / candidate / reference, proof status), key numbers '
+        + 'vs ideal with normalized bars, validity proofs, operating '
+        + 'regions, sub-displays chosen by the device\'s own '
+        + 'optimization class (switching: transfer-states + score '
+        + 'terms + power; signal: signal terms + output states + '
+        + 'signal score), transport regime line, competitive ranking, '
+        + 'cell coverage, freedom proof, links strip (input: device)',
+      defaultInputs: { device: '' },
     });
 
   registerDisplayComponent(

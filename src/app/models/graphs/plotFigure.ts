@@ -208,28 +208,43 @@ export class PlotFigure {
             .filter(mark => mark !== null);
         const Plot = PlotDimensionRenderer.getPlotLibrary();
         if (Plot && this.longForm.length) {
+            const xOk = (v: any) => this.axisValueOk(v, this.options.xType === 'log');
+            const yOk = (v: any) => this.axisValueOk(v, this.options.yType === 'log');
             for (const group of this.longForm) {
+                // The series COLOUR. A configured colour is a constant;
+                // without one the series label drives Plot's categorical
+                // colour scale (distinct colour per series, legend-able).
+                // It must be a FUNCTION: a bare label string that is not
+                // a CSS colour is read by Plot as a FIELD NAME, resolves
+                // to undefined on every row, and the mark's `defined`
+                // filter then drops every point — the "only the guides
+                // render" bug on the transfer-states graphs.
+                const paint = this.seriesPaint(group);
                 if (group.style === 'band') {
                     // shaded region: x-interval(s) with a lo..hi
                     // extent — drawn FIRST so lines stay on top.
+                    // Non-finite (or, on a log axis, non-positive)
+                    // bounds are skipped, never fed to the scale.
                     const band = group.points.filter(
-                        p => p.lo != null && p.hi != null);
+                        p => xOk(p.x) && yOk(p.lo) && yOk(p.hi));
                     if (band.length) {
                         marks.unshift(Plot.areaY(band, {
                             x: 'x', y1: 'lo', y2: 'hi',
-                            fill: group.color ?? group.label,
+                            fill: paint,
                             fillOpacity: 0.12,
                             title: () => group.label }));
                     }
                     continue;
                 }
                 if (group.style === 'guide') {
-                    marks.push(Plot.ruleX(group.points, {
+                    const gp = group.points.filter(p => xOk(p.x));
+                    if (!gp.length) { continue; }
+                    marks.push(Plot.ruleX(gp, {
                         x: 'x', stroke: group.color ?? '#607d8b',
                         strokeWidth: 1,
                         strokeDasharray: group.dash ? '4,3' : undefined,
                         title: (d: any) => `${d.label ?? group.label}: ${d.x}` }));
-                    marks.push(Plot.text(group.points, {
+                    marks.push(Plot.text(gp, {
                         x: 'x', frameAnchor: 'top',
                         text: (d: any) => d.label ?? group.label,
                         dy: 8, dx: 4, textAnchor: 'start',
@@ -238,7 +253,8 @@ export class PlotFigure {
                     continue;
                 }
                 if (group.style === 'hguide') {
-                    const hp = group.points.filter(p => Number.isFinite(p.y));
+                    const hp = group.points.filter(p => yOk(p.y));
+                    if (!hp.length) { continue; }
                     marks.push(Plot.ruleY(hp, {
                         y: 'y', stroke: group.color ?? '#607d8b',
                         strokeWidth: 1,
@@ -253,29 +269,47 @@ export class PlotFigure {
                     continue;
                 }
                 const withErr = group.points.filter(
-                    p => p.lo != null && p.hi != null);
+                    p => xOk(p.x) && yOk(p.lo) && yOk(p.hi));
                 if (withErr.length) {
                     marks.push(Plot.ruleX(withErr, {
                         x: 'x', y1: 'lo', y2: 'hi',
                         strokeWidth: 1.5,
-                        stroke: group.color ?? group.label }));
+                        stroke: paint }));
                 }
+                // Per-mark point set: only values the axes can place.
+                const pts = group.points.filter(p => xOk(p.x) && yOk(p.y));
+                if (!pts.length) { continue; }
                 if (group.style === 'dot') {
-                    marks.push(Plot.dot(group.points, {
+                    marks.push(Plot.dot(pts, {
                         x: 'x', y: 'y', r: 3.5,
-                        fill: group.color ?? group.label,
+                        fill: paint,
                         title: (d: any) =>
                             `${group.label}: ${d.x}, ${d.y}` }));
                 } else {
-                    marks.push(Plot.lineY(group.points, {
+                    marks.push(Plot.lineY(pts, {
                         x: 'x', y: 'y', strokeWidth: 1.6,
-                        stroke: group.color ?? group.label,
+                        stroke: paint,
                         strokeDasharray: group.dash
                             ? '6,4' : undefined }));
                 }
             }
         }
         return marks;
+    }
+
+    /** Long-form points the axes can place: a finite number (positive
+     *  on a log axis) or a non-empty category label. null / NaN / a
+     *  log-floor zero never reach a scale domain. */
+    private axisValueOk(v: any, log: boolean): boolean {
+        if (typeof v === 'string') { return v !== ''; }
+        if (typeof v !== 'number' || !Number.isFinite(v)) { return false; }
+        return !log || v > 0;
+    }
+
+    /** Constant colour when configured, else an accessor returning the
+     *  series label so Plot builds a categorical colour scale. */
+    private seriesPaint(group: LongFormGroup): string | (() => string) {
+        return group.color ? group.color : () => group.label;
     }
 
     /**
@@ -325,6 +359,10 @@ export class PlotFigure {
                     ...(this.options.yType === 'log'
                         ? { type: 'log' } : {}),
                 },
+                // Long-form series are coloured through the categorical
+                // colour scale (see seriesPaint); the legend names them.
+                ...(this.longForm.length && (this.options.showLegend ?? true)
+                    ? { color: { legend: true } } : {}),
             });
         } catch (e) {
             console.error('[PlotFigure] Rendering failed:', e);

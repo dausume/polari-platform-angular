@@ -1,0 +1,262 @@
+<div class="fov">
+
+  <!-- a. HEADER -->
+  <header class="card head">
+    <div class="head-row">
+      <h2>{{ device || 'FET' }}</h2>
+      <span class="chip chip-outline">{{ technology }}</span>
+      <span class="chip chip-outline" *ngIf="polarity" title="polarity">{{ polarity }}-type</span>
+      <span class="chip chip-outline" *ngIf="shape" title="shape">{{ shape }}</span>
+      <span class="chip" *ngIf="optimizationLabel" [title]="optimizationWhy">{{ optimizationLabel }}</span>
+      <span class="chip chip-strong" [ngClass]="usageClass(usage)" *ngIf="usage"
+            [title]="usage.intended_use_meaning || ''">{{ usageLabel(usage) }}</span>
+      <span class="chip chip-strong" [ngClass]="statusClass(proofStatus)" *ngIf="proofStatus"
+            title="proof status">{{ proofStatus }}</span>
+    </div>
+    <p class="statement" *ngIf="usage?.statement">{{ usage.statement }}</p>
+    <div class="state error" *ngIf="slot('proof').error">{{ slot('proof').error }}</div>
+    <div class="state error" *ngIf="slot('taxonomy').error">{{ slot('taxonomy').error }}</div>
+    <div class="state error" *ngIf="slot('characterization').error">{{ slot('characterization').error }}</div>
+  </header>
+
+  <div class="grid">
+
+    <!-- b. KEY NUMBERS -->
+    <section class="card">
+      <div class="card-title">Key numbers vs ideal
+        <span class="headline" *ngIf="score !== null">
+          score <b>{{ fmt(score) }}</b>
+          <span class="chip chip-strong" [ngClass]="valid ? 'is-ok' : 'is-error'">
+            {{ valid ? 'valid' : 'not provable' }}</span>
+        </span>
+      </div>
+      <div *ngIf="slot('score').loading" class="state"><mat-spinner diameter="24"></mat-spinner></div>
+      <div *ngIf="slot('score').error" class="state error">{{ slot('score').error }}</div>
+      <div class="chip-row" *ngIf="failedProofs.length">
+        <span class="muted">failed proofs:</span>
+        <span class="chip is-error" *ngFor="let f of failedProofs">{{ f }}</span>
+      </div>
+      <div class="scroll-x" *ngIf="keyRows.length">
+        <table class="data-table-dashed key">
+          <tr><th>term</th><th>actual</th><th>ideal</th><th>distance</th><th>normalized</th></tr>
+          <tr *ngFor="let r of keyRows; trackBy: trackTerm" [title]="r.why || ''">
+            <td>{{ r.label }}<div class="eq" *ngIf="r.equation">{{ r.equation }}</div></td>
+            <td class="num">{{ fmt(r.actual, r.unit) }}</td>
+            <td class="num">{{ fmt(r.ideal, r.unit) }}</td>
+            <td class="num">{{ fmt(r.distance, r.unit) }}</td>
+            <td class="barcell">
+              <div class="bar"><div class="fill" [style.width]="pct(r.normalized)"></div></div>
+              <span class="num small">{{ fmt(r.normalized) }}</span>
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- c. VALIDITY PROOFS -->
+      <details class="proofs" *ngIf="checks.length">
+        <summary>Validity proofs ({{ checks.length }})</summary>
+        <ul>
+          <li *ngFor="let c of checks">
+            <span class="tick" [class.ok]="c.passed" [class.bad]="!c.passed">{{ c.passed ? '✓' : '✗' }}</span>
+            <b>{{ c.name }}</b>
+            <div class="eq" *ngIf="c.equation">{{ c.equation }}</div>
+            <div class="muted" *ngIf="c.why">{{ c.why }}</div>
+          </li>
+        </ul>
+      </details>
+    </section>
+
+    <!-- d. REGIONS -->
+    <section class="card">
+      <div class="card-title">Operating regions</div>
+      <div *ngIf="slot('taxonomy').loading" class="state"><mat-spinner diameter="24"></mat-spinner></div>
+      <div class="state" *ngIf="!slot('taxonomy').loading && !regions.length && !slot('taxonomy').error">
+        No regions reported for this device.</div>
+      <div class="scroll-x" *ngIf="regions.length">
+        <table class="data-table-dashed regions">
+          <tr><th>region</th><th>meaning</th><th>boundaries</th></tr>
+          <tr *ngFor="let r of regions">
+            <td><b>{{ r.display_name }}</b><div class="eq" *ngIf="r.criteria">{{ r.criteria }}</div></td>
+            <td>{{ r.meaning }}</td>
+            <td>
+              <div class="chip-row">
+                <span class="chip is-muted" *ngFor="let b of r.boundaries">
+                  <em>{{ b.label }}</em> {{ b.value }}</span>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </div>
+    </section>
+
+    <!-- e. CONDITIONAL SUB-DISPLAYS -->
+    <ng-container *ngIf="isSwitching">
+      <section class="card wide">
+        <div class="card-title">Transfer curve with operating states
+          <span class="chip">switching-optimized</span></div>
+        <named-graph-panel graphName="cnt-device-transfer-states"
+                           [dataPath]="points('transfer-states')"></named-graph-panel>
+      </section>
+      <section class="card">
+        <div class="card-title">Score terms vs ideal</div>
+        <named-graph-panel graphName="cnt-device-score-terms"
+                           [dataPath]="points('score-terms')"></named-graph-panel>
+        <p class="also" *ngIf="signalScore !== null">
+          Also: signal-quality score <b>{{ fmt(signalScore) }}</b>
+          <span class="muted">(what this device would score as an amplifier)</span></p>
+      </section>
+      <section class="card">
+        <div class="card-title">Power</div>
+        <div *ngIf="slot('power').loading" class="state"><mat-spinner diameter="24"></mat-spinner></div>
+        <div *ngIf="slot('power').error" class="state error">{{ slot('power').error }}</div>
+        <table class="data-table-dashed kv" *ngIf="powerFet.length">
+          <tr *ngFor="let p of powerFet" [title]="p.equation || ''">
+            <td class="k">{{ p.label }}</td><td class="num">{{ p.value }}</td></tr>
+        </table>
+        <div class="gaps" *ngIf="powerGaps.length">
+          <div class="sub-label">Named gaps</div>
+          <div class="muted" *ngFor="let g of powerGaps"><b>{{ g.label }}</b>: {{ g.text }}</div>
+        </div>
+        <div class="scroll-x" *ngIf="budgetRows.length">
+          <div class="sub-label">Budgets</div>
+          <table class="data-table-dashed">
+            <tr><th>subject</th><th>budget</th><th>result</th><th>checks</th></tr>
+            <tr *ngFor="let b of budgetRows">
+              <td>{{ b.subject }}</td>
+              <td>{{ b.budget }} <span class="muted">({{ b.scope }})</span></td>
+              <td><span class="chip chip-strong" [ngClass]="b.pass ? 'is-ok' : (b.failed.length ? 'is-error' : 'is-muted')">
+                {{ b.pass ? 'pass' : (b.failed.length ? 'fail' : 'unevaluated') }}</span></td>
+              <td><div class="chip-row">
+                <span class="chip" *ngFor="let c of b.checks"
+                      [ngClass]="c.pass === true ? 'is-ok' : (c.pass === false ? 'is-error' : 'is-muted')">
+                  <em>{{ c.limit }}</em> {{ c.text }}</span></div></td>
+            </tr>
+          </table>
+        </div>
+      </section>
+    </ng-container>
+
+    <ng-container *ngIf="isSignal">
+      <section class="card wide">
+        <div class="card-title">Signal terms vs ideal
+          <span class="chip">signal-optimized</span></div>
+        <named-graph-panel graphName="cnt-device-signal-terms"
+                           [dataPath]="points('signal-terms')"></named-graph-panel>
+      </section>
+      <section class="card">
+        <div class="card-title">Output curves with operating states</div>
+        <named-graph-panel graphName="cnt-device-output-states"
+                           [dataPath]="points('output-states')"></named-graph-panel>
+        <p class="also" *ngIf="switchingScore !== null">
+          Also: switching-quality score <b>{{ fmt(switchingScore) }}</b>
+          <span class="muted">(what this device would score as a switch)</span></p>
+      </section>
+      <section class="card">
+        <div class="card-title">Signal score
+          <span class="headline" *ngIf="signalScore !== null">score <b>{{ fmt(signalScore) }}</b></span></div>
+        <div *ngIf="slot('signal').loading" class="state"><mat-spinner diameter="24"></mat-spinner></div>
+        <div *ngIf="slot('signal').error" class="state error">{{ slot('signal').error }}</div>
+        <div class="scroll-x" *ngIf="signalRows.length">
+          <table class="data-table-dashed key">
+            <tr><th>term</th><th>actual</th><th>ideal</th><th>normalized</th></tr>
+            <tr *ngFor="let r of signalRows; trackBy: trackTerm" [title]="r.why || ''">
+              <td>{{ r.label }}<div class="eq" *ngIf="r.equation">{{ r.equation }}</div></td>
+              <td class="num">{{ fmt(r.actual, r.unit) }}</td>
+              <td class="num">{{ fmt(r.ideal, r.unit) }}</td>
+              <td class="barcell">
+                <div class="bar"><div class="fill" [style.width]="pct(r.normalized)"></div></div>
+                <span class="num small">{{ fmt(r.normalized) }}</span></td>
+            </tr>
+          </table>
+        </div>
+      </section>
+    </ng-container>
+
+    <!-- neither class known yet (taxonomy loading / refused): still show the transfer curve -->
+    <section class="card wide" *ngIf="!isSwitching && !isSignal && !slot('taxonomy').loading">
+      <div class="card-title">Transfer curve with operating states</div>
+      <named-graph-panel graphName="cnt-device-transfer-states"
+                         [dataPath]="points('transfer-states')"></named-graph-panel>
+    </section>
+
+    <!-- transport regime: a CNT line, or the backend's refusal in one muted line -->
+    <section class="card wide transport">
+      <div class="card-title">Transport regime <span class="muted">at Vg = Vd = 0.6 V</span></div>
+      <div *ngIf="slot('transport').loading" class="state"><mat-spinner diameter="20"></mat-spinner></div>
+      <p class="line" *ngIf="transportLine">{{ transportLine }}</p>
+      <p class="line muted" *ngIf="transportRefusal">{{ transportRefusal }}</p>
+    </section>
+
+    <!-- f. COMPETITIVE RANKING -->
+    <section class="card wide">
+      <div class="card-title">Competitive ranking
+        <span class="muted" *ngIf="focusRank !== null">rank {{ focusRank }} of {{ rankOf }}</span></div>
+      <div *ngIf="slot('compare').loading" class="state"><mat-spinner diameter="24"></mat-spinner></div>
+      <div *ngIf="slot('compare').error" class="state error">{{ slot('compare').error }}</div>
+      <p class="also" *ngIf="losesMostOn">Loses most on <b>{{ losesMostOn }}</b></p>
+      <div class="scroll-x" *ngIf="ranking.length">
+        <table class="data-table-dashed ranking">
+          <tr><th>#</th><th>device</th><th>score</th><th>valid</th><th>proof</th><th>usable</th></tr>
+          <tr *ngFor="let r of ranking; trackBy: trackRank" [class.focus]="r.isFocus">
+            <td class="num">{{ r.rank }}</td>
+            <td><a [routerLink]="scoreRoute(r.device)">{{ r.device }}</a>
+              <span class="chip is-muted" *ngIf="r.isFocus">this device</span></td>
+            <td class="barcell"><div class="bar"><div class="fill" [style.width]="pct(r.score)"></div></div>
+              <span class="num small">{{ fmt(r.score) }}</span></td>
+            <td><span class="chip" [ngClass]="r.valid ? 'is-ok' : 'is-error'"
+                      [title]="r.failed.join(', ')">{{ r.valid ? 'valid' : 'invalid' }}</span></td>
+            <td><span class="chip" [ngClass]="statusClass(r.proofStatus)" *ngIf="r.proofStatus">{{ r.proofStatus }}</span></td>
+            <td><span class="chip chip-strong" *ngIf="r.usable !== null"
+                      [ngClass]="r.usable ? 'is-ok' : 'is-warn'">{{ r.usageLabel }}</span></td>
+          </tr>
+        </table>
+      </div>
+    </section>
+
+    <!-- g. CELLS -->
+    <section class="card">
+      <div class="card-title">Cells built from it</div>
+      <div *ngIf="slot('coverage').loading" class="state"><mat-spinner diameter="24"></mat-spinner></div>
+      <div *ngIf="slot('coverage').error" class="state error">{{ slot('coverage').error }}</div>
+      <ng-container *ngIf="coverage">
+        <div class="cov-row">
+          <b>{{ coverage.covered }}</b> / {{ coverage.cellsTotal }} cells characterized
+          <a [routerLink]="'/display/cntfet-score-' + device" fragment="cells"
+             title="cell scores">cell scores</a>
+        </div>
+        <div class="bar tall"><div class="fill" [style.width]="pct(coverage.coverageFraction)"></div></div>
+        <div class="chip-row" *ngIf="missingCells.length">
+          <span class="muted">missing:</span>
+          <span class="chip is-warn" *ngFor="let m of missingCells"
+                [title]="m.fill || 'no fill action reported'">{{ m.cell }}<em *ngIf="m.kind"> {{ m.kind }}</em></span>
+        </div>
+        <div class="muted small" *ngIf="coverage.latestLibraryRun">run: {{ coverage.latestLibraryRun }}</div>
+      </ng-container>
+    </section>
+
+    <!-- i. LINKS -->
+    <section class="card">
+      <div class="card-title">Links</div>
+      <div *ngIf="slot('links').loading" class="state"><mat-spinner diameter="24"></mat-spinner></div>
+      <div *ngIf="slot('links').error" class="state error">{{ slot('links').error }}</div>
+      <div class="chip-row" *ngIf="pages.length">
+        <a class="chip chip-outline" *ngFor="let p of pages" [routerLink]="p.route" [title]="p.what || ''">{{ p.title }}</a>
+      </div>
+      <p class="line" *ngIf="partner">Complementary partner:
+        <a [routerLink]="scoreRoute(partner)">{{ partner }}</a>
+        <span class="muted" *ngIf="partnerRole"> — this device is the {{ partnerRole }}</span></p>
+      <details *ngIf="apiList.length">
+        <summary>API ({{ apiList.length }})</summary>
+        <ul class="api">
+          <li *ngFor="let a of apiList"><b>{{ a[0] }}</b> <code>{{ a[1] }}</code></li>
+        </ul>
+      </details>
+    </section>
+
+    <!-- h. PROOF -->
+    <section class="card wide">
+      <div class="card-title">Freedom to use</div>
+      <freedom-proof-panel [path]="path('/proof')"></freedom-proof-panel>
+    </section>
+  </div>
+</div>

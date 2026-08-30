@@ -1,0 +1,111 @@
+/* Layout responds to the HOST's width (container query), not the
+   viewport — a mesh/XR panel is not a phone. */
+.fov {
+  display: block;
+  container-type: inline-size;
+  color: var(--text-on-card);
+  min-width: 0;
+}
+
+.card {
+  border: 1px solid var(--surface-outline);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--surface-primary);
+  min-width: 0;
+}
+.head { margin-bottom: 12px; }
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+@container (min-width: 760px) {
+  .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .card.wide { grid-column: 1 / -1; }
+}
+
+.head-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.head-row h2 { margin: 0; font-size: 1.25em; }
+.statement { margin: 8px 0 0; line-height: 1.5; }
+
+.card-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.headline { margin-left: auto; font-weight: 400; display: inline-flex; gap: 6px; align-items: center; }
+.sub-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-on-card-muted);
+  margin: 8px 0 3px;
+}
+
+.state { padding: 8px 0; color: var(--text-on-card-muted); }
+.state.error { color: var(--color-error-text); white-space: pre-wrap; }
+.muted { color: var(--text-on-card-muted); }
+.small { font-size: 11px; }
+.line { margin: 4px 0; line-height: 1.5; }
+.also { margin: 8px 0 0; font-size: 12.5px; }
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin: 4px 0;
+}
+.chip em { font-style: normal; opacity: 0.75; margin-right: 3px; }
+a.chip { text-decoration: none; color: inherit; }
+
+.scroll-x { overflow-x: auto; max-width: 100%; }
+table { width: 100%; }
+td.num, .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+td.k { color: var(--text-on-card-muted); white-space: nowrap; }
+.eq {
+  font-family: monospace;
+  font-size: 11px;
+  color: var(--text-on-card-muted);
+  white-space: pre-wrap;
+}
+.regions td { vertical-align: top; }
+.ranking tr.focus td { background: var(--surface-secondary); font-weight: 600; }
+.ranking a, .cov-row a, .line a { color: var(--primary-color); }
+
+/* normalized 0..1 bars */
+.barcell { min-width: 120px; }
+.bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface-secondary);
+  border: 1px solid var(--surface-outline);
+  overflow: hidden;
+  margin-bottom: 2px;
+}
+.bar.tall { height: 10px; margin: 6px 0; }
+.bar .fill { height: 100%; background: var(--primary-color); }
+
+.proofs { margin-top: 10px; }
+.proofs summary, details summary { cursor: pointer; font-size: 12px; color: var(--text-on-card-muted); }
+.proofs ul, .api { margin: 6px 0 0; padding-left: 0; list-style: none; }
+.proofs li { margin: 6px 0; padding-left: 22px; position: relative; }
+.tick { position: absolute; left: 0; font-weight: 700; }
+.tick.ok { color: var(--color-success-text, var(--primary-color)); }
+.tick.bad { color: var(--color-error-text); }
+.api li { font-size: 12px; margin: 2px 0; word-break: break-all; }
+.api code { font-size: 11px; }
+
+.cov-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
+.gaps { margin-top: 8px; font-size: 12px; }
+.transport .line { font-size: 13px; }
