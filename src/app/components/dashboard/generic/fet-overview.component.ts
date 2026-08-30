@@ -23,11 +23,12 @@ const SLOT_PATHS: Record<string, string> = {
   compare: '/compare',
   proof: '/proof',
   power: '/power',
+  fo4: '/fo4',
   characterization: '/characterization',
   links: '/links',
   coverage: '/cell-coverage',
   signal: '/signal-score',
-  transport: '/transport?vg=0.6&vd=0.6',
+  transport: '/transport',   // device-relative: backend defaults Vg = Vd = the device's Vdd
 };
 
 export interface KeyRow {
@@ -103,6 +104,13 @@ export class FetOverviewComponent implements OnInit, OnChanges {
   /** every other target — informational only (would / would not meet) */
   powerOther: any[] = [];
   engineeredFor: { targets: string[]; why: string; mapped: boolean } | null = null;
+  /** Speed — OWNED BY THE CELL LAYER (FO4 of this device's characterized
+   *  INV); the FET page only shows what the cells derived. */
+  speedRows: Array<{ label: string; value: string; equation?: string }> = [];
+  speedBands: Array<{ band: string; n: number; f: string; cycle: string }> = [];
+  speedHeadline = '';
+  speedCaveat = '';
+  speedRun = '';
   transportLine = '';
   transportRefusal = '';
   coverage: any = null;
@@ -269,6 +277,7 @@ export class FetOverviewComponent implements OnInit, OnChanges {
     this.signalRows = (sig?.idealTable || []).map((r: any) => this.keyRow(r));
 
     this.derivePower(power);
+    this.deriveSpeed(this.slot('fo4').data);
 
     this.transportLine = '';
     this.transportRefusal = tr.error || '';
@@ -348,6 +357,38 @@ export class FetOverviewComponent implements OnInit, OnChanges {
     if (k.endsWith('_v')) { return 'V'; }
     if (k.endsWith('_k')) { return 'K'; }
     return '';
+  }
+
+  private deriveSpeed(fo4: any): void {
+    this.speedRows = [];
+    this.speedBands = [];
+    this.speedHeadline = '';
+    this.speedCaveat = '';
+    this.speedRun = '';
+    if (!fo4 || !fo4.ok) { return; }
+    const f = fo4.fo4 || {};
+    const e = fo4.energy || {};
+    const p3 = (v: any, unit: string) => (v == null || !Number.isFinite(Number(v))) ? '—'
+      : `${Number(v).toPrecision(3)} ${unit}`;
+    const add = (label: string, value: string, equation?: string) => {
+      if (value !== '—') { this.speedRows.push({ label, value, equation }); }
+    };
+    add('FO4 delay', p3(f.fo4_ps, 'ps'), fo4.equations?.fo4);
+    if (f.rise_ps != null && f.fall_ps != null) {
+      add('rise / fall', `${p3(f.rise_ps, 'ps')} / ${p3(f.fall_ps, 'ps')}`);
+    }
+    add('FO4 load (4×Cin)', p3(f.load_ff, 'fF'), f.gridNote);
+    add('INV transition energy', p3(e.per_transition_aJ, 'aJ'), e.equation);
+    add('  of which C_load·Vdd²', p3(e.load_cv2_aJ, 'aJ'));
+    add('power-delay product', p3(e.pdp_aJ_ps, 'aJ·ps'));
+    add('Vdd', p3(fo4.vdd_v, 'V'));
+    this.speedBands = (fo4.clock || []).map((b: any) => ({
+      band: String(b.band), n: b.fo4_per_cycle,
+      f: p3(b.f_ghz, 'GHz'), cycle: p3(b.cycle_ps, 'ps'),
+    }));
+    this.speedHeadline = String(fo4.headline || '');
+    this.speedCaveat = String(fo4.fidelity || '');
+    this.speedRun = String(fo4.run || '');
   }
 
   private derivePower(power: any): void {

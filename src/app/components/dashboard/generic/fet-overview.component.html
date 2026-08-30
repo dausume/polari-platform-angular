@@ -106,6 +106,25 @@
           <span class="muted">(what this device would score as an amplifier)</span></p>
       </section>
       <section class="card">
+        <div class="card-title">Speed <span class="muted">from the cell layer — intrinsic-grade estimate</span></div>
+        <div *ngIf="slot('fo4').loading" class="state"><mat-spinner diameter="24"></mat-spinner></div>
+        <div *ngIf="slot('fo4').error" class="state error">{{ slot('fo4').error }}</div>
+        <ng-container *ngIf="speedRows.length">
+          <p class="muted small" *ngIf="speedRun">FO4 of this device's characterized INV (library run <b>{{ speedRun }}</b>); the FET page only exposes the primitives — the cell layer owns FO4 and transition energy.</p>
+          <table class="data-table-dashed kv">
+            <tr *ngFor="let p of speedRows" [title]="p.equation || ''">
+              <td class="k">{{ p.label }}</td><td class="num">{{ p.value }}</td></tr>
+          </table>
+          <div class="sub-label">Estimated clock, T = N · FO4 (N configurable: ?fo4_per_cycle=12,15,20,30)</div>
+          <table class="data-table-dashed">
+            <tr><th>band</th><th class="num">FO4 / cycle</th><th class="num">cycle</th><th class="num">f_est</th></tr>
+            <tr *ngFor="let b of speedBands">
+              <td>{{ b.band }}</td><td class="num">{{ b.n }}</td><td class="num">{{ b.cycle }}</td><td class="num">{{ b.f }}</td></tr>
+          </table>
+          <p class="muted small">Intrinsic-grade estimate; excludes extracted interconnect, clock tree, SRAM, IR drop, and package effects. {{ speedCaveat }}</p>
+        </ng-container>
+      </section>
+      <section class="card">
         <div class="card-title">Power</div>
         <div *ngIf="slot('power').loading" class="state"><mat-spinner diameter="24"></mat-spinner></div>
         <div *ngIf="slot('power').error" class="state error">{{ slot('power').error }}</div>
@@ -214,7 +233,7 @@
 
     <!-- transport regime: a CNT line, or the backend's refusal in one muted line -->
     <section class="card wide transport">
-      <div class="card-title">Transport regime <span class="muted">at Vg = Vd = 0.6 V</span></div>
+      <div class="card-title">Transport regime <span class="muted">at Vg = Vd = this device's Vdd</span></div>
       <div *ngIf="slot('transport').loading" class="state"><mat-spinner diameter="20"></mat-spinner></div>
       <p class="line" *ngIf="transportLine">{{ transportLine }}</p>
       <p class="line muted" *ngIf="transportRefusal">{{ transportRefusal }}</p>
