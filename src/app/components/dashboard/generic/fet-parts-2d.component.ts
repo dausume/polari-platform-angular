@@ -42,7 +42,9 @@ const FIELD_CHOICES = ['potential', 'electron-density', 'n-doping',
     <div *ngIf="error && !loading" class="state error">{{ error }}</div>
 
     <ng-container *ngIf="report && !loading">
-      <div class="controls" *ngIf="!compact">
+      <!-- voltage knobs on EVERY technology, compact included —
+           the field overlay re-queries at the chosen bias -->
+      <div class="controls" [class.compact]="compact">
         <label>field
           <select [(ngModel)]="field" (ngModelChange)="refetch()">
             <option *ngFor="let f of fieldChoices" [value]="f">{{ f }}</option>
@@ -75,17 +77,41 @@ const FIELD_CHOICES = ['potential', 'electron-density', 'n-doping',
               (mouseenter)="selected = r" (click)="selected = r">
           <title>{{ r.label }}</title>
         </rect>
-        <ng-container *ngIf="overlaySegments.length">
-          <polyline *ngFor="let seg of overlaySegments" [attr.points]="seg"
-                    class="overlay-line"></polyline>
-        </ng-container>
       </svg>
       <div class="axis muted">{{ report.view.axis }}</div>
 
-      <div class="overlay-info" *ngIf="fieldOk">
-        <b>{{ report.field.field }}</b> at Vg {{ report.field.vg }} V,
-        Vd {{ report.field.vd }} V — {{ overlayMin }} … {{ overlayMax }}
-        {{ report.field.unit }} <span class="muted">{{ report.field.fidelity }}</span>
+      <div class="field-chart" *ngIf="fieldOk">
+        <div class="chart-title">
+          <b>{{ report.field.field }}</b> along the channel —
+          y: <b>{{ report.field.unit }}</b>
+          ({{ overlayMin }} … {{ overlayMax }}),
+          x: position (nm, aligned with the drawing above),
+          at Vg {{ report.field.vg }} V / Vd {{ report.field.vd }} V
+        </div>
+        <svg [attr.viewBox]="'0 0 1000 ' + chartH"
+             preserveAspectRatio="xMidYMid meet" role="img"
+             [attr.aria-label]="report.field.field + ' profile chart'">
+          <rect *ngFor="let b of chartBands" [attr.x]="b.px" y="0"
+                [attr.width]="b.pw" [attr.height]="chartH"
+                [attr.data-kind]="b.kind" class="chart-band">
+            <title>{{ b.label }}</title>
+          </rect>
+          <line x1="0" [attr.y1]="chartTop" x2="1000"
+                [attr.y2]="chartTop" class="chart-grid"></line>
+          <line x1="0" [attr.y1]="chartBottom" x2="1000"
+                [attr.y2]="chartBottom" class="chart-grid"></line>
+          <polyline *ngFor="let seg of overlaySegments"
+                    [attr.points]="seg" class="chart-line"></polyline>
+          <text x="4" [attr.y]="chartTop - 3" class="chart-tick">
+            {{ overlayMax }} {{ report.field.unit }}</text>
+          <text x="4" [attr.y]="chartBottom + 12" class="chart-tick">
+            {{ overlayMin }} {{ report.field.unit }}</text>
+          <text *ngFor="let t of xTicks" [attr.x]="t.px"
+                [attr.y]="chartH - 2" class="chart-tick x">
+            {{ t.label }}</text>
+        </svg>
+        <div class="muted small">gaps in the line = regions the field
+          refuses on (metal contacts); {{ report.field.fidelity }}</div>
       </div>
       <div class="state error" *ngIf="report.field?.ok === false">
         {{ report.field.refusal }}
@@ -127,6 +153,8 @@ const FIELD_CHOICES = ['potential', 'electron-density', 'n-doping',
       margin-bottom: 8px; }
     .controls label { display: flex; align-items: center; gap: 6px;
       font-size: 0.85em; }
+    .controls.compact { gap: 10px; font-size: 0.9em; }
+    .controls.compact input[type='range'] { width: 90px; }
     .legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 0.8em;
       margin-bottom: 4px; }
     .key { display: inline-flex; align-items: center; gap: 4px; }
@@ -146,10 +174,24 @@ const FIELD_CHOICES = ['potential', 'electron-density', 'n-doping',
     .region[data-kind='oxide'], .swatch[data-kind='oxide'] { fill: #ffb74d; background: #ffb74d; }
     .region[data-kind='gate'], .swatch[data-kind='gate'] { fill: #ef5350; background: #ef5350; }
     .sketch-swatch { background: transparent; border: 1.5px dashed #888; }
-    .overlay-line { fill: none; stroke: var(--text-primary, #111);
-      stroke-width: 2; }
     .axis { font-size: 0.75em; margin-top: 2px; }
-    .overlay-info { font-size: 0.85em; margin-top: 6px; }
+    .field-chart { margin-top: 10px; }
+    .chart-title { font-size: 0.85em; margin-bottom: 4px; }
+    .field-chart svg { width: 100%; height: auto; display: block;
+      background: var(--surface-alt, rgba(127,127,127,0.06));
+      border-radius: 6px; }
+    .chart-band { opacity: 0.16; }
+    .chart-band[data-kind='contact'] { fill: #90a4ae; }
+    .chart-band[data-kind='extension'] { fill: #66bb6a; }
+    .chart-band[data-kind='channel'] { fill: #42a5f5; }
+    .chart-band[data-kind='oxide'] { fill: #ffb74d; }
+    .chart-band[data-kind='gate'] { fill: #ef5350; }
+    .chart-grid { stroke: rgba(127,127,127,0.45);
+      stroke-dasharray: 3 3; stroke-width: 1; }
+    .chart-line { fill: none; stroke: var(--text-primary, #111);
+      stroke-width: 2; }
+    .chart-tick { font-size: 11px;
+      fill: var(--text-secondary, #666); }
     .part-card { margin-top: 8px; padding: 10px; border-radius: 6px;
       background: var(--surface-alt, rgba(127,127,127,0.08)); }
     .card-head { font-weight: 600; display: flex; flex-wrap: wrap;
@@ -187,6 +229,12 @@ export class FetParts2dComponent implements OnInit, OnChanges {
 
   rects: ScaledRect[] = [];
   overlaySegments: string[] = [];
+  chartBands: Array<{ kind: string; label: string;
+                      px: number; pw: number }> = [];
+  xTicks: Array<{ px: number; label: string }> = [];
+  chartH = 150;
+  chartTop = 16;
+  chartBottom = 132;
   overlayMin = '';
   overlayMax = '';
   selected: ScaledRect | null = null;
@@ -277,10 +325,17 @@ export class FetParts2dComponent implements OnInit, OnChanges {
     const stillThere = this.rects.find(r => r.id === this.selected?.id);
     this.selected = stillThere
       || this.rects.find(r => r.kind === 'channel') || null;
+    // ---- the field profile CHART (its own panel below the
+    // drawing, same x scale so regions line up; labelled axes) ----
     this.overlaySegments = [];
+    this.chartBands = [];
+    this.xTicks = [];
     this.overlayMin = this.overlayMax = '';
     const f = this.report.field;
     if (!f?.ok || !Array.isArray(f.x_nm)) { return; }
+    this.chartH = this.compact ? 110 : 150;
+    this.chartTop = 16;
+    this.chartBottom = this.chartH - 18;
     const vals = (f.value || []).map((x: any) =>
       (x === null || x === undefined) ? null : Number(x));
     const finite = vals.filter((x: number | null) =>
@@ -290,8 +345,6 @@ export class FetParts2dComponent implements OnInit, OnChanges {
     this.overlayMin = lo.toPrecision(3);
     this.overlayMax = hi.toPrecision(3);
     const span = (hi - lo) || 1;
-    // the profile is drawn across the middle band of the picture
-    const band0 = this.svgH * 0.82, band1 = this.svgH * 0.18;
     let seg: string[] = [];
     const flush = () => {
       if (seg.length > 1) { this.overlaySegments.push(seg.join(' ')); }
@@ -300,9 +353,25 @@ export class FetParts2dComponent implements OnInit, OnChanges {
     f.x_nm.forEach((x: number, i: number) => {
       const val = vals[i];
       if (val === null || !Number.isFinite(val)) { flush(); return; }
-      const yy = band0 + (band1 - band0) * ((val - lo) / span);
+      const yy = this.chartBottom
+        + (this.chartTop - this.chartBottom) * ((val - lo) / span);
       seg.push(`${px(x).toFixed(1)},${yy.toFixed(1)}`);
     });
     flush();
+    // region shading in the chart (same kinds/colours as the drawing)
+    for (const r of (f.regions || [])) {
+      this.chartBands.push({
+        kind: r.kind, label: `${r.name} (${r.material || ''})`,
+        px: px(r.x0), pw: Math.max((r.x1 - r.x0) * sx, 1),
+      });
+    }
+    // x ticks in nm at 0 / ¼ / ½ / ¾ / full length
+    for (const frac of [0, 0.25, 0.5, 0.75, 1]) {
+      const xNm = v.x0 + frac * spanX;
+      this.xTicks.push({
+        px: Math.min(px(xNm), 962),
+        label: `${Math.round(xNm)} nm`,
+      });
+    }
   }
 }
