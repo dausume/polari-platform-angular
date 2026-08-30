@@ -115,6 +115,7 @@
             <tr *ngFor="let p of speedRows" [title]="p.equation || ''">
               <td class="k">{{ p.label }}</td><td class="num">{{ p.value }}</td></tr>
           </table>
+          <div class="state error" *ngIf="speedVddNote">{{ speedVddNote }}</div>
           <div class="sub-label">Estimated clock, T = N · FO4 (N configurable: ?fo4_per_cycle=12,15,20,30)</div>
           <table class="data-table-dashed">
             <tr><th>band</th><th class="num">FO4 / cycle</th><th class="num">cycle</th><th class="num">f_est</th></tr>

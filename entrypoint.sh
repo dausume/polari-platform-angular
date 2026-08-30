@@ -56,15 +56,24 @@ echo ""
 echo "======================================================================"
 echo ""
 
-# Start servers
+# Start ONE dev server. Each `ng serve` is a full Angular compiler (~3 GB RSS);
+# running HTTP and HTTPS side by side doubled the container's footprint and
+# pushed the host into systemd-oomd territory (VS Code kills, 2026-08-25/26).
+# HTTPS wins when certs exist; set FRONTEND_DUAL_SERVE=true to also run HTTP.
+export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=2048}"
+
 if [ "$SSL_AVAILABLE" = true ]; then
-    echo "[HTTPS] Starting background HTTPS server on port $HTTPS_PORT..."
-    # Start HTTPS server in background
-    ng serve --host 0.0.0.0 --port $HTTPS_PORT --ssl --ssl-cert "$SSL_CERT_PATH" --ssl-key "$SSL_KEY_PATH" --disable-host-check &
-    HTTPS_PID=$!
-    echo "[HTTPS] Background server started (PID: $HTTPS_PID)"
+    if [ "${FRONTEND_DUAL_SERVE:-false}" = "true" ]; then
+        echo "[HTTP]  FRONTEND_DUAL_SERVE=true: starting background HTTP server on port $HTTP_PORT..."
+        ng serve --host 0.0.0.0 --port $HTTP_PORT --disable-host-check &
+        echo "[HTTP]  Background server started (PID: $!)"
+    else
+        echo "[HTTP]  Not started (single-server mode; set FRONTEND_DUAL_SERVE=true to enable)"
+    fi
+    echo "[HTTPS] Starting HTTPS server on port $HTTPS_PORT..."
+    exec ng serve --host 0.0.0.0 --port $HTTPS_PORT --ssl --ssl-cert "$SSL_CERT_PATH" --ssl-key "$SSL_KEY_PATH" --disable-host-check
 fi
 
-# Start HTTP server in foreground (blocks)
+# No certs: HTTP only
 echo "[HTTP]  Starting HTTP server on port $HTTP_PORT..."
 exec ng serve --host 0.0.0.0 --port $HTTP_PORT --disable-host-check

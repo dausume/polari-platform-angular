@@ -111,6 +111,7 @@ export class FetOverviewComponent implements OnInit, OnChanges {
   speedHeadline = '';
   speedCaveat = '';
   speedRun = '';
+  speedVddNote = '';
   transportLine = '';
   transportRefusal = '';
   coverage: any = null;
@@ -365,6 +366,7 @@ export class FetOverviewComponent implements OnInit, OnChanges {
     this.speedHeadline = '';
     this.speedCaveat = '';
     this.speedRun = '';
+    this.speedVddNote = '';
     if (!fo4 || !fo4.ok) { return; }
     const f = fo4.fo4 || {};
     const e = fo4.energy || {};
@@ -389,6 +391,7 @@ export class FetOverviewComponent implements OnInit, OnChanges {
     this.speedHeadline = String(fo4.headline || '');
     this.speedCaveat = String(fo4.fidelity || '');
     this.speedRun = String(fo4.run || '');
+    this.speedVddNote = String(fo4.vddMismatch || '');
   }
 
   private derivePower(power: any): void {
