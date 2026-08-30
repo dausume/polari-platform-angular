@@ -37,7 +37,7 @@ import { PolariService } from '@services/polari-service';
       <div *ngIf="loading" class="state"><mat-spinner diameter="28"></mat-spinner></div>
       <div *ngIf="error" class="state error">{{ error }}</div>
       <div *ngIf="refusal" class="refusal">
-        <strong>{{ config?.name || graphName }}</strong>
+        <strong [title]="config?.name || graphName">{{ friendlyName() }}</strong>
         <p>{{ refusal }}</p>
       </div>
       <ng-container *ngIf="!loading && !error && !refusal && config">
@@ -140,5 +140,18 @@ export class NamedGraphPanelComponent implements OnInit {
     if (Array.isArray(payload?.data)) { return payload.data; }
     if (Array.isArray(payload?.objects)) { return payload.objects; }
     return [];
+  }
+
+  /** Graph rows are named as identifiers (cnt-device-score-terms,
+   *  cntfet-figure-vs1-fig7a); readers see a label. The identifier
+   *  stays in the tooltip and the gear link. */
+  friendlyName(): string {
+    const n = String(this.config?.name || this.graphName || '');
+    return n
+      .replace(/^cnt-device-/, '')
+      .replace(/^cntfet-figure-/, 'figure: ')
+      .replace(/^si-refinement-/, 'refinement: ')
+      .replace(/^cnt-library-/, 'library: ')
+      .replace(/-/g, ' ');
   }
 }
