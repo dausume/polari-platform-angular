@@ -178,6 +178,14 @@ export class FetOverviewComponent implements OnInit, OnChanges {
   trackRank(_i: number, r: RankRow): string { return r.device; }
 
   // ---- loading ----
+  /** fet-summary/1 section per slot (fo4 rides `speed`). */
+  private static readonly SUMMARY_SECTIONS: Record<string, string> = {
+    score: 'figures', taxonomy: 'taxonomy', compare: 'compare',
+    proof: 'proof', power: 'power', fo4: 'speed',
+    characterization: 'characterization', links: 'links',
+    coverage: 'coverage', signal: 'signal', transport: 'transport',
+  };
+
   private loadAll(): void {
     this.slots = {};
     if (!this.device) {
@@ -186,6 +194,53 @@ export class FetOverviewComponent implements OnInit, OnChanges {
       return;
     }
     const device = this.device;
+    for (const name of Object.keys(SLOT_PATHS)) {
+      this.slots[name] = { loading: true, error: null, data: null };
+    }
+    // fg-0 (fet, not cntfet): ONE /api/fet summary fetch fills every
+    // slot — each section is the same report its own endpoint serves,
+    // refusals inline. The per-slot fetches below stay as the
+    // fallback for a backend that predates fet-summary/1.
+    const sp = `/api/fet/device/${device}/summary`;
+    const url = this.polariService.getBackendBaseUrl() + sp;
+    this.http.get<any>(url, this.polariService.backendRequestOptions).subscribe({
+      next: (body: any) => {
+        if (device !== this.device) { return; }
+        if (!body || body.ok === false || body.schema !== 'fet-summary/1') {
+          this.loadSlots(device);
+          return;
+        }
+        this.fillFromSummary(body, sp);
+      },
+      error: () => {
+        if (device !== this.device) { return; }
+        this.loadSlots(device);
+      },
+    });
+  }
+
+  /** One summary payload → every slot; a section that refused shows
+   *  its refusal text verbatim in that slot's card. */
+  private fillFromSummary(summary: any, sp: string): void {
+    for (const [slotName, key] of
+         Object.entries(FetOverviewComponent.SUMMARY_SECTIONS)) {
+      const section = summary[key];
+      const s: Slot = { loading: false, error: null, data: null };
+      if (!section || typeof section !== 'object') {
+        s.error = `GET ${sp}: no ${key} section`;
+      } else if (section.ok === false) {
+        s.error = section.refusal || section.error
+          || `GET ${sp}: ${key} not ok`;
+      } else {
+        s.data = section;
+      }
+      this.slots[slotName] = s;
+    }
+    this.derive();
+  }
+
+  /** Fallback: the pre-summary per-endpoint fetches. */
+  private loadSlots(device: string): void {
     for (const [name, suffix] of Object.entries(SLOT_PATHS)) {
       const p = this.path(suffix);
       this.slots[name] = { loading: true, error: null, data: null };
