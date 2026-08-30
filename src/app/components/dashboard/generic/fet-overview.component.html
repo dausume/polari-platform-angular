@@ -117,21 +117,54 @@
           <div class="sub-label">Named gaps</div>
           <div class="muted" *ngFor="let g of powerGaps"><b>{{ g.label }}</b>: {{ g.text }}</div>
         </div>
-        <div class="scroll-x" *ngIf="budgetRows.length">
-          <div class="sub-label">Budgets</div>
-          <table class="data-table-dashed">
-            <tr><th>subject</th><th>budget</th><th>result</th><th>checks</th></tr>
-            <tr *ngFor="let b of budgetRows">
-              <td>{{ b.subject }}</td>
-              <td>{{ b.budget }} <span class="muted">({{ b.scope }})</span></td>
-              <td><span class="chip chip-strong" [ngClass]="b.pass ? 'is-ok' : (b.failed.length ? 'is-error' : 'is-muted')">
-                {{ b.pass ? 'pass' : (b.failed.length ? 'fail' : 'unevaluated') }}</span></td>
-              <td><div class="chip-row">
-                <span class="chip" *ngFor="let c of b.checks"
-                      [ngClass]="c.pass === true ? 'is-ok' : (c.pass === false ? 'is-error' : 'is-muted')">
-                  <em>{{ c.limit }}</em> {{ c.text }}</span></div></td>
-            </tr>
-          </table>
+        <!-- Budgets are TARGET-scoped: pass/fail only against what the FET is engineered for -->
+        <div class="targets" *ngIf="engineeredFor">
+          <div class="sub-label">Engineered for</div>
+          <p class="muted small">
+            <span class="chip chip-outline" *ngFor="let t of engineeredFor.targets">{{ t }}</span>
+            {{ engineeredFor.why }}
+            <span *ngIf="!engineeredFor.mapped"> — no mapping row yet, so every budget below is informational.</span>
+          </p>
+          <p class="muted small">A budget only counts as <b>meets / misses</b> against a target this FET was
+            engineered for. Targets it was never meant for are listed separately below as
+            <i>would / would not meet</i> — information, not a failure.</p>
+          <div class="scroll-x" *ngIf="powerTargets.length">
+            <table class="data-table-dashed">
+              <tr><th>target</th><th>verdict</th><th>failing subjects</th><th>checks</th></tr>
+              <tr *ngFor="let t of powerTargets">
+                <td class="title" [title]="t.description">{{ t.display_name }}</td>
+                <td><span class="chip chip-strong"
+                          [ngClass]="t.status === 'meets' ? 'is-ok' : (t.status === 'misses' ? 'is-error' : 'is-muted')">
+                    {{ t.status }}</span>
+                  <span class="muted small"> {{ t.evaluatedCount }} evaluated</span></td>
+                <td><span class="chip is-error" *ngFor="let s of t.failingSubjects">{{ s }}</span>
+                  <span class="muted" *ngIf="!t.failingSubjects.length">—</span></td>
+                <td><div class="chip-row">
+                  <ng-container *ngFor="let b of t.checks">
+                    <span class="chip" *ngFor="let c of b.checks"
+                          [ngClass]="c.pass === true ? 'is-ok' : (c.pass === false ? 'is-error' : 'is-muted')"
+                          [title]="b.subject + ' · ' + b.budget">
+                      <em>{{ b.subject }}</em> {{ c.limit }} {{ c.text }}</span>
+                  </ng-container></div></td>
+              </tr>
+            </table>
+          </div>
+          <div class="scroll-x" *ngIf="powerOther.length">
+            <div class="sub-label">Other targets — informational only</div>
+            <p class="muted small">This FET was <b>not</b> engineered for these. Shown so you can see where it
+              <i>would</i> land; nothing here is a failure.</p>
+            <table class="data-table-dashed">
+              <tr><th>target</th><th>would it meet?</th><th>subjects over budget</th><th>optimization</th></tr>
+              <tr *ngFor="let t of powerOther">
+                <td class="title" [title]="t.description">{{ t.display_name }}</td>
+                <td><span class="chip chip-outline"
+                          [ngClass]="t.wouldMeet === 'meets' ? 'is-ok' : (t.wouldMeet === 'misses' ? 'is-warn' : 'is-muted')">
+                    {{ t.wouldMeet === 'meets' ? 'would meet' : (t.wouldMeet === 'misses' ? 'would not meet' : 'no budgets / unevaluated') }}</span></td>
+                <td class="num">{{ t.failingCount }} / {{ t.evaluatedCount }}</td>
+                <td><span class="muted">{{ t.optimization }}</span></td>
+              </tr>
+            </table>
+          </div>
         </div>
       </section>
     </ng-container>

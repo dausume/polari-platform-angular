@@ -122,8 +122,11 @@ export class NamedGraphPanelComponent implements OnInit {
         error: (err: any) => {
           this.loading = false;
           const body = err?.error;
-          if (body && body.refusal) { this.refusal = body.refusal; }
-          else {
+          // a backend REFUSAL (ok:false with error/refusal text, 422)
+          // is information, not a fetch failure — show its words
+          if (body && (body.refusal || (body.ok === false && body.error))) {
+            this.refusal = String(body.refusal || body.error);
+          } else {
             this.error = `data fetch failed: `
               + (err?.message || 'request failed');
           }

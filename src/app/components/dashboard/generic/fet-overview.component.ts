@@ -98,6 +98,11 @@ export class FetOverviewComponent implements OnInit, OnChanges {
   powerFet: Array<{ label: string; value: string; equation?: string }> = [];
   powerGaps: Array<{ label: string; text: string }> = [];
   budgetRows: any[] = [];
+  /** targets the FET is ENGINEERED FOR (pass/fail is meaningful) */
+  powerTargets: any[] = [];
+  /** every other target — informational only (would / would not meet) */
+  powerOther: any[] = [];
+  engineeredFor: { targets: string[]; why: string; mapped: boolean } | null = null;
   transportLine = '';
   transportRefusal = '';
   coverage: any = null;
@@ -370,6 +375,30 @@ export class FetOverviewComponent implements OnInit, OnChanges {
         this.powerGaps.push({ label: k, text: String(v.refusal) });
       }
     }
+    const mapChecks = (checks: any[]) => (checks || []).map((r: any) => ({
+      subject: r.subject, budget: r.budget, scope: r.scope, pass: r.pass,
+      failed: r.failed || [],
+      checks: (r.checks || []).map((c: any) => ({
+        limit: c.limit, pass: c.pass,
+        text: c.value == null
+          ? (c.why || 'unevaluated')
+          : `${this.fmt(c.value, c.unit)} vs max ${this.fmt(c.max, c.unit)}`,
+      })),
+    }));
+    const ef = power.engineeredFor;
+    this.engineeredFor = ef ? { targets: ef.targets || [], why: ef.engineered_for || '', mapped: !!ef.mapped } : null;
+    const targets: any[] = power.targets || [];
+    this.powerTargets = targets.filter(t => t.mapped).map(t => ({
+      ...t, checks: mapChecks(t.checks),
+      failingCount: (t.checks || []).filter((c: any) => (c.failed || []).length).length,
+      evaluatedCount: (t.checks || []).filter((c: any) => c.pass !== null && c.pass !== undefined).length,
+    }));
+    this.powerOther = targets.filter(t => !t.mapped).map(t => ({
+      ...t,
+      wouldMeet: t.informational,
+      failingCount: (t.checks || []).filter((c: any) => (c.failed || []).length).length,
+      evaluatedCount: (t.checks || []).filter((c: any) => c.pass !== null && c.pass !== undefined).length,
+    }));
     this.budgetRows = (power.results || []).map((r: any) => ({
       subject: r.subject, budget: r.budget, scope: r.scope, pass: r.pass,
       failed: r.failed || [],
