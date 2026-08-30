@@ -47,9 +47,19 @@ export function cssEscape(s: string): string {
  */
 export function objectTransformAttr(obj: SimSpaceObject, transform: CoordTransform): string {
   const [sx, sy] = transform.spaceToScreen(obj.position);
-  const scale = typeof obj.scale === 'number'
-    ? obj.scale
-    : Array.isArray(obj.scale) ? (obj.scale[0] ?? 1) : 1;
+  // A 2+-component scale array is NON-uniform (sx, sy) — the fet-2d
+  // region layouts need thin-oxide rectangles; a single number (or a
+  // one-element array) keeps the old uniform behaviour bit-identically.
+  let scaleAttr: string;
+  if (typeof obj.scale === 'number') {
+    scaleAttr = `scale(${obj.scale})`;
+  } else if (Array.isArray(obj.scale) && obj.scale.length >= 2) {
+    scaleAttr = `scale(${obj.scale[0] ?? 1},${obj.scale[1] ?? 1})`;
+  } else if (Array.isArray(obj.scale)) {
+    scaleAttr = `scale(${obj.scale[0] ?? 1})`;
+  } else {
+    scaleAttr = 'scale(1)';
+  }
   const rotZDeg = Array.isArray(obj.rotation) ? ((obj.rotation[2] ?? 0) * 180) / Math.PI : 0;
-  return `translate(${sx},${sy}) rotate(${rotZDeg}) scale(${scale})`;
+  return `translate(${sx},${sy}) rotate(${rotZDeg}) ${scaleAttr}`;
 }
