@@ -173,16 +173,25 @@ export class DisplayPageComponent implements OnInit, OnDestroy {
       if (!objectName) { unresolved = true; return v; }
       return v.split('{object}').join(objectName);
     };
-    const walkRow = (row: any): void =>
-      (row?.items || []).forEach((item: any) => {
-        if (!item) { return; }
-        item.title = sub(item.title);
-        const inputs = item.componentProps?.inputs;
-        if (inputs && typeof inputs === 'object') {
-          for (const k of Object.keys(inputs)) { inputs[k] = sub(inputs[k]); }
-        }
-        (item.nestedRows || []).forEach(walkRow);
-      });
+    const walkItem = (item: any): void => {
+      if (!item) { return; }
+      item.title = sub(item.title);
+      const inputs = item.componentProps?.inputs;
+      if (inputs && typeof inputs === 'object') {
+        for (const k of Object.keys(inputs)) { inputs[k] = sub(inputs[k]); }
+      }
+      (item.nestedRows || []).forEach(walkRow);
+    };
+    // The deserialized model keeps row items in `dashboardItems`
+    // (DisplayRow) and column items in `dashboardItems` too
+    // (DisplayColumn) — the definition JSON's `items` key does NOT
+    // survive deserialization (that miss shipped once: every panel
+    // called the API with a literal '{object}').
+    const walkRow = (row: any): void => {
+      (row?.dashboardItems || row?.items || []).forEach(walkItem);
+      (row?.columns || []).forEach((col: any) =>
+        (col?.dashboardItems || col?.items || []).forEach(walkItem));
+    };
     (display?.rows || []).forEach(walkRow);
     return unresolved;
   }
