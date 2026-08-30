@@ -135,7 +135,19 @@ export class FetOverviewComponent implements OnInit, OnChanges {
   points(curve: string): string {
     return this.path(`/points?curve=${curve}&samples=0`);
   }
-  scoreRoute(device: string): string { return `/display/cntfet-score-${device}`; }
+  /** fg-2 (fet, not cntfet): links point at the generic pages —
+   *  path + query split for routerLink/[queryParams]. */
+  linkPath(route: string): string { return (route || '').split('?')[0]; }
+  linkParams(route: string): Record<string, string> {
+    const out: Record<string, string> = {};
+    const q = (route || '').split('?')[1] || '';
+    for (const kv of q.split('&')) {
+      if (!kv) { continue; }
+      const [k, v] = kv.split('=');
+      out[decodeURIComponent(k)] = decodeURIComponent(v || '');
+    }
+    return out;
+  }
 
   get isSwitching(): boolean { return this.suitedTo === 'switching-optimized'; }
   get isSignal(): boolean { return this.suitedTo === 'signal-optimized'; }

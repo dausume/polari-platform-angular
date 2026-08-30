@@ -252,7 +252,7 @@
           <tr><th>#</th><th>device</th><th>score</th><th>valid</th><th>proof</th><th>usable</th></tr>
           <tr *ngFor="let r of ranking; trackBy: trackRank" [class.focus]="r.isFocus">
             <td class="num">{{ r.rank }}</td>
-            <td><a [routerLink]="scoreRoute(r.device)">{{ r.device }}</a>
+            <td><a [routerLink]="'/display/fet'" [queryParams]="{ object: r.device }">{{ r.device }}</a>
               <span class="chip is-muted" *ngIf="r.isFocus">this device</span></td>
             <td class="barcell"><div class="bar"><div class="fill" [style.width]="pct(r.score)"></div></div>
               <span class="num small">{{ fmt(r.score) }}</span></td>
@@ -274,8 +274,8 @@
       <ng-container *ngIf="coverage">
         <div class="cov-row">
           <b>{{ coverage.covered }}</b> / {{ coverage.cellsTotal }} cells characterized
-          <a [routerLink]="'/display/cntfet-score-' + device" fragment="cells"
-             title="cell scores">cell scores</a>
+          <a [routerLink]="'/display/fet'" [queryParams]="{ object: device }"
+             fragment="cells" title="cell scores">cell scores</a>
         </div>
         <div class="bar tall"><div class="fill" [style.width]="pct(coverage.coverageFraction)"></div></div>
         <div class="chip-row" *ngIf="missingCells.length">
@@ -293,10 +293,12 @@
       <div *ngIf="slot('links').loading" class="state"><mat-spinner diameter="24"></mat-spinner></div>
       <div *ngIf="slot('links').error" class="state error">{{ slot('links').error }}</div>
       <div class="chip-row" *ngIf="pages.length">
-        <a class="chip chip-outline" *ngFor="let p of pages" [routerLink]="p.route" [title]="p.what || ''">{{ p.title }}</a>
+        <a class="chip chip-outline" *ngFor="let p of pages"
+           [routerLink]="linkPath(p.route)" [queryParams]="linkParams(p.route)"
+           [title]="p.what || ''">{{ p.title }}</a>
       </div>
       <p class="line" *ngIf="partner">Complementary partner:
-        <a [routerLink]="scoreRoute(partner)">{{ partner }}</a>
+        <a [routerLink]="'/display/fet'" [queryParams]="{ object: partner }">{{ partner }}</a>
         <span class="muted" *ngIf="partnerRole"> — this device is the {{ partnerRole }}</span></p>
       <details *ngIf="apiList.length">
         <summary>API ({{ apiList.length }})</summary>

@@ -8,6 +8,7 @@ import { ClassRowsTableComponent } from './class-rows-table.component';
 import { EvidenceBrowserComponent } from './evidence-browser.component';
 import { FetCharacteristicExplorerComponent } from './fet-characteristic-explorer.component';
 import { FetOverviewComponent } from './fet-overview.component';
+import { FetParts2dComponent } from './fet-parts-2d.component';
 import { FreedomProofPanelComponent } from './freedom-proof-panel.component';
 import { MicrochipLadderComponent } from './microchip-ladder.component';
 import { NamedGraphPanelComponent } from './named-graph-panel.component';
@@ -102,6 +103,19 @@ export function registerGenericDisplayComponents(): void {
         + 'with resolved artifact + citation links (optional '
         + 'input: design)',
       defaultInputs: { design: '' },
+    });
+
+  registerDisplayComponent(
+    'fet-parts-2d', FetParts2dComponent, {
+      displayName: 'FET 2-D parts view (generic, all FETs)',
+      description: 'GET /api/fet/device/{device}/parts2d and draw '
+        + 'the region rectangles in device coordinates (nm): hover '
+        + 'a region for its part card (material, doping, purpose, '
+        + 'the row it comes from), field overlay at the device\'s '
+        + 'own Vdd with Vg/Vd sliders, sketch dimensions dashed and '
+        + 'labelled; refusals verbatim (inputs: device, optional '
+        + 'compact)',
+      defaultInputs: { device: '', compact: false },
     });
 
   registerDisplayComponent(
