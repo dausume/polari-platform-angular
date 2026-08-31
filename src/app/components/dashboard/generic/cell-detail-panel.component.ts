@@ -6,6 +6,7 @@ import { ActivatedRoute } from '@angular/router';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 import { PolariService } from '@services/polari-service';
+import { SimSpaceViewerComponent } from '@components/sim-space/sim-space-viewer/sim-space-viewer.component';
 import { statusClass } from './evidence-types';
 
 /**
@@ -22,7 +23,8 @@ import { statusClass } from './evidence-types';
 @Component({
   standalone: true,
   selector: 'cell-detail-panel',
-  imports: [CommonModule, FormsModule, MatProgressSpinnerModule],
+  imports: [CommonModule, FormsModule, MatProgressSpinnerModule,
+            SimSpaceViewerComponent],
   template: `
   <div class="cellp">
     <div *ngIf="loading" class="state"><mat-spinner diameter="24"></mat-spinner></div>
@@ -121,6 +123,35 @@ import { statusClass } from './evidence-types';
             to {{ cfg.acts?.actTarget }} · {{ cfg.acts?.logicStep }}
           </div>
         </ng-container>
+
+        <div class="viz">
+          <h4>Visualize — {{ selected.device }} FETs plugged into
+            {{ cell }}</h4>
+          <div class="selector small">
+            <label>view
+              <select [(ngModel)]="vizDim" (ngModelChange)="visualize()">
+                <option value="3d">3-D</option>
+                <option value="2d">2-D (layout boxes)</option>
+              </select></label>
+            <label>detail
+              <select [(ngModel)]="vizLod" (ngModelChange)="visualize()">
+                <option value="real">real FET geometry (math shapes)</option>
+                <option value="blackbox">black-box stand-ins (carry FET data)</option>
+              </select></label>
+            <button *ngIf="!vizScene && !vizLoading" (click)="visualize()">
+              build scene</button>
+          </div>
+          <div *ngIf="vizLoading" class="state">
+            <mat-spinner diameter="20"></mat-spinner></div>
+          <div *ngIf="vizError && !vizLoading" class="state error">{{ vizError }}</div>
+          <ng-container *ngIf="vizScene && !vizLoading">
+            <div class="muted small">{{ vizNote }}</div>
+            <div class="vizhost">
+              <sim-space-viewer [simSpaceName]="vizScene"
+                                [hideRunPanel]="true"></sim-space-viewer>
+            </div>
+          </ng-container>
+        </div>
       </div>
     </ng-container>
   </div>
@@ -149,6 +180,10 @@ import { statusClass } from './evidence-types';
     .muted { color: var(--text-secondary, #777); }
     .small { font-size: 0.8em; }
     .acts { margin-top: 10px; }
+    .viz { margin-top: 14px; }
+    .vizhost { height: 420px; margin-top: 6px;
+      border: 1px solid rgba(127,127,127,0.3); border-radius: 6px;
+      overflow: hidden; }
   `],
 })
 export class CellDetailPanelComponent implements OnInit, OnChanges {
@@ -164,9 +199,44 @@ export class CellDetailPanelComponent implements OnInit, OnChanges {
   cfgError: string | null = null;
   statusClass = statusClass;
 
+  /** Multiscale visualize state — GET /api/fet/scene/cell/… upserts
+   *  the SimSpaceDefinition on demand; refusals (entry budget)
+   *  surface verbatim. */
+  vizDim: '2d' | '3d' = '3d';
+  vizLod: 'real' | 'blackbox' = 'real';
+  vizScene: string | null = null;
+  vizNote = '';
+  vizLoading = false;
+  vizError: string | null = null;
+
   constructor(private http: HttpClient,
               private polariService: PolariService,
               private route: ActivatedRoute) {}
+
+  visualize(): void {
+    if (!this.selected) { return; }
+    this.vizLoading = true;
+    this.vizError = null; this.vizScene = null;
+    const p = `/api/fet/scene/cell/${this.cell}/${this.selected.device}`
+      + `?dim=${this.vizDim}&lod=${this.vizLod}`;
+    const url = this.polariService.getBackendBaseUrl() + p;
+    this.http.get<any>(url, this.polariService.backendRequestOptions).subscribe({
+      next: (body: any) => {
+        this.vizLoading = false;
+        if (!body || body.ok === false) {
+          this.vizError = body?.error || `GET ${p}: not ok`;
+          return;
+        }
+        this.vizScene = body.scene;
+        this.vizNote = `${body.entries} entries · ${body.instances}`
+          + ` FET instances · lod ${body.lod}`;
+      },
+      error: (err: any) => {
+        this.vizLoading = false;
+        this.vizError = err?.error?.error || `GET ${p} failed`;
+      },
+    });
+  }
 
   get id(): any { return this.summary?.identity || {}; }
 
@@ -219,6 +289,7 @@ export class CellDetailPanelComponent implements OnInit, OnChanges {
 
   pick(): void {
     this.cfg = null; this.cfgError = null;
+    this.vizScene = null; this.vizError = null; this.vizNote = '';
     if (!this.selected) { return; }
     this.cfgLoading = true;
     const p = this.selected.summaryPath
