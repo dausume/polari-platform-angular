@@ -2,6 +2,7 @@ import { registerDisplayComponent } from '@models/dashboards/ComponentRegistry';
 import { ZonesBoardComponent } from '@components/zones/zones-board.component';
 import { ApiJsonPanelComponent } from './api-json-panel.component';
 import { ApiStructuredPanelComponent } from './api-structured-panel.component';
+import { CellDetailPanelComponent } from './cell-detail-panel.component';
 import { CellLogicDiagramComponent } from './cell-logic-diagram.component';
 import { CellSchematicComponent } from './cell-schematic.component';
 import { ClassRowsTableComponent } from './class-rows-table.component';
@@ -128,6 +129,19 @@ export function registerGenericDisplayComponents(): void {
         + 'api-json-panel / sim-space-viewer (inputs: device, '
         + 'optional listPath, initialKey, hideUnbuilt)',
       defaultInputs: { device: '', hideUnbuilt: false },
+    });
+
+  registerDisplayComponent(
+    'cell-detail-panel', CellDetailPanelComponent, {
+      displayName: 'Cell detail (general + FET configurations)',
+      description: 'GET /api/fet/cell/{cell}/summary and render the '
+        + 'GENERAL cell (identity, proof, configuration index) with '
+        + 'a selector over its FET-specific configurations '
+        + '(/api/fet/cellcfg/…): score vs that FET\'s intrinsic '
+        + 'limits, leakage per input state, characterize acts; '
+        + 'proven-free + characterized pairings flagged OPEN-SOURCE '
+        + 'SAMPLE; ?device= preselects (input: cell)',
+      defaultInputs: { cell: '' },
     });
 
   registerDisplayComponent(
