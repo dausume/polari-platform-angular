@@ -115,6 +115,15 @@ export class D3SimSpaceRenderer implements SimSpaceRenderer {
       .style('overflow', 'visible');
 
     this.rootGroup = this.svg.append('g').attr('class', 'sim-space-root');
+    // User pan/zoom (wheel / drag / pinch) — the whole scene rides
+    // rootGroup, so overlays repositioned per frame still track.
+    // Absent until now: the fet-2d layouts were unnavigable.
+    this.svg.call(
+      d3.zoom<SVGSVGElement, unknown>()
+        .scaleExtent([0.3, 40])
+        .on('zoom', (event) => {
+          this.rootGroup?.attr('transform', event.transform.toString());
+        }) as any);
     this.axesGroup = this.rootGroup.append('g').attr('class', 'sim-space-axes');
     this.connectionsGroup = this.rootGroup.append('g').attr('class', 'sim-space-connections');
     this.objectsGroup = this.rootGroup.append('g').attr('class', 'sim-space-objects');
