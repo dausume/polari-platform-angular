@@ -2,6 +2,7 @@ import { registerDisplayComponent } from '@models/dashboards/ComponentRegistry';
 import { ZonesBoardComponent } from '@components/zones/zones-board.component';
 import { ApiJsonPanelComponent } from './api-json-panel.component';
 import { ApiStructuredPanelComponent } from './api-structured-panel.component';
+import { BlockDetailPanelComponent } from './block-detail-panel.component';
 import { CellDetailPanelComponent } from './cell-detail-panel.component';
 import { CellLogicDiagramComponent } from './cell-logic-diagram.component';
 import { CellSchematicComponent } from './cell-schematic.component';
@@ -129,6 +130,19 @@ export function registerGenericDisplayComponents(): void {
         + 'api-json-panel / sim-space-viewer (inputs: device, '
         + 'optional listPath, initialKey, hideUnbuilt)',
       defaultInputs: { device: '', hideUnbuilt: false },
+    });
+
+  registerDisplayComponent(
+    'block-detail-panel', BlockDetailPanelComponent, {
+      displayName: 'Block detail (general + FET configurations)',
+      description: 'GET /api/fet/block/{key}/summary — the general '
+        + 'functional block (ports, cell composition, exhaustive '
+        + 'proof) with a selector over its FET configurations '
+        + '(/api/fet/blockcfg/…): OpenSTA timing over that device\'s '
+        + 'Liberty, power + provenance roll-ups, and the composition '
+        + 'table linking down to each CellFETConfiguration; '
+        + '?device= preselects (input: block)',
+      defaultInputs: { block: '' },
     });
 
   registerDisplayComponent(
