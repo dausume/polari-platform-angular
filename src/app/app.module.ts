@@ -512,8 +512,8 @@ export class AppModule {
     // Register embedded graph wrapper (loads graph config by ID at render time)
     registerDisplayComponent('embeddedGraph', EmbeddedGraphComponent, {
       displayName: 'Graph Configuration',
-      description: 'Renders a saved graph configuration',
-      defaultInputs: { graphConfigId: '', className: '', filterField: '', filterValue: '' },
+      description: 'Renders a saved graph configuration (by seeded name or runtime id)',
+      defaultInputs: { graphConfigId: '', graphName: '', className: '', filterField: '', filterValue: '' },
     });
 
     // Register solution invoke button for use in displays

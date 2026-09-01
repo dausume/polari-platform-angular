@@ -48,6 +48,12 @@ import { GraphRendererComponent } from '@components/graph-config/graph-renderer/
 export class EmbeddedGraphComponent implements OnInit {
   @Input() graphConfigId!: string;
 
+  /** Resolve the config by its seeded NAME instead of a runtime id.
+   *  Ids are instance-local (they change on every fresh volume), so
+   *  a seeded display row can only ever know the graph's name — the
+   *  gap the climate arc named. When both are set, name wins. */
+  @Input() graphName = '';
+
   /** Field holding the reference this embed is scoped to
    *  (e.g. 'design_ref'). Empty = every row of the class.
    *
@@ -72,20 +78,25 @@ export class EmbeddedGraphComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    if (!this.graphConfigId) {
+    if (!this.graphConfigId && !this.graphName) {
       this.loading = false;
-      this.error = 'No graph config ID provided';
+      this.error = 'No graph config ID or name provided';
       return;
     }
 
-    this.graphDefService.loadConfig(this.graphConfigId).subscribe({
+    const load$ = this.graphName
+      ? this.graphDefService.loadConfigByName(this.graphName)
+      : this.graphDefService.loadConfig(this.graphConfigId);
+    load$.subscribe({
       next: (config: NamedGraphConfig) => {
         this.loadedConfig = config;
         this.loadInstanceData();
       },
       error: (err: any) => {
         this.loading = false;
-        this.error = 'Failed to load graph config';
+        this.error = this.graphName
+          ? `Failed to load graph config "${this.graphName}"`
+          : 'Failed to load graph config';
         console.error('[EmbeddedGraph] Load config error:', err);
       }
     });
