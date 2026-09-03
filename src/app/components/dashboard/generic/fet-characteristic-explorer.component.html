@@ -87,8 +87,18 @@
                                  [graphName]="v.graphName || ''"
                                  [dataPath]="v.dataPath || ''">
               </named-graph-panel>
-              <api-json-panel *ngIf="v.kind === 'api'"
-                              [path]="v.dataPath"></api-json-panel>
+              <ng-container *ngIf="v.kind === 'api'">
+                <!-- descriptor-driven: structured by default; raw JSON
+                     only when componentName says 'api-json-panel' -->
+                <api-json-panel *ngIf="isJsonPanel(v); else structuredTpl"
+                                [path]="v.dataPath"></api-json-panel>
+                <ng-template #structuredTpl>
+                  <api-structured-panel [path]="v.dataPath"
+                                        [pick]="v.pick || ''"
+                                        [hideKeys]="v.hideKeys || ''">
+                  </api-structured-panel>
+                </ng-template>
+              </ng-container>
               <ng-container *ngIf="v.kind === 'simspace'">
                 <div class="sim-host">
                   <sim-space-viewer [simSpaceName]="v.simSpaceName"

@@ -6,6 +6,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { SimSpaceViewerComponent } from '@components/sim-space/sim-space-viewer/sim-space-viewer.component';
 import { PolariService } from '@services/polari-service';
 import { ApiJsonPanelComponent } from './api-json-panel.component';
+import { ApiStructuredPanelComponent } from './api-structured-panel.component';
 import { NamedGraphPanelComponent } from './named-graph-panel.component';
 
 /** One row of the characteristics list (GET {listPath}). */
@@ -22,7 +23,15 @@ export interface FetCharacteristicSummary {
 export interface FetCharacteristicView {
   kind: 'graph' | 'api' | 'simspace';
   graphName?: string;
-  componentName?: string;
+  /** For kind 'api': which panel renders the payload. The backend seeds
+   *  'api-structured-panel' (chips / prose / tables — never a JSON
+   *  wall); that is also the default when absent. 'api-json-panel' is
+   *  honoured only when a descriptor says so explicitly. */
+  componentName?: 'api-structured-panel' | 'api-json-panel' | string;
+  /** api-structured-panel: dot-path into the payload to render. */
+  pick?: string;
+  /** api-structured-panel: keys to drop (csv string or array). */
+  hideKeys?: string | string[];
   simSpaceName?: string;
   /** sim-space row filter (?run=) selecting this field's samples */
   run?: string;
@@ -78,7 +87,7 @@ interface CharacteristicGroup {
   selector: 'fet-characteristic-explorer',
   imports: [CommonModule, MatProgressSpinnerModule,
             NamedGraphPanelComponent, ApiJsonPanelComponent,
-            SimSpaceViewerComponent],
+            ApiStructuredPanelComponent, SimSpaceViewerComponent],
   templateUrl: './fet-characteristic-explorer.component.html',
   styleUrls: ['./fet-characteristic-explorer.component.scss'],
 })
@@ -167,6 +176,12 @@ export class FetCharacteristicExplorerComponent implements OnInit {
   get visibleViews(): FetCharacteristicView[] {
     const views = this.detail?.views || [];
     return this.hideUnbuilt ? views.filter(v => v.status !== 'unbuilt') : views;
+  }
+
+  /** Raw JSON only when the descriptor explicitly asks for it; the
+   *  structured panel is the default (no raw JSON on screens). */
+  isJsonPanel(v: FetCharacteristicView): boolean {
+    return v.componentName === 'api-json-panel';
   }
 
   relatedChips(): Array<{ kind: string; label: string }> {

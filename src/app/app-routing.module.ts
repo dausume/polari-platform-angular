@@ -1,6 +1,6 @@
 // app-routing.module.ts
 import { NgModule } from '@angular/core';
-import { RouterModule, Routes } from '@angular/router';
+import { RouterModule, Routes, UrlMatchResult, UrlSegment } from '@angular/router';
 //Components aka Pages
 import { PolariConfigComponent } from '@components/polari-config/polari-config';
 import { ClassMainPageComponent } from '@components/class-main-page/class-main-page';
@@ -16,6 +16,15 @@ import { DataSetsComponent } from '@components/datasets/datasets.component';
 import { EquationsComponent } from '@components/equations/equations.component';
 import { EquationConfigEditComponent } from '@components/equation-config/equation-config-edit/equation-config-edit.component';
 import { shellAppGuard } from './guards/shell-app.guard';
+
+/** `display/<a>/<b>/...` → DisplayPage with :id = 'a/b/...'. Seeded
+ *  app pages declare nested pageRoutes (mealplan/planner,
+ *  nutrition/profile); a `display/:id` path matched one segment only. */
+export function displayPageMatcher(segments: UrlSegment[]): UrlMatchResult | null {
+  if (segments.length < 2 || segments[0].path !== 'display') return null;
+  const id = segments.slice(1).map(s => s.path).join('/');
+  return { consumed: segments, posParams: { id: new UrlSegment(id, {}) } };
+}
 
 const routes: Routes = [
   { path: '', loadComponent: () => import('@components/home/home').then(m => m.HomeComponent) },
@@ -110,7 +119,11 @@ const routes: Routes = [
   { path: 'magnetics/clock-views', loadComponent: () => import('@components/magnetics/clock-views.component').then(m => m.ClockViewsComponent) },
   { path: 'magnetics/fields', loadComponent: () => import('@components/magnetics/field-view.component').then(m => m.FieldViewComponent) },
   { path: 'co2/health', loadComponent: () => import('@components/climate/co2-health.component').then(m => m.Co2HealthComponent) },
-  { path: 'display/:id', loadComponent: () => import('@components/dashboard/display-page/display-page').then(m => m.DisplayPageComponent) },
+  // Display pages may declare a NESTED route ('mealplan/planner',
+  // 'nutrition/profile'): every segment after 'display' is joined
+  // into :id so DisplayPage can match the row's pageRoute (a plain
+  // `display/:id` path only ever matched one segment — NG04002).
+  { matcher: displayPageMatcher, loadComponent: () => import('@components/dashboard/display-page/display-page').then(m => m.DisplayPageComponent) },
   { path: 'video-assets', loadComponent: () => import('@components/video/video-assets-page.component').then(m => m.VideoAssetsPageComponent) },
   { path: 'meetings', loadComponent: () => import('@components/collab/meetings.component').then(m => m.MeetingsComponent) },
   // ret-1b: the .arch topology — isles as blocks, demand vs capacity

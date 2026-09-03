@@ -4,9 +4,12 @@ import { FormGroup, FormControl, Validators } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA, MatDialog } from '@angular/material/dialog';
 import { HttpClient } from '@angular/common/http';
 import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { filter, take, takeUntil } from 'rxjs/operators';
 import { RuntimeConfigService } from '@services/runtime-config.service';
 import { ClassTypingService } from '@services/class-typing-service';
+import { GeocoderService } from '@services/geojson/geocoder.service';
+import { GeocoderDefinitionService } from '@services/geojson/geocoder-definition.service';
+import { GeocoderResult } from '@models/geojson/GeocoderDefinition';
 import {
   CrudDialogData,
   CrudDialogResult,
@@ -56,19 +59,131 @@ export class CrudDialogComponent implements OnInit, OnDestroy {
   /** Per-parent mode: true = create inline (default), false = reference existing */
   parentCreateMode: Map<string, boolean> = new Map(); // parent className -> is creating inline
 
+  /**
+   * Geocoding affordance (generic): when the schema carries BOTH a
+   * `latitude` and a `longitude` field plus an `address` (else
+   * `display_name`) text field, a "Find coordinates from address"
+   * button is shown next to that text field. Null = no affordance.
+   */
+  geocodeAddressField: string | null = null;
+  private geocodeLatField = '';
+  private geocodeLngField = '';
+  /** `region_label` (or `region`) field to fill when the geocoder reports one. */
+  private geocodeRegionField = '';
+  geocoding = false;
+  /** Plain geocoder message shown inline under the address field. */
+  geocodeError: string | null = null;
+  geocodeNotice: string | null = null;
+
   constructor(
     @Inject(MAT_DIALOG_DATA) public data: CrudDialogData,
     private dialogRef: MatDialogRef<CrudDialogComponent>,
     private dialog: MatDialog,
     private http: HttpClient,
     private runtimeConfig: RuntimeConfigService,
-    private typingService: ClassTypingService
+    private typingService: ClassTypingService,
+    private geocoderService: GeocoderService,
+    private geocoderDefService: GeocoderDefinitionService
   ) {
     this.form = new FormGroup({});
   }
 
   ngOnInit(): void {
     this.buildForm();
+    this.detectGeocodeFields();
+  }
+
+  // ==================== Geocoding affordance ====================
+
+  /**
+   * Decide whether the geocode button appears: needs visible latitude +
+   * longitude fields (numeric or untyped) and a visible text field named
+   * `address` (preferred) or `display_name`. Field-name matching is
+   * case-insensitive so any class with those fields gets the button.
+   */
+  private detectGeocodeFields(): void {
+    const visible = this.visibleFields;
+    const byName = (...names: string[]): VariableDefinition | undefined => {
+      for (const n of names) {
+        const hit = visible.find(v => (v.varName || '').toLowerCase() === n);
+        if (hit) return hit;
+      }
+      return undefined;
+    };
+    const lat = byName('latitude');
+    const lng = byName('longitude');
+    if (!lat || !lng) return;
+    const isText = (v?: VariableDefinition) => !!v && this.getCellType(v) === 'string';
+    const address = byName('address');
+    const displayName = byName('display_name');
+    const addr = isText(address) ? address : (isText(displayName) ? displayName : undefined);
+    if (!addr) return;
+    this.geocodeAddressField = addr.varName;
+    this.geocodeLatField = lat.varName;
+    this.geocodeLngField = lng.varName;
+    const region = byName('region_label', 'region');
+    this.geocodeRegionField = isText(region) ? region!.varName : '';
+    // Make sure the geocoder list is loaded before the user clicks.
+    if (this.geocoderDefService.allGeocoders$.value.length === 0
+        && !this.geocoderDefService.loading$.value) {
+      this.geocoderDefService.fetchAll();
+    }
+  }
+
+  /** True for the one text field that carries the geocode button. */
+  isGeocodeAddressField(varDef: VariableDefinition): boolean {
+    return !!this.geocodeAddressField && varDef.varName === this.geocodeAddressField;
+  }
+
+  /**
+   * "Find coordinates from address": forward-geocode the typed text and
+   * fill latitude / longitude (+ region_label when reported). Errors are
+   * shown inline as the geocoder's own plain message — never thrown.
+   */
+  geocodeAddress(): void {
+    if (!this.geocodeAddressField || this.geocoding) return;
+    this.geocodeError = null;
+    this.geocodeNotice = null;
+    const query = String(this.form.get(this.geocodeAddressField)?.value ?? '').trim();
+    if (!query) {
+      this.geocodeError = 'Enter an address first.';
+      return;
+    }
+    this.geocoding = true;
+    // If the geocoder list is still loading, wait for it once; resolveGeocoder
+    // reads it synchronously and would otherwise report "No geocoders configured".
+    const defs = this.geocoderDefService;
+    if (defs.allGeocoders$.value.length === 0 && defs.loading$.value) {
+      defs.loading$.pipe(filter(l => !l), take(1), takeUntil(this.destroy$))
+        .subscribe(() => this.runGeocode(query));
+      return;
+    }
+    this.runGeocode(query);
+  }
+
+  private runGeocode(query: string): void {
+    this.geocoderService.forwardGeocode(query)
+      .pipe(take(1), takeUntil(this.destroy$))
+      .subscribe({
+        next: (results: GeocoderResult[]) => {
+          this.geocoding = false;
+          const hit = results?.[0];
+          if (!hit || !Number.isFinite(hit.lat) || !Number.isFinite(hit.lng)) {
+            this.geocodeError = `No coordinates found for "${query}".`;
+            return;
+          }
+          this.form.get(this.geocodeLatField)?.setValue(hit.lat);
+          this.form.get(this.geocodeLngField)?.setValue(hit.lng);
+          if (this.geocodeRegionField && hit.region) {
+            this.form.get(this.geocodeRegionField)?.setValue(hit.region);
+          }
+          this.geocodeNotice = `${hit.displayName} — ${hit.lat.toFixed(5)}, ${hit.lng.toFixed(5)}`;
+        },
+        error: (err: any) => {
+          this.geocoding = false;
+          this.geocodeError = err?.message || 'Could not find coordinates for that address.';
+        }
+      });
   }
 
   ngOnDestroy(): void {

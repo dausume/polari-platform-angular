@@ -47,6 +47,12 @@ import { EmitEvent } from '../end-states/emit-event/emit-event.model';
 import { SimStepContribution } from '../end-states/sim-step-contribution/sim-step-contribution.model';
 import { SimStepNextState } from '../end-states/sim-step-next-state/sim-step-next-state.model';
 import { ValidationResult } from '../end-states/validation-result/validation-result.model';
+import { GenerateEvent } from '../events/generate-event/generate-event.model';
+import { ModifyEvent } from '../events/modify-event/modify-event.model';
+import { CancelEvent } from '../events/cancel-event/cancel-event.model';
+import { ScheduleOccurrences } from '../events/schedule-occurrences/schedule-occurrences.model';
+import { EventWindowQuery } from '../events/event-window-query/event-window-query.model';
+import { AnalysisCall } from '../events/analysis-call/analysis-call.model';
 
 /**
  * State-space class category for UI organization
@@ -58,6 +64,7 @@ export type StateSpaceCategory =
   | 'List Operations'
   | 'Math'
   | 'Physics/Chemistry'
+  | 'Events'
   | 'Variables & Calls'
   | 'End States'
   | 'Flow Control'
@@ -241,6 +248,10 @@ export const BACKEND_ONLY_RUNTIME_CLASSES = new Set<string>([
   'EngineModelOperation',     // FEM/DFT model solve via materialsScience engines
   'WaxPrintOperation',        // wax-printer command engine (wp-7)
   'StateChangeCommit',        // persists instances via the manager/DB
+  // cal-2: the event family writes rows / reads the object tree
+  'GenerateEvent', 'ModifyEvent', 'CancelEvent',
+  'ScheduleOccurrences', 'EventWindowQuery',
+  'AnalysisCall',             // cal-4: registered backend analyses
   'SimulationStateStep',      // simulation-runner entry
   'SimStepNextState',         // simulation-runner terminators
   'SimStepContribution',
@@ -1151,6 +1162,309 @@ export class StateSpaceClassRegistry {
         { name: 'resultFieldPath', displayName: 'Result Field', type: 'string', isEditable: true }
       ],
       factory: () => ({ type: 'WaxPrintOperation', displayName: 'Wax Printer Command', command: 'print-step', inputBindings: [], resultKeyMap: [], resultTarget: 'result_variable', resultVariableName: 'waxprint_result', resultFieldPath: '' })
+    });
+
+    // === Events (cal-2 / cal-4): event logic as no-code. All six are
+    //     backend-only (they write rows / read the object tree / run
+    //     registered analyses); descriptions and execution notes mirror the
+    //     backend StateBuildingBlock registry verbatim. Variable names ARE
+    //     the backend handler's field_values keys — keep them in step. ===
+    this.registerClass({
+      className: 'GenerateEvent',
+      displayName: 'Generate Event',
+      description: 'Create a CalendarEvent (or a row of any class an EventDefinition reads) from resolved fields — the first real create path. dedupeBy names a field whose value must be unique (an existing row is reused, not duplicated).',
+      category: 'Events',
+      icon: 'event',
+      color: '#1565c0',
+      isStateSpaceObject: true,
+      supportedRuntimes: ['python_backend'],
+      stateSpaceDisplayFields: ['displayName', 'targetClassName', 'resultVariable'],
+      stateSpaceFieldsPerRow: 2,
+      isBuiltIn: true,
+      executionStatus: 'real',
+      executionNote: 'targetClassName (default CalendarEvent), fields / fieldMappings (title required), dedupeBy, resultVariable (default generatedEvent). Sets generated_by to the firing trigger.',
+      runtimeCapability: 'backend-only',
+      slotConfiguration: {
+        defaultInputCount: 1,
+        defaultOutputCount: 1,
+        allowDynamicInputs: false,
+        allowDynamicOutputs: false,
+        maxInputSlots: 1,
+        maxOutputSlots: 1,
+        inputType: 'object',
+        outputType: 'object',
+        inputLabels: ['Input'],
+        outputLabels: ['Generated']
+      },
+      eventMethods: [
+        {
+          methodName: 'execute',
+          displayName: 'Generate Event',
+          description: 'Resolve fields / fieldMappings (or each eventsFrom entry), create-or-reuse the row, bind it to resultVariable.',
+          category: 'Events',
+          inputParams: [
+            { name: 'context', displayName: 'Context', type: 'object', isRequired: true }
+          ],
+          output: { type: 'object', displayName: 'Generated Event' }
+        }
+      ],
+      variables: [
+        { name: 'displayName', displayName: 'Display Name', type: 'string', isEditable: true, defaultValue: 'Generate Event' },
+        { name: 'targetClassName', displayName: 'Target Class', type: 'string', isEditable: true, defaultValue: 'CalendarEvent' },
+        { name: 'fields', displayName: 'Fields (name → literal | value source)', type: 'object', isEditable: true, defaultValue: {} },
+        { name: 'fieldMappings', displayName: 'Field Mappings', type: 'array', isEditable: true, defaultValue: [] },
+        { name: 'eventsFrom', displayName: 'Events From (list value source)', type: 'object', isEditable: true, defaultValue: null },
+        { name: 'dedupeBy', displayName: 'Dedupe By Field', type: 'string', isEditable: true, defaultValue: '' },
+        { name: 'resultVariable', displayName: 'Result Variable', type: 'string', isEditable: true, defaultValue: 'generatedEvent' }
+      ],
+      factory: () => new GenerateEvent()
+    });
+
+    this.registerClass({
+      className: 'ModifyEvent',
+      displayName: 'Modify Event',
+      description: 'Update fields of an existing event (or linked row): instanceRef + fields / fieldMappings — the StateChangeCommit commit path.',
+      category: 'Events',
+      icon: 'edit_calendar',
+      color: '#ef6c00',
+      isStateSpaceObject: true,
+      supportedRuntimes: ['python_backend'],
+      stateSpaceDisplayFields: ['displayName', 'targetClassName', 'instanceRef'],
+      stateSpaceFieldsPerRow: 2,
+      isBuiltIn: true,
+      executionStatus: 'real',
+      executionNote: 'instanceRef defaults to the last GenerateEvent result in this run.',
+      runtimeCapability: 'backend-only',
+      slotConfiguration: {
+        defaultInputCount: 1,
+        defaultOutputCount: 1,
+        allowDynamicInputs: false,
+        allowDynamicOutputs: false,
+        maxInputSlots: 1,
+        maxOutputSlots: 1,
+        inputType: 'object',
+        outputType: 'object',
+        inputLabels: ['Input'],
+        outputLabels: ['Modified']
+      },
+      eventMethods: [
+        {
+          methodName: 'execute',
+          displayName: 'Modify Event',
+          description: 'Resolve instanceRef, write fields / fieldMappings onto it, persist.',
+          category: 'Events',
+          inputParams: [
+            { name: 'context', displayName: 'Context', type: 'object', isRequired: true }
+          ],
+          output: { type: 'object', displayName: 'Modified Event' }
+        }
+      ],
+      variables: [
+        { name: 'displayName', displayName: 'Display Name', type: 'string', isEditable: true, defaultValue: 'Modify Event' },
+        { name: 'targetClassName', displayName: 'Target Class', type: 'string', isEditable: true, defaultValue: 'CalendarEvent' },
+        { name: 'instanceRef', displayName: 'Instance (value source | name/id)', type: 'object', isEditable: true, defaultValue: '' },
+        { name: 'fields', displayName: 'Fields (name → literal | value source)', type: 'object', isEditable: true, defaultValue: {} },
+        { name: 'fieldMappings', displayName: 'Field Mappings', type: 'array', isEditable: true, defaultValue: [] }
+      ],
+      factory: () => new ModifyEvent()
+    });
+
+    this.registerClass({
+      className: 'CancelEvent',
+      displayName: 'Cancel Event',
+      description: 'Soft-cancel an event (status=cancelled, reason kept in notes). Hard delete stays a human CRUDE act.',
+      category: 'Events',
+      icon: 'event_busy',
+      color: '#c62828',
+      isStateSpaceObject: true,
+      supportedRuntimes: ['python_backend'],
+      stateSpaceDisplayFields: ['displayName', 'targetClassName', 'instanceRef'],
+      stateSpaceFieldsPerRow: 2,
+      isBuiltIn: true,
+      executionStatus: 'real',
+      executionNote: 'instanceRef + optional reason.',
+      runtimeCapability: 'backend-only',
+      slotConfiguration: {
+        defaultInputCount: 1,
+        defaultOutputCount: 1,
+        allowDynamicInputs: false,
+        allowDynamicOutputs: false,
+        maxInputSlots: 1,
+        maxOutputSlots: 1,
+        inputType: 'object',
+        outputType: 'object',
+        inputLabels: ['Input'],
+        outputLabels: ['Cancelled']
+      },
+      eventMethods: [
+        {
+          methodName: 'execute',
+          displayName: 'Cancel Event',
+          description: 'Resolve instanceRef, set status=cancelled, keep reason in notes, persist.',
+          category: 'Events',
+          inputParams: [
+            { name: 'context', displayName: 'Context', type: 'object', isRequired: true }
+          ],
+          output: { type: 'object', displayName: 'Cancelled Event' }
+        }
+      ],
+      variables: [
+        { name: 'displayName', displayName: 'Display Name', type: 'string', isEditable: true, defaultValue: 'Cancel Event' },
+        { name: 'targetClassName', displayName: 'Target Class', type: 'string', isEditable: true, defaultValue: 'CalendarEvent' },
+        { name: 'instanceRef', displayName: 'Instance (value source | name/id)', type: 'object', isEditable: true, defaultValue: '' },
+        { name: 'reason', displayName: 'Reason', type: 'string', isEditable: true, defaultValue: '' }
+      ],
+      factory: () => new CancelEvent()
+    });
+
+    this.registerClass({
+      className: 'ScheduleOccurrences',
+      displayName: 'Schedule Occurrences',
+      description: 'Expand a `schedule` value (recurrence JSON) into its occurrences inside [from, to] — a list the ForEach loop walks.',
+      category: 'Events',
+      icon: 'repeat',
+      color: '#6a1b9a',
+      isStateSpaceObject: true,
+      supportedRuntimes: ['python_backend'],
+      stateSpaceDisplayFields: ['displayName', 'from', 'to', 'resultVariable'],
+      stateSpaceFieldsPerRow: 2,
+      isBuiltIn: true,
+      executionStatus: 'real',
+      executionNote: 'schedule, from, to (defaults: today .. +30d), resultVariable (default occurrences; also <var>Count). Rides python-dateutil rrule.',
+      runtimeCapability: 'backend-only',
+      slotConfiguration: {
+        defaultInputCount: 1,
+        defaultOutputCount: 1,
+        allowDynamicInputs: false,
+        allowDynamicOutputs: false,
+        maxInputSlots: 1,
+        maxOutputSlots: 1,
+        inputType: 'object',
+        outputType: 'list',
+        inputLabels: ['Input'],
+        outputLabels: ['Expanded']
+      },
+      eventMethods: [
+        {
+          methodName: 'execute',
+          displayName: 'Expand Schedule',
+          description: 'Resolve schedule, expand its occurrences inside [from, to], bind the list to resultVariable.',
+          category: 'Events',
+          inputParams: [
+            { name: 'context', displayName: 'Context', type: 'object', isRequired: true }
+          ],
+          output: { type: 'list', displayName: 'Occurrences' }
+        }
+      ],
+      variables: [
+        { name: 'displayName', displayName: 'Display Name', type: 'string', isEditable: true, defaultValue: 'Schedule Occurrences' },
+        { name: 'schedule', displayName: 'Schedule (recurrence JSON | value source)', type: 'object', isEditable: true, defaultValue: null },
+        { name: 'from', displayName: 'From', type: 'string', isEditable: true, defaultValue: '' },
+        { name: 'to', displayName: 'To', type: 'string', isEditable: true, defaultValue: '' },
+        { name: 'resultVariable', displayName: 'Result Variable', type: 'string', isEditable: true, defaultValue: 'occurrences' }
+      ],
+      factory: () => new ScheduleOccurrences()
+    });
+
+    this.registerClass({
+      className: 'EventWindowQuery',
+      displayName: 'Event Window Query',
+      description: 'Read the events an EventDefinition or a CalendarDefinition produces inside [from, to] (person/household scoped) into a context list.',
+      category: 'Events',
+      icon: 'calendar_view_week',
+      color: '#2e7d32',
+      isStateSpaceObject: true,
+      supportedRuntimes: ['python_backend'],
+      stateSpaceDisplayFields: ['displayName', 'definition', 'calendar', 'resultVariable'],
+      stateSpaceFieldsPerRow: 2,
+      isBuiltIn: true,
+      executionStatus: 'real',
+      executionNote: 'definition | calendar, from, to (defaults: today .. +7d), person, household, resultVariable (default events; also <var>Count).',
+      runtimeCapability: 'backend-only',
+      slotConfiguration: {
+        defaultInputCount: 1,
+        defaultOutputCount: 1,
+        allowDynamicInputs: false,
+        allowDynamicOutputs: false,
+        maxInputSlots: 1,
+        maxOutputSlots: 1,
+        inputType: 'object',
+        outputType: 'list',
+        inputLabels: ['Input'],
+        outputLabels: ['Found']
+      },
+      eventMethods: [
+        {
+          methodName: 'execute',
+          displayName: 'Query Events',
+          description: 'Read the definition/calendar events inside [from, to], scoped to person/household, bind the list to resultVariable.',
+          category: 'Events',
+          inputParams: [
+            { name: 'context', displayName: 'Context', type: 'object', isRequired: true }
+          ],
+          output: { type: 'list', displayName: 'Events' }
+        }
+      ],
+      variables: [
+        { name: 'displayName', displayName: 'Display Name', type: 'string', isEditable: true, defaultValue: 'Event Window Query' },
+        { name: 'definition', displayName: 'Event Definition', type: 'string', isEditable: true, defaultValue: '' },
+        { name: 'calendar', displayName: 'Calendar Definition', type: 'string', isEditable: true, defaultValue: '' },
+        { name: 'from', displayName: 'From', type: 'string', isEditable: true, defaultValue: '' },
+        { name: 'to', displayName: 'To', type: 'string', isEditable: true, defaultValue: '' },
+        { name: 'person', displayName: 'Person', type: 'string', isEditable: true, defaultValue: '' },
+        { name: 'household', displayName: 'Household', type: 'string', isEditable: true, defaultValue: '' },
+        { name: 'resultVariable', displayName: 'Result Variable', type: 'string', isEditable: true, defaultValue: 'events' }
+      ],
+      factory: () => new EventWindowQuery()
+    });
+
+    this.registerClass({
+      className: 'AnalysisCall',
+      displayName: 'Analysis Call',
+      description: 'Run one registered backend analysis (an AnalysisDefinition row, or module:function) with resolved params; its dict result lands in the context for the steps that follow.',
+      category: 'Events',
+      icon: 'analytics',
+      color: '#00695c',
+      isStateSpaceObject: true,
+      supportedRuntimes: ['python_backend'],
+      stateSpaceDisplayFields: ['displayName', 'analysis', 'resultVariable'],
+      stateSpaceFieldsPerRow: 2,
+      isBuiltIn: true,
+      executionStatus: 'real',
+      executionNote: 'analysis (row name or module:function), params {name: literal | valueSource}, resultVariable (default analysis). A disabled row refuses plainly; provenance is stamped under _analysis.',
+      runtimeCapability: 'backend-only',
+      slotConfiguration: {
+        defaultInputCount: 1,
+        defaultOutputCount: 1,
+        allowDynamicInputs: false,
+        allowDynamicOutputs: false,
+        maxInputSlots: 1,
+        maxOutputSlots: 1,
+        inputType: 'object',
+        outputType: 'object',
+        inputLabels: ['Input'],
+        outputLabels: ['Done']
+      },
+      eventMethods: [
+        {
+          methodName: 'execute',
+          displayName: 'Run Analysis',
+          description: 'Resolve params, run the registered analysis, bind its result (or the picked key) to resultVariable.',
+          category: 'Events',
+          inputParams: [
+            { name: 'context', displayName: 'Context', type: 'object', isRequired: true }
+          ],
+          output: { type: 'object', displayName: 'Analysis Result' }
+        }
+      ],
+      variables: [
+        { name: 'displayName', displayName: 'Display Name', type: 'string', isEditable: true, defaultValue: 'Analysis Call' },
+        { name: 'analysis', displayName: 'Analysis (row name | module:function)', type: 'string', isEditable: true, defaultValue: '' },
+        { name: 'params', displayName: 'Params (name → literal | value source)', type: 'object', isEditable: true, defaultValue: {} },
+        { name: 'pick', displayName: 'Pick Result Key', type: 'string', isEditable: true, defaultValue: '' },
+        { name: 'resultVariable', displayName: 'Result Variable', type: 'string', isEditable: true, defaultValue: 'analysis' }
+      ],
+      factory: () => new AnalysisCall()
     });
 
     // === Data Operations (Variable & Function) ===

@@ -14,6 +14,8 @@ export interface GeocoderResult {
     lng: number;
     confidence?: number;
     bbox?: [number, number, number, number];
+    /** Region / state / province name when the provider reports one. */
+    region?: string;
 }
 
 export class GeocoderDefinition {

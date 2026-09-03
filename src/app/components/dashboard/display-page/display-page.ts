@@ -180,6 +180,12 @@ export class DisplayPageComponent implements OnInit, OnDestroy {
       if (inputs && typeof inputs === 'object') {
         for (const k of Object.keys(inputs)) { inputs[k] = sub(inputs[k]); }
       }
+      // mpc: a seeded FORM on a per-object page pre-fills the object
+      // (e.g. the person) through its extra variables' defaults.
+      const extra = item.item?.extraVariables;
+      if (Array.isArray(extra)) {
+        for (const v of extra) { if (v) { v.defaultValue = sub(v.defaultValue); } }
+      }
       (item.nestedRows || []).forEach(walkRow);
     };
     // The deserialized model keeps row items in `dashboardItems`

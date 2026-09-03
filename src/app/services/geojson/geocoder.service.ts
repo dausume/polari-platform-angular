@@ -89,14 +89,16 @@ export class GeocoderService {
             lat: f.geometry?.coordinates?.[1] ?? 0,
             lng: f.geometry?.coordinates?.[0] ?? 0,
             confidence: f.properties?.confidence,
-            bbox: f.bbox
+            bbox: f.bbox,
+            region: f.properties?.region || undefined
         }));
     }
 
     // ==================== Nominatim ====================
 
     private nominatimForward(baseUrl: string, query: string): Observable<GeocoderResult[]> {
-        const url = `${baseUrl}/search?q=${encodeURIComponent(query)}&format=json&limit=5`;
+        // addressdetails=1 adds the `address` block (state/region) to each hit
+        const url = `${baseUrl}/search?q=${encodeURIComponent(query)}&format=json&limit=5&addressdetails=1`;
         return this.http.get<any[]>(url).pipe(
             map(results => this.parseNominatimResponse(results))
         );
@@ -130,6 +132,7 @@ export class GeocoderService {
             displayName: r.display_name || 'Unknown',
             lat: parseFloat(r.lat),
             lng: parseFloat(r.lon),
+            region: r.address?.state || r.address?.region || r.address?.province || undefined,
             bbox: r.boundingbox
                 ? [
                     parseFloat(r.boundingbox[2]),
@@ -163,6 +166,9 @@ export class GeocoderService {
             displayName: r.formatted_address || 'Unknown',
             lat: r.geometry?.location?.lat ?? 0,
             lng: r.geometry?.location?.lng ?? 0,
+            region: (r.address_components || []).find((c: any) =>
+                Array.isArray(c.types) && c.types.includes('administrative_area_level_1'))?.long_name
+                || undefined,
             bbox: r.geometry?.viewport
                 ? [
                     r.geometry.viewport.southwest.lng,

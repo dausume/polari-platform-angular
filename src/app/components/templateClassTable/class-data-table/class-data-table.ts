@@ -195,6 +195,14 @@ export class ClassDataTableComponent implements OnInit, OnChanges {
         }
       });
     }
+    // A display-page embed (embeddedTable) carries no class schema;
+    // the TableDefinition's configured column dataType IS the type
+    // then — otherwise every header reads "(unknown)".
+    tc.columns.forEach(col => {
+      if (col.name && col.dataType && !this.columnTypes[col.name]) {
+        this.columnTypes[col.name] = col.dataType;
+      }
+    });
 
     // Get visible column names from the TableConfiguration
     const visibleNames = tc.getVisibleColumnNames();

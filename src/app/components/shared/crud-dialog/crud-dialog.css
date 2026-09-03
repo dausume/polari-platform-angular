@@ -133,6 +133,61 @@
   margin: 0 auto;
 }
 
+/* Geocode affordance (address field + "Find coordinates" button) */
+.geocode-row {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;   /* button drops under the input when the column is narrow */
+  gap: 8px;
+  min-width: 0;
+}
+
+.geocode-row > editable-string-cell {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+
+.geocode-btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.geocode-btn mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
+.geocode-spinner {
+  display: inline-block;
+}
+
+.geocode-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.geocode-status mat-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.geocode-error {
+  color: var(--color-error);
+}
+
+.geocode-ok {
+  color: var(--text-secondary);
+}
+
 /* Reference Picker Field */
 .reference-picker-field {
   display: flex;

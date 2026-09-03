@@ -166,15 +166,38 @@
 
           <!-- String Field -->
           <ng-container *ngIf="getCellType(varDef) === 'string'">
-            <editable-string-cell
-              mode="edit"
-              [value]="form.get(varDef.varName)?.value"
-              [fieldName]="varDef.varName"
-              [displayName]="varDef.varDisplayName"
-              [required]="varDef.required || false"
-              [disabled]="isReadOnly(varDef.varName)"
-              (valueChange)="onFieldChange(varDef.varName, $event)">
-            </editable-string-cell>
+            <div class="geocode-row" [class.has-geocode]="isGeocodeAddressField(varDef)">
+              <editable-string-cell
+                mode="edit"
+                [value]="form.get(varDef.varName)?.value"
+                [fieldName]="varDef.varName"
+                [displayName]="varDef.varDisplayName"
+                [required]="varDef.required || false"
+                [disabled]="isReadOnly(varDef.varName)"
+                (valueChange)="onFieldChange(varDef.varName, $event)">
+              </editable-string-cell>
+              <!-- Generic geocode affordance: only on the address/display_name
+                   field of a schema that also has latitude + longitude -->
+              <button *ngIf="isGeocodeAddressField(varDef)"
+                      mat-stroked-button type="button"
+                      class="geocode-btn"
+                      (click)="geocodeAddress()"
+                      [disabled]="geocoding || isSubmitting"
+                      matTooltip="Look up latitude / longitude for this address with the configured geocoder"
+                      aria-label="Find coordinates from address">
+                <mat-spinner *ngIf="geocoding" diameter="16" class="geocode-spinner"></mat-spinner>
+                <mat-icon *ngIf="!geocoding">my_location</mat-icon>
+                <span class="geocode-btn-label">Find coordinates from address</span>
+              </button>
+            </div>
+            <div *ngIf="isGeocodeAddressField(varDef) && geocodeError" class="geocode-status geocode-error">
+              <mat-icon>warning</mat-icon>
+              <span>{{ geocodeError }}</span>
+            </div>
+            <div *ngIf="isGeocodeAddressField(varDef) && geocodeNotice && !geocodeError" class="geocode-status geocode-ok">
+              <mat-icon>place</mat-icon>
+              <span>{{ geocodeNotice }}</span>
+            </div>
           </ng-container>
 
           <!-- Number Field -->

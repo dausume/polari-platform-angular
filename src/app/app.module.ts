@@ -199,6 +199,8 @@ import { AddressSearchComponent } from '@components/geojson-config/address-searc
 // Embedded Display Components
 import { EmbeddedTableComponent } from '@components/dashboard/embedded-table/embedded-table';
 import { EmbeddedGraphComponent } from '@components/dashboard/embedded-graph/embedded-graph';
+import { EmbeddedCalendarComponent } from '@components/dashboard/embedded-calendar/embedded-calendar';
+import { EmbeddedMapComponent } from '@components/dashboard/embedded-map/embedded-map';
 // Solution Invoke Button Component
 import { SolutionInvokeButtonComponent } from '@components/dashboard/solution-invoke-button/solution-invoke-button.component';
 // (SystemDiagnosticsComponent and HomeComponent are lazy-loaded via router)
@@ -390,6 +392,8 @@ import { InstanceDetailPanelComponent } from '@components/dashboard/generic/inst
     CertificateTrustPromptComponent,
     XrSessionPromptComponent,
     EmbeddedGraphComponent,
+    EmbeddedCalendarComponent,
+    EmbeddedMapComponent,
     MapRendererComponent,
     CreateGeoJsonConfigDialogComponent,
     GeolocationDialogComponent,
@@ -514,6 +518,23 @@ export class AppModule {
       displayName: 'Graph Configuration',
       description: 'Renders a saved graph configuration (by seeded name or runtime id)',
       defaultInputs: { graphConfigId: '', graphName: '', className: '', filterField: '', filterValue: '' },
+    });
+
+    // cal-3: embedded calendar — a CalendarDefinition (by NAME) resolved
+    // through /api/calendar/{name}/events; layers toggle, click opens the
+    // linked row's CRUD dialog, drag/resize writes back after a confirm.
+    registerDisplayComponent('embeddedCalendar', EmbeddedCalendarComponent, {
+      displayName: 'Calendar Configuration',
+      description: 'Renders a saved calendar configuration (event-definition layers) by name',
+      defaultInputs: { calendarName: '', person: '', household: '', view: '', editable: false },
+    });
+
+    // mps: embedded map — a GeoJsonDefinition (by NAME) over a class's rows
+    // through the existing map-renderer.
+    registerDisplayComponent('embeddedMap', EmbeddedMapComponent, {
+      displayName: 'Map Configuration',
+      description: 'Renders a saved GeoJSON map configuration by name over a class\'s rows',
+      defaultInputs: { geoJsonName: '', className: '', filterField: '', filterValue: '', height: '480px' },
     });
 
     // Register solution invoke button for use in displays

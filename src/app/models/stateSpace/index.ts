@@ -147,6 +147,19 @@ export { ReturnValue } from '../../components/custom-no-code/states/end-states/r
 export { StateChangeCommit } from '../../components/custom-no-code/states/end-states/state-change-commit/state-change-commit.model';
 export { EmitEvent } from '../../components/custom-no-code/states/end-states/emit-event/emit-event.model';
 
+// Events (cal-2 / cal-4) — backend-only event logic nodes
+export {
+  EventFieldMapping,
+  EventFieldsDict,
+  ValueSourceOrLiteral
+} from '../../components/custom-no-code/states/events/event-field-mapping';
+export { GenerateEvent } from '../../components/custom-no-code/states/events/generate-event/generate-event.model';
+export { ModifyEvent } from '../../components/custom-no-code/states/events/modify-event/modify-event.model';
+export { CancelEvent } from '../../components/custom-no-code/states/events/cancel-event/cancel-event.model';
+export { ScheduleOccurrences } from '../../components/custom-no-code/states/events/schedule-occurrences/schedule-occurrences.model';
+export { EventWindowQuery } from '../../components/custom-no-code/states/events/event-window-query/event-window-query.model';
+export { AnalysisCall } from '../../components/custom-no-code/states/events/analysis-call/analysis-call.model';
+
 // Solution Context
 export {
   CONTROL_FLOW_STATE_TYPES,
