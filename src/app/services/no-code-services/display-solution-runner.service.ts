@@ -34,6 +34,13 @@ export interface DisplayRunSummary {
     invalidFields: string[];
     events: DisplayEvent[];
     committed: Array<{ className: string; instance: string; fields: Record<string, any> }>;
+    /** Human-readable outcome the solution chose to report: a final
+     *  variable named `message` (or `result.message`), or a string
+     *  return value. Words only — surfaced verbatim on the form. */
+    message?: string | null;
+    /** A count the solution reported (`written` / `result.written` /
+     *  `count`), shown as "N rows written". */
+    written?: number | null;
 }
 
 export interface DisplayRunResult {
@@ -104,6 +111,7 @@ export class DisplaySolutionRunnerService {
             ctx[k] = (v && typeof v === 'object' && 'value' in (v as any))
                 ? (v as any).value : v;
         }
+        const outcome = DisplaySolutionRunnerService.readOutcome(ctx, trace.finalReturnValue);
         return {
             status: trace.status,
             finalReturnValue: trace.finalReturnValue ?? null,
@@ -112,7 +120,50 @@ export class DisplaySolutionRunnerService {
             invalidFields: ctx['_invalid_fields'] ?? [],
             events: ctx['_emitted_events'] ?? [],
             committed: [],
+            ...outcome,
         };
+    }
+
+    /** Unwrap the engine's final variables (backend trace shape:
+     *  steps[-1].contextAfter.variables, each {name, value} or bare). */
+    private static finalVariables(trace: any): Record<string, any> {
+        const steps = trace?.steps;
+        const last = Array.isArray(steps) && steps.length ? steps[steps.length - 1] : null;
+        const variables = last?.contextAfter?.variables || last?.context_after?.variables || {};
+        const ctx: Record<string, any> = {};
+        if (variables && typeof variables === 'object') {
+            for (const [k, v] of Object.entries(variables)) {
+                ctx[k] = (v && typeof v === 'object' && 'value' in (v as any))
+                    ? (v as any).value : v;
+            }
+        }
+        return ctx;
+    }
+
+    /** The honest, wordy outcome: a `message` the solution set (top
+     *  level, or under `result`/`results`), else a string return value;
+     *  plus a `written`/`count` number if one was reported. Objects are
+     *  never stringified — no JSON on screens. */
+    private static readOutcome(
+        ctx: Record<string, any>, finalReturnValue: any,
+    ): { message: string | null; written: number | null } {
+        const bags: any[] = [ctx, ctx['result'], ctx['results'], finalReturnValue]
+            .filter(b => b && typeof b === 'object');
+        let message: string | null = null;
+        let written: number | null = null;
+        for (const bag of bags) {
+            if (message === null && typeof bag['message'] === 'string' && bag['message'].trim()) {
+                message = bag['message'].trim();
+            }
+            for (const k of ['written', 'count', 'rows_written', 'rowsWritten']) {
+                const n = bag[k];
+                if (written === null && typeof n === 'number' && Number.isFinite(n)) { written = n; }
+            }
+        }
+        if (message === null && typeof finalReturnValue === 'string' && finalReturnValue.trim()) {
+            message = finalReturnValue.trim();
+        }
+        return { message, written };
     }
 
     // ------------------------------------------------------------------
@@ -126,6 +177,11 @@ export class DisplaySolutionRunnerService {
                 ),
             );
             const summary: DisplayRunSummary | null = response?.displaySummary ?? null;
+            if (summary) {
+                Object.assign(summary, DisplaySolutionRunnerService.readOutcome(
+                    DisplaySolutionRunnerService.finalVariables(response?.trace),
+                    summary.finalReturnValue));
+            }
             const executed = !!response?.success && summary?.status === 'completed';
             this.dispatchEvents(solutionName, summary?.events ?? []);
             if (!executed) {

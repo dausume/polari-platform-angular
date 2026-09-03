@@ -14,26 +14,30 @@ import { DisplayMetricCardComponent } from '@components/dashboard/dashboard-metr
 import {
   ScreenSupportNoticeComponent, SupportedScreen,
 } from '@components/shared/screen-support-notice/screen-support-notice.component';
-import { DisplaySolutionRunnerService } from '@services/no-code-services/display-solution-runner.service';
+import { DisplaySolutionRunnerService, DisplayRunSummary } from '@services/no-code-services/display-solution-runner.service';
+import { DisplayFormFeedbackService, DisplayFormFeedback } from '@services/no-code-services/display-form-feedback.service';
+import { hasDatePlaceholder, resolveDatePlaceholders, todayIso } from '../../../utils/display-placeholders';
 
 /**
  * Runtime state for a 'form' display item (P4 — forms now actually
  * execute their linked no-code solution instead of rendering a
  * placeholder). Keyed by DisplayItem.id.
+ *
+ * In-flight + outcome state is NOT here: the renderer is destroyed and
+ * rebuilt when the page refreshes (the solution's own 'refreshDisplay'
+ * event does exactly that), so it lives in DisplayFormFeedbackService
+ * keyed by display id + item id and is read back on every render.
  */
 interface FormRuntimeState {
     group: FormGroup;
     fields: Array<{ key: string; label: string; inputType: 'text' | 'number' | 'checkbox'; required: boolean; placeholder: string }>;
-    running: boolean;
-    banner: { kind: 'ok' | 'error'; text: string } | null;
     fieldErrors: Record<string, string[]>;
     debounceSub?: Subscription;
-}
-
-/** Runtime state for a 'button' display item. */
-interface ButtonRuntimeState {
-    running: boolean;
-    banner: { kind: 'ok' | 'error'; text: string } | null;
+    /** Fields whose default carries {today}/{now}: re-resolved when the
+     *  local date rolls over under an open page (pristine fields only). */
+    dateDefaults: Array<{ key: string; template: string }>;
+    /** Local date the date defaults were last resolved for. */
+    resolvedDate: string;
 }
 
 /**
@@ -118,7 +122,8 @@ export class DisplayRendererComponent implements OnInit, OnChanges, AfterViewIni
     private resizeObserver?: ResizeObserver;
 
     constructor(private elementRef: ElementRef, private ngZone: NgZone,
-                private solutionRunner: DisplaySolutionRunnerService) {}
+                private solutionRunner: DisplaySolutionRunnerService,
+                private feedback: DisplayFormFeedbackService) {}
 
     ngOnInit(): void {}
 
@@ -160,12 +165,55 @@ export class DisplayRendererComponent implements OnInit, OnChanges, AfterViewIni
     // ================================================================
 
     private formStates = new Map<string, FormRuntimeState>();
-    private buttonStates = new Map<string, ButtonRuntimeState>();
 
-    /** Lazily build (and cache) the reactive form for a 'form' item. */
+    // ---- submission feedback (survives the refreshDisplay re-render) ----
+
+    private feedbackKey(item: DisplayItem): string {
+        return DisplayFormFeedbackService.key(this.dashboard?.id, item.id);
+    }
+
+    /** The item's last outcome line (or in-flight marker), if any. */
+    feedbackOf(item: DisplayItem): DisplayFormFeedback | null {
+        return this.feedback.get(this.feedbackKey(item));
+    }
+
+    /** True while this item's solution request is in flight — even
+     *  across a re-render, so the submit button stays disabled. */
+    isRunning(item: DisplayItem): boolean {
+        return this.feedback.isRunning(this.feedbackKey(item));
+    }
+
+    dismissFeedback(item: DisplayItem): void {
+        this.feedback.clear(this.feedbackKey(item));
+    }
+
+    /** Words, not JSON: the solution's own message when it reported
+     *  one, else Saved./Done, with at most a count as the detail. */
+    private outcomeWords(summary: DisplayRunSummary | null): { text: string; detail?: string } {
+        const message = summary?.message || '';
+        const committed = summary?.committed?.length ?? 0;
+        const written = summary?.written ?? null;
+        const saved = committed > 0 || (written ?? 0) > 0;
+        const refreshed = (summary?.events || []).some(e => e?.name === 'refreshDisplay');
+        const text = message
+            || (saved ? 'Saved.' : refreshed ? 'Done — display refreshed' : 'Done.');
+        let detail: string | undefined;
+        if (written !== null) {
+            detail = `${written} ${written === 1 ? 'row' : 'rows'} written`;
+        } else if (committed > 0) {
+            detail = `${committed} ${committed === 1 ? 'change' : 'changes'} saved`;
+        }
+        if (refreshed && (message || saved)) {
+            detail = detail ? `${detail} · display refreshed` : 'Display refreshed';
+        }
+        return detail ? { text, detail } : { text };
+    }
+
+    /** Lazily build (and cache) the reactive form for a 'form' item;
+     *  on every call, roll {today}/{now} defaults if the date changed. */
     getFormState(item: DisplayItem): FormRuntimeState {
         let state = this.formStates.get(item.id);
-        if (state) return state;
+        if (state) { this.rollDateDefaults(state); return state; }
 
         const config = (item.item || {}) as FormDisplayConfig;
         const fields: FormRuntimeState['fields'] = [];
@@ -187,6 +235,8 @@ export class DisplayRendererComponent implements OnInit, OnChanges, AfterViewIni
             });
             controls[f.fieldName] = new FormControl(inputType === 'checkbox' ? false : '');
         }
+        const dateDefaults: FormRuntimeState['dateDefaults'] = [];
+        const at = new Date();
         for (const v of config.extraVariables || []) {
             const inputType = v.dataType === 'number' ? 'number'
                 : v.dataType === 'boolean' ? 'checkbox' : 'text';
@@ -197,16 +247,27 @@ export class DisplayRendererComponent implements OnInit, OnChanges, AfterViewIni
                 required: !!v.required,
                 placeholder: v.placeholder || '',
             });
+            // {today}/{now} are resolved HERE, at render time (the page
+            // may have substituted already and left the raw template in
+            // defaultValueTemplate; a form reached without display-page
+            // still resolves its own).
+            const template = (v as any).defaultValueTemplate
+                ?? (hasDatePlaceholder(v.defaultValue) ? v.defaultValue : null);
+            if (typeof template === 'string') {
+                dateDefaults.push({ key: v.variableName, template });
+            }
+            const initial = template !== null && template !== undefined
+                ? resolveDatePlaceholders(template, at) : v.defaultValue;
             controls[v.variableName] = new FormControl(
-                v.defaultValue ?? (inputType === 'checkbox' ? false : ''));
+                initial ?? (inputType === 'checkbox' ? false : ''));
         }
 
         state = {
             group: new FormGroup(controls),
             fields,
-            running: false,
-            banner: null,
             fieldErrors: {},
+            dateDefaults,
+            resolvedDate: todayIso(at),
         };
         // Debounce mode: value changes auto-submit after quiet time
         // (mirrors the IC editor's debounce pattern).
@@ -219,19 +280,39 @@ export class DisplayRendererComponent implements OnInit, OnChanges, AfterViewIni
         return state;
     }
 
+    /** A page left open past midnight: re-resolve {today}/{now} defaults
+     *  for fields the user has not touched. Cheap — one string compare
+     *  per change-detection pass, work only on the day boundary. */
+    private rollDateDefaults(state: FormRuntimeState): void {
+        if (!state.dateDefaults.length) { return; }
+        const at = new Date();
+        const today = todayIso(at);
+        if (state.resolvedDate === today) { return; }
+        state.resolvedDate = today;
+        for (const d of state.dateDefaults) {
+            const control = state.group.get(d.key);
+            if (control && control.pristine) {
+                control.setValue(resolveDatePlaceholders(d.template, at), { emitEvent: false });
+            }
+        }
+    }
+
     /** Submit a form item: run its linked solution through the
-     *  EXECUTION path and surface verdicts inline. */
+     *  EXECUTION path and surface verdicts inline. The outcome is
+     *  written to DisplayFormFeedbackService (not to this instance) so
+     *  it is still on screen after the solution's refreshDisplay
+     *  rebuilds the renderer. */
     async submitForm(item: DisplayItem): Promise<void> {
         if (this.editMode) return;   // edit mode never fires solutions
         const config = (item.item || {}) as FormDisplayConfig;
         const state = this.getFormState(item);
-        if (state.running) return;
+        const key = this.feedbackKey(item);
+        if (this.feedback.isRunning(key)) return;
         if (!config.linkedSolutionName) {
-            state.banner = { kind: 'error', text: 'No solution is linked to this form.' };
+            this.feedback.setOutcome(key, 'error', 'No solution is linked to this form.');
             return;
         }
-        state.running = true;
-        state.banner = null;
+        this.feedback.markRunning(key);
         state.fieldErrors = {};
         try {
             const result = await this.solutionRunner.run(
@@ -245,61 +326,47 @@ export class DisplayRendererComponent implements OnInit, OnChanges, AfterViewIni
                 }
             }
             if (result.success && summary?.formValid !== false) {
-                const committed = summary?.committed?.length ?? 0;
-                state.banner = {
-                    kind: 'ok',
-                    text: committed > 0 ? 'Saved.' : 'Done.',
-                };
+                const words = this.outcomeWords(summary);
+                this.feedback.setOutcome(key, 'ok', words.text, words.detail);
             } else if (summary?.formValid === false) {
-                state.banner = {
-                    kind: 'error',
-                    text: 'Please fix the highlighted fields.',
-                };
+                const bad = summary?.invalidFields?.length ?? Object.keys(state.fieldErrors).length;
+                this.feedback.setOutcome(key, 'error', 'Please fix the highlighted fields.',
+                    bad > 0 ? `${bad} ${bad === 1 ? 'field needs' : 'fields need'} attention` : undefined);
             } else {
-                state.banner = {
-                    kind: 'error',
-                    text: result.error || 'The linked solution failed.',
-                };
+                this.feedback.setOutcome(key, 'error', result.error || 'The linked solution failed.');
             }
-        } finally {
-            state.running = false;
+        } catch (err: any) {
+            this.feedback.setOutcome(key, 'error', err?.message || 'The linked solution failed.');
         }
-    }
-
-    getButtonState(item: DisplayItem): ButtonRuntimeState {
-        let state = this.buttonStates.get(item.id);
-        if (!state) {
-            state = { running: false, banner: null };
-            this.buttonStates.set(item.id, state);
-        }
-        return state;
     }
 
     /** Click a button item: run its linked solution with params mapped
-     *  from the display context. */
+     *  from the display context. Same feedback store as forms. */
     async onButtonClick(item: DisplayItem): Promise<void> {
         if (this.editMode) return;
         const config = (item.item || {}) as ButtonDisplayConfig;
-        const state = this.getButtonState(item);
-        if (state.running) return;
+        const key = this.feedbackKey(item);
+        if (this.feedback.isRunning(key)) return;
         if (!config.linkedSolutionName) {
-            state.banner = { kind: 'error', text: 'No solution is linked to this button.' };
+            this.feedback.setOutcome(key, 'error', 'No solution is linked to this button.');
             return;
         }
         const params: Record<string, any> = {};
         for (const [paramName, contextKey] of Object.entries(config.paramMappings || {})) {
             params[paramName] = (this.context as any)?.[contextKey];
         }
-        state.running = true;
-        state.banner = null;
+        this.feedback.markRunning(key);
         try {
             const result = await this.solutionRunner.run(
                 config.linkedSolutionName, params);
-            state.banner = result.success
-                ? { kind: 'ok', text: 'Done.' }
-                : { kind: 'error', text: result.error || 'The linked solution failed.' };
-        } finally {
-            state.running = false;
+            if (result.success) {
+                const words = this.outcomeWords(result.summary);
+                this.feedback.setOutcome(key, 'ok', words.text, words.detail);
+            } else {
+                this.feedback.setOutcome(key, 'error', result.error || 'The linked solution failed.');
+            }
+        } catch (err: any) {
+            this.feedback.setOutcome(key, 'error', err?.message || 'The linked solution failed.');
         }
     }
 

@@ -14,6 +14,7 @@ import { registerGenericDisplayComponents } from '@components/dashboard/generic/
 import { registerPsppDisplayComponents } from '@components/pspp/pspp-display-components';
 import { registerVideoDisplayComponents } from '@components/video/video-display-components';
 import { DisplayEventsService } from '@services/no-code-services/display-events.service';
+import { hasDatePlaceholder, resolveDatePlaceholders } from '../../../utils/display-placeholders';
 
 @Component({
   standalone: true,
@@ -168,7 +169,12 @@ export class DisplayPageComponent implements OnInit, OnDestroy {
    *  page of 404ing panels. */
   private substituteObject(display: Display, objectName: string | null): boolean {
     let unresolved = false;
+    // One clock for the whole pass so every field agrees on the day.
+    const at = new Date();
     const sub = (v: any): any => {
+      // {today} / {now}: local date + time, resolved at render time so a
+      // seeded form never proposes the day it was seeded.
+      v = resolveDatePlaceholders(v, at);
       if (typeof v !== 'string' || !v.includes('{object}')) { return v; }
       if (!objectName) { unresolved = true; return v; }
       return v.split('{object}').join(objectName);
@@ -182,9 +188,16 @@ export class DisplayPageComponent implements OnInit, OnDestroy {
       }
       // mpc: a seeded FORM on a per-object page pre-fills the object
       // (e.g. the person) through its extra variables' defaults.
+      // {today}/{now} defaults also keep their raw template
+      // (defaultValueTemplate) so the renderer can roll a pristine
+      // field over when the local date changes under an open page.
       const extra = item.item?.extraVariables;
       if (Array.isArray(extra)) {
-        for (const v of extra) { if (v) { v.defaultValue = sub(v.defaultValue); } }
+        for (const v of extra) {
+          if (!v) { continue; }
+          if (hasDatePlaceholder(v.defaultValue)) { v.defaultValueTemplate = v.defaultValue; }
+          v.defaultValue = sub(v.defaultValue);
+        }
       }
       (item.nestedRows || []).forEach(walkRow);
     };

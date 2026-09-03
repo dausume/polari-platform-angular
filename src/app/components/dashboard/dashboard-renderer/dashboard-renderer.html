@@ -10,6 +10,32 @@
     </div>
 
     <!-- ============================================================
+         Submission feedback line (forms + buttons). Read from the
+         feedback service on every render — the record is keyed by
+         display id + item id, so it outlives this component instance.
+         Dismissible; success auto-clears after 20 s, errors stay.
+         ============================================================ -->
+    <ng-template #feedbackLine let-item="item">
+        <ng-container *ngIf="feedbackOf(item) as fb">
+            <div class="df-banner df-feedback" *ngIf="fb.kind !== 'running'"
+                 role="status" aria-live="polite"
+                 [class.df-banner-ok]="fb.kind === 'ok'"
+                 [class.df-banner-error]="fb.kind === 'error'">
+                <mat-icon class="df-feedback-icon">{{ fb.kind === 'ok' ? 'check_circle' : 'error_outline' }}</mat-icon>
+                <span class="df-feedback-body">
+                    <span class="df-feedback-text">{{ fb.text }}</span>
+                    <span class="df-feedback-detail" *ngIf="fb.detail">{{ fb.detail }}</span>
+                    <span class="df-feedback-when">{{ fb.at | date:'HH:mm:ss' }}</span>
+                </span>
+                <button type="button" class="df-feedback-dismiss" title="Dismiss"
+                        aria-label="Dismiss" (click)="dismissFeedback(item)">
+                    <mat-icon>close</mat-icon>
+                </button>
+            </div>
+        </ng-container>
+    </ng-template>
+
+    <!-- ============================================================
          Reusable item content template — renders the inside of any item
          regardless of whether it's in a row, column, edit/normal mode.
          ============================================================ -->
@@ -72,16 +98,15 @@
                         <div class="df-actions">
                             <button *ngIf="item.item?.submissionMode !== 'debounce'"
                                     mat-raised-button color="primary" type="submit"
-                                    [disabled]="fstate.running || editMode">
+                                    [disabled]="isRunning(item) || editMode">
                                 {{ item.item?.submitLabel || 'Submit' }}
                             </button>
-                            <span class="df-running" *ngIf="fstate.running">Running…</span>
+                            <span class="df-running" *ngIf="isRunning(item)">Running…</span>
                         </div>
-                        <div class="df-banner" *ngIf="fstate.banner"
-                             [class.df-banner-ok]="fstate.banner.kind === 'ok'"
-                             [class.df-banner-error]="fstate.banner.kind === 'error'">
-                            {{ fstate.banner.text }}
-                        </div>
+                        <!-- Outcome line: lives in DisplayFormFeedbackService so it
+                             survives the refreshDisplay re-render. Words + at most
+                             a count — never a JSON dump. -->
+                        <ng-container *ngTemplateOutlet="feedbackLine; context: { item: item }"></ng-container>
                         <p class="df-no-solution" *ngIf="!item.item?.linkedSolutionName">
                             No solution linked — configure one in the display editor.
                         </p>
@@ -90,20 +115,16 @@
             </ng-container>
             <!-- P4: buttons actually fire their linked solution. -->
             <ng-container *ngSwitchCase="'button'">
-                <div class="button-display-item" *ngIf="getButtonState(item) as bstate">
+                <div class="button-display-item">
                     <button mat-raised-button
                             [style.background-color]="item.item?.color || '#1976d2'"
                             style="color: white"
-                            [disabled]="bstate.running || editMode"
+                            [disabled]="isRunning(item) || editMode"
                             (click)="onButtonClick(item)">
                         <mat-icon *ngIf="item.item?.iconName">{{ item.item.iconName }}</mat-icon>
-                        {{ item.item?.label || 'Button' }}
+                        {{ isRunning(item) ? 'Running…' : (item.item?.label || 'Button') }}
                     </button>
-                    <div class="df-banner" *ngIf="bstate.banner"
-                         [class.df-banner-ok]="bstate.banner.kind === 'ok'"
-                         [class.df-banner-error]="bstate.banner.kind === 'error'">
-                        {{ bstate.banner.text }}
-                    </div>
+                    <ng-container *ngTemplateOutlet="feedbackLine; context: { item: item }"></ng-container>
                 </div>
             </ng-container>
             <ng-container *ngSwitchCase="'container'">

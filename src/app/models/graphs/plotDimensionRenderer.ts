@@ -198,8 +198,13 @@ export class PlotDimensionRenderer {
         const Plot = PlotDimensionRenderer.PlotLib;
         if (!Plot) return null;
 
+        // The primary-X channel goes through the figure so an
+        // auto-detected date axis (ISO date strings → Date objects on
+        // a utc scale) applies to every mark alike; a value field on
+        // x (barX / lineX / areaX) stays a bare field name.
+        const isPrimaryX = xDimension === this.plotFigure.getPrimaryXDimension();
         const baseOptions = {
-            x: xDimension,
+            x: isPrimaryX ? this.plotFigure.xChannel(xDimension) : xDimension,
             y: yDimension,
             opacity: this.opacity
         };

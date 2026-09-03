@@ -71,6 +71,30 @@ export type PlotRenderStyle = 'lineY' | 'barY' | 'lineX' | 'barX' | 'dot' | 'are
  *  being slightly wrong is a rotated label that did not need it. */
 const TICK_CHAR_PX = 6.5;
 
+/** An ISO calendar date, optionally with a time part: '2026-08-31',
+ *  '2026-08-31T09:30:00', '2026-08-31T09:30:00Z'. The shape the
+ *  backend emits for date / datetime fields (period_start …). */
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}(T.*)?$/;
+
+/** True for a Date or a string ISO_DATE_RE accepts. */
+function isDateLike(v: unknown): boolean {
+    if (v instanceof Date) { return !Number.isNaN(v.getTime()); }
+    return typeof v === 'string' && ISO_DATE_RE.test(v);
+}
+
+/** Date for the time scale. A bare calendar date parses as UTC
+ *  midnight already; a datetime WITHOUT a zone designator is read as
+ *  UTC too (rather than browser-local) so the spacing stays uniform
+ *  across DST and matches the `utc` scale the axis uses. */
+function toPlotDate(v: unknown): Date | null {
+    if (v instanceof Date) { return v; }
+    if (typeof v !== 'string' || !ISO_DATE_RE.test(v)) { return null; }
+    const hasTime = v.length > 10;
+    const zoned = /[zZ]$|[+-]\d{2}:?\d{2}$/.test(v);
+    const d = new Date(hasTime && !zoned ? `${v}Z` : v);
+    return Number.isNaN(d.getTime()) ? null : d;
+}
+
 export class PlotFigure {
     /** Unique identifier for the plot figure */
     id: string;
@@ -210,6 +234,10 @@ export class PlotFigure {
         if (Plot && this.longForm.length) {
             const xOk = (v: any) => this.axisValueOk(v, this.options.xType === 'log');
             const yOk = (v: any) => this.axisValueOk(v, this.options.yType === 'log');
+            // Long-form rows keep x as authored (the title channels
+            // below print d.x); only the CHANNEL becomes a Date on a
+            // date axis.
+            const xCh = this.xChannel('x');
             for (const group of this.longForm) {
                 // The series COLOUR. A configured colour is a constant;
                 // without one the series label drives Plot's categorical
@@ -229,7 +257,7 @@ export class PlotFigure {
                         p => xOk(p.x) && yOk(p.lo) && yOk(p.hi));
                     if (band.length) {
                         marks.unshift(Plot.areaY(band, {
-                            x: 'x', y1: 'lo', y2: 'hi',
+                            x: xCh, y1: 'lo', y2: 'hi',
                             fill: paint,
                             fillOpacity: 0.12,
                             title: () => group.label }));
@@ -240,12 +268,12 @@ export class PlotFigure {
                     const gp = group.points.filter(p => xOk(p.x));
                     if (!gp.length) { continue; }
                     marks.push(Plot.ruleX(gp, {
-                        x: 'x', stroke: group.color ?? '#607d8b',
+                        x: xCh, stroke: group.color ?? '#607d8b',
                         strokeWidth: 1,
                         strokeDasharray: group.dash ? '4,3' : undefined,
                         title: (d: any) => `${d.label ?? group.label}: ${d.x}` }));
                     marks.push(Plot.text(gp, {
-                        x: 'x', frameAnchor: 'top',
+                        x: xCh, frameAnchor: 'top',
                         text: (d: any) => d.label ?? group.label,
                         dy: 8, dx: 4, textAnchor: 'start',
                         fontSize: 10,
@@ -272,7 +300,7 @@ export class PlotFigure {
                     p => xOk(p.x) && yOk(p.lo) && yOk(p.hi));
                 if (withErr.length) {
                     marks.push(Plot.ruleX(withErr, {
-                        x: 'x', y1: 'lo', y2: 'hi',
+                        x: xCh, y1: 'lo', y2: 'hi',
                         strokeWidth: 1.5,
                         stroke: paint }));
                 }
@@ -281,13 +309,13 @@ export class PlotFigure {
                 if (!pts.length) { continue; }
                 if (group.style === 'dot') {
                     marks.push(Plot.dot(pts, {
-                        x: 'x', y: 'y', r: 3.5,
+                        x: xCh, y: 'y', r: 3.5,
                         fill: paint,
                         title: (d: any) =>
                             `${group.label}: ${d.x}, ${d.y}` }));
                 } else {
                     marks.push(Plot.lineY(pts, {
-                        x: 'x', y: 'y', strokeWidth: 1.6,
+                        x: xCh, y: 'y', strokeWidth: 1.6,
                         stroke: paint,
                         strokeDasharray: group.dash
                             ? '6,4' : undefined }));
@@ -310,6 +338,57 @@ export class PlotFigure {
      *  series label so Plot builds a categorical colour scale. */
     private seriesPaint(group: LongFormGroup): string | (() => string) {
         return group.color ? group.color : () => group.label;
+    }
+
+    /**
+     * Is the primary x axis a DATE axis? Auto-detected: true when the
+     * plotted series carry at least one x value and EVERY x value is a
+     * Date or an ISO date string ('2026-08-31', '2026-08-31T..').
+     * Both sources are inspected — the primary-X field of the
+     * dataseries rows (dimension plots) and the x of every long-form
+     * point that has an x (band / guide / dot / line groups).
+     *
+     * Without this, ISO date strings land on Plot's ordinal point
+     * scale: one tick per distinct string, evenly spaced regardless
+     * of the real gap between them (a skipped week looked like no
+     * gap on the meal-planning period charts) plus a "date strings on
+     * a point x-scale" warning per mark.
+     */
+    isDateXAxis(): boolean {
+        if (this.options.xType === 'log') { return false; }
+        let seen = 0;
+        const field = this.getPrimaryXDimension();
+        const points = this.dataseries?.dataPoints;
+        if (field && Array.isArray(points)) {
+            for (const point of points) {
+                const value = (point as any)?.[field]
+                    ?? (point as any)?.values?.[field];
+                if (value === undefined || value === null || value === '') { continue; }
+                if (!isDateLike(value)) { return false; }
+                seen++;
+            }
+        }
+        for (const group of this.longForm) {
+            if (group.style === 'hguide') { continue; }
+            for (const p of group.points) {
+                if (p.x === undefined || p.x === null || p.x === '') { continue; }
+                if (!isDateLike(p.x)) { return false; }
+                seen++;
+            }
+        }
+        return seen > 0;
+    }
+
+    /**
+     * The x channel for a mark reading `field` off each row: the bare
+     * field name normally (Plot infers the axis label from it), or —
+     * on a date axis — an accessor yielding Dates for the `utc` scale.
+     * The rows themselves are NOT rewritten, so title/tip channels
+     * that print the row's x still show the original date string.
+     */
+    xChannel(field: string): string | ((d: any) => Date | null) {
+        if (!this.isDateXAxis()) { return field; }
+        return (d: any) => toPlotDate(d?.[field] ?? d?.values?.[field]);
     }
 
     /**
@@ -384,6 +463,20 @@ export class PlotFigure {
         const scale: Record<string, unknown> = {};
         if (this.options.xLabel) {
             scale['label'] = this.options.xLabel;
+        }
+        if (this.isDateXAxis()) {
+            // Date axis: a continuous UTC time scale — ticks at real
+            // calendar intervals, gaps proportional to elapsed time.
+            // The x channel is an accessor (see xChannel), so Plot
+            // cannot infer the label from a field name: supply it.
+            // The ISO strings are NOT categories — the rotate/margin
+            // logic below must not run on them.
+            scale['type'] = 'utc';
+            if (!this.options.xLabel) {
+                const field = this.getPrimaryXDimension();
+                if (field) { scale['label'] = field; }
+            }
+            return scale;
         }
         const labels = this.categoricalXLabels();
         if (!labels.length) {
