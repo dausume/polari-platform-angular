@@ -1,0 +1,27 @@
+<!-- The persistent bar: on every page while the instance is a demo. -->
+<div class="demo-bar" *ngIf="notice" role="note" aria-label="Demonstration instance notice">
+  <mat-icon class="demo-bar-icon" aria-hidden="true">science</mat-icon>
+  <span class="demo-bar-text">
+    <strong>{{ notice.title || 'Demonstration instance' }}.</strong>
+    Do not enter personal information — anything you put here may be public and can be wiped at any time.
+  </span>
+  <a class="demo-bar-link" *ngIf="notice.termsUrl" [href]="notice.termsUrl" target="_blank" rel="noopener">Demo terms</a>
+</div>
+
+<!-- The first-visit acknowledgement: blocks the page until read. -->
+<div class="demo-backdrop" *ngIf="notice && showDialog">
+  <div class="demo-dialog" role="dialog" aria-modal="true" aria-labelledby="demo-title">
+    <h2 id="demo-title">{{ notice.title || 'Demonstration instance' }}</h2>
+    <p class="demo-message">{{ notice.message || 'This is a public demonstration of Polari. It exists so you can try the software, not to hold anyone\'s data.' }}</p>
+    <ul class="demo-points">
+      <li><strong>No personal information.</strong> Do not enter names, addresses, contact details, health, financial or other information about yourself or anyone else.</li>
+      <li><strong>Nothing here is private or kept.</strong> What you enter may be visible to other visitors and can be reset or deleted at any time without notice.</li>
+      <li><strong>Demo accounts only.</strong> Use a throwaway login; never reuse a password you use anywhere else.</li>
+      <li><strong>No warranty.</strong> The software is free and open source (GPLv3), provided as is, with no promise of availability, accuracy or fitness for any purpose.</li>
+    </ul>
+    <p class="demo-terms" *ngIf="notice.termsUrl">The full <a [href]="notice.termsUrl" target="_blank" rel="noopener">demo terms</a> say the rest. Continuing means you have read them.</p>
+    <div class="demo-actions">
+      <button mat-flat-button color="primary" type="button" (click)="acknowledge()">I understand — continue</button>
+    </div>
+  </div>
+</div>

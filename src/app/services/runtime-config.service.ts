@@ -20,7 +20,7 @@ import { BehaviorSubject, Observable, of } from 'rxjs';
 import { catchError, tap } from 'rxjs/operators';
 import { environment } from 'src/environments/environment-dev';
 
-import { KeycloakConfig, RuntimeConfig } from '@models/runtimeConfig';
+import { DemoNotice, KeycloakConfig, RuntimeConfig } from '@models/runtimeConfig';
 
 @Injectable({
     providedIn: 'root'
@@ -419,6 +419,11 @@ export class RuntimeConfigService {
      */
     getKeycloakConfig(): KeycloakConfig | null {
         return this.startupConfig?.keycloak ?? null;
+    }
+
+    /** The demo notice stanza, or null when this instance is not a demo. */
+    getDemoNotice(): DemoNotice | null {
+        return this.startupConfig?.demo ?? null;
     }
 
     /**

@@ -62,10 +62,22 @@ export interface KeycloakConfig {
 }
 
 /** Complete runtime configuration. */
+/** The demo notice stanza (components/demo-notice): written by the staging/prod
+ *  setup scripts; absent on isles and developer nodes. `version` keys the
+ *  visitor's acknowledgement, so changed terms re-prompt. */
+export interface DemoNotice {
+    enabled: boolean;
+    title?: string;
+    message?: string;
+    termsUrl?: string;
+    version?: string;
+}
+
 export interface RuntimeConfig {
     backend: BackendConfig;
     frontend: FrontendConfig;
     connection: ConnectionConfig;
     features: FeaturesConfig;
     keycloak?: KeycloakConfig;
+    demo?: DemoNotice;
 }

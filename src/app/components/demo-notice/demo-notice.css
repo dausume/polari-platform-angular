@@ -1,0 +1,33 @@
+/* Demo notice — the bar and the first-visit dialog. Theme tokens only
+   (styling-theme-tokens rule): amber = the suite's "attention" hue. */
+.demo-bar {
+  display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;
+  padding: 0.35rem 0.9rem; font-size: 0.86rem; line-height: 1.35;
+  background: var(--brand-orange); color: var(--brand-orange-text, var(--text-on-primary));
+  border-bottom: 1px solid var(--border-light);
+}
+.demo-bar-icon { font-size: 18px; width: 18px; height: 18px; flex: 0 0 auto; }
+.demo-bar-text { flex: 1 1 320px; min-width: 0; }
+.demo-bar-link { color: inherit; font-weight: 600; text-decoration: underline; white-space: nowrap; }
+
+.demo-backdrop {
+  position: fixed; inset: 0; z-index: 3000;
+  display: flex; align-items: center; justify-content: center; padding: 1rem;
+  background: rgba(0, 0, 0, 0.55);
+}
+.demo-dialog {
+  max-width: 560px; width: 100%; max-height: 90vh; overflow: auto;
+  background: var(--surface, var(--background-card, #fff)); color: var(--text-primary);
+  border: 1px solid var(--border-light); border-top: 4px solid var(--brand-orange);
+  border-radius: 8px; padding: 1.4rem 1.6rem 1.2rem;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+}
+.demo-dialog h2 { margin: 0 0 0.6rem; font-size: 1.35rem; }
+.demo-message { margin: 0 0 0.8rem; color: var(--text-secondary); }
+.demo-points { margin: 0 0 0.8rem; padding-left: 1.2rem; }
+.demo-points li { margin: 0.35rem 0; color: var(--text-secondary); }
+.demo-points strong { color: var(--text-primary); }
+.demo-terms { margin: 0 0 1rem; color: var(--text-secondary); font-size: 0.92rem; }
+.demo-terms a { color: var(--brand-orange); }
+.demo-actions { display: flex; justify-content: flex-end; }
+@media (max-width: 600px) { .demo-dialog { padding: 1.1rem 1rem 1rem; } }
