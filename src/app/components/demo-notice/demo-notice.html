@@ -1,15 +1,31 @@
-<!-- The persistent bar: on every page while the instance is a demo. -->
-<div class="demo-bar" *ngIf="notice" role="note" aria-label="Demonstration instance notice">
+<!-- The persistent bar: on every page while a demo document is active (or the fallback stanza says so). -->
+<div class="demo-bar" *ngIf="showBar" role="note" aria-label="Demonstration instance notice">
   <mat-icon class="demo-bar-icon" aria-hidden="true">science</mat-icon>
-  <span class="demo-bar-text">
-    <strong>{{ notice.title || 'Demonstration instance' }}.</strong>
-    Do not enter personal information — anything you put here may be public and can be wiped at any time.
-  </span>
-  <a class="demo-bar-link" *ngIf="notice.termsUrl" [href]="notice.termsUrl" target="_blank" rel="noopener">Demo terms</a>
+  <span class="demo-bar-text">{{ barText }}</span>
+  <a class="demo-bar-link" *ngIf="termsUrl" [href]="termsUrl" target="_blank" rel="noopener">Demo terms</a>
 </div>
 
-<!-- The first-visit acknowledgement: blocks the page until read. -->
-<div class="demo-backdrop" *ngIf="notice && showDialog">
+<!-- The terms gate: one pending document at a time; the click is recorded on the server. -->
+<div class="demo-backdrop" *ngIf="current">
+  <div class="demo-dialog" role="dialog" aria-modal="true" aria-labelledby="terms-title">
+    <span class="terms-eyebrow">Please read before continuing</span>
+    <h2 id="terms-title">{{ current.title }}</h2>
+    <p class="demo-message" *ngIf="current.summary">{{ current.summary }}</p>
+    <div class="terms-body" [innerHTML]="currentHtml"></div>
+    <p class="demo-terms">
+      Version {{ current.version }}<span *ngIf="current.effective_at"> · effective {{ current.effective_at }}</span>
+      · <a [href]="currentPage()" target="_blank" rel="noopener">open as a page</a><span *ngIf="current.contact"> · contact: {{ current.contact }}</span>.
+      Clicking the button records that you accepted this version of the text.
+    </p>
+    <p class="terms-error" *ngIf="!recorded">Your acceptance could not be recorded (the instance did not answer). Try again in a moment.</p>
+    <div class="demo-actions">
+      <button mat-flat-button color="primary" type="button" (click)="accept()" [disabled]="busy">I have read and accept {{ current.title }}</button>
+    </div>
+  </div>
+</div>
+
+<!-- Fallback (no terms module on this instance): the runtime-config stanza's local-only acknowledgement. -->
+<div class="demo-backdrop" *ngIf="notice && showFallbackDialog">
   <div class="demo-dialog" role="dialog" aria-modal="true" aria-labelledby="demo-title">
     <h2 id="demo-title">{{ notice.title || 'Demonstration instance' }}</h2>
     <p class="demo-message">{{ notice.message || 'This is a public demonstration of Polari. It exists so you can try the software, not to hold anyone\'s data.' }}</p>
@@ -21,7 +37,7 @@
     </ul>
     <p class="demo-terms" *ngIf="notice.termsUrl">The full <a [href]="notice.termsUrl" target="_blank" rel="noopener">demo terms</a> say the rest. Continuing means you have read them.</p>
     <div class="demo-actions">
-      <button mat-flat-button color="primary" type="button" (click)="acknowledge()">I understand — continue</button>
+      <button mat-flat-button color="primary" type="button" (click)="acknowledgeFallback()">I understand — continue</button>
     </div>
   </div>
 </div>

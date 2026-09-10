@@ -31,3 +31,14 @@
 .demo-terms a { color: var(--brand-orange); }
 .demo-actions { display: flex; justify-content: flex-end; }
 @media (max-width: 600px) { .demo-dialog { padding: 1.1rem 1rem 1rem; } }
+
+/* the terms gate (server-backed documents) */
+.terms-eyebrow { font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--brand-orange); }
+.terms-body {
+  max-height: 40vh; overflow: auto; padding: 0.6rem 0.9rem; margin: 0 0 0.8rem; font-size: 0.92rem;
+  border: 1px solid var(--border-light); border-radius: 6px; color: var(--text-secondary);
+}
+.terms-body h3 { font-size: 1rem; margin: 0.9rem 0 0.3rem; color: var(--text-primary); }
+.terms-body p, .terms-body li { margin: 0.35rem 0; }
+.terms-error { color: var(--color-error); margin: 0 0 0.8rem; }
+.demo-dialog { max-width: 620px; }
