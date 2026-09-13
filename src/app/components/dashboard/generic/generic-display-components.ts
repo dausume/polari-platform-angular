@@ -14,6 +14,7 @@ import { FetParts2dComponent } from './fet-parts-2d.component';
 import { FreedomProofPanelComponent } from './freedom-proof-panel.component';
 import { MicrochipLadderComponent } from './microchip-ladder.component';
 import { NamedGraphPanelComponent } from './named-graph-panel.component';
+import { SecurityThreatSimComponent } from './security-threat-sim.component';
 
 let registered = false;
 
@@ -81,6 +82,18 @@ export function registerGenericDisplayComponents(): void {
         + 'signal score), transport regime line, competitive ranking, '
         + 'cell coverage, freedom proof, links strip (input: device)',
       defaultInputs: { device: '' },
+    });
+
+  registerDisplayComponent(
+    'security-threat-sim', SecurityThreatSimComponent, {
+      displayName: 'Security Threat Simulation',
+      description: 'A threat played on the security topology: a red token '
+        + 'crosses each boundary (stock docker / qemu / Polari) until a policy '
+        + 'blocks it, and the green counterexample beside it shows which '
+        + 'actor, group or permission legitimately reaches the same target; '
+        + 'mode replays it under stock, today, complain or enforce '
+        + '(inputs: path, scenario, mode)',
+      defaultInputs: { path: '/api/security/threats', scenario: '', mode: 'today' },
     });
 
   registerDisplayComponent(
