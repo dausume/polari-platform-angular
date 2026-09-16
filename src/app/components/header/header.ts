@@ -15,6 +15,7 @@ import {
   AppNav, AppNavGroup, AppNavItem, AppsNavService,
 } from '@services/apps-nav.service';
 import { AuthUser } from '../../classes/auth-user';
+import { RoleplayMenuComponent } from './roleplay-menu.component';
 import { Subscription, filter } from 'rxjs';
 
 @Component({
@@ -22,7 +23,7 @@ import { Subscription, filter } from 'rxjs';
   selector: 'header',
   templateUrl: 'header.html',
   styleUrls: ['header.css'],
-  imports: [CommonModule, MatToolbarModule, MatIconModule, MatButtonModule, MatMenuModule, MatTooltipModule, MatDividerModule]
+  imports: [CommonModule, MatToolbarModule, MatIconModule, MatButtonModule, MatMenuModule, MatTooltipModule, MatDividerModule, RoleplayMenuComponent]
 })
 export class HeaderComponent implements OnInit, OnDestroy {
   @Input()

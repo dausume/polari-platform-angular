@@ -15,6 +15,7 @@ import { polariNode } from '@models/polariNode';
 import { CRUDEservicesManager } from '@services/crude-services-manager';
 import { DisplayManagerService } from '@services/dashboard/display-manager.service';
 import { DisplaySummary } from '@models/dashboards/DisplaySummary';
+import { RoleplayService } from '@services/roleplay.service';
 
 
 @Component({
@@ -73,7 +74,11 @@ export class AppComponent {
   navMode: 'side' | 'over' = 'side';
   private navOverlays = false;
 
-  constructor(router: Router, polariService: PolariService, typingService: ClassTypingService, crudeServicesManager: CRUDEservicesManager, displayManager: DisplayManagerService, private appsNav: AppsNavService, private breakpoints: BreakpointObserver, private authSession: AuthSessionService)
+  // Role-play (dev posture): the last app we recorded a usage for, so a
+  // navigation inside the same app does not re-post the app row.
+  private roleplayLastApp: string | null = null;
+
+  constructor(router: Router, polariService: PolariService, typingService: ClassTypingService, crudeServicesManager: CRUDEservicesManager, displayManager: DisplayManagerService, private appsNav: AppsNavService, private breakpoints: BreakpointObserver, private authSession: AuthSessionService, private roleplay: RoleplayService)
   {
     this.router = router
     this.polariService = polariService
@@ -107,6 +112,24 @@ export class AppComponent {
       // expands in the core shell — until the user says otherwise.
       this.coreNavExpanded = !this.currentApp;
     }
+  }
+
+  /** Role-play (dev posture only): while someone is acting as a prototype
+   *  role, every page they open — and every app they enter — is recorded,
+   *  so the review can show what the job actually needed. Dropped entirely
+   *  when no role is active (the service checks). */
+  private recordRoleplayNavigation(url: string): void {
+    if (!this.roleplay.active) {
+      this.roleplayLastApp = null;
+      return;
+    }
+    const appName = this.currentApp?.name || null;
+    const items: any[] = [{ kind: 'page', item: url, app: appName }];
+    if (appName && appName !== this.roleplayLastApp) {
+      items.push({ kind: 'app', item: appName });
+    }
+    this.roleplayLastApp = appName;
+    this.roleplay.usage(items);
   }
 
   /** sep-0: the single-app clamp hides the "Polari core" nav block
@@ -145,7 +168,10 @@ export class AppComponent {
       this.bindAppContext(this.router.url));
     this.router.events
       .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
-      .subscribe(e => this.bindAppContext(e.urlAfterRedirects));
+      .subscribe(e => {
+        this.bindAppContext(e.urlAfterRedirects);
+        this.recordRoleplayNavigation(e.urlAfterRedirects);
+      });
 
     // Subscribe to static nav components
     this.typingService.navComponentsBehaviorSubject.subscribe(navList => {

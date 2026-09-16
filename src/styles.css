@@ -430,3 +430,66 @@ body.dark-theme ::-webkit-scrollbar-thumb:hover {
 .cdk-overlay-container:has(.state-overlay-picker-popup-panel) {
   z-index: 3000 !important;
 }
+
+/* --- Role-play menu (header, dev posture only) -------------------------
+   The mat-menu panel renders in a CDK overlay OUTSIDE the component's
+   view, so the non-menu-item content inside it (the explanatory head, the
+   inline "new prototype role" form) cannot be styled from the component.
+   Theme tokens only — the panel is light in light mode and dark in dark
+   mode, exactly like every other menu. */
+.roleplay-menu-panel .roleplay-menu-head {
+  padding: 8px 16px 6px;
+  max-width: 280px;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--text-secondary);
+}
+
+.roleplay-menu-panel .roleplay-menu-empty {
+  padding: 4px 16px 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.roleplay-menu-panel .roleplay-menu-divider {
+  height: 1px;
+  margin: 6px 0;
+  background-color: var(--border-medium);
+}
+
+.roleplay-menu-panel .roleplay-new {
+  padding: 4px 16px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 280px;
+}
+
+.roleplay-menu-panel .roleplay-new-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.roleplay-menu-panel .roleplay-field {
+  width: 100%;
+  font-size: 13px;
+}
+
+.roleplay-menu-panel .roleplay-field .mat-mdc-form-field-subscript-wrapper {
+  display: none;   /* no hint row: the menu is tight */
+}
+
+.roleplay-menu-panel .roleplay-create {
+  align-self: flex-start;
+  margin-top: 2px;
+  color: var(--text-primary);
+}
+
+.roleplay-menu-panel .roleplay-error {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--color-error-text);
+}

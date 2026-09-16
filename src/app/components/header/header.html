@@ -68,6 +68,10 @@
             <mat-icon>{{ isDark ? 'light_mode' : 'dark_mode' }}</mat-icon>
         </button>
 
+        <!-- Dev-posture role-play: acts as a prototype role and records what
+             it uses. Renders nothing unless the backend says can_roleplay. -->
+        <app-roleplay-menu></app-roleplay-menu>
+
         <ng-container *ngIf="!currentUser">
             <button mat-stroked-button (click)="register()" class="header-register-button">
                 Register

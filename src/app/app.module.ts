@@ -10,6 +10,7 @@ import { AuthSessionService } from '@services/auth/auth-session.service';
 import { OidcService } from '@services/auth/oidc.service';
 import { AuthInterceptor } from './interceptors/auth.interceptor';
 import { AuthErrorInterceptor } from './interceptors/auth-error.interceptor';
+import { RoleplayInterceptor } from './interceptors/roleplay.interceptor';
 // Permissions (standalone — registered via imports so templated NgModule
 // components like class-main-page can render <class-permissions-tab>).
 import { ClassPermissionsTabComponent } from '@components/class-main-page/class-permissions-tab/class-permissions-tab.component';
@@ -440,6 +441,9 @@ import { InstanceDetailPanelComponent } from '@components/dashboard/generic/inst
     },
     { provide: HTTP_INTERCEPTORS, useClass: AuthInterceptor, multi: true },
     { provide: HTTP_INTERCEPTORS, useClass: AuthErrorInterceptor, multi: true },
+    // Dev-posture role-play: stamps X-Polari-Roleplay on backend requests
+    // while a person is acting as a prototype role. No-op otherwise.
+    { provide: HTTP_INTERCEPTORS, useClass: RoleplayInterceptor, multi: true },
     PolariService,
     CRUDEservicesManager,
     CertificateTrustService,
