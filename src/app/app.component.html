@@ -20,6 +20,42 @@
 
     <mat-sidenav [(opened)]="sideNavOpened" #sidenav [mode]="navMode">
           <mat-nav-list>
+            <!-- roles -> apps (his ask 2026-09-18): "MY APPS" sits ABOVE
+                 the app map — the apps this person's PRIMARY role needs
+                 first, then their additional roles', then the ones they
+                 added themselves. Nothing renders for an anonymous
+                 visitor, or for someone whose roles bind no app: they
+                 get today's shell and the catalogue. Hiding an app
+                 hides it; it grants and revokes nothing. -->
+            <ng-container *ngIf="myApps.length && !shellLocked">
+              <mat-list-item (click)="toggleMyApps()" class="dropdown-header my-apps-header">
+                  <mat-icon>{{ myAppsExpanded ? 'expand_less' : 'expand_more' }}</mat-icon>
+                  <span>My apps</span>
+                  <button class="my-apps-edit" type="button"
+                     (click)="$event.stopPropagation(); goToRoute('/apps'); closeNavIfOverlay()"
+                     title="choose which apps you see — add ones you want, hide ones you do not">
+                      <mat-icon>tune</mat-icon>
+                  </button>
+              </mat-list-item>
+              <div *ngIf="myAppsExpanded" class="dropdown-items my-apps-items">
+                  <ng-container *ngFor="let a of myApps; let i = index">
+                      <div class="my-apps-role" *ngIf="viaLabel(a, i) as label">{{ label }}</div>
+                      <mat-list-item class="dropdown-item my-app-item"
+                          [class.my-app-primary]="a.via === 'primary'"
+                          [title]="a.via === 'added' ? 'you added this app' : 'from your ' + a.via + ' role: ' + a.role"
+                          (click)="goToRoute(a.route); closeNavIfOverlay()">
+                          <mat-icon>{{ a.via === 'added' ? 'push_pin' : 'apps' }}</mat-icon>
+                          <span class="dropdown-item-text">{{ a.title }}</span>
+                      </mat-list-item>
+                  </ng-container>
+                  <mat-list-item class="dropdown-item my-apps-manage"
+                      (click)="goToRoute('/apps'); closeNavIfOverlay()">
+                      <mat-icon>tune</mat-icon>
+                      <span class="dropdown-item-text">Edit my apps…</span>
+                  </mat-list-item>
+              </div>
+            </ng-container>
+
             <!-- nav-3: the app in context leverages the side menu —
                  its full map renders first; the base (core) nav stays
                  below, collapsible but always reachable. -->

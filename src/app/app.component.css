@@ -244,3 +244,64 @@ mat-sidenav-container {
     border-left-color: var(--brand-orange);
     background-color: rgba(255, 152, 0, 0.03);
   }
+  /* ------------------------------------------------------------------
+     roles -> apps: "My apps" (his ask 2026-09-18).
+     The first group in the drawer, above the app map. Theme tokens only
+     (the drawer is the NAV surface — light-on-dark), so it reads in both
+     themes; the primary role's apps carry the accent edge, the ones the
+     person added carry a pin. ------------------------------------- */
+  .my-apps-header {
+    background-color: var(--nav-active-background);
+    color: var(--nav-text);
+    margin-top: 0;
+  }
+
+  .my-apps-header .my-apps-edit {
+    margin-left: auto;
+    background: none;
+    border: none;
+    padding: 0 4px;
+    cursor: pointer;
+    color: var(--nav-text-muted);
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .my-apps-header .my-apps-edit:hover {
+    color: var(--nav-text);
+  }
+
+  .my-apps-items {
+    border-left-color: var(--nav-border);
+  }
+
+  .my-apps-role {
+    padding: 6px 0 2px 24px;
+    font-size: 0.72em;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--nav-text-faint);
+  }
+
+  .my-app-item {
+    color: var(--nav-text);
+  }
+
+  .my-app-item mat-icon {
+    margin-right: 8px;
+    color: var(--nav-text-muted);
+  }
+
+  .my-app-primary {
+    border-left: 3px solid var(--brand-indigo);
+    margin-left: -3px;
+  }
+
+  .my-app-primary mat-icon {
+    color: var(--nav-text);
+  }
+
+  .my-apps-manage {
+    color: var(--nav-text-muted);
+    font-style: italic;
+  }

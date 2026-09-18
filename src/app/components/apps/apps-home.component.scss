@@ -188,3 +188,88 @@
   color: var(--text-on-card); text-decoration: none;
   &:hover { background: var(--surface-hover); }
 }
+
+/* ---------------------------------------------------------------------
+   roles -> apps: "My apps" on the catalogue (his ask 2026-09-18).
+   Theme tokens only, so it reads in both themes. Nothing here renders
+   for an anonymous visitor.
+   ------------------------------------------------------------------ */
+.my-apps-bar {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border: 1px solid var(--border-medium);
+  border-left: 4px solid var(--brand-indigo);
+  border-radius: 6px;
+  background: var(--surface-secondary);
+  color: var(--text-on-card);
+  font-size: 13px;
+
+  .my-apps-summary {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    mat-icon { color: var(--text-on-card-muted); }
+  }
+
+  .my-apps-count {
+    margin-left: 10px; color: var(--text-on-card-muted);
+  }
+
+  .role-chip {
+    display: inline-block; margin: 0 3px; padding: 1px 8px;
+    border-radius: 10px; font-size: 11.5px;
+    border: 1px solid var(--surface-outline, #8884);
+    color: var(--text-on-card);
+    &.primary {
+      border-color: var(--brand-indigo);
+      color: var(--color-info-text);
+      font-weight: 600;
+    }
+  }
+
+  .my-apps-hidden {
+    margin-top: 8px; display: flex; align-items: center;
+    gap: 6px; flex-wrap: wrap;
+    .hidden-label {
+      color: var(--text-on-card-muted); font-size: 11.5px;
+      text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .hidden-chip {
+      padding: 2px 9px; border-radius: 10px; cursor: pointer;
+      border: 1px dashed var(--surface-outline, #8884);
+      background: transparent; color: var(--text-on-card-muted);
+      font-size: 12px;
+      &:hover:not(:disabled) {
+        border-style: solid; color: var(--text-on-card);
+      }
+      &:disabled { opacity: 0.5; cursor: default; }
+      .restore { color: var(--color-info-text); margin-left: 4px; }
+    }
+  }
+
+  .my-apps-error {
+    margin-top: 6px; color: var(--color-error-text, #bf360c);
+  }
+}
+
+.app-card .card-head {
+  flex-wrap: wrap;
+
+  .refine-btn {
+    margin-left: 8px; padding: 2px 10px; border-radius: 12px;
+    font-size: 12px; cursor: pointer;
+    border: 1px solid var(--brand-indigo);
+    background: transparent; color: var(--color-info-text);
+    &:hover:not(:disabled) { background: var(--color-info-bg, #e3f2fd); }
+    &:disabled { opacity: 0.5; cursor: default; }
+    &.in-mine {
+      border-color: var(--surface-outline, #8884);
+      color: var(--text-on-card-muted);
+    }
+    &.hidden-app { border-style: dashed; }
+  }
+
+  .via-chip {
+    margin-left: 6px; padding: 1px 8px; border-radius: 10px;
+    font-size: 11px; color: var(--text-on-card-muted);
+    border: 1px solid var(--surface-outline, #8884);
+  }
+}

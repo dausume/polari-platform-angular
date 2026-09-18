@@ -89,6 +89,18 @@
                 <mat-icon class="header-user-caret">arrow_drop_down</mat-icon>
             </button>
             <mat-menu #userMenu="matMenu">
+                <!-- roles -> apps (his ask 2026-09-18): "a primary role and
+                     additional roles". The primary role leads "My apps" in
+                     the side nav. Only roles the person actually HOLDS are
+                     offered (they come from the token's groups claim), so
+                     somebody holding none sees nothing here. -->
+                <ng-container *ngIf="heldRoles.length">
+                    <button mat-menu-item [matMenuTriggerFor]="primaryRoleMenu">
+                        <mat-icon>workspace_premium</mat-icon>
+                        <span>Primary role: {{ primaryRole || 'not set' }}</span>
+                    </button>
+                    <mat-divider></mat-divider>
+                </ng-container>
                 <!-- Self-claimable roles (his ask 2026-09-18): give yourself
                      a role from inside Polari, without an administrator and
                      without going to Keycloak first. Admin roles never
@@ -106,6 +118,14 @@
                 <button mat-menu-item (click)="logout()">
                     <mat-icon>logout</mat-icon>
                     <span>Sign out</span>
+                </button>
+            </mat-menu>
+            <!-- The held roles, one per item, a check on the one that leads. -->
+            <mat-menu #primaryRoleMenu="matMenu">
+                <button mat-menu-item *ngFor="let role of heldRoles"
+                        (click)="setPrimaryRole(role)">
+                    <mat-icon>{{ role === primaryRole ? 'check' : 'radio_button_unchecked' }}</mat-icon>
+                    <span>{{ role }}</span>
                 </button>
             </mat-menu>
         </ng-container>

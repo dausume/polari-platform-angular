@@ -1,7 +1,7 @@
 // app.component.ts
 import { Router, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
-import { AppNav, AppsNavService } from '@services/apps-nav.service';
+import { AppNav, AppsNavService, MyApp, MyAppsPayload } from '@services/apps-nav.service';
 import { navComponent, ObjectCategory } from '@models/navComponent';
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { BreakpointObserver } from '@angular/cdk/layout';
@@ -77,6 +77,37 @@ export class AppComponent {
   // Role-play (dev posture): the last app we recorded a usage for, so a
   // navigation inside the same app does not re-post the app row.
   private roleplayLastApp: string | null = null;
+
+  // roles -> apps (his ask 2026-09-18): the signed-in person's own apps —
+  // their primary role's first, then their additional roles', then what
+  // they added. `null` until asked; ok:false when nobody is signed in, and
+  // then the side nav shows nothing new (anonymous sees today's shell).
+  mine: MyAppsPayload | null = null;
+  myAppsExpanded = true;
+
+  get myApps(): MyApp[] {
+    return this.mine?.ok ? this.mine.apps : [];
+  }
+
+  /** "primary" once, then "additional" once, then "added" once — a tiny
+   *  divider label so the list reads as roles, not a flat pile. */
+  viaLabel(app: MyApp, index: number): string {
+    const apps = this.myApps;
+    if (index > 0 && apps[index - 1].via === app.via) { return ''; }
+    if (app.via === 'primary') { return app.role; }
+    if (app.via === 'additional') { return app.role; }
+    return 'Added by you';
+  }
+
+  toggleMyApps(): void {
+    this.myAppsExpanded = !this.myAppsExpanded;
+  }
+
+  /** Navigate to a plain route (the "My apps" links and the edit
+   *  affordance) — the app's own home, which every app has. */
+  goToRoute(route: string): void {
+    if (route) { this.router.navigateByUrl(route); }
+  }
 
   constructor(router: Router, polariService: PolariService, typingService: ClassTypingService, crudeServicesManager: CRUDEservicesManager, displayManager: DisplayManagerService, private appsNav: AppsNavService, private breakpoints: BreakpointObserver, private authSession: AuthSessionService, private roleplay: RoleplayService)
   {
@@ -158,8 +189,16 @@ export class AppComponent {
     this.authSession.currentUser$.subscribe(user => {
       if (user) {
         void this.appsNav.autoRouteIfSingleApp(this.router);
+        // roles -> apps: which apps this person's roles give them depends
+        // on the token's `groups` claim, so re-ask whenever the signed-in
+        // person changes (and after a role claim renews the session).
+        this.appsNav.refreshMine();
+      } else {
+        this.appsNav.clearMine();
       }
     });
+    this.appsNav.mine$.subscribe(mine => { this.mine = mine; });
+    this.appsNav.ensureMineLoaded();
 
     // nav-3: app context for the side nav (menus are rows; the
     // service resolves which app owns the current route).

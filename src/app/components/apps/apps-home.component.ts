@@ -7,7 +7,9 @@ import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 
 import { PolariService } from '@services/polari-service';
-import { AppsNavService } from '@services/apps-nav.service';
+import {
+  AppsNavService, MyApp, MyAppsPayload,
+} from '@services/apps-nav.service';
 
 interface AppEntry {
   name: string;
@@ -68,6 +70,15 @@ export class AppsHomeComponent implements OnInit {
   personaApps: Record<string, string[]> = {};
   activePersona = '';
 
+  // roles -> apps (his ask 2026-09-18): this catalogue IS the "edit my
+  // apps" surface — every card says whether the app is already in My apps
+  // (and via which role), and carries the one act that adds or hides it.
+  // Nothing renders for an anonymous visitor; the catalogue is unchanged
+  // for them.
+  mine: MyAppsPayload | null = null;
+  saveError = '';
+  saving = '';
+
   constructor(private http: HttpClient,
               private polariService: PolariService,
               private appsNav: AppsNavService,
@@ -98,6 +109,68 @@ export class AppsHomeComponent implements OnInit {
     });
     this.route.queryParamMap.subscribe(q =>
       this.activePersona = q.get('persona') || '');
+    this.appsNav.mine$.subscribe(m => { this.mine = m; });
+    this.appsNav.ensureMineLoaded();
+  }
+
+  // ---- roles -> apps: refine what "My apps" holds ---------------------
+
+  /** True once somebody is signed in and the backend answered — the only
+   *  condition under which the add/hide affordances render at all. */
+  get canRefine(): boolean {
+    return !!this.mine?.ok;
+  }
+
+  get hasRoles(): boolean {
+    return (this.mine?.held_roles?.length ?? 0) > 0;
+  }
+
+  mineEntry(name: string): MyApp | undefined {
+    return this.mine?.apps.find(a => a.name === name);
+  }
+
+  isHidden(name: string): boolean {
+    return !!this.mine?.removed.some(a => a.name === name);
+  }
+
+  get hiddenApps(): { name: string; title: string; route: string }[] {
+    return this.mine?.ok ? this.mine.removed : [];
+  }
+
+  /** What the card's one button says and does: an app a role gave you can
+   *  be hidden, an app you hid can be restored, anything else can be
+   *  added. Hiding HIDES — it grants and revokes nothing. */
+  refineLabel(name: string): string {
+    if (this.isHidden(name)) { return '↺ restore'; }
+    return this.mineEntry(name) ? '− hide' : '+ add';
+  }
+
+  refineHint(name: string): string {
+    const entry = this.mineEntry(name);
+    if (this.isHidden(name)) {
+      return 'you hid this app — put it back in My apps';
+    }
+    if (entry?.via === 'added') {
+      return 'you added this app — remove it from My apps';
+    }
+    if (entry) {
+      return `your ${entry.via} role '${entry.role}' brings this app — `
+        + 'hide it (this changes what you see, never what you may do)';
+    }
+    return 'add this app to My apps in the side menu';
+  }
+
+  async refine(name: string): Promise<void> {
+    if (this.saving) { return; }
+    this.saving = name;
+    this.saveError = '';
+    const change = this.isHidden(name) ? { restore: [name] }
+      : this.mineEntry(name) ? { remove: [name] } : { add: [name] };
+    const result = await this.appsNav.saveMine(change);
+    this.saving = '';
+    if (!result.ok) {
+      this.saveError = result.error || 'could not save that choice';
+    }
   }
 
   get visibleApps(): AppEntry[] {

@@ -56,10 +56,69 @@ export interface AppsNavPayload {
   refusal?: string;
 }
 
+/**
+ * ROLES -> APPS, and one person's refinement of it (his ask 2026-09-18):
+ *
+ *   "We want to be able to have a primary role and additional roles. We will
+ *    want to be able to tie Apps to roles so that the user can see and
+ *    navigate to the apps they need more easily. And then the user should be
+ *    able to refine that further and add apps they want to use or remove ones
+ *    they do not care about."
+ *
+ * `/api/apps/mine` answers for the SIGNED-IN person only (401 otherwise), and
+ * identifies them by their Keycloak `sub` alone — the roles they hold are the
+ * token's `groups` claim, never anything Polari stored.
+ */
+export interface MyApp {
+  name: string;
+  title: string;
+  route: string;
+  /** primary = the leading role's; additional = another held role's;
+   *  added = the person asked for it themselves. */
+  via: 'primary' | 'additional' | 'added';
+  role: string;
+  removable: boolean;
+}
+
+export interface MyAppsPayload {
+  ok: boolean;
+  /** 401 when nobody is signed in — not an error to show, just nothing to render. */
+  status?: number;
+  error?: string;
+  sub?: string;
+  held_roles: string[];
+  primary_role: string;
+  additional_roles: string[];
+  apps: MyApp[];
+  /** Apps this person hid. `suggestions` is the subset a role of theirs binds. */
+  removed: { name: string; title: string; route: string }[];
+  suggestions: { name: string; title: string; route: string; why?: string }[];
+  unboundRoles?: string[];
+  knownApps?: string[];
+}
+
+export const EMPTY_MINE: MyAppsPayload = {
+  ok: false, held_roles: [], primary_role: '', additional_roles: [],
+  apps: [], removed: [], suggestions: [],
+};
+
+/** What POST /api/apps/mine accepts. */
+export interface MyAppsChange {
+  primary_role?: string;
+  add?: string[];
+  remove?: string[];
+  restore?: string[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class AppsNavService {
   readonly payload$ = new BehaviorSubject<AppsNavPayload | null>(null);
   private loading = false;
+
+  /** roles -> apps: the signed-in person's own apps. `null` = never asked;
+   *  a payload with ok:false (usually 401) = asked, nobody is signed in. */
+  readonly mine$ = new BehaviorSubject<MyAppsPayload | null>(null);
+  private loadingMine = false;
 
   /**
    * sep-0: the single-app clamp. `?shellApp=<name>` locks the shell
@@ -174,6 +233,66 @@ export class AppsNavService {
     this.payload$.next(null);
     this.loading = false;
     this.ensureLoaded();
+  }
+
+  // ---- roles -> apps: "My apps" (his ask 2026-09-18) -------------------
+
+  private mineUrl(): string {
+    return `${this.polariService.getBackendBaseUrl()}/api/apps/mine`;
+  }
+
+  /** Fetch once. A 401 is the NORMAL anonymous answer, not an error: it is
+   *  stored as a refusal-shaped payload so the shell renders nothing extra
+   *  rather than an error box. */
+  ensureMineLoaded(): void {
+    if (this.loadingMine || this.mine$.value) { return; }
+    this.refreshMine();
+  }
+
+  /** Re-ask. Called when the signed-in user changes and after every save —
+   *  the answer depends on the token's `groups` claim, so a just-claimed
+   *  role shows up as soon as the token carries it. */
+  refreshMine(): void {
+    this.loadingMine = true;
+    firstValueFrom(this.http.get<MyAppsPayload>(
+      this.mineUrl(), this.polariService.backendRequestOptions))
+      .then(p => this.mine$.next({ ...EMPTY_MINE, ...(p ?? {}) }))
+      .catch(err => this.mine$.next({
+        ...EMPTY_MINE,
+        status: err?.status ?? 0,
+        error: err?.error?.error
+          ?? (err?.status === 401 ? 'not signed in' : 'my apps unreachable'),
+      }))
+      .finally(() => { this.loadingMine = false; });
+  }
+
+  /** Forget the answer — what sign-out does (the next sign-in re-asks). */
+  clearMine(): void {
+    this.loadingMine = false;
+    this.mine$.next(null);
+  }
+
+  /** POST /api/apps/mine. The backend answers the WHOLE new view, so the
+   *  result is pushed straight onto mine$ — one round trip per change.
+   *  A refusal (an unheld primary role, an unknown app) comes back as the
+   *  payload's `error` and mine$ is left alone. */
+  async saveMine(change: MyAppsChange): Promise<MyAppsPayload> {
+    const failed = (err: any): MyAppsPayload => ({
+      ...EMPTY_MINE,
+      status: err?.status ?? 0,
+      error: err?.error?.error ?? 'could not save your app choices',
+      knownApps: err?.error?.knownApps,
+    });
+    try {
+      const p = await firstValueFrom(this.http.post<MyAppsPayload>(
+        this.mineUrl(), change,
+        this.polariService.backendRequestOptions));
+      const next = { ...EMPTY_MINE, ...(p ?? {}) };
+      if (next.ok) { this.mine$.next(next); }
+      return next;
+    } catch (err: any) {
+      return failed(err);
+    }
   }
 
   /** Await the payload.

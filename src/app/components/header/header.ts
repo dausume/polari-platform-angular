@@ -12,7 +12,7 @@ import { ThemeService } from '@services/theme.service';
 import { AuthSessionService } from '@services/auth/auth-session.service';
 import { AiAssistantService } from '@services/ai-assistant/ai-assistant.service';
 import {
-  AppNav, AppNavGroup, AppNavItem, AppsNavService,
+  AppNav, AppNavGroup, AppNavItem, AppsNavService, MyAppsPayload,
 } from '@services/apps-nav.service';
 import { AuthUser } from '../../classes/auth-user';
 import { RoleplayMenuComponent } from './roleplay-menu.component';
@@ -64,6 +64,31 @@ export class HeaderComponent implements OnInit, OnDestroy {
    *  (the "Manage account" item then stays hidden). */
   accountUrl = '';
 
+  /** roles -> apps (his ask 2026-09-18): "a primary role and additional
+   *  roles". The roles a person HOLDS are their token's `groups` claim, so
+   *  the menu can only ever offer roles they really have; someone holding
+   *  none sees nothing new and still gets the whole catalogue. */
+  mine: MyAppsPayload | null = null;
+  private mineSub?: Subscription;
+
+  get heldRoles(): string[] {
+    return this.mine?.ok ? this.mine.held_roles : [];
+  }
+
+  get primaryRole(): string {
+    return this.mine?.ok ? this.mine.primary_role : '';
+  }
+
+  /** Switch which of the person's own roles leads. The backend refuses a
+   *  role they do not hold; the menu never offers one. */
+  async setPrimaryRole(role: string): Promise<void> {
+    if (!role || role === this.primaryRole) { return; }
+    const result = await this.appsNav.saveMine({ primary_role: role });
+    if (!result.ok) {
+      console.warn('[header] could not set the primary role', result.error);
+    }
+  }
+
   constructor(
     private themeService: ThemeService,
     private authSession: AuthSessionService,
@@ -103,6 +128,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
           .catch(() => { this.accountUrl = ''; });
       }
     });
+    this.mineSub = this.appsNav.mine$.subscribe(m => { this.mine = m; });
     this.appsNav.ensureLoaded();
     this.navSub = this.appsNav.payload$.subscribe(p => {
       this.disciplineApps =
@@ -144,6 +170,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     this.authSub?.unsubscribe();
     this.navSub?.unsubscribe();
     this.routeSub?.unsubscribe();
+    this.mineSub?.unsubscribe();
   }
 
   toggleTheme(): void {
