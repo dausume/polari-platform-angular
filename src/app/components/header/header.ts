@@ -16,6 +16,9 @@ import {
 } from '@services/apps-nav.service';
 import { AuthUser } from '../../classes/auth-user';
 import { RoleplayMenuComponent } from './roleplay-menu.component';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { RoleClaimsService } from '@services/role-claims.service';
+import { ClaimRoleDialogComponent } from './claim-role-dialog.component';
 import { Subscription, filter } from 'rxjs';
 
 @Component({
@@ -23,7 +26,7 @@ import { Subscription, filter } from 'rxjs';
   selector: 'header',
   templateUrl: 'header.html',
   styleUrls: ['header.css'],
-  imports: [CommonModule, MatToolbarModule, MatIconModule, MatButtonModule, MatMenuModule, MatTooltipModule, MatDividerModule, RoleplayMenuComponent]
+  imports: [CommonModule, MatToolbarModule, MatIconModule, MatButtonModule, MatMenuModule, MatTooltipModule, MatDividerModule, MatDialogModule, RoleplayMenuComponent]
 })
 export class HeaderComponent implements OnInit, OnDestroy {
   @Input()
@@ -57,13 +60,24 @@ export class HeaderComponent implements OnInit, OnDestroy {
   private navSub?: Subscription;
   private routeSub?: Subscription;
 
+  /** The Keycloak account console for this realm — '' when there is none
+   *  (the "Manage account" item then stays hidden). */
+  accountUrl = '';
+
   constructor(
     private themeService: ThemeService,
     private authSession: AuthSessionService,
     public assistant: AiAssistantService,
     private appsNav: AppsNavService,
-    private router: Router
+    private router: Router,
+    private dialog: MatDialog,
+    private roleClaims: RoleClaimsService
   ) {}
+
+  /** "Claim a role…" — self-claimable roles, his ask 2026-09-18. */
+  claimRole(): void {
+    this.dialog.open(ClaimRoleDialogComponent, { autoFocus: false });
+  }
 
   toggleAssistant(): void {
     this.assistant.toggle();
@@ -81,6 +95,13 @@ export class HeaderComponent implements OnInit, OnDestroy {
     });
     this.authSub = this.authSession.currentUser$.subscribe(user => {
       this.currentUser = user;
+      // The account console URL comes from the backend (it knows the
+      // issuer); read it once a person is actually signed in.
+      if (user && !this.accountUrl) {
+        void this.roleClaims.claimable()
+          .then(s => { this.accountUrl = s.account_url || ''; })
+          .catch(() => { this.accountUrl = ''; });
+      }
     });
     this.appsNav.ensureLoaded();
     this.navSub = this.appsNav.payload$.subscribe(p => {

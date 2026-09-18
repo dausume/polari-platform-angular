@@ -89,6 +89,20 @@
                 <mat-icon class="header-user-caret">arrow_drop_down</mat-icon>
             </button>
             <mat-menu #userMenu="matMenu">
+                <!-- Self-claimable roles (his ask 2026-09-18): give yourself
+                     a role from inside Polari, without an administrator and
+                     without going to Keycloak first. Admin roles never
+                     appear in the list; the backend decides. -->
+                <button mat-menu-item (click)="claimRole()">
+                    <mat-icon>badge</mat-icon>
+                    <span>Claim a role…</span>
+                </button>
+                <a mat-menu-item *ngIf="accountUrl" [href]="accountUrl"
+                   target="_blank" rel="noopener noreferrer">
+                    <mat-icon>manage_accounts</mat-icon>
+                    <span>Manage account</span>
+                </a>
+                <mat-divider></mat-divider>
                 <button mat-menu-item (click)="logout()">
                     <mat-icon>logout</mat-icon>
                     <span>Sign out</span>

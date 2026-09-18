@@ -136,6 +136,34 @@ export class AuthSessionService {
     }
   }
 
+  /**
+   * Re-mint the session silently (prompt=none at Keycloak), so a token
+   * issued BEFORE a change at the identity provider is replaced by one
+   * that reflects it. Used after a self-claimed role (the new `groups`
+   * claim only exists in a freshly issued token) — the caller falls back
+   * to "sign in again" when this returns false.
+   *
+   * Returns true when a fresh, unexpired user came back.
+   */
+  async renewSession(): Promise<boolean> {
+    if (this.inFlight) { return false; }
+    if (!this.oidc.isConfigured()) { return false; }
+    this.inFlight = true;
+    try {
+      const user = await this.oidc.signinSilent();
+      if (user && !user.expired) {
+        this._setSession(this.oidc.convertToAuthUser(user), user.access_token);
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.debug('[AuthSession] silent renew after a role claim failed', err);
+      return false;
+    } finally {
+      this.inFlight = false;
+    }
+  }
+
   /** Force-refresh the cached access token from oidc-client-ts. UI uses
    * this after a silent renew the interceptor isn't aware of, or just to
    * confirm the token in storage matches what we're tracking. */
