@@ -1,11 +1,46 @@
 import { Injectable } from '@angular/core';
-import { Observable, Subject } from 'rxjs';
+import { firstValueFrom, Observable, Subject } from 'rxjs';
+import { filter, take } from 'rxjs/operators';
 import {
-  InMemoryWebStorage, User, UserManager, UserManagerSettings, WebStorageStateStore
+  ErrorResponse, InMemoryWebStorage, User, UserManager, UserManagerSettings, WebStorageStateStore
 } from 'oidc-client-ts';
 import { RuntimeConfigService } from '@services/runtime-config.service';
 import { KeycloakConfig } from '@models/runtimeConfig';
 import { AuthUser } from '../../classes/auth-user';
+
+/**
+ * The `state` we hand Keycloak on every authorization request and read back
+ * off the response — success OR error.
+ *
+ *  - `returnTo` is the in-app URL to put the person back on.
+ *  - `checkSso` marks the ONE silent `prompt=none` probe we fire on landing.
+ *    It is what tells the callback handler that "no session at Keycloak" is a
+ *    normal answer to swallow rather than a sign-in failure to display.
+ *
+ * Older builds sent a bare string here; `readCallbackState()` still accepts
+ * that shape so a redirect already in flight when a new bundle ships lands
+ * correctly instead of dumping the person on `/`.
+ */
+export interface CallbackState {
+  returnTo: string;
+  checkSso: boolean;
+}
+
+/**
+ * Outcome of `/callback`. Three cases, deliberately distinct:
+ *  - `user`      — an authorization code came back and was exchanged.
+ *  - `no-session` — Keycloak answered `login_required` / `interaction_required`.
+ *    Only reachable from a `prompt=none` request; means "nobody is signed in
+ *    here", which is information, not an error.
+ *  - `error`     — anything else. This one is worth a face.
+ */
+export type OidcCallbackResult =
+  | { kind: 'user'; user: User; state: CallbackState }
+  | { kind: 'no-session'; state: CallbackState }
+  | { kind: 'error'; message: string; state: CallbackState };
+
+/** Keycloak's two "I would have had to ask the human" answers to prompt=none. */
+const NO_SESSION_ERRORS = new Set(['login_required', 'interaction_required', 'consent_required']);
 
 /**
  * Pick the most durable Storage the browser will actually give us.
@@ -141,6 +176,26 @@ export class OidcService {
     return this.runtimeConfig.getKeycloakConfig() !== null;
   }
 
+  /**
+   * `isConfigured()` but safe to call at boot.
+   *
+   * THE BUG THIS EXISTS FOR: the keycloak stanza lives in
+   * `/assets/runtime-config.json`, fetched by `RuntimeConfigService.initialize()`.
+   * Angular's `ApplicationInitStatus.runInitializers()` *invokes every*
+   * `APP_INITIALIZER` factory in one synchronous loop and only then awaits
+   * `Promise.all` over what they returned — so a second initializer starts
+   * running while the first one's HTTP GET is still in flight. Anything that
+   * asked `isConfigured()` at that moment got `false` from an empty
+   * `startupConfig`, concluded "this instance has no logins", and gave up for
+   * the lifetime of the page. Await the config first, then answer.
+   */
+  async whenConfigured(): Promise<boolean> {
+    await firstValueFrom(
+      this.runtimeConfig.isConfigLoaded$.pipe(filter(loaded => loaded), take(1))
+    );
+    return this.isConfigured();
+  }
+
   async getUser(): Promise<User | null> {
     const um = this.ensureUserManager();
     if (!um) return null;
@@ -186,10 +241,42 @@ export class OidcService {
     return `${pathname}${search}${hash}` || '/';
   }
 
+  /** The state object every authorization request carries. */
+  private signinState(checkSso: boolean, returnTo?: string): CallbackState {
+    return { returnTo: returnTo ?? this.currentReturnTo(), checkSso };
+  }
+
   async login(): Promise<void> {
     const um = this.ensureUserManager();
     if (!um) throw new Error('OIDC not configured');
-    await um.signinRedirect({ state: this.currentReturnTo() });
+    // Deliberately no `prompt` — the visible Login button means "ask me".
+    await um.signinRedirect({ state: this.signinState(false) });
+  }
+
+  /**
+   * ONE top-level `prompt=none` round trip, fired on landing when there is no
+   * usable local session. This is Keycloak's own `check-sso` move, done the way
+   * their adapter does it when iframes are not an option.
+   *
+   * WHY NOT AN IFRAME: the silent-renew iframe posts to
+   * `silent_redirect_uri` and needs Keycloak's SSO cookie sent into a
+   * cross-site frame. Polari's hostnames are `prf.<host>.nip.io` and
+   * `auth.<host>.nip.io`, and `nip.io` is on the Public Suffix List — so those
+   * are two different *sites*, the cookie is third-party, and every current
+   * browser withholds it. The iframe answers `login_required` (or just times
+   * out) for a session that is perfectly alive. A top-level navigation carries
+   * the cookie normally, so it gets the true answer.
+   *
+   * WHY IT CANNOT LOOP: it is fired at most once per browser session, guarded
+   * by `polari-sso-checked` in sessionStorage — see AuthSessionService.
+   */
+  async checkSso(returnTo: string): Promise<void> {
+    const um = this.ensureUserManager();
+    if (!um) throw new Error('OIDC not configured');
+    await um.signinRedirect({
+      prompt: 'none',
+      state: this.signinState(true, returnTo),
+    });
   }
 
   /**
@@ -200,36 +287,52 @@ export class OidcService {
     const um = this.ensureUserManager();
     if (!um) throw new Error('OIDC not configured');
     await um.signinRedirect({
-      state: this.currentReturnTo(),
+      state: this.signinState(false),
       extraQueryParams: { kc_action: 'register' }
     });
   }
 
-  async handleCallback(): Promise<User | null> {
-    console.log('[OidcService] handleCallback() ENTRY — url:', window.location.href);
+  /**
+   * Normalise whatever came back in `state`.
+   *
+   * oidc-client-ts copies the request's custom state onto BOTH the success
+   * response (`User.state`) and the failure one (`ErrorResponse.state`) —
+   * `_processSigninState` assigns `response.userState = state.data` *before* it
+   * throws on `response.error`, which is what makes the "no session" branch
+   * able to find its way home. Tolerates the legacy bare-string shape.
+   */
+  private readCallbackState(raw: unknown): CallbackState {
+    if (typeof raw === 'string' && raw) return { returnTo: raw, checkSso: false };
+    const s = raw as Partial<CallbackState> | null | undefined;
+    const returnTo = typeof s?.returnTo === 'string' && s.returnTo ? s.returnTo : '/';
+    return { returnTo, checkSso: s?.checkSso === true };
+  }
+
+  async handleCallback(): Promise<OidcCallbackResult> {
     const um = this.ensureUserManager();
     if (!um) {
       console.error('[OidcService] handleCallback: UserManager not initialized (runtime config missing keycloak stanza?)');
-      return null;
+      return { kind: 'error', message: 'Auth is not configured on this instance.', state: { returnTo: '/', checkSso: false } };
     }
     try {
       const user = await um.signinRedirectCallback();
-      console.log('[OidcService] handleCallback SUCCESS — user:', {
-        sub: user?.profile?.sub,
-        username: user?.profile?.preferred_username,
-        hasAccessToken: !!user?.access_token,
-        accessTokenLen: user?.access_token?.length || 0,
-        expired: user?.expired,
-        expiresIn: user?.expires_in,
-        scope: user?.scope,
-      });
-      return user;
+      return { kind: 'user', user, state: this.readCallbackState((user as any).state) };
     } catch (err: any) {
+      const state = this.readCallbackState(err?.state);
+
+      // Keycloak said "I would have had to ask a human". Only a prompt=none
+      // request can provoke this, so on the check-sso probe it is the expected
+      // negative answer: nobody is signed in at the IdP. Not a failure — the
+      // caller swallows it and the person browses anonymously.
+      if (err instanceof ErrorResponse && err.error && NO_SESSION_ERRORS.has(err.error)) {
+        console.debug('[OidcService] check-sso: no Keycloak session —', err.error);
+        return { kind: 'no-session', state };
+      }
+
       console.error('[OidcService] handleCallback FAILED:', err);
       console.error('[OidcService] callback error details:', {
         name: err?.name,
         message: err?.message,
-        stack: err?.stack,
         error: err?.error,
         errorDescription: err?.error_description,
       });
@@ -243,7 +346,9 @@ export class OidcService {
           errorDescription: err?.error_description,
         }));
       } catch {}
-      return null;
+      const message = err?.error_description || err?.message || err?.error
+        || 'No usable session returned from Keycloak (see console for details).';
+      return { kind: 'error', message, state };
     }
   }
 
@@ -270,12 +375,34 @@ export class OidcService {
     }
   }
 
+  /**
+   * Renew without leaving the page.
+   *
+   * oidc-client-ts takes the refresh-token branch whenever the stored user has
+   * a `refresh_token` — a plain POST to the token endpoint, no frame, no
+   * cookie. That is the path we want and the one that makes "close the window,
+   * come back, still signed in" work.
+   *
+   * With NO stored refresh token the library falls back to a hidden
+   * `prompt=none` iframe instead, and on Polari's `*.nip.io` hostnames that
+   * iframe is a cross-*site* request that never receives Keycloak's cookie: it
+   * cannot succeed, and it costs a ten-second timeout at boot before saying so.
+   * So we decline it here and let the caller fall to the top-level check-sso
+   * redirect, which is the same question asked in a way the browser answers.
+   */
   async signinSilent(): Promise<User | null> {
     const um = this.ensureUserManager();
     if (!um) return null;
-    try { return await um.signinSilent(); }
+    try {
+      const stored = await um.getUser();
+      if (!stored?.refresh_token) {
+        console.debug('[OidcService] no stored refresh token — skipping the iframe silent-signin path');
+        return null;
+      }
+      return await um.signinSilent();
+    }
     catch (err) {
-      // Silent failure is expected when there's no existing session.
+      // Silent failure is expected when the refresh token has been revoked.
       console.debug('[OidcService] silent signin failed', err);
       return null;
     }

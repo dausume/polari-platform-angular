@@ -5,6 +5,46 @@ import { OidcService } from './oidc.service';
 import { AuthUser } from '../../classes/auth-user';
 
 /**
+ * "This browser session has already asked Keycloak whether anyone is signed
+ * in, and the answer was no." sessionStorage, not localStorage, on purpose:
+ * the answer is only stale-proof for as long as the tab tree lives, and a new
+ * window deserves a fresh ask (that is how someone who signed in elsewhere
+ * gets picked up). Cleared on a successful sign-in.
+ */
+const SSO_CHECKED_KEY = 'polari-sso-checked';
+/** Timestamp of the last check-sso we *launched*, as a loop fuse. */
+const SSO_ATTEMPT_KEY = 'polari-sso-attempted-at';
+/** Two check-sso launches closer together than this means something is
+ *  bouncing us; stop asking for the rest of the browser session. */
+const SSO_LOOP_WINDOW_MS = 30_000;
+/** Don't hold the first paint hostage if the redirect never actually leaves. */
+const SSO_REDIRECT_GIVE_UP_MS = 8_000;
+
+/**
+ * What `/callback` should do next.
+ *
+ * `silent` is the one that matters: it marks an arrival the person did not
+ * ask for (the landing check-sso probe), so the route goes quietly back to
+ * `returnTo` instead of putting a "Sign-in failed" panel in front of someone
+ * who never pressed Login.
+ */
+export interface CallbackOutcome {
+  returnTo: string;
+  signedIn: boolean;
+  silent: boolean;
+  errorMessage: string | null;
+}
+
+/** sessionStorage can throw outright in a locked-down profile. Never at boot. */
+function session(): Storage | null {
+  try {
+    const s = window.sessionStorage;
+    s.getItem(SSO_CHECKED_KEY);
+    return s;
+  } catch { return null; }
+}
+
+/**
  * App-level orchestrator for auth state.
  *
  * Polari uses plain BehaviorSubjects (matches existing PolariService /
@@ -52,16 +92,23 @@ export class AuthSessionService {
   }
 
   /**
-   * Idempotent boot hook. Wired as a second APP_INITIALIZER after
-   * RuntimeConfigService.initialize() so the OIDC settings are available.
-   * Returns a Promise so Angular waits for the silent-signin attempt
-   * before rendering — keeps the initial paint from flashing "Login"
-   * for already-signed-in users.
+   * Idempotent boot hook, run from the APP_INITIALIZER in app.module.ts.
+   * Returns a Promise so Angular waits for the restore before rendering —
+   * that is what keeps the first paint from flashing "Login" at somebody who
+   * is in fact signed in.
+   *
+   * `whenConfigured()` rather than `isConfigured()`: Angular starts every
+   * APP_INITIALIZER in one synchronous pass, so this used to be reached while
+   * runtime-config.json was still downloading. It read "no keycloak stanza",
+   * returned at the first line, and the session was never restored on ANY
+   * landing — the whole bug. See OidcService.whenConfigured().
    */
   async start(): Promise<void> {
     if (this.started) return;
     this.started = true;
-    if (!this.oidc.isConfigured()) return;
+    // Lean instances genuinely have no keycloak stanza — no login UI, and
+    // certainly no check-sso redirect. This is the only legitimate early exit.
+    if (!await this.oidc.whenConfigured()) return;
 
     // Track the copy oidc-client-ts actually holds. `automaticSilentRenew`
     // swaps the token in storage on its own schedule; without this the
@@ -79,7 +126,67 @@ export class AuthSessionService {
     // authorization-code exchange.
     if (window.location.pathname.startsWith('/callback')) return;
 
-    await this.attemptSessionRestore('startup');
+    if (await this.attemptSessionRestore('startup')) return;
+
+    // Nothing locally, and no refresh token to redeem. Keycloak may still hold
+    // an SSO session for this person (they signed in on another tab, or in a
+    // window that has since been closed). Ask it — once.
+    await this.maybeCheckSso();
+  }
+
+  /**
+   * The landing-time `prompt=none` probe. At most ONE per browser session,
+   * and it never runs when a local session was restored.
+   */
+  private async maybeCheckSso(): Promise<void> {
+    const store = session();
+    if (store?.getItem(SSO_CHECKED_KEY)) return;   // already asked, answer was no
+
+    // Loop fuse. The normal "no" path sets SSO_CHECKED_KEY on the way back
+    // through /callback. If something stops that from happening — a code that
+    // will not exchange, a state store the browser keeps wiping — the only
+    // symptom left would be an endless bounce between here and Keycloak. Two
+    // launches inside half a minute is the signature; stop on the second.
+    const last = Number(store?.getItem(SSO_ATTEMPT_KEY) ?? 0);
+    if (last && Date.now() - last < SSO_LOOP_WINDOW_MS) {
+      console.warn('[AuthSession] check-sso re-entered too quickly — standing down for this browser session');
+      this.markSsoChecked();
+      return;
+    }
+
+    const returnTo = this.currentInAppUrl();
+    try {
+      store?.setItem(SSO_ATTEMPT_KEY, String(Date.now()));
+      // signinRedirect()'s promise settles on unload, i.e. effectively never.
+      // Race it so a redirect that cannot leave (Keycloak unreachable) costs a
+      // few seconds of blank page rather than a permanently unbooted app.
+      await Promise.race([
+        this.oidc.checkSso(returnTo),
+        new Promise<void>(resolve => setTimeout(resolve, SSO_REDIRECT_GIVE_UP_MS)),
+      ]);
+    } catch (err) {
+      console.debug('[AuthSession] check-sso redirect could not start', err);
+      this.markSsoChecked();
+    }
+  }
+
+  /** The whole in-app URL, so a deep link survives the check-sso round trip. */
+  private currentInAppUrl(): string {
+    const { pathname, search, hash } = window.location;
+    if (pathname.startsWith('/callback')) return '/';
+    return `${pathname}${search}${hash}` || '/';
+  }
+
+  private markSsoChecked(): void {
+    try { session()?.setItem(SSO_CHECKED_KEY, '1'); } catch { /* nothing to do */ }
+  }
+
+  private clearSsoChecked(): void {
+    try {
+      const s = session();
+      s?.removeItem(SSO_CHECKED_KEY);
+      s?.removeItem(SSO_ATTEMPT_KEY);
+    } catch { /* nothing to do */ }
   }
 
   async login(): Promise<void> {
@@ -93,6 +200,14 @@ export class AuthSessionService {
   }
 
   async logout(): Promise<void> {
+    // Marked BEFORE the redirect, not after: signoutRedirect() navigates away
+    // and its promise never settles, so a `finally` here would not run. And
+    // the answer is already known — the end-session redirect is about to kill
+    // the SSO cookie, so "is anyone signed in?" is settled at "no". Recording
+    // it now is what stops "sign out, land again" costing a pointless
+    // prompt=none round trip through Keycloak. sessionStorage survives the
+    // redirect; it is the same tab and the same origin.
+    this.markSsoChecked();
     try {
       await this.oidc.logout();
     } catch (err) {
@@ -102,33 +217,47 @@ export class AuthSessionService {
     }
   }
 
-  /** Called by the /callback route component after Keycloak redirects back. */
-  async handleOAuthCallback(): Promise<string | null> {
-    console.log('[AuthSession] handleOAuthCallback ENTRY');
-    try {
-      const oidcUser = await this.oidc.handleCallback();
-      console.log('[AuthSession] handleOAuthCallback — oidc.handleCallback returned:', {
-        gotUser: !!oidcUser,
-        expired: oidcUser?.expired,
-        hasAccessToken: !!oidcUser?.access_token,
-      });
-      if (oidcUser && !oidcUser.expired) {
-        const authUser = this.oidc.convertToAuthUser(oidcUser);
-        console.log('[AuthSession] setting session — authUser:', authUser, 'tokenLen:', oidcUser.access_token?.length || 0);
-        this._setSession(authUser, oidcUser.access_token);
-        const state = (oidcUser as any).state;
-        const returnTo = (typeof state === 'string' && state) ? state : '/';
-        console.log('[AuthSession] callback complete, returning to:', returnTo);
-        return returnTo;
-      }
-      console.warn('[AuthSession] callback returned no usable user — clearing session');
-      this._setSession(null, null);
-      return '/';
-    } catch (err) {
-      console.error('[AuthSession] callback exception:', err);
-      this._setSession(null, null);
-      return '/';
+  /**
+   * Called by the /callback route component after Keycloak redirects back.
+   * Covers both arrivals: a real sign-in, and the return leg of the landing
+   * check-sso probe.
+   */
+  async handleOAuthCallback(): Promise<CallbackOutcome> {
+    const result = await this.oidc.handleCallback();
+
+    if (result.kind === 'user' && !result.user.expired) {
+      this._setSession(this.oidc.convertToAuthUser(result.user), result.user.access_token);
+      // Somebody IS signed in here — retract any earlier "nobody is".
+      this.clearSsoChecked();
+      return { returnTo: result.state.returnTo, signedIn: true, silent: result.state.checkSso, errorMessage: null };
     }
+
+    // Keycloak: "nobody is signed in". This is the whole point of the probe —
+    // record the answer so we never ask again this browser session, and put
+    // the person back where they were with no error UI and no second redirect.
+    if (result.kind === 'no-session') {
+      this.markSsoChecked();
+      this._setSession(null, null);
+      return { returnTo: result.state.returnTo, signedIn: false, silent: true, errorMessage: null };
+    }
+
+    // A code came back but produced an expired/unusable user, or the exchange
+    // failed outright. Either way this browser session stops probing —
+    // otherwise the next landing tries the same thing and bounces.
+    this.markSsoChecked();
+    this._setSession(null, null);
+
+    // A failed check-sso is still not worth a face: the person never asked to
+    // sign in. Log it, send them home quietly.
+    if (result.state.checkSso) {
+      console.warn('[AuthSession] check-sso round trip failed — continuing anonymously');
+      return { returnTo: result.state.returnTo, signedIn: false, silent: true, errorMessage: null };
+    }
+
+    const errorMessage = result.kind === 'error'
+      ? result.message
+      : 'No usable session returned from Keycloak (see console for details).';
+    return { returnTo: result.state.returnTo, signedIn: false, silent: false, errorMessage };
   }
 
   /**
@@ -213,28 +342,38 @@ export class AuthSessionService {
    *      out, or someone signed out) do we fall to signed-out — and the dead
    *      tokens are swept out of storage rather than left to rot there.
    *
-   * INVARIANT: this never navigates. Landing on a Keycloak login form because
-   * a background restore quietly failed is the behaviour we are fixing, not
-   * a fallback. The header simply shows "Login".
+   * INVARIANT: this never navigates. Deciding to go and ask Keycloak is the
+   * caller's business (start() → maybeCheckSso()); all this does is answer
+   * "could the session be brought back without leaving the page?".
+   *
+   * Returns true when the session is live afterwards.
    */
-  private async attemptSessionRestore(reason: string): Promise<void> {
-    if (this.inFlight) return;
+  private async attemptSessionRestore(reason: string): Promise<boolean> {
+    if (this.inFlight) return this.isAuthenticated;
     this.inFlight = true;
     try {
       let user = await this.oidc.getUser();
       const hadStoredUser = !!user;
-      if (!user || user.expired) {
+      if (user?.expired) {
+        // Expired but with a refresh token in hand: redeem it against the
+        // token endpoint. This runs BEFORE any redirect — a refresh grant is
+        // cheaper, invisible, and works even when the SSO cookie is gone.
+        // (oidc.signinSilent() declines the iframe fallback itself.)
         user = await this.oidc.signinSilent();
       }
       if (user && !user.expired) {
         this._setSession(this.oidc.convertToAuthUser(user), user.access_token);
-      } else {
-        if (hadStoredUser) await this.oidc.removeUser();
-        this._setSession(null, null);
+        return true;
       }
+      // Dead tokens are swept rather than left to rot in localStorage — they
+      // would otherwise keep sending us down the refresh path forever.
+      if (hadStoredUser) await this.oidc.removeUser();
+      this._setSession(null, null);
+      return false;
     } catch (err) {
       console.debug(`[AuthSession] session restore (${reason}) failed`, err);
       this._setSession(null, null);
+      return false;
     } finally {
       this.inFlight = false;
     }

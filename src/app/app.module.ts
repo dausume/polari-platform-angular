@@ -423,20 +423,24 @@ import { InstanceDetailPanelComponent } from '@components/dashboard/generic/inst
   ],
   providers: [
     RuntimeConfigService,
-    {
-      provide: APP_INITIALIZER,
-      useFactory: (configService: RuntimeConfigService) => () => configService.initialize(),
-      deps: [RuntimeConfigService],
-      multi: true
-    },
     OidcService,
     AuthSessionService,
     {
-      // Second initializer — runs after runtime config has loaded, attempts
-      // a silent token restore so the first paint reflects auth state.
+      // ONE initializer, two steps, chained explicitly.
+      //
+      // These used to be two separate APP_INITIALIZER entries, on the
+      // assumption that Angular awaits each before starting the next. It does
+      // not: ApplicationInitStatus.runInitializers() calls every factory in a
+      // single synchronous loop and only then Promise.all's the results. So
+      // auth.start() ran while runtime-config.json was still downloading,
+      // found no keycloak stanza, and quit — no session restore on any
+      // landing, ever, which is exactly the "it doesn't sign me in
+      // automatically" bug. `.then()` makes the dependency real. Anything else
+      // that needs the runtime config belongs on this chain too, not beside it.
       provide: APP_INITIALIZER,
-      useFactory: (auth: AuthSessionService) => () => auth.start(),
-      deps: [AuthSessionService],
+      useFactory: (configService: RuntimeConfigService, auth: AuthSessionService) =>
+        () => configService.initialize().then(() => auth.start()),
+      deps: [RuntimeConfigService, AuthSessionService],
       multi: true
     },
     { provide: HTTP_INTERCEPTORS, useClass: AuthInterceptor, multi: true },

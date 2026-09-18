@@ -26,7 +26,7 @@ import { AuthSessionService } from '@services/auth/auth-session.service';
     <div class="auth-callback-shell">
       <ng-container *ngIf="!errorMessage; else errBlock">
         <mat-spinner diameter="48"></mat-spinner>
-        <p>Signing you in…</p>
+        <p>{{ waitingMessage }}</p>
       </ng-container>
       <ng-template #errBlock>
         <mat-icon class="err-icon">error</mat-icon>
@@ -80,33 +80,50 @@ import { AuthSessionService } from '@services/auth/auth-session.service';
 export class AuthCallbackComponent implements OnInit {
   errorMessage: string | null = null;
 
+  /**
+   * Two very different arrivals land on this route. A real sign-in is coming
+   * back with an authorization code. The landing check-sso probe may be coming
+   * back with `error=login_required`, meaning nobody was signed in — telling
+   * that person "Signing you in…" for the half second before they bounce home
+   * anonymous would be a small lie. The query string says which, before we
+   * have to do any work.
+   */
+  readonly waitingMessage: string =
+    /[?&]error=/.test(window.location.search) ? 'Checking your session…' : 'Signing you in…';
+
   constructor(
     private authSession: AuthSessionService,
     private router: Router
   ) {}
 
   async ngOnInit(): Promise<void> {
-    console.log('[AuthCallback] ngOnInit — current url:', window.location.href);
-    const returnTo = await this.authSession.handleOAuthCallback();
-    console.log('[AuthCallback] handleOAuthCallback returned:', returnTo, 'isAuthenticated:', this.authSession.isAuthenticated);
+    const outcome = await this.authSession.handleOAuthCallback();
 
     // Success path: session is populated. Navigate back to the original page.
-    if (this.authSession.isAuthenticated) {
-      this.router.navigateByUrl(returnTo || '/', { replaceUrl: true });
+    // Also the quiet path: `silent` marks the return leg of the landing
+    // check-sso probe, which the person never asked for. Whether Keycloak had
+    // a session or not, they go back to where they were — an error panel here
+    // would be an answer to a question they never put.
+    if (outcome.signedIn || outcome.silent) {
+      this.router.navigateByUrl(outcome.returnTo || '/', { replaceUrl: true });
       return;
     }
 
-    // Failure path: stay here and surface whatever the chain logged.
-    const persisted = sessionStorage.getItem('__polari_auth_callback_error');
-    if (persisted) {
-      try {
-        const parsed = JSON.parse(persisted);
-        this.errorMessage = parsed.errorDescription || parsed.message || parsed.error || 'Unknown error';
-      } catch {
-        this.errorMessage = persisted;
-      }
-    } else {
-      this.errorMessage = 'No usable session returned from Keycloak (see console for details).';
+    // Failure path: they DID press Login and it did not work. Stay here and
+    // surface whatever the chain logged.
+    this.errorMessage = outcome.errorMessage
+      || this.persistedError()
+      || 'No usable session returned from Keycloak (see console for details).';
+  }
+
+  private persistedError(): string | null {
+    try {
+      const persisted = sessionStorage.getItem('__polari_auth_callback_error');
+      if (!persisted) return null;
+      const parsed = JSON.parse(persisted);
+      return parsed.errorDescription || parsed.message || parsed.error || persisted;
+    } catch {
+      return null;
     }
   }
 
