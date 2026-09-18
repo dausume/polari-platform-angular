@@ -16,6 +16,7 @@ import { DataSetsComponent } from '@components/datasets/datasets.component';
 import { EquationsComponent } from '@components/equations/equations.component';
 import { EquationConfigEditComponent } from '@components/equation-config/equation-config-edit/equation-config-edit.component';
 import { shellAppGuard } from './guards/shell-app.guard';
+import { tailoredHomeGuard } from './guards/tailored-home.guard';
 
 /** `display/<a>/<b>/...` → DisplayPage with :id = 'a/b/...'. Seeded
  *  app pages declare nested pageRoutes (mealplan/planner,
@@ -27,7 +28,21 @@ export function displayPageMatcher(segments: UrlSegment[]): UrlMatchResult | nul
 }
 
 const routes: Routes = [
-  { path: '', loadComponent: () => import('@components/home/home').then(m => m.HomeComponent) },
+  // §58: the BARE landing, and the only route the tailored-home guard is
+  // on — a deep link is untouched by construction. Signed in with at least
+  // one app in My apps (and no "Polari home, please" for this session) it
+  // redirects to /home; anonymous, empty, or clamped it renders the main
+  // Polari home exactly as before.
+  { path: '', canActivate: [tailoredHomeGuard],
+    loadComponent: () => import('@components/home/home').then(m => m.HomeComponent) },
+  // The same main Polari home under an explicit name, with NO guard: the
+  // "other route" his ask calls for, and where the tailored page's
+  // "Polari home" link goes so it can never bounce back.
+  { path: 'polari', loadComponent: () => import('@components/home/home').then(m => m.HomeComponent) },
+  // §58: the tailored home — your own apps, grouped by the role that
+  // brings them. Reachable by anybody at any time; it just has nothing
+  // tailored to say to an anonymous visitor.
+  { path: 'home', loadComponent: () => import('@components/apps/my-apps-home.component').then(m => m.MyAppsHomeComponent) },
   { path: 'callback', loadComponent: () => import('@components/auth-callback/auth-callback.component').then(m => m.AuthCallbackComponent) },
   { path: 'permissions', loadComponent: () => import('@components/permissions/permissions.component').then(m => m.PermissionsComponent) },
   { path: 'permissions/roles/:name', loadComponent: () => import('@components/permissions/role-detail/role-detail.component').then(m => m.RoleDetailComponent) },

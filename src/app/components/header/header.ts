@@ -165,6 +165,23 @@ export class HeaderComponent implements OnInit, OnDestroy {
     this.router.navigateByUrl(route);
   }
 
+  /** §58: where the logo goes. `/home` (the tailored page) for somebody who
+   *  has one and has not asked for the main page this session; `/` — the
+   *  main Polari home — for everybody else. The landing guard asks the same
+   *  service the same question, so the two can never disagree. */
+  get homeRoute(): string {
+    return this.appsNav.homeRoute();
+  }
+
+  get homeTooltip(): string {
+    return this.homeRoute === '/home'
+      ? 'your apps (Polari home is on that page)' : 'Polari home';
+  }
+
+  goHome(): void {
+    this.router.navigateByUrl(this.homeRoute);
+  }
+
   ngOnDestroy(): void {
     this.themeSub?.unsubscribe();
     this.authSub?.unsubscribe();

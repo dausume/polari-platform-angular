@@ -1,0 +1,98 @@
+// §58 the tailored home. The CARDS come from apps-home.component.scss —
+// this sheet adds only what a landing page needs on top of them, in theme
+// tokens so it reads in both themes.
+
+.my-home {
+  .home-links {
+    display: flex; align-items: center; flex-wrap: wrap;
+    gap: 10px; margin-top: 10px;
+  }
+
+  .home-link {
+    display: inline-flex; align-items: center; gap: 5px;
+    border: 1px solid var(--border-dark);
+    background: transparent; color: var(--text-on-card);
+    border-radius: 12px; padding: 4px 14px;
+    font-size: 12.5px; text-decoration: none; cursor: pointer;
+    &:hover { background: var(--surface-hover); }
+    mat-icon {
+      font-size: 16px; width: 16px; height: 16px;
+      color: var(--text-on-card-muted);
+    }
+  }
+
+  .hidden-note {
+    font-size: 11.5px; color: var(--text-on-bg-muted);
+  }
+
+  .primary-switch {
+    display: flex; align-items: center; flex-wrap: wrap;
+    gap: 6px; margin: 16px 0 4px;
+
+    .switch-label {
+      font-size: 11px; text-transform: uppercase;
+      letter-spacing: 0.04em; color: var(--text-on-bg-muted);
+      margin-right: 4px;
+    }
+
+    .role-chip {
+      padding: 2px 11px; border-radius: 12px; cursor: pointer;
+      font-size: 12px;
+      border: 1px solid var(--surface-outline, #8884);
+      background: transparent; color: var(--text-on-card);
+      &:hover:not(:disabled) { background: var(--surface-hover); }
+      &:disabled { opacity: 0.5; cursor: default; }
+      &.primary {
+        border-color: var(--brand-indigo);
+        color: var(--color-info-text);
+        font-weight: 600;
+      }
+    }
+
+    .switch-error {
+      font-size: 12px; color: var(--color-error-text, #bf360c);
+    }
+  }
+
+  .app-group {
+    margin-top: 18px;
+
+    .group-title {
+      margin: 0; font-size: 12px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.05em;
+      color: var(--text-on-bg-muted);
+      padding-bottom: 5px;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .group-role {
+      text-transform: none; letter-spacing: 0;
+      font-size: 13px; color: var(--color-info-text);
+    }
+
+    // The primary role's cards carry the accent edge the side nav uses
+    // for the same apps, so the two surfaces agree by eye. Keyed on the
+    // class, not :first-of-type — a person with no primary-role apps must
+    // not have their "Additional roles" group inherit the accent.
+    &.primary-group .app-card {
+      border-left: 3px solid var(--brand-indigo);
+    }
+
+    .app-cards { margin-top: 12px; }
+
+    .app-card .actions { border-top: none; }
+  }
+
+  .my-home-empty {
+    margin: 18px 0; font-size: 13.5px;
+    color: var(--text-on-bg-muted);
+    max-width: 640px;
+    a { color: var(--color-info-text); }
+  }
+
+  .inline-link {
+    border: none; background: transparent; padding: 0;
+    font: inherit; cursor: pointer;
+    color: var(--color-info-text); text-decoration: underline;
+  }
+}

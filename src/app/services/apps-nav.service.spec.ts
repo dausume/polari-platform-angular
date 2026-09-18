@@ -15,7 +15,7 @@ import {
 import { Router, provideRouter, UrlTree } from '@angular/router';
 
 import {
-  AppNav, AppsNavPayload, AppsNavService,
+  AppNav, AppsNavPayload, AppsNavService, EMPTY_MINE, MyAppsPayload,
 } from './apps-nav.service';
 import { PolariService } from './polari-service';
 import { shellAppGuard } from '../guards/shell-app.guard';
@@ -180,5 +180,78 @@ describe('shellAppGuard (sep-0)', () => {
     const svc = setup();
     svc.payload$.next(payloadOf(appOf('app-a', ['/magnetics'])));
     expect(await runGuard(svc, '/topology')).toBeTrue();
+  });
+});
+
+/**
+ * §58 unit tests: where "home" points.
+ *
+ * One question — `homeRoute()` — answers for both the header logo and the
+ * landing guard, so these pin the whole rule in one place: tailored only
+ * when signed in (mine ok) AND holding at least one app, never under the
+ * sep-0 clamp, and never once "Polari home" was chosen for the session.
+ */
+const HOME_CHOICE_KEY = 'polari-home-choice';
+
+function mineWith(appCount: number): MyAppsPayload {
+  return {
+    ...EMPTY_MINE, ok: true, sub: 'sub-1',
+    held_roles: ['journalist'], primary_role: 'journalist',
+    apps: Array.from({ length: appCount }, (_, i) => ({
+      name: `app-${i}`, title: `App ${i}`, route: `/app/app-${i}`,
+      via: 'primary' as const, role: 'journalist', removable: true,
+    })),
+  };
+}
+
+describe('AppsNavService tailored home (§58)', () => {
+  afterEach(() => {
+    sessionStorage.removeItem(LOCK_KEY);
+    sessionStorage.removeItem(HOME_CHOICE_KEY);
+  });
+
+  it('is the main home before anybody answers', () => {
+    expect(setup().homeRoute()).toBe('/');
+  });
+
+  it('is the main home for an anonymous (401-shaped) answer', () => {
+    const svc = setup();
+    svc.mine$.next({ ...EMPTY_MINE, status: 401, error: 'not signed in' });
+    expect(svc.tailoredHomeApplies).toBeFalse();
+    expect(svc.homeRoute()).toBe('/');
+  });
+
+  it('is the main home for a signed-in person with no apps', () => {
+    const svc = setup();
+    svc.mine$.next(mineWith(0));
+    expect(svc.homeRoute()).toBe('/');
+  });
+
+  it('is the tailored home once one app is in My apps', () => {
+    const svc = setup();
+    svc.mine$.next(mineWith(1));
+    expect(svc.tailoredHomeApplies).toBeTrue();
+    expect(svc.homeRoute()).toBe('/home');
+  });
+
+  it('honours "Polari home" for the session, and lets it be lifted', () => {
+    const svc = setup();
+    svc.mine$.next(mineWith(2));
+    svc.choosePolariHome();
+    expect(svc.polariHomeChosen).toBeTrue();
+    expect(svc.homeRoute()).toBe('/');
+    svc.chooseTailoredHome();
+    expect(svc.polariHomeChosen).toBeFalse();
+    expect(svc.homeRoute()).toBe('/home');
+  });
+
+  it('never overrides the sep-0 clamp', () => {
+    sessionStorage.setItem(LOCK_KEY, 'app-a');
+    const svc = setup();
+    svc.payload$.next(payloadOf(appOf('app-a', ['/magnetics'])));
+    svc.mine$.next(mineWith(3));
+    expect(svc.locked).toBeTrue();
+    expect(svc.tailoredHomeApplies).toBeFalse();
+    expect(svc.homeRoute()).toBe('/');
   });
 });

@@ -72,6 +72,9 @@ export interface AppsNavPayload {
 export interface MyApp {
   name: string;
   title: string;
+  /** §58: the app's one-line "who this serves and what they do with it",
+   *  so the tailored home's cards say more than a title. */
+  useCase?: string;
   route: string;
   /** primary = the leading role's; additional = another held role's;
    *  added = the person asked for it themselves. */
@@ -91,8 +94,9 @@ export interface MyAppsPayload {
   additional_roles: string[];
   apps: MyApp[];
   /** Apps this person hid. `suggestions` is the subset a role of theirs binds. */
-  removed: { name: string; title: string; route: string }[];
-  suggestions: { name: string; title: string; route: string; why?: string }[];
+  removed: { name: string; title: string; useCase?: string; route: string }[];
+  suggestions: { name: string; title: string; useCase?: string;
+                 route: string; why?: string }[];
   unboundRoles?: string[];
   knownApps?: string[];
 }
@@ -264,6 +268,73 @@ export class AppsNavService {
           ?? (err?.status === 401 ? 'not signed in' : 'my apps unreachable'),
       }))
       .finally(() => { this.loadingMine = false; });
+  }
+
+  /** Await the my-apps answer once (401-shaped for anonymous, never null).
+   *
+   *  §58: the landing guard must DECIDE, so unlike the fire-and-forget
+   *  `ensureMineLoaded()` it has to wait. It waits at most `timeoutMs`; a
+   *  backend that never answers renders the main Polari home rather than an
+   *  indefinitely blank page — the honest default is "no tailored home". */
+  whenMineLoaded(timeoutMs = 4000): Promise<MyAppsPayload | null> {
+    this.ensureMineLoaded();
+    return Promise.race([
+      firstValueFrom(this.mine$.pipe(
+        filter((m): m is MyAppsPayload => m !== null))),
+      new Promise<null>(resolve => setTimeout(() => resolve(null), timeoutMs)),
+    ]);
+  }
+
+  // ---- §58: the tailored home -----------------------------------------
+  //
+  // "when logged in as your user it takes you to your tailored home page …
+  //  it should still be possible to go to the main Polari Home page via
+  //  another route" (his words, 2026-09-18).
+  //
+  // The choice is per browser SESSION and lives in sessionStorage, exactly
+  // like the sep-0 clamp: nothing about it is stored on the person's row,
+  // and clearing it costs a new tab.
+
+  private static readonly HOME_CHOICE_KEY = 'polari-home-choice';
+
+  /** True when this person asked, this session, to stay on the main Polari
+   *  home (they clicked "Polari home", or arrived with `?home=polari`). */
+  get polariHomeChosen(): boolean {
+    try {
+      return sessionStorage.getItem(AppsNavService.HOME_CHOICE_KEY)
+        === 'polari';
+    } catch { return false; }
+  }
+
+  /** Remember "the main Polari home, please" for this browser session. */
+  choosePolariHome(): void {
+    try {
+      sessionStorage.setItem(AppsNavService.HOME_CHOICE_KEY, 'polari');
+    } catch { /* private mode — the link still works, it just won't stick */ }
+  }
+
+  /** Forget that choice — what opening the tailored home deliberately means. */
+  chooseTailoredHome(): void {
+    try {
+      sessionStorage.removeItem(AppsNavService.HOME_CHOICE_KEY);
+    } catch { /* nothing to forget */ }
+  }
+
+  /** Does a tailored home exist for whoever is here? Signed in (mine
+   *  answered ok, which a 401 never does) AND at least one app in it.
+   *  A locked shell has no home but its app's — the clamp wins. */
+  get tailoredHomeApplies(): boolean {
+    if (this.locked) { return false; }
+    const mine = this.mine$.value;
+    return !!mine?.ok && mine.apps.length > 0;
+  }
+
+  /** Where "home" points right now: the person's own page when they have
+   *  one and have not asked for the main page this session, else the main
+   *  Polari home. The header logo and the landing guard share this. */
+  homeRoute(): string {
+    return this.tailoredHomeApplies && !this.polariHomeChosen
+      ? '/home' : '/';
   }
 
   /** Forget the answer — what sign-out does (the next sign-in re-asks). */

@@ -1,0 +1,128 @@
+<!-- §58 the tailored home: a person's OWN apps, from GET /api/apps/mine.
+     The card styling is the /apps catalogue's own stylesheet — this page
+     only adds the group headings. -->
+<div class="apps-page my-home">
+    <div class="page-header">
+        <h2><mat-icon>home</mat-icon> Your Polari</h2>
+        <p class="page-sub" *ngIf="ready">
+            The apps your roles bring you, and the ones you pinned yourself.
+            This is a landing page, not a permission boundary — hiding an app
+            changes what you see, never what you may do.
+        </p>
+        <div class="home-links">
+            <button class="home-link" type="button" (click)="goPolariHome()"
+                    matTooltip="the main Polari Research Framework page — and stay there for this browser session">
+                <mat-icon>public</mat-icon> Polari home
+            </button>
+            <a class="home-link" routerLink="/apps"
+               matTooltip="add apps you want, hide ones you do not care about">
+                <mat-icon>tune</mat-icon> Choose your apps
+            </a>
+            <span class="hidden-note" *ngIf="hiddenCount">
+                {{ hiddenCount }} app(s) hidden by you — restore them on that page.
+            </span>
+        </div>
+    </div>
+
+    <div class="loading" *ngIf="loading">loading your apps…</div>
+
+    <!-- Anonymous, or a session that has gone: no error, just the way in. -->
+    <div class="my-home-empty" *ngIf="!loading && !ready && !signedIn">
+        <p>You are not signed in, so there is nothing tailored to show yet.
+            Sign in from the account menu, or use the
+            <button class="inline-link" type="button" (click)="goPolariHome()">main
+                Polari home</button>.</p>
+    </div>
+    <div class="my-home-empty" *ngIf="!loading && !ready && signedIn">
+        <p>Your apps could not be read just now. The
+            <button class="inline-link" type="button" (click)="goPolariHome()">main
+                Polari home</button> and the
+            <a routerLink="/apps">app catalogue</a> are both still there.</p>
+    </div>
+
+    <ng-container *ngIf="ready">
+        <!-- Which of YOUR OWN roles leads. Offered only when more than one
+             is held; the backend refuses any role you do not hold. -->
+        <div class="primary-switch" *ngIf="canSwitchPrimary">
+            <span class="switch-label">Primary role</span>
+            <button class="role-chip" *ngFor="let r of heldRoles"
+                    type="button"
+                    [class.primary]="r === primaryRole"
+                    [disabled]="switching === r"
+                    (click)="setPrimaryRole(r)"
+                    [matTooltip]="r === primaryRole
+                        ? 'this role leads — its apps come first'
+                        : 'lead with ' + r + ' instead'">
+                {{ r }}
+            </button>
+            <span class="switch-error" *ngIf="switchError">{{ switchError }}</span>
+        </div>
+
+        <!-- Nothing bound: honest, and a way forward. -->
+        <div class="my-home-empty" *ngIf="!apps.length">
+            <p *ngIf="heldRoles.length">
+                None of your roles ({{ heldRoles.join(', ') }}) brings an app
+                yet. Pick the ones you want from
+                <a routerLink="/apps">the catalogue</a>.</p>
+            <p *ngIf="!heldRoles.length">
+                You hold no roles yet, so nothing is pre-chosen. Claim a role
+                from the account menu, or add any app from
+                <a routerLink="/apps">the catalogue</a>.</p>
+        </div>
+
+        <!-- Your primary role's apps -->
+        <section class="app-group primary-group" *ngIf="primaryApps().length">
+            <h3 class="group-title">
+                Your primary role:
+                <span class="group-role">{{ primaryRole }}</span>
+            </h3>
+            <div class="app-cards">
+                <div class="app-card" *ngFor="let a of primaryApps()">
+                    <div class="card-head">
+                        <h3><a class="app-home-link" [routerLink]="a.route">{{ a.title }}</a></h3>
+                        <span class="via-chip">{{ a.role }}</span>
+                    </div>
+                    <p class="use-case" *ngIf="a.useCase">{{ a.useCase }}</p>
+                    <div class="actions">
+                        <a class="edit-btn" [routerLink]="a.route">Open {{ a.title }} →</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Every other role you hold -->
+        <section class="app-group" *ngIf="additionalApps().length">
+            <h3 class="group-title">Additional roles</h3>
+            <div class="app-cards">
+                <div class="app-card"
+                     *ngFor="let a of additionalApps(); let i = index">
+                    <div class="card-head">
+                        <h3><a class="app-home-link" [routerLink]="a.route">{{ a.title }}</a></h3>
+                        <span class="via-chip">{{ a.role }}</span>
+                    </div>
+                    <p class="use-case" *ngIf="a.useCase">{{ a.useCase }}</p>
+                    <div class="actions">
+                        <a class="edit-btn" [routerLink]="a.route">Open {{ a.title }} →</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- What you pinned yourself -->
+        <section class="app-group" *ngIf="addedApps().length">
+            <h3 class="group-title">Added by you</h3>
+            <div class="app-cards">
+                <div class="app-card" *ngFor="let a of addedApps()">
+                    <div class="card-head">
+                        <h3><a class="app-home-link" [routerLink]="a.route">{{ a.title }}</a></h3>
+                        <span class="via-chip">pinned</span>
+                    </div>
+                    <p class="use-case" *ngIf="a.useCase">{{ a.useCase }}</p>
+                    <div class="actions">
+                        <a class="edit-btn" [routerLink]="a.route">Open {{ a.title }} →</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </ng-container>
+</div>
