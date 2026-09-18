@@ -39,7 +39,7 @@ export type OidcCallbackResult =
   | { kind: 'no-session'; state: CallbackState }
   | { kind: 'error'; message: string; state: CallbackState };
 
-/** Keycloak's two "I would have had to ask the human" answers to prompt=none. */
+/** Keycloak's "I would have had to ask the human" answers to prompt=none. */
 const NO_SESSION_ERRORS = new Set(['login_required', 'interaction_required', 'consent_required']);
 
 /**
