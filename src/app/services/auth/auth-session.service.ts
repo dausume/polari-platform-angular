@@ -63,6 +63,17 @@ export class AuthSessionService {
     this.started = true;
     if (!this.oidc.isConfigured()) return;
 
+    // Track the copy oidc-client-ts actually holds. `automaticSilentRenew`
+    // swaps the token in storage on its own schedule; without this the
+    // subjects below kept publishing the pre-renew token until a 401 forced
+    // a resync, so the UI could show a signed-out header while the store
+    // held a perfectly good session.
+    this.oidc.userLoaded$.subscribe(user => {
+      if (user && !user.expired) {
+        this._setSession(this.oidc.convertToAuthUser(user), user.access_token);
+      }
+    });
+
     // If we're on the /callback route, leave session restore to the
     // callback component — calling signinSilent here would race the
     // authorization-code exchange.
@@ -120,17 +131,32 @@ export class AuthSessionService {
     }
   }
 
-  /** HTTP error interceptor calls this when a backend request returns 401. */
+  /**
+   * HTTP error interceptor calls this when a token-bearing backend request
+   * returns 401. One silent renew is attempted. If it does not come back with
+   * a usable user we re-check the store before giving up: a 401 can come from
+   * an endpoint that simply refuses this caller, and dropping the whole
+   * session on one such answer is how a signed-in person ends up staring at a
+   * "Login" button with a valid token sitting in storage. Only a store that
+   * has no live user left means signed out.
+   */
   async onApiUnauthorized(): Promise<void> {
     if (this.inFlight) return;
     this.inFlight = true;
     try {
-      const user = await this.oidc.signinSilent();
-      if (user && !user.expired) {
-        this._setSession(this.oidc.convertToAuthUser(user), user.access_token);
-      } else {
-        this._setSession(null, null);
+      const renewed = await this.oidc.signinSilent();
+      if (renewed && !renewed.expired) {
+        this._setSession(this.oidc.convertToAuthUser(renewed), renewed.access_token);
+        return;
       }
+      const stored = await this.oidc.getUser();
+      if (stored && !stored.expired) {
+        // Session is alive; this 401 was about the endpoint, not the caller.
+        this._setSession(this.oidc.convertToAuthUser(stored), stored.access_token);
+        return;
+      }
+      if (stored) await this.oidc.removeUser();
+      this._setSession(null, null);
     } finally {
       this.inFlight = false;
     }
@@ -173,18 +199,37 @@ export class AuthSessionService {
     return token;
   }
 
-  /** Backing call for start() — kept private to discourage external invocation. */
+  /**
+   * Backing call for start() — kept private to discourage external invocation.
+   *
+   * The persistence contract, in order:
+   *   1. a live user already in the store (localStorage — survives the window
+   *      closing) is used as-is;
+   *   2. an expired one is renewed with `signinSilent()`, which redeems the
+   *      stored refresh token straight against Keycloak's token endpoint —
+   *      no iframe, so no third-party cookie to be blocked. This is what makes
+   *      "close the window, come back, still signed in" work;
+   *   3. only if that is refused too (the Keycloak SSO session finally aged
+   *      out, or someone signed out) do we fall to signed-out — and the dead
+   *      tokens are swept out of storage rather than left to rot there.
+   *
+   * INVARIANT: this never navigates. Landing on a Keycloak login form because
+   * a background restore quietly failed is the behaviour we are fixing, not
+   * a fallback. The header simply shows "Login".
+   */
   private async attemptSessionRestore(reason: string): Promise<void> {
     if (this.inFlight) return;
     this.inFlight = true;
     try {
       let user = await this.oidc.getUser();
+      const hadStoredUser = !!user;
       if (!user || user.expired) {
         user = await this.oidc.signinSilent();
       }
       if (user && !user.expired) {
         this._setSession(this.oidc.convertToAuthUser(user), user.access_token);
       } else {
+        if (hadStoredUser) await this.oidc.removeUser();
         this._setSession(null, null);
       }
     } catch (err) {
