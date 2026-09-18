@@ -34,8 +34,11 @@ export function registerGenericDisplayComponents(): void {
     'class-rows-table', ClassRowsTableComponent, {
       displayName: 'Class Rows Table',
       description: 'Live CRUDE rows of any backend class as a table '
-        + '(inputs: className, optional columns csv, optional maxRows)',
-      defaultInputs: { className: '', columns: '', maxRows: 0 },
+        + '(inputs: className, optional columns csv, optional maxRows, '
+        + 'optional columnFormats csv of column:format — `person` renders a '
+        + 'Keycloak subject id shortened, with the name resolved at render '
+        + 'time through the gated people door)',
+      defaultInputs: { className: '', columns: '', maxRows: 0, columnFormats: '' },
     });
 
   registerDisplayComponent(

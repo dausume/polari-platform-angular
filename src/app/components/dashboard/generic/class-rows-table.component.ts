@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, Input, OnInit } from '@angular/core';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { CRUDEservicesManager } from '@services/crude-services-manager';
+import { PeopleService } from '@services/people.service';
 
 /**
  * Generic no-code class table: renders the live CRUDE rows of ANY
@@ -32,7 +33,10 @@ import { CRUDEservicesManager } from '@services/crude-services-manager';
         </thead>
         <tbody>
           <tr *ngFor="let row of rows">
-            <td *ngFor="let column of activeColumns">{{ cell(row, column) }}</td>
+            <td *ngFor="let column of activeColumns"
+                [title]="cellTitle(row, column)"
+                [class.person]="formatOf(column) === 'person'"
+                [class.person-unresolved]="formatOf(column) === 'person' && !personName(row, column)">{{ cell(row, column) }}</td>
           </tr>
         </tbody>
       </table>
@@ -51,6 +55,10 @@ import { CRUDEservicesManager } from '@services/crude-services-manager';
       overflow: hidden; text-overflow: ellipsis;
     }
     th { color: var(--text-secondary, #666); font-weight: 600; }
+    td.person-unresolved {
+      font-family: var(--font-mono, monospace);
+      color: var(--text-secondary, #666);
+    }
     .state { padding: 16px; color: var(--text-secondary, #666); }
     .state.error { color: var(--error-text, #b3261e); }
   `],
@@ -62,6 +70,22 @@ export class ClassRowsTableComponent implements OnInit {
   @Input() columns = '';
   /** Cap rendered rows (0 = all). */
   @Input() maxRows = 0;
+
+  /**
+   * Per-column rendering, as `column:format` pairs —
+   * e.g. 'actor:person'. The one format so far is `person`:
+   *
+   *   PEOPLE (his rule D18-1). A Polari row keys a person by their opaque
+   *   Keycloak subject id and never by a name, so an `actor` column holds a
+   *   UUID. A `person` cell shows the first 8 characters of it with the
+   *   whole id in the tooltip, and — when the viewer is signed in — the
+   *   visible rows' subs go to `POST /api/security/people` in ONE batched
+   *   call per render; whatever comes back replaces the short id with the
+   *   name. The name is never stored: not in the row, not in localStorage,
+   *   only in PeopleService's in-memory map for this tab. A viewer who may
+   *   not resolve names (403) just keeps seeing the short id — no error.
+   */
+  @Input() columnFormats = '';
 
   /** Field on this class holding the reference to filter by
    *  (e.g. 'design_ref'). Empty = unfiltered. */
@@ -82,7 +106,15 @@ export class ClassRowsTableComponent implements OnInit {
   loading = true;
   error: string | null = null;
 
-  constructor(private crudeManager: CRUDEservicesManager) {}
+  /** column -> format, parsed from `columnFormats` once. */
+  private formats: Record<string, string> = {};
+  /** Bumped when names arrive, so the template re-reads the person cells. */
+  private resolvedAt = 0;
+
+  constructor(
+    private crudeManager: CRUDEservicesManager,
+    private people: PeopleService,
+  ) {}
 
   ngOnInit(): void {
     if (!this.className) {
@@ -90,6 +122,7 @@ export class ClassRowsTableComponent implements OnInit {
       this.error = 'class-rows-table: no className input.';
       return;
     }
+    this.formats = this.parseFormats(this.columnFormats);
     const filter = this.filterField && this.filterValue
       ? { [this.filterField]: this.filterValue }
       : undefined;
@@ -101,6 +134,7 @@ export class ClassRowsTableComponent implements OnInit {
           ? this.columns.split(',').map((column) => column.trim()).filter(Boolean)
           : this.deriveColumns(this.rows[0]);
         this.loading = false;
+        this.resolvePeople();
       },
       error: (err: any) => {
         this.loading = false;
@@ -125,7 +159,58 @@ export class ClassRowsTableComponent implements OnInit {
       .slice(0, 8);
   }
 
+  private parseFormats(spec: string): Record<string, string> {
+    const out: Record<string, string> = {};
+    (spec || '').split(',').forEach((pair) => {
+      const [column, format] = pair.split(':').map((part) => (part || '').trim());
+      if (column && format) { out[column] = format; }
+    });
+    return out;
+  }
+
+  /** '' when the column renders plainly, else the format it was marked with. */
+  formatOf(column: string): string {
+    return this.formats[column] || '';
+  }
+
+  /**
+   * ONE batched call per table render: every distinct subject id in the
+   * `person` columns of the rows now on screen. Names come back into the
+   * service's in-memory map; the cells re-read them.
+   */
+  private resolvePeople(): void {
+    const personColumns = this.activeColumns.filter((c) => this.formatOf(c) === 'person');
+    if (personColumns.length === 0) { return; }
+    const subs: string[] = [];
+    this.rows.forEach((row) => personColumns.forEach((column) => {
+      const value = String(row?.[column] ?? '').trim();
+      if (value) { subs.push(value); }
+    }));
+    if (subs.length === 0) { return; }
+    this.people.resolve(subs).then(() => { this.resolvedAt = Date.now(); });
+  }
+
+  /** The resolved name for a person cell, or '' while it is (or stays) a bare id. */
+  personName(row: any, column: string): string {
+    void this.resolvedAt;                    // re-read once the batch has answered
+    return this.people.nameFor(String(row?.[column] ?? '').trim());
+  }
+
+  /** The tooltip: a person cell always shows the WHOLE subject id it stands for. */
+  cellTitle(row: any, column: string): string {
+    const raw = this.raw(row, column);
+    if (this.formatOf(column) !== 'person' || !raw) { return raw; }
+    const name = this.personName(row, column);
+    return name ? `${name} — ${raw}` : raw;
+  }
+
   cell(row: any, column: string): string {
+    const raw = this.raw(row, column);
+    if (this.formatOf(column) !== 'person' || !raw) { return raw; }
+    return this.personName(row, column) || PeopleService.short(raw);
+  }
+
+  private raw(row: any, column: string): string {
     const value = row?.[column];
     if (value === null || value === undefined) {
       return '';
