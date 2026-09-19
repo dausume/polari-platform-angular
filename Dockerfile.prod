@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # ==============================================================================
 # PRF Frontend - Production Dockerfile
 # ==============================================================================
@@ -10,14 +11,32 @@ FROM node:20-alpine AS builder
 
 WORKDIR /project
 
+# ---------------------------------------------------------------------------
+# ci-9 — OFFLINE-FIRST (his ask 2026-09-19). Two layers of reuse, both optional:
+#   1. --mount=type=cache,target=/root/.npm — npm's own package cache, kept by
+#      BuildKit between builds on the same daemon. With --prefer-offline npm
+#      uses what is there and only asks the registry for what is genuinely new.
+#   2. NPM_CONFIG_REGISTRY — tier two's verdaccio proxy, passed by the pipeline
+#      only when it answers (polari-jenkins/cache.sh build-args). Unset = npmjs.
+# An empty cache still builds, over the network. Nothing here is a precondition.
+#
+# `npm ci` rather than `npm install`: package-lock.json is present and in sync,
+# and ci is both faster and reproducible. It FAILS LOUDLY on a lock that has
+# drifted from package.json — the fix is `npm install` on a developer's machine
+# and committing the lock, not papering over it in the image.
+# ---------------------------------------------------------------------------
+ARG NPM_CONFIG_REGISTRY=
+
 # Install Angular CLI globally (matching project version)
-RUN npm install -g @angular/cli@19.2.0
+RUN --mount=type=cache,target=/root/.npm \
+    npm install -g --prefer-offline --no-audit --no-fund @angular/cli@19.2.0
 
 # Copy package files first for better layer caching
 COPY package*.json ./
 
 # Install dependencies
-RUN npm install
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --prefer-offline --no-audit --no-fund
 
 # Copy source code
 COPY . .

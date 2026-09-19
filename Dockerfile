@@ -7,16 +7,27 @@ FROM node:20
 
 WORKDIR /project
 
+# ci-9 (his ask 2026-09-19, offline-first): --prefer-offline makes npm use what
+# the BuildKit cache mount already holds and ask the registry only for what is
+# genuinely new; NPM_CONFIG_REGISTRY points at tier two's verdaccio when the
+# pipeline finds it answering (polari-jenkins/cache.sh build-args), and is unset
+# — plain npmjs — otherwise. An empty cache still builds, over the network.
+# This is the DEV image (docker-compose.yml builds it, and so does the release
+# job); Dockerfile.prod carries the same two knobs.
+ARG NPM_CONFIG_REGISTRY=
+
 # Install Angular CLI globally (cached layer - rarely changes)
-RUN npm install -g @angular/cli@19.2.0
+RUN --mount=type=cache,target=/root/.npm \
+    npm install -g --prefer-offline --no-audit --no-fund @angular/cli@19.2.0
 
 # Copy package files FIRST for better caching
 # This layer only rebuilds when package.json or package-lock.json changes
 COPY package*.json ./
 
-# Install dependencies (using npm install to handle lock file version differences)
+# Install dependencies (npm install, not ci: this dev image tolerates a lock
+# that has drifted — Dockerfile.prod uses `npm ci` and fails loudly instead)
 RUN --mount=type=cache,target=/root/.npm \
-    npm install
+    npm install --prefer-offline --no-audit --no-fund
 
 # Copy source code LAST (this invalidates cache most often)
 # Separating this from dependencies ensures npm packages are cached
