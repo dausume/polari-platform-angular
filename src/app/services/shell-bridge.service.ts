@@ -29,6 +29,28 @@ export interface InstallResult {
   error?: string;
 }
 
+/** ci-11a — what the shell answers for a `pipeline.*` message. `json` is
+ *  present when the verb's own output was a document (every `pol jenkins
+ *  … --json` verb), so the caller never parses `output` by hand. */
+export interface PipelineResult {
+  ok: boolean;
+  exitCode?: number;
+  output?: string;
+  json?: any;
+  error?: string;
+}
+
+/** ci-11a — the answer to `pipeline.available`. `verbsProtocol` is the
+ *  `protocol` field of the shell's copy of `polari-jenkins/shell-verbs.json`:
+ *  a page that reads a protocol it does not know must degrade rather than
+ *  guess, which is why it is asked for up front. */
+export interface PipelineAvailability {
+  available: boolean;
+  mechanism?: string;
+  verbsProtocol?: string;
+  error?: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ShellBridgeService {
   /** True when running inside the native shell (bridge present). */
@@ -89,5 +111,40 @@ export class ShellBridgeService {
   removeIsle():
       Promise<{ ok: boolean; terminal?: string; error?: string }> {
     return this.call('store.removeIsle', {});
+  }
+
+  // ------------------------------------------------- ci-11a: the pipeline
+  // His ask 2026-09-19: run the build pipeline as a desktop application,
+  // "guiding people through use like a normal app", with no terminal.
+  //
+  // THE LAYER BOUNDARY (his rule, same day — "keep different pieces
+  // logically separate, like CLI vs JavaFX"). Nothing here composes a
+  // command. A caller names a VERB id from the tracked allowlist
+  // `polari-jenkins/shell-verbs.json` and its parameters; the shell owns
+  // the argv and the elevation. That is why there is no `run(command)`
+  // and never will be.
+
+  /** Can this page drive the pipeline on THIS machine? False in a plain
+   *  browser, and then every caller shows the command instead of a button. */
+  pipelineAvailable(): Promise<PipelineAvailability> {
+    return this.call('pipeline.available', {});
+  }
+
+  /** Run one UNPRIVILEGED verb (doctor, preflight, setup-step, setup-run,
+   *  setup-answer, up). No elevation prompt: these read, or write files the
+   *  logged-in user already owns. */
+  pipelineRun(verb: string, params: Record<string, string> = {}):
+      Promise<PipelineResult> {
+    return this.call('pipeline.run', { verb, params });
+  }
+
+  /** Run one PRIVILEGED verb through the system's own elevation prompt.
+   *  When the allowlist marks the verb `stdin: "secret"` the SHELL collects
+   *  the value in its own native password field and writes it to the
+   *  command's standard input — it is never a parameter here, never in a
+   *  URL, and never in the page. */
+  pipelinePrivileged(verb: string, params: Record<string, string> = {}):
+      Promise<PipelineResult> {
+    return this.call('pipeline.privileged', { verb, params });
   }
 }

@@ -14,6 +14,7 @@ import { FetParts2dComponent } from './fet-parts-2d.component';
 import { FreedomProofPanelComponent } from './freedom-proof-panel.component';
 import { MicrochipLadderComponent } from './microchip-ladder.component';
 import { NamedGraphPanelComponent } from './named-graph-panel.component';
+import { PipelineSetupPanelComponent } from './pipeline-setup-panel.component';
 import { SecurityThreatSimComponent } from './security-threat-sim.component';
 
 let registered = false;
@@ -222,5 +223,26 @@ export function registerGenericDisplayComponents(): void {
         + 'with status counts on top (inputs: optional path, '
         + 'libraryProofPath)',
       defaultInputs: {},
+    });
+
+  // ci-11a — the pipeline's setup walkthrough as a screen. The ONE component
+  // his "make it a desktop app" ask needed: a configured table cannot carry a
+  // button that runs a command on the machine the browser is sitting on. With
+  // the desktop shell it drives `pol jenkins setup` step by step through the
+  // tracked verb allowlist; in a plain browser it degrades to the mirrored
+  // state from /api/cicd/setup plus the exact command per step.
+  registerDisplayComponent(
+    'pipeline-setup-panel', PipelineSetupPanelComponent, {
+      displayName: 'Pipeline setup walkthrough',
+      description: 'The build pipeline\'s setup, step by step: what each '
+        + 'step is in plain words, what is true on the device now '
+        + '(checks with verdicts and fixes), what it needs (questions, '
+        + 'bound to the device), where to get each credential, and the '
+        + 'buttons that do it — unprivileged verbs directly, privileged '
+        + 'ones through the system\'s own elevation prompt, and a secret '
+        + 'only ever through the application\'s native prompt. Without the '
+        + 'desktop shell it shows the last pushed state read-only with the '
+        + 'exact command per step (inputs: path, step, device)',
+      defaultInputs: { path: '/api/cicd/setup', step: '', device: '' },
     });
 }
