@@ -11,6 +11,7 @@ import { OidcService } from '@services/auth/oidc.service';
 import { AuthInterceptor } from './interceptors/auth.interceptor';
 import { AuthErrorInterceptor } from './interceptors/auth-error.interceptor';
 import { RoleplayInterceptor } from './interceptors/roleplay.interceptor';
+import { AdvisoryInterceptor } from './interceptors/advisory.interceptor';
 // Permissions (standalone — registered via imports so templated NgModule
 // components like class-main-page can render <class-permissions-tab>).
 import { ClassPermissionsTabComponent } from '@components/class-main-page/class-permissions-tab/class-permissions-tab.component';
@@ -448,6 +449,11 @@ import { InstanceDetailPanelComponent } from '@components/dashboard/generic/inst
     // Dev-posture role-play: stamps X-Polari-Roleplay on backend requests
     // while a person is acting as a prototype role. No-op otherwise.
     { provide: HTTP_INTERCEPTORS, useClass: RoleplayInterceptor, multi: true },
+    // ct-6/op-0: reads the four X-Polari-*-Advisory / X-Polari-Auth response
+    // headers into SecurityAdvisoryService. LAST on purpose — it observes the
+    // response every other interceptor has already had its turn with, and it
+    // never modifies anything.
+    { provide: HTTP_INTERCEPTORS, useClass: AdvisoryInterceptor, multi: true },
     PolariService,
     CRUDEservicesManager,
     CertificateTrustService,
