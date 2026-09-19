@@ -35,7 +35,15 @@ COPY . .
 
 # Pre-build the application during image creation
 # This makes container startup faster and catches build errors early
-RUN ng build --configuration=development
+#
+# The BUILD's heap, and only the build's: node sizes its old-space from the
+# HOST's RAM, which on a small pipeline device (7 GB) is 2 GB — not enough for
+# this app, so `ng build` died with "Ineffective mark-compacts near heap limit
+# Allocation failed - JavaScript heap out of memory" (exit 134). The ceiling is
+# scoped to THIS step rather than an ENV, so the SERVING container still gets
+# entrypoint.sh's 2048 default (the oomd discipline, 2026-08-25/26).
+ARG NG_BUILD_HEAP_MB=3072
+RUN NODE_OPTIONS="--max-old-space-size=${NG_BUILD_HEAP_MB}" ng build --configuration=development
 
 # WARNING: This exposes the port strictly to other containers on the same network
 # This DOES NOT expose the application on the localhost of the HOST machine
