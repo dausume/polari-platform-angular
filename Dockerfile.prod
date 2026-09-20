@@ -42,7 +42,14 @@ RUN --mount=type=cache,target=/root/.npm \
 COPY . .
 
 # Build for production
-RUN ng build --configuration=production
+#
+# ci-3: the BUILD's heap, and only the build's — the same knob the dev
+# Dockerfile carries, for the same reason. node sizes its old-space from the
+# HOST's RAM, which on the 7 GB pipeline device is ~2 GB: not enough for this
+# app, and `ng build` dies with "Ineffective mark-compacts near heap limit"
+# (exit 134). Stage 2 is nginx and carries none of this.
+ARG NG_BUILD_HEAP_MB=3072
+RUN NODE_OPTIONS="--max-old-space-size=${NG_BUILD_HEAP_MB}" ng build --configuration=production
 
 # Stage 2: Serve with nginx (tiny footprint)
 FROM nginx:alpine
