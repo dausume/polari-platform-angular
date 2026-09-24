@@ -16,6 +16,7 @@ import { MicrochipLadderComponent } from './microchip-ladder.component';
 import { NamedGraphPanelComponent } from './named-graph-panel.component';
 import { PipelineSetupPanelComponent } from './pipeline-setup-panel.component';
 import { SecurityThreatSimComponent } from './security-threat-sim.component';
+import { TensorTreePanelComponent } from './tensor-tree-panel.component';
 
 let registered = false;
 
@@ -111,6 +112,18 @@ export function registerGenericDisplayComponents(): void {
         + 'definition\'s source_class (inputs: graphName, '
         + 'dataPath)',
       defaultInputs: { graphName: '', dataPath: '' },
+    });
+
+  registerDisplayComponent(
+    'tensor-tree-panel', TensorTreePanelComponent, {
+      displayName: 'Tensor Tree',
+      description: 'A TensorTree drawn for intuition (tt-5): the rooted '
+        + 'structure as a d3 tree (resolved nodes solid, unresolved spaces '
+        + 'dashed with their kind), mappings as arcs that may cross branches '
+        + 'coloured by evidence level, a node\'s dimensions -> visual channels, '
+        + 'and the cycle select -> discover -> map (a selection is a row) '
+        + '(optional input: treeName)',
+      defaultInputs: { treeName: '' },
     });
 
   registerDisplayComponent(
