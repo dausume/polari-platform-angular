@@ -346,7 +346,18 @@ export class D3SimSpaceRenderer implements SimSpaceRenderer {
     obj: SimSpaceObject
   ): void {
     const shape = this.shapes.get(obj.shapeRef) ?? fallbackShape(obj.shapeRef);
-    const style = resolveStyle2D(this.styles.get(obj.styleRef), obj.styleRef);
+    let style = resolveStyle2D(this.styles.get(obj.styleRef), obj.styleRef);
+    // Per-instance colour/alpha carried AS DATA by the row (the object model
+    // has declared these since mag-fv; the three-renderer honoured them, the
+    // d3 renderer did not until the 2-D `field` projection needed them —
+    // an FEM element field coloured by its stress).
+    if (obj.colorOverride || obj.opacityOverride !== undefined) {
+      style = {
+        ...style,
+        fill_color: obj.colorOverride ?? style.fill_color,
+        opacity: obj.opacityOverride ?? style.opacity,
+      };
+    }
     paintShape2D(g, shape, style);
     paintShapeLabel(g, style, obj.label);
   }
