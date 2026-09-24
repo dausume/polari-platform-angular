@@ -358,6 +358,24 @@ export class D3SimSpaceRenderer implements SimSpaceRenderer {
         opacity: obj.opacityOverride ?? style.opacity,
       };
     }
+    if (shape.source === 'svg' && shape.units === 'space') {
+      // tt-11: a shape in SPACE units (a polygon from the math-shape library — an FEM element, a plate) is drawn
+      // through the view transform: pixels-per-unit, and the y flip of a math coordinate system. Fill/stroke are
+      // NOT in the svg — they are the object's style / colorOverride (data), applied to any element that carries
+      // no fill of its own — so one shape row serves any field painted on it.
+      const ppu = this.transform.pixelsPerUnit();
+      const flip = this.definition?.coordinateSystem === 'math' ? -1 : 1;
+      const inner = g.append('g').attr('transform', `scale(${ppu.x},${flip * ppu.y})`);
+      inner.html(shape.svg_string || '');
+      inner.selectAll<SVGElement, unknown>('polygon,path,circle,rect,ellipse')
+        .filter(function (this: SVGElement) { return !this.getAttribute('fill'); })
+        .attr('fill', style.fill_color)
+        .attr('stroke', style.stroke_color)
+        .attr('stroke-width', style.stroke_width)
+        .attr('opacity', style.opacity);
+      paintShapeLabel(g, style, obj.label);
+      return;
+    }
     paintShape2D(g, shape, style);
     paintShapeLabel(g, style, obj.label);
   }

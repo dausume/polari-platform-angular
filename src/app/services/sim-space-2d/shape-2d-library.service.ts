@@ -30,6 +30,9 @@ export interface Shape2DDef {
   default_height: number;
   anchor: 'center' | 'bottom';
   category: string;
+  /** 'px' = a marker at pixel size (every shape before tt-11); 'space' = drawn in the space's own units and scaled
+   *  with the view, so it tiles the space (a math-shape polygon, an FEM element). */
+  units?: 'px' | 'space';
 }
 
 /**
@@ -90,6 +93,7 @@ export class Shape2DLibraryService {
       default_height: Number(raw.default_height ?? raw.defaultHeight ?? 16),
       anchor: (raw.anchor ?? 'center') as 'center' | 'bottom',
       category: raw.category ?? 'general',
+      units: (raw.units === 'space' ? 'space' : 'px'),
     };
   }
 }
