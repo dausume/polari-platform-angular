@@ -14,12 +14,13 @@
 // `entry.latex` and `entry.cursorOffset` to position the cursor inside
 // templates like `\frac{│}{}`.
 
-import { Component, EventEmitter, OnInit, Output } from '@angular/core';
+import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import {
     SymbolPaletteCategory,
     SymbolPaletteEntry,
     SYMBOL_PALETTE_CATEGORIES,
-    filterPalette
+    filterPalette,
+    paletteInsertText
 } from '@models/equations/SymbolPalette';
 
 @Component({
@@ -32,7 +33,11 @@ export class EquationSymbolPaletteComponent implements OnInit {
 
     @Output() insert = new EventEmitter<SymbolPaletteEntry>();
 
-    categories: SymbolPaletteCategory[] = SYMBOL_PALETTE_CATEGORIES;
+    /** The catalog. Defaults to the LaTeX symbols; the proofs claim editor hands
+     *  in the TERM-LANGUAGE catalog (same buttons, our vocabulary — pf-3). */
+    @Input() categories: SymbolPaletteCategory[] = SYMBOL_PALETTE_CATEGORIES;
+    /** What the docs `?` link is called in its title. */
+    @Input() docsTitle = 'Open KaTeX docs';
 
     /** Track which category accordions are expanded. Defaults to first two open. */
     expanded: { [name: string]: boolean } = {};
@@ -53,7 +58,7 @@ export class EquationSymbolPaletteComponent implements OnInit {
 
     onSearchInput(value: string): void {
         this.query = value || '';
-        this.filtered = this.query.trim() ? filterPalette(this.query) : [];
+        this.filtered = this.query.trim() ? filterPalette(this.query, this.categories) : [];
     }
 
     clearSearch(): void {
@@ -68,6 +73,8 @@ export class EquationSymbolPaletteComponent implements OnInit {
     isExpanded(name: string): boolean {
         return !!this.expanded[name];
     }
+
+    insertText(entry: SymbolPaletteEntry): string { return paletteInsertText(entry); }
 
     onClickInsert(entry: SymbolPaletteEntry, event: MouseEvent): void {
         event.stopPropagation();

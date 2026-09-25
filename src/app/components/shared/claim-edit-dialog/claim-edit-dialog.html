@@ -1,0 +1,94 @@
+<div class="latex-edit-dialog claim-edit-dialog">
+
+    <div mat-dialog-title class="dialog-header">
+        <div class="header-content">
+            <mat-icon class="header-icon">rule</mat-icon>
+            <div class="header-text">
+                <span class="header-title">{{ data.title || 'Write a claim' }}</span>
+                <span class="header-subtitle">{{ data.subtitle || 'a statement ABOUT rows, in the term language — checked by the tier that can speak to it; the LaTeX is derived, never written' }}</span>
+            </div>
+        </div>
+        <button mat-icon-button (click)="close()" class="close-btn" aria-label="Close">
+            <mat-icon>close</mat-icon>
+        </button>
+    </div>
+
+    <mat-dialog-content class="dialog-content">
+        <div class="editor-split">
+            <div class="editor-column">
+
+                <div class="claim-fields">
+                    <label>name <input class="field" [(ngModel)]="name" placeholder="my-claim" [disabled]="!!saved" /></label>
+                    <label>kind
+                        <select class="field" [(ngModel)]="kind" [disabled]="!!saved">
+                            <option *ngFor="let k of kinds" [value]="k">{{ k }}</option>
+                        </select>
+                    </label>
+                    <label class="wide">about (rows, "Class:name", comma-separated) <input class="field" [(ngModel)]="about" placeholder="TensorMapping:eps→sigma" [disabled]="!!saved" /></label>
+                    <label class="wide">description <input class="field" [(ngModel)]="description" placeholder="what this claim says, for people" [disabled]="!!saved" /></label>
+                    <label>budget (s) <input class="field" type="number" min="1" [(ngModel)]="budget" [disabled]="!!saved" /></label>
+                </div>
+
+                <textarea class="latex-input term-input"
+                          rows="9"
+                          #termInput
+                          [ngModel]="term"
+                          (ngModelChange)="onTermChange($event)"
+                          (focus)="onTextareaInit(termInput)"
+                          [disabled]="!!saved"
+                          placeholder='{"forall": [{"var": "x", "in": "validity:eps→sigma"}], "holds": {"le": [{"mul": [{"ref": "x", "path": ["strain"]}, 1000000000]}, 2147483647]}}'></textarea>
+
+                <div class="preview-card">
+                    <div class="preview-label">Preview — the LaTeX the backend derives from the term
+                        <span class="tier" *ngIf="preview?.tier"> · tier: {{ preview?.tier }}</span>
+                        <span class="hash" *ngIf="preview?.statement_hash" title="statement_hash — the bridge to a certificate"> · {{ preview?.statement_hash | slice:0:12 }}…</span>
+                        <span class="muted" *ngIf="previewing"> · deriving…</span>
+                    </div>
+                    <katex-display [latex]="preview?.latex || ''" [displayMode]="true" placeholder="the derived reading will appear here"></katex-display>
+                    <div class="muted" *ngIf="preview?.note">{{ preview?.note }}</div>
+                </div>
+
+                <div class="parse-warning" *ngIf="preview && !preview.valid">
+                    <mat-icon>warning_amber</mat-icon>
+                    <span><span *ngFor="let e of preview.errors">{{ e }}<br/></span></span>
+                </div>
+
+                <div class="parse-warning error" *ngIf="saveError">
+                    <mat-icon>error_outline</mat-icon>
+                    <span>{{ saveError }}</span>
+                </div>
+
+                <div class="verdict-card" *ngIf="saved" [attr.data-status]="saved.status">
+                    <mat-icon>{{ saved.status === 'refuted' ? 'cancel' : (saved.status === 'conjectured' || saved.status === 'undetermined' || saved.status === 'unprovable-here' ? 'help_outline' : 'check_circle') }}</mat-icon>
+                    <div>
+                        <div class="verdict-title">claim <code>{{ saved.claim }}</code> written — {{ verdictWord() }}</div>
+                        <div class="muted" *ngIf="saved.check?.counterexample">counterexample: <code>{{ saved.check.counterexample | json }}</code></div>
+                        <div class="muted">a witness is never a proof; refuted keeps its counterexample; the row goes stale when what it speaks of moves</div>
+                    </div>
+                </div>
+
+                <div class="references-panel">
+                    <div class="references-header">
+                        <mat-icon>menu_book</mat-icon>
+                        <span class="references-title">Learn the format</span>
+                    </div>
+                    <ul class="references-list">
+                        <li><a href="/display/mathproofs" target="_blank" rel="noopener">The proofs page</a><span class="ref-desc">— every claim, its derived LaTeX, the rules, the tiers and what each can establish.</span></li>
+                        <li><span class="ref-desc">Tiers: numeric = a WITNESS on the rows we have (never a proof) · interval / z3 = DECIDED · sympy = over symbols · lean = a committed theorem (ask ?tier=lean once the claim exists).</span></li>
+                        <li><span class="ref-desc">Sets: <code>rows:Class[:field=value]</code> (finite) · <code>validity:mapping</code> · <code>domain:node</code> · <code>scope:claim</code> (a box over dims).</span></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="palette-column">
+                <app-equation-symbol-palette [categories]="categories" docsTitle="Open the proofs page" (insert)="insertSymbol($event)"></app-equation-symbol-palette>
+            </div>
+        </div>
+    </mat-dialog-content>
+
+    <mat-dialog-actions class="dialog-actions">
+        <span class="spacer"></span>
+        <button mat-button (click)="close()">{{ saved ? 'Close' : 'Cancel' }}</button>
+        <button mat-flat-button color="primary" (click)="save()" [disabled]="!canSave">{{ saving ? 'writing + checking…' : 'Write the claim and check it' }}</button>
+    </mat-dialog-actions>
+</div>

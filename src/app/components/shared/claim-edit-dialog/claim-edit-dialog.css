@@ -1,0 +1,13 @@
+/* claim-edit-dialog — additions over the shared latex-edit-dialog look */
+.claim-fields { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem .8rem; margin-bottom: .5rem; font-size: .82rem; color: var(--text-secondary, #666); }
+.claim-fields label { display: flex; flex-direction: column; gap: .15rem; }
+.claim-fields label.wide { grid-column: 1 / -1; }
+.claim-fields .field { font: inherit; padding: .3rem .45rem; border: 1px solid var(--border-medium, #ccc); border-radius: 4px; background: var(--surface, #fff); color: var(--text-primary, #222); }
+.term-input { font-family: var(--font-mono, monospace); font-size: .8rem; }
+.preview-label .tier, .preview-label .hash { font-weight: 400; color: var(--text-tertiary, #888); font-family: var(--font-mono, monospace); }
+.muted { color: var(--text-tertiary, #888); font-size: .8rem; }
+.parse-warning.error { background: #fdecea; color: #7f1d1d; }
+.verdict-card { display: flex; gap: .6rem; align-items: flex-start; padding: .6rem .8rem; border-radius: 6px; margin-top: .5rem; background: #e8f5e9; }
+.verdict-card[data-status="refuted"] { background: #fdecea; }
+.verdict-card[data-status="conjectured"], .verdict-card[data-status="undetermined"], .verdict-card[data-status="unprovable-here"] { background: #fff8e1; }
+.verdict-title code { font-size: .85em; }

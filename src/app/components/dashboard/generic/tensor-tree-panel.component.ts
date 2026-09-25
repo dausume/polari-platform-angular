@@ -3,8 +3,10 @@ import { AfterViewInit, Component, ElementRef, Input, OnDestroy, OnInit, ViewChi
 import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import * as d3 from 'd3';
 import { PolariService } from '@services/polari-service';
+import { ClaimEditDialogComponent, ClaimEditDialogResult } from '@components/shared/claim-edit-dialog/claim-edit-dialog';
 
 /**
  * A TensorTree, drawn so it gives INTUITION (tt-5; plan COMPUTE_LOD_TENSOR_PLAN §11–§16):
@@ -26,7 +28,7 @@ import { PolariService } from '@services/polari-service';
 @Component({
   standalone: true,
   selector: 'tensor-tree-panel',
-  imports: [CommonModule, FormsModule, MatProgressSpinnerModule],
+  imports: [CommonModule, FormsModule, MatProgressSpinnerModule, MatDialogModule],
   template: `
     <div class="tt-root">
       <div *ngIf="loading" class="state"><mat-spinner diameter="28"></mat-spinner></div>
@@ -92,6 +94,11 @@ import { PolariService } from '@services/polari-service';
                   <div class="bar"><div class="fill" [style.width.%]="c.score * 100"></div><span class="score">{{ c.score | number:'1.2-2' }}</span></div>
                   <div class="cand-to">→ {{ c.target_node }} <span class="muted" *ngIf="c.evidence_ref">· {{ c.evidence_ref }}</span></div>
                   <div class="muted" *ngIf="c.loss_note">loses: {{ c.loss_note }}</div>
+                  <div class="doors" *ngIf="c.propose">
+                    <button class="door" (click)="propose(c, $event)" [disabled]="proposing === c.mapping" title="{{ c.propose.says }}">
+                      {{ proposing === c.mapping ? 'proposing…' : 'propose: valid on this selection' }}</button>
+                    <span class="muted" *ngIf="proposed[c.mapping]">{{ proposed[c.mapping] }}</span>
+                  </div>
                 </div>
                 <div *ngIf="discovery.inapplicable?.length" class="refused">
                   <div class="disc-title">not defined on this selection (the model shifts with the state space — nothing is falsified; never scored)</div>
@@ -122,6 +129,7 @@ import { PolariService } from '@services/polari-service';
               <span class="mono">{{ m.name }}</span> <span class="pill">{{ m.kind }}</span>
               <span class="proof" [attr.data-proof]="m.logic?.badge" title="{{ proofTitle(m) }}">{{ proofGlyph(m.logic?.badge) }}</span>
               <span class="muted">{{ m.source_node === selected.id ? '→ ' + m.target_node : '← ' + m.source_node }} · {{ m.mapping_status }}</span>
+              <button class="door tiny" (click)="writeClaim(m, $event)" title="write a claim about this mapping (the term language; checked at once by the tier that can speak to it)">claim</button>
             </div>
           </div>
           <div class="detail hint" *ngIf="!selected && view">click a node — solid = resolved (every dimension bound to a channel), dashed = an unresolved space with what is known kept</div>
@@ -181,6 +189,9 @@ import { PolariService } from '@services/polari-service';
     .map-row { display:flex; gap:.4rem; align-items:center; flex-wrap:wrap; padding:.15rem .25rem; cursor:pointer; border-radius:4px; }
     .map-row.hl, .map-row:hover { background:#f1f8ff; }
     .proof { font-weight:700; font-size:.8rem; }
+    .doors { margin-top:.25rem; display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
+    .door { font-size:.72rem; padding:.15rem .5rem; border:1px solid #90a4ae; border-radius:10px; background:#eceff1; cursor:pointer; }
+    .door:hover { background:#cfd8dc; } .door[disabled] { opacity:.6; cursor:default; } .door.tiny { margin-left:.4rem; padding:.05rem .4rem; }
     .proof[data-proof="ok"] { color:#2e7d32; } .proof[data-proof="open"] { color:#f9a825; } .proof[data-proof="undetermined"] { color:#6a1b9a; } .proof[data-proof="refuted"] { color:#b00020; } .proof[data-proof="none"], .proof[data-proof="unavailable"] { color:#9e9e9e; }
   `],
 })
@@ -196,13 +207,16 @@ export class TensorTreePanelComponent implements OnInit, AfterViewInit, OnDestro
   selRanges: Array<{ dim: string; lo: number | null; hi: number | null }> = [];
   discovery: any = null;
   discovering = false;
+  /** pf-3: the doors — a proposal in flight, and what each one came back with */
+  proposing = '';
+  proposed: { [mapping: string]: string } = {};
   highlighted = '';
   loading = true;
   error: string | null = null;
   private viewReady = false;
   private resizeObs?: ResizeObserver;
 
-  constructor(private http: HttpClient, private polariService: PolariService) {}
+  constructor(private http: HttpClient, private polariService: PolariService, private dialog: MatDialog) {}
 
   ngOnInit(): void {
     const base = this.polariService.getBackendBaseUrl();
@@ -277,6 +291,47 @@ export class TensorTreePanelComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   highlight(name: string): void { this.highlighted = this.highlighted === name ? '' : name; this.draw(); }
+
+  /** pf-3: the discovery candidate's door — its validity on THIS selection becomes a durable, checked row (mathproofs). */
+  propose(c: any, ev: Event): void {
+    ev.stopPropagation();
+    if (!c?.propose) { return; }
+    const base = this.polariService.getBackendBaseUrl();
+    this.proposing = c.mapping;
+    this.http.post<any>(`${base}${c.propose.path}`, { ...c.propose.body, proposed_by: 'tensor-tree-panel' }, this.polariService.backendRequestOptions).subscribe({
+      next: (r: any) => {
+        this.proposing = '';
+        const rows = (r?.proposed || []) as any[];
+        this.proposed[c.mapping] = rows.map((p) => `${p.what}: ${p.status}` + (p.counterexample ? ` (${JSON.stringify(p.counterexample)})` : '')).join(' · ') || 'nothing proposed';
+        this.reloadView();   // the badges on the mappings now include the proposed obligation
+      },
+      error: (e: any) => { this.proposing = ''; this.proposed[c.mapping] = e?.error?.error || `propose failed (${e?.status ?? '?'})`; },
+    });
+  }
+
+  /** pf-3: write a claim ABOUT this mapping — the term-language editor (palette + the backend-derived LaTeX preview). */
+  writeClaim(m: any, ev: Event): void {
+    ev.stopPropagation();
+    const ref = this.dialog.open(ClaimEditDialogComponent, {
+      width: '1100px', maxWidth: '96vw', maxHeight: '92vh',
+      data: { about: [`TensorMapping:${m.name}`], from: `tensor-tree-panel (${this.activeTree})`, title: `A claim about ${m.name}`,
+              subtitle: `${m.kind}: ${m.source_node} → ${m.target_node} · validity ${JSON.stringify(m.validity || {})}` },
+    });
+    ref.afterClosed().subscribe((r: ClaimEditDialogResult) => { if (r?.action === 'saved') { this.reloadView(); } });
+  }
+
+  private reloadView(): void {
+    const keep = this.selected?.id; const hl = this.highlighted; const disc = this.discovery;
+    if (!this.activeTree) { return; }
+    const base = this.polariService.getBackendBaseUrl();
+    this.http.get<any>(`${base}/api/tensortree/trees/${encodeURIComponent(this.activeTree)}/view`, this.polariService.backendRequestOptions).subscribe({
+      next: (v: any) => {
+        this.view = v; this.discovery = disc; this.highlighted = hl;
+        if (keep) { const n = (this.view?.nodes || []).find((x: any) => x.id === keep); if (n) { this.selected = n; } }
+        this.draw();
+      },
+    });
+  }
 
   /** the proof badge (mathproofs, D-pf-8): the state of a mapping's obligations, shown on the mapping */
   proofGlyph(badge?: string): string { return ({ ok: '✓', open: '?', undetermined: '∅', refuted: '✗', none: '–', unavailable: '·' } as any)[badge || 'none'] || '–'; }

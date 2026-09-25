@@ -70,7 +70,7 @@
         </div>
         <div class="hover-meta">
             <div class="hover-label">{{ hovered.label }}</div>
-            <code class="hover-latex">{{ hovered.latex.trim() }}</code>
+            <code class="hover-latex">{{ insertText(hovered).trim() }}</code>
         </div>
     </div>
 
@@ -82,7 +82,7 @@
          caret position before our (click) insert handler reads it. -->
     <ng-template #paletteButton let-entry="entry">
         <div class="palette-button"
-             [matTooltip]="entry.description + '\nLaTeX: ' + entry.latex.trim()"
+             [matTooltip]="entry.description + '\nInserts: ' + insertText(entry).trim()"
              matTooltipPosition="left"
              matTooltipClass="palette-tooltip"
              (mousedown)="$event.preventDefault()"
@@ -95,7 +95,7 @@
                [href]="entry.docsUrl"
                target="_blank"
                rel="noopener"
-               title="Open KaTeX docs"
+               [title]="docsTitle"
                (mousedown)="$event.stopPropagation()"
                (click)="onDocsClick($event)">
                 <mat-icon>info</mat-icon>

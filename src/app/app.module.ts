@@ -128,6 +128,7 @@ import { MatrixOperandSourceEditorComponent } from '@components/custom-no-code/s
 import { RunEngineModelOverlayComponent } from '@components/custom-no-code/states/engine-model/run-engine-model-overlay/run-engine-model-overlay.component';
 import { RunEngineModelOverlayPopupComponent } from '@components/custom-no-code/states/engine-model/run-engine-model-overlay/popup/run-engine-model-overlay-popup.component';
 import { LatexEditDialogComponent } from '@components/shared/latex-edit-dialog/latex-edit-dialog';
+import { ClaimEditDialogComponent } from '@components/shared/claim-edit-dialog/claim-edit-dialog';
 import { EditableEquationCellComponent } from '@components/shared/editable-cells/editable-equation-cell/editable-equation-cell';
 import { ViewContextOverlayComponent } from '@components/custom-no-code/popups/view-context-overlay/view-context-overlay.component';
 import { ExecutionPanelComponent } from '@components/custom-no-code/editor/execution-panel/execution-panel.component';
@@ -298,6 +299,7 @@ import { InstanceDetailPanelComponent } from '@components/dashboard/generic/inst
     RunEngineModelOverlayComponent,
     RunEngineModelOverlayPopupComponent,
     LatexEditDialogComponent,
+    ClaimEditDialogComponent,
     EditableEquationCellComponent,
     ViewContextOverlayComponent,
     ExecutionPanelComponent,

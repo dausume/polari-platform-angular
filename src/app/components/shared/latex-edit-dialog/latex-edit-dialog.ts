@@ -11,7 +11,7 @@
 
 import { Component, ElementRef, Inject, ViewChild } from '@angular/core';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
-import { SymbolPaletteEntry } from '@models/equations/SymbolPalette';
+import { SymbolPaletteEntry, paletteInsertText } from '@models/equations/SymbolPalette';
 import katex from 'katex';
 
 export interface LatexEditDialogData {
@@ -106,10 +106,11 @@ export class LatexEditDialogComponent {
             : start;
         const before = this.latex.slice(0, start);
         const after = this.latex.slice(end);
-        this.latex = before + entry.latex + after;
+        const text = paletteInsertText(entry);
+        this.latex = before + text + after;
         this.validate();
         const offset = entry.cursorOffset ?? 0;
-        const newCursor = before.length + entry.latex.length - offset;
+        const newCursor = before.length + text.length - offset;
         this.lastKnownCursor = newCursor;
         setTimeout(() => {
             ta.focus();

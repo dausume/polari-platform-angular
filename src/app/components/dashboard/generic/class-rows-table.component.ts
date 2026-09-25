@@ -3,6 +3,7 @@ import { Component, Input, OnInit } from '@angular/core';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { CRUDEservicesManager } from '@services/crude-services-manager';
 import { PeopleService } from '@services/people.service';
+import { KatexDisplayComponent } from '@components/shared/katex-display/katex-display.component';
 
 /**
  * Generic no-code class table: renders the live CRUDE rows of ANY
@@ -22,7 +23,7 @@ import { PeopleService } from '@services/people.service';
 @Component({
   standalone: true,
   selector: 'class-rows-table',
-  imports: [CommonModule, MatProgressSpinnerModule],
+  imports: [CommonModule, MatProgressSpinnerModule, KatexDisplayComponent],
   template: `
     <div class="class-rows-table">
       <div *ngIf="loading" class="state"><mat-spinner diameter="28"></mat-spinner></div>
@@ -36,7 +37,13 @@ import { PeopleService } from '@services/people.service';
             <td *ngFor="let column of activeColumns"
                 [title]="cellTitle(row, column)"
                 [class.person]="formatOf(column) === 'person'"
-                [class.person-unresolved]="formatOf(column) === 'person' && !personName(row, column)">{{ cell(row, column) }}</td>
+                [class.latex]="formatOf(column) === 'latex'"
+                [class.person-unresolved]="formatOf(column) === 'person' && !personName(row, column)">
+              <ng-container *ngIf="formatOf(column) === 'latex' && cell(row, column); else plain">
+                <katex-display [latex]="cell(row, column)" [displayMode]="false" placeholder=""></katex-display>
+              </ng-container>
+              <ng-template #plain>{{ cell(row, column) }}</ng-template>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -55,6 +62,7 @@ import { PeopleService } from '@services/people.service';
       overflow: hidden; text-overflow: ellipsis;
     }
     th { color: var(--text-secondary, #666); font-weight: 600; }
+    td.latex { white-space: normal; max-width: 520px; overflow: visible; }
     td.person-unresolved {
       font-family: var(--font-mono, monospace);
       color: var(--text-secondary, #666);
@@ -73,7 +81,10 @@ export class ClassRowsTableComponent implements OnInit {
 
   /**
    * Per-column rendering, as `column:format` pairs —
-   * e.g. 'actor:person'. The one format so far is `person`:
+   * e.g. 'actor:person'. Two formats: `latex` — the cell is a LaTeX string
+   * DERIVED by the backend (mathproofs: MathClaim.statement_latex from the
+   * term, never authored) and is rendered through the shared katex-display
+   * (pf-3: the LaTeX rendered from the term; no new component). And `person`:
    *
    *   PEOPLE (his rule D18-1). A Polari row keys a person by their opaque
    *   Keycloak subject id and never by a name, so an `actor` column holds a

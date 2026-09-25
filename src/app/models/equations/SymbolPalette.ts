@@ -15,8 +15,11 @@
 //                       for our users)
 
 export interface SymbolPaletteEntry {
-    /** LaTeX snippet inserted into the textarea on click. */
+    /** LaTeX snippet inserted into the textarea on click — and the glyph the button renders. */
     latex: string;
+    /** Optional: what is ACTUALLY inserted when it is not the LaTeX itself (the proofs
+     *  term palette shows ∀ on the button and inserts a JSON term snippet). */
+    insert?: string;
     /** Optional: cursor lands this many chars from the end of the insert. */
     cursorOffset?: number;
     /** Short human label. */
@@ -192,18 +195,24 @@ export const SYMBOL_PALETTE_CATEGORIES: SymbolPaletteCategory[] = [
     },
 ];
 
-/** Flatten the catalog when filtering by search string. */
-export function flattenPalette(): SymbolPaletteEntry[] {
-    return SYMBOL_PALETTE_CATEGORIES.flatMap(c => c.entries);
+/** What a palette entry inserts: its `insert` when set, else its LaTeX. */
+export function paletteInsertText(entry: SymbolPaletteEntry): string {
+    return entry.insert ?? entry.latex;
 }
 
-/** Case-insensitive search across label, description, and latex. */
-export function filterPalette(query: string): SymbolPaletteEntry[] {
+/** Flatten a catalog (the LaTeX one by default) when filtering by search string. */
+export function flattenPalette(categories: SymbolPaletteCategory[] = SYMBOL_PALETTE_CATEGORIES): SymbolPaletteEntry[] {
+    return categories.flatMap(c => c.entries);
+}
+
+/** Case-insensitive search across label, description, latex and the inserted text. */
+export function filterPalette(query: string, categories: SymbolPaletteCategory[] = SYMBOL_PALETTE_CATEGORIES): SymbolPaletteEntry[] {
     const q = query.trim().toLowerCase();
     if (!q) return [];
-    return flattenPalette().filter(e =>
+    return flattenPalette(categories).filter(e =>
         e.label.toLowerCase().includes(q) ||
         e.description.toLowerCase().includes(q) ||
-        e.latex.toLowerCase().includes(q)
+        e.latex.toLowerCase().includes(q) ||
+        (e.insert || '').toLowerCase().includes(q)
     );
 }
