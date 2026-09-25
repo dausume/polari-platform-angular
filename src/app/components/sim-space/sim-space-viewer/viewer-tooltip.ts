@@ -53,6 +53,17 @@ export function renderTooltipForObject(
     (obj.position.length >= 3 ? `, ${formatNum(obj.position[2])}` : '') +
     `)</div>`
   );
+  // a field cell (2-D `field` binding — tensortree tt-6) carries its scalar, unit, field name and colour domain in
+  // userData: the value a person hovers FOR, so it is shown before the position
+  const ud: any = obj.userData || {};
+  if (typeof ud.scalar === 'number') {
+    const unit = ud.unit ? ` ${escapeHtml(String(ud.unit))}` : '';
+    const field = ud.field ? `${escapeHtml(String(ud.field))} = ` : '';
+    const dom = Array.isArray(ud.domain) && ud.domain.length === 2 ? ` <span style="opacity:0.6">(colour ${formatNum(ud.domain[0])}–${formatNum(ud.domain[1])}${unit})</span>` : '';
+    parts.push(`<div style="font-family:monospace"><strong>${field}${formatNum(ud.scalar)}${unit}</strong>${dom}</div>`);
+  } else if (ud.refused) {
+    parts.push(`<div style="opacity:0.75">${escapeHtml(String(ud.refused))}</div>`);
+  }
   if (obj.temporalValue !== undefined && temporalLabel) {
     parts.push(
       `<div style="opacity:0.65;font-family:monospace">${escapeHtml(temporalLabel)}</div>`

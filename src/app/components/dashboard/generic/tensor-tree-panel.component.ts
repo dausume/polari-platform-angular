@@ -45,7 +45,7 @@ import { ClaimEditDialogComponent, ClaimEditDialogResult } from '@components/sha
             <span class="lg dashed">unresolved space</span>
             <span class="lg ev none">none</span><span class="lg ev analytical">analytical</span>
             <span class="lg ev simulated">simulated</span><span class="lg ev measured">measured</span>
-            <span class="lg" title="the proof state of a mapping's obligations (mathproofs) — shown ON the mapping, never folded into its status. undetermined = not defined here (a premise fails / a value is unrecorded), not falsified">proof: ✓ ok · ? open · ∅ undetermined · ✗ refuted · – none</span>
+            <span class="lg" title="the proof state of a mapping's obligations (mathproofs) — shown ON the mapping, never folded into its status. undetermined = not defined here (a premise fails / a value is unrecorded), not falsified">proof: ✓ ok · ◐ ok with a named gap (a rule no tier can check yet) · ? open · ∅ undetermined · ✗ refuted · – none</span>
           </span>
         </div>
         <div class="tree-desc" *ngIf="view">{{ view.tree.description }}</div>
@@ -65,7 +65,7 @@ import { ClaimEditDialogComponent, ClaimEditDialogResult } from '@components/sha
               <div class="section">dimensions → channels</div>
               <div class="dims">
                 <div *ngFor="let d of selected.dims" class="dim" [class.bad]="selected.incoherent[d.name]">
-                  <span class="dim-name">{{ shortDim(d.dimension) }}</span>
+                  <span class="dim-name" title="{{ d.name }} ← {{ d.dimension }}">{{ shortDim(d.name) }}</span>
                   <span class="arrow">→</span>
                   <span class="chan" [attr.data-chan]="d.channel">{{ d.channel || '(no channel)' }}</span>
                   <span class="range" *ngIf="d.range?.length === 2">[{{ d.range[0] }} … {{ d.range[1] }}]</span>
@@ -192,7 +192,7 @@ import { ClaimEditDialogComponent, ClaimEditDialogResult } from '@components/sha
     .doors { margin-top:.25rem; display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
     .door { font-size:.72rem; padding:.15rem .5rem; border:1px solid #90a4ae; border-radius:10px; background:#eceff1; cursor:pointer; }
     .door:hover { background:#cfd8dc; } .door[disabled] { opacity:.6; cursor:default; } .door.tiny { margin-left:.4rem; padding:.05rem .4rem; }
-    .proof[data-proof="ok"] { color:#2e7d32; } .proof[data-proof="open"] { color:#f9a825; } .proof[data-proof="undetermined"] { color:#6a1b9a; } .proof[data-proof="refuted"] { color:#b00020; } .proof[data-proof="none"], .proof[data-proof="unavailable"] { color:#9e9e9e; }
+    .proof[data-proof="ok"] { color:#2e7d32; } .proof[data-proof="gap"] { color:#558b2f; } .proof[data-proof="open"] { color:#f9a825; } .proof[data-proof="undetermined"] { color:#6a1b9a; } .proof[data-proof="refuted"] { color:#b00020; } .proof[data-proof="none"], .proof[data-proof="unavailable"] { color:#9e9e9e; }
   `],
 })
 export class TensorTreePanelComponent implements OnInit, AfterViewInit, OnDestroy {
@@ -262,8 +262,10 @@ export class TensorTreePanelComponent implements OnInit, AfterViewInit, OnDestro
     this.discovery = null; this.highlighted = '';
     const prior = (this.view?.selections || []).filter((s: any) => s.node === id).slice(-1)[0];
     this.selRanges = (this.selected?.dims || []).map((d: any) => {
-      const short = this.shortDim(d.dimension);
-      const seeded = prior?.ranges?.[short] || prior?.ranges?.[d.dimension];
+      // the LocalizedDimension's OWN short name (wind-grid.speed → speed) — the key the mappings' dims and the
+      // selections' ranges use; the tensor dimension it localizes (wind-field.wind-speed) is only its provenance
+      const short = this.shortDim(d.name);
+      const seeded = prior?.ranges?.[short] || prior?.ranges?.[this.shortDim(d.dimension)];
       const r = seeded || (d.range?.length === 2 ? d.range : (d.scale?.domain?.length === 2 ? d.scale.domain : null));
       return { dim: short, lo: r ? r[0] : null, hi: r ? r[1] : null };
     }).filter((r: any) => r.dim);
@@ -334,7 +336,7 @@ export class TensorTreePanelComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   /** the proof badge (mathproofs, D-pf-8): the state of a mapping's obligations, shown on the mapping */
-  proofGlyph(badge?: string): string { return ({ ok: '✓', open: '?', undetermined: '∅', refuted: '✗', none: '–', unavailable: '·' } as any)[badge || 'none'] || '–'; }
+  proofGlyph(badge?: string): string { return ({ ok: '✓', gap: '◐', open: '?', undetermined: '∅', refuted: '✗', none: '–', unavailable: '·' } as any)[badge || 'none'] || '–'; }
 
   proofTitle(m: any): string {
     const l = m?.logic; if (!l) { return 'no proof state'; }
@@ -402,7 +404,7 @@ export class TensorTreePanelComponent implements OnInit, AfterViewInit, OnDestro
     svg.append('defs').append('marker').attr('id', 'tt-arrow').attr('viewBox', '0 0 10 10').attr('refX', 9).attr('refY', 5).attr('markerWidth', 6).attr('markerHeight', 6).attr('orient', 'auto')
       .append('path').attr('d', 'M0,0 L10,5 L0,10 z').attr('fill', '#777');
     // nodes
-    const boxW = 150, boxH = 40;
+    const boxW = 200, boxH = 40;
     const gn = g.append('g').selectAll('g').data(nodes).join('g')
       .attr('transform', (n: any) => { const p = pos.get(n.id)!; return `translate(${p.x - boxW / 2},${p.y - boxH / 2})`; })
       .style('cursor', 'pointer').on('click', (_: any, n: any) => this.selectNode(n.id));
@@ -411,7 +413,7 @@ export class TensorTreePanelComponent implements OnInit, AfterViewInit, OnDestro
       .attr('stroke', (n: any) => n.id === this.selected?.id ? '#0d47a1' : (n.kind === 'unresolved' ? '#999' : (n.status === 'resolved' ? '#1e88e5' : '#f9a825')))
       .attr('stroke-width', (n: any) => n.id === this.selected?.id ? 2.5 : 1.5)
       .attr('stroke-dasharray', (n: any) => n.kind === 'unresolved' ? '5 3' : null);
-    gn.append('text').attr('x', 8).attr('y', 16).attr('font-size', 11).attr('font-weight', 600).text((n: any) => (n.title || n.id).slice(0, 24));
+    gn.append('text').attr('x', 8).attr('y', 16).attr('font-size', 11).attr('font-weight', 600).text((n: any) => { const t = n.title || n.id; return t.length > 32 ? t.slice(0, 31) + '…' : t; });
     gn.append('text').attr('x', 8).attr('y', 31).attr('font-size', 9.5).attr('fill', '#555')
       .text((n: any) => n.kind === 'unresolved' ? `unresolved · ${n.unresolved_kind}` : (n.status === 'resolved' ? `resolved · ${(n.dims || []).length} dims bound` : `unresolved · ${n.why || ''}`.slice(0, 30)));
     gn.append('title').text((n: any) => n.kind === 'unresolved' ? `${n.id}\n${(n.open_questions || []).join('\n')}` : `${n.id}\n${(n.dims || []).map((d: any) => `${this.shortDim(d.dimension)} → ${d.channel}`).join('\n')}`);

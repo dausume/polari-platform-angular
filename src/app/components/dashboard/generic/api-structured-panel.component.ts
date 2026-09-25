@@ -11,6 +11,7 @@ import {
 /**
  * Generic no-code API panel, STRUCTURED reading: GETs a backend path,
  * optionally descends to a dot-path inside the payload (`pick`, e.g.
+ * 'aggregate.worst_case_s'), or keeps a comma-listed SUBSET of top-level keys ('by_status,aggregate,tiers'),
  * 'idealTable' or 'ranking' or 'complementary.check'), and renders it
  * through structured-payload-panel — scalars as chips, prose as
  * paragraphs, record arrays as tables, nested objects as key/value.
@@ -108,6 +109,22 @@ export class ApiStructuredPanelComponent implements OnInit, OnChanges {
    *  structured panel sees a record-array table named after the pick. */
   private shape(body: any): any {
     let value: any = body;
+    if (this.pick && this.pick.includes(',')) {
+      // a comma list = a SUBSET of top-level keys, kept in the order given (the module pages' summary panels:
+      // pick='by_status,aggregate,tiers'); keys the payload lacks are named, not silently dropped
+      const keys = this.pick.split(',').map(k => k.trim()).filter(Boolean);
+      const picked: Record<string, unknown> = {};
+      const missing: string[] = [];
+      for (const k of keys) {
+        if (body != null && typeof body === 'object' && k in body) { picked[k] = body[k]; } else { missing.push(k); }
+      }
+      if (!Object.keys(picked).length) {
+        this.emptyText = `none of '${this.pick}' is in this payload.`;
+        return null;
+      }
+      if (missing.length) { picked['not in this payload'] = missing.join(', '); }
+      return this.dropKeys(picked);
+    }
     if (this.pick) {
       for (const seg of this.pick.split('.').filter(Boolean)) {
         value = value != null && typeof value === 'object' ? value[seg] : undefined;

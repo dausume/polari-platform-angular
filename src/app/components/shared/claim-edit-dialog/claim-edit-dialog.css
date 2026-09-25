@@ -10,4 +10,6 @@
 .verdict-card { display: flex; gap: .6rem; align-items: flex-start; padding: .6rem .8rem; border-radius: 6px; margin-top: .5rem; background: #e8f5e9; }
 .verdict-card[data-status="refuted"] { background: #fdecea; }
 .verdict-card[data-status="conjectured"], .verdict-card[data-status="undetermined"], .verdict-card[data-status="unprovable-here"] { background: #fff8e1; }
+.verdict-title { color: var(--text-primary, #1b1b1b); font-weight: 600; }
 .verdict-title code { font-size: .85em; }
+.verdict-card mat-icon { color: #2e7d32; } .verdict-card[data-status="refuted"] mat-icon { color: #b00020; }
