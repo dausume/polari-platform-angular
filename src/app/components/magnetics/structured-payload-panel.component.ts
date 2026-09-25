@@ -39,7 +39,7 @@ interface PayloadTable {
       <div class="readout" *ngIf="scalars.length">
         <span *ngFor="let s of scalars">
           <em>{{ s.label }}</em>
-          <b>{{ s.value }}</b>
+          <b><ng-container *ngIf="isLink(s.value); else scalarText"><a [href]="s.value" target="_blank" rel="noopener">open ↗</a></ng-container><ng-template #scalarText>{{ s.value }}</ng-template></b>
         </span>
       </div>
 
@@ -47,7 +47,7 @@ interface PayloadTable {
            the actual reasoning and deserve to be readable, not a
            truncated cell. -->
       <p class="prose" *ngFor="let p of prose">
-        <em>{{ p.label }}</em> {{ p.value }}
+        <em>{{ p.label }}</em> <ng-container *ngIf="isLink(p.value); else proseText"><a [href]="p.value" target="_blank" rel="noopener">open ↗</a></ng-container><ng-template #proseText>{{ p.value }}</ng-template>
       </p>
 
       <!-- Record arrays: the real content of most sections. -->
@@ -58,7 +58,7 @@ interface PayloadTable {
           <table class="data-table-dashed">
             <tr><th *ngFor="let c of t.columns">{{ labelOf(c) }}</th></tr>
             <tr *ngFor="let r of t.rows">
-              <td *ngFor="let c of t.columns">{{ cell(r[c]) }}</td>
+              <td *ngFor="let c of t.columns"><ng-container *ngIf="isLink(r[c]); else cellText"><a [href]="r[c]" target="_blank" rel="noopener">open ↗</a></ng-container><ng-template #cellText>{{ cell(r[c]) }}</ng-template></td>
             </tr>
           </table>
         </div>
@@ -70,7 +70,7 @@ interface PayloadTable {
         <table class="data-table-dashed">
           <tr *ngFor="let kv of n.pairs">
             <td class="k">{{ labelOf(kv[0]) }}</td>
-            <td>{{ cell(kv[1]) }}</td>
+            <td><ng-container *ngIf="isLink(kv[1]); else kvText"><a [href]="kv[1]" target="_blank" rel="noopener">open ↗</a></ng-container><ng-template #kvText>{{ cell(kv[1]) }}</ng-template></td>
           </tr>
         </table>
       </div>
@@ -231,6 +231,11 @@ export class StructuredPayloadPanelComponent implements OnChanges {
       .replace(/_/g, ' ')
       .replace(/([a-z0-9])([A-Z])/g, '$1 $2');
     return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+  }
+
+  /** A URL-valued cell is a LINK, not a wall of signed-query text (fs-2: the file store's time-limited download links). */
+  isLink(value: any): boolean {
+    return typeof value === 'string' && /^https?:\/\/\S+$/.test(value);
   }
 
   cell(value: any): string {
