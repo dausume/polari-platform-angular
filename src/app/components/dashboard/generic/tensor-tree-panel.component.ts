@@ -43,6 +43,7 @@ import { PolariService } from '@services/polari-service';
             <span class="lg dashed">unresolved space</span>
             <span class="lg ev none">none</span><span class="lg ev analytical">analytical</span>
             <span class="lg ev simulated">simulated</span><span class="lg ev measured">measured</span>
+            <span class="lg" title="the proof state of a mapping's obligations (mathproofs) — shown ON the mapping, never folded into its status">proof: ✓ ok · ? open · ✗ refuted · – none</span>
           </span>
         </div>
         <div class="tree-desc" *ngIf="view">{{ view.tree.description }}</div>
@@ -115,6 +116,7 @@ import { PolariService } from '@services/polari-service';
             <div *ngFor="let m of mappingsOf(selected.id)" class="map-row" (click)="highlight(m.name)" [class.hl]="m.name === highlighted">
               <span class="ev" [attr.data-ev]="m.evidence_level">{{ m.evidence_level }}</span>
               <span class="mono">{{ m.name }}</span> <span class="pill">{{ m.kind }}</span>
+              <span class="proof" [attr.data-proof]="m.logic?.badge" title="{{ proofTitle(m) }}">{{ proofGlyph(m.logic?.badge) }}</span>
               <span class="muted">{{ m.source_node === selected.id ? '→ ' + m.target_node : '← ' + m.source_node }} · {{ m.mapping_status }}</span>
             </div>
           </div>
@@ -174,6 +176,8 @@ import { PolariService } from '@services/polari-service';
     .q { font-size:.8rem; margin:.15rem 0; }
     .map-row { display:flex; gap:.4rem; align-items:center; flex-wrap:wrap; padding:.15rem .25rem; cursor:pointer; border-radius:4px; }
     .map-row.hl, .map-row:hover { background:#f1f8ff; }
+    .proof { font-weight:700; font-size:.8rem; }
+    .proof[data-proof="ok"] { color:#2e7d32; } .proof[data-proof="open"] { color:#f9a825; } .proof[data-proof="refuted"] { color:#b00020; } .proof[data-proof="none"], .proof[data-proof="unavailable"] { color:#9e9e9e; }
   `],
 })
 export class TensorTreePanelComponent implements OnInit, AfterViewInit, OnDestroy {
@@ -270,6 +274,19 @@ export class TensorTreePanelComponent implements OnInit, AfterViewInit, OnDestro
 
   highlight(name: string): void { this.highlighted = this.highlighted === name ? '' : name; this.draw(); }
 
+  /** the proof badge (mathproofs, D-pf-8): the state of a mapping's obligations, shown on the mapping */
+  proofGlyph(badge?: string): string { return ({ ok: '✓', open: '?', refuted: '✗', none: '–', unavailable: '·' } as any)[badge || 'none'] || '–'; }
+
+  proofTitle(m: any): string {
+    const l = m?.logic; if (!l) { return 'no proof state'; }
+    if (!l.available) { return 'no mathproofs module on this instance'; }
+    const parts: string[] = [];
+    if (l.refuted?.length) { parts.push('REFUTED: ' + l.refuted.map((o: any) => `${o.rule} — counterexample ${JSON.stringify(o.counterexample)}`).join('; ')); }
+    if (l.open?.length) { parts.push('open: ' + l.open.map((o: any) => `${o.rule} (${o.status})`).join(', ')); }
+    if (l.ok?.length) { parts.push('ok: ' + l.ok.map((o: any) => `${o.rule} (${o.status})`).join(', ')); }
+    return parts.join('\n') || 'no obligations generated yet (POST /api/mathproofs/trees/{tree}/obligations)';
+  }
+
   private draw(): void {
     if (!this.viewReady || !this.view || !this.svgRef?.nativeElement) { return; }
     const svgEl = this.svgRef.nativeElement;
@@ -314,7 +331,13 @@ export class TensorTreePanelComponent implements OnInit, AfterViewInit, OnDestro
         arcs.append('text').attr('x', t.x + 4).attr('y', t.y + 4).attr('font-size', 10).attr('fill', '#777').text(`→ ${m.target_node} (another tree)`);
       }
       const lx = (s.x + t.x) / 2 + (external ? 0 : -dy * 0.18), ly = (s.y + t.y) / 2 + dx * 0.18;
+      const badge = m.logic?.badge || 'none';
       arcs.append('text').attr('x', lx).attr('y', ly).attr('font-size', 9).attr('fill', evColor[m.evidence_level] || '#9e9e9e').attr('text-anchor', 'middle').text(m.kind);
+      if (badge !== 'none' && badge !== 'unavailable') {
+        arcs.append('text').attr('x', lx).attr('y', ly - 10).attr('font-size', 11).attr('font-weight', 700).attr('text-anchor', 'middle')
+          .attr('fill', badge === 'refuted' ? '#b00020' : (badge === 'open' ? '#f9a825' : '#2e7d32')).text(this.proofGlyph(badge))
+          .append('title').text(this.proofTitle(m));
+      }
     });
     svg.append('defs').append('marker').attr('id', 'tt-arrow').attr('viewBox', '0 0 10 10').attr('refX', 9).attr('refY', 5).attr('markerWidth', 6).attr('markerHeight', 6).attr('orient', 'auto')
       .append('path').attr('d', 'M0,0 L10,5 L0,10 z').attr('fill', '#777');
