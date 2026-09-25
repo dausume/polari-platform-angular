@@ -43,7 +43,7 @@ import { PolariService } from '@services/polari-service';
             <span class="lg dashed">unresolved space</span>
             <span class="lg ev none">none</span><span class="lg ev analytical">analytical</span>
             <span class="lg ev simulated">simulated</span><span class="lg ev measured">measured</span>
-            <span class="lg" title="the proof state of a mapping's obligations (mathproofs) — shown ON the mapping, never folded into its status">proof: ✓ ok · ? open · ✗ refuted · – none</span>
+            <span class="lg" title="the proof state of a mapping's obligations (mathproofs) — shown ON the mapping, never folded into its status. undetermined = not defined here (a premise fails / a value is unrecorded), not falsified">proof: ✓ ok · ? open · ∅ undetermined · ✗ refuted · – none</span>
           </span>
         </div>
         <div class="tree-desc" *ngIf="view">{{ view.tree.description }}</div>
@@ -93,9 +93,13 @@ import { PolariService } from '@services/polari-service';
                   <div class="cand-to">→ {{ c.target_node }} <span class="muted" *ngIf="c.evidence_ref">· {{ c.evidence_ref }}</span></div>
                   <div class="muted" *ngIf="c.loss_note">loses: {{ c.loss_note }}</div>
                 </div>
-                <div *ngIf="discovery.refused?.length" class="refused">
-                  <div class="disc-title">refused (never scored)</div>
-                  <div *ngFor="let r of discovery.refused" class="ref"><span class="mono">{{ r.mapping }}</span> — {{ r.why }}</div>
+                <div *ngIf="discovery.inapplicable?.length" class="refused">
+                  <div class="disc-title">not defined on this selection (the model shifts with the state space — nothing is falsified; never scored)</div>
+                  <div *ngFor="let r of discovery.inapplicable" class="ref"><span class="mono">{{ r.mapping }}</span> — {{ r.why }}</div>
+                </div>
+                <div *ngIf="discovery.refuted?.length" class="refused">
+                  <div class="disc-title">refuted (a proof obligation has a counterexample)</div>
+                  <div *ngFor="let r of discovery.refuted" class="ref"><span class="mono">{{ r.mapping }}</span> — {{ r.why }}</div>
                 </div>
               </div>
             </ng-container>
@@ -177,7 +181,7 @@ import { PolariService } from '@services/polari-service';
     .map-row { display:flex; gap:.4rem; align-items:center; flex-wrap:wrap; padding:.15rem .25rem; cursor:pointer; border-radius:4px; }
     .map-row.hl, .map-row:hover { background:#f1f8ff; }
     .proof { font-weight:700; font-size:.8rem; }
-    .proof[data-proof="ok"] { color:#2e7d32; } .proof[data-proof="open"] { color:#f9a825; } .proof[data-proof="refuted"] { color:#b00020; } .proof[data-proof="none"], .proof[data-proof="unavailable"] { color:#9e9e9e; }
+    .proof[data-proof="ok"] { color:#2e7d32; } .proof[data-proof="open"] { color:#f9a825; } .proof[data-proof="undetermined"] { color:#6a1b9a; } .proof[data-proof="refuted"] { color:#b00020; } .proof[data-proof="none"], .proof[data-proof="unavailable"] { color:#9e9e9e; }
   `],
 })
 export class TensorTreePanelComponent implements OnInit, AfterViewInit, OnDestroy {
@@ -275,13 +279,14 @@ export class TensorTreePanelComponent implements OnInit, AfterViewInit, OnDestro
   highlight(name: string): void { this.highlighted = this.highlighted === name ? '' : name; this.draw(); }
 
   /** the proof badge (mathproofs, D-pf-8): the state of a mapping's obligations, shown on the mapping */
-  proofGlyph(badge?: string): string { return ({ ok: '✓', open: '?', refuted: '✗', none: '–', unavailable: '·' } as any)[badge || 'none'] || '–'; }
+  proofGlyph(badge?: string): string { return ({ ok: '✓', open: '?', undetermined: '∅', refuted: '✗', none: '–', unavailable: '·' } as any)[badge || 'none'] || '–'; }
 
   proofTitle(m: any): string {
     const l = m?.logic; if (!l) { return 'no proof state'; }
     if (!l.available) { return 'no mathproofs module on this instance'; }
     const parts: string[] = [];
-    if (l.refuted?.length) { parts.push('REFUTED: ' + l.refuted.map((o: any) => `${o.rule} — counterexample ${JSON.stringify(o.counterexample)}`).join('; ')); }
+    if (l.refuted?.length) { parts.push('REFUTED (a counterexample): ' + l.refuted.map((o: any) => `${o.rule} — ${JSON.stringify(o.counterexample)}`).join('; ')); }
+    if (l.undetermined?.length) { parts.push('undetermined (not defined here — a premise fails or a value is unrecorded; not falsified): ' + l.undetermined.map((o: any) => o.rule).join(', ')); }
     if (l.open?.length) { parts.push('open: ' + l.open.map((o: any) => `${o.rule} (${o.status})`).join(', ')); }
     if (l.ok?.length) { parts.push('ok: ' + l.ok.map((o: any) => `${o.rule} (${o.status})`).join(', ')); }
     return parts.join('\n') || 'no obligations generated yet (POST /api/mathproofs/trees/{tree}/obligations)';
@@ -335,7 +340,7 @@ export class TensorTreePanelComponent implements OnInit, AfterViewInit, OnDestro
       arcs.append('text').attr('x', lx).attr('y', ly).attr('font-size', 9).attr('fill', evColor[m.evidence_level] || '#9e9e9e').attr('text-anchor', 'middle').text(m.kind);
       if (badge !== 'none' && badge !== 'unavailable') {
         arcs.append('text').attr('x', lx).attr('y', ly - 10).attr('font-size', 11).attr('font-weight', 700).attr('text-anchor', 'middle')
-          .attr('fill', badge === 'refuted' ? '#b00020' : (badge === 'open' ? '#f9a825' : '#2e7d32')).text(this.proofGlyph(badge))
+          .attr('fill', badge === 'refuted' ? '#b00020' : (badge === 'open' ? '#f9a825' : (badge === 'undetermined' ? '#6a1b9a' : '#2e7d32'))).text(this.proofGlyph(badge))
           .append('title').text(this.proofTitle(m));
       }
     });
