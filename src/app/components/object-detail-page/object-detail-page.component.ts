@@ -141,6 +141,21 @@ export class ObjectDetailPageComponent implements OnInit, OnDestroy {
     });
   }
 
+  /** Inside a parsed JSON field, a list of scalars becomes one readable string ("0 … 0.002") so the structured panel
+   *  renders the object as key/values instead of folding it into "unrendered fields" (no JSON on a screen). */
+  private readable(v: any): any {
+    if (Array.isArray(v)) {
+      if (v.every((x) => x === null || typeof x !== 'object')) { return v.map((x) => String(x)).join(', '); }
+      return v.map((x) => this.readable(x));
+    }
+    if (v && typeof v === 'object') {
+      const o: Record<string, any> = {};
+      for (const k of Object.keys(v)) { o[k] = this.readable(v[k]); }
+      return o;
+    }
+    return v;
+  }
+
   /** JSON fields parsed so the structured panel renders them as tables / key-values; internals dropped. */
   private shape(row: any): any {
     const out: Record<string, any> = {};
@@ -150,7 +165,7 @@ export class ObjectDetailPageComponent implements OnInit, OnDestroy {
       if (k.endsWith('_json') && typeof v === 'string' && v.trim()) {
         try { v = JSON.parse(v); } catch { /* keep the string */ }
         if (v === null || (Array.isArray(v) && !v.length) || (typeof v === 'object' && !Array.isArray(v) && !Object.keys(v).length)) { continue; }
-        out[k.replace(/_json$/, '')] = v;
+        out[k.replace(/_json$/, '')] = this.readable(v);
       } else if (v !== null && v !== undefined && v !== '') {
         out[k] = v;
       }
