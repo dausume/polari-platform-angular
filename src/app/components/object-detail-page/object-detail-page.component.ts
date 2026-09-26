@@ -56,6 +56,21 @@ interface Ref { cls: string; name: string; from: string; }
       </div>
 
       <ng-container *ngIf="!loading && !error && row">
+        <!-- bp-3: the row explained — what it says, what was done, with what, the result, how to do it again -->
+        <section class="explain" *ngIf="explain">
+          <p class="one" *ngIf="explain['in one sentence']">{{ explain['in one sentence'] }}</p>
+          <div class="ex-grid">
+            <div class="ex" *ngIf="explain['what was done']"><h4>What was done</h4><p>{{ explain['what was done'] }}</p></div>
+            <div class="ex" *ngIf="explainInputs.length"><h4>With what</h4>
+              <table class="kv"><tr *ngFor="let kv of explainInputs"><td class="k">{{ kv[0] }}</td><td>{{ kv[1] }}</td></tr></table></div>
+            <div class="ex" *ngIf="explain['result']"><h4>Result</h4><p>{{ explain['result'] }}</p></div>
+            <div class="ex" *ngIf="explain['how far to trust it']"><h4>How far to trust it</h4><p>{{ explain['how far to trust it'] }}</p></div>
+            <div class="ex" *ngIf="explain['evidence']"><h4>Evidence</h4><p>{{ explain['evidence'] }}</p></div>
+            <div class="ex wide" *ngIf="explainSteps.length"><h4>How to reproduce it</h4><pre>{{ explainSteps.join('\n') }}</pre></div>
+          </div>
+          <div class="ex-note" *ngIf="explain['note']">{{ explain['note'] }}</div>
+          <div class="ex-by">explained by {{ explain['explained_by'] }}</div>
+        </section>
         <div class="refs" *ngIf="refs.length">
           <span class="lbl">Connected to</span>
           <a *ngFor="let r of refs" class="chip" [routerLink]="['/object', r.cls, r.name]" [title]="r.from + ' → ' + r.cls">{{ r.name }}<small>{{ r.cls }}</small></a>
@@ -81,6 +96,17 @@ interface Ref { cls: string; name: string; from: string; }
     .state.error { color: var(--error-text, #b3261e); }
     .signin { margin-left: 10px; padding: 2px 10px; border-radius: 12px; border: 1px solid currentColor; background: transparent; color: inherit; cursor: pointer; font: inherit; font-size: .85em; }
     .foot { margin-top: 14px; font-size: .85em; color: var(--text-secondary, #666); }
+    .explain { margin: 6px 0 16px; padding: 12px 14px; border-radius: 10px; background: var(--surface-variant, #f4f4fa); }
+    .explain .one { font-size: 1.05em; line-height: 1.45; margin: 0 0 10px; }
+    .ex-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px 18px; }
+    .ex h4 { margin: 0 0 4px; font-size: .8em; text-transform: uppercase; letter-spacing: .04em; color: var(--text-secondary, #666); }
+    .ex p { margin: 0; line-height: 1.4; }
+    .ex.wide { grid-column: 1 / -1; }
+    .ex pre { margin: 0; padding: 10px; border-radius: 8px; background: var(--surface, #fff); overflow-x: auto; font-size: .85em; line-height: 1.45; white-space: pre-wrap; }
+    table.kv { border-collapse: collapse; }
+    table.kv td { padding: 2px 8px 2px 0; vertical-align: top; line-height: 1.35; }
+    table.kv td.k { color: var(--text-secondary, #666); white-space: nowrap; }
+    .ex-note, .ex-by { margin-top: 8px; font-size: .8em; color: var(--text-secondary, #666); }
     .foot a { color: inherit; }
   `],
 })
@@ -92,6 +118,10 @@ export class ObjectDetailPageComponent implements OnInit, OnDestroy {
   row: any = null;
   record: any = null;
   refs: Ref[] = [];
+  /** bp-3: GET /api/explain — what this row says, what was done, how to reproduce it (absent when the door has nothing) */
+  explain: Record<string, any> | null = null;
+  explainInputs: [string, string][] = [];
+  explainSteps: string[] = [];
   loading = true;
   error = '';
   errorDetail = '';
@@ -115,6 +145,7 @@ export class ObjectDetailPageComponent implements OnInit, OnDestroy {
 
   private load(): void {
     this.loading = true; this.error = ''; this.row = null; this.record = null; this.refs = []; this.plain = ''; this.expert = '';
+    this.explain = null; this.explainInputs = []; this.explainSteps = [];
     if (!this.className || !this.objectName) { this.loading = false; this.error = 'No object named in the address.'; return; }
     const base = this.polari.getBackendBaseUrl();
     this.http.get<any>(`${base}/api/plain?classes=${encodeURIComponent(this.className)}`, this.polari.backendRequestOptions).subscribe({
@@ -123,6 +154,18 @@ export class ObjectDetailPageComponent implements OnInit, OnDestroy {
         if (key) { if (b.note) { this.expert = b[key]; } else { this.plain = b[key]; } }
       },
       error: () => { /* the words are optional */ },
+    });
+    this.http.get<any>(`${base}/api/explain?class=${encodeURIComponent(this.className)}&name=${encodeURIComponent(this.objectName)}`, this.polari.backendRequestOptions).subscribe({
+      next: (b: any) => {
+        if (!b || b.ok === false) { return; }
+        this.explain = b;
+        const inputs = b['inputs'];
+        this.explainInputs = inputs && typeof inputs === 'object' && !Array.isArray(inputs)
+          ? Object.keys(inputs).map((k) => [k, this.flat(inputs[k])] as [string, string]) : [];
+        const steps = b['how to reproduce'];
+        this.explainSteps = Array.isArray(steps) ? steps.map((x: any) => String(x)) : (steps ? [String(steps)] : []);
+      },
+      error: () => { /* the explanation is optional; the record still renders */ },
     });
     this.crude.getCRUDEclassService(this.className).readAll({ name: this.objectName }).subscribe({
       next: (envelope: any) => {
@@ -139,6 +182,14 @@ export class ObjectDetailPageComponent implements OnInit, OnDestroy {
         this.error = f.text; this.errorDetail = f.detail; this.errorSignIn = f.signIn;
       },
     });
+  }
+
+  /** A nested inputs value as one line: {voltage: 1.8, corner: tt} → 'voltage 1.8; corner tt'. */
+  private flat(v: any): string {
+    if (v === null || v === undefined) { return ''; }
+    if (Array.isArray(v)) { return v.map((x) => this.flat(x)).join(', '); }
+    if (typeof v === 'object') { return Object.keys(v).map((k) => `${k} ${this.flat(v[k])}`).join('; '); }
+    return String(v);
   }
 
   /** Inside a parsed JSON field, a list of scalars becomes one readable string ("0 … 0.002") so the structured panel
