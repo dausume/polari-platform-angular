@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { AfterViewInit, Component, ElementRef, Input, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { SimSpaceViewerComponent } from '@components/sim-space/sim-space-viewer/sim-space-viewer.component';
 import { FormsModule } from '@angular/forms';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
@@ -29,7 +30,7 @@ import { ClaimEditDialogComponent, ClaimEditDialogResult } from '@components/sha
 @Component({
   standalone: true,
   selector: 'tensor-tree-panel',
-  imports: [CommonModule, FormsModule, MatProgressSpinnerModule, MatDialogModule],
+  imports: [CommonModule, FormsModule, MatProgressSpinnerModule, MatDialogModule, SimSpaceViewerComponent],
   template: `
     <div class="tt-root">
       <div *ngIf="loading" class="state"><mat-spinner diameter="28"></mat-spinner></div>
@@ -61,6 +62,17 @@ import { ClaimEditDialogComponent, ClaimEditDialogResult } from '@components/sha
             <div class="det-why" *ngIf="selected.why">{{ selected.why }}</div>
             <div class="det-row" *ngIf="selected.tensor"><span class="k">tensor</span><span class="v mono">{{ selected.tensor }}</span></div>
             <div class="det-row" *ngIf="selected.binding_ref"><span class="k">binding</span><span class="v mono">{{ selected.binding_ref }}</span></div>
+            <!-- tt-12: the node's scene INSIDE its detail — the "visualize" of the cycle without leaving the panel. Opened on a click
+                 (a WebGL scene is heavy): the ONE viewer the page hosts still follows the tree scope; this one follows the clicked node. -->
+            <div class="det-row" *ngIf="selected.kind === 'node' && selected.sim_space">
+              <span class="k">scene</span>
+              <span class="v"><span class="mono">{{ selected.sim_space }}</span>
+                <button class="door tiny" (click)="toggleScene($event)" title="render this node's binding here, in its sim space">{{ showScene ? 'hide the scene' : 'show the scene here' }}</button></span>
+            </div>
+            <div class="scene-host" *ngIf="selected.kind === 'node' && selected.sim_space && showScene">
+              <sim-space-viewer [simSpaceName]="selected.sim_space" [hideRunPanel]="true" [clickNavigates]="false"></sim-space-viewer>
+            </div>
+            <div class="muted" *ngIf="selected.kind === 'node' && selected.binding_ref && !selected.sim_space">no sim space recorded on this node (global_params.sim_space) — the binding exists but the panel cannot pick a scene to render it in</div>
 
             <ng-container *ngIf="selected.kind === 'node'">
               <div class="section">dimensions → channels</div>
@@ -91,6 +103,7 @@ import { ClaimEditDialogComponent, ClaimEditDialogResult } from '@components/sha
                 <div class="disc-title">{{ discovery.candidates.length }} candidate mapping(s), ranked — the user chooses</div>
                 <div *ngFor="let c of discovery.candidates" class="cand" (click)="followMapping(c)" title="score terms E={{ c.terms.E }} D={{ c.terms.D }} V={{ c.terms.V }} C={{ c.terms.C }} U={{ c.terms.U }}">
                   <div class="cand-head"><span class="mono">{{ c.mapping }}</span> <span class="pill">{{ c.kind }}</span>
+                    <span class="pill cross" *ngIf="c.cross_tree" title="{{ c.why_here }}">cross-tree · written for {{ c.source_node }}</span>
                     <span class="ev" [attr.data-ev]="c.evidence_level">{{ c.evidence }}</span></div>
                   <div class="bar"><div class="fill" [style.width.%]="c.score * 100"></div><span class="score">{{ c.score | number:'1.2-2' }}</span></div>
                   <div class="cand-to">→ {{ c.target_node }} <span class="muted" *ngIf="c.evidence_ref">· {{ c.evidence_ref }}</span></div>
@@ -158,6 +171,8 @@ import { ClaimEditDialogComponent, ClaimEditDialogResult } from '@components/sha
     .canvas { flex:1 1 480px; min-width:320px; } svg { width:100%; height:420px; background:#fcfcfd; border:1px solid #e6e6e6; border-radius:6px; }
     .detail { flex:1 1 320px; min-width:280px; border:1px solid #e6e6e6; border-radius:6px; padding:.6rem; background:#fff; }
     .detail.hint { opacity:.7; }
+    .scene-host { height:340px; margin:.4rem 0 .6rem; border:1px solid #e6e6e6; border-radius:6px; overflow:hidden; background:#fafafa; }
+    .pill.cross { background:#fff3e0; color:#8a4b00; border:1px solid #f0c48a; }
     .det-head { display:flex; gap:.5rem; align-items:center; } .det-title { font-weight:600; }
     .badge { border-radius:10px; padding:.05rem .5rem; font-size:.72rem; background:#eee; }
     .badge.ok { background:#c8e6c9; color:#1b5e20; } .badge.unres { background:#ffe0b2; color:#7a4100; }
@@ -215,6 +230,8 @@ export class TensorTreePanelComponent implements OnInit, AfterViewInit, OnDestro
   proposing = '';
   proposed: { [mapping: string]: string } = {};
   highlighted = '';
+  /** tt-12: whether the selected node's scene is rendered inside the detail (a click opens it; stays open across node picks) */
+  showScene = false;
   loading = true;
   error: string | null = null;
   private viewReady = false;
@@ -306,6 +323,9 @@ export class TensorTreePanelComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   highlight(name: string): void { this.highlighted = this.highlighted === name ? '' : name; this.draw(); }
+
+  /** tt-12: open / close the node's scene inside its detail */
+  toggleScene(ev: Event): void { ev.stopPropagation(); this.showScene = !this.showScene; }
 
   /** pf-3: the discovery candidate's door — its validity on THIS selection becomes a durable, checked row (mathproofs). */
   propose(c: any, ev: Event): void {
