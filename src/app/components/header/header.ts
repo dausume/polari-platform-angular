@@ -17,6 +17,7 @@ import {
 import { AuthUser } from '../../classes/auth-user';
 import { RoleplayMenuComponent } from './roleplay-menu.component';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { RoleClaimsService } from '@services/role-claims.service';
 import { ClaimRoleDialogComponent } from './claim-role-dialog.component';
 import { Subscription, filter } from 'rxjs';
@@ -26,7 +27,7 @@ import { Subscription, filter } from 'rxjs';
   selector: 'header',
   templateUrl: 'header.html',
   styleUrls: ['header.css'],
-  imports: [CommonModule, MatToolbarModule, MatIconModule, MatButtonModule, MatMenuModule, MatTooltipModule, MatDividerModule, MatDialogModule, RoleplayMenuComponent]
+  imports: [CommonModule, MatToolbarModule, MatIconModule, MatButtonModule, MatMenuModule, MatTooltipModule, MatDividerModule, MatDialogModule, MatSnackBarModule, RoleplayMenuComponent]
 })
 export class HeaderComponent implements OnInit, OnDestroy {
   @Input()
@@ -96,7 +97,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
     private appsNav: AppsNavService,
     private router: Router,
     private dialog: MatDialog,
-    private roleClaims: RoleClaimsService
+    private roleClaims: RoleClaimsService,
+    private snackBar: MatSnackBar
   ) {}
 
   /** "Claim a role…" — self-claimable roles, his ask 2026-09-18. */
@@ -195,11 +197,25 @@ export class HeaderComponent implements OnInit, OnDestroy {
   }
 
   login(): void {
-    this.authSession.login();
+    void this.authSession.login().then((ok) => { if (!ok) { this.signInUnreachable('sign in'); } });
   }
 
   register(): void {
-    this.authSession.register();
+    void this.authSession.register().then((ok) => { if (!ok) { this.signInUnreachable('register'); } });
+  }
+
+  /** bp-2b: the sign-in round trip could not start — say so, name the realm host, offer to open it (the usual cause
+   *  on a phone or a fresh machine: the dev certificate of the auth host is not trusted yet, so the browser refuses
+   *  the realm's discovery document before any redirect happens). */
+  private signInUnreachable(what: string): void {
+    const authority = this.authSession.authority;
+    let host = authority;
+    try { host = authority ? new URL(authority).host : ''; } catch { /* keep the raw string */ }
+    const msg = host
+      ? `Could not ${what}: the sign-in server at ${host} did not answer. On this device its certificate may not be trusted yet — open it once, accept it, then try again.`
+      : `Could not ${what}: the sign-in server is not configured for this page.`;
+    const ref = this.snackBar.open(msg, authority ? 'Open it' : 'OK', { duration: 12000 });
+    if (authority) { ref.onAction().subscribe(() => window.open(authority, '_blank', 'noopener')); }
   }
 
   logout(): void {

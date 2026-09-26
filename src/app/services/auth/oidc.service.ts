@@ -82,6 +82,9 @@ function durableStore(): Storage {
 export class OidcService {
   private userManager: UserManager | null = null;
   private kcConfig: KeycloakConfig | null = null;
+
+  /** The realm URL the browser must reach for a sign-in (bp-2b: named in the message when it cannot). */
+  get authority(): string { return this.kcConfig?.authority || ''; }
   private readonly _userLoaded$ = new Subject<User>();
 
   constructor(private runtimeConfig: RuntimeConfigService) {}

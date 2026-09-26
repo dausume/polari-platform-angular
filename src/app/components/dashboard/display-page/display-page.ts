@@ -143,7 +143,29 @@ export class DisplayPageComponent implements OnInit, OnDestroy {
     this.eventsSub = this.displayEvents.on('refreshDisplay').subscribe(() => {
       if (this.currentId) this.loadDisplay(this.currentId);
     });
+    // bp-2a: a page SCOPE set by events. A panel (the tensor-tree panel's tree chips, any no-code EmitFrontendEvent)
+    // dispatches `setScope` {key, value, facets?}; every `{scope:key}` / `{scope:key.facet}` placeholder in the
+    // configured items' inputs and titles is re-substituted and the page re-renders — the tables filter to the
+    // selection, the viewer shows its space. Configuration + events, no page code per module. A repeat of the
+    // current scope is ignored (the re-created panel re-announces the same pick; that must not loop).
+    this.scopeSub = this.displayEvents.on('setScope').subscribe((e) => {
+      const key = String(e.payload?.['key'] || '');
+      const value = String(e.payload?.['value'] ?? '');
+      if (!key) { return; }
+      const facets = (e.payload?.['facets'] && typeof e.payload['facets'] === 'object') ? e.payload['facets'] as Record<string, unknown> : {};
+      const next: Record<string, string> = { ...this.scope, [key]: value };
+      for (const f of Object.keys(facets)) { next[`${key}.${f}`] = String(facets[f] ?? ''); }
+      const unchanged = Object.keys(next).length === Object.keys(this.scope).length
+        && Object.keys(next).every((k) => this.scope[k] === next[k]);
+      if (unchanged) { return; }
+      this.scope = next;
+      if (this.currentId) { this.loadDisplay(this.currentId); }
+    });
   }
+
+  /** The page scope: `{scope:tree}` → 'plate-mechanics', `{scope:tree.nodes}` → 'plate,plate-strain,…'. */
+  private scope: Record<string, string> = {};
+  private scopeSub?: Subscription;
 
   private loadDisplay(id: string): void {
     this.loading = true;
@@ -175,6 +197,11 @@ export class DisplayPageComponent implements OnInit, OnDestroy {
       // {today} / {now}: local date + time, resolved at render time so a
       // seeded form never proposes the day it was seeded.
       v = resolveDatePlaceholders(v, at);
+      // bp-2a: `{scope:key}` / `{scope:key.facet}` from the page scope (setScope events); unresolved → '' so a
+      // filtered table is simply unfiltered and a title shows nothing, until the first pick arrives
+      if (typeof v === 'string' && v.includes('{scope:')) {
+        v = v.replace(/\{scope:([A-Za-z0-9_.-]+)\}/g, (_m: string, k: string) => this.scope[k] ?? '');
+      }
       if (typeof v !== 'string' || !v.includes('{object}')) { return v; }
       if (!objectName) { unresolved = true; return v; }
       return v.split('{object}').join(objectName);
@@ -218,5 +245,6 @@ export class DisplayPageComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.sub?.unsubscribe();
     this.eventsSub?.unsubscribe();
+    this.scopeSub?.unsubscribe();
   }
 }

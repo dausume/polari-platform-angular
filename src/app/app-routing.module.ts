@@ -69,6 +69,8 @@ const routes: Routes = [
   { path: 'polari-config', component: PolariConfigComponent},
   { path: 'polari-config/:polariAccessNode', component: PolariConfigComponent},
 { path: 'class-main-page/:class', component: ClassMainPageComponent},
+  // bp-2c: the GENERIC detail view of one row of any class — every reference link in the configured tables lands here
+  { path: 'object/:class/:name', loadComponent: () => import('@components/object-detail-page/object-detail-page.component').then(m => m.ObjectDetailPageComponent) },
   { path: 'create-class', component: CreateNewClassComponent },
   { path: 'custom-no-code', component: CustomNoCodeComponent },
   { path: 'manager-info', loadComponent: () => import('@components/manager-info/manager-info').then(m => m.ManagerInfoComponent) },

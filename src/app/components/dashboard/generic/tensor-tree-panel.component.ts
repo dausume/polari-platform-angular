@@ -6,6 +6,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import * as d3 from 'd3';
 import { PolariService } from '@services/polari-service';
+import { DisplayEventsService } from '@services/no-code-services/display-events.service';
 import { ClaimEditDialogComponent, ClaimEditDialogResult } from '@components/shared/claim-edit-dialog/claim-edit-dialog';
 
 /**
@@ -198,6 +199,9 @@ import { ClaimEditDialogComponent, ClaimEditDialogResult } from '@components/sha
 export class TensorTreePanelComponent implements OnInit, AfterViewInit, OnDestroy {
   /** the tree to open; empty = the first tree the instance lists */
   @Input() treeName = '';
+  /** bp-2a: when set, picking a tree dispatches the display event `setScope` {key: scopeKey, value: <tree>, facets: {nodes, sim_space}}
+   *  so the page's `{scope:<key>…}` placeholders (table filters, the viewer's space, titles) follow the pick — configuration + events. */
+  @Input() scopeKey = '';
   @ViewChild('svg') svgRef!: ElementRef<SVGSVGElement>;
 
   trees: any[] = [];
@@ -216,7 +220,7 @@ export class TensorTreePanelComponent implements OnInit, AfterViewInit, OnDestro
   private viewReady = false;
   private resizeObs?: ResizeObserver;
 
-  constructor(private http: HttpClient, private polariService: PolariService, private dialog: MatDialog) {}
+  constructor(private http: HttpClient, private polariService: PolariService, private dialog: MatDialog, private displayEvents: DisplayEventsService) {}
 
   ngOnInit(): void {
     const base = this.polariService.getBackendBaseUrl();
@@ -246,9 +250,18 @@ export class TensorTreePanelComponent implements OnInit, AfterViewInit, OnDestro
     this.activeTree = name; this.selected = null; this.discovery = null; this.highlighted = '';
     const base = this.polariService.getBackendBaseUrl();
     this.http.get<any>(`${base}/api/tensortree/trees/${encodeURIComponent(name)}/view`, this.polariService.backendRequestOptions).subscribe({
-      next: (v: any) => { this.view = v; this.draw(); },
+      next: (v: any) => { this.view = v; this.draw(); this.announceScope(name, v); },
       error: (e: any) => { this.error = `could not read the tree ${name} (${e?.status ?? '?'})`; },
     });
+  }
+
+  /** The page scope for this tree: its node names (the set the dims / mappings / selections belong to) and the sim space its bindings render in. */
+  private announceScope(name: string, v: any): void {
+    if (!this.scopeKey) { return; }
+    const nodes: any[] = v?.nodes || [];
+    const simSpace = (nodes.find((n: any) => n.id === v?.tree?.root && n.sim_space) || nodes.find((n: any) => n.sim_space))?.sim_space || '';
+    this.displayEvents.dispatch({ name: 'setScope', channel: 'frontend', sourceState: 'tensor-tree-panel',
+      payload: { key: this.scopeKey, value: name, facets: { nodes: nodes.map((n: any) => n.id).join(','), sim_space: simSpace } } });
   }
 
   shortDim(d: string): string { return (d || '').split('.').pop() || d; }

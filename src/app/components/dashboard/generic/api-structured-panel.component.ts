@@ -1,6 +1,8 @@
 import { CommonModule } from '@angular/common';
 import { Component, Input, OnChanges, OnInit, SimpleChanges } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { AuthSessionService } from '@services/auth/auth-session.service';
+import { friendlyError } from './friendly-error';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 import { PolariService } from '@services/polari-service';
@@ -27,7 +29,9 @@ import {
     <div class="api-structured-panel">
       <div class="panel-title" *ngIf="title">{{ title }}</div>
       <div *ngIf="loading" class="state"><mat-spinner diameter="28"></mat-spinner></div>
-      <div *ngIf="error" class="state error">{{ error }}</div>
+      <div *ngIf="error" class="state error" [title]="errorDetail">{{ error }}
+        <button *ngIf="errorSignIn" type="button" class="signin" (click)="signIn()">Sign in</button>
+      </div>
       <ng-container *ngIf="!loading && !error">
         <structured-payload-panel *ngIf="payload !== null; else empty"
                                   [payload]="payload"></structured-payload-panel>
@@ -42,6 +46,7 @@ import {
     .panel-title { font-weight: 600; margin-bottom: 6px; }
     .state { padding: 12px 0; color: var(--text-on-card-muted); }
     .state.error { color: var(--color-error-text); }
+    .signin { margin-left: 10px; padding: 2px 10px; border-radius: 12px; border: 1px solid currentColor; background: transparent; color: inherit; cursor: pointer; font: inherit; font-size: .85em; }
   `],
 })
 export class ApiStructuredPanelComponent implements OnInit, OnChanges {
@@ -61,7 +66,12 @@ export class ApiStructuredPanelComponent implements OnInit, OnChanges {
   error: string | null = null;
   emptyText = 'Nothing to show.';
 
-  constructor(private http: HttpClient,
+  errorDetail = '';
+  errorSignIn = false;
+
+  signIn(): void { void this.authSession.login(); }
+
+  constructor(private http: HttpClient, private authSession: AuthSessionService,
               private polariService: PolariService) {}
 
   ngOnInit(): void { this.load(); }
@@ -74,7 +84,7 @@ export class ApiStructuredPanelComponent implements OnInit, OnChanges {
 
   private load(): void {
     this.payload = null;
-    this.error = null;
+    this.error = null; this.errorDetail = ''; this.errorSignIn = false;
     if (!this.path) {
       this.loading = false;
       this.error = 'api-structured-panel: no path input.';
@@ -100,7 +110,8 @@ export class ApiStructuredPanelComponent implements OnInit, OnChanges {
       error: (err: any) => {
         if (path !== this.path) { return; }
         this.loading = false;
-        this.error = errorText(err, path);
+        const f = friendlyError(err, `GET ${path}`);
+        this.error = f.text; this.errorDetail = f.detail; this.errorSignIn = f.signIn;
       },
     });
   }

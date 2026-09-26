@@ -189,14 +189,19 @@ export class AuthSessionService {
     } catch { /* nothing to do */ }
   }
 
-  async login(): Promise<void> {
-    try { await this.oidc.login(); }
-    catch (err) { console.error('[AuthSession] login failed', err); }
+  /** The realm URL a sign-in has to reach (for the message when it cannot). */
+  get authority(): string { return this.oidc.authority; }
+
+  /** false when the round trip to the realm could not even start (bp-2b: the caller SAYS so — a phone that does not
+   *  trust the realm host's certificate used to see a button that did nothing, the failure only in the console). */
+  async login(): Promise<boolean> {
+    try { await this.oidc.login(); return true; }
+    catch (err) { console.error('[AuthSession] login failed', err); return false; }
   }
 
-  async register(): Promise<void> {
-    try { await this.oidc.register(); }
-    catch (err) { console.error('[AuthSession] register failed', err); }
+  async register(): Promise<boolean> {
+    try { await this.oidc.register(); return true; }
+    catch (err) { console.error('[AuthSession] register failed', err); return false; }
   }
 
   async logout(): Promise<void> {
