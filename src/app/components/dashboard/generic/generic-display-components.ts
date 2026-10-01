@@ -11,6 +11,7 @@ import { EvidenceBrowserComponent } from './evidence-browser.component';
 import { FetCharacteristicExplorerComponent } from './fet-characteristic-explorer.component';
 import { FetOverviewComponent } from './fet-overview.component';
 import { FetParts2dComponent } from './fet-parts-2d.component';
+import { FirmwareInstallerPanelComponent } from './firmware-installer-panel.component';
 import { FreedomProofPanelComponent } from './freedom-proof-panel.component';
 import { MicrochipLadderComponent } from './microchip-ladder.component';
 import { NamedGraphPanelComponent } from './named-graph-panel.component';
@@ -257,5 +258,23 @@ export function registerGenericDisplayComponents(): void {
         + 'desktop shell it shows the last pushed state read-only with the '
         + 'exact command per step (inputs: path, step, device)',
       defaultInputs: { path: '/api/cicd/setup', step: '', device: '' },
+    });
+
+  // brd-fi — the Firmware Installer App's flow (BOARD_PROGRAMMING_PLAN §7a). The ONE component
+  // /display/firmware-installer needed, justified like pipeline-setup-panel: a configured table
+  // cannot carry pick → build → DRY-RUN (the plan's argv verbatim) → confirm → install → the row
+  // arriving → try another variant. It sends NAMES to the local server's installer doors; the
+  // server runs the argv it fixed in the plan row, on the host holding the port.
+  registerDisplayComponent(
+    'firmware-installer-panel', FirmwareInstallerPanelComponent, {
+      displayName: 'Firmware installer (variants on one board)',
+      description: 'Install DIFFERENT firmware variants on one UNO (or its simavr twin) and see each '
+        + 'one\'s effect: where it goes (the detected board or the twin), what to try (the '
+        + 'variants with what each tests and what to watch), the builds that fit with their '
+        + 'sizes vs the board\'s limits and whether they match this server\'s contracts, the '
+        + 'exact command (DRY-RUN), a confirm that stays disabled until a plan exists, the '
+        + 'result with the row\'s fields live and frames/s, and "try another variant" '
+        + '(inputs: path, board)',
+      defaultInputs: { path: '/api/board/installer', board: 'arduino-uno-r3' },
     });
 }
