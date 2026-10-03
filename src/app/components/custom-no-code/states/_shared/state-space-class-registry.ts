@@ -71,6 +71,9 @@ export type StateSpaceCategory =
   | 'Debug'
   | 'Frontend'
   | 'Cross-Runtime'
+  // hn-0 (HARDWARE_NOCODE_PLAN D-hn-2): node kinds that arrive as DATA from GET /stateSpaceClasses
+  // (c-atom, hw-interface, hardware-subgraph) — registered by StateSpacePaletteSourceService.
+  | 'Hardware'
   | 'Custom';
 
 /**
@@ -208,6 +211,17 @@ export interface StateSpaceClassMetadata {
   //   'backend-only'       — Python engine only (SymPy/numpy/DB/simulation)
   //   'authoring-only'     — no engine handler anywhere yet
   runtimeCapability?: 'client-and-backend' | 'backend-only' | 'authoring-only';
+
+  // ── hn-0: palette entries that arrive as DATA (GET /stateSpaceClasses `palette`) ──
+  // Where the entry came from: 'static' (this file) or 'live' (the backend's statePalette).
+  source?: 'static' | 'live';
+  // The backend's node kind ('c-atom' | 'hw-interface' | 'hardware-subgraph').
+  nodeKind?: string;
+  // Which canvas overlay draws it ('c-atom' | 'hw-interface'); the canvas dispatches on this.
+  overlayKind?: string;
+  // Where the placement rule puts it (board | bridge | backend | browser) and in what language.
+  placement?: string;
+  language?: string;
 }
 
 /**
