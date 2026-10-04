@@ -2,6 +2,7 @@ import { registerDisplayComponent } from '@models/dashboards/ComponentRegistry';
 import { ZonesBoardComponent } from '@components/zones/zones-board.component';
 import { ApiJsonPanelComponent } from './api-json-panel.component';
 import { ApiStructuredPanelComponent } from './api-structured-panel.component';
+import { ApiSvgPanelComponent } from './api-svg-panel.component';
 import { BlockDetailPanelComponent } from './block-detail-panel.component';
 import { CellDetailPanelComponent } from './cell-detail-panel.component';
 import { CellLogicDiagramComponent } from './cell-logic-diagram.component';
@@ -76,6 +77,20 @@ export function registerGenericDisplayComponents(): void {
         + 'key/value — no JSON blobs; ok:false errors verbatim '
         + '(inputs: path, optional title, pick, hideKeys)',
       defaultInputs: { path: '', title: '', pick: '', hideKeys: [] },
+    });
+
+  // demo1b (his 2026-10-04 verdict: "many rows of data with no demonstratables"): the ONE generic drawing panel,
+  // reused three times (/display/board-layout, /display/board-schematic, /display/boards) — never a per-page
+  // image component. See api-svg-panel.component.ts's own doc comment for the dataPath/markersPath contract.
+  registerDisplayComponent(
+    'api-svg-panel', ApiSvgPanelComponent, {
+      displayName: 'API SVG panel (drawings)',
+      description: 'GET dataPath — a JSON selector {items:[{label,url}]}, a single {url}, or the raw <svg> '
+        + 'document itself — and render the chosen SVG inline (sanitized), with an optional selector when '
+        + 'there is more than one; optional markersPath GETs {items:[{x,y,label,severity}]} (e.g. DRC/ERC '
+        + 'positions) drawn as circles over the drawing when its own viewBox can be read (inputs: dataPath, '
+        + 'optional markersPath)',
+      defaultInputs: { dataPath: '', markersPath: '' },
     });
 
   registerDisplayComponent(
