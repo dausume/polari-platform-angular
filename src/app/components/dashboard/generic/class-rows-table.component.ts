@@ -193,7 +193,15 @@ export class ClassRowsTableComponent implements OnInit {
     }
     this.formats = this.parseFormats(this.columnFormats);
     if (this.dataPath) {
-      this.http.get<any>(this.dataPath).subscribe({
+      // bugfix: a bare dataPath like `/api/board/boards/readiness` must resolve
+      // against the BACKEND origin, not the SPA's own origin — otherwise the
+      // dev server/router serves index.html back and the JSON parse fails
+      // with "Unrecognized token '<'". Same pattern as named-graph-panel and
+      // api-svg-panel's dataPath fetches.
+      const url = /^https?:\/\//.test(this.dataPath)
+        ? this.dataPath
+        : this.polariService.getBackendBaseUrl() + this.dataPath;
+      this.http.get<any>(url, this.polariService.backendRequestOptions).subscribe({
         next: (payload: any) => {
           const rows = Array.isArray(payload) ? payload : (payload?.rows ?? []);
           if (payload && payload.ok === false) {
