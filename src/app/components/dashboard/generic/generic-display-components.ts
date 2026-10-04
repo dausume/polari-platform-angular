@@ -13,6 +13,7 @@ import { FetCharacteristicExplorerComponent } from './fet-characteristic-explore
 import { FetOverviewComponent } from './fet-overview.component';
 import { FetParts2dComponent } from './fet-parts-2d.component';
 import { FirmwareInstallerPanelComponent } from './firmware-installer-panel.component';
+import { CGraphCanvasPanelComponent } from './c-graph-canvas-panel.component';
 import { FreedomProofPanelComponent } from './freedom-proof-panel.component';
 import { MicrochipLadderComponent } from './microchip-ladder.component';
 import { NamedGraphPanelComponent } from './named-graph-panel.component';
@@ -294,5 +295,21 @@ export function registerGenericDisplayComponents(): void {
         + 'result with the row\'s fields live and frames/s, and "try another variant" '
         + '(inputs: path, board)',
       defaultInputs: { path: '/api/board/installer', board: 'arduino-uno-r3' },
+    });
+
+  // demo-4 (DEMONSTRABLES_PLAN.md §3) — a cmod CGraph opened IN the existing no-code canvas: a configured table
+  // cannot host the canvas itself, a graph picker that swaps which SolutionDefinition is open, or render/build/prove
+  // buttons wired to cmod's own doors. /display/c-canvas (own page) and /display/hardware-solutions (embedded) both
+  // use it (input: graph).
+  registerDisplayComponent(
+    'c-graph-canvas-panel', CGraphCanvasPanelComponent, {
+      displayName: 'C graph canvas (open a CGraph in the no-code canvas)',
+      description: 'The EXISTING no-code canvas opened on a cmod CGraph via a one-node SolutionDefinition '
+        + '(a HardwareSubgraph node referencing the graph — hn-0\'s own node kind; no second editor). A '
+        + 'graph picker (GET /api/cmod/graphs) swaps which CGraph is open; Render/Build/Prove call cmod\'s '
+        + 'render/build/prove doors and show the verdict (graph/files sha, .hex sha + sizes, twin-equivalence) '
+        + 'as badges, not JSON. Expand the subgraph node to see its atoms, ports, wires and derived target '
+        + 'badges (inputs: graph, default uno-sim-rig-graph)',
+      defaultInputs: { graph: 'uno-sim-rig-graph' },
     });
 }

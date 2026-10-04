@@ -29,7 +29,11 @@ export interface CGraphView {
   name: string; title: string; status: string; node_count: number; edge_count: number; atom_count: number;
   cost_estimate_bytes: number; graph_sha256: string;
 }
-export interface CGraphNodeView { instance: string; kind: string; atom: string; stage: string; order: number; }
+export interface CGraphNodeView { instance: string; kind: string; atom: string; stage: string; order: number; ports_summary?: string; }
+export interface CGraphEdgeView { kind: string; from_node: string; from_port: string; to_node: string; to_port: string; }
+export interface TargetDefinitionView {
+  node: string; port: string; port_ref: string; kind: string; controls: string; lives_on: string; provenance: string;
+}
 
 @Component({
   standalone: false,
@@ -54,6 +58,10 @@ export class CAtomOverlayComponent extends StateOverlayBase implements OnInit, O
   ports: CPortView[] = [];
   graph: CGraphView | null = null;
   nodes: CGraphNodeView[] = [];
+  /** demo-4: the graph's wires and derived target badges — read straight off GET /api/cmod/graphs/{g} (both now
+   *  carried there), never a second fetch, never raw JSON (grouped per node in the template). */
+  edges: CGraphEdgeView[] = [];
+  targets: TargetDefinitionView[] = [];
 
   private sub: Subscription | null = null;
 
@@ -109,6 +117,8 @@ export class CAtomOverlayComponent extends StateOverlayBase implements OnInit, O
         if (this.mode === 'subgraph') {
           this.graph = r?.graph || null;
           this.nodes = [...(r?.nodes || [])].sort((a: CGraphNodeView, b: CGraphNodeView) => (a.order || 0) - (b.order || 0));
+          this.edges = r?.edges || [];
+          this.targets = r?.targets || [];
         } else {
           this.atom = r?.atom || null;
           this.ports = r?.ports || [];
@@ -136,5 +146,15 @@ export class CAtomOverlayComponent extends StateOverlayBase implements OnInit, O
 
   atomFunction(atom: string): string {
     return (atom || '').split('.').pop() || '';
+  }
+
+  /** demo-4: every TargetDefinition derived for one node — badges under its row when the subgraph is expanded. */
+  targetsFor(instance: string): TargetDefinitionView[] {
+    return this.targets.filter(t => t.node === instance);
+  }
+
+  /** demo-4: every wire touching one node (either end) — shown alongside its ports when expanded. */
+  edgesFor(instance: string): CGraphEdgeView[] {
+    return this.edges.filter(e => e.from_node === instance || e.to_node === instance);
   }
 }
