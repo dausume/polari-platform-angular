@@ -97,43 +97,61 @@ export class NoCodeSolutionStateService {
     this.solutionManager.loadAllSolutions().subscribe({
       next: (solutions: NoCodeSolutionRawData[]) => {
         this.loadingSubject.next(false);
+        this.backendAvailable = true;
 
-        if (solutions.length > 0) {
-          this.backendAvailable = true;
-          const previousSelection = this.selectedSolutionNameSubject.value;
-          this.solutionsCache.clear();
-          this.backendIdMap.clear();
+        const previousSelection = this.selectedSolutionNameSubject.value;
 
-          solutions.forEach(solution => {
-            this.solutionsCache.set(solution.solutionName, solution);
-            // Store backend ID mapping
-            if ((solution as any)._backendId) {
-              this.backendIdMap.set(solution.solutionName, (solution as any)._backendId);
-            }
-          });
+        // A solution created locally THIS call (e.g. c-graph-canvas-panel's
+        // ensure-once-named adapter row) may not have round-tripped yet — its
+        // backend save is debounced 2s out. Wiping the cache unconditionally
+        // here drops it before that save lands, so the fallback below re-selects
+        // an arbitrary OTHER solution, which — for any caller that mounts on
+        // selection change (e.g. CustomNoCodeComponent re-syncing the URL) —
+        // can cascade into a reload/re-mount/re-ensure loop. Preserve any
+        // locally-created-but-not-yet-backend-confirmed solution across the
+        // refresh so the selection stays put until the backend actually has it.
+        const pendingLocal = new Map<string, NoCodeSolutionRawData>();
+        this.locallyCreatedSolutions.forEach(name => {
+          if (!this.backendIdMap.has(name) && this.solutionsCache.has(name)) {
+            pendingLocal.set(name, this.solutionsCache.get(name)!);
+          }
+        });
 
-          this.updateAvailableSolutions();
-          this.saveToLocalStorage();
+        this.solutionsCache.clear();
+        this.backendIdMap.clear();
 
-          // Force re-select so component renders the backend version of the data.
-          // Reset the subject first so the subscription fires even for the same name.
-          const targetSolution = (previousSelection && this.solutionsCache.has(previousSelection))
-            ? previousSelection
-            : solutions[0].solutionName;
+        solutions.forEach(solution => {
+          this.solutionsCache.set(solution.solutionName, solution);
+          // Store backend ID mapping
+          if ((solution as any)._backendId) {
+            this.backendIdMap.set(solution.solutionName, (solution as any)._backendId);
+          }
+        });
 
-          this.selectedSolutionNameSubject.next(null);
-          this.selectSolution(targetSolution);
+        pendingLocal.forEach((data, name) => {
+          if (!this.solutionsCache.has(name)) {
+            this.solutionsCache.set(name, data);
+          }
+        });
 
-          // console.log('[StateService] Backend data loaded. Selected:', targetSolution);
-        } else {
-          // Backend returned 0 solutions — nothing to load
-          // console.log('[StateService] Backend has no solutions yet');
-          this.backendAvailable = true;
-          this.solutionsCache.clear();
-          this.backendIdMap.clear();
-          this.updateAvailableSolutions();
-          this.saveToLocalStorage();
+        this.updateAvailableSolutions();
+        this.saveToLocalStorage();
+
+        if (this.solutionsCache.size === 0) {
+          // Backend returned 0 solutions and nothing pending locally — nothing to select.
+          return;
         }
+
+        // Force re-select so component renders the backend version of the data.
+        // Reset the subject first so the subscription fires even for the same name.
+        const targetSolution = (previousSelection && this.solutionsCache.has(previousSelection))
+          ? previousSelection
+          : (solutions[0]?.solutionName ?? this.solutionsCache.keys().next().value as string);
+
+        this.selectedSolutionNameSubject.next(null);
+        this.selectSolution(targetSolution);
+
+        // console.log('[StateService] Backend data loaded. Selected:', targetSolution);
       },
       error: (err: any) => {
         console.warn('[StateService] Backend not available, using local data:', err);

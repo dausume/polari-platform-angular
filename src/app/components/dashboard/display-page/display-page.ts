@@ -100,6 +100,13 @@ export class DisplayPageComponent implements OnInit, OnDestroy {
   private sub?: Subscription;
   private eventsSub?: Subscription;
   private currentId: string | null = null;
+  /** `id::object` of the last definition actually loaded — guards the
+   *  paramMap/queryParamMap subscription below so a query param unrelated
+   *  to this page (e.g. a nested no-code panel syncing its own
+   *  focusSolution/solution selection into the URL) doesn't re-fetch and
+   *  rebuild the whole display, which would destroy and re-mount every
+   *  panel on the page (see c-graph-canvas-panel infinite-loop fix). */
+  private lastLoadedKey: string | null = null;
 
   get currentDisplayId(): string { return this.currentId || ''; }
 
@@ -128,14 +135,25 @@ export class DisplayPageComponent implements OnInit, OnDestroy {
     this.sub = combineLatest([this.route.paramMap, this.route.queryParamMap])
       .subscribe(([params, query]) => {
         const id = params.get('id');
-        this.objectName = query.get('object');
-        if (id) {
-          this.currentId = id;
-          this.loadDisplay(id);
-        } else {
+        const objectName = query.get('object');
+        if (!id) {
           this.loading = false;
           this.error = 'No display ID provided.';
+          return;
         }
+        this.currentId = id;
+        // paramMap/queryParamMap emit a NEW map on every navigation, even one
+        // that only touches an unrelated query param — only reload the
+        // definition when `id` or the `{object}` substitution target actually
+        // changed, or the page would rebuild (and re-mount every panel) on
+        // any query param write anywhere on the page.
+        const key = `${id}::${objectName ?? ''}`;
+        this.objectName = objectName;
+        if (key === this.lastLoadedKey) {
+          return;
+        }
+        this.lastLoadedKey = key;
+        this.loadDisplay(id);
       });
     // First consumer of the display event bus (P4): a no-code solution
     // emitting an event named 'refreshDisplay' re-fetches this display's

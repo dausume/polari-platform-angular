@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NO_ERRORS_SCHEMA } from '@angular/core';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { Router } from '@angular/router';
 import { BehaviorSubject } from 'rxjs';
 
 import { CGraphCanvasPanelComponent } from './c-graph-canvas-panel.component';
@@ -25,10 +26,12 @@ describe('CGraphCanvasPanelComponent (demo-4)', () => {
   let solutionState: jasmine.SpyObj<NoCodeSolutionStateService>;
   let loading$: BehaviorSubject<boolean>;
   let known: Set<string>;
+  let navigateSpy: jasmine.Spy;
 
   async function make() {
     loading$ = new BehaviorSubject<boolean>(true);
     known = new Set<string>();
+    navigateSpy = jasmine.createSpy('navigate');
     solutionState = jasmine.createSpyObj('NoCodeSolutionStateService', [
       'getSolutionData', 'createNewSolution', 'addStateToSolution', 'selectSolution',
     ], { loading$ });
@@ -40,7 +43,11 @@ describe('CGraphCanvasPanelComponent (demo-4)', () => {
       schemas: [NO_ERRORS_SCHEMA],   // <custom-no-code> is a huge real component — not under test here
       providers: [provideHttpClient(), provideHttpClientTesting(),
                   { provide: PolariService, useValue: { getBackendBaseUrl: () => BASE, backendRequestOptions: {} } },
-                  { provide: NoCodeSolutionStateService, useValue: solutionState }],
+                  { provide: NoCodeSolutionStateService, useValue: solutionState },
+                  // The panel must never navigate on its own — the demo-4 infinite-loop bug traced to
+                  // custom-no-code's URL sync + display-page's unconditional reload-on-any-query-param,
+                  // not to this panel, but it stays unprovoked here as a regression guard.
+                  { provide: Router, useValue: { navigate: navigateSpy } }],
     }).compileComponents();
     fixture = TestBed.createComponent(CGraphCanvasPanelComponent);
     comp = fixture.componentInstance;
@@ -71,6 +78,29 @@ describe('CGraphCanvasPanelComponent (demo-4)', () => {
     (comp as any).openSolutionFor('uno-sim-rig-graph');
     expect(solutionState.createNewSolution).toHaveBeenCalledTimes(1);   // still just the once
     expect(solutionState.selectSolution).toHaveBeenCalledTimes(2);
+  });
+
+  it('ensures + selects exactly once across repeated change-detection cycles and loading$ re-emissions, and never navigates (demo-4 infinite-loop regression guard)', async () => {
+    await make();
+
+    // Churn the inputs the real app could churn without destroying this component
+    // instance: more change-detection ticks, and loading$ toggling again (as it
+    // would on a second initializeFromBackend() call). ngOnInit's take(1) on
+    // loading$ — and the fact ngOnChanges only re-opens on an actual `graph`
+    // input change — must keep ensure+select to exactly one call each.
+    for (let i = 0; i < 5; i++) {
+      loading$.next(true);
+      loading$.next(false);
+      fixture.detectChanges();
+    }
+    // ngOnChanges with no real change to `graph` must not re-open either.
+    comp.ngOnChanges({});
+    fixture.detectChanges();
+
+    expect(solutionState.createNewSolution).toHaveBeenCalledTimes(1);
+    expect(solutionState.addStateToSolution).toHaveBeenCalledTimes(1);
+    expect(solutionState.selectSolution).toHaveBeenCalledTimes(1);
+    expect(navigateSpy).not.toHaveBeenCalled();
   });
 
   it('picking a different graph opens a differently-named solution', async () => {
