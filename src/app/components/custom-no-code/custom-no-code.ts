@@ -29,6 +29,8 @@ import { RunEquationOverlayPopupComponent } from './states/equations/run-equatio
 import { RunMatrixEquationOverlayComponent } from './states/matrices/run-matrix-equation-overlay/run-matrix-equation-overlay.component';
 import { RunMatrixEquationOverlayPopupComponent } from './states/matrices/run-matrix-equation-overlay/popup/run-matrix-equation-overlay-popup.component';
 import { RunEngineModelOverlayComponent } from './states/engine-model/run-engine-model-overlay/run-engine-model-overlay.component';
+import { CAtomOverlayComponent } from './states/hardware/c-atom-overlay/c-atom-overlay.component';
+import { HwInterfaceOverlayComponent } from './states/hardware/hw-interface-overlay/hw-interface-overlay.component';
 import { RunEngineModelOverlayPopupComponent } from './states/engine-model/run-engine-model-overlay/popup/run-engine-model-overlay-popup.component';
 import { AvailableInput, SourceObjectField } from './shared/value-source-selector/value-source-selector.component';
 import { MathOperationOverlayPopupComponent, MathOperationOverlayPopupData } from './states/math/math-operation-overlay/popup/math-operation-overlay-popup.component';
@@ -881,6 +883,14 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
     const stateClass = stateInstance.stateClass || stateInstance.boundObjectClass || '';
 
     // console.log('[createOverlayForState] Creating overlay for:', stateName, 'stateClass:', stateClass);
+
+    // hn-0 (D-hn-2): a node kind that arrived as DATA names its overlay in its palette entry (overlayKind) — the
+    // hardware kinds (c-atom / hardware-subgraph → 'c-atom', hw-interface → 'hw-interface'). Checked first; every
+    // static class below keeps its own arm.
+    const overlayKind = this.stateSpaceRegistry.getClass(stateClass)?.overlayKind;
+    if (overlayKind === 'c-atom' || overlayKind === 'hw-interface') {
+      return this.createHardwareOverlay(stateName, stateGroup, stateInstance, overlayKind);
+    }
 
     // Determine which overlay component to use based on state class
     if (stateClass === 'ConditionalChain') {
@@ -1798,6 +1808,34 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
    * sources. Persists edits back into the state instance + solution-state
    * service and regenerates code. Backend-only runtime.
    */
+  /**
+   * hn-0: the overlay of a hardware node kind (c-atom / hardware-subgraph / hw-interface). Same wiring as every overlay:
+   * field edits persist into the state + the solution cache (wireValueOverlayEvents' handler set), the view/page buttons
+   * route as usual; no popup (the expand toggle of a subgraph lives inside the overlay).
+   */
+  private createHardwareOverlay(stateName: string, stateGroup: SVGGElement, stateInstance: NoCodeState,
+                                overlayKind: 'c-atom' | 'hw-interface'): boolean {
+    const stateClass = stateInstance.stateClass || stateInstance.boundObjectClass || '';
+    const meta = this.stateSpaceRegistry.getClass(stateClass);
+    const componentRef = this.stateOverlayManager.createOverlayForState(
+      stateName,
+      stateGroup,
+      (overlayKind === 'c-atom' ? CAtomOverlayComponent : HwInterfaceOverlayComponent) as any,
+      {
+        stateName,
+        boundClassName: stateClass,
+        boundObjectFieldValues: stateInstance.boundObjectFieldValues || {},
+        placement: meta?.placement || (overlayKind === 'c-atom' ? 'board' : 'bridge'),
+      }
+    );
+    if (componentRef) {
+      this.stateOverlayManager.setOverlayPointerEvents(stateName, true);
+      this.wireValueOverlayEvents(componentRef, stateName, stateInstance, () => this.showStatePage(stateInstance));
+      return true;
+    }
+    return false;
+  }
+
   private createEngineModelOperationOverlay(stateName: string, stateGroup: SVGGElement, stateInstance: NoCodeState): boolean {
     const fieldValues = stateInstance.boundObjectFieldValues || {};
     const availableInputs = this.getAvailableInputsForSelector(stateInstance);

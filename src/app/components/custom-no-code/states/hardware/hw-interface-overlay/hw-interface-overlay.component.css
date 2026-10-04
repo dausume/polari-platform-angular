@@ -1,0 +1,35 @@
+/* hn-0 hw-interface overlay — theme tokens only; the layout reacts to the overlay's own width (container query). */
+.hw-interface-overlay-root {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  container-type: inline-size;
+  font-size: 10px;
+  color: var(--text-primary);
+}
+.tier-tiny { display: flex; align-items: center; justify-content: center; height: 100%; }
+.tier-tiny__icon { font-size: 18px; width: 18px; height: 18px; color: var(--text-secondary); }
+.hw-badges { display: flex; gap: 4px; margin-left: auto; }
+.hw-badge {
+  font-size: 9px; padding: 1px 5px; border-radius: 8px; white-space: nowrap;
+  background: var(--surface-secondary); color: var(--text-secondary); border: 1px solid var(--border-medium);
+}
+.hw-badge--split { background: var(--color-info-bg); color: var(--color-info-text); border-color: var(--color-info-border); }
+.hw-body { display: flex; flex-direction: column; gap: 4px; max-height: 100%; overflow-y: auto; }
+.hw-line { word-break: break-all; }
+.hw-arrow { color: var(--text-secondary); padding: 0 2px; }
+.hw-state, .hw-hint { color: var(--text-secondary); font-style: italic; }
+.hw-ref { display: flex; align-items: center; gap: 4px; }
+.hw-ref span { color: var(--text-secondary); }
+.hw-ref input {
+  flex: 1; min-width: 0; font-size: 10px; padding: 2px 4px;
+  border: 1px solid var(--border-medium); border-radius: 3px; background: var(--surface-primary); color: var(--text-primary);
+}
+.hw-table { width: 100%; border-collapse: collapse; }
+.hw-table td { padding: 1px 3px; border-bottom: 1px solid var(--border-medium); }
+.hw-table td:first-child { color: var(--text-secondary); white-space: nowrap; }
+.hw-refused--some td { color: var(--color-error-text); }
+@container (max-width: 200px) {
+  .hw-hint { display: none; }
+  .hw-badges .hw-badge:not(.hw-badge--split) { display: none; }
+}

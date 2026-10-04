@@ -126,6 +126,9 @@ import { RunMatrixEquationOverlayComponent } from '@components/custom-no-code/st
 import { RunMatrixEquationOverlayPopupComponent } from '@components/custom-no-code/states/matrices/run-matrix-equation-overlay/popup/run-matrix-equation-overlay-popup.component';
 import { MatrixOperandSourceEditorComponent } from '@components/custom-no-code/states/matrices/matrix-operand-source-editor/matrix-operand-source-editor.component';
 import { RunEngineModelOverlayComponent } from '@components/custom-no-code/states/engine-model/run-engine-model-overlay/run-engine-model-overlay.component';
+// hn-0 (HARDWARE_NOCODE_PLAN D-hn-2): the overlays of the hardware node kinds on the ONE canvas
+import { CAtomOverlayComponent } from '@components/custom-no-code/states/hardware/c-atom-overlay/c-atom-overlay.component';
+import { HwInterfaceOverlayComponent } from '@components/custom-no-code/states/hardware/hw-interface-overlay/hw-interface-overlay.component';
 import { RunEngineModelOverlayPopupComponent } from '@components/custom-no-code/states/engine-model/run-engine-model-overlay/popup/run-engine-model-overlay-popup.component';
 import { LatexEditDialogComponent } from '@components/shared/latex-edit-dialog/latex-edit-dialog';
 import { ClaimEditDialogComponent } from '@components/shared/claim-edit-dialog/claim-edit-dialog';
@@ -297,6 +300,8 @@ import { InstanceDetailPanelComponent } from '@components/dashboard/generic/inst
     RunMatrixEquationOverlayPopupComponent,
     MatrixOperandSourceEditorComponent,
     RunEngineModelOverlayComponent,
+    CAtomOverlayComponent,
+    HwInterfaceOverlayComponent,
     RunEngineModelOverlayPopupComponent,
     LatexEditDialogComponent,
     ClaimEditDialogComponent,

@@ -1,0 +1,48 @@
+<div class="hw-interface-overlay-root"
+     [attr.data-size-tier]="sizeTier"
+     [ngSwitch]="sizeTier"
+     [appStateOverlayRoot]="stateName"
+     (contextRequested)="fullViewRequested.emit($event)">
+
+  <div *ngSwitchCase="'tiny'" class="tier-tiny" [title]="bindingName || 'hw-interface'">
+    <mat-icon class="tier-tiny__icon">settings_input_hdmi</mat-icon>
+  </div>
+
+  <state-overlay-shell *ngSwitchDefault
+      accent="#00796B"
+      icon="settings_input_hdmi"
+      [title]="binding?.object_name ? (binding?.object_class + ' · ' + binding?.object_name) : 'Hardware Interface'"
+      [compact]="sizeTier === 'compact'"
+      [bordered]="sizeTier === 'full'"
+      [showCodingComment]="false"
+      [hasPopupView]="false"
+      [padding]="sizeTier === 'compact' ? '6px' : '8px'">
+
+    <div class="hw-badges" headerExtras>
+      <span class="hw-badge hw-badge--split" title="Every board ⇄ backend edge must pass through a hw-interface (plan §2b rule 3)">split point</span>
+      <span class="hw-badge" title="Where the placement rule puts it">{{ placement }}</span>
+    </div>
+
+    <div class="hw-body" *ngIf="binding">
+      <div class="hw-line">{{ binding.board_instance || '—' }} <span class="hw-arrow">⇄</span> {{ binding.port || '—' }}</div>
+      <div class="hw-state" *ngIf="loading">reading…</div>
+      <div class="hw-state" *ngIf="note">{{ note }}</div>
+
+      <ng-container *ngIf="sizeTier === 'full'">
+        <label class="hw-ref">
+          <span>Binding</span>
+          <input [value]="bindingName" (change)="onBindingChange($any($event.target).value)"
+                 (mousedown)="$event.stopPropagation()" (click)="$event.stopPropagation()" />
+        </label>
+        <table class="hw-table">
+          <tr><td>bridge</td><td>{{ binding.bridge_name || '—' }}</td></tr>
+          <tr><td>interface</td><td>{{ binding.interface_kind || '—' }} {{ binding.interface_name }}</td></tr>
+          <tr *ngIf="live"><td>index</td><td>{{ binding.instance_index }}</td></tr>
+          <tr *ngIf="live" class="hw-frames"><td>frames seen</td><td>{{ binding.frames_seen }}</td></tr>
+          <tr *ngIf="live" class="hw-refused" [class.hw-refused--some]="binding.refused_frames > 0"><td>refused</td><td>{{ binding.refused_frames }}</td></tr>
+        </table>
+        <div class="hw-hint">Frames come up through here to the row; a PUT of the row goes down to the firmware.</div>
+      </ng-container>
+    </div>
+  </state-overlay-shell>
+</div>

@@ -1,0 +1,74 @@
+<div class="c-atom-overlay-root"
+     [attr.data-size-tier]="sizeTier"
+     [attr.data-mode]="mode"
+     [ngSwitch]="sizeTier"
+     [appStateOverlayRoot]="stateName"
+     (contextRequested)="fullViewRequested.emit($event)">
+
+  <!-- tiny: the icon + the name -->
+  <div *ngSwitchCase="'tiny'" class="tier-tiny" [title]="title">
+    <mat-icon class="tier-tiny__icon">{{ mode === 'subgraph' ? 'developer_board' : 'memory' }}</mat-icon>
+  </div>
+
+  <!-- compact + full share the shell; full adds the details -->
+  <state-overlay-shell *ngSwitchDefault
+      accent="#6D4C41"
+      [icon]="mode === 'subgraph' ? 'developer_board' : 'memory'"
+      [title]="title"
+      [compact]="sizeTier === 'compact'"
+      [bordered]="sizeTier === 'full'"
+      [showCodingComment]="false"
+      [hasPopupView]="false"
+      [padding]="sizeTier === 'compact' ? '6px' : '8px'">
+
+    <div class="hw-badges" headerExtras>
+      <span class="hw-badge hw-badge--place" title="Where the placement rule puts it">{{ placement }} · C</span>
+    </div>
+
+    <div class="hw-body">
+      <div class="hw-summary" *ngIf="summary">{{ summary }}</div>
+      <div class="hw-state" *ngIf="loading">reading…</div>
+      <div class="hw-state hw-state--error" *ngIf="error">{{ error }}</div>
+
+      <ng-container *ngIf="sizeTier === 'full'">
+        <label class="hw-ref">
+          <span>{{ mode === 'subgraph' ? 'CGraph' : 'Atom' }}</span>
+          <input [value]="ref" (change)="onRefChange($any($event.target).value)"
+                 (mousedown)="$event.stopPropagation()" (click)="$event.stopPropagation()" />
+        </label>
+
+        <!-- one atom -->
+        <ng-container *ngIf="mode === 'atom' && atom">
+          <code class="hw-sig">{{ atom.signature }}</code>
+          <div class="hw-facts">
+            <span>ISR-safe: <b>{{ atom.isr_safe || '—' }}</b></span>
+            <span>pure: <b>{{ atom.pure ? 'yes' : 'no' }}</b></span>
+          </div>
+          <table class="hw-table" *ngIf="ports.length">
+            <tr *ngFor="let p of ports" class="hw-port" [attr.data-direction]="p.direction">
+              <td>{{ p.direction }}</td><td>{{ p.port }}</td><td>{{ p.polari_type || '—' }}</td><td>{{ p.unit }}</td>
+            </tr>
+          </table>
+          <div class="hw-role" *ngIf="atom.role">{{ atom.role }}</div>
+        </ng-container>
+
+        <!-- a whole subgraph, collapsed into this node -->
+        <ng-container *ngIf="mode === 'subgraph' && graph">
+          <div class="hw-facts">
+            <span>status: <b>{{ graph.status }}</b></span>
+            <span>cost before building: <b>{{ graph.cost_estimate_bytes }} B</b></span>
+          </div>
+          <button type="button" class="hw-expand" (click)="toggleExpanded($event)" (mousedown)="$event.stopPropagation()">
+            <mat-icon>{{ expanded ? 'unfold_less' : 'unfold_more' }}</mat-icon>
+            {{ expanded ? 'Collapse' : 'Expand' }} the subgraph ({{ nodes.length }} nodes)
+          </button>
+          <table class="hw-table hw-nodes" *ngIf="expanded">
+            <tr *ngFor="let n of nodes" class="hw-node" [attr.data-kind]="n.kind">
+              <td>{{ n.instance }}</td><td>{{ n.kind }}</td><td>{{ atomFunction(n.atom) }}</td><td>{{ n.stage }}</td>
+            </tr>
+          </table>
+        </ng-container>
+      </ng-container>
+    </div>
+  </state-overlay-shell>
+</div>

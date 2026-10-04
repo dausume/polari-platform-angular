@@ -13,6 +13,7 @@ import {
 } from '@models/stateSpace';
 import { TargetRuntime } from '@models/noCode/mock-NCS-data';
 import { StateDefinitionService } from '@services/no-code-services/state-definition.service';
+import { StateSpacePaletteSourceService } from '@services/no-code-services/state-space-palette-source.service';
 import { StateBuildingBlock, getBuildingBlockRegistry } from '@models/noCode/StateBuildingBlock';
 
 export interface StateToolItem {
@@ -187,12 +188,20 @@ export class StateToolSidebarComponent implements OnInit, OnDestroy, OnChanges {
   private registry = StateSpaceClassRegistry.getInstance();
   private destroy$ = new Subject<void>();
 
-  constructor(private stateDefinitionService: StateDefinitionService) {}
+  constructor(private stateDefinitionService: StateDefinitionService,
+              private paletteSource: StateSpacePaletteSourceService) {}
 
   ngOnInit(): void {
     this.loadBuiltinItems();
     this.filterHelperClasses();
     this.filterSubSolutions();
+    // hn-0 (D-hn-2): the palette is DATA — node kinds the backend declares (GET /stateSpaceClasses `palette`, e.g. the
+    // hardware kinds c-atom / hw-interface / hardware-subgraph) join the static built-ins; the static ones stay as they are.
+    this.paletteSource.load().pipe(takeUntil(this.destroy$)).subscribe(added => {
+      if (added.length) {
+        this.loadBuiltinItems();
+      }
+    });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
