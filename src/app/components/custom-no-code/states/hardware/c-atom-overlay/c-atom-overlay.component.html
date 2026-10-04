@@ -63,9 +63,30 @@
             {{ expanded ? 'Collapse' : 'Expand' }} the subgraph ({{ nodes.length }} nodes)
           </button>
           <table class="hw-table hw-nodes" *ngIf="expanded">
-            <tr *ngFor="let n of nodes" class="hw-node" [attr.data-kind]="n.kind">
-              <td>{{ n.instance }}</td><td>{{ n.kind }}</td><td>{{ atomFunction(n.atom) }}</td><td>{{ n.stage }}</td>
-            </tr>
+            <ng-container *ngFor="let n of nodes">
+              <tr class="hw-node" [attr.data-kind]="n.kind">
+                <td>{{ n.instance }}</td><td>{{ n.kind }}</td><td>{{ atomFunction(n.atom) }}</td><td>{{ n.stage }}</td>
+              </tr>
+              <tr class="hw-node-detail" *ngIf="n.ports_summary">
+                <td colspan="4" class="hw-ports">ports: {{ n.ports_summary }}</td>
+              </tr>
+              <tr class="hw-node-detail" *ngIf="edgesFor(n.instance).length">
+                <td colspan="4" class="hw-edges">
+                  <span class="hw-edge" *ngFor="let e of edgesFor(n.instance)">
+                    {{ e.kind }}: {{ e.from_node }}{{ e.from_port ? '.' + e.from_port : '' }} → {{ e.to_node }}{{ e.to_port ? '.' + e.to_port : '' }}
+                  </span>
+                </td>
+              </tr>
+              <tr class="hw-node-detail" *ngIf="targetsFor(n.instance).length">
+                <td colspan="4" class="hw-targets">
+                  <span class="hw-target-badge" *ngFor="let t of targetsFor(n.instance)" [attr.data-kind]="t.kind"
+                        [attr.data-unbound]="t.lives_on === 'unbound'"
+                        [title]="t.controls + ' — ' + (t.lives_on === 'unbound' ? 'not yet tied to a board pin' : 'lives on ' + t.lives_on) + ' (' + t.provenance + ')'">
+                    {{ t.kind }}: {{ t.port || t.node }} → {{ t.lives_on === 'unbound' ? 'unbound' : t.lives_on }}
+                  </span>
+                </td>
+              </tr>
+            </ng-container>
           </table>
         </ng-container>
       </ng-container>

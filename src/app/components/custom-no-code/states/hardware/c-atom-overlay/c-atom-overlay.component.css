@@ -42,3 +42,18 @@
   .hw-table td:nth-child(n+3) { display: none; }
   .hw-facts { flex-direction: column; gap: 1px; }
 }
+
+/* demo-4: per-node ports/wires/target badges inside the expanded subgraph table */
+.hw-node-detail td { border-bottom: 1px solid var(--border-medium); padding: 1px 3px 3px 10px; }
+.hw-ports { color: var(--text-secondary); font-size: 9px; }
+.hw-edges { display: flex; flex-direction: column; gap: 1px; }
+.hw-edge { color: var(--text-secondary); font-size: 9px; }
+.hw-targets { display: flex; flex-wrap: wrap; gap: 3px; }
+.hw-target-badge {
+  font-size: 9px; padding: 1px 5px; border-radius: 8px; white-space: nowrap;
+  background: var(--surface-secondary); color: var(--text-primary); border: 1px solid var(--border-medium);
+}
+.hw-target-badge[data-kind="register"] { border-color: #5D4037; }
+.hw-target-badge[data-kind="memory-field"] { border-color: #00796B; }
+.hw-target-badge[data-kind="pin"] { border-color: #6D4C41; }
+.hw-target-badge[data-unbound="true"] { opacity: 0.6; font-style: italic; }
