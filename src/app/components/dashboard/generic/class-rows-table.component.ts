@@ -8,6 +8,7 @@ import { AuthSessionService } from '@services/auth/auth-session.service';
 import { friendlyError } from './friendly-error';
 import { PeopleService } from '@services/people.service';
 import { KatexDisplayComponent } from '@components/shared/katex-display/katex-display.component';
+import { PolariService } from '@services/polari-service';
 
 /**
  * Generic no-code class table: renders the live CRUDE rows of ANY
@@ -54,7 +55,7 @@ import { KatexDisplayComponent } from '@components/shared/katex-display/katex-di
                   <a *ngFor="let r of refsOf(row, column)" class="ref chip" [routerLink]="['/object', r.cls, r.name]" [title]="r.cls">{{ r.name }}</a>
                   <span *ngIf="!refsOf(row, column).length" class="muted">—</span>
                 </ng-container>
-                <a *ngSwitchCase="'link'" class="ref" [href]="cell(row, column)" target="_blank" rel="noopener">open ↗</a>
+                <a *ngSwitchCase="'link'" class="ref" [href]="linkHref(row, column)" target="_blank" rel="noopener">open ↗</a>
                 <ng-container *ngSwitchCase="'json'">
                   <ng-container *ngIf="jsonPairs(row, column) as pairs">
                     <span *ngIf="!pairs.length" class="muted">—</span>
@@ -179,6 +180,7 @@ export class ClassRowsTableComponent implements OnInit {
     private people: PeopleService,
     private authSession: AuthSessionService,
     private http: HttpClient,
+    private polariService: PolariService,
   ) {}
 
   signIn(): void { void this.authSession.login(); }
@@ -330,7 +332,7 @@ export class ClassRowsTableComponent implements OnInit {
     if (f === 'latex' && this.cell(row, column)) { return 'latex'; }
     if (f === 'ref' && this.cell(row, column)) { return 'ref'; }
     if (f === 'refs') { return 'refs'; }
-    if (f === 'link' && /^https?:\/\//.test(this.cell(row, column))) { return 'link'; }
+    if (f === 'link' && this.cell(row, column)) { return 'link'; }
     if (this.isJsonColumn(column)) { return 'json'; }
     return 'plain';
   }
@@ -338,6 +340,18 @@ export class ClassRowsTableComponent implements OnInit {
   /** The detail view of the object a `ref` cell names: /object/<Class>/<name>; the class comes from the format argument. */
   refTarget(column: string, name: string): any[] {
     return ['/object', this.formatArgs[column] || 'Object', name];
+  }
+
+  /**
+   * A `link` cell's href: an absolute URL (e.g. a cited DKRed page) passes through unchanged; a path relative to
+   * the API root (e.g. FabricationExport.artifact_url, `/api/pcb/artifacts/<board>/<path>` — the arturl fix: it
+   * no longer requires POLARI_PUBLIC_BASE_URL) resolves against the configured backend base, the same way
+   * api-svg-panel's fetchSvg() already does.
+   */
+  linkHref(row: any, column: string): string {
+    const v = this.cell(row, column);
+    if (!v) { return v; }
+    return /^https?:\/\//.test(v) ? v : this.polariService.getBackendBaseUrl() + v;
   }
 
   private parsed(row: any, column: string): any {
