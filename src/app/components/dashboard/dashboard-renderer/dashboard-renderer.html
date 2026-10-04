@@ -179,6 +179,7 @@
 
                         <div class="item-header" *ngIf="cell.item.title && cell.item.type !== 'text'">
                             <span class="item-title">{{ cell.item.title }}</span>
+                            <p class="item-description" *ngIf="cell.item.description">{{ cell.item.description }}</p>
                         </div>
 
                         <div class="item-content" [class.has-header]="cell.item.title && cell.item.type !== 'text'">
@@ -215,6 +216,7 @@
 
                         <div class="item-header" *ngIf="item.title && item.type !== 'text'">
                             <span class="item-title">{{ item.title }}</span>
+                            <p class="item-description" *ngIf="item.description">{{ item.description }}</p>
                         </div>
 
                         <div class="item-content" [class.has-header]="item.title && item.type !== 'text'">
@@ -270,6 +272,7 @@
 
                         <div class="item-header" *ngIf="cell.item.title && cell.item.type !== 'text'">
                             <span class="item-title">{{ cell.item.title }}</span>
+                            <p class="item-description" *ngIf="cell.item.description">{{ cell.item.description }}</p>
                         </div>
 
                         <div class="item-content" [class.has-header]="cell.item.title && cell.item.type !== 'text'">
@@ -306,6 +309,7 @@
 
                         <div class="item-header" *ngIf="item.title && item.type !== 'text'">
                             <span class="item-title">{{ item.title }}</span>
+                            <p class="item-description" *ngIf="item.description">{{ item.description }}</p>
                         </div>
 
                         <div class="item-content" [class.has-header]="item.title && item.type !== 'text'">

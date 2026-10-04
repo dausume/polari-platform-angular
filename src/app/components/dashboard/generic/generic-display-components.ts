@@ -40,8 +40,11 @@ export function registerGenericDisplayComponents(): void {
         + '(inputs: className, optional columns csv, optional maxRows, '
         + 'optional columnFormats csv of column:format — `person` renders a '
         + 'Keycloak subject id shortened, with the name resolved at render '
-        + 'time through the gated people door)',
-      defaultInputs: { className: '', columns: '', maxRows: 0, columnFormats: '' },
+        + 'time through the gated people door; optional filterField/'
+        + 'filterValue — filterValue may be a csv SET; optional dataPath — '
+        + 'GET {ok, rows} of already-computed records instead of a live '
+        + 'class, e.g. board readiness, same columns/format/filter rules)',
+      defaultInputs: { className: '', columns: '', maxRows: 0, columnFormats: '', filterField: '', filterValue: '', dataPath: '' },
     });
 
   registerDisplayComponent(

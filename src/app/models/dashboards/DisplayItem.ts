@@ -151,6 +151,12 @@ export class DisplayItem {
     /** Display title for this item */
     title?: string;
 
+    /** demo1: one short purpose line for this item — what it is for,
+     *  "one row = ..." for a table, where its data comes from. Shown
+     *  under the title by every item type (generic, not table-only)
+     *  so no panel is a wall of data with no explanation. */
+    description?: string;
+
     /** Whether this item is visible */
     visible: boolean;
 

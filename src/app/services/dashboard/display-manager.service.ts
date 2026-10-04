@@ -229,6 +229,7 @@ export class DisplayManagerService {
       rowSegmentsUsed: item.rowSegmentsUsed,
       gridColumnStart: item.gridColumnStart ?? null,
       title: item.title || '',
+      description: item.description || '',
       visible: item.visible,
       collapsed: item.collapsed,
       cssClass: item.cssClass || '',
@@ -344,6 +345,7 @@ export class DisplayManagerService {
       itemData.componentProps || {}
     );
     item.title = itemData.title || undefined;
+    item.description = itemData.description || undefined;
     item.visible = itemData.visible !== false;
     item.collapsed = itemData.collapsed || false;
     item.cssClass = itemData.cssClass || undefined;

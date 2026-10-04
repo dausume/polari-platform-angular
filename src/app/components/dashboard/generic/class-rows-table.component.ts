@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, Input, OnInit } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { RouterModule } from '@angular/router';
 import { CRUDEservicesManager } from '@services/crude-services-manager';
@@ -145,6 +146,18 @@ export class ClassRowsTableComponent implements OnInit {
    *  whole-payload JSON dump. */
   @Input() includeJsonFields = false;
 
+  /**
+   * demo1: an optional GET path returning `{ok, rows}` of ALREADY-COMPUTED
+   * records (e.g. board readiness — derived from several classes, not a
+   * stored column of any one of them) — the same "fetch once, render as a
+   * table" shape `named-graph-panel`'s `dataPath` uses for charts. When
+   * set this REPLACES the CRUDE `className` read; `columns`,
+   * `columnFormats`, `filterField`/`filterValue` and `maxRows` all still
+   * apply to the rows that come back, so a computed table is configured
+   * exactly like a live-class one.
+   */
+  @Input() dataPath = '';
+
   rows: any[] = [];
   activeColumns: string[] = [];
   loading = true;
@@ -165,33 +178,46 @@ export class ClassRowsTableComponent implements OnInit {
     private crudeManager: CRUDEservicesManager,
     private people: PeopleService,
     private authSession: AuthSessionService,
+    private http: HttpClient,
   ) {}
 
   signIn(): void { void this.authSession.login(); }
 
   ngOnInit(): void {
-    if (!this.className) {
+    if (!this.className && !this.dataPath) {
       this.loading = false;
-      this.error = 'class-rows-table: no className input.';
+      this.error = 'class-rows-table: no className or dataPath input.';
       return;
     }
     this.formats = this.parseFormats(this.columnFormats);
+    if (this.dataPath) {
+      this.http.get<any>(this.dataPath).subscribe({
+        next: (payload: any) => {
+          const rows = Array.isArray(payload) ? payload : (payload?.rows ?? []);
+          if (payload && payload.ok === false) {
+            this.loading = false;
+            this.error = payload.error || `GET ${this.dataPath} refused.`;
+            return;
+          }
+          this.applyRows(rows);
+        },
+        error: (err: any) => {
+          this.loading = false;
+          const f = friendlyError(err, `read ${this.dataPath}`);
+          this.error = f.text; this.errorDetail = f.detail; this.errorSignIn = f.signIn;
+        },
+      });
+      return;
+    }
     // bp-2a: a comma-separated filterValue is a SET (the page scope's `{scope:tree.nodes}`): read all, keep members
     const isSet = !!this.filterValue && this.filterValue.includes(',');
     const filter = this.filterField && this.filterValue && !isSet
       ? { [this.filterField]: this.filterValue }
       : undefined;
-    const members = isSet ? new Set(this.filterValue.split(',').map((v) => v.trim()).filter(Boolean)) : null;
     this.crudeManager.getCRUDEclassService(this.className).readAll(filter).subscribe({
       next: (envelope: any) => {
-        let rows = envelope?.[0]?.[this.className]?.[0]?.data ?? [];
-        if (members && this.filterField) { rows = rows.filter((r: any) => members.has(String(r?.[this.filterField] ?? ''))); }
-        this.rows = this.maxRows > 0 ? rows.slice(0, this.maxRows) : rows;
-        this.activeColumns = this.columns
-          ? this.columns.split(',').map((column) => column.trim()).filter(Boolean)
-          : this.deriveColumns(this.rows[0]);
-        this.loading = false;
-        this.resolvePeople();
+        const rows = envelope?.[0]?.[this.className]?.[0]?.data ?? [];
+        this.applyRows(rows);
       },
       error: (err: any) => {
         this.loading = false;
@@ -199,6 +225,23 @@ export class ClassRowsTableComponent implements OnInit {
         this.error = f.text; this.errorDetail = f.detail; this.errorSignIn = f.signIn;
       },
     });
+  }
+
+  /** Shared tail for both sources: client-side filter (always — the server-side `filter` above is an
+   *  optimization for the CRUDE path only, computed `dataPath` rows always filter here), cap, derive
+   *  columns, resolve person cells. */
+  private applyRows(rowsIn: any[]): void {
+    let rows = rowsIn || [];
+    if (this.filterField && this.filterValue) {
+      const members = new Set(this.filterValue.split(',').map((v) => v.trim()).filter(Boolean));
+      rows = rows.filter((r: any) => members.has(String(r?.[this.filterField] ?? '')));
+    }
+    this.rows = this.maxRows > 0 ? rows.slice(0, this.maxRows) : rows;
+    this.activeColumns = this.columns
+      ? this.columns.split(',').map((column) => column.trim()).filter(Boolean)
+      : this.deriveColumns(this.rows[0]);
+    this.loading = false;
+    this.resolvePeople();
   }
 
   private deriveColumns(first: any): string[] {

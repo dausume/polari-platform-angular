@@ -32,6 +32,16 @@
     color: var(--text-secondary);
 }
 
+/* demo1: a table/panel's own purpose line, shown under its title —
+   the generic `item.description` every component type can carry
+   (class-rows-table's "one row = ..." + per-column meaning included). */
+.item-description {
+    margin: 2px 0 8px 0;
+    font-size: 0.85em;
+    color: var(--text-secondary);
+    white-space: pre-line;
+}
+
 /* Dashboard Rows */
 .dashboard-row {
     display: grid;
