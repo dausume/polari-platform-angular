@@ -159,8 +159,8 @@ describe('CGraphCanvasPanelComponent (demo-4b)', () => {
     await make();
     flushGraphDetail();
     solutionState.getSolutionStateInstances.and.returnValue([
-      { stateName: 'sim-rig', stateClass: 'HardwareSubgraph', slots: [{ connectors: [{ targetStateName: 'uno-twin' }] }] },
-      { stateName: 'uno-twin', stateClass: 'HardwareInterface', slots: [{ connectors: [{ targetStateName: 'on-temp' }] }] },
+      { stateName: 'sim-rig', stateClass: 'HardwareSubgraph', slots: [{ connectors: [{ targetStateName: 'uno-digital-twin' }] }] },
+      { stateName: 'uno-digital-twin', stateClass: 'HardwareInterface', slots: [{ connectors: [{ targetStateName: 'on-temp' }] }] },
       { stateName: 'on-temp', stateClass: 'BackendStateChange', slots: [{ connectors: [] }] },
     ] as any);
     comp.solution = 'uno-temp-split';
@@ -169,7 +169,7 @@ describe('CGraphCanvasPanelComponent (demo-4b)', () => {
     expect(solutionState.updateStateInstance).toHaveBeenCalled();
     expect(solutionState.updateStatePositions).toHaveBeenCalled();
     expect(comp.crossings.length).toBe(2);
-    expect(comp.crossings[0]).toEqual(jasmine.objectContaining({ from: 'sim-rig', to: 'uno-twin', fromRuntime: 'c-device', toRuntime: 'java-bridge' }));
+    expect(comp.crossings[0]).toEqual(jasmine.objectContaining({ from: 'sim-rig', to: 'uno-digital-twin', fromRuntime: 'c-device', toRuntime: 'java-bridge' }));
   });
 
   it('Render shows the graph/files sha and cost as fields, never a JSON wall', async () => {
@@ -279,7 +279,7 @@ describe('CGraphCanvasPanelComponent — real state service (object context + no
     http.expectOne(`${BASE}/api/cmod/graphs`).flush({ ok: true, graphs: [] });
     http.expectOne(`${BASE}/SolutionDefinition`).flush(solutionDefinitionResponse([
       { name: 'AdditionTester.test_addition', stateInstances: [] },   // the default the service would otherwise pick
-      { name: 'uno-temp-split', stateInstances: [rectState('sim-rig', 80), rectState('uno-twin', 320)] },
+      { name: 'uno-temp-split', stateInstances: [rectState('sim-rig', 80), rectState('uno-digital-twin', 320)] },
     ]));
     // openSolutionFor() is deferred to a microtask (round 3) specifically so it runs AFTER
     // initializeFromBackend()'s own synchronous default-reselect — let it run.

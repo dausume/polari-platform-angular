@@ -75,7 +75,7 @@ export const RUNTIME_DISPLAY_LABELS: Record<string, string> = {
   'python-backend': 'Python (Backend)',
   'typescript-browser': 'TypeScript (Browser)',
   'c-device': 'C (Hardware)',
-  'c-twin': 'C (Twin)',
+  'c-twin': 'C (Digital twin)',
   'java-bridge': 'Java (Native bridge backend)',
   'javafx-native': 'JavaFX (Native bridge frontend)',
 };

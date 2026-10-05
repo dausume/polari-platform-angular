@@ -20,7 +20,7 @@ describe('HwInterfaceOverlayComponent (hn-0)', () => {
   const BASE = 'http://backend.test';
   const BINDING = 'uno-temp-split/SimRigState/0';
   const URL = `${BASE}/api/hwnocode/interface?binding=${encodeURIComponent(BINDING)}`;
-  const FIELDS = { binding: BINDING, object_class: 'SimRigState', object_name: 'uno-twin', bridge_name: 'uno-temp-split',
+  const FIELDS = { binding: BINDING, object_class: 'SimRigState', object_name: 'uno-digital-twin', bridge_name: 'uno-temp-split',
                    board_instance: 'twin:arduino-uno-r3#0', port: '/tmp/polari-uno-twin-uart', interface_kind: 'twin-pty' };
   let fixture: ComponentFixture<HwInterfaceOverlayComponent>;
   let comp: HwInterfaceOverlayComponent;
@@ -46,13 +46,13 @@ describe('HwInterfaceOverlayComponent (hn-0)', () => {
 
   it('shows the live binding: row, board instance ⇄ port, bridge, frames seen / refused, the split-point badge', () => {
     http.expectOne(URL).flush({ ok: true, placement: 'bridge', binding: {
-      name: BINDING, bridge_name: 'uno-temp-split', object_class: 'SimRigState', object_name: 'uno-twin',
+      name: BINDING, bridge_name: 'uno-temp-split', object_class: 'SimRigState', object_name: 'uno-digital-twin',
       board_instance: 'twin:arduino-uno-r3#0', board_definition: 'arduino-uno-r3', interface_kind: 'twin-pty', interface_name: 'usart0',
       port: '/tmp/polari-uno-twin-uart', instance_index: 0, frames_seen: 120, refused_frames: 2, last_seen_at: '2026-10-03T13:00:00' } });
     fixture.detectChanges();
     const el: HTMLElement = fixture.nativeElement;
     expect(comp.live).toBeTrue();
-    expect(el.querySelector('.state-overlay-header__title')?.textContent).toContain('SimRigState · uno-twin');
+    expect(el.querySelector('.state-overlay-header__title')?.textContent).toContain('SimRigState · uno-digital-twin');
     expect(el.querySelector('.hw-line')?.textContent?.replace(/\s+/g, ' ')).toContain('twin:arduino-uno-r3#0 ⇄ /tmp/polari-uno-twin-uart');
     expect(el.querySelector('.hw-frames')?.textContent).toContain('120');
     expect(el.querySelector('.hw-refused')?.classList).toContain('hw-refused--some');
