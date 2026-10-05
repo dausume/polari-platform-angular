@@ -53,7 +53,7 @@ describe('CGraphCanvasPanelComponent (demo-4b)', () => {
     navigateSpy = jasmine.createSpy('navigate');
     solutionState = jasmine.createSpyObj('NoCodeSolutionStateService', [
       'getSolutionData', 'createNewSolution', 'addStateToSolution', 'addConnector', 'selectSolution',
-      'getSolutionStateInstances', 'updateStateInstance', 'updateStatePositions',
+      'getSolutionStateInstances', 'updateStateInstance', 'updateStatePositions', 'initializeFromBackend',
     ], { loading$ });
     solutionState.getSolutionData.and.callFake((name: string) => (known.has(name) ? ({ solutionName: name } as any) : undefined));
     solutionState.createNewSolution.and.callFake((name: string) => { known.add(name); });
@@ -78,6 +78,10 @@ describe('CGraphCanvasPanelComponent (demo-4b)', () => {
       { name: 'uno-sim-rig-graph', title: 'x', status: 'proven', node_count: 18, edge_count: 15, atom_count: 13 },
     ] });
     loading$.next(false);
+    // selfix round 3: ngOnInit's openSolutionFor() is now deferred to a microtask (so the
+    // panel's own selection wins over any default-reselect nested in the SAME loading$
+    // transition) — let it run before the test proceeds.
+    await Promise.resolve();
   }
 
   function flushGraphDetail(graph = 'uno-sim-rig-graph', body: any = GRAPH_DETAIL) {
@@ -238,42 +242,67 @@ describe('CGraphCanvasPanelComponent — real state service (object context + no
 
   afterEach(() => http.verify());
 
-  it('a `solution` input (uno-temp-split, a real DOTLESS backend solution with states) renders '
-    + 'N>0 states, syncs the object context to uno-temp-split (not a stale default), and never navigates', async () => {
+  /** A backend GET /SolutionDefinition response shaped exactly like the live API (confirmed via
+   *  curl): [{SolutionDefinition: [{class, varsLimited, data: [{id, name, function_name,
+   *  target_runtime, definition: "<JSON string>"}]}]}]. `AdditionTester.test_addition` is listed
+   *  FIRST — it's what the service's own default-reselect picks when nothing else wins; these
+   *  tests prove the panel's own selection beats that default, not the other way round. */
+  function solutionDefinitionResponse(rows: { name: string; stateInstances: any[] }[]) {
+    return [{
+      SolutionDefinition: [{
+        class: 'SolutionDefinition', varsLimited: ['branch', 'inTree', 'manager'],
+        data: rows.map((r, i) => ({
+          id: 'id-%s'.replace('%s', String(i)), name: r.name, function_name: r.name, target_runtime: 'python_backend',
+          definition: JSON.stringify({ id: i + 1, solutionName: r.name, xBounds: 1000, yBounds: 600, stateInstances: r.stateInstances }),
+        })),
+      }],
+    }];
+  }
+
+  function rectState(stateName: string, x: number) {
+    return {
+      stateName, id: stateName, index: 0, shapeType: 'rectangle', solutionName: 'uno-temp-split',
+      stateClass: 'HardwareSubgraph', boundObjectClass: 'HardwareSubgraph', boundObjectFieldValues: { displayName: stateName },
+      stateSvgWidth: 160, stateSvgHeight: 90, cornerRadius: 8, stateSvgRadius: null, layerName: 'rectangle-layer',
+      stateLocationX: x, stateLocationY: 280, stateSvgName: 'rectangle', slots: [], slotRadius: 5, backgroundColor: '#5D4037',
+    };
+  }
+
+  it('a `solution` input (uno-temp-split, a real DOTLESS backend solution with states) opens '
+    + 'THAT solution — not the backend\'s default (AdditionTester, listed first) — renders N>0 '
+    + 'states, syncs the object context to uno-temp-split, and never navigates', async () => {
     await make();
-    // Seed the real service exactly like a backend-loaded solution — dotless name, real states —
-    // via its own public mutators (the same ones buildAtomsSolution()/applyLanes() use).
-    realService.createNewSolution('uno-temp-split', { targetRuntime: 'typescript_frontend' as any });
-    realService.addStateToSolution('uno-temp-split', {
-      stateName: 'sim-rig', id: 's1', index: 0, shapeType: 'rectangle', solutionName: 'uno-temp-split',
-      stateClass: 'HardwareSubgraph', boundObjectClass: 'HardwareSubgraph', boundObjectFieldValues: {},
-      stateSvgSizeX: 160, stateSvgSizeY: 90, stateSvgRadius: null, layerName: 'rectangle-layer',
-      stateLocationX: 80, stateLocationY: 80, stateSvgName: 'rectangle', slots: [], slotRadius: 5,
-    } as any);
-    realService.addStateToSolution('uno-temp-split', {
-      stateName: 'uno-twin', id: 's2', index: 1, shapeType: 'rectangle', solutionName: 'uno-temp-split',
-      stateClass: 'HardwareInterface', boundObjectClass: 'HardwareInterface', boundObjectFieldValues: {},
-      stateSvgSizeX: 160, stateSvgSizeY: 90, stateSvgRadius: null, layerName: 'rectangle-layer',
-      stateLocationX: 300, stateLocationY: 80, stateSvgName: 'rectangle', slots: [], slotRadius: 5,
-    } as any);
     // `solution` is set BEFORE the first detectChanges(), matching how a /display page's static
     // config binds it — ngOnInit() (fired by this first CD) opens it immediately.
     comp.solution = 'uno-temp-split';
     fixture.detectChanges();
     http.expectOne(`${BASE}/api/cmod/graphs`).flush({ ok: true, graphs: [] });
+    http.expectOne(`${BASE}/SolutionDefinition`).flush(solutionDefinitionResponse([
+      { name: 'AdditionTester.test_addition', stateInstances: [] },   // the default the service would otherwise pick
+      { name: 'uno-temp-split', stateInstances: [rectState('sim-rig', 80), rectState('uno-twin', 320)] },
+    ]));
+    // openSolutionFor() is deferred to a microtask (round 3) specifically so it runs AFTER
+    // initializeFromBackend()'s own synchronous default-reselect — let it run.
+    await Promise.resolve();
 
     expect(realService.getSelectedSolutionName()).toBe('uno-temp-split');
+    expect(realService.getSelectedSolutionName()).not.toBe('AdditionTester.test_addition');
     expect(realService.getSelectedObjectName()).toBe('uno-temp-split');
     expect(realService.getSelectedSolutionStateInstances().length).toBeGreaterThan(0);
     expect(realService.getSolutionStateInstances('uno-temp-split').length).toBeGreaterThan(0);
     expect(navigateSpy).not.toHaveBeenCalled();
   });
 
-  it('the c-canvas graph path (no `solution` input, atoms synthesized as real nodes) leaves a '
-    + 'non-empty, retrievable state list after init, and never navigates', async () => {
+  it('the c-canvas graph path (no `solution` input, atoms synthesized as real nodes) opens the '
+    + 'synthesized solution — not the backend\'s default — leaves a non-empty, retrievable state '
+    + 'list after init, and never navigates', async () => {
     await make();
     fixture.detectChanges();
     http.expectOne(`${BASE}/api/cmod/graphs`).flush({ ok: true, graphs: [] });
+    http.expectOne(`${BASE}/SolutionDefinition`).flush(solutionDefinitionResponse([
+      { name: 'AdditionTester.test_addition', stateInstances: [] },
+    ]));
+    await Promise.resolve();   // let the deferred openSolutionFor() run before its own HTTP fetch
     http.expectOne(`${BASE}/api/cmod/graphs/uno-sim-rig-graph`).flush({
       ok: true, graph: { name: 'uno-sim-rig-graph' },
       nodes: [
@@ -287,6 +316,7 @@ describe('CGraphCanvasPanelComponent — real state service (object context + no
     const name = 'cmod.c-canvas.uno-sim-rig-graph';
     expect(realService.getSolutionStateInstances(name).length).toBe(2);
     expect(realService.getSelectedSolutionName()).toBe(name);
+    expect(realService.getSelectedSolutionName()).not.toBe('AdditionTester.test_addition');
     expect(navigateSpy).not.toHaveBeenCalled();
   });
 });

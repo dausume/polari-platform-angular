@@ -33,24 +33,19 @@
           </button>
           <button class="reset-btn" (click)="onCreateNewSolution()" title="Create a new solution">+ New</button>
         </div>
+        <!-- selfix round 3 (2026-10-05): ONE Runtime select, fed by the 6 Runtime rows (GET
+             /Runtime, static fallback) — merges what used to be two selects (the legacy
+             python_backend/typescript_frontend solution-level code-gen target, and the
+             hardware-lane "New state runtime" picker). Picking python-backend/typescript-browser
+             ALSO drives the legacy solution-level target (onRuntimeSelectChange maps it through
+             onRuntimeChange, unchanged); the other four (c-device/c-twin/java-bridge/
+             javafx-native) have no legacy equivalent and only tag new palette-dropped states /
+             colour the lanes. -->
         <div class="runtime-selector">
           <label for="runtime-select">Runtime:</label>
           <select
             id="runtime-select"
-            (change)="onRuntimeChange($any($event.target).value)">
-            <option value="python_backend" [selected]="solutionTargetRuntime === 'python_backend'">Python (Backend)</option>
-            <option value="typescript_frontend" [selected]="solutionTargetRuntime === 'typescript_frontend'">TypeScript (Frontend)</option>
-          </select>
-        </div>
-        <!-- selfix 2026-10-05: the hardware-lane runtime vocabulary (Runtime class, 6 rows — GET
-             /Runtime with a static fallback), distinct from the solution-level code-gen Runtime
-             above. Picks the runtime new palette-dropped states are tagged with; existing states
-             keep their own. -->
-        <div class="new-state-runtime-selector">
-          <label for="new-state-runtime-select">New state runtime:</label>
-          <select
-            id="new-state-runtime-select"
-            (change)="onNewStateRuntimeChange($any($event.target).value)">
+            (change)="onRuntimeSelectChange($any($event.target).value)">
             <option *ngFor="let r of runtimeOptions" [value]="r.value" [selected]="r.value === newStateRuntime">{{ r.label }}</option>
           </select>
         </div>

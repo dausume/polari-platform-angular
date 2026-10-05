@@ -83,6 +83,19 @@ export const RUNTIME_DISPLAY_LABELS: Record<string, string> = {
 export const RUNTIME_OPTIONS_FALLBACK: { value: string; label: string }[] =
   Object.entries(RUNTIME_DISPLAY_LABELS).map(([value, label]) => ({ value, label }));
 
+/** selfix round 3 (2026-10-05): the ONE merged Runtime select's two hardware-lane values that
+ *  have a legacy TargetRuntime equivalent — picking one of these ALSO drives the solution-level
+ *  code-gen target (onRuntimeChange, unchanged). The other four (c-device/c-twin/java-bridge/
+ *  javafx-native) have no legacy equivalent: they only tag new states / colour lanes. */
+export const RUNTIME_TO_LEGACY_TARGET: Record<string, TargetRuntime> = {
+  'python-backend': 'python_backend',
+  'typescript-browser': 'typescript_frontend',
+};
+export const LEGACY_TARGET_TO_RUNTIME: Record<string, string> = {
+  'python_backend': 'python-backend',
+  'typescript_frontend': 'typescript-browser',
+};
+
 // An Editor which creates a new No-Code Solution by default.
 @Component({
   standalone: false,
@@ -453,8 +466,16 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
         }
       });
 
-    // Try to load solutions from backend (will update the cache asynchronously)
-    this.solutionStateService.initializeFromBackend();
+    // selfix round 3 (2026-10-05): when embedded (syncUrl=false — e.g. inside
+    // c-graph-canvas-panel on a /display page), the EMBEDDER drives the shared service's backend
+    // load and owns the resulting selection; this instance only reacts to whatever is selected
+    // (its existing selectedSolutionName$/selectedObjectName$/availableSolutions$ subscriptions
+    // already do that regardless of who calls initializeFromBackend()). Calling it here too raced
+    // the embedder's own open: this component's default-first-solution reselect could run AFTER
+    // the embedder's (both triggered by the same backend fetch, in either order) and clobber it.
+    if (this.syncUrl) {
+      this.solutionStateService.initializeFromBackend();
+    }
 
     // Connect STOMP and subscribe to SolutionVersion changes for real-time updates
     this.stompService.connect();
@@ -475,8 +496,11 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
         // Always regenerate code so the code view stays in sync
         this.regenerateCode();
 
-        // Refresh the solution list so new/deleted solutions appear
-        this.solutionStateService.initializeFromBackend();
+        // Refresh the solution list so new/deleted solutions appear (not when embedded — see
+        // the ngOnInit call above for why).
+        if (this.syncUrl) {
+          this.solutionStateService.initializeFromBackend();
+        }
 
         // If the active solution was affected, flag it
         if (this.selectedSolutionName) {
@@ -595,6 +619,10 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
    */
   private updateBoundClassAndCodeWithInstances(solutionData: any, freshInstances: NoCodeState[]): void {
     this.solutionTargetRuntime = solutionData.targetRuntime || 'python_backend';
+    // selfix round 3 (2026-10-05): keep the ONE merged Runtime select showing the loaded
+    // solution's own target — only for the two legacy-equivalent values; a hardware-lane pick
+    // (c-device/c-twin/java-bridge/javafx-native) has no targetRuntime counterpart to derive from.
+    this.newStateRuntime = LEGACY_TARGET_TO_RUNTIME[this.solutionTargetRuntime] || this.newStateRuntime;
 
     // Update selected object name from boundClass or from solution name prefix. selfix
     // 2026-10-05: a DOTLESS solution name (no boundClass, no '.') used to blank this to '' —
@@ -694,11 +722,17 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
     this.changeDetectorRef.markForCheck();
   }
 
-  /** selfix 2026-10-05: pick the hardware-lane runtime NEW palette-dropped states are tagged
-   *  with. Existing states are untouched — this only changes what `newStateRuntime` supplies to
-   *  the next state created from the palette. */
-  onNewStateRuntimeChange(runtime: string): void {
+  /** selfix round 3 (2026-10-05): the ONE merged Runtime select's handler. Always picks the
+   *  hardware-lane runtime NEW palette-dropped states are tagged with (existing states are
+   *  untouched). When the picked value has a legacy TargetRuntime equivalent
+   *  (python-backend/typescript-browser), ALSO drives the solution-level code-gen target through
+   *  the unchanged onRuntimeChange — keeping the old select's filter/run-target behavior working. */
+  onRuntimeSelectChange(runtime: string): void {
     this.newStateRuntime = runtime;
+    const legacy = RUNTIME_TO_LEGACY_TARGET[runtime];
+    if (legacy) {
+      this.onRuntimeChange(legacy);
+    }
   }
 
   /**

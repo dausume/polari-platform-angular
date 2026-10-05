@@ -1,10 +1,11 @@
-import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from '@angular/core';
+import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Subject } from 'rxjs';
 import { filter, take, takeUntil } from 'rxjs/operators';
 
 import { PolariService } from '@services/polari-service';
 import { NoCodeSolutionStateService } from '@services/no-code-services/no-code-solution-state.service';
+import { CustomNoCodeComponent } from '../../custom-no-code/custom-no-code';
 
 /**
  * c-graph-canvas-panel — demo-4 / demo-4b (DEMONSTRABLES_PLAN.md §3 demo-4; his ruling 2026-10-04: "the no-code solution
@@ -132,7 +133,12 @@ function runtimeForClass(cls: string): string {
     .cgcp-lane-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
     .cgcp-crossings { font-size: 0.8em; padding: 2px 2px; display: flex; gap: 10px; flex-wrap: wrap; color: var(--text-secondary, #555); }
     .cgcp-crossing { border-left: 2px dashed #888; padding-left: 6px; }
-    custom-no-code { display: block; min-height: 560px; }
+    /* selfix round 3 (2026-10-05): his evidence — uno-temp-split's 8 states (y 180-380, +90 tall)
+       sat at the bottom edge of the embedded canvas and Recenter (resetZoom(), an identity-
+       transform reset — never a "fit to content") couldn't bring them into view because the
+       embedded host simply wasn't tall enough above them (toolbar + lane legend eat into the
+       560px). Taller default so a resetZoom() to identity actually shows the whole pipeline. */
+    custom-no-code { display: block; min-height: 720px; }
   `],
 })
 export class CGraphCanvasPanelComponent implements OnInit, OnChanges, OnDestroy {
@@ -140,6 +146,12 @@ export class CGraphCanvasPanelComponent implements OnInit, OnChanges, OnDestroy 
   /** demo-4b: when set, opens the REAL HardwareSolution drawing by name instead of a synthetic atoms-only solution
    * (its SolutionDefinition already carries the mixed board/bridge/backend nodes — see the class doc above). */
   @Input() solution: string = '';
+
+  /** selfix round 3 (2026-10-05): the embedded canvas, so we can reset its view after opening a
+   *  solution — Recenter (resetZoom()) is an identity-transform reset, never a "fit to content",
+   *  so this is belt-and-suspenders alongside the taller default host height below; it still
+   *  helps if a prior interaction left the view panned/zoomed. */
+  @ViewChild(CustomNoCodeComponent) private canvas?: CustomNoCodeComponent;
 
   graphs: GraphRow[] = [];
   error = '';
@@ -165,10 +177,26 @@ export class CGraphCanvasPanelComponent implements OnInit, OnChanges, OnDestroy 
 
   ngOnInit(): void {
     this.loadGraphs();
-    // initializeFromBackend() populates loading$ → false ONCE, early; wait for that one transition (never a second
-    // persistent subscription per call — pick()/ngOnChanges open directly, loading is already settled by then).
+    // selfix round 3 (2026-10-05): WE call initializeFromBackend() now — the embedded
+    // <custom-no-code syncUrl="false"> no longer does (see its ngOnInit). On a true fresh page
+    // load nothing had called it yet, so loading$'s initial value was already `false`
+    // (its own default) — our OLD take(1) below fired on THAT stale "already false" immediately,
+    // before any real backend data existed, so openSolutionFor() warned-and-no-opped. The embedded
+    // <custom-no-code>'s OWN initializeFromBackend() call (its ngOnInit runs AFTER ours per
+    // Angular's parent-before-child lifecycle order) then "won" with its own default-first-solution
+    // pick once the real fetch completed. Calling it HERE, first, makes loadingSubject.next(true)
+    // happen before we subscribe, so take(1) reliably waits for the REAL completion.
+    this.solutionState.initializeFromBackend();
+    // Even so, initializeFromBackend()'s OWN re-select-on-load runs synchronously, NESTED inside
+    // the same loadingSubject.next(false) call that fires our subscriber below (BehaviorSubject
+    // notifies synchronously) — so our openSolutionFor() would run BEFORE the rest of that
+    // function's default-reselect logic and still get clobbered by it. Deferring to a microtask
+    // guarantees we run strictly after every synchronous reaction to this loading$ transition,
+    // so OUR selection (a `solution` input, or the synthesized c-canvas one) is the one left
+    // standing — never a second, persistent subscription per call (pick()/ngOnChanges open
+    // directly; loading is already settled by then).
     this.solutionState.loading$.pipe(filter((loading: boolean) => !loading), take(1), takeUntil(this.destroy$))
-      .subscribe(() => this.openSolutionFor(this.graph));
+      .subscribe(() => { Promise.resolve().then(() => this.openSolutionFor(this.graph)); });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -252,10 +280,14 @@ export class CGraphCanvasPanelComponent implements OnInit, OnChanges, OnDestroy 
         stateName, id: stateName, index: i, shapeType: 'rectangle', solutionName: name,
         stateClass: 'CAtom', boundObjectClass: 'CAtom',
         boundObjectFieldValues: {
+          displayName: n.instance,
           atom: n.kind === 'c-atom' ? n.atom : n.kind, stage: n.stage || '',
           bindings: n.kind === 'c-atom' ? (n.bindings || '') : (n.params || ''),
         },
-        stateSvgSizeX: 160, stateSvgSizeY: 90, stateSvgRadius: null, layerName: 'rectangle-layer',
+        // selfix round 3 2026-10-05: stateSvgWidth/stateSvgHeight (NOT stateSvgSizeX/Y —
+        // RectangleStateLayer.ts never reads that field, falling back to a bare 20×20 stub) +
+        // cornerRadius, matching the AdditionTester seed's own rectangle-state convention.
+        stateSvgWidth: 160, stateSvgHeight: 90, cornerRadius: 8, stateSvgRadius: null, layerName: 'rectangle-layer',
         stateLocationX: 80 + (i % perRow) * 220, stateLocationY: 80 + Math.floor(i / perRow) * 150, stateSvgName: 'rectangle',
         slots: [
           { index: 0, stateName, slotAngularPosition: 180, connectors: [], isInput: true, allowOneToMany: false, allowManyToOne: true, label: 'in' },
@@ -309,6 +341,11 @@ export class CGraphCanvasPanelComponent implements OnInit, OnChanges, OnDestroy 
       });
     });
     this.crossings = crossings;
+    // selfix round 3 (2026-10-05): reset the embedded canvas's view after (re)opening a
+    // solution — belt-and-suspenders alongside the taller default host height (above); the view
+    // itself may already be live by the time this first runs, so this is a microtask-deferred,
+    // best-effort nudge, never a hard dependency.
+    Promise.resolve().then(() => this.canvas?.resetZoom());
   }
 
   private refreshGlueBuild(): void {
