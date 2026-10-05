@@ -102,7 +102,7 @@ describe('CGraphCanvasPanelComponent (demo-4b)', () => {
     expect(sendState.notes).toContain('read-only');
     expect(solutionState.addConnector).toHaveBeenCalledTimes(2);
     expect(solutionState.addConnector).toHaveBeenCalledWith('cmod.c-canvas.uno-sim-rig-graph', 'adc', 1, 'temp', 0);
-    expect(solutionState.selectSolution).toHaveBeenCalledWith('cmod.c-canvas.uno-sim-rig-graph');
+    expect(solutionState.selectSolution).toHaveBeenCalledWith('cmod.c-canvas.uno-sim-rig-graph', false);
   });
 
   it('a SECOND open of the same graph selects the existing solution — never a duplicate create or a second fetch', async () => {
@@ -137,7 +137,7 @@ describe('CGraphCanvasPanelComponent (demo-4b)', () => {
     comp.pick('uno-temp-split-graph');
     flushGraphDetail('uno-temp-split-graph', { ok: true, graph: {}, nodes: [], edges: [], used_by: [] });
     expect(solutionState.createNewSolution).toHaveBeenCalledWith('cmod.c-canvas.uno-temp-split-graph', jasmine.anything());
-    expect(solutionState.selectSolution).toHaveBeenCalledWith('cmod.c-canvas.uno-temp-split-graph');
+    expect(solutionState.selectSolution).toHaveBeenCalledWith('cmod.c-canvas.uno-temp-split-graph', false);
   });
 
   it('with a `solution` input, opens the REAL solution by name — no synthesis, no createNewSolution at all', async () => {
@@ -145,7 +145,7 @@ describe('CGraphCanvasPanelComponent (demo-4b)', () => {
     flushGraphDetail();   // still fetched once on init (no solution input the first time)
     comp.solution = 'uno-temp-split';
     comp.ngOnChanges({ solution: { firstChange: false } as any });
-    expect(solutionState.selectSolution).toHaveBeenCalledWith('uno-temp-split');
+    expect(solutionState.selectSolution).toHaveBeenCalledWith('uno-temp-split', false);
     const createCallsForReal = solutionState.createNewSolution.calls.allArgs().filter(a => a[0] === 'uno-temp-split');
     expect(createCallsForReal.length).toBe(0);
   });

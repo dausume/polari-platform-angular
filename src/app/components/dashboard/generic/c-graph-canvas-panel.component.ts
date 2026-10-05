@@ -204,21 +204,28 @@ export class CGraphCanvasPanelComponent implements OnInit, OnChanges, OnDestroy 
    * CGraph's own rows — one c-atom node PER CGraphNode, never a single collapsed HardwareSubgraph wrapper.
    */
   private openSolutionFor(graph: string): void {
+    // persist=false on every selectSolution() call in this method (selfix 2026-10-05,
+    // prf-urgent): this panel shares the GLOBAL NoCodeSolutionStateService singleton with
+    // /custom-no-code. Selecting through it with the default persist=true was writing this
+    // panel's choice into localStorage as the user's cross-page "last selected solution" —
+    // visiting /display/hardware-solutions (which opens `uno-temp-split`) then reloading
+    // /custom-no-code restored `uno-temp-split` instead of whatever the URL/dropdown asked for,
+    // with an empty canvas because that solution has nothing to do with the requested object.
     if (this.solution) {
-      this.solutionState.selectSolution(this.solution);
+      this.solutionState.selectSolution(this.solution, false);
       this.applyLanes(this.solution);
       return;
     }
     const name = this.solutionName(graph);
     if (this.solutionState.getSolutionData(name)) {
-      this.solutionState.selectSolution(name);
+      this.solutionState.selectSolution(name, false);
       this.applyLanes(name);
       return;
     }
     this.http.get<any>(`${this.base}/api/cmod/graphs/${encodeURIComponent(graph)}`, { headers: this.headers }).subscribe({
       next: (r: any) => {
         this.buildAtomsSolution(name, r?.nodes || [], r?.edges || []);
-        this.solutionState.selectSolution(name);
+        this.solutionState.selectSolution(name, false);
         this.applyLanes(name);
       },
       error: () => {
@@ -226,7 +233,7 @@ export class CGraphCanvasPanelComponent implements OnInit, OnChanges, OnDestroy 
         if (!this.solutionState.getSolutionData(name)) {
           this.solutionState.createNewSolution(name, { targetRuntime: 'typescript_frontend' as any });
         }
-        this.solutionState.selectSolution(name);
+        this.solutionState.selectSolution(name, false);
       },
     });
   }

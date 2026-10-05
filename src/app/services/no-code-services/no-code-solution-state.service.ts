@@ -37,7 +37,12 @@ interface SolutionCache {
 }
 
 const CACHE_KEY = 'polari-no-code-solutions-cache';
-const CACHE_VERSION = 9; // Bump version when mock data changes to force cache invalidation
+// selfix 2026-10-05 (prf-urgent, dev-selfix): bumped 9 -> 10 to flush every already-poisoned
+// localStorage cache in the field. c-graph-canvas-panel's synthesized `cmod.c-canvas.<graph>`
+// solution (and a `selectSolution()` call made from a /display page) had been getting written
+// into this SAME shared cache — persisting a cross-page "last selected solution" that then won
+// on the next load of /custom-no-code, regardless of the URL or the object actually requested.
+const CACHE_VERSION = 10; // Bump version when mock data changes to force cache invalidation
 
 @Injectable({
   providedIn: 'root'
@@ -76,6 +81,23 @@ export class NoCodeSolutionStateService {
   // stale localStorage entries from resurrecting deleted backend records.
   private locallyCreatedSolutions: Set<string> = new Set();
 
+  /**
+   * A solution name owned exclusively by c-graph-canvas-panel's "ensure" adapter path
+   * (demo-4b, `cmod.c-canvas.<graph>`) — a synthesized, read-only presentation of a CGraph.
+   * It is NOT a real Object/Solution a person authored, so it must never: appear in the
+   * Object/Solution dropdowns, get written to the backend SolutionDefinition table, or be
+   * persisted as the "last selected solution" in localStorage. Name-convention-based (not a
+   * flag) so it also hides any copy that already leaked onto the backend before this fix.
+   */
+  private isHiddenSolutionName(name: string | null | undefined): boolean {
+    return !!name && name.startsWith('cmod.c-canvas.');
+  }
+
+  private getObjectFromSolutionName(name: string): string {
+    const dotIndex = name.indexOf('.');
+    return dotIndex >= 0 ? name.substring(0, dotIndex) : name;
+  }
+
   constructor(private solutionManager: SolutionManagerService) {
     // Set up debounced backend saves (save 2 seconds after last mutation)
     this.backendSaveSubject.pipe(
@@ -112,6 +134,10 @@ export class NoCodeSolutionStateService {
         // refresh so the selection stays put until the backend actually has it.
         const pendingLocal = new Map<string, NoCodeSolutionRawData>();
         this.locallyCreatedSolutions.forEach(name => {
+          // Never carry a hidden/synthesized name forward as a selectable, persistable entry —
+          // it belongs only to whichever c-graph-canvas-panel instance ensured it, never to the
+          // shared Object/Solution picker.
+          if (this.isHiddenSolutionName(name)) return;
           if (!this.backendIdMap.has(name) && this.solutionsCache.has(name)) {
             pendingLocal.set(name, this.solutionsCache.get(name)!);
           }
@@ -142,11 +168,28 @@ export class NoCodeSolutionStateService {
           return;
         }
 
-        // Force re-select so component renders the backend version of the data.
-        // Reset the subject first so the subscription fires even for the same name.
-        const targetSolution = (previousSelection && this.solutionsCache.has(previousSelection))
-          ? previousSelection
-          : (solutions[0]?.solutionName ?? this.solutionsCache.keys().next().value as string);
+        // The restored/previous selection only wins if it is still a REAL object the backend
+        // confirms, or a solution the user created locally THIS session (pendingLocal) — never
+        // a hidden/synthesized name, and never a stale name whose object the backend no longer
+        // knows about. This stops a cross-page-sticky selection (e.g. a display page's
+        // `uno-temp-split` or a leaked `cmod.c-canvas.*` row) from surviving into a page/object
+        // it has nothing to do with. Force re-select so the component renders the backend
+        // version even when the name is unchanged (reset the subject first).
+        const knownObjects = new Set(solutions.map(s => this.getObjectFromSolutionName(s.solutionName)));
+        const isValidPrevious = !!previousSelection
+          && !this.isHiddenSolutionName(previousSelection)
+          && this.solutionsCache.has(previousSelection)
+          && (knownObjects.has(this.getObjectFromSolutionName(previousSelection)) || pendingLocal.has(previousSelection));
+
+        const firstVisibleBackend = solutions.find(s => !this.isHiddenSolutionName(s.solutionName))?.solutionName;
+        const firstVisibleCached = Array.from(this.solutionsCache.keys()).find(n => !this.isHiddenSolutionName(n));
+        const targetSolution = isValidPrevious ? previousSelection! : (firstVisibleBackend ?? firstVisibleCached);
+
+        if (!targetSolution) {
+          // Only hidden solutions are in cache (e.g. a panel ensured one before any real
+          // backend solution existed) — nothing visible to select.
+          return;
+        }
 
         this.selectedSolutionNameSubject.next(null);
         this.selectSolution(targetSolution);
@@ -168,6 +211,10 @@ export class NoCodeSolutionStateService {
   private saveAllToBackend(): void {
     if (!this.backendAvailable) return;
     this.solutionsCache.forEach((solution, name) => {
+      // A hidden/synthesized presentation solution (c-graph-canvas-panel's `cmod.c-canvas.<graph>`)
+      // must never be auto-created on the backend — that's exactly how `cmod` leaked into the
+      // real SolutionDefinition table and started showing up as an Object for every visitor.
+      if (this.isHiddenSolutionName(name)) return;
       const backendId = this.backendIdMap.get(name);
       if (backendId) {
         this.solutionManager.saveSolution(backendId, solution).subscribe({
@@ -208,15 +255,21 @@ export class NoCodeSolutionStateService {
     const cached = this.loadFromLocalStorage();
 
     if (cached && cached.version === CACHE_VERSION) {
-      // Restore from cache
+      // Restore from cache — hidden/synthesized names are skipped even here as a defensive
+      // second layer (saveToLocalStorage should never write one in the first place as of this
+      // fix, but a cache saved just before a rollout, or by an older tab, still could).
       Object.entries(cached.solutions).forEach(([name, data]) => {
+        if (this.isHiddenSolutionName(name)) return;
         this.solutionsCache.set(name, data);
       });
 
       this.updateAvailableSolutions();
 
-      // Restore selected solution
-      if (cached.selectedSolutionName && this.solutionsCache.has(cached.selectedSolutionName)) {
+      // Restore selected solution — never a hidden name, and initializeFromBackend() will still
+      // re-validate this pick against the real object list once the backend responds.
+      if (cached.selectedSolutionName
+        && !this.isHiddenSolutionName(cached.selectedSolutionName)
+        && this.solutionsCache.has(cached.selectedSolutionName)) {
         this.selectSolution(cached.selectedSolutionName);
       }
     }
@@ -230,6 +283,10 @@ export class NoCodeSolutionStateService {
     const available: { id: number; name: string }[] = [];
     let id = 1;
     this.solutionsCache.forEach((solution, name) => {
+      // Hidden/synthesized presentation solutions (c-graph-canvas-panel's `cmod.c-canvas.<graph>`)
+      // are never a real Object/Solution a person authored — keep them out of the picker
+      // regardless of whether they came from this session or an already-leaked backend row.
+      if (this.isHiddenSolutionName(name)) return;
       available.push({ id: solution.id || id++, name });
     });
     this.availableSolutionsSubject.next(available);
@@ -256,14 +313,21 @@ export class NoCodeSolutionStateService {
    */
   private saveToLocalStorage(): void {
     try {
+      const selected = this.selectedSolutionNameSubject.value;
       const cache: SolutionCache = {
         solutions: {},
-        selectedSolutionName: this.selectedSolutionNameSubject.value,
+        // Never persist a hidden/synthesized name as "the last selected solution" — it belongs
+        // to whichever c-graph-canvas-panel instance selected it (and only while persist=false
+        // wasn't already honored upstream — this is the belt-and-suspenders last line).
+        selectedSolutionName: this.isHiddenSolutionName(selected) ? null : selected,
         lastUpdated: Date.now(),
         version: CACHE_VERSION
       };
 
       this.solutionsCache.forEach((solution, name) => {
+        // Never write the panel's synthesized presentation solution into the shared cache —
+        // this is what let a /display page's canvas poison every other page's reload.
+        if (this.isHiddenSolutionName(name)) return;
         cache.solutions[name] = solution;
       });
 
@@ -274,9 +338,14 @@ export class NoCodeSolutionStateService {
   }
 
   /**
-   * Select a solution by name
+   * Select a solution by name.
+   * @param persist When false, updates the live selection (so a panel/preview surface can open
+   *   a solution through this SAME shared service) without writing it to localStorage as the
+   *   user's global "last selected solution" — e.g. c-graph-canvas-panel on a /display page must
+   *   not hijack what /custom-no-code restores on its next load. Defaults to true for every
+   *   normal caller (the dropdown, URL-driven selection, etc).
    */
-  selectSolution(solutionName: string): void {
+  selectSolution(solutionName: string, persist: boolean = true): void {
     // console.log('[StateService] selectSolution called with:', solutionName);
     const solution = this.solutionsCache.get(solutionName);
     // console.log('[StateService] Found solution:', solution);
@@ -286,7 +355,9 @@ export class NoCodeSolutionStateService {
       // triggers component to read the data immediately
       this.selectedSolutionDataSubject.next(solution);
       this.selectedSolutionNameSubject.next(solutionName);
-      this.saveToLocalStorage();
+      if (persist) {
+        this.saveToLocalStorage();
+      }
     } else {
       console.warn(`Solution '${solutionName}' not found in cache`);
     }
@@ -297,6 +368,14 @@ export class NoCodeSolutionStateService {
    */
   getSelectedSolutionName(): string | null {
     return this.selectedSolutionNameSubject.value;
+  }
+
+  /**
+   * Snapshot of the current Object/Solution dropdown contents (the same list availableSolutions$
+   * emits) — hidden/synthesized names are already filtered out by updateAvailableSolutions().
+   */
+  getAvailableSolutions(): { id: number; name: string }[] {
+    return this.availableSolutionsSubject.value;
   }
 
   /**
