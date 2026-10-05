@@ -203,3 +203,90 @@ describe('CGraphCanvasPanelComponent (demo-4b)', () => {
     expect(comp.proveResult.frames_compared).toBe(40);
   });
 });
+
+/**
+ * selfix 2026-10-05 (round 2) — against the REAL NoCodeSolutionStateService (not a spy), so these
+ * specs exercise the actual persist=false / object-context / no-URL-sync behavior end to end,
+ * matching the live bug: /display/hardware-solutions showed Object `AdditionTester` + Solution
+ * `uno-temp-split` with an EMPTY canvas, and the panel's own navigation must never touch the URL.
+ */
+describe('CGraphCanvasPanelComponent — real state service (object context + no URL sync)', () => {
+  let fixture: ComponentFixture<CGraphCanvasPanelComponent>;
+  let comp: CGraphCanvasPanelComponent;
+  let http: HttpTestingController;
+  let realService: NoCodeSolutionStateService;
+  let navigateSpy: jasmine.Spy;
+  const BASE = 'http://backend.test';
+
+  async function make() {
+    navigateSpy = jasmine.createSpy('navigate');
+    await TestBed.configureTestingModule({
+      declarations: [CGraphCanvasPanelComponent],
+      schemas: [NO_ERRORS_SCHEMA],
+      providers: [
+        provideHttpClient(), provideHttpClientTesting(),
+        { provide: PolariService, useValue: { getBackendBaseUrl: () => BASE, backendRequestOptions: {} } },
+        { provide: Router, useValue: { navigate: navigateSpy } },
+        NoCodeSolutionStateService,
+      ],
+    }).compileComponents();
+    realService = TestBed.inject(NoCodeSolutionStateService);
+    fixture = TestBed.createComponent(CGraphCanvasPanelComponent);
+    comp = fixture.componentInstance;
+    http = TestBed.inject(HttpTestingController);
+  }
+
+  afterEach(() => http.verify());
+
+  it('a `solution` input (uno-temp-split, a real DOTLESS backend solution with states) renders '
+    + 'N>0 states, syncs the object context to uno-temp-split (not a stale default), and never navigates', async () => {
+    await make();
+    // Seed the real service exactly like a backend-loaded solution — dotless name, real states —
+    // via its own public mutators (the same ones buildAtomsSolution()/applyLanes() use).
+    realService.createNewSolution('uno-temp-split', { targetRuntime: 'typescript_frontend' as any });
+    realService.addStateToSolution('uno-temp-split', {
+      stateName: 'sim-rig', id: 's1', index: 0, shapeType: 'rectangle', solutionName: 'uno-temp-split',
+      stateClass: 'HardwareSubgraph', boundObjectClass: 'HardwareSubgraph', boundObjectFieldValues: {},
+      stateSvgSizeX: 160, stateSvgSizeY: 90, stateSvgRadius: null, layerName: 'rectangle-layer',
+      stateLocationX: 80, stateLocationY: 80, stateSvgName: 'rectangle', slots: [], slotRadius: 5,
+    } as any);
+    realService.addStateToSolution('uno-temp-split', {
+      stateName: 'uno-twin', id: 's2', index: 1, shapeType: 'rectangle', solutionName: 'uno-temp-split',
+      stateClass: 'HardwareInterface', boundObjectClass: 'HardwareInterface', boundObjectFieldValues: {},
+      stateSvgSizeX: 160, stateSvgSizeY: 90, stateSvgRadius: null, layerName: 'rectangle-layer',
+      stateLocationX: 300, stateLocationY: 80, stateSvgName: 'rectangle', slots: [], slotRadius: 5,
+    } as any);
+    // `solution` is set BEFORE the first detectChanges(), matching how a /display page's static
+    // config binds it — ngOnInit() (fired by this first CD) opens it immediately.
+    comp.solution = 'uno-temp-split';
+    fixture.detectChanges();
+    http.expectOne(`${BASE}/api/cmod/graphs`).flush({ ok: true, graphs: [] });
+
+    expect(realService.getSelectedSolutionName()).toBe('uno-temp-split');
+    expect(realService.getSelectedObjectName()).toBe('uno-temp-split');
+    expect(realService.getSelectedSolutionStateInstances().length).toBeGreaterThan(0);
+    expect(realService.getSolutionStateInstances('uno-temp-split').length).toBeGreaterThan(0);
+    expect(navigateSpy).not.toHaveBeenCalled();
+  });
+
+  it('the c-canvas graph path (no `solution` input, atoms synthesized as real nodes) leaves a '
+    + 'non-empty, retrievable state list after init, and never navigates', async () => {
+    await make();
+    fixture.detectChanges();
+    http.expectOne(`${BASE}/api/cmod/graphs`).flush({ ok: true, graphs: [] });
+    http.expectOne(`${BASE}/api/cmod/graphs/uno-sim-rig-graph`).flush({
+      ok: true, graph: { name: 'uno-sim-rig-graph' },
+      nodes: [
+        { instance: 'adc', kind: 'c-atom', atom: 'uno:hal.hal_adc_read', stage: 'tick', order: 0, bindings: '', params: '' },
+        { instance: 'temp', kind: 'c-atom', atom: 'uno:hal.sensor_value', stage: 'tick', order: 1, bindings: '', params: '' },
+      ],
+      edges: [{ kind: 'data', from_node: 'adc', from_port: 'return', to_node: 'temp', to_port: 'raw', order: 0 }],
+      used_by: [],
+    });
+
+    const name = 'cmod.c-canvas.uno-sim-rig-graph';
+    expect(realService.getSolutionStateInstances(name).length).toBe(2);
+    expect(realService.getSelectedSolutionName()).toBe(name);
+    expect(navigateSpy).not.toHaveBeenCalled();
+  });
+});

@@ -34,6 +34,8 @@ export interface NoCodeStateRawData {
   // State-space bindings
   boundObjectClass?: string;
   boundObjectFieldValues?: { [key: string]: any };
+  // selfix 2026-10-05 (demo-4b): the hardware-lane Runtime this state runs on — see NoCodeState.runtime.
+  runtime?: string;
 }
 
 /**

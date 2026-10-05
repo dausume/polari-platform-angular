@@ -59,6 +59,22 @@ export class NoCodeSolutionStateService {
   private selectedSolutionDataSubject = new BehaviorSubject<NoCodeSolutionRawData | null>(null);
   public selectedSolutionData$ = this.selectedSolutionDataSubject.asObservable();
 
+  // The OBJECT (first dot-segment) of the currently selected solution — kept authoritatively in
+  // sync with selectedSolutionNameSubject by selectSolution() itself (selfix 2026-10-05), so a
+  // consumer never has to re-derive it independently and risk it drifting out of sync with the
+  // actual selection (that drift — the toolbar's Object staying on a stale default while the
+  // Solution already changed — is exactly what left the canvas empty on /display pages).
+  private selectedObjectNameSubject = new BehaviorSubject<string | null>(null);
+  public selectedObjectName$ = this.selectedObjectNameSubject.asObservable();
+
+  // The last solution name actually PERSISTED to localStorage as "the user's selection" — kept
+  // separate from selectedSolutionNameSubject (the live, rendered selection) so that a
+  // persist=false selectSolution() call (a panel opening a solution for preview) can change what
+  // renders without saveToLocalStorage() — called by ANY mutator, e.g. applyLanes()'s
+  // updateStateInstance()/updateStatePositions(), or the debounced backend save — silently
+  // re-deriving and re-persisting the live value anyway.
+  private persistedSelectedSolutionName: string | null = null;
+
   // Available solution names for the selector
   private availableSolutionsSubject = new BehaviorSubject<{ id: number; name: string }[]>([]);
   public availableSolutions$ = this.availableSolutionsSubject.asObservable();
@@ -96,6 +112,19 @@ export class NoCodeSolutionStateService {
   private getObjectFromSolutionName(name: string): string {
     const dotIndex = name.indexOf('.');
     return dotIndex >= 0 ? name.substring(0, dotIndex) : name;
+  }
+
+  /**
+   * A dotless solution name (no `<Object>.<solution>` structure, e.g. `uno-temp-split`) is its
+   * own "object" by the getObjectFromSolutionName() convention — indistinguishable from a real
+   * multi-solution object. selfix 2026-10-05: a dotless name auto-restored as the sticky
+   * selection is exactly the pollution pattern seen in the field (`uno-temp-split`,
+   * `uno-temp-split.backend`'s sibling, `solid-ball-achievable`), so it is never eligible to be
+   * an AUTOMATIC restore/previous-selection pick — only an explicit user action (the dropdown)
+   * may select one.
+   */
+  private isDotlessName(name: string | null | undefined): boolean {
+    return !!name && name.indexOf('.') < 0;
   }
 
   constructor(private solutionManager: SolutionManagerService) {
@@ -178,6 +207,11 @@ export class NoCodeSolutionStateService {
         const knownObjects = new Set(solutions.map(s => this.getObjectFromSolutionName(s.solutionName)));
         const isValidPrevious = !!previousSelection
           && !this.isHiddenSolutionName(previousSelection)
+          // A dotless name's "object" is itself — the exact pollution pattern (`uno-temp-split`)
+          // that let a /display page's selection survive as /custom-no-code's restored default.
+          // It stays selectABLE (the dropdown can still pick it explicitly), just never an
+          // AUTOMATIC restore target.
+          && !this.isDotlessName(previousSelection)
           && this.solutionsCache.has(previousSelection)
           && (knownObjects.has(this.getObjectFromSolutionName(previousSelection)) || pendingLocal.has(previousSelection));
 
@@ -265,10 +299,13 @@ export class NoCodeSolutionStateService {
 
       this.updateAvailableSolutions();
 
-      // Restore selected solution — never a hidden name, and initializeFromBackend() will still
-      // re-validate this pick against the real object list once the backend responds.
+      // Restore selected solution — never a hidden name, never a dotless name (its "object" is
+      // itself, indistinguishable from real pollution — see isDotlessName()), and
+      // initializeFromBackend() will still re-validate this pick against the real object list
+      // once the backend responds.
       if (cached.selectedSolutionName
         && !this.isHiddenSolutionName(cached.selectedSolutionName)
+        && !this.isDotlessName(cached.selectedSolutionName)
         && this.solutionsCache.has(cached.selectedSolutionName)) {
         this.selectSolution(cached.selectedSolutionName);
       }
@@ -313,12 +350,21 @@ export class NoCodeSolutionStateService {
    */
   private saveToLocalStorage(): void {
     try {
-      const selected = this.selectedSolutionNameSubject.value;
+      // IMPORTANT (selfix 2026-10-05): read the separately-tracked `persistedSelectedSolutionName`
+      // here, NOT the live `selectedSolutionNameSubject.value`. Every solution-data mutator
+      // (createNewSolution, updateStateInstance, updateStatePositions, …) calls this method to
+      // persist its DATA change, and used to re-derive "selectedSolutionName" from whatever is
+      // currently live — which silently re-leaked a persist=false selection (e.g. a
+      // c-graph-canvas-panel preview on a /display page) into the shared cache the moment
+      // applyLanes() touched a state. Only selectSolution(name, true) may change what gets
+      // written here.
+      const selected = this.persistedSelectedSolutionName;
       const cache: SolutionCache = {
         solutions: {},
         // Never persist a hidden/synthesized name as "the last selected solution" — it belongs
-        // to whichever c-graph-canvas-panel instance selected it (and only while persist=false
-        // wasn't already honored upstream — this is the belt-and-suspenders last line).
+        // to whichever c-graph-canvas-panel instance selected it (belt-and-suspenders; selectSolution
+        // itself never sets persistedSelectedSolutionName to a hidden name when persist=true since
+        // callers never pass persist=true for one, but a future caller could).
         selectedSolutionName: this.isHiddenSolutionName(selected) ? null : selected,
         lastUpdated: Date.now(),
         version: CACHE_VERSION
@@ -355,12 +401,25 @@ export class NoCodeSolutionStateService {
       // triggers component to read the data immediately
       this.selectedSolutionDataSubject.next(solution);
       this.selectedSolutionNameSubject.next(solutionName);
+      // The object context ALWAYS tracks the live selection, persisted or not — a consumer
+      // (custom-no-code's toolbar) reads this instead of re-deriving its own "selected object"
+      // from the solution name independently, which is what let the two drift apart.
+      this.selectedObjectNameSubject.next(this.getObjectFromSolutionName(solutionName));
       if (persist) {
+        this.persistedSelectedSolutionName = solutionName;
         this.saveToLocalStorage();
       }
     } else {
       console.warn(`Solution '${solutionName}' not found in cache`);
     }
+  }
+
+  /**
+   * The object (first dot-segment) of the currently selected solution, kept in sync by
+   * selectSolution() regardless of its `persist` flag.
+   */
+  getSelectedObjectName(): string | null {
+    return this.selectedObjectNameSubject.value;
   }
 
   /**
@@ -628,6 +687,9 @@ export class NoCodeSolutionStateService {
     }
     if (raw.boundObjectFieldValues) {
       state.boundObjectFieldValues = raw.boundObjectFieldValues;
+    }
+    if (raw.runtime) {
+      state.runtime = raw.runtime;
     }
 
     return state;

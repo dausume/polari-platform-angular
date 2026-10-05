@@ -111,7 +111,10 @@ function runtimeForClass(cls: string): string {
         <span class="cgcp-crossing" *ngFor="let c of crossings">{{ c.from }} ({{ c.fromRuntime }}) ⇢ {{ c.to }} ({{ c.toRuntime }})</span>
       </div>
 
-      <custom-no-code></custom-no-code>
+      <!-- syncUrl=false (selfix 2026-10-05): this embedded canvas previews whatever
+           openSolutionFor() selects through the SAME shared service — it must never rewrite the
+           HOST page's URL (a /display page is not the no-code editor route). -->
+      <custom-no-code [syncUrl]="false"></custom-no-code>
     </div>
   `,
   styles: [`
@@ -279,7 +282,10 @@ export class CGraphCanvasPanelComponent implements OnInit, OnChanges, OnDestroy 
     const runtimeOf: Record<string, string> = {};
     const byRuntime: Record<string, any[]> = {};
     states.forEach((s: any) => {
-      const rt = runtimeForClass(s.stateClass || s.boundObjectClass || '');
+      // selfix 2026-10-05: a state tagged with its own Runtime (set from custom-no-code's "New
+      // state runtime" picker when created) wins outright — only fall back to the class-based
+      // inference for states that predate the picker / weren't created through it.
+      const rt = (s.runtime && RUNTIME_COLORS[s.runtime]) ? s.runtime : runtimeForClass(s.stateClass || s.boundObjectClass || '');
       runtimeOf[s.stateName] = rt;
       (byRuntime[rt] = byRuntime[rt] || []).push(s);
     });

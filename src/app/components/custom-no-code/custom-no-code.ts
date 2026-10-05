@@ -1,7 +1,9 @@
 // Author: Dustin Etts
 // polari-platform-angular/src/app/components/custom-no-code/custom-no-code.ts
-import { Component, Renderer2, HostListener, ElementRef, ChangeDetectorRef, ViewChild, ViewContainerRef, AfterViewInit, OnDestroy, OnInit } from '@angular/core';
+import { Component, Input, Renderer2, HostListener, ElementRef, ChangeDetectorRef, ViewChild, ViewContainerRef, AfterViewInit, OnDestroy, OnInit } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
+import { PolariService } from '@services/polari-service';
 import { uniqueNamesGenerator, adjectives, colors, animals } from 'unique-names-generator';
 import { NoCodeState } from '@models/noCode/NoCodeState';
 import { NoCodeSolution } from '@models/noCode/NoCodeSolution';
@@ -65,6 +67,22 @@ import { SlotConfiguration, SlotConnectionInfo, InputMappingMode, OutputMappingM
 import { StateSlotManagerConfig, SolutionSlotDefaults } from './popups/state-slot-manager-popup/state-slot-manager-popup.component';
 import { PotentialContext } from '@models/stateSpace';
 
+/** selfix 2026-10-05 (demo-4b): the 6 hardware-lane Runtime rows' display labels, exactly as his
+ *  ruling named them (c-graph-canvas-panel's RUNTIME_COLORS carries the SAME 6 keys for lane
+ *  colouring — this is the picker half). Static fallback used until/unless the live `GET
+ *  /Runtime` fetch (constructor) succeeds. */
+export const RUNTIME_DISPLAY_LABELS: Record<string, string> = {
+  'python-backend': 'Python (Backend)',
+  'typescript-browser': 'TypeScript (Browser)',
+  'c-device': 'C (Hardware)',
+  'c-twin': 'C (Twin)',
+  'java-bridge': 'Java (Native bridge backend)',
+  'javafx-native': 'JavaFX (Native bridge frontend)',
+};
+
+export const RUNTIME_OPTIONS_FALLBACK: { value: string; label: string }[] =
+  Object.entries(RUNTIME_DISPLAY_LABELS).map(([value, label]) => ({ value, label }));
+
 // An Editor which creates a new No-Code Solution by default.
 @Component({
   standalone: false,
@@ -83,6 +101,14 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
 
   //@ts-ignore
   @ViewChild('d3Graph', { static: true }) d3Graph: ElementRef;
+
+  /** selfix 2026-10-05: true (default) for the top-level /custom-no-code route — the
+   *  selectedSolutionName$ subscription keeps the URL in sync (shareable, survives refresh).
+   *  c-graph-canvas-panel sets this false on its embedded <custom-no-code> (used on /display
+   *  pages): an embedded canvas previewing a solution must never rewrite the HOST page's URL
+   *  (that's what appended `?focusSolution=uno-temp-split&object=uno-temp-split` to a display
+   *  page that has nothing to do with the no-code URL scheme). */
+  @Input() syncUrl = true;
 
   polariAccessNodeSubject = new BehaviorSubject<NoCodeState>(new NoCodeState());
 
@@ -246,6 +272,16 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
   // Target runtime for the current solution
   solutionTargetRuntime: TargetRuntime = 'python_backend';
 
+  /** selfix 2026-10-05: the hardware-lane Runtime options (c-device/c-twin/java-bridge/
+   *  javafx-native/python-backend/typescript-browser) — distinct from solutionTargetRuntime
+   *  above (that's the solution's whole-code-gen target). Populated from the static fallback
+   *  immediately; the constructor's best-effort GET /Runtime overwrites it with the live rows. */
+  runtimeOptions: { value: string; label: string }[] = RUNTIME_OPTIONS_FALLBACK;
+
+  /** The runtime newly-dropped palette states are tagged with; default python-backend. Existing
+   *  states keep whatever runtime they already carry. */
+  newStateRuntime: string = 'python-backend';
+
   // Track unique states (InitialState, ReturnStatement) that already exist in the solution
   // Used to filter these from the sidebar when they're already present
   existingUniqueStates: Set<string> = new Set();
@@ -270,7 +306,9 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
       private route: ActivatedRoute,
       private router: Router,
       private classTypingService: ClassTypingService,
-      private dialog: MatDialog
+      private dialog: MatDialog,
+      private http: HttpClient,
+      private polariService: PolariService
   )
   {
     // Debounce resize events to avoid excessive updates
@@ -278,6 +316,20 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
       debounceTime(100),
       takeUntil(this.destroy$)
     ).subscribe(() => this.onResize());
+
+    // selfix 2026-10-05: best-effort live fetch of the Runtime class (6 rows — demo-4b; his
+    // ruling that C/Java-bridge/JavaFX are their own runtimes) with the SAME static fallback
+    // hard-coded in case the API is unreachable, so the dropdown always has all six.
+    this.http.get<any>(`${this.polariService.getBackendBaseUrl()}/Runtime`, this.polariService.backendRequestOptions)
+      .subscribe({
+        next: (response: any) => {
+          const rows = response?.[0]?.Runtime?.[0]?.data as { name: string; language?: string; kind?: string }[] | undefined;
+          if (rows?.length) {
+            this.runtimeOptions = rows.map(r => ({ value: r.name, label: RUNTIME_DISPLAY_LABELS[r.name] || r.name }));
+          }
+        },
+        error: () => { /* static RUNTIME_OPTIONS_FALLBACK already in place — degrade silently */ },
+      });
   }
 
   // To do our initial rendering we should use the NoCodeStateRendererManager and ensure all
@@ -324,6 +376,21 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
           // selector and URL-based nav coherent both ways. The queryParams
           // listener guards against a re-select loop.
           this.syncUrlToSelectedSolution(solutionName);
+        }
+      });
+
+    // selfix 2026-10-05: the service's own object context (kept atomically in sync with the
+    // selected solution by selectSolution() itself, persist=false included) is a second,
+    // authoritative source for selectedObjectName — a direct defense against this component's
+    // own derived-and-cached selectedObjectName ever drifting from the solution actually open
+    // (see updateObjectAndSolutionLists()'s fix above for the mechanism that caused the drift).
+    this.solutionStateService.selectedObjectName$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(objectName => {
+        if (objectName && objectName !== this.selectedObjectName) {
+          this.selectedObjectName = objectName;
+          this.updateFilteredSolutions();
+          this.changeDetectorRef.markForCheck();
         }
       });
 
@@ -529,11 +596,18 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
   private updateBoundClassAndCodeWithInstances(solutionData: any, freshInstances: NoCodeState[]): void {
     this.solutionTargetRuntime = solutionData.targetRuntime || 'python_backend';
 
-    // Update selected object name from boundClass or from solution name prefix
+    // Update selected object name from boundClass or from solution name prefix. selfix
+    // 2026-10-05: a DOTLESS solution name (no boundClass, no '.') used to blank this to '' —
+    // updateObjectAndSolutionLists() then fell back to the alphabetically-first object
+    // (`AdditionTester`), desyncing the toolbar's Object from the Solution actually open. A
+    // dotless name's object, by the SAME convention getObjectFromSolutionName() uses everywhere
+    // else, is itself.
     if (solutionData.boundClass?.className) {
       this.selectedObjectName = solutionData.boundClass.className;
-    } else if (solutionData.solutionName?.includes('.')) {
-      this.selectedObjectName = solutionData.solutionName.split('.')[0];
+    } else if (solutionData.solutionName) {
+      this.selectedObjectName = solutionData.solutionName.includes('.')
+        ? solutionData.solutionName.split('.')[0]
+        : solutionData.solutionName;
     } else {
       this.selectedObjectName = '';
     }
@@ -618,6 +692,13 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
     this.regenerateCode();
 
     this.changeDetectorRef.markForCheck();
+  }
+
+  /** selfix 2026-10-05: pick the hardware-lane runtime NEW palette-dropped states are tagged
+   *  with. Existing states are untouched — this only changes what `newStateRuntime` supplies to
+   *  the next state created from the palette. */
+  onNewStateRuntimeChange(runtime: string): void {
+    this.newStateRuntime = runtime;
   }
 
   /**
@@ -2583,6 +2664,7 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
    *  preserves other query params. The queryParams listener guards re-select
    *  loops (it early-returns when the param already matches the selection). */
   private syncUrlToSelectedSolution(solutionName: string): void {
+    if (!this.syncUrl) return; // embedded (e.g. inside c-graph-canvas-panel) — never touch the host URL
     if (!solutionName) return;
     if (this.route.snapshot.queryParams['focusSolution'] === solutionName) return;
     this.router.navigate([], {
@@ -2623,15 +2705,21 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
     }
     this.availableObjectNames = Array.from(objectSet).sort();
 
-    // If current object is no longer in the list, select the first one
-    if (this.selectedObjectName && !objectSet.has(this.selectedObjectName)) {
-      this.selectedObjectName = this.availableObjectNames[0] || '';
-    }
-    // If no object selected yet, pick from the current solution or the first available
-    if (!this.selectedObjectName && this.selectedSolutionName) {
+    // selfix 2026-10-05: the currently SELECTED SOLUTION's own object is the single source of
+    // truth and must win whenever it's actually known — checked FIRST. The previous order
+    // checked "is the current selectedObjectName still valid" before ever reconciling against
+    // the live selection, so a transient/stale availableSolutions snapshot (e.g. right after a
+    // backend refresh, before this exact name's object had been indexed) could reset
+    // selectedObjectName to the alphabetically-first object and leave it stuck there even once
+    // the real object WAS indexed — the toolbar showing Object `AdditionTester` while Solution
+    // correctly showed whatever a panel/URL had actually selected, filtering that solution's own
+    // states out of the (object-scoped) dropdown and leaving the canvas looking empty.
+    if (this.selectedSolutionName && objectSet.has(this.getObjectFromSolutionName(this.selectedSolutionName))) {
       this.selectedObjectName = this.getObjectFromSolutionName(this.selectedSolutionName);
-    }
-    if (!this.selectedObjectName && this.availableObjectNames.length > 0) {
+    } else if (this.selectedObjectName && !objectSet.has(this.selectedObjectName)) {
+      // Current object no longer exists at all — fall back to the first available one.
+      this.selectedObjectName = this.availableObjectNames[0] || '';
+    } else if (!this.selectedObjectName && this.availableObjectNames.length > 0) {
       this.selectedObjectName = this.availableObjectNames[0];
     }
 
@@ -5097,7 +5185,10 @@ private dragRectangle(): any {
       stateSvgName: newState.stateSvgName || '',
       slots: slots, // Include full slot data with conditional properties
       slotRadius: newState.slotRadius ?? 4,
-      backgroundColor: newState.backgroundColor || item.color || '#3f51b5'
+      backgroundColor: newState.backgroundColor || item.color || '#3f51b5',
+      // selfix 2026-10-05: tag new palette-dropped states with the picked hardware-lane runtime;
+      // existing states (not going through this creation path) keep whatever they already have.
+      runtime: this.newStateRuntime
     });
 
     // Re-render the solution to show the new state

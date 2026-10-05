@@ -171,20 +171,22 @@ describe('NoCodeSolutionStateService', () => {
   describe('a restored/previous selection must be dropped if the backend no longer knows its object', () => {
     it('falls back to a real backend solution when the sticky selection\'s object is gone from the backend', () => {
       // Seed a persisted cache the way a poisoned prior session would (pre-fix) — a selection
-      // left over from a /display page, for an object the CURRENT backend response doesn't have.
+      // left over for an object the CURRENT backend response doesn't have. (Dotted, on purpose:
+      // this test is about the knownObjects check specifically, independent of the separate
+      // dotless-name rule covered below.)
       localStorage.setItem(CACHE_KEY, JSON.stringify({
         solutions: {
-          'uno-temp-split': sol('uno-temp-split', 2),
+          'retired-rig.old-step': sol('retired-rig.old-step', 2),
           'AdditionTester.test_addition': sol('AdditionTester.test_addition', 1),
         },
-        selectedSolutionName: 'uno-temp-split',
+        selectedSolutionName: 'retired-rig.old-step',
         lastUpdated: Date.now(),
         version: CURRENT_CACHE_VERSION,
       }));
       service = make();
-      expect(service.getSelectedSolutionName()).toBe('uno-temp-split'); // tentative, pre-backend
+      expect(service.getSelectedSolutionName()).toBe('retired-rig.old-step'); // tentative, pre-backend
 
-      // The backend's current object list no longer includes `uno-temp-split` at all.
+      // The backend's current object list no longer includes `retired-rig` at all.
       manager.loadAllSolutions.and.returnValue(of([sol('AdditionTester.test_addition', 1)]));
       service.initializeFromBackend();
 
@@ -226,6 +228,92 @@ describe('NoCodeSolutionStateService', () => {
 
       expect(service.getSolutionData('NewThing.do_it')).toBeDefined();
       expect(service.getSelectedSolutionName()).toBe('NewThing.do_it');
+    });
+  });
+
+  describe('object context stays atomically in sync with the live selection (selfix round 2)', () => {
+    it('selectSolution(name, false) updates getSelectedObjectName() too, even for a dotless name', () => {
+      service = make();
+      manager.loadAllSolutions.and.returnValue(of([
+        sol('AdditionTester.test_addition', 1),
+        sol('uno-temp-split', 2),
+      ]));
+      service.initializeFromBackend();
+      expect(service.getSelectedObjectName()).toBe('AdditionTester');
+
+      service.selectSolution('uno-temp-split', false);
+
+      expect(service.getSelectedSolutionName()).toBe('uno-temp-split');
+      expect(service.getSelectedObjectName()).toBe('uno-temp-split');
+    });
+  });
+
+  describe('a panel-scoped flow (persist=false + applyLanes-style mutations) must not move the persisted selection', () => {
+    it('mounting a panel on uno-temp-split then touching its states via updateStateInstance/updateStatePositions '
+      + '(as c-graph-canvas-panel.applyLanes() does) leaves the persisted selectedSolutionName unchanged', () => {
+      // Seed a legitimate prior persisted selection, the way a real /custom-no-code session would.
+      localStorage.setItem(CACHE_KEY, JSON.stringify({
+        solutions: { 'AdditionTester.test_addition': sol('AdditionTester.test_addition', 1) },
+        selectedSolutionName: 'AdditionTester.test_addition',
+        lastUpdated: Date.now(),
+        version: CURRENT_CACHE_VERSION,
+      }));
+      service = make();
+      manager.loadAllSolutions.and.returnValue(of([
+        sol('AdditionTester.test_addition', 1),
+        sol('uno-temp-split', 2),
+      ]));
+      service.initializeFromBackend();
+      expect(JSON.parse(localStorage.getItem(CACHE_KEY)!).selectedSolutionName).toBe('AdditionTester.test_addition');
+
+      // The panel opens uno-temp-split for preview — persist=false.
+      service.selectSolution('uno-temp-split', false);
+      // applyLanes() touches the open solution's states — these must NOT re-derive/re-persist
+      // the live (persist=false) selection into the shared cache.
+      service.updateStateInstance('uno-temp-split', 'sim-rig', { backgroundColor: '#5D4037' } as any);
+      service.updateStatePositions('uno-temp-split', [{ stateName: 'sim-rig', x: 80, y: 60 }]);
+
+      const cached = JSON.parse(localStorage.getItem(CACHE_KEY)!);
+      expect(cached.selectedSolutionName).toBe('AdditionTester.test_addition');
+      expect(cached.selectedSolutionName).not.toBe('uno-temp-split');
+      // The live (rendered) selection, meanwhile, IS uno-temp-split — persist=false only
+      // controls what's written to the shared cache, not what's currently open.
+      expect(service.getSelectedSolutionName()).toBe('uno-temp-split');
+    });
+  });
+
+  describe('a dotless solution name is never an AUTOMATIC restore target (its "object" is itself)', () => {
+    it('initializeFromCache() does not auto-select a dotless cached selection', () => {
+      localStorage.setItem(CACHE_KEY, JSON.stringify({
+        solutions: { 'uno-temp-split': sol('uno-temp-split', 2) },
+        selectedSolutionName: 'uno-temp-split',
+        lastUpdated: Date.now(),
+        version: CURRENT_CACHE_VERSION,
+      }));
+      service = make();
+      expect(service.getSelectedSolutionName()).toBeNull();
+    });
+
+    it('initializeFromBackend() does not treat a dotless previous selection as valid even when the backend still has it', () => {
+      service = make();
+      manager.loadAllSolutions.and.returnValue(of([sol('uno-temp-split', 2)]));
+      service.initializeFromBackend();
+      // First load with nothing else available: it's the only (visible) solution, so it IS selected —
+      // this is an explicit single-candidate fallback, not a "restore", and must still work.
+      expect(service.getSelectedSolutionName()).toBe('uno-temp-split');
+
+      // Now simulate a REAL previous-session restore scenario: uno-temp-split was the live
+      // selection (e.g. from an explicit dropdown pick), and a refresh runs with a dotted
+      // solution now listed FIRST by the backend — the dotless previous selection must not be
+      // preferred just because it's still technically present; the restore-validity check
+      // (isValidPrevious) rejects it outright for being dotless, so the ordinary "first visible"
+      // fallback applies instead.
+      manager.loadAllSolutions.and.returnValue(of([
+        sol('AdditionTester.test_addition', 1),
+        sol('uno-temp-split', 2),
+      ]));
+      service.initializeFromBackend();
+      expect(service.getSelectedSolutionName()).toBe('AdditionTester.test_addition');
     });
   });
 });
