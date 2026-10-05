@@ -7,15 +7,25 @@ import { PolariService } from '@services/polari-service';
 import { NoCodeSolutionStateService } from '@services/no-code-services/no-code-solution-state.service';
 
 /**
- * c-graph-canvas-panel — demo-4 (DEMONSTRABLES_PLAN.md §3 demo-4): a cmod CGraph opened IN the EXISTING no-code canvas,
- * reusing hn-0's HardwareSubgraph node kind (D-demo-3 ruled: embedded in the page, not a new route) — no second editor.
+ * c-graph-canvas-panel — demo-4 / demo-4b (DEMONSTRABLES_PLAN.md §3 demo-4; his ruling 2026-10-04: "the no-code solution
+ * seems to just be a single state, C (Hardware), along with Java/JavaFx (Native Bridge Backend and Frontend), these
+ * should be their own runtimes" — he opened /display/c-canvas and saw ONE state instead of the atoms).
  *
- * THE ADAPTER. The canvas only knows SolutionDefinition rows of NoCodeState/Slot. This panel is the thin bridge: it
- * ensures (creating once, never duplicating) a SolutionDefinition named `cmod.c-canvas.<graph>` holding exactly one
- * state — a `HardwareSubgraph` node whose `cgraph` field names the selected graph — then selects it through the SAME
- * NoCodeSolutionStateService the native selector uses, and mounts `<custom-no-code>` unmodified. Opening the node's
- * overlay (hn-0's CAtomOverlayComponent, extended by demo-4 with ports/edges/target badges) is how the graph's atoms,
- * wires and derived targets are actually seen and expanded — the canvas itself never grows a grouping layer.
+ * THE ADAPTER, demo-4b shape. The canvas only knows SolutionDefinition rows of NoCodeState/Slot. Two modes, one panel:
+ *  - no `solution` input (the default — /display/c-atoms, /display/c-canvas): ensures (creating once, never
+ *    duplicating) a SolutionDefinition named `cmod.c-canvas.<graph>` built from the CGraph's OWN rows — one `c-atom`
+ *    node PER CGraphNode (the glue's generated main/ISR kinds — class/parser/frame/tick/rule — as read-only c-atom
+ *    nodes), wired by CGraphEdge, every node in the c-device lane. NEVER a single collapsed HardwareSubgraph wrapper.
+ *  - a `solution` input (/display/hardware-solutions): opens the REAL, already-seeded HardwareSolution drawing by name
+ *    (its SolutionDefinition already holds the mixed board/bridge/backend nodes — `HardwareSubgraph` stays, here, as
+ *    hwnocode's own COLLAPSED representation of the same CGraph; expanding it in place is the c-atom overlay's job,
+ *    unchanged) — never re-synthesized, so demo-4's "both ways" links and the real wiring are exactly what a person
+ *    drew.
+ * Either way, `applyLanes()` groups the open solution's states into one lane per RUNTIME present (hwnocode.custom.
+ * runtimes.runtime_for_kind, mirrored client-side): a coloured legend above the canvas, states repositioned into lane
+ * columns (a lane band — no new editor layer, `updateStatePositions`/`updateStateInstance` are the service's own), and
+ * edges crossing lanes listed as "crossing interfaces" (the split points: HardwareInterfaceBinding / TargetDefinition
+ * where known).
  *
  * THE ONE NEW COMPONENT this slice needs (same justification class as firmware-installer-panel / pipeline-setup-panel):
  * a configured table cannot host a canvas, a graph picker that swaps WHICH SolutionDefinition is open, or render →
@@ -25,6 +35,29 @@ interface GraphRow { name: string; title: string; status: string; node_count: nu
 interface GlueBuildRow {
   name: string; equivalent: boolean; proof: string; hex_sha256: string; size_text: number; size_data: number; size_bss: number;
   build_ok: boolean;
+}
+interface CGraphNodeRow {
+  instance: string; kind: string; atom: string; stage: string; order: number; bindings: string; params: string;
+}
+interface CGraphEdgeRow { kind: string; from_node: string; from_port: string; to_node: string; to_port: string; order: number; }
+interface LaneInfo { runtime: string; count: number; color: string; }
+interface CrossingInfo { from: string; to: string; fromRuntime: string; toRuntime: string; }
+
+/** mirrors hwnocode.custom.runtimes.runtime_for_kind — the ONE mapping, client-side (demo-4b) */
+const DEVICE_CLASSES = new Set(['HardwareSubgraph', 'CAtom', 'c-atom', 'hardware-subgraph', 'class', 'parser', 'frame', 'tick', 'rule']);
+const BRIDGE_CLASSES = new Set(['HardwareInterface', 'hw-interface']);
+const BROWSER_CLASSES = new Set(['EmitFrontendEvent', 'FormSubscription', 'ReactiveTransform', 'display']);
+const RUNTIME_COLORS: Record<string, string> = {
+  'c-device': '#5D4037', 'c-twin': '#8D6E63', 'java-bridge': '#6D4C41',
+  'python-backend': '#1565c0', 'typescript-browser': '#2e7d32', 'javafx-native': '#6A1B9A',
+};
+const LANE_ORDER = ['c-device', 'c-twin', 'java-bridge', 'python-backend', 'typescript-browser', 'javafx-native'];
+
+function runtimeForClass(cls: string): string {
+  if (BRIDGE_CLASSES.has(cls)) return 'java-bridge';
+  if (DEVICE_CLASSES.has(cls)) return 'c-device';
+  if (BROWSER_CLASSES.has(cls)) return 'typescript-browser';
+  return 'python-backend';
 }
 
 @Component({
@@ -67,6 +100,17 @@ interface GlueBuildRow {
         last build on record: {{ lastBuild.proof }} · .hex {{ lastBuild.hex_sha256?.slice(0,12) }}
       </div>
 
+      <div class="cgcp-lanes" *ngIf="lanes.length">
+        <span class="cgcp-lanes-label">Runtimes (lanes):</span>
+        <span class="cgcp-lane-chip" *ngFor="let l of lanes" [style.borderColor]="l.color">
+          <span class="cgcp-lane-dot" [style.background]="l.color"></span>{{ l.runtime }} ({{ l.count }})
+        </span>
+      </div>
+      <div class="cgcp-crossings" *ngIf="crossings.length">
+        Crossing interfaces:
+        <span class="cgcp-crossing" *ngFor="let c of crossings">{{ c.from }} ({{ c.fromRuntime }}) ⇢ {{ c.to }} ({{ c.toRuntime }})</span>
+      </div>
+
       <custom-no-code></custom-no-code>
     </div>
   `,
@@ -79,11 +123,20 @@ interface GlueBuildRow {
     .cgcp-good { color: var(--success-text, #2e7d32); font-weight: 600; }
     .cgcp-bad { color: var(--error-text, #b00020); font-weight: 600; }
     .cgcp-busy { font-size: 0.8em; opacity: 0.7; }
+    .cgcp-lanes { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 4px 2px; font-size: 0.82em; }
+    .cgcp-lanes-label { font-weight: 600; opacity: 0.8; }
+    .cgcp-lane-chip { display: inline-flex; align-items: center; gap: 4px; border: 1.5px solid #888; border-radius: 10px; padding: 1px 8px; }
+    .cgcp-lane-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+    .cgcp-crossings { font-size: 0.8em; padding: 2px 2px; display: flex; gap: 10px; flex-wrap: wrap; color: var(--text-secondary, #555); }
+    .cgcp-crossing { border-left: 2px dashed #888; padding-left: 6px; }
     custom-no-code { display: block; min-height: 560px; }
   `],
 })
 export class CGraphCanvasPanelComponent implements OnInit, OnChanges, OnDestroy {
   @Input() graph: string = 'uno-sim-rig-graph';
+  /** demo-4b: when set, opens the REAL HardwareSolution drawing by name instead of a synthetic atoms-only solution
+   * (its SolutionDefinition already carries the mixed board/bridge/backend nodes — see the class doc above). */
+  @Input() solution: string = '';
 
   graphs: GraphRow[] = [];
   error = '';
@@ -92,6 +145,9 @@ export class CGraphCanvasPanelComponent implements OnInit, OnChanges, OnDestroy 
   buildResult: any = null;
   proveResult: any = null;
   lastBuild: GlueBuildRow | null = null;
+  /** demo-4b: one lane per runtime present in the currently-open solution, + the edges that cross lanes */
+  lanes: LaneInfo[] = [];
+  crossings: CrossingInfo[] = [];
 
   private destroy$ = new Subject<void>();
 
@@ -113,7 +169,9 @@ export class CGraphCanvasPanelComponent implements OnInit, OnChanges, OnDestroy 
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['graph'] && !changes['graph'].firstChange) {
+    const graphChanged = changes['graph'] && !changes['graph'].firstChange;
+    const solutionChanged = changes['solution'] && !changes['solution'].firstChange;
+    if (graphChanged || solutionChanged) {
       this.openSolutionFor(this.graph);
     }
   }
@@ -140,23 +198,104 @@ export class CGraphCanvasPanelComponent implements OnInit, OnChanges, OnDestroy 
     });
   }
 
-  /** Create (once) and select the ONE-node SolutionDefinition that hosts this graph — the thin CGraph ⇄ canvas adapter. */
+  /**
+   * demo-4b's ADAPTER: with a `solution` input, open that REAL, already-seeded HardwareSolution drawing by name
+   * (never re-synthesized). Otherwise ensure (once) and select the atoms-only SolutionDefinition built from the
+   * CGraph's own rows — one c-atom node PER CGraphNode, never a single collapsed HardwareSubgraph wrapper.
+   */
   private openSolutionFor(graph: string): void {
-    const name = this.solutionName(graph);
-    if (!this.solutionState.getSolutionData(name)) {
-      this.solutionState.createNewSolution(name, { targetRuntime: 'typescript_frontend' as any });
-      this.solutionState.addStateToSolution(name, {
-        stateName: 'subgraph', id: 'subgraph', index: 0, shapeType: 'rectangle', solutionName: name,
-        stateClass: 'HardwareSubgraph', boundObjectClass: 'HardwareSubgraph',
-        boundObjectFieldValues: { cgraph: graph, board_definition: 'arduino-uno-r3', firmware_runtime: 'bare-c' },
-        stateSvgSizeX: 240, stateSvgSizeY: 160, stateSvgRadius: null, layerName: 'rectangle-layer',
-        stateLocationX: 320, stateLocationY: 220, stateSvgName: 'rectangle',
-        slots: [{ index: 0, stateName: 'subgraph', slotAngularPosition: 0, connectors: [], isInput: false,
-                 allowOneToMany: true, allowManyToOne: false, label: 'frames' } as any],
-        slotRadius: 5, backgroundColor: '#6D4C41',
-      } as any);
+    if (this.solution) {
+      this.solutionState.selectSolution(this.solution);
+      this.applyLanes(this.solution);
+      return;
     }
-    this.solutionState.selectSolution(name);
+    const name = this.solutionName(graph);
+    if (this.solutionState.getSolutionData(name)) {
+      this.solutionState.selectSolution(name);
+      this.applyLanes(name);
+      return;
+    }
+    this.http.get<any>(`${this.base}/api/cmod/graphs/${encodeURIComponent(graph)}`, { headers: this.headers }).subscribe({
+      next: (r: any) => {
+        this.buildAtomsSolution(name, r?.nodes || [], r?.edges || []);
+        this.solutionState.selectSolution(name);
+        this.applyLanes(name);
+      },
+      error: () => {
+        // degrades: the graph detail could not be fetched — an empty solution still gives the canvas something to open
+        if (!this.solutionState.getSolutionData(name)) {
+          this.solutionState.createNewSolution(name, { targetRuntime: 'typescript_frontend' as any });
+        }
+        this.solutionState.selectSolution(name);
+      },
+    });
+  }
+
+  /** ONE c-atom canvas node per CGraphNode (the glue's class/parser/frame/tick/rule kinds come through read-only),
+   * wired by CGraphEdge — the real atoms, all in the c-device lane; created once (`ensure`), never duplicated. */
+  private buildAtomsSolution(name: string, nodes: CGraphNodeRow[], edges: CGraphEdgeRow[]): void {
+    this.solutionState.createNewSolution(name, { targetRuntime: 'typescript_frontend' as any });
+    const perRow = 4;
+    nodes.forEach((n, i) => {
+      const stateName = n.instance;
+      this.solutionState.addStateToSolution(name, {
+        stateName, id: stateName, index: i, shapeType: 'rectangle', solutionName: name,
+        stateClass: 'CAtom', boundObjectClass: 'CAtom',
+        boundObjectFieldValues: {
+          atom: n.kind === 'c-atom' ? n.atom : n.kind, stage: n.stage || '',
+          bindings: n.kind === 'c-atom' ? (n.bindings || '') : (n.params || ''),
+        },
+        stateSvgSizeX: 160, stateSvgSizeY: 90, stateSvgRadius: null, layerName: 'rectangle-layer',
+        stateLocationX: 80 + (i % perRow) * 220, stateLocationY: 80 + Math.floor(i / perRow) * 150, stateSvgName: 'rectangle',
+        slots: [
+          { index: 0, stateName, slotAngularPosition: 180, connectors: [], isInput: true, allowOneToMany: false, allowManyToOne: true, label: 'in' },
+          { index: 1, stateName, slotAngularPosition: 0, connectors: [], isInput: false, allowOneToMany: true, allowManyToOne: false, label: 'out' },
+        ] as any,
+        slotRadius: 5, backgroundColor: RUNTIME_COLORS['c-device'],
+        notes: n.kind === 'c-atom' ? '' : 'glue-generated (read-only) — cmod-glue owns this node\'s C',
+      } as any);
+    });
+    const known = new Set(nodes.map(n => n.instance));
+    edges.forEach(e => {
+      if (known.has(e.from_node) && known.has(e.to_node)) {
+        this.solutionState.addConnector(name, e.from_node, 1, e.to_node, 0);
+      }
+    });
+  }
+
+  /** demo-4b: group the currently-open solution's states into one lane per runtime present (a coloured legend + a
+   * lane-column layout — no new editor layer, just the service's own position/colour updates), and list the edges
+   * that cross lanes as "crossing interfaces". */
+  private applyLanes(name: string): void {
+    const states = this.solutionState.getSolutionStateInstances(name) || [];
+    if (!states.length) { this.lanes = []; this.crossings = []; return; }
+    const runtimeOf: Record<string, string> = {};
+    const byRuntime: Record<string, any[]> = {};
+    states.forEach((s: any) => {
+      const rt = runtimeForClass(s.stateClass || s.boundObjectClass || '');
+      runtimeOf[s.stateName] = rt;
+      (byRuntime[rt] = byRuntime[rt] || []).push(s);
+    });
+    const present = LANE_ORDER.filter(rt => byRuntime[rt]?.length);
+    this.lanes = present.map(rt => ({ runtime: rt, count: byRuntime[rt].length, color: RUNTIME_COLORS[rt] }));
+    const positions: { stateName: string; x: number; y: number }[] = [];
+    present.forEach((rt, laneIdx) => {
+      byRuntime[rt].forEach((s: any, i: number) => {
+        positions.push({ stateName: s.stateName, x: 80 + laneIdx * 260, y: 60 + i * 150 });
+        this.solutionState.updateStateInstance(name, s.stateName, { backgroundColor: RUNTIME_COLORS[rt] } as any);
+      });
+    });
+    if (positions.length) this.solutionState.updateStatePositions(name, positions);
+    const crossings: CrossingInfo[] = [];
+    states.forEach((s: any) => {
+      (s.slots || []).forEach((slot: any) => {
+        (slot.connectors || []).forEach((c: any) => {
+          const a = runtimeOf[s.stateName], b = runtimeOf[c.targetStateName];
+          if (a && b && a !== b) crossings.push({ from: s.stateName, to: c.targetStateName, fromRuntime: a, toRuntime: b });
+        });
+      });
+    });
+    this.crossings = crossings;
   }
 
   private refreshGlueBuild(): void {
