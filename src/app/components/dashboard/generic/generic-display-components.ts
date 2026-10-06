@@ -314,20 +314,27 @@ export function registerGenericDisplayComponents(): void {
       defaultInputs: { graph: 'uno-sim-rig-graph' },
     });
 
-  // fs-1 (DEMONSTRABLES_PLAN.md §9) — the firmware three-part canvas, first item on /display/firmware-solutions.
-  // THE ONE NEW COMPONENT this slice adds: a configured table cannot host a solution picker, the task-list/schedule-
-  // lane/register-map layout, or the pin-map drag (D-fs-2). GET {solutionsPath}/{name} (fs-0's shape) drives all
-  // three parts; the register map reuses api-svg-panel's inline-and-sanitize approach over the board's own
-  // pinmap.svg, highlighting bound pins by lane colour; dragging an unbound chip onto a pin (or selecting it then
-  // clicking a pin — keyboard fallback) calls POST .../assign, refusing (named, no POST) a drop that would conflict.
+  // fs-1 (DEMONSTRABLES_PLAN.md §9) + fs-2b (his renames/rulings 2026-10-06) — the firmware canvas, first item on
+  // /display/firmware-solutions. THE ONE NEW COMPONENT this slice adds: a configured table cannot host a solution
+  // picker, the collapsible section layout, the valid-targets overlay, or the pin-map drag (D-fs-2). GET
+  // {solutionsPath}/{name} (fs-0's shape, now carrying unregistered_tasks/registered_tasks, fs-2a) drives FOUR
+  // collapsible sections — Unregistered Tasks, Schedule (the four DERIVED lanes, D-fs-1), Pin map, and Target
+  // details — shown All four / maximised to One / paired as Two (a toolbar preset, persisted per-viewer under
+  // ONE localStorage key). Clicking an Unregistered Task calls the valid-targets door (fs-2a) and colours every
+  // pin green/grey/amber (valid/invalid/undetermined), cooperating vs conflicting registrations named from the
+  // door's own fields; a drop on an invalid pin never POSTs. Clicking a pin calls its register-detail door and
+  // shows SoC pin/port/alternate-functions/limits/Registered Tasks/applicable compatibility rows, all cited.
   registerDisplayComponent(
     'firmware-solution-panel', FirmwareSolutionPanelComponent, {
-      displayName: 'Firmware solution canvas (tasks · schedule · register map)',
-      description: 'Pick a FirmwareSolution (GET solutionsPath): LEFT the task list (name, kind, ports, resources, '
-        + 'cost, lane); MIDDLE the schedule in four DERIVED lanes (init/isr/tick/loop, D-fs-1 — never authored), '
-        + 'called tasks nested under their caller; RIGHT the board\'s own pin map with bound pins outlined by lane '
-        + 'colour and unbound targets as draggable chips — drag a chip onto a pin (or select + click, keyboard '
-        + 'fallback) to bind it (D-fs-2); a conflicting drop is refused and named, never posted '
+      displayName: 'Firmware solution canvas (Unregistered Tasks · Schedule · Pin map · Target details)',
+      description: 'Pick a FirmwareSolution (GET solutionsPath): four collapsible sections — Unregistered Tasks '
+        + '(name, kind, ports, resources, cost, lane; draggable chips), Schedule (four DERIVED lanes, D-fs-1 — '
+        + 'never authored, called tasks nested under their caller), Pin map (the board\'s own pinmap.svg, bound '
+        + 'pins outlined by lane colour), and Target details (fs-2a: a selected task\'s valid-targets verdicts, '
+        + 'or a selected pin\'s register detail + Registered Tasks + applicable compatibility rows) — a toolbar '
+        + 'preset shows All four / maximises One / pairs Two, persisted per-viewer. Dragging a chip onto a pin '
+        + '(or select + click, keyboard fallback) checks the valid-targets door FIRST — an invalid drop is '
+        + 'refused and named, never posted; a 422 the backend still returns shows its own reason '
         + '(inputs: solutionsPath, optional initial)',
       defaultInputs: { solutionsPath: '/api/firmware/solutions', initial: 'uno-sim-rig' },
     });
