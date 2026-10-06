@@ -13,6 +13,7 @@ import { FetCharacteristicExplorerComponent } from './fet-characteristic-explore
 import { FetOverviewComponent } from './fet-overview.component';
 import { FetParts2dComponent } from './fet-parts-2d.component';
 import { FirmwareInstallerPanelComponent } from './firmware-installer-panel.component';
+import { FirmwareSolutionPanelComponent } from './firmware-solution-panel.component';
 import { CGraphCanvasPanelComponent } from './c-graph-canvas-panel.component';
 import { FreedomProofPanelComponent } from './freedom-proof-panel.component';
 import { MicrochipLadderComponent } from './microchip-ladder.component';
@@ -311,5 +312,23 @@ export function registerGenericDisplayComponents(): void {
         + 'as badges, not JSON. Expand the subgraph node to see its atoms, ports, wires and derived target '
         + 'badges (inputs: graph, default uno-sim-rig-graph)',
       defaultInputs: { graph: 'uno-sim-rig-graph' },
+    });
+
+  // fs-1 (DEMONSTRABLES_PLAN.md §9) — the firmware three-part canvas, first item on /display/firmware-solutions.
+  // THE ONE NEW COMPONENT this slice adds: a configured table cannot host a solution picker, the task-list/schedule-
+  // lane/register-map layout, or the pin-map drag (D-fs-2). GET {solutionsPath}/{name} (fs-0's shape) drives all
+  // three parts; the register map reuses api-svg-panel's inline-and-sanitize approach over the board's own
+  // pinmap.svg, highlighting bound pins by lane colour; dragging an unbound chip onto a pin (or selecting it then
+  // clicking a pin — keyboard fallback) calls POST .../assign, refusing (named, no POST) a drop that would conflict.
+  registerDisplayComponent(
+    'firmware-solution-panel', FirmwareSolutionPanelComponent, {
+      displayName: 'Firmware solution canvas (tasks · schedule · register map)',
+      description: 'Pick a FirmwareSolution (GET solutionsPath): LEFT the task list (name, kind, ports, resources, '
+        + 'cost, lane); MIDDLE the schedule in four DERIVED lanes (init/isr/tick/loop, D-fs-1 — never authored), '
+        + 'called tasks nested under their caller; RIGHT the board\'s own pin map with bound pins outlined by lane '
+        + 'colour and unbound targets as draggable chips — drag a chip onto a pin (or select + click, keyboard '
+        + 'fallback) to bind it (D-fs-2); a conflicting drop is refused and named, never posted '
+        + '(inputs: solutionsPath, optional initial)',
+      defaultInputs: { solutionsPath: '/api/firmware/solutions', initial: 'uno-sim-rig' },
     });
 }

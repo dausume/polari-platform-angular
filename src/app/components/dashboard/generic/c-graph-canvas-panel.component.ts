@@ -77,6 +77,9 @@ function runtimeForClass(cls: string): string {
         <button type="button" (click)="doBuild()" [disabled]="busy">Build</button>
         <button type="button" (click)="doProve()" [disabled]="busy">Prove</button>
         <span class="cgcp-busy" *ngIf="busy">{{ busy }}…</span>
+        <!-- fs-1 item 4: a link FROM the canvas (this panel is embedded on both /display/c-canvas and
+             /display/hardware-solutions) TO the firmware three-part canvas (fs-1's own panel links back). -->
+        <a class="cgcp-fw-link" [routerLink]="'/display/firmware-solutions'">Firmware →</a>
       </div>
       <div class="cgcp-error" *ngIf="error">{{ error }}</div>
 
@@ -127,6 +130,8 @@ function runtimeForClass(cls: string): string {
     .cgcp-good { color: var(--success-text, #2e7d32); font-weight: 600; }
     .cgcp-bad { color: var(--error-text, #b00020); font-weight: 600; }
     .cgcp-busy { font-size: 0.8em; opacity: 0.7; }
+    .cgcp-fw-link { margin-left: auto; font-size: 0.85em; text-decoration: none; color: var(--link-text, #1565c0); }
+    .cgcp-fw-link:hover { text-decoration: underline; }
     .cgcp-lanes { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 4px 2px; font-size: 0.82em; }
     .cgcp-lanes-label { font-weight: 600; opacity: 0.8; }
     .cgcp-lane-chip { display: inline-flex; align-items: center; gap: 4px; border: 1.5px solid #888; border-radius: 10px; padding: 1px 8px; }
