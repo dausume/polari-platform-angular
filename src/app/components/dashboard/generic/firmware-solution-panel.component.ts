@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, Input, OnChanges, OnInit, SimpleChanges, ViewChild } from '@angular/core';
+import { Component, ElementRef, HostListener, Input, OnChanges, OnInit, SimpleChanges, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
@@ -10,25 +10,41 @@ import { PolariService } from '@services/polari-service';
 import { friendlyError } from './friendly-error';
 
 /**
- * firmware-solution-panel — fs-1 (DEMONSTRABLES_PLAN.md §9) + fs-2b (his renames/rulings 2026-10-06).
+ * firmware-solution-panel — fs-1 (DEMONSTRABLES_PLAN.md §9) + fs-2b (his renames/rulings 2026-10-06)
+ * + fs-2c, the UX slice of HARDWARE_DEV_PRIORITIES.md §3b (his rulings 2026-10-06).
  *
- * fs-2b: "the pins are the TARGETS; the things mapped onto them are tasks" — Unregistered Tasks (need a pin) /
- * Registered Tasks (of a pin). FOUR collapsible sections (his: "the views are too small even on a full computer
- * screen"): Unregistered Tasks, Schedule, Pin map, Target details (new) — a toolbar lets a viewer show All four,
- * maximise One, or pick a Two side-by-side pair; the open set persists per-viewer in localStorage under ONE key
- * (`polari-firmware-panel-layout`).
+ * fs-2c item 1 — Tasks = ALL tasks (fs-2b already built the full table; only the section's own label was wrong,
+ * his correction: "the Tab for tasks should not be called Unregistered Tasks since it is all tasks"), now grouped
+ * by Capability (`solution.capabilities[].task_names`, hw priorities P1) with an "Ungrouped" bucket for tasks no
+ * CapabilityDefinition names, each row carrying its group's capability status chip (planned/proven-on-twin/
+ * proven-on-hardware/failing) and its registered pin or an "unregistered" mark. The compact Unregistered-Tasks chip
+ * strip stays beside the pin map only (the assignment shorthand) — fs-2b's own one inside the Tasks section is
+ * retired now that the full table already marks "unregistered" per row.
  *
- * Clicking an Unregistered Task calls `GET .../tasks/{task}/valid-targets` (board.custom.target_compat +
- * cmod.custom.firmware.valid_targets_for_task, fs-2a) and colours every pin on the map: green = valid, grey =
- * invalid (one-line reason on hover), amber = undetermined; a pin already registered to ANOTHER task is marked
- * cooperating (allowed) or conflict (refused) straight from the door's own `registered_to`/`cooperating` fields
- * — never re-derived here. Dropping on an invalid pin never POSTs; a 422 the backend still returns shows its
- * reason inline (his ruling: "a clear indicator of when we click on a target what ones are valid targets").
+ * fs-2c item 2 — ONE selection model, many entry points: `handleTaskActivate`/`handlePinActivate` are the ONLY two
+ * methods any clickable task/pin binds to — the Tasks row, the Unregistered-Tasks chip, a schedule-lane chip, and a
+ * Target-details row (the pin list under a selected task; the Registered-Tasks/compatible list under a selected
+ * pin) all call the SAME one. `selectTask`/`selectPin` are the toggle-aware primitives they fall back to when
+ * nothing on the other side is selected; the SAME click on an already-selected task/pin deselects (the toggle
+ * rule), Escape clears everything from anywhere (`@HostListener('document:keydown.escape')`).
  *
- * Clicking a pin (a target) calls `GET /api/board/{board}/pins/{pin}` and the Target details section shows its
- * register detail (SoC pin, port+bit → DDR/PORT/PIN names, alternate functions, electrical limits — each cited),
- * its own Registered Tasks, and the globally-cited TargetCompatibilityRule rows (`GET /api/board/target-compat`,
- * fetched once and cached) that apply to this pin's own alternate-function facts.
+ * fs-2c items 3/4 — symmetric highlighting + "selection then action with a confirm" (his ruled pick, the §3b
+ * addendum): a task selected marks its OWN registered pins SOLID and its still-valid/undetermined candidates
+ * OUTLINED (`applyHighlighting`, the SVG overlay) and its caller/called tasks solid in Tasks + Schedule
+ * (`taskHighlight`, `relatedTaskNames`); a pin selected marks its Registered Tasks solid and compatible unregistered
+ * tasks outlined (derived from the per-task valid-targets responses already cached by `taskValidityCache` — no new
+ * per-pin door). Clicking the opposite, compatible item never POSTs — it only sets `pending` (`offerPair`), rendered
+ * as a Register/Unregister confirm in the ONE selection bar above the map (`selectionText`); nothing is written
+ * until `confirmPending()` is clicked (`postAssign` — the SAME door for both: lives_on='unbound' is fs-0's existing
+ * unassign path, already handled server-side by `on_post_assign`, so no new backend door was needed here). A drag
+ * lands on the identical confirm (`onDrop` calls `handlePinActivate`, same as a click) — ONE path to a write. A 422
+ * the backend still returns surfaces in the SAME bar (`assignError`).
+ *
+ * fs-2c item 5 — Target details ranked by relevance (his ruling, same day): for a selected task, valid targets
+ * first, then undetermined, then registered-elsewhere (cooperating before conflicting), invalid collapsed behind
+ * "show N more" (`taskRanked`); for a selected pin, Registered Tasks first, then compatible unregistered tasks,
+ * then the rest collapsed (`pinRanked`). The register facts (SoC pin · port/bit · DDR/PORT/PIN · alternate
+ * functions · limits · net/connector) stay above those lists, each cited.
  */
 
 interface SolutionRow { name: string; title: string; }
@@ -44,14 +60,23 @@ interface RegisterAssignment {
   name: string; solution: string; task: string; port: string; target_kind: string; controls: string;
   lives_on: string; status: string; provenance: string; notes: string;
 }
-interface TaskRow { task: string; lane: string; order: number; kind: string; ports: string; resources: string; cost: string; }
+interface TaskRow { task: string; lane: string; order: number; kind: string; ports: string; resources: string; cost: string; target: string; }
 interface LaneChip { task: string; order: number; measured: string; children: LaneChip[]; }
 interface RegisteredTaskRow { task: string; port: string; status: string; cooperating: boolean; }
 interface PinRegisteredTask { task: string; port: string; solution: string; lane: string; status: string; cooperating: boolean; }
 
+/** hw priorities P1 (`cmod_firmware_api.py`'s `_capabilities`): the Capability grouping for the Tasks section. */
+interface CapabilityRow { name: string; goal: string; status: string; last_proof?: string; task_names: string[]; }
+interface TaskGroup { key: string; title: string; status: string; rows: TaskRow[]; }
+
 type Verdict = 'valid' | 'invalid' | 'undetermined';
 interface ValidTargetPin { pin: string; verdict: Verdict; reason: string; registered_to: string[]; cooperating: boolean; }
 interface ValidTargetsResponse { ok: boolean; solution: string; task: string; kind: string; pins: ValidTargetPin[]; refused?: string; }
+
+/** fs-2c item 4: the one write-shaped action the selection bar ever offers — nothing POSTs until Register/Unregister
+ * is clicked (`confirmPending`). */
+type PendingKind = 'register' | 'unregister';
+interface PendingAction { kind: PendingKind; task: RegisterAssignment; pin: string; }
 
 interface AltFunction { function: string; peripheral: string; signal: string; kind: string; fact: string; }
 interface PinDetail {
@@ -68,7 +93,7 @@ interface TargetCompatRow { name: string; kind: string; title: string; roles: st
 type SectionKey = 'tasks' | 'schedule' | 'pins' | 'detail';
 const SECTION_ORDER: SectionKey[] = ['tasks', 'schedule', 'pins', 'detail'];
 const SECTION_LABELS: Record<SectionKey, string> = {
-  tasks: 'Unregistered Tasks', schedule: 'Schedule', pins: 'Pin map', detail: 'Target details',
+  tasks: 'Tasks', schedule: 'Schedule', pins: 'Pin map', detail: 'Target details',
 };
 const LAYOUT_KEY = 'polari-firmware-panel-layout';
 const PAIR_PRESETS: [SectionKey, SectionKey][] = [
@@ -78,6 +103,9 @@ const PAIR_PRESETS: [SectionKey, SectionKey][] = [
 const LANES = ['init', 'isr', 'tick', 'loop'];
 const LANE_COLORS: Record<string, string> = { init: '#2e7d32', isr: '#c62828', tick: '#6a1b9a', loop: '#1565c0', called: '#8d6e63' };
 const VERDICT_COLORS: Record<Verdict, string> = { valid: '#2e7d32', invalid: '#9e9e9e', undetermined: '#f9a825' };
+const CAP_STATUS_COLORS: Record<string, string> = {
+  planned: '#78909c', 'proven-on-twin': '#1565c0', 'proven-on-hardware': '#2e7d32', failing: '#b00020',
+};
 
 @Component({
   standalone: true,
@@ -115,11 +143,23 @@ const VERDICT_COLORS: Record<Verdict, string> = { valid: '#2e7d32', invalid: '#9
           </select>
         </label>
         <span class="fsp-legend">
-          <span class="fsp-legend-item"><i class="fsp-dot" style="background:#2e7d32"></i>valid</span>
+          <span class="fsp-legend-item"><i class="fsp-dot" style="background:#2e7d32"></i>valid / solid</span>
           <span class="fsp-legend-item"><i class="fsp-dot" style="background:#9e9e9e"></i>invalid</span>
           <span class="fsp-legend-item"><i class="fsp-dot" style="background:#f9a825"></i>undetermined</span>
           <span class="fsp-legend-item"><i class="fsp-dot fsp-dot-ring"></i>selected</span>
         </span>
+      </div>
+
+      <!-- fs-2c item 2/4: the ONE selection bar — always states the current selection and what the next click does,
+           and is where a Register/Unregister confirm (and any 422 reason) ever appears. Never more than one. -->
+      <div class="fsp-selection-bar" *ngIf="solution">
+        <span class="fsp-selection-text">{{ selectionText }}</span>
+        <ng-container *ngIf="pending">
+          <button type="button" class="fsp-confirm-btn" (click)="confirmPending()">{{ pending.kind === 'register' ? 'Register' : 'Unregister' }}</button>
+          <button type="button" class="fsp-cancel-btn" (click)="cancelPending()">Cancel</button>
+        </ng-container>
+        <span class="fsp-error fsp-bar-msg" *ngIf="assignError">{{ assignError }}</span>
+        <span class="fsp-warning fsp-bar-msg" *ngIf="assignWarning">{{ assignWarning }}</span>
       </div>
 
       <div *ngIf="loading" class="fsp-state"><mat-spinner diameter="28"></mat-spinner></div>
@@ -142,37 +182,48 @@ const VERDICT_COLORS: Record<Verdict, string> = { valid: '#2e7d32', invalid: '#9
             <div class="fsp-section-body">
 
               <ng-container *ngIf="k === 'tasks'">
-                <div class="fsp-chipline" *ngIf="unregisteredTasks.length">
-                  <span class="fsp-chip fsp-unbound-chip" *ngFor="let a of unregisteredTasks"
-                        tabindex="0" role="button"
-                        [class.fsp-chip-selected]="selectedTask === a"
-                        [attr.aria-label]="'Unregistered task ' + a.task"
-                        draggable="true" (dragstart)="onDragStart($event, a)"
-                        (click)="selectTask(a)" (keydown.enter)="selectTask(a)" (keydown.escape)="clearSelection()">
-                    {{ a.task }}{{ a.port ? '.' + a.port : '' }}
-                  </span>
+                <div class="fsp-task-group" *ngFor="let g of taskGroups">
+                  <div class="fsp-task-group-header">
+                    <strong>{{ g.key === UNGROUPED ? 'Ungrouped' : g.title }}</strong>
+                    <span class="fsp-badge fsp-cap-badge" *ngIf="g.status" [style.background]="capStatusColor(g.status)">{{ g.status }}</span>
+                  </div>
+                  <table class="fsp-task-table">
+                    <thead><tr><th>Task</th><th>Lane</th><th>Target</th><th>Capability</th><th>Cost</th></tr></thead>
+                    <tbody>
+                      <tr *ngFor="let t of g.rows" tabindex="0" role="button"
+                          [class.fsp-selected-row]="selectedTask?.task === t.task"
+                          [class.fsp-h-solid]="taskHighlight(t.task) === 'solid'"
+                          [class.fsp-h-outline]="taskHighlight(t.task) === 'outline'"
+                          [class.fsp-h-dim]="taskHighlight(t.task) === 'dim'"
+                          [attr.aria-label]="'task ' + t.task"
+                          (click)="handleTaskActivate(taskAssignment(t.task))"
+                          (keydown.enter)="handleTaskActivate(taskAssignment(t.task))"
+                          (keydown.escape)="clearSelection()">
+                        <td>{{ t.task }}</td>
+                        <td><span class="fsp-badge" [style.background]="laneColor(t.lane)">{{ t.lane }}</span></td>
+                        <td [class.fsp-unregistered]="t.target === 'unregistered'">{{ t.target }}</td>
+                        <td><span class="fsp-badge fsp-cap-badge" *ngIf="g.status" [style.background]="capStatusColor(g.status)">{{ g.status }}</span><span *ngIf="!g.status">—</span></td>
+                        <td>{{ t.cost }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
-                <div class="fsp-state" *ngIf="!unregisteredTasks.length">Every target is registered to a pin.</div>
-                <table class="fsp-task-table">
-                  <thead><tr><th>Task</th><th>Lane</th><th>Kind</th><th>Ports</th><th>Resources</th><th>Cost</th></tr></thead>
-                  <tbody>
-                    <tr *ngFor="let t of taskRows" [class.fsp-selected-row]="selectedTask?.task === t.task">
-                      <td>{{ t.task }}</td>
-                      <td><span class="fsp-badge" [style.background]="laneColor(t.lane)">{{ t.lane }}</span></td>
-                      <td>{{ t.kind }}</td>
-                      <td>{{ t.ports }}</td>
-                      <td class="fsp-resources" [title]="t.resources">{{ t.resources }}</td>
-                      <td>{{ t.cost }}</td>
-                    </tr>
-                  </tbody>
-                </table>
+                <div class="fsp-state" *ngIf="!taskGroups.length">No tasks on this solution.</div>
               </ng-container>
 
               <ng-container *ngIf="k === 'schedule'">
                 <div class="fsp-lane" *ngFor="let l of lanes">
                   <div class="fsp-lane-label" [style.borderColor]="laneColor(l.lane)">{{ l.lane }}</div>
                   <div class="fsp-lane-chips">
-                    <span class="fsp-chip" *ngFor="let c of l.chips" [style.borderColor]="laneColor(l.lane)">
+                    <span class="fsp-chip" *ngFor="let c of l.chips" tabindex="0" role="button"
+                          [style.borderColor]="laneColor(l.lane)"
+                          [class.fsp-chip-selected]="selectedTask?.task === c.task"
+                          [class.fsp-h-solid]="taskHighlight(c.task) === 'solid'"
+                          [class.fsp-h-outline]="taskHighlight(c.task) === 'outline'"
+                          [class.fsp-h-dim]="taskHighlight(c.task) === 'dim'"
+                          (click)="handleTaskActivate(taskAssignment(c.task))"
+                          (keydown.enter)="handleTaskActivate(taskAssignment(c.task))"
+                          (keydown.escape)="clearSelection()">
                       {{ c.task }} <small>({{ c.measured }})</small>
                       <span class="fsp-called" *ngFor="let cc of c.children">
                         &#8627; {{ cc.task }} <small>({{ cc.measured }}, called — not scheduled directly)</small>
@@ -191,9 +242,9 @@ const VERDICT_COLORS: Record<Verdict, string> = { valid: '#2e7d32', invalid: '#9
                 <div class="fsp-chipline fsp-chipline-compact" *ngIf="unregisteredTasks.length">
                   <span class="fsp-unbound-label">Unregistered Tasks:</span>
                   <span class="fsp-chip fsp-unbound-chip" *ngFor="let a of unregisteredTasks"
-                        tabindex="0" role="button" [class.fsp-chip-selected]="selectedTask === a"
+                        tabindex="0" role="button" [class.fsp-chip-selected]="selectedTask?.task === a.task"
                         draggable="true" (dragstart)="onDragStart($event, a)"
-                        (click)="selectTask(a)" (keydown.enter)="selectTask(a)" (keydown.escape)="clearSelection()">
+                        (click)="handleTaskActivate(a)" (keydown.enter)="handleTaskActivate(a)" (keydown.escape)="clearSelection()">
                     {{ a.task }}{{ a.port ? '.' + a.port : '' }}
                   </span>
                 </div>
@@ -201,13 +252,11 @@ const VERDICT_COLORS: Record<Verdict, string> = { valid: '#2e7d32', invalid: '#9
                   <span class="fsp-conflicts-label">Conflicts:</span>
                   <div class="fsp-conflict" *ngFor="let c of conflicts">{{ c.notes || (c.task + (c.port ? '.' + c.port : '') + ' conflicts on ' + c.lives_on) }}</div>
                 </div>
-                <div class="fsp-error" *ngIf="assignError">{{ assignError }}</div>
-                <div class="fsp-warning" *ngIf="assignWarning">{{ assignWarning }}</div>
               </ng-container>
 
               <ng-container *ngIf="k === 'detail'">
                 <div class="fsp-state" *ngIf="detailMode === 'none'">
-                  Click an Unregistered Task to see its valid targets, or click a pin on the map to see its register detail.
+                  Click a task to see its valid targets, or click a pin on the map to see its register detail.
                 </div>
 
                 <div class="fsp-detail" *ngIf="detailMode === 'task' && selectedTask">
@@ -218,12 +267,25 @@ const VERDICT_COLORS: Record<Verdict, string> = { valid: '#2e7d32', invalid: '#9
                     <table class="fsp-detail-table" *ngIf="!taskValidity.refused">
                       <thead><tr><th>Pin</th><th>Verdict</th><th>Reason</th><th>Registered to</th></tr></thead>
                       <tbody>
-                        <tr *ngFor="let p of taskValidity.pins" [attr.data-verdict]="p.verdict">
+                        <tr *ngFor="let p of taskRanked.visible" [attr.data-verdict]="p.verdict"
+                            tabindex="0" role="button" [class.fsp-selected-row]="selectedPin === p.pin"
+                            (click)="handlePinActivate(p.pin)" (keydown.enter)="handlePinActivate(p.pin)" (keydown.escape)="clearSelection()">
                           <td>{{ p.pin }}</td>
                           <td><i class="fsp-dot" [style.background]="verdictColor(p.verdict)"></i>{{ p.verdict }}</td>
                           <td [title]="p.reason">{{ p.reason }}</td>
                           <td *ngIf="p.registered_to.length">{{ p.registered_to.join(', ') }} ({{ p.cooperating ? 'cooperating' : 'conflict' }})</td>
                           <td *ngIf="!p.registered_to.length">—</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    <button type="button" class="fsp-more-btn" *ngIf="taskRanked.invalid.length && !showMoreInvalidTask" (click)="showMoreInvalidTask = true">
+                      show {{ taskRanked.invalid.length }} more (invalid)
+                    </button>
+                    <table class="fsp-detail-table" *ngIf="showMoreInvalidTask && taskRanked.invalid.length">
+                      <tbody>
+                        <tr *ngFor="let p of taskRanked.invalid" data-verdict="invalid">
+                          <td>{{ p.pin }}</td><td><i class="fsp-dot" [style.background]="verdictColor('invalid')"></i>invalid</td>
+                          <td [title]="p.reason">{{ p.reason }}</td><td>—</td>
                         </tr>
                       </tbody>
                     </table>
@@ -239,7 +301,6 @@ const VERDICT_COLORS: Record<Verdict, string> = { valid: '#2e7d32', invalid: '#9
                       <tr><th>Register</th><td>{{ registerNames(pinDetail) }} — bit {{ pinDetail.register.bit ?? 'undetermined' }} <small>({{ pinDetail.register.fact }})</small></td></tr>
                       <tr><th>Package pin</th><td>{{ pinDetail.register.package_pin }}</td></tr>
                       <tr><th>Current assignment</th><td>{{ pinDetail.current_assignment.function || '—' }} <small *ngIf="pinDetail.current_assignment.firmware_symbol">({{ pinDetail.current_assignment.firmware_symbol }})</small></td></tr>
-                      <tr><th>Net / connector</th><td>{{ pinDetail.net || '—' }} / {{ pinDetail.connector || '—' }}{{ pinDetail.connector_number != null ? ' #' + pinDetail.connector_number : '' }}</td></tr>
                     </table>
 
                     <h6>Alternate functions</h6>
@@ -258,19 +319,41 @@ const VERDICT_COLORS: Record<Verdict, string> = { valid: '#2e7d32', invalid: '#9
                       <tr *ngFor="let kv of electricalLimits(pinDetail)"><th>{{ kv.key }}</th><td>{{ kv.value }} <small *ngIf="electricalFact(pinDetail)">({{ electricalFact(pinDetail) }})</small></td></tr>
                     </table>
 
+                    <table class="fsp-kv">
+                      <tr><th>Net / connector</th><td>{{ pinDetail.net || '—' }} / {{ pinDetail.connector || '—' }}{{ pinDetail.connector_number != null ? ' #' + pinDetail.connector_number : '' }}</td></tr>
+                    </table>
+
                     <h6>Registered Tasks</h6>
-                    <table class="fsp-detail-table" *ngIf="pinDetail.registered_tasks.length">
+                    <table class="fsp-detail-table" *ngIf="pinRanked.registered.length">
                       <thead><tr><th>Task</th><th>Port</th><th>Solution</th><th>Lane</th><th>Cooperating</th></tr></thead>
                       <tbody>
-                        <tr *ngFor="let r of pinDetail.registered_tasks">
+                        <tr *ngFor="let r of pinRanked.registered" tabindex="0" role="button"
+                            [class.fsp-selected-row]="selectedTask?.task === r.task"
+                            (click)="handleTaskActivate(taskAssignment(r.task))" (keydown.enter)="handleTaskActivate(taskAssignment(r.task))" (keydown.escape)="clearSelection()">
                           <td>{{ r.task }}</td><td>{{ r.port || '—' }}</td><td>{{ r.solution }}</td><td>{{ r.lane || '—' }}</td>
                           <td>{{ r.cooperating ? 'yes' : 'conflict' }}</td>
                         </tr>
                       </tbody>
                     </table>
-                    <div class="fsp-state" *ngIf="!pinDetail.registered_tasks.length">No Registered Tasks on this pin.</div>
+                    <div class="fsp-state" *ngIf="!pinRanked.registered.length">No Registered Tasks on this pin.</div>
 
-                    <h6>Compatible task kinds</h6>
+                    <h6>Compatible unregistered tasks</h6>
+                    <div class="fsp-chipline" *ngIf="pinRanked.compatible.length">
+                      <span class="fsp-chip" *ngFor="let t of pinRanked.compatible" tabindex="0" role="button"
+                            [class.fsp-chip-selected]="selectedTask?.task === t"
+                            (click)="handleTaskActivate(taskAssignment(t))" (keydown.enter)="handleTaskActivate(taskAssignment(t))" (keydown.escape)="clearSelection()">
+                        {{ t }}
+                      </span>
+                    </div>
+                    <div class="fsp-state" *ngIf="!pinRanked.compatible.length">No unregistered task is known (yet) to be compatible — select one to check.</div>
+                    <button type="button" class="fsp-more-btn" *ngIf="pinRanked.restCount && !showMoreRestPin" (click)="showMoreRestPin = true">
+                      show {{ pinRanked.restCount }} more
+                    </button>
+                    <div class="fsp-state" *ngIf="showMoreRestPin && pinRanked.restCount">
+                      the rest ({{ pinRanked.restCount }}) — compatibility not yet checked; select a task once to check it against this pin
+                    </div>
+
+                    <h6>Compatible task kinds (cited rules)</h6>
                     <table class="fsp-detail-table" *ngIf="compatRowsForSelectedPin.length">
                       <thead><tr><th>Kind</th><th>Title</th><th>Matches</th></tr></thead>
                       <tbody>
@@ -309,6 +392,11 @@ const VERDICT_COLORS: Record<Verdict, string> = { valid: '#2e7d32', invalid: '#9
     .fsp-legend-item { display: inline-flex; align-items: center; gap: 4px; }
     .fsp-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; }
     .fsp-dot-ring { border: 2px solid #1565c0; background: transparent; }
+    .fsp-selection-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 6px 8px; margin-bottom: 8px; border: 1px solid rgba(21,101,192,0.4); border-radius: 6px; background: rgba(21,101,192,0.06); font-size: 0.85em; }
+    .fsp-selection-text { font-weight: 500; }
+    .fsp-confirm-btn { background: #1565c0; color: #fff; border: none; border-radius: 4px; padding: 3px 10px; cursor: pointer; }
+    .fsp-cancel-btn { background: transparent; border: 1px solid rgba(128,128,128,0.5); border-radius: 4px; padding: 3px 10px; cursor: pointer; color: inherit; }
+    .fsp-bar-msg { margin-left: 4px; }
     .fsp-collapsed-bar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
     .fsp-collapsed-chip { font-size: 0.8em; border: 1px solid rgba(128,128,128,0.4); border-radius: 10px; padding: 3px 9px; background: transparent; cursor: pointer; color: inherit; }
     .fsp-sections { display: flex; flex-wrap: wrap; gap: 14px; align-items: stretch; min-height: 680px; }
@@ -320,13 +408,21 @@ const VERDICT_COLORS: Record<Verdict, string> = { valid: '#2e7d32', invalid: '#9
     .fsp-chipline { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
     .fsp-chipline-compact { margin-top: 8px; font-size: 0.82em; }
     .fsp-unbound-label { font-weight: 600; margin-right: 6px; }
+    .fsp-task-group { margin-bottom: 12px; }
+    .fsp-task-group-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+    .fsp-unregistered { font-style: italic; opacity: 0.75; }
     .fsp-task-table, .fsp-detail-table, .fsp-kv { width: 100%; border-collapse: collapse; font-size: 0.8em; }
     .fsp-task-table th, .fsp-task-table td, .fsp-detail-table th, .fsp-detail-table td,
     .fsp-kv th, .fsp-kv td { text-align: left; padding: 3px 6px; border-bottom: 1px solid rgba(128,128,128,0.25); }
     .fsp-kv th { white-space: nowrap; opacity: 0.8; width: 1%; }
-    .fsp-resources { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .fsp-task-table tr[role="button"], .fsp-detail-table tr[role="button"] { cursor: pointer; }
     .fsp-selected-row { outline: 2px solid #1565c0; }
     .fsp-badge { color: #fff; border-radius: 8px; padding: 1px 7px; font-size: 0.85em; }
+    .fsp-cap-badge { font-size: 0.78em; }
+    .fsp-h-solid { outline: 2px solid #1565c0; }
+    .fsp-h-outline { outline: 2px dashed #2e7d32; }
+    .fsp-h-dim { opacity: 0.4; }
+    .fsp-more-btn { font-size: 0.8em; border: 1px solid rgba(128,128,128,0.4); border-radius: 10px; padding: 2px 8px; background: transparent; cursor: pointer; color: inherit; margin: 4px 0; }
     .fsp-lane { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
     .fsp-lane-label { min-width: 48px; font-weight: 600; font-size: 0.82em; border-left: 4px solid; padding-left: 6px; text-transform: uppercase; }
     .fsp-lane-chips { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -350,6 +446,8 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
 
   @ViewChild('svgHost') svgHostRef?: ElementRef<HTMLElement>;
 
+  readonly UNGROUPED = '__ungrouped';
+
   solutions: SolutionRow[] = [];
   selected = '';
   solution: SolutionDetail | null = null;
@@ -357,9 +455,11 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
   assignments: RegisterAssignment[] = [];
   unregisteredTasks: RegisterAssignment[] = [];
   registeredTasks: Record<string, RegisteredTaskRow[]> = {};
+  capabilities: CapabilityRow[] = [];
   validation: { ok: boolean; why: string } | null = null;
 
   taskRows: TaskRow[] = [];
+  taskGroups: TaskGroup[] = [];
   lanes: { lane: string; chips: LaneChip[] }[] = [];
   svgHtml: SafeHtml | null = null;
 
@@ -368,7 +468,7 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
   readonly sectionKeys = SECTION_ORDER;
   readonly pairPresets = PAIR_PRESETS;
 
-  // fs-2b: selection + the two doors it drives
+  // fs-2c: ONE selection model — selectedTask XOR selectedPin XOR neither; `pending` is the confirm offer.
   selectedTask: RegisterAssignment | null = null;
   taskValidity: ValidTargetsResponse | null = null;
   taskValidityError = '';
@@ -378,6 +478,15 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
   detailMode: 'none' | 'task' | 'pin' = 'none';
   compatRows: TargetCompatRow[] = [];
   private compatLoaded = false;
+  pending: PendingAction | null = null;
+  showMoreInvalidTask = false;
+  showMoreRestPin = false;
+
+  /** fs-2c item 3: per-task valid-targets responses, cached as they are fetched — the ONLY source the pin→task
+   * symmetric highlight and the pin-first register offer use (no new per-pin compatibility door). */
+  private taskValidityCache: Record<string, ValidTargetsResponse> = {};
+  private callerOfTask: Record<string, string> = {};
+  private childrenOfTask: Record<string, string[]> = {};
 
   private dragging: RegisterAssignment | null = null;
   assignError = '';
@@ -397,11 +506,15 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
     if (changes['solutionsPath'] && !changes['solutionsPath'].firstChange) { this.loadSolutions(); }
   }
 
+  /** fs-2c: a Polari-wide rule (HARDWARE_DEV_PRIORITIES.md §3b) — Escape clears every selection, from anywhere. */
+  @HostListener('document:keydown.escape')
+  onEscapeKey(): void { this.clearSelection(); }
+
   // ------------------------------------------------------------------ fs-2b: layout (collapse/expand + presets)
   sectionLabel(k: SectionKey): string { return SECTION_LABELS[k]; }
 
   sectionHeading(k: SectionKey): string {
-    if (k === 'tasks') { return `Unregistered Tasks (${this.unregisteredTasks.length})`; }
+    if (k === 'tasks') { return `Tasks (${this.taskRows.length})`; }
     return SECTION_LABELS[k];
   }
 
@@ -449,6 +562,7 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
 
   laneColor(lane: string): string { return LANE_COLORS[lane] || '#607d8b'; }
   verdictColor(v: Verdict): string { return VERDICT_COLORS[v]; }
+  capStatusColor(status: string): string { return CAP_STATUS_COLORS[status] || '#607d8b'; }
 
   get conflicts(): RegisterAssignment[] { return this.assignments.filter(a => a.status === 'conflict'); }
 
@@ -469,6 +583,7 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
     if (!name) { return; }
     this.selected = name;
     this.clearSelection();
+    this.taskValidityCache = {};
     this.loading = true; this.error = null;
     this.http.get<any>(`${this.base}${this.solutionsPath}/${encodeURIComponent(name)}`, { headers: this.headers }).subscribe({
       next: (r: any) => {
@@ -477,6 +592,7 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
         this.solution = r.solution; this.schedule = r.schedule || []; this.assignments = r.assignments || [];
         this.unregisteredTasks = r.unregistered_tasks || this.assignments.filter((a: RegisterAssignment) => a.status === 'unbound');
         this.registeredTasks = r.registered_tasks || {};
+        this.capabilities = r.capabilities || [];
         this.validation = r.validation || null;
         this.buildTaskRows();
         this.buildLanes();
@@ -494,13 +610,34 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
       const resources = Array.from(new Set(own.map(a => a.controls).filter(Boolean))).join('; ') || '—';
       const m = (s.notes || '').match(/text_bytes_noinline=(\S+) B, stack_bytes=(\S+)/);
       const cost = m ? `${m[1]} B text / ${m[2]} B stack` : (s.measured_cycles >= 0 ? `${s.measured_cycles} cycles` : '—');
-      return { task: s.task, lane: s.lane, order: s.order, kind, ports, resources, cost };
+      const bound = own.find(a => a.status === 'bound');
+      const target = bound ? (bound.lives_on.split(':').pop() || bound.lives_on) : (own.length ? 'unregistered' : '—');
+      return { task: s.task, lane: s.lane, order: s.order, kind, ports, resources, cost, target };
     });
+    this.buildTaskGroups();
+  }
+
+  /** fs-2c item 1: group the full Tasks table by Capability (`capabilities[].task_names`), an "Ungrouped" bucket
+   * last for every task no CapabilityDefinition names. A task named by more than one capability lands in the
+   * FIRST one that claims it — never duplicated across groups. */
+  private buildTaskGroups(): void {
+    const byTask = new Map(this.taskRows.map(r => [r.task, r]));
+    const used = new Set<string>();
+    const groups: TaskGroup[] = [];
+    for (const cap of this.capabilities) {
+      const rows = cap.task_names.map(t => byTask.get(t)).filter((r): r is TaskRow => !!r && !used.has(r.task));
+      rows.forEach(r => used.add(r.task));
+      if (rows.length) { groups.push({ key: cap.name, title: cap.goal || cap.name, status: cap.status, rows }); }
+    }
+    const rest = this.taskRows.filter(r => !used.has(r.task));
+    if (rest.length) { groups.push({ key: this.UNGROUPED, title: 'Ungrouped', status: '', rows: rest }); }
+    this.taskGroups = groups;
   }
 
   /** D-fs-1: lanes are DERIVED, never authored — this only groups the already-derived ScheduleSlot rows. `called`
    * tasks (dispatched, not scheduled directly) nest under the nearest PRECEDING non-called task by the glue's own
-   * emission `order` — the same field, no new data, no second ordering scheme. */
+   * emission `order` — the same field, no new data, no second ordering scheme. Also records caller/called task
+   * NAMES (fs-2c item 3's "its caller/called tasks solid in Tasks + Schedule"). */
   private buildLanes(): void {
     const byOrder = [...this.schedule].sort((a, b) => a.order - b.order);
     const callerOf: Record<string, string> = {};
@@ -510,12 +647,16 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
       else { lastNonCalled = s.task; }
     }
     const childrenOf: Record<string, LaneChip[]> = {};
+    const childrenNamesOf: Record<string, string[]> = {};
     for (const s of this.schedule) {
       if (s.lane !== 'called') { continue; }
       const caller = callerOf[s.task];
       if (!caller) { continue; }
       (childrenOf[caller] = childrenOf[caller] || []).push(this.toChip(s));
+      (childrenNamesOf[caller] = childrenNamesOf[caller] || []).push(s.task);
     }
+    this.callerOfTask = callerOf;
+    this.childrenOfTask = childrenNamesOf;
     this.lanes = LANES.map(lane => ({
       lane,
       chips: this.schedule.filter(s => s.lane === lane).sort((a, b) => a.order - b.order)
@@ -545,7 +686,41 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
     return s ? s.lane : '';
   }
 
-  // ------------------------------------------------------------------ fs-2b: valid-targets overlay + pin highlighting
+  // ------------------------------------------------------------------ fs-2c item 3: symmetric highlighting
+  /** A task's OWN bound pin(s) — distinct from "valid candidates" (which include its own pin too, since
+   * valid-targets excludes the selected task from its own conflict check). */
+  private taskOwnPins(task: string): string[] {
+    return this.assignments.filter(a => a.task === task && a.status === 'bound')
+      .map(a => (a.lives_on.split(':').pop() || a.lives_on));
+  }
+
+  get relatedTaskNames(): Set<string> {
+    const out = new Set<string>();
+    if (!this.selectedTask) { return out; }
+    const t = this.selectedTask.task;
+    (this.childrenOfTask[t] || []).forEach(c => out.add(c));
+    if (this.callerOfTask[t]) { out.add(this.callerOfTask[t]); }
+    return out;
+  }
+
+  /** fs-2c item 3, the Tasks-table/Schedule-chip half of symmetric highlighting (the pin-map half is
+   * `applyHighlighting`, a direct SVG overlay). */
+  taskHighlight(task: string): 'solid' | 'outline' | 'dim' | '' {
+    if (this.selectedTask) {
+      if (task === this.selectedTask.task || this.relatedTaskNames.has(task)) { return 'solid'; }
+      return '';
+    }
+    if (this.selectedPin) {
+      const regNames = (this.pinDetail?.registered_tasks || []).map(r => r.task);
+      if (regNames.includes(task)) { return 'solid'; }
+      const cached = this.taskValidityCache[task];
+      const row = cached?.pins.find(p => p.pin === this.selectedPin);
+      if (row && (row.verdict === 'valid' || row.verdict === 'undetermined')) { return 'outline'; }
+      return 'dim';
+    }
+    return '';
+  }
+
   private ensureBaseTitle(el: Element): string {
     const title = el.querySelector('title');
     if (!title) { return ''; }
@@ -560,15 +735,20 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
       (el as HTMLElement).style.outline = '';
       (el as HTMLElement).style.filter = '';
       el.removeAttribute('data-verdict');
+      el.removeAttribute('data-highlight');
     });
-    if (this.taskValidity && !this.taskValidity.refused) {
+    if (this.selectedTask && this.taskValidity && !this.taskValidity.refused) {
+      const ownPins = new Set(this.taskOwnPins(this.selectedTask.task));
       for (const row of this.taskValidity.pins) {
-        const color = VERDICT_COLORS[row.verdict];
         const sel = `[data-pin="${row.pin.replace(/"/g, '')}"]`;
+        const isOwn = ownPins.has(row.pin);
+        const highlight: 'solid' | 'outline' | 'dim' = isOwn ? 'solid' : (row.verdict === 'invalid' ? 'dim' : 'outline');
+        const color = isOwn ? (this.laneColor(this.laneOf(this.selectedTask.task)) || VERDICT_COLORS.valid) : VERDICT_COLORS[row.verdict];
         host.querySelectorAll(sel).forEach(el => {
           const e = el as HTMLElement;
-          e.style.outline = `3px solid ${color}`;
+          e.style.outline = `${isOwn ? 4 : 3}px ${isOwn ? 'solid' : 'dashed'} ${color}`;
           e.setAttribute('data-verdict', row.verdict);
+          e.setAttribute('data-highlight', highlight);
           const title = e.querySelector('title');
           if (title) {
             const base = this.ensureBaseTitle(e);
@@ -579,19 +759,23 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
         });
       }
     } else {
-      for (const a of this.assignments) {
-        if (a.status !== 'bound') { continue; }
-        const pin = a.lives_on.split(':').pop() || '';
-        const color = this.laneColor(this.laneOf(a.task));
-        host.querySelectorAll(`[data-pin="${pin.replace(/"/g, '')}"]`).forEach(el => { (el as HTMLElement).style.outline = `3px solid ${color}`; });
-      }
-      this.applyRegisteredTooltips(host);
+      this.applyDefaultPinColors(host);
     }
     if (this.selectedPin) {
       host.querySelectorAll(`[data-pin="${this.selectedPin.replace(/"/g, '')}"]`).forEach(el => {
         (el as HTMLElement).style.filter = 'drop-shadow(0 0 4px #1565c0)';
       });
     }
+  }
+
+  private applyDefaultPinColors(host: HTMLElement): void {
+    for (const a of this.assignments) {
+      if (a.status !== 'bound') { continue; }
+      const pin = a.lives_on.split(':').pop() || '';
+      const color = this.laneColor(this.laneOf(a.task));
+      host.querySelectorAll(`[data-pin="${pin.replace(/"/g, '')}"]`).forEach(el => { (el as HTMLElement).style.outline = `3px solid ${color}`; });
+    }
+    this.applyRegisteredTooltips(host);
   }
 
   /** fs-2b: the pin tooltip lists "Registered Tasks: …" (his naming, verbatim) — only when no valid-targets
@@ -609,24 +793,88 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
     });
   }
 
-  // ------------------------------------------------------------------ fs-2b: selection (task / pin) + Escape/Tab/Enter
+  // ------------------------------------------------------------------ fs-2c item 5: ranked Target details
+  /** For a selected task: valid (unclaimed) targets first, then undetermined, then registered-elsewhere
+   * (cooperating before conflicting), invalid collapsed. The first row of `visible` is always a viable one
+   * (valid/undetermined/cooperating) when any exists. */
+  get taskRanked(): { visible: ValidTargetPin[]; invalid: ValidTargetPin[] } {
+    const pins = (this.taskValidity && !this.taskValidity.refused) ? this.taskValidity.pins : [];
+    const byPin = (a: ValidTargetPin, b: ValidTargetPin) => a.pin.localeCompare(b.pin);
+    const valid = pins.filter(p => p.verdict === 'valid' && !p.registered_to.length).sort(byPin);
+    const undetermined = pins.filter(p => p.verdict === 'undetermined').sort(byPin);
+    const elsewhereCoop = pins.filter(p => p.verdict === 'valid' && p.registered_to.length > 0).sort(byPin);
+    const elsewhereConflict = pins.filter(p => p.verdict === 'invalid' && p.registered_to.length > 0).sort(byPin);
+    const invalid = pins.filter(p => p.verdict === 'invalid' && !p.registered_to.length);
+    return { visible: [...valid, ...undetermined, ...elsewhereCoop, ...elsewhereConflict], invalid };
+  }
+
+  /** For a selected pin: Registered Tasks first, then compatible unregistered tasks (from the per-task
+   * valid-targets cache — fs-2c item 3's own note: "derive from the per-task valid-targets results you already
+   * have"), the rest collapsed. */
+  get pinRanked(): { registered: PinRegisteredTask[]; compatible: string[]; restCount: number } {
+    if (!this.pinDetail) { return { registered: [], compatible: [], restCount: 0 }; }
+    const registered = this.pinDetail.registered_tasks;
+    const regNames = new Set(registered.map(r => r.task));
+    const unregisteredNames = Array.from(new Set(this.unregisteredTasks.map(a => a.task))).filter(t => !regNames.has(t));
+    const compatible = unregisteredNames.filter(t => {
+      const cached = this.taskValidityCache[t];
+      const row = cached?.pins.find(p => p.pin === this.selectedPin);
+      return !!row && (row.verdict === 'valid' || row.verdict === 'undetermined');
+    });
+    const restCount = unregisteredNames.length - compatible.length;
+    return { registered, compatible, restCount };
+  }
+
+  // ------------------------------------------------------------------ fs-2c item 2: ONE selection model
+  taskAssignment(task: string): RegisterAssignment {
+    return this.assignments.find(a => a.task === task) || this.syntheticAssignment(task);
+  }
+
+  private syntheticAssignment(task: string): RegisterAssignment {
+    return { name: `${this.selected}:${task}`, solution: this.selected, task, port: '', target_kind: '', controls: '', lives_on: 'unbound', status: 'unbound', provenance: '', notes: '' };
+  }
+
+  private sameTask(x: RegisterAssignment, y: RegisterAssignment): boolean {
+    return x.task === y.task && (x.port || '') === (y.port || '');
+  }
+
+  /** The toggle-aware PRIMITIVE for selecting a task when no pin is already selected. `selectTask`/`selectPin`
+   * are never bound directly in the template — every clickable task/pin goes through `handleTaskActivate`/
+   * `handlePinActivate` (fs-2c item 2's "one selection model, many entry points"), which falls back to these. */
   selectTask(a: RegisterAssignment): void {
-    this.assignError = ''; this.assignWarning = '';
+    if (this.selectedTask && this.sameTask(this.selectedTask, a)) { this.clearSelection(); return; }
+    this.applyTaskSelection(a);
+  }
+
+  selectPin(pin: string): void {
+    if (this.selectedPin === pin) { this.clearSelection(); return; }
+    this.applyPinSelection(pin);
+  }
+
+  private validTargetsUrl(task: string): string {
+    return `${this.base}${this.solutionsPath}/${encodeURIComponent(this.selected)}/tasks/${encodeURIComponent(task)}/valid-targets`;
+  }
+
+  private applyTaskSelection(a: RegisterAssignment): void {
+    this.pending = null; this.assignError = ''; this.assignWarning = '';
+    this.showMoreInvalidTask = false; this.showMoreRestPin = false;
     this.selectedTask = a; this.taskValidity = null; this.taskValidityError = ''; this.detailMode = 'task';
-    const url = `${this.base}${this.solutionsPath}/${encodeURIComponent(this.selected)}/tasks/${encodeURIComponent(a.task)}/valid-targets`;
-    this.http.get<ValidTargetsResponse>(url, { headers: this.headers }).subscribe({
+    this.selectedPin = ''; this.pinDetail = null; this.pinDetailError = '';
+    this.http.get<ValidTargetsResponse>(this.validTargetsUrl(a.task), { headers: this.headers }).subscribe({
       next: (r: any) => {
         if (!r || r.ok === false) { this.taskValidityError = (r && r.error) || 'could not check valid targets'; return; }
-        this.taskValidity = r;
+        this.taskValidity = r; this.taskValidityCache[a.task] = r;
         this.applyHighlighting();
       },
       error: (err: any) => { const f = friendlyError(err, 'GET valid-targets'); this.taskValidityError = f.text; },
     });
   }
 
-  selectPin(pin: string): void {
-    this.assignError = ''; this.assignWarning = '';
+  private applyPinSelection(pin: string): void {
+    this.pending = null; this.assignError = ''; this.assignWarning = '';
+    this.showMoreInvalidTask = false; this.showMoreRestPin = false;
     this.selectedPin = pin; this.pinDetail = null; this.pinDetailError = ''; this.detailMode = 'pin';
+    this.selectedTask = null; this.taskValidity = null; this.taskValidityError = '';
     const board = this.solution?.board_resolved || '';
     this.loadCompatRowsOnce();
     this.http.get<PinDetail>(`${this.base}/api/board/${encodeURIComponent(board)}/pins/${encodeURIComponent(pin)}`, { headers: this.headers }).subscribe({
@@ -642,7 +890,7 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
   clearSelection(): void {
     this.selectedTask = null; this.taskValidity = null; this.taskValidityError = '';
     this.selectedPin = ''; this.pinDetail = null; this.pinDetailError = '';
-    this.detailMode = 'none';
+    this.detailMode = 'none'; this.pending = null;
     this.assignError = ''; this.assignWarning = '';
     this.applyHighlighting();
   }
@@ -688,15 +936,115 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
     return this.compatRows.filter(r => kinds.has(r.kind));
   }
 
+  // ------------------------------------------------------------------ fs-2c items 2/4: the ONE entry point per side
+  /** The ONLY method any clickable PIN binds to (map click/keydown, a drag's drop, a Target-details pin row).
+   * With no task selected, this is just pin selection (toggle-aware, via `selectPin`). With a task already
+   * selected, this evaluates the (task, pin) pair and — for a valid/undetermined pin — sets `pending` for the
+   * selection bar's confirm; it NEVER posts. */
+  handlePinActivate(pin: string): void {
+    this.assignError = ''; this.assignWarning = '';
+    if (this.selectedTask) {
+      if (this.pending && this.pending.pin === pin) { this.pending = null; return; } // same pin again cancels the offer
+      const row = this.taskValidity?.pins.find(p => p.pin === pin);
+      this.offerPair(this.selectedTask, pin, row);
+      return;
+    }
+    this.selectPin(pin);
+  }
+
+  /** The ONLY method any clickable TASK binds to (a Tasks-section row, an Unregistered-Tasks chip, a
+   * schedule-lane chip, a Target-details row). With no pin selected, this is just task selection (toggle-aware,
+   * via `selectTask`). With a pin already selected, this evaluates the pair from the cached per-task
+   * valid-targets response — fetching it first if it is not yet cached — and sets `pending` the same way. */
+  handleTaskActivate(a: RegisterAssignment): void {
+    this.assignError = ''; this.assignWarning = '';
+    if (this.selectedPin) {
+      const pin = this.selectedPin;
+      if (this.pending && this.sameTask(this.pending.task, a)) { this.pending = null; return; } // same task again cancels
+      const cached = this.taskValidityCache[a.task];
+      if (cached) { this.offerPair(a, pin, cached.pins.find(p => p.pin === pin)); return; }
+      const ownPins = this.taskOwnPins(a.task);
+      if (ownPins.includes(pin)) { this.pending = { kind: 'unregister', task: a, pin }; return; }
+      this.http.get<ValidTargetsResponse>(this.validTargetsUrl(a.task), { headers: this.headers }).subscribe({
+        next: (r: any) => {
+          if (!r || r.ok === false) { return; }
+          this.taskValidityCache[a.task] = r;
+          if (this.selectedPin === pin) { this.offerPair(a, pin, r.pins.find((p: ValidTargetPin) => p.pin === pin)); }
+        },
+        error: () => { /* informational only — never a silent write */ },
+      });
+      return;
+    }
+    this.selectTask(a);
+  }
+
+  /** fs-2c item 4 (his ruled pick, "selection then action with a confirm"): the ONE place that decides whether a
+   * (task, pin) pair offers Register, Unregister, or neither — used from BOTH directions (task-first and
+   * pin-first) so the offer is identical regardless of which side was clicked first. */
+  private offerPair(task: RegisterAssignment, pin: string, row: ValidTargetPin | undefined): void {
+    const ownPins = this.taskOwnPins(task.task);
+    if (ownPins.includes(pin)) { this.pending = { kind: 'unregister', task, pin }; return; }
+    if (row && (row.verdict === 'valid' || row.verdict === 'undetermined')) { this.pending = { kind: 'register', task, pin }; return; }
+    this.assignError = row ? row.reason : `${task.task} has no known compatibility with ${pin} yet — select ${task.task} once to check`;
+  }
+
+  get selectionText(): string {
+    if (this.pending) {
+      const label = this.taskLabel(this.pending.task);
+      return this.pending.kind === 'register'
+        ? `Register ${label} to ${this.pending.pin}? `
+        : `Unregister ${label} from ${this.pending.pin}? `;
+    }
+    if (this.selectedTask) {
+      const label = this.taskLabel(this.selectedTask);
+      return `Selected: task ${label} — click an outlined pin to register it there, or click ${label} again to deselect`;
+    }
+    if (this.selectedPin) {
+      return `Selected: pin ${this.selectedPin} — click an outlined task to register it there, or click the pin again to deselect`;
+    }
+    return 'Nothing selected — click a task or a pin to begin';
+  }
+
+  taskLabel(a: RegisterAssignment): string { return a.task + (a.port ? '.' + a.port : ''); }
+
+  confirmPending(): void {
+    if (!this.pending) { return; }
+    const { task, pin, kind } = this.pending;
+    const board = this.solution?.board_resolved || '';
+    const livesOn = kind === 'unregister' ? 'unbound' : `${board}:${pin}`;
+    this.postAssign(task, livesOn);
+  }
+
+  cancelPending(): void { this.pending = null; }
+
+  /** fs-2c item 4: the SAME door for Register and Unregister — `lives_on: 'unbound'` is fs-0's existing unassign
+   * path (`cmod_firmware_api.py`'s `on_post_assign` already treats it as "set status back to unbound"), so no new
+   * backend endpoint was needed ("one path to a write"). */
+  private postAssign(task: RegisterAssignment, livesOn: string): void {
+    this.http.post<any>(`${this.base}${this.solutionsPath}/${encodeURIComponent(this.selected)}/assign`,
+      { task: task.task, port: task.port, lives_on: livesOn }, { headers: this.headers }).subscribe({
+      next: (r: any) => {
+        if (!r || r.ok === false) { this.assignError = (r && (r.error || r.refused)) || 'assign refused'; this.pending = null; return; }
+        if (r.warning) { this.assignWarning = r.warning; }
+        this.pending = null;
+        this.clearSelection();
+        this.select(this.selected);
+      },
+      error: (err: any) => { const f = friendlyError(err, 'POST assign'); this.assignError = f.text; this.pending = null; },
+    });
+  }
+
   // ------------------------------------------------------------------ drag / click / keyboard
   onDragStart(ev: DragEvent, a: RegisterAssignment): void {
     this.dragging = a;
     ev.dataTransfer?.setData('text/plain', a.name);
-    this.selectTask(a); // fs-2b: valid-targets must be checked via the door BEFORE a drop is allowed
+    this.applyTaskSelection(a); // a drag gesture always (re)selects the dragged task, regardless of prior selection
   }
 
   onDragOver(ev: DragEvent): void { ev.preventDefault(); }
 
+  /** fs-2c item 4: drag lands on the SAME confirm a click would — `handlePinActivate` is the one path, never a
+   * direct POST from a drop. */
   onDrop(ev: DragEvent): void {
     ev.preventDefault();
     const target = this.dragging;
@@ -705,17 +1053,13 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
     const pinEl = (ev.target as Element)?.closest?.('[data-pin]');
     if (!pinEl) { return; }
     const pin = pinEl.getAttribute('data-pin') || '';
-    this.tryAssign(target, pin);
+    this.handlePinActivate(pin);
   }
 
-  /** Click a pin: with a task selected (chip clicked / dragged first), the keyboard/click fallback assigns it;
-   * otherwise (his ruling, fs-2b item 4) it opens the pin's own Target details. */
   onPinClick(ev: MouseEvent): void {
     const pinEl = (ev.target as Element)?.closest?.('[data-pin]');
     if (!pinEl) { return; }
-    const pin = pinEl.getAttribute('data-pin') || '';
-    if (this.selectedTask) { this.tryAssign(this.selectedTask, pin); return; }
-    this.selectPin(pin);
+    this.handlePinActivate(pinEl.getAttribute('data-pin') || '');
   }
 
   onPinKeydown(ev: KeyboardEvent): void {
@@ -724,32 +1068,6 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
     const active = document.activeElement;
     const pinEl = active?.closest?.('[data-pin]');
     if (!pinEl) { return; }
-    const pin = pinEl.getAttribute('data-pin') || '';
-    if (this.selectedTask) { this.tryAssign(this.selectedTask, pin); return; }
-    this.selectPin(pin);
-  }
-
-  /** fs-2b (his ruling 2026-10-06): the conflict guard is the backend's own cooperation rule, read from the
-   * valid-targets door's verdict — never re-implemented here. 'invalid' refuses locally, named, no POST; a 422
-   * the backend still returns (e.g. the door's answer went stale) shows ITS reason the same way. */
-  private tryAssign(a: RegisterAssignment, pin: string): void {
-    this.assignError = ''; this.assignWarning = '';
-    const board = this.solution?.board_resolved || '';
-    const livesOn = `${board}:${pin}`;
-    const row = this.taskValidity?.task === a.task ? this.taskValidity?.pins.find(p => p.pin === pin) : undefined;
-    if (row && row.verdict === 'invalid') {
-      this.assignError = row.reason;
-      return;
-    }
-    this.http.post<any>(`${this.base}${this.solutionsPath}/${encodeURIComponent(this.selected)}/assign`,
-      { task: a.task, port: a.port, lives_on: livesOn }, { headers: this.headers }).subscribe({
-      next: (r: any) => {
-        if (!r || r.ok === false) { this.assignError = (r && (r.error || r.refused)) || 'assign refused'; return; }
-        if (r.warning) { this.assignWarning = r.warning; }
-        this.clearSelection();
-        this.select(this.selected);
-      },
-      error: (err: any) => { const f = friendlyError(err, 'POST assign'); this.assignError = f.text; },
-    });
+    this.handlePinActivate(pinEl.getAttribute('data-pin') || '');
   }
 }
