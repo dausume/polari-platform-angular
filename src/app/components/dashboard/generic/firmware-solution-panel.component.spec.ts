@@ -59,6 +59,33 @@ describe('FirmwareSolutionPanelComponent', () => {
   // GET /api/board/arduino-uno-r3/pins/D9 — an UNREGISTERED pin (used for the pin->task symmetric-highlight spec).
   const PIN_DETAIL_D9 = {"ok": true, "board": "arduino-uno-r3", "pin": "D9", "roles": ["gpio"], "soc_pin": "PB1", "register": {"port": "B", "bit": 1, "package_pin": "15", "default_function": "GPIO", "fact": "atmega328p:pin.PB1"}, "alternate_functions": [{"function": "OC1A", "peripheral": "TIMER1", "signal": "OC1A", "kind": "timer channel", "fact": "atmega328p:pin.PB1"}], "current_assignment": {"function": "", "peripheral": "", "signal": "", "firmware_symbol": ""}, "electrical": {"fact": "arduino-uno-r3:pinout.max_current_io", "max_ma": 20}, "net": "D9", "connector": "DIGITAL_H", "connector_number": 9, "facts": [], "registered_tasks": [], "unregistered": true};
 
+  // GET /api/board/arduino-uno-r3/pins/5V (fs-2d, shape matches board_object_api.BoardObjectAPI._power_pin_detail —
+  // a power/reference pin, never a BoardPin row: the SoC-specific fields are honestly empty, `power_reference` and
+  // `parts_that_connect_here` carry the content).
+  const PIN_DETAIL_5V = {
+    ok: true, board: 'arduino-uno-r3', pin: '+5V', roles: ['power'], soc_pin: '',
+    register: { port: 'undetermined', bit: null, package_pin: 'undetermined', default_function: 'undetermined', fact: 'undetermined' },
+    alternate_functions: [], current_assignment: { function: 'power', peripheral: '', signal: '', firmware_symbol: '' },
+    electrical: { voltage: 5.0, max_current_ma: 'undetermined', notes: 'per-+5V-pin current is not a cited number' },
+    net: '+5V', connector: 'POWER', connector_number: 5, facts: [], registered_tasks: [], unregistered: false,
+    power_reference: {
+      label: '+5V', role: 'power', purpose: 'Supplies regulated 5 V to power external circuits.',
+      electrical: { voltage: 5.0, max_current_ma: 'undetermined', notes: 'per-+5V-pin current is not a cited number' },
+      typical_uses: ["power your circuits' + rail", "the TMP36 temperature sensor's outer 'power' leg"],
+      assignable: false, assignable_reason: 'a power/reference rail is not a task target; tasks register to signal pins',
+      locations: [{ connector: 'POWER', number: 5 }], net: '+5V',
+      sources: [{ label: 'Arduino Starter Kit book, The Arduino Board, p.11', url: '' }],
+      parts_that_connect_here: [
+        { name: 'arduino-starter-kit:tmp36', title: 'Temperature Sensor (TMP36)', interface_kind: 'analog-in' },
+        { name: 'arduino-starter-kit:potentiometer', title: 'Potentiometer', interface_kind: 'analog-in' },
+      ],
+    },
+    parts_that_connect_here: [
+      { name: 'arduino-starter-kit:tmp36', title: 'Temperature Sensor (TMP36)', interface_kind: 'analog-in' },
+      { name: 'arduino-starter-kit:potentiometer', title: 'Potentiometer', interface_kind: 'analog-in' },
+    ],
+  };
+
   // GET /api/board/target-compat (real) — board.custom.target_compat.rows(), global + cited.
   const TARGET_COMPAT_ROWS = [{"name": "analog-in", "kind": "analog-in", "title": "Analog input (ADC)", "roles": "adc", "description": "reads a continuously-varying voltage", "matches": "A0-A5", "source_label": "Arduino UNO R3 docs", "source_url": "https://docs.arduino.cc/hardware/uno-rev3/", "notes": ""}, {"name": "pwm-out", "kind": "pwm-out", "title": "PWM output", "roles": "pwm", "description": "drives a timer's Output Compare pin", "matches": "D3, D5, D6, D9, D10, D11", "source_label": "Arduino UNO R3 docs", "source_url": "https://docs.arduino.cc/hardware/uno-rev3/", "notes": ""}, {"name": "digital-in", "kind": "digital-in", "title": "Digital input", "roles": "gpio", "description": "reads a plain 0/1 logic level", "matches": "any non-power/ground pin", "source_label": "Arduino UNO R3 docs", "source_url": "https://docs.arduino.cc/hardware/uno-rev3/", "notes": ""}, {"name": "digital-out", "kind": "digital-out", "title": "Digital output", "roles": "gpio", "description": "drives a plain 0/1 logic level", "matches": "any non-power/ground pin", "source_label": "Arduino UNO R3 docs", "source_url": "https://docs.arduino.cc/hardware/uno-rev3/", "notes": ""}, {"name": "interrupt-in", "kind": "interrupt-in", "title": "Interrupt input", "roles": "gpio", "description": "wakes firmware on an edge", "matches": "INT0/INT1 or PCINTn", "source_label": "Arduino UNO R3 docs", "source_url": "https://docs.arduino.cc/hardware/uno-rev3/", "notes": ""}, {"name": "spi-sck", "kind": "spi-sck", "title": "SPI clock (SCK)", "roles": "spi", "description": "the SPI bus's clock line", "matches": "D13 / ICSP SCK", "source_label": "Arduino UNO R3 docs", "source_url": "https://docs.arduino.cc/hardware/uno-rev3/", "notes": ""}];
 
@@ -82,6 +109,7 @@ describe('FirmwareSolutionPanelComponent', () => {
     if (url.endsWith('/tasks/led/valid-targets')) { return of({ ok: true, solution: 'uno-sim-rig', task: 'led', kind: 'digital-out', pins: LED_VALID_TARGETS_PINS }); }
     if (url.endsWith('/pins/D13')) { return of(PIN_DETAIL_D13); }
     if (url.endsWith('/pins/D9')) { return of(PIN_DETAIL_D9); }
+    if (url.endsWith('/pins/5V') || url.endsWith('/pins/%2B5V')) { return of(PIN_DETAIL_5V); }
     if (url.endsWith('/api/board/target-compat')) { return of({ ok: true, rows: TARGET_COMPAT_ROWS }); }
     return of({ ok: false, error: 'unexpected GET ' + url });
   }
@@ -413,6 +441,79 @@ describe('FirmwareSolutionPanelComponent', () => {
       fixture.detectChanges();
       component.handlePinActivate('D13');
       expect((pinEl('D13') as HTMLElement).style.filter).toContain('drop-shadow');
+    });
+  });
+
+  // fs-2d (his ask, verbatim: "the power pins have no definitions at all, they should at least have their target
+  // sections reactively instead describe what they do and what they are for"): the Target-details section's
+  // "Power / reference" block, and "Parts that connect here" in place of the (always-empty, for a power rail)
+  // Registered Tasks list.
+  describe('power/reference pin detail (fs-2d)', () => {
+    it('selecting a power pin (5V) loads power_reference and renders the Power / reference block', () => {
+      fixture.detectChanges();
+      component.handlePinActivate('5V');
+      expect(component.detailMode).toBe('pin');
+      expect(component.pinDetail?.power_reference).toBeTruthy();
+      expect(component.pinDetail?.power_reference?.assignable).toBe(false);
+      expect(component.pinDetail?.power_reference?.purpose).toContain('Supplies regulated 5 V');
+      fixture.detectChanges();
+      const text = (fixture.nativeElement as HTMLElement).textContent || '';
+      expect(text).toContain('Power / reference');
+      expect(text).toContain('Supplies regulated 5 V');
+      expect(text).toContain('TMP36');
+    });
+
+    it('a power pin shows "Parts that connect here" instead of Registered Tasks, including the TMP36 and the potentiometer', () => {
+      fixture.detectChanges();
+      component.handlePinActivate('5V');
+      fixture.detectChanges();
+      const text = (fixture.nativeElement as HTMLElement).textContent || '';
+      expect(text).toContain('Parts that connect here');
+      expect(text).not.toContain('No Registered Tasks on this pin');
+      const names = (component.pinDetail?.parts_that_connect_here || []).map(p => p.title);
+      expect(names).toEqual(jasmine.arrayContaining(['Temperature Sensor (TMP36)', 'Potentiometer']));
+    });
+
+    it('an ordinary signal pin (D13) still renders the SoC register facts, not the Power / reference block', () => {
+      fixture.detectChanges();
+      component.handlePinActivate('D13');
+      expect(component.pinDetail?.power_reference).toBeFalsy();
+      fixture.detectChanges();
+      const text = (fixture.nativeElement as HTMLElement).textContent || '';
+      expect(text).not.toContain('Power / reference');
+      expect(text).toContain('Registered Tasks');
+    });
+  });
+
+  // fs-2d (his ask, verbatim: "our tasks to be linked to their no-code solutions that compose them"): the Tasks
+  // table's "Composed by" column/link.
+  describe('Composed by — the task <-> no-code graph/node reverse link (fs-2d)', () => {
+    beforeEach(() => {
+      getOverride = (url: string) => {
+        if (url.endsWith('/api/firmware/solutions/uno-sim-rig')) {
+          const schedule = SCHEDULE.map(s => ({
+            ...s,
+            composed_by: { graph: 'uno-sim-rig-graph', node: s.task, canvas_route: `/display/c-canvas?graph=uno-sim-rig-graph&node=${s.task}`,
+                          solution: 'uno-temp-split', capabilities: s.task === 'led' ? ['blink-on-command'] : [] },
+          }));
+          return of({
+            ok: true, solution: SOLUTION, schedule, assignments: ASSIGNMENTS,
+            unregistered_tasks: UNREGISTERED_TASKS, registered_tasks: REGISTERED_TASKS_BY_PIN,
+            capabilities: CAPABILITIES, validation: { ok: true, why: SOLUTION.validation_why } as any, builds: [],
+          });
+        }
+        return null;
+      };
+    });
+
+    it('a task row carries composed_by, pointing at its own CGraph node', () => {
+      fixture.detectChanges();
+      const led = component.taskRows.find(t => t.task === 'led');
+      expect(led?.composed_by?.graph).toBe('uno-sim-rig-graph');
+      expect(led?.composed_by?.node).toBe('led');
+      expect(led?.composed_by?.canvas_route).toBe('/display/c-canvas?graph=uno-sim-rig-graph&node=led');
+      const text = (fixture.nativeElement as HTMLElement).textContent || '';
+      expect(text).toContain('uno-sim-rig-graph:led');
     });
   });
 });

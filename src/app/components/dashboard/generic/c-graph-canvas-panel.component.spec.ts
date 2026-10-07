@@ -2,12 +2,18 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NO_ERRORS_SCHEMA } from '@angular/core';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
 import { BehaviorSubject } from 'rxjs';
 
 import { CGraphCanvasPanelComponent } from './c-graph-canvas-panel.component';
 import { PolariService } from '@services/polari-service';
 import { NoCodeSolutionStateService } from '@services/no-code-services/no-code-solution-state.service';
+
+/** fs-2d: a bare ActivatedRoute stub (no ?graph=/?node= by default) — the component reads only
+ *  `snapshot.queryParamMap` once, synchronously, in ngOnInit. */
+function activatedRouteStub(queryParams: Record<string, string> = {}) {
+  return { snapshot: { queryParamMap: convertToParamMap(queryParams) } };
+}
 
 /**
  * demo-4b — THE ADAPTER, atoms-as-real-nodes shape (his ruling 2026-10-04: he opened /display/c-canvas and saw ONE
@@ -65,6 +71,7 @@ describe('CGraphCanvasPanelComponent (demo-4b)', () => {
       providers: [provideHttpClient(), provideHttpClientTesting(),
                   { provide: PolariService, useValue: { getBackendBaseUrl: () => BASE, backendRequestOptions: {} } },
                   { provide: NoCodeSolutionStateService, useValue: solutionState },
+                  { provide: ActivatedRoute, useValue: activatedRouteStub() },
                   // The panel must never navigate on its own — the demo-4 infinite-loop bug traced to
                   // custom-no-code's URL sync + display-page's unconditional reload-on-any-query-param,
                   // not to this panel, but it stays unprovoked here as a regression guard.
@@ -231,6 +238,7 @@ describe('CGraphCanvasPanelComponent — real state service (object context + no
         provideHttpClient(), provideHttpClientTesting(),
         { provide: PolariService, useValue: { getBackendBaseUrl: () => BASE, backendRequestOptions: {} } },
         { provide: Router, useValue: { navigate: navigateSpy } },
+        { provide: ActivatedRoute, useValue: activatedRouteStub() },
         NoCodeSolutionStateService,
       ],
     }).compileComponents();

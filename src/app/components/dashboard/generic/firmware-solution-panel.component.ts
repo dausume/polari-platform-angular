@@ -52,15 +52,21 @@ interface SolutionDetail {
   name: string; title: string; graph: string; board_resolved: string; board_exists: boolean;
   runtime: string; status: string; validation: string; validation_why: string; task_count: number; purpose: string;
 }
+/** fs-2d (his ask, verbatim: "our tasks to be linked to their no-code solutions that compose them") — the reverse
+ * link from a task to where it is COMPOSED: the CGraph + the node it IS, the canvas route that opens straight at
+ * it, any SolutionDefinition/HardwareSolution over the same graph, and which Capabilities name it. Backend: GET
+ * /api/firmware/solutions/{name}'s `schedule`/`assignments` rows (cmod_firmware_api.FirmwareAPI._composed_by). */
+interface ComposedBy { graph: string; node: string; canvas_route: string; solution: string; capabilities: string[]; }
 interface ScheduleSlot {
   name: string; solution: string; task: string; lane: string; order: number; trigger: string;
   period_ms: number; measured_cycles: number; isr_vector: string; provenance: string; notes: string;
+  composed_by?: ComposedBy | null;
 }
 interface RegisterAssignment {
   name: string; solution: string; task: string; port: string; target_kind: string; controls: string;
-  lives_on: string; status: string; provenance: string; notes: string;
+  lives_on: string; status: string; provenance: string; notes: string; composed_by?: ComposedBy | null;
 }
-interface TaskRow { task: string; lane: string; order: number; kind: string; ports: string; resources: string; cost: string; target: string; }
+interface TaskRow { task: string; lane: string; order: number; kind: string; ports: string; resources: string; cost: string; target: string; composed_by: ComposedBy | null; }
 interface LaneChip { task: string; order: number; measured: string; children: LaneChip[]; }
 interface RegisteredTaskRow { task: string; port: string; status: string; cooperating: boolean; }
 interface PinRegisteredTask { task: string; port: string; solution: string; lane: string; status: string; cooperating: boolean; }
@@ -79,6 +85,16 @@ type PendingKind = 'register' | 'unregister';
 interface PendingAction { kind: PendingKind; task: RegisterAssignment; pin: string; }
 
 interface AltFunction { function: string; peripheral: string; signal: string; kind: string; fact: string; }
+/** fs-2d (his ask, verbatim: "the power pins have no definitions at all, they should at least have their target
+ * sections reactively instead describe what they do and what they are for") — the content of the "Power /
+ * reference" block, present on PinDetail only for a power/reference connector label (IOREF, RESET, +3V3, +5V, GND,
+ * VIN, AREF — board.custom.power_pins.detail_for). */
+interface KitPartRef { name: string; title: string; interface_kind: string; }
+interface PowerReferenceDetail {
+  label: string; role: string; purpose: string; electrical: Record<string, any>; typical_uses: string[];
+  assignable: boolean; assignable_reason: string; locations: { connector: string; number: number }[];
+  net: string; sources: { label: string; url: string }[]; parts_that_connect_here: KitPartRef[];
+}
 interface PinDetail {
   ok: boolean; board: string; pin: string; roles: string[]; soc_pin: string;
   register: { port: string; bit: number | null; package_pin: string; default_function: string; fact: string };
@@ -87,6 +103,7 @@ interface PinDetail {
   electrical: Record<string, any>;
   net: string; connector: string; connector_number: number | null; facts: any[];
   registered_tasks: PinRegisteredTask[]; unregistered: boolean;
+  power_reference?: PowerReferenceDetail | null; parts_that_connect_here?: KitPartRef[];
 }
 interface TargetCompatRow { name: string; kind: string; title: string; roles: string; description: string; matches: string; source_label: string; source_url: string; notes: string; }
 
@@ -188,7 +205,7 @@ const CAP_STATUS_COLORS: Record<string, string> = {
                     <span class="fsp-badge fsp-cap-badge" *ngIf="g.status" [style.background]="capStatusColor(g.status)">{{ g.status }}</span>
                   </div>
                   <table class="fsp-task-table">
-                    <thead><tr><th>Task</th><th>Lane</th><th>Target</th><th>Capability</th><th>Cost</th></tr></thead>
+                    <thead><tr><th>Task</th><th>Lane</th><th>Target</th><th>Capability</th><th>Cost</th><th>Composed by</th></tr></thead>
                     <tbody>
                       <tr *ngFor="let t of g.rows" tabindex="0" role="button"
                           [class.fsp-selected-row]="selectedTask?.task === t.task"
@@ -204,6 +221,14 @@ const CAP_STATUS_COLORS: Record<string, string> = {
                         <td [class.fsp-unregistered]="t.target === 'unregistered'">{{ t.target }}</td>
                         <td><span class="fsp-badge fsp-cap-badge" *ngIf="g.status" [style.background]="capStatusColor(g.status)">{{ g.status }}</span><span *ngIf="!g.status">—</span></td>
                         <td>{{ t.cost }}</td>
+                        <!-- fs-2d: the reverse link from a task to the no-code graph/node that composes it —
+                             opens the c-canvas at exactly that node (CGraphCanvasPanelComponent honours ?node=). -->
+                        <td>
+                          <a *ngIf="t.composed_by as cb" class="fsp-composed-link" title="open on the c-canvas"
+                             [routerLink]="['/display/c-canvas']" [queryParams]="{ graph: cb.graph, node: cb.node }"
+                             (click)="$event.stopPropagation()">{{ cb.graph }}:{{ cb.node }}</a>
+                          <span *ngIf="!t.composed_by">—</span>
+                        </td>
                       </tr>
                     </tbody>
                   </table>
@@ -296,13 +321,41 @@ const CAP_STATUS_COLORS: Record<string, string> = {
                 <div class="fsp-detail" *ngIf="detailMode === 'pin' && selectedPin">
                   <h5>{{ selectedPin }} <small>({{ solution?.board_resolved }})</small></h5>
                   <div *ngIf="pinDetail">
-                    <table class="fsp-kv">
+                    <!-- fs-2d (his ask, verbatim: "the power pins have no definitions at all, they should at least
+                         have their target sections reactively instead describe what they do and what they are
+                         for"): a power/reference pin (IOREF, RESET, +3V3/5V, GND, VIN, AREF) gets THIS block instead
+                         of the SoC register facts below — it never has any. -->
+                    <ng-container *ngIf="pinDetail.power_reference as pr">
+                      <h6>Power / reference</h6>
+                      <table class="fsp-kv">
+                        <tr><th>Role</th><td>{{ pr.role }}</td></tr>
+                        <tr><th>Purpose</th><td>{{ pr.purpose }}</td></tr>
+                        <tr><th>Assignable</th><td class="fsp-unregistered">no — {{ pr.assignable_reason }}</td></tr>
+                        <tr><th>Net</th><td>{{ pr.net }}</td></tr>
+                        <tr><th>Locations</th><td>{{ pinLocationsText(pr) }}</td></tr>
+                      </table>
+                      <h6>Electrical</h6>
+                      <table class="fsp-kv">
+                        <tr *ngFor="let kv of objectEntries(pr.electrical)"><th>{{ kv.key }}</th><td>{{ kv.value }}</td></tr>
+                      </table>
+                      <h6>Typical uses</h6>
+                      <ul class="fsp-typical-uses">
+                        <li *ngFor="let u of pr.typical_uses">{{ u }}</li>
+                      </ul>
+                      <h6>Cited sources</h6>
+                      <ul class="fsp-typical-uses">
+                        <li *ngFor="let s of pr.sources">{{ s.label }}</li>
+                      </ul>
+                    </ng-container>
+
+                    <table class="fsp-kv" *ngIf="!pinDetail.power_reference">
                       <tr><th>SoC pin</th><td>{{ pinDetail.soc_pin || 'undetermined' }}</td></tr>
                       <tr><th>Register</th><td>{{ registerNames(pinDetail) }} — bit {{ pinDetail.register.bit ?? 'undetermined' }} <small>({{ pinDetail.register.fact }})</small></td></tr>
                       <tr><th>Package pin</th><td>{{ pinDetail.register.package_pin }}</td></tr>
                       <tr><th>Current assignment</th><td>{{ pinDetail.current_assignment.function || '—' }} <small *ngIf="pinDetail.current_assignment.firmware_symbol">({{ pinDetail.current_assignment.firmware_symbol }})</small></td></tr>
                     </table>
 
+                    <ng-container *ngIf="!pinDetail.power_reference">
                     <h6>Alternate functions</h6>
                     <table class="fsp-detail-table" *ngIf="pinDetail.alternate_functions.length">
                       <thead><tr><th>Function</th><th>Peripheral</th><th>Kind</th><th>Citation</th></tr></thead>
@@ -322,7 +375,19 @@ const CAP_STATUS_COLORS: Record<string, string> = {
                     <table class="fsp-kv">
                       <tr><th>Net / connector</th><td>{{ pinDetail.net || '—' }} / {{ pinDetail.connector || '—' }}{{ pinDetail.connector_number != null ? ' #' + pinDetail.connector_number : '' }}</td></tr>
                     </table>
+                    </ng-container>
 
+                    <!-- fs-2d (his follow-up ask): a power/reference pin's "Parts that connect here" (board.custom.
+                         kit_parts.parts_for_pin) replaces the always-empty Registered Tasks list — a power rail is
+                         never a task target, but it IS where real kit parts wire (5V -> the TMP36, the potentiometer…). -->
+                    <ng-container *ngIf="pinDetail.power_reference; else registeredTasksBlock">
+                      <h6>Parts that connect here</h6>
+                      <div class="fsp-chipline" *ngIf="pinDetail.parts_that_connect_here?.length">
+                        <span class="fsp-chip" *ngFor="let p of pinDetail.parts_that_connect_here" [title]="p.interface_kind">{{ p.title }}</span>
+                      </div>
+                      <div class="fsp-state" *ngIf="!pinDetail.parts_that_connect_here?.length">No kit part is known to connect here.</div>
+                    </ng-container>
+                    <ng-template #registeredTasksBlock>
                     <h6>Registered Tasks</h6>
                     <table class="fsp-detail-table" *ngIf="pinRanked.registered.length">
                       <thead><tr><th>Task</th><th>Port</th><th>Solution</th><th>Lane</th><th>Cooperating</th></tr></thead>
@@ -352,6 +417,7 @@ const CAP_STATUS_COLORS: Record<string, string> = {
                     <div class="fsp-state" *ngIf="showMoreRestPin && pinRanked.restCount">
                       the rest ({{ pinRanked.restCount }}) — compatibility not yet checked; select a task once to check it against this pin
                     </div>
+                    </ng-template>
 
                     <h6>Compatible task kinds (cited rules)</h6>
                     <table class="fsp-detail-table" *ngIf="compatRowsForSelectedPin.length">
@@ -382,6 +448,8 @@ const CAP_STATUS_COLORS: Record<string, string> = {
     .fsp-validation.fsp-bad { color: var(--error-text, #b00020); }
     .fsp-link { margin-left: auto; font-size: 0.85em; text-decoration: none; color: var(--link-text, #1565c0); }
     .fsp-link:hover { text-decoration: underline; }
+    .fsp-composed-link { font-size: 0.85em; text-decoration: none; color: var(--link-text, #1565c0); }
+    .fsp-composed-link:hover { text-decoration: underline; }
     .fsp-state { padding: 12px 0; color: var(--text-on-card-muted); }
     .fsp-error { color: var(--color-error-text, #b00020); }
     .fsp-warning { color: var(--warning-text, #e65100); }
@@ -419,6 +487,8 @@ const CAP_STATUS_COLORS: Record<string, string> = {
     .fsp-selected-row { outline: 2px solid #1565c0; }
     .fsp-badge { color: #fff; border-radius: 8px; padding: 1px 7px; font-size: 0.85em; }
     .fsp-cap-badge { font-size: 0.78em; }
+    .fsp-typical-uses { margin: 2px 0 10px; padding-left: 18px; font-size: 0.82em; }
+    .fsp-typical-uses li { margin-bottom: 2px; }
     .fsp-h-solid { outline: 2px solid #1565c0; }
     .fsp-h-outline { outline: 2px dashed #2e7d32; }
     .fsp-h-dim { opacity: 0.4; }
@@ -612,7 +682,10 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
       const cost = m ? `${m[1]} B text / ${m[2]} B stack` : (s.measured_cycles >= 0 ? `${s.measured_cycles} cycles` : '—');
       const bound = own.find(a => a.status === 'bound');
       const target = bound ? (bound.lives_on.split(':').pop() || bound.lives_on) : (own.length ? 'unregistered' : '—');
-      return { task: s.task, lane: s.lane, order: s.order, kind, ports, resources, cost, target };
+      // fs-2d: the schedule row carries its own composed_by; an assignment's (own[0]) is the same shape — either
+      // one answers "where is this task composed", a ScheduleSlot just always exists so it is read first.
+      const composedBy = s.composed_by ?? own[0]?.composed_by ?? null;
+      return { task: s.task, lane: s.lane, order: s.order, kind, ports, resources, cost, target, composed_by: composedBy };
     });
     this.buildTaskGroups();
   }
@@ -914,6 +987,19 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
   }
 
   electricalFact(d: PinDetail): string { return (d.electrical || {})['fact'] || ''; }
+
+  /** fs-2d: the Power / reference block's own `electrical` dict (board.custom.power_pins) — unlike `electricalLimits`
+   * above (one SoC pin's register facts, 'fact' key held back for the inline citation), this one has no such
+   * reserved key, so every entry renders. */
+  objectEntries(o: Record<string, any> | null | undefined): { key: string; value: any }[] {
+    return Object.keys(o || {}).map(k => ({ key: k, value: (o as any)[k] }));
+  }
+
+  /** fs-2d: "POWER:5, DIGITAL_H:7, …" for a power/reference pin's every physical location (GND has 4 on the UNO) —
+   * a plain method, not a template arrow function (Angular template expressions cannot contain them). */
+  pinLocationsText(pr: PowerReferenceDetail): string {
+    return pr.locations.length ? pr.locations.map(l => `${l.connector}:${l.number}`).join(', ') : '—';
+  }
 
   /** fs-2b: the globally-cited TargetCompatibilityRule rows that apply to THIS pin's own alternate-function
    * facts — a display FILTER of the door's own cited rows, never a re-derivation of compatible()'s verdicts. */

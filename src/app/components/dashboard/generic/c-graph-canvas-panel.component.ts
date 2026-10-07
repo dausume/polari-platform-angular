@@ -1,4 +1,5 @@
 import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { Subject } from 'rxjs';
 import { filter, take, takeUntil } from 'rxjs/operators';
@@ -151,6 +152,14 @@ export class CGraphCanvasPanelComponent implements OnInit, OnChanges, OnDestroy 
   /** demo-4b: when set, opens the REAL HardwareSolution drawing by name instead of a synthetic atoms-only solution
    * (its SolutionDefinition already carries the mixed board/bridge/backend nodes — see the class doc above). */
   @Input() solution: string = '';
+  /** fs-2d (his ask, verbatim: "our tasks to be linked to their no-code solutions that compose them"): the node
+   * (CGraphNode instance) to focus once the solution is open — a Firmware Solutions Tasks row's own "Composed by"
+   * link sets this via ?node= on THIS panel's own URL (/display/c-canvas?graph=<g>&node=<n>, read directly off
+   * ActivatedRoute in ngOnInit — never the generic {object}/{scope:} page-input substitution display-page.ts
+   * drives, which has no per-query-param mechanism and is not touched by this). Best-effort: scrolls to and
+   * outlines the node's own SVG group (the same `data-state-name` attribute custom-no-code.ts's own overlay
+   * already stamps, getStateGroupElement) — no new editor selection API, no risk to the shared no-code canvas. */
+  @Input() node: string = '';
 
   /** selfix round 3 (2026-10-05): the embedded canvas, so we can reset its view after opening a
    *  solution — Recenter (resetZoom()) is an identity-transform reset, never a "fit to content",
@@ -175,12 +184,21 @@ export class CGraphCanvasPanelComponent implements OnInit, OnChanges, OnDestroy 
     private http: HttpClient,
     private polariService: PolariService,
     private solutionState: NoCodeSolutionStateService,
+    private route: ActivatedRoute,
   ) {}
 
   private get base(): string { return this.polariService.getBackendBaseUrl(); }
   private get headers(): any { return (this.polariService.backendRequestOptions as any)?.headers; }
 
   ngOnInit(): void {
+    // fs-2d: ?graph=&node= on this panel's OWN url (a direct /display/c-canvas link, or embedded on a page that
+    // forwards its own query string) win over the @Input defaults — read once, synchronously, off the snapshot
+    // (no subscription: a later in-page query-param change comes through as a normal @Input via ngOnChanges).
+    const qp = this.route.snapshot.queryParamMap;
+    const g = qp.get('graph');
+    const n = qp.get('node');
+    if (g) { this.graph = g; }
+    if (n) { this.node = n; }
     this.loadGraphs();
     // selfix round 3 (2026-10-05): WE call initializeFromBackend() now — the embedded
     // <custom-no-code syncUrl="false"> no longer does (see its ngOnInit). On a true fresh page
@@ -201,15 +219,37 @@ export class CGraphCanvasPanelComponent implements OnInit, OnChanges, OnDestroy 
     // standing — never a second, persistent subscription per call (pick()/ngOnChanges open
     // directly; loading is already settled by then).
     this.solutionState.loading$.pipe(filter((loading: boolean) => !loading), take(1), takeUntil(this.destroy$))
-      .subscribe(() => { Promise.resolve().then(() => this.openSolutionFor(this.graph)); });
+      .subscribe(() => { Promise.resolve().then(() => { this.openSolutionFor(this.graph); if (this.node) { this.focusNode(this.node); } }); });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     const graphChanged = changes['graph'] && !changes['graph'].firstChange;
     const solutionChanged = changes['solution'] && !changes['solution'].firstChange;
+    const nodeChanged = changes['node'] && !changes['node'].firstChange;
     if (graphChanged || solutionChanged) {
       this.openSolutionFor(this.graph);
+      if (this.node) { this.focusNode(this.node); }
+    } else if (nodeChanged && this.node) {
+      this.focusNode(this.node);
     }
+  }
+
+  /** fs-2d: best-effort DOM focus for ?node= — scroll it into view and outline it briefly. Reads the SAME
+   * `data-state-name` attribute custom-no-code.ts's own node overlay already stamps on every rendered state group
+   * (its private getStateGroupElement) — a plain DOM query, no new editor API. A 600ms delay gives the canvas time
+   * to finish (re)rendering after openSolutionFor's backend round trip; if the node never appears (wrong name, or
+   * the canvas is still loading), this silently no-ops rather than erroring. */
+  private focusNode(name: string): void {
+    setTimeout(() => {
+      const svg = document.getElementById('d3-graph');
+      const group = svg?.querySelector(`g[data-state-name="${(window as any).CSS?.escape ? CSS.escape(name) : name}"]`) as SVGGElement | null;
+      if (!group) { return; }
+      group.scrollIntoView?.({ behavior: 'smooth', block: 'center', inline: 'center' });
+      const prevOutline = group.style.outline;
+      group.style.outline = '3px solid #1565c0';
+      group.style.outlineOffset = '2px';
+      setTimeout(() => { group.style.outline = prevOutline; }, 2500);
+    }, 600);
   }
 
   ngOnDestroy(): void {
