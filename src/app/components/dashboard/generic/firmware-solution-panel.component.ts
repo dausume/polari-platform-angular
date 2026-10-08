@@ -140,8 +140,25 @@ const CAP_STATUS_COLORS: Record<string, string> = {
         <span class="fsp-validation" *ngIf="validation" [class.fsp-ok]="validation.ok" [class.fsp-bad]="!validation.ok">
           {{ validation.ok ? 'validated' : 'refused' }} — {{ validation.why }}
         </span>
+        <button type="button" class="fsp-export-btn" (click)="exportSolution()" [disabled]="!selected || exporting"
+                title="Write the CMake project (the rendered C, CMakeLists.txt, toolchain, README, manifest), verify it rebuilds on the engines image, and download it">
+          {{ exporting ? 'Exporting…' : 'Export (CMake)' }}
+        </button>
+        <a class="fsp-link" [routerLink]="'/display/hardware-chain'" title="pins → functions → peripherals → registers → bit fields">Hardware chain</a>
         <a class="fsp-link" [routerLink]="'/display/c-canvas'">&larr; C canvas</a>
         <a class="fsp-link" [routerLink]="'/display/hardware-solutions'">&larr; Hardware solutions</a>
+      </div>
+      <!-- ucd-0f: the export's result — what was written, whether the CMake build reproduced the Makefile build, the download -->
+      <div class="fsp-export" *ngIf="exportResult || exportError">
+        <ng-container *ngIf="exportResult as x">
+          <b>Exported</b> {{ x.name }} —
+          <a [href]="base + x.download_url" target="_blank" rel="noopener">download {{ x.name }}.tar.gz</a>
+          · parity <span [class.fsp-ok]="x.parity === 'identical'" [class.fsp-bad]="x.parity === 'differs'">{{ x.parity }}</span>
+          <small>(Makefile hex {{ (x.makefile_sha256 || '—') | slice:0:12 }} · CMake hex {{ (x.cmake_sha256 || '—') | slice:0:12 }})</small>
+          · build it: <code>cmake -S . -B build &amp;&amp; cmake --build build</code> or <code>cmake -P polari-build.cmake</code>
+          <span *ngIf="x.why" class="fsp-bad"> · {{ x.why }}</span>
+        </ng-container>
+        <span *ngIf="exportError" class="fsp-bad">{{ exportError }}</span>
       </div>
 
       <div class="fsp-presets">
@@ -446,6 +463,10 @@ const CAP_STATUS_COLORS: Record<string, string> = {
     .fsp-validation { font-size: 0.82em; }
     .fsp-validation.fsp-ok { color: var(--success-text, #2e7d32); }
     .fsp-validation.fsp-bad { color: var(--error-text, #b00020); }
+    .fsp-export-btn { margin-left: auto; padding: 4px 12px; border-radius: 6px; border: 1px solid var(--brand-primary, #3f51b5); background: var(--brand-primary, #3f51b5); color: var(--brand-primary-text, #fff); cursor: pointer; }
+    .fsp-export-btn[disabled] { opacity: .6; cursor: default; }
+    .fsp-export { padding: 6px 10px; margin: 4px 0 8px; border-left: 3px solid var(--brand-primary, #3f51b5); background: var(--surface-alt, rgba(63,81,181,.06)); font-size: 13px; }
+    .fsp-export code { font-size: 12px; }
     .fsp-link { margin-left: auto; font-size: 0.85em; text-decoration: none; color: var(--link-text, #1565c0); }
     .fsp-link:hover { text-decoration: underline; }
     .fsp-composed-link { font-size: 0.85em; text-decoration: none; color: var(--link-text, #1565c0); }
@@ -527,6 +548,10 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
   registeredTasks: Record<string, RegisteredTaskRow[]> = {};
   capabilities: CapabilityRow[] = [];
   validation: { ok: boolean; why: string } | null = null;
+  // ucd-0f: the last export made from this panel (POST .../export → the FirmwareExport row)
+  exporting = false;
+  exportResult: any = null;
+  exportError = '';
 
   taskRows: TaskRow[] = [];
   taskGroups: TaskGroup[] = [];
@@ -567,7 +592,7 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
 
   constructor(private http: HttpClient, private sanitizer: DomSanitizer, private polariService: PolariService) {}
 
-  private get base(): string { return this.polariService.getBackendBaseUrl(); }
+  get base(): string { return this.polariService.getBackendBaseUrl(); }
   private get headers(): any { return (this.polariService.backendRequestOptions as any)?.headers; }
 
   ngOnInit(): void { this.loadLayout(); this.loadSolutions(); }
@@ -646,6 +671,17 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
         if (pick) { this.select(pick); }
       },
       error: (err: any) => { const f = friendlyError(err, `GET ${this.solutionsPath}`); this.error = f.text; },
+    });
+  }
+
+  /** ucd-0f: export the selected solution as a CMake project (verified on the engines image), then offer the download. */
+  exportSolution(): void {
+    if (!this.selected || this.exporting) { return; }
+    this.exporting = true; this.exportResult = null; this.exportError = '';
+    this.http.post<any>(`${this.base}${this.solutionsPath}/${encodeURIComponent(this.selected)}/export`, { target: 'both', verify: true },
+                        { headers: this.headers }).subscribe({
+      next: (r) => { this.exporting = false; if (r?.export) { this.exportResult = r.export; } else { this.exportError = r?.refused || r?.error || 'export refused'; } },
+      error: (e) => { this.exporting = false; this.exportError = e?.error?.refused || e?.error?.error || friendlyError(e, 'POST export').text; },
     });
   }
 
