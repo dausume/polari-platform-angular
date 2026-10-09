@@ -69,6 +69,32 @@ interface ScheduleSlot {
 interface RegisterAssignment {
   name: string; solution: string; task: string; port: string; target_kind: string; controls: string;
   lives_on: string; status: string; provenance: string; notes: string; composed_by?: ComposedBy | null;
+  /** ucd-0b2c (§5h B2/B6, the audit's reconciliation): requirement/assignment rows widened — every field OPTIONAL
+   * so an older backend (pre-ucd-0b2a) still renders (the Tasks chip and "Resources this task uses" table fall
+   * back to `target_kind` when `requirement_kind` is absent). */
+  requirement_kind?: string; role?: string; required?: boolean; resource_kind?: string;
+  signal_route?: string; configuration?: string;
+}
+
+/** ucd-0b2 RULED (§5h, his words): a FirmwareSolution is hardware-agnostic; a HardwareBinding '<solution>@<board>'
+ * is the hardware-specific mask over one board — it owns the assignments/claims/routes for that board and carries
+ * a computed status against the task requirements. Optional fields are the refs the panel never reads directly
+ * (the backend keeps them for provenance/build tooling). Absent entirely (older backend, no `bindings` key) means
+ * the Binding picker degrades to nothing — the Solution picker alone, no status line, no "+ bind" control. */
+interface HardwareBindingRow {
+  name: string; solution: string; board: string; soc: string; is_default: boolean;
+  status: 'valid' | 'incomplete' | 'invalid'; why: string;
+  requirements_total: number; requirements_met: number;
+  assignments_refs_json?: string; claims_refs_json?: string; settings_refs_json?: string; routes_refs_json?: string;
+  last_build?: string; provenance?: string; notes?: string;
+}
+
+/** ucd-0b2c item 2: one row of the "Resources this task uses" table — derived client-side from the task's own
+ * `assignments` rows (never a new door). `needs_pin`/`memory_field` are the two states the table calls out by
+ * name ("needs a pin" / "memory field, no hardware"). */
+interface TaskResourceRow {
+  port: string; requirement_kind: string; role: string; required: boolean;
+  bound_to: string; status: string; route: string; needs_pin: boolean; memory_field: boolean;
 }
 interface TaskRow { task: string; lane: string; order: number; kind: string; ports: string; resources: string; cost: string; target: string; composed_by: ComposedBy | null; }
 interface LaneChip { task: string; order: number; measured: string; children: LaneChip[]; }
@@ -138,6 +164,8 @@ interface PinClaim {
   name: string; solution: string; board_pin: string; soc_pin: string; task: string; port: string;
   requirement_kind: string; mode: PinMode; pin_function: string; pull: PinPull; edge: PinEdge; initial: PinInitial;
   rule: string; provenance: 'derived' | 'canvas'; status: 'ok' | 'conflict' | 'incomplete'; why: string;
+  /** ucd-0b2c: claims are now owned by a HardwareBinding — carried for provenance only, not read by the panel. */
+  binding?: string;
 }
 interface RegisterFieldSettingRow {
   name: string; register_setting: string; register_field: string; value: string; meaning: string;
@@ -184,6 +212,14 @@ const CAP_STATUS_COLORS: Record<string, string> = {
             <option *ngFor="let s of solutions" [value]="s.name">{{ s.title || s.name }}</option>
           </select>
         </label>
+        <!-- ucd-0b2c item 1 (§5h RULED: a Solution is hardware-agnostic; a HardwareBinding '<solution>@<board>' is
+             the hardware-specific mask) — degrades to nothing when the payload carries no 'bindings' key. -->
+        <label class="fsp-pick" *ngIf="bindings.length">
+          <span>Binding</span>
+          <select [ngModel]="bindingPick" (ngModelChange)="selectBinding($event)">
+            <option *ngFor="let b of bindings" [value]="b.name">{{ b.board }} · {{ b.status }}{{ b.is_default ? ' (default)' : '' }}</option>
+          </select>
+        </label>
         <span class="fsp-validation" *ngIf="validation" [class.fsp-ok]="validation.ok" [class.fsp-bad]="!validation.ok">
           {{ validation.ok ? 'validated' : 'refused' }} — {{ validation.why }}
         </span>
@@ -195,6 +231,23 @@ const CAP_STATUS_COLORS: Record<string, string> = {
         <a class="fsp-link" [routerLink]="'/display/c-canvas'">&larr; C canvas</a>
         <a class="fsp-link" [routerLink]="'/display/hardware-solutions'">&larr; Hardware solutions</a>
       </div>
+
+      <!-- ucd-0b2c item 1: the one-line binding status + "+ bind to another board" — both absent entirely when
+           the backend carries no 'bindings' key (degrade: the Solution picker alone, nothing else changes). -->
+      <div class="fsp-binding-status" *ngIf="binding">
+        <span>Binding {{ binding.name }}: {{ binding.status }} — {{ binding.requirements_met }}/{{ binding.requirements_total }} required resources met</span>
+        <span class="fsp-warning" *ngIf="binding.why"> — {{ binding.why }}</span>
+      </div>
+      <div class="fsp-bind-row" *ngIf="bindings.length">
+        <span class="fsp-bind-label">+ bind to another board</span>
+        <select [(ngModel)]="newBindBoard">
+          <option value="">choose a board…</option>
+          <option *ngFor="let b of boardChoices" [value]="b">{{ b }}</option>
+        </select>
+        <button type="button" class="fsp-bind-btn" (click)="bindToBoard()" [disabled]="!newBindBoard || bindBusy">{{ bindBusy ? 'Binding…' : 'Bind' }}</button>
+        <span class="fsp-error" *ngIf="bindError">{{ bindError }}</span>
+      </div>
+
       <!-- ucd-0f: the export's result — what was written, whether the CMake build reproduced the Makefile build, the download -->
       <div class="fsp-export" *ngIf="exportResult || exportError">
         <ng-container *ngIf="exportResult as x">
@@ -309,6 +362,11 @@ const CAP_STATUS_COLORS: Record<string, string> = {
                                 [class.fsp-claim-conflict]="cc.status === 'conflict'"
                                 [class.fsp-claim-incomplete]="cc.status === 'incomplete'"
                                 [title]="cc.title">{{ cc.text }}</span>
+                          <!-- ucd-0b2c item 3: required-resources summary, red when something required is
+                               unbound/conflicting — required rows only. -->
+                          <span class="fsp-badge fsp-resource-chip" *ngIf="taskResourceChip(t.task) as rc"
+                                [class.fsp-claim-conflict]="rc.bad" [class.fsp-resource-ok]="!rc.bad"
+                                [title]="rc.bad ? 'a required resource is unbound or conflicting' : 'every required resource is bound'">{{ rc.text }}</span>
                         </td>
                         <td><span class="fsp-badge" [style.background]="laneColor(t.lane)">{{ t.lane }}</span></td>
                         <td [class.fsp-unregistered]="t.target === 'unregistered'">{{ t.target }}</td>
@@ -384,6 +442,9 @@ const CAP_STATUS_COLORS: Record<string, string> = {
 
                 <div class="fsp-detail" *ngIf="detailMode === 'task' && selectedTask">
                   <h5>{{ selectedTask.task }}{{ selectedTask.port ? '.' + selectedTask.port : '' }}</h5>
+                  <!-- ucd-0b2c item 2: every requirement row of the SELECTED task (so a UART task shows TX and RX
+                       together) — degrades to 'target_kind' when 'requirement_kind' is absent (an older backend). -->
+                  <ng-container *ngTemplateOutlet="resourceTable; context: { rows: taskResourceRowsFor(selectedTask.task) }"></ng-container>
                   <div *ngIf="taskValidity">
                     <p>Requirement kind: <strong>{{ taskValidity.kind }}</strong></p>
                     <p *ngIf="taskValidity.refused" class="fsp-error">{{ taskValidity.refused }}</p>
@@ -481,6 +542,11 @@ const CAP_STATUS_COLORS: Record<string, string> = {
                          solution changes or an assign happens — see loadPinChain); a 404 (older backend) just
                          leaves this block empty, never an error. -->
                     <div class="fsp-chain-why">
+                      <!-- ucd-0b2c item 2, ABOVE the "why" block: the claiming task's own requirement rows (so a
+                           UART task shows TX and RX together even though only one pin is open here). -->
+                      <ng-container *ngIf="pinChain?.claim as pcc">
+                        <ng-container *ngTemplateOutlet="resourceTable; context: { rows: taskResourceRowsFor(pcc.task) }"></ng-container>
+                      </ng-container>
                       <h6>Why this pin is configured this way</h6>
                       <ng-container *ngIf="pinChain as pc">
                         <div class="fsp-state" *ngIf="!pc.claim">no task claims this pin in {{ selected }}</div>
@@ -580,6 +646,32 @@ const CAP_STATUS_COLORS: Record<string, string> = {
           </div>
         </div>
       </div>
+
+      <!-- ucd-0b2c item 2: shared by the task-selected view and the pin-detail "why" block — one requirement row
+           per (task, port), from 'assignments'; never a new door. -->
+      <ng-template #resourceTable let-rows="rows">
+        <h6>Resources this task uses</h6>
+        <table class="fsp-detail-table" *ngIf="rows.length">
+          <thead><tr><th>Port</th><th>Kind</th><th>Role</th><th>Required</th><th>Bound to</th><th>Status</th><th>Route</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let r of rows" [class.fsp-h-dim]="r.memory_field">
+              <td>{{ r.port }}</td>
+              <td>{{ r.requirement_kind }}</td>
+              <td>{{ r.role || '—' }}</td>
+              <td>{{ r.required ? 'yes' : 'no' }}</td>
+              <td>
+                <span *ngIf="r.memory_field">memory field, no hardware</span>
+                <ng-container *ngIf="!r.memory_field">
+                  {{ r.bound_to }}<span *ngIf="r.needs_pin" class="fsp-error"> — needs a pin</span>
+                </ng-container>
+              </td>
+              <td [class.fsp-error]="r.status === 'conflict'">{{ r.status }}</td>
+              <td>{{ r.route || '—' }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="fsp-state" *ngIf="!rows.length">No resources recorded for this task.</div>
+      </ng-template>
     </div>
   `,
   styles: [`
@@ -593,6 +685,13 @@ const CAP_STATUS_COLORS: Record<string, string> = {
     .fsp-export-btn[disabled] { opacity: .6; cursor: default; }
     .fsp-export { padding: 6px 10px; margin: 4px 0 8px; border-left: 3px solid var(--brand-primary, #3f51b5); background: var(--surface-alt, rgba(63,81,181,.06)); font-size: 13px; }
     .fsp-export code { font-size: 12px; }
+    .fsp-binding-status { font-size: 0.82em; padding: 2px 2px 6px; }
+    .fsp-bind-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 0.82em; padding: 2px 2px 8px; }
+    .fsp-bind-label { font-weight: 600; }
+    .fsp-bind-btn { padding: 2px 10px; border-radius: 4px; border: 1px solid var(--brand-primary, #3f51b5); background: transparent; color: inherit; cursor: pointer; }
+    .fsp-bind-btn[disabled] { opacity: .6; cursor: default; }
+    .fsp-resource-chip { font-size: 0.75em; margin-left: 6px; background: transparent; border: 1px solid currentColor; border-radius: 8px; padding: 0 6px; }
+    .fsp-resource-ok { color: var(--success-text, #2e7d32); }
     .fsp-link { margin-left: auto; font-size: 0.85em; text-decoration: none; color: var(--link-text, #1565c0); }
     .fsp-link:hover { text-decoration: underline; }
     .fsp-composed-link { font-size: 0.85em; text-decoration: none; color: var(--link-text, #1565c0); }
@@ -728,6 +827,20 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
    * on an incomplete/conflicting task in the Tasks table; empty array (older backend) renders no chips at all. */
   claims: PinClaim[] = [];
 
+  /** ucd-0b2c item 1: the HardwareBinding rows for the selected solution (payload gains `binding`/`bindings`) —
+   * both stay empty on an older backend, which is the whole degrade: no picker, no status line, no "+ bind"
+   * control, every door keeps calling the bare solution name. */
+  bindings: HardwareBindingRow[] = [];
+  binding: HardwareBindingRow | null = null;
+  /** The Binding picker's own selection — a HardwareBinding `name` ('<solution>@<board>'), or '' before any
+   * payload with `binding` has loaded. */
+  bindingPick = '';
+  boardChoices: string[] = [];
+  private boardsLoaded = false;
+  newBindBoard = '';
+  bindBusy = false;
+  bindError = '';
+
   /** ucd-0b item 1: the chain door's response for the selected pin, cached per pin until the solution reloads or an
    * assign happens (both go through `select()`, which clears the cache). */
   pinChain: PinChainResponse | null = null;
@@ -835,7 +948,7 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
   exportSolution(): void {
     if (!this.selected || this.exporting) { return; }
     this.exporting = true; this.exportResult = null; this.exportError = '';
-    this.http.post<any>(`${this.base}${this.solutionsPath}/${encodeURIComponent(this.selected)}/export`, { target: 'both', verify: true },
+    this.http.post<any>(`${this.base}${this.solutionsPath}/${encodeURIComponent(this.doorTarget)}/export`, { target: 'both', verify: true },
                         { headers: this.headers }).subscribe({
       next: (r) => { this.exporting = false; if (r?.export) { this.exportResult = r.export; } else { this.exportError = r?.refused || r?.error || 'export refused'; } },
       error: (e) => { this.exporting = false; this.exportError = e?.error?.refused || e?.error?.error || friendlyError(e, 'POST export').text; },
@@ -845,25 +958,98 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
   select(name: string): void {
     if (!name) { return; }
     this.selected = name;
+    this.bindingPick = ''; // ucd-0b2c: a new solution always starts at ITS default binding, re-resolved below
     this.clearSelection();
+    this.reloadSolution();
+  }
+
+  /** ucd-0b2c item 1: picking a binding (or the default) re-targets EVERY door the panel calls — `doorTarget`
+   * below is the one place that decides whether that's '<solution>' or '<solution>@<board>'. Re-fetches the full
+   * solution detail, since assignments/claims/the pin map are now owned by the binding, not the bare solution. */
+  selectBinding(name: string): void {
+    if (!name || name === this.bindingPick) { return; }
+    this.bindingPick = name;
+    this.clearSelection();
+    this.reloadSolution();
+  }
+
+  /** The cache-invalidating reload `select()`/`selectBinding()`/a just-confirmed assign all share — unlike
+   * `select()`, this keeps `bindingPick` as-is (an assign made ON a binding must reload that SAME binding, never
+   * fall back to the default). */
+  private reloadSolution(): void {
     this.taskValidityCache = {};
-    this.pinChainCache = {}; // ucd-0b: a new solution (or a just-confirmed assign re-selecting it) invalidates every cached chain
+    this.pinChainCache = {}; // a new solution/binding (or a just-confirmed assign) invalidates every cached chain
+    this.loadSolutionDetail(this.doorTarget);
+  }
+
+  /** ucd-0b2c: '<solution>@<board>' for every door EXCEPT when the chosen binding is the solution's own default —
+   * then the bare '<solution>' name, "so older backends still work" (the deliverable's own words). */
+  get doorTarget(): string {
+    if (this.bindingPick) {
+      const b = this.bindings.find(x => x.name === this.bindingPick);
+      if (b && !b.is_default) { return b.name; }
+    }
+    return this.selected;
+  }
+
+  private loadSolutionDetail(target: string): void {
     this.loading = true; this.error = null;
-    this.http.get<any>(`${this.base}${this.solutionsPath}/${encodeURIComponent(name)}`, { headers: this.headers }).subscribe({
+    this.http.get<any>(`${this.base}${this.solutionsPath}/${encodeURIComponent(target)}`, { headers: this.headers }).subscribe({
       next: (r: any) => {
         this.loading = false;
-        if (!r || r.ok === false) { this.error = (r && r.error) || `could not load ${name}`; return; }
+        if (!r || r.ok === false) { this.error = (r && r.error) || `could not load ${target}`; return; }
         this.solution = r.solution; this.schedule = r.schedule || []; this.assignments = r.assignments || [];
         this.unregisteredTasks = r.unregistered_tasks || this.assignments.filter((a: RegisterAssignment) => a.status === 'unbound');
         this.registeredTasks = r.registered_tasks || {};
         this.purposes = r.purposes || r.capabilities || [];
         this.claims = r.claims || []; // ucd-0b item 3: absent on an older backend — chips just never render
         this.validation = r.validation || null;
+        // ucd-0b2c item 1: HardwareBinding rows — both empty on an older backend (no `bindings` key), which is the
+        // whole degrade (no picker, no status line, no "+ bind" control).
+        this.bindings = r.bindings || [];
+        this.binding = r.binding || null;
+        if (!this.bindingPick && this.binding) { this.bindingPick = this.binding.name; }
+        if (this.bindings.length) { this.ensureBoardChoicesLoaded(); }
         this.buildTaskRows();
         this.buildLanes();
         this.loadPinmap();
       },
-      error: (err: any) => { this.loading = false; const f = friendlyError(err, `GET solution ${name}`); this.error = f.text; },
+      error: (err: any) => { this.loading = false; const f = friendlyError(err, `GET solution ${target}`); this.error = f.text; },
+    });
+  }
+
+  /** ucd-0b2c item 1: the "+ bind to another board" select's options — the SAME readiness door the boards page
+   * uses (`/api/board/boards/readiness`'s rows' `name`), loaded once per solution load and tolerated silently on
+   * any failure (the control just offers no boards; never blocks the panel). */
+  private ensureBoardChoicesLoaded(): void {
+    if (this.boardsLoaded) { return; }
+    this.boardsLoaded = true;
+    this.http.get<any>(`${this.base}/api/board/boards/readiness`, { headers: this.headers }).subscribe({
+      next: (r: any) => {
+        const rows = Array.isArray(r) ? r : (r?.rows || []);
+        this.boardChoices = Array.from(new Set(rows.map((row: any) => row.name).filter(Boolean)));
+      },
+      error: () => { /* the "+ bind to another board" control degrades to an empty list */ },
+    });
+  }
+
+  /** ucd-0b2c item 1: POST .../bindings {board} — nothing is written before this click. On success, re-targets
+   * the picker at the NEW binding's own qualified name and reloads through it (never through the stale local
+   * `bindings` cache, which doesn't carry the new row yet). */
+  bindToBoard(): void {
+    if (!this.newBindBoard || this.bindBusy) { return; }
+    this.bindBusy = true; this.bindError = '';
+    this.http.post<any>(`${this.base}${this.solutionsPath}/${encodeURIComponent(this.selected)}/bindings`,
+      { board: this.newBindBoard }, { headers: this.headers }).subscribe({
+      next: (r: any) => {
+        this.bindBusy = false;
+        if (!r || r.ok === false) { this.bindError = (r && (r.error || r.refused)) || 'bind refused'; return; }
+        this.newBindBoard = '';
+        const name = r.binding?.name || '';
+        if (name) { this.bindingPick = name; this.loadSolutionDetail(name); }
+        else { this.loadSolutionDetail(this.doorTarget); }
+      },
+      error: (err: any) => { this.bindBusy = false; const f = friendlyError(err, 'POST bindings'); this.bindError = f.text; },
     });
   }
 
@@ -1132,7 +1318,7 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
   }
 
   private validTargetsUrl(task: string): string {
-    return `${this.base}${this.solutionsPath}/${encodeURIComponent(this.selected)}/tasks/${encodeURIComponent(task)}/valid-targets`;
+    return `${this.base}${this.solutionsPath}/${encodeURIComponent(this.doorTarget)}/tasks/${encodeURIComponent(task)}/valid-targets`;
   }
 
   private applyTaskSelection(a: RegisterAssignment): void {
@@ -1184,7 +1370,7 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
     this.pinChain = null; this.pinChainError = '';
     const cached = this.pinChainCache[pin];
     if (cached) { this.pinChain = cached; return; }
-    const url = `${this.base}${this.solutionsPath}/${encodeURIComponent(this.selected)}/pins/${encodeURIComponent(pin)}/chain`;
+    const url = `${this.base}${this.solutionsPath}/${encodeURIComponent(this.doorTarget)}/pins/${encodeURIComponent(pin)}/chain`;
     this.http.get<PinChainResponse>(url, { headers: this.headers }).subscribe({
       next: (r: any) => {
         if (!r || r.ok === false) { return; }
@@ -1225,6 +1411,34 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
     if (c.status === 'conflict') { return { text: 'conflict', title: c.why || 'conflicting claim', status: 'conflict' }; }
     const missing = c.edge === 'undetermined' ? 'edge?' : c.pull === 'undetermined' ? 'pull?' : 'incomplete';
     return { text: missing, title: c.why || 'incomplete claim', status: 'incomplete' };
+  }
+
+  /** ucd-0b2c item 2: one row per requirement of `task` (its own `assignments` rows — never a new door), for the
+   * "Resources this task uses" table. `required` falls back to "not a memory-field" when the backend hasn't sent
+   * it (an older backend, pre-ucd-0b2a); `requirement_kind` falls back to `target_kind` the same way (degrade #4). */
+  taskResourceRowsFor(task: string): TaskResourceRow[] {
+    return this.assignments.filter(a => a.task === task).map(a => this.toResourceRow(a));
+  }
+
+  private toResourceRow(a: RegisterAssignment): TaskResourceRow {
+    const kind = a.requirement_kind || a.target_kind || '—';
+    const required = a.required !== undefined ? a.required : kind !== 'memory-field';
+    const bound = a.status === 'bound' || a.status === 'conflict';
+    return {
+      port: a.port || '—', requirement_kind: kind, role: a.role || '', required,
+      bound_to: bound ? (a.lives_on.split(':').pop() || a.lives_on) : '—',
+      status: a.status, route: a.signal_route || '',
+      needs_pin: required && !bound, memory_field: !required,
+    };
+  }
+
+  /** ucd-0b2c item 3: the Tasks-table chip — "N/M bound" over REQUIRED rows only (a memory-field is never
+   * "required"); null when the task has no required rows at all (nothing to summarize, no chip renders). */
+  taskResourceChip(task: string): { text: string; bad: boolean } | null {
+    const required = this.taskResourceRowsFor(task).filter(r => r.required);
+    if (!required.length) { return null; }
+    const bound = required.filter(r => r.status === 'bound').length;
+    return { text: `${bound}/${required.length} bound`, bad: bound < required.length };
   }
 
   /** ucd-0b item 2: which config selects the confirm bar shows for the pending registration's task kind
@@ -1403,14 +1617,14 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
   private postAssign(task: RegisterAssignment, livesOn: string, config?: Partial<PendingConfig>): void {
     const body: any = { task: task.task, port: task.port, lives_on: livesOn };
     if (config && Object.keys(config).length) { body.config = config; }
-    this.http.post<any>(`${this.base}${this.solutionsPath}/${encodeURIComponent(this.selected)}/assign`,
+    this.http.post<any>(`${this.base}${this.solutionsPath}/${encodeURIComponent(this.doorTarget)}/assign`,
       body, { headers: this.headers }).subscribe({
       next: (r: any) => {
         if (!r || r.ok === false) { this.assignError = (r && (r.error || r.refused)) || 'assign refused'; this.pending = null; return; }
         if (r.warning) { this.assignWarning = r.warning; }
         this.pending = null;
         this.clearSelection();
-        this.select(this.selected);
+        this.reloadSolution(); // ucd-0b2c: reloads the SAME binding the assign was made on, never the default
       },
       error: (err: any) => { const f = friendlyError(err, 'POST assign'); this.assignError = f.text; this.pending = null; },
     });
