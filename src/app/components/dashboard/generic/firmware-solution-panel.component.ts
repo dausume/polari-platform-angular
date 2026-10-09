@@ -15,11 +15,14 @@ import { friendlyError } from './friendly-error';
  *
  * fs-2c item 1 — Tasks = ALL tasks (fs-2b already built the full table; only the section's own label was wrong,
  * his correction: "the Tab for tasks should not be called Unregistered Tasks since it is all tasks"), now grouped
- * by Capability (`solution.capabilities[].task_names`, hw priorities P1) with an "Ungrouped" bucket for tasks no
- * CapabilityDefinition names, each row carrying its group's capability status chip (planned/proven-on-twin/
- * proven-on-hardware/failing) and its registered pin or an "unregistered" mark. The compact Unregistered-Tasks chip
- * strip stays beside the pin map only (the assignment shorthand) — fs-2b's own one inside the Tasks section is
- * retired now that the full table already marks "unregistered" per row.
+ * by Purpose (`solution.purposes[].task_names` — D-ucd-12, his ruling: Task and Purpose are the words; the backend
+ * payload's `capabilities` key, kept this release for older callers, carries the identical rows) with a
+ * "No purpose yet" bucket for tasks no Purpose names. D-ucd-12 also rules that a task can belong to MULTIPLE
+ * Purposes: `buildTaskGroups` lists a task under EVERY Purpose that names it (never one exclusive bucket), each
+ * such row carrying an "also in: <other purposes>" chip; each group still carries its own Purpose status chip
+ * (planned/proven-on-twin/proven-on-hardware/failing) and each row its registered pin or an "unregistered" mark.
+ * The compact Unregistered-Tasks chip strip stays beside the pin map only (the assignment shorthand) — fs-2b's own
+ * one inside the Tasks section is retired now that the full table already marks "unregistered" per row.
  *
  * fs-2c item 2 — ONE selection model, many entry points: `handleTaskActivate`/`handlePinActivate` are the ONLY two
  * methods any clickable task/pin binds to — the Tasks row, the Unregistered-Tasks chip, a schedule-lane chip, and a
@@ -54,9 +57,10 @@ interface SolutionDetail {
 }
 /** fs-2d (his ask, verbatim: "our tasks to be linked to their no-code solutions that compose them") — the reverse
  * link from a task to where it is COMPOSED: the CGraph + the node it IS, the canvas route that opens straight at
- * it, any SolutionDefinition/HardwareSolution over the same graph, and which Capabilities name it. Backend: GET
- * /api/firmware/solutions/{name}'s `schedule`/`assignments` rows (cmod_firmware_api.FirmwareAPI._composed_by). */
-interface ComposedBy { graph: string; node: string; canvas_route: string; solution: string; capabilities: string[]; }
+ * it, any SolutionDefinition/HardwareSolution over the same graph, and which Purposes name it (D-ucd-12). Backend:
+ * GET /api/firmware/solutions/{name}'s `schedule`/`assignments` rows (cmod_firmware_api.FirmwareAPI._composed_by)
+ * — `purposes` and the deprecated `capabilities` carry the same names. */
+interface ComposedBy { graph: string; node: string; canvas_route: string; solution: string; capabilities: string[]; purposes: string[]; }
 interface ScheduleSlot {
   name: string; solution: string; task: string; lane: string; order: number; trigger: string;
   period_ms: number; measured_cycles: number; isr_vector: string; provenance: string; notes: string;
@@ -71,9 +75,14 @@ interface LaneChip { task: string; order: number; measured: string; children: La
 interface RegisteredTaskRow { task: string; port: string; status: string; cooperating: boolean; }
 interface PinRegisteredTask { task: string; port: string; solution: string; lane: string; status: string; cooperating: boolean; }
 
-/** hw priorities P1 (`cmod_firmware_api.py`'s `_capabilities`): the Capability grouping for the Tasks section. */
-interface CapabilityRow { name: string; goal: string; status: string; last_proof?: string; task_names: string[]; }
-interface TaskGroup { key: string; title: string; status: string; rows: TaskRow[]; }
+/** hw priorities P1 (`cmod_firmware_api.py`'s `_capabilities`), D-ucd-12 (his ruling): the Purpose grouping for the
+ * Tasks section — read from the payload's `purposes` key (falls back to the deprecated `capabilities` key, same
+ * rows, for an older backend). A task may be named by several PurposeRow entries. */
+interface PurposeRow { name: string; goal: string; status: string; last_proof?: string; task_names: string[]; }
+/** D-ucd-12: a task lands under EVERY Purpose naming it — `alsoIn` names this row's OTHER Purposes (by goal/name),
+ * rendered as the "also in: …" chip; empty for a task named by exactly one Purpose (or none). */
+interface GroupedTaskRow extends TaskRow { alsoIn: string[]; }
+interface TaskGroup { key: string; title: string; status: string; rows: GroupedTaskRow[]; }
 
 type Verdict = 'valid' | 'invalid' | 'undetermined';
 interface ValidTargetPin { pin: string; verdict: Verdict; reason: string; registered_to: string[]; cooperating: boolean; }
@@ -277,11 +286,11 @@ const CAP_STATUS_COLORS: Record<string, string> = {
               <ng-container *ngIf="k === 'tasks'">
                 <div class="fsp-task-group" *ngFor="let g of taskGroups">
                   <div class="fsp-task-group-header">
-                    <strong>{{ g.key === UNGROUPED ? 'Ungrouped' : g.title }}</strong>
+                    <strong>{{ g.title }}</strong>
                     <span class="fsp-badge fsp-cap-badge" *ngIf="g.status" [style.background]="capStatusColor(g.status)">{{ g.status }}</span>
                   </div>
                   <table class="fsp-task-table">
-                    <thead><tr><th>Task</th><th>Lane</th><th>Target</th><th>Capability</th><th>Cost</th><th>Composed by</th></tr></thead>
+                    <thead><tr><th>Task</th><th>Lane</th><th>Target</th><th>Purpose</th><th>Cost</th><th>Composed by</th></tr></thead>
                     <tbody>
                       <tr *ngFor="let t of g.rows" tabindex="0" role="button"
                           [class.fsp-selected-row]="selectedTask?.task === t.task"
@@ -303,7 +312,12 @@ const CAP_STATUS_COLORS: Record<string, string> = {
                         </td>
                         <td><span class="fsp-badge" [style.background]="laneColor(t.lane)">{{ t.lane }}</span></td>
                         <td [class.fsp-unregistered]="t.target === 'unregistered'">{{ t.target }}</td>
-                        <td><span class="fsp-badge fsp-cap-badge" *ngIf="g.status" [style.background]="capStatusColor(g.status)">{{ g.status }}</span><span *ngIf="!g.status">—</span></td>
+                        <td>
+                          <span class="fsp-badge fsp-cap-badge" *ngIf="g.status" [style.background]="capStatusColor(g.status)">{{ g.status }}</span><span *ngIf="!g.status">—</span>
+                          <!-- D-ucd-12: a task belonging to several Purposes shows the others here — never hidden
+                               in one exclusive bucket. -->
+                          <span class="fsp-badge fsp-also-in-chip" *ngIf="t.alsoIn.length" [title]="'also named by: ' + t.alsoIn.join(', ')">also in: {{ t.alsoIn.join(', ') }}</span>
+                        </td>
                         <td>{{ t.cost }}</td>
                         <!-- fs-2d: the reverse link from a task to the no-code graph/node that composes it —
                              opens the c-canvas at exactly that node (CGraphCanvasPanelComponent honours ?node=). -->
@@ -643,6 +657,7 @@ const CAP_STATUS_COLORS: Record<string, string> = {
     .fsp-detail h6 { margin: 12px 0 4px; font-size: 0.85em; opacity: 0.8; }
     .fsp-pending-field { display: inline-flex; align-items: center; gap: 4px; font-size: 0.85em; }
     .fsp-claim-chip { font-size: 0.75em; margin-left: 6px; color: var(--warning-text, #e65100); background: transparent; border: 1px solid currentColor; border-radius: 8px; padding: 0 6px; }
+    .fsp-also-in-chip { font-size: 0.75em; margin-left: 6px; color: var(--text-on-card-muted); background: transparent; border: 1px dashed currentColor; border-radius: 8px; padding: 0 6px; }
     .fsp-claim-incomplete { color: var(--warning-text, #e65100); }
     .fsp-claim-conflict { color: var(--error-text, #b00020); }
     .fsp-chain-why { margin-top: 10px; }
@@ -665,7 +680,8 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
 
   @ViewChild('svgHost') svgHostRef?: ElementRef<HTMLElement>;
 
-  readonly UNGROUPED = '__ungrouped';
+  /** D-ucd-12: the bucket for a task no Purpose names — "No purpose yet" (never "Ungrouped"). */
+  readonly NO_PURPOSE = '__no_purpose';
 
   solutions: SolutionRow[] = [];
   selected = '';
@@ -674,7 +690,9 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
   assignments: RegisterAssignment[] = [];
   unregisteredTasks: RegisterAssignment[] = [];
   registeredTasks: Record<string, RegisteredTaskRow[]> = {};
-  capabilities: CapabilityRow[] = [];
+  /** D-ucd-12: read from the payload's `purposes` key; falls back to the deprecated `capabilities` key for an
+   * older backend (same rows). Still called `capabilities` nowhere a person reads. */
+  purposes: PurposeRow[] = [];
   validation: { ok: boolean; why: string } | null = null;
   // ucd-0f: the last export made from this panel (POST .../export → the FirmwareExport row)
   exporting = false;
@@ -838,7 +856,7 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
         this.solution = r.solution; this.schedule = r.schedule || []; this.assignments = r.assignments || [];
         this.unregisteredTasks = r.unregistered_tasks || this.assignments.filter((a: RegisterAssignment) => a.status === 'unbound');
         this.registeredTasks = r.registered_tasks || {};
-        this.capabilities = r.capabilities || [];
+        this.purposes = r.purposes || r.capabilities || [];
         this.claims = r.claims || []; // ucd-0b item 3: absent on an older backend — chips just never render
         this.validation = r.validation || null;
         this.buildTaskRows();
@@ -867,20 +885,32 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
     this.buildTaskGroups();
   }
 
-  /** fs-2c item 1: group the full Tasks table by Capability (`capabilities[].task_names`), an "Ungrouped" bucket
-   * last for every task no CapabilityDefinition names. A task named by more than one capability lands in the
-   * FIRST one that claims it — never duplicated across groups. */
+  /** fs-2c item 1 + D-ucd-12 (his ruling, verbatim: "a task can belong to multiple purpose groupings"): group the
+   * full Tasks table by Purpose (`purposes[].task_names`) — a task named by SEVERAL Purposes lands under EVERY
+   * one of them (never one exclusive bucket), each such row carrying `alsoIn` (its OTHER Purposes, for the
+   * "also in: …" chip). A "No purpose yet" bucket lists every task no Purpose names. */
   private buildTaskGroups(): void {
     const byTask = new Map(this.taskRows.map(r => [r.task, r]));
-    const used = new Set<string>();
-    const groups: TaskGroup[] = [];
-    for (const cap of this.capabilities) {
-      const rows = cap.task_names.map(t => byTask.get(t)).filter((r): r is TaskRow => !!r && !used.has(r.task));
-      rows.forEach(r => used.add(r.task));
-      if (rows.length) { groups.push({ key: cap.name, title: cap.goal || cap.name, status: cap.status, rows }); }
+    const titleFor = (p: PurposeRow) => p.goal || p.name;
+    // every Purpose naming each task, so a row can list its siblings ("also in: …") by title, excluding itself.
+    const purposesByTask = new Map<string, { name: string; title: string }[]>();
+    for (const p of this.purposes) {
+      for (const t of p.task_names) {
+        const list = purposesByTask.get(t) || [];
+        list.push({ name: p.name, title: titleFor(p) });
+        purposesByTask.set(t, list);
+      }
     }
-    const rest = this.taskRows.filter(r => !used.has(r.task));
-    if (rest.length) { groups.push({ key: this.UNGROUPED, title: 'Ungrouped', status: '', rows: rest }); }
+    const named = new Set<string>();
+    const groups: TaskGroup[] = [];
+    for (const p of this.purposes) {
+      const rows: GroupedTaskRow[] = p.task_names.map(t => byTask.get(t)).filter((r): r is TaskRow => !!r)
+        .map(r => ({ ...r, alsoIn: (purposesByTask.get(r.task) || []).filter(ref => ref.name !== p.name).map(ref => ref.title) }));
+      rows.forEach(r => named.add(r.task));
+      if (rows.length) { groups.push({ key: p.name, title: titleFor(p), status: p.status, rows }); }
+    }
+    const rest: GroupedTaskRow[] = this.taskRows.filter(r => !named.has(r.task)).map(r => ({ ...r, alsoIn: [] }));
+    if (rest.length) { groups.push({ key: this.NO_PURPOSE, title: 'No purpose yet', status: '', rows: rest }); }
     this.taskGroups = groups;
   }
 
