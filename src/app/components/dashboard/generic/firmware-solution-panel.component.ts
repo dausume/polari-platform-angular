@@ -74,6 +74,10 @@ interface RegisterAssignment {
    * back to `target_kind` when `requirement_kind` is absent). */
   requirement_kind?: string; role?: string; required?: boolean; resource_kind?: string;
   signal_route?: string; configuration?: string;
+  /** ucd-attest: a person's own override of the TargetDefinition's requirement_kind/role, laid over this row —
+   * absent when nothing overrides it. `target_definition_name` is the Override dialog's own `target_name` (the
+   * TargetDefinition row THIS assignment was joined from — never the assignment's own name). */
+  derived_requirement_kind?: string; derived_role?: string; overrides_refs_json?: string; target_definition_name?: string;
 }
 
 /** ucd-0b2 RULED (§5h, his words): a FirmwareSolution is hardware-agnostic; a HardwareBinding '<solution>@<board>'
@@ -87,6 +91,9 @@ interface HardwareBindingRow {
   requirements_total: number; requirements_met: number;
   assignments_refs_json?: string; claims_refs_json?: string; settings_refs_json?: string; routes_refs_json?: string;
   last_build?: string; provenance?: string; notes?: string;
+  /** ucd-attest: a person may override `status` (his ruling: "we should be able to manually change those values
+   * when we prove them correct") — the derivation's own verdict survives beside it. Absent = no override. */
+  derived_status?: string; status_why?: string; overrides_refs_json?: string;
 }
 
 /** ucd-0b2c item 2: one row of the "Resources this task uses" table — derived client-side from the task's own
@@ -95,6 +102,9 @@ interface HardwareBindingRow {
 interface TaskResourceRow {
   port: string; requirement_kind: string; role: string; required: boolean;
   bound_to: string; status: string; route: string; needs_pin: boolean; memory_field: boolean;
+  /** ucd-attest: the TargetDefinition row's own name (the Override dialog's `target_name`), and the derivation's
+   * own requirement_kind/role surviving beside a person's override. */
+  target_definition_name: string; derived_requirement_kind?: string; derived_role?: string; overrides_refs_json?: string;
 }
 interface TaskRow { task: string; lane: string; order: number; kind: string; ports: string; resources: string; cost: string; target: string; composed_by: ComposedBy | null; }
 interface LaneChip { task: string; order: number; measured: string; children: LaneChip[]; }
@@ -104,11 +114,15 @@ interface PinRegisteredTask { task: string; port: string; solution: string; lane
 /** hw priorities P1 (`cmod_firmware_api.py`'s `_capabilities`), D-ucd-12 (his ruling): the Purpose grouping for the
  * Tasks section — read from the payload's `purposes` key (falls back to the deprecated `capabilities` key, same
  * rows, for an older backend). A task may be named by several PurposeRow entries. */
-interface PurposeRow { name: string; goal: string; status: string; last_proof?: string; task_names: string[]; }
+interface PurposeRow {
+  name: string; goal: string; status: string; last_proof?: string; task_names: string[];
+  /** ucd-attest: 'measured' | 'attested' | '' beside the SAME ladder step — never folded into `status`. */
+  proof_kind?: string;
+}
 /** D-ucd-12: a task lands under EVERY Purpose naming it — `alsoIn` names this row's OTHER Purposes (by goal/name),
  * rendered as the "also in: …" chip; empty for a task named by exactly one Purpose (or none). */
 interface GroupedTaskRow extends TaskRow { alsoIn: string[]; }
-interface TaskGroup { key: string; title: string; status: string; rows: GroupedTaskRow[]; }
+interface TaskGroup { key: string; title: string; status: string; rows: GroupedTaskRow[]; proofKind?: string; }
 
 type Verdict = 'valid' | 'invalid' | 'undetermined';
 interface ValidTargetPin { pin: string; verdict: Verdict; reason: string; registered_to: string[]; cooperating: boolean; }
@@ -166,6 +180,10 @@ interface PinClaim {
   rule: string; provenance: 'derived' | 'canvas'; status: 'ok' | 'conflict' | 'incomplete'; why: string;
   /** ucd-0b2c: claims are now owned by a HardwareBinding — carried for provenance only, not read by the panel. */
   binding?: string;
+  /** ucd-attest: a person's own override of mode/pull/edge/initial — the derivation's own value survives beside
+   * it as `derived_<field>`; absent when nothing overrides that field. */
+  derived_mode?: string; derived_pull?: string; derived_edge?: string; derived_initial?: string;
+  overrides_refs_json?: string;
 }
 interface RegisterFieldSettingRow {
   name: string; register_setting: string; register_field: string; value: string; meaning: string;
@@ -237,6 +255,11 @@ const CAP_STATUS_COLORS: Record<string, string> = {
       <div class="fsp-binding-status" *ngIf="binding">
         <span>Binding {{ binding.name }}: {{ binding.status }} — {{ binding.requirements_met }}/{{ binding.requirements_total }} required resources met</span>
         <span class="fsp-warning" *ngIf="binding.why"> — {{ binding.why }}</span>
+        <!-- ucd-attest: a person may mark a binding valid/invalid with why — the derivation keeps its own verdict
+             (derived_status), shown in status_why beside the override. -->
+        <span class="fsp-override-marker" *ngIf="binding.derived_status !== undefined" [title]="binding.status_why || ''"
+              (click)="retireOverride(overrideRefFor(binding.overrides_refs_json, 'status'))">overridden (retire)</span>
+        <button type="button" class="fsp-override-btn" (click)="openOverride('HardwareBinding', binding.name, 'status', binding.status)">Override</button>
       </div>
       <div class="fsp-bind-row" *ngIf="bindings.length">
         <span class="fsp-bind-label">+ bind to another board</span>
@@ -246,6 +269,29 @@ const CAP_STATUS_COLORS: Record<string, string> = {
         </select>
         <button type="button" class="fsp-bind-btn" (click)="bindToBoard()" [disabled]="!newBindBoard || bindBusy">{{ bindBusy ? 'Binding…' : 'Bind' }}</button>
         <span class="fsp-error" *ngIf="bindError">{{ bindError }}</span>
+      </div>
+
+      <!-- ucd-attest: the ONE Override dialog, shared by every overridable field (PinClaim.pull/edge/mode/initial,
+           TargetDefinition.requirement_kind/.role, HardwareBinding.status) — nothing POSTs until "Confirm" is
+           clicked; Escape cancels. The derived value is shown beside the input so a correction is never a guess. -->
+      <div class="fsp-override-dialog" *ngIf="overrideOpenFor as ov" (keydown.escape)="cancelOverride()">
+        <strong>Override {{ ov.targetClass }}.{{ ov.field }}</strong> <small>(derived: {{ ov.derivedValue }})</small>
+        <label>New value
+          <select *ngIf="ov.field === 'status'" [(ngModel)]="overrideForm.value">
+            <option value="valid">valid</option>
+            <option value="incomplete">incomplete</option>
+            <option value="invalid">invalid</option>
+          </select>
+          <input *ngIf="ov.field !== 'status'" type="text" [(ngModel)]="overrideForm.value" />
+        </label>
+        <label class="fsp-attest-observed">Why (required)
+          <textarea [(ngModel)]="overrideForm.why" rows="2" placeholder="a person's own words — proof it is correct"></textarea>
+        </label>
+        <div class="fsp-attest-actions">
+          <button type="button" class="fsp-confirm-btn" (click)="confirmOverride()" [disabled]="overrideBusy">{{ overrideBusy ? 'Confirming…' : 'Confirm' }}</button>
+          <button type="button" (click)="cancelOverride()">Cancel</button>
+          <span class="fsp-error" *ngIf="overrideError">{{ overrideError }}</span>
+        </div>
       </div>
 
       <!-- ucd-0f: the export's result — what was written, whether the CMake build reproduced the Makefile build, the download -->
@@ -340,7 +386,42 @@ const CAP_STATUS_COLORS: Record<string, string> = {
                 <div class="fsp-task-group" *ngFor="let g of taskGroups">
                   <div class="fsp-task-group-header">
                     <strong>{{ g.title }}</strong>
-                    <span class="fsp-badge fsp-cap-badge" *ngIf="g.status" [style.background]="capStatusColor(g.status)">{{ g.status }}</span>
+                    <span class="fsp-badge fsp-cap-badge" *ngIf="g.status" [style.background]="capStatusColor(g.status)">
+                      {{ g.status }}<small *ngIf="g.proofKind === 'attested'"> (attested)</small>
+                    </span>
+                    <!-- ucd-attest: "Confirm by hand" — a person's OWN confirmation of this Purpose's acceptance, no
+                         engine run. Absent for the "No purpose yet" bucket (its key is the sentinel, never a real
+                         Purpose name an attest door could resolve). -->
+                    <button type="button" class="fsp-attest-btn" *ngIf="g.key !== NO_PURPOSE"
+                            (click)="openAttest(g.key)" title="A person's own confirmation — no engine runs">
+                      Confirm by hand
+                    </button>
+                  </div>
+                  <!-- ucd-attest: the confirm dialog — nothing POSTs until "Confirm" is clicked; Escape cancels. -->
+                  <div class="fsp-attest-dialog" *ngIf="attestOpenFor === g.key" (keydown.escape)="cancelAttest()">
+                    <label>Mode
+                      <select [(ngModel)]="attestForm.mode">
+                        <option value="digital-twin">digital twin</option>
+                        <option value="hardware">hardware</option>
+                      </select>
+                    </label>
+                    <label>Board instance (optional)
+                      <input type="text" [(ngModel)]="attestForm.boardInstance" placeholder="e.g. uno-bench-1" />
+                    </label>
+                    <label>Outcome
+                      <select [(ngModel)]="attestForm.outcome">
+                        <option value="passed">passed</option>
+                        <option value="failed">failed</option>
+                      </select>
+                    </label>
+                    <label class="fsp-attest-observed">What did you see? (required)
+                      <textarea [(ngModel)]="attestForm.observed" rows="2" placeholder="a person's own words"></textarea>
+                    </label>
+                    <div class="fsp-attest-actions">
+                      <button type="button" class="fsp-confirm-btn" (click)="confirmAttest()" [disabled]="attestBusy">{{ attestBusy ? 'Confirming…' : 'Confirm' }}</button>
+                      <button type="button" (click)="cancelAttest()">Cancel</button>
+                      <span class="fsp-error" *ngIf="attestError">{{ attestError }}</span>
+                    </div>
                   </div>
                   <table class="fsp-task-table">
                     <thead><tr><th>Task</th><th>Lane</th><th>Target</th><th>Purpose</th><th>Cost</th><th>Composed by</th></tr></thead>
@@ -552,10 +633,18 @@ const CAP_STATUS_COLORS: Record<string, string> = {
                         <div class="fsp-state" *ngIf="!pc.claim">no task claims this pin in {{ selected }}</div>
                         <table class="fsp-kv" *ngIf="pc.claim as cl">
                           <tr><th>Task</th><td>{{ cl.task }}{{ cl.port ? '.' + cl.port : '' }}</td></tr>
-                          <tr><th>Mode</th><td>{{ cl.mode }}</td></tr>
-                          <tr><th>Pull</th><td>{{ cl.pull }}</td></tr>
-                          <tr><th>Edge</th><td>{{ cl.edge }}</td></tr>
-                          <tr><th>Initial</th><td>{{ cl.initial }}</td></tr>
+                          <tr><th>Mode</th><td>{{ cl.mode }}
+                            <ng-container *ngTemplateOutlet="overrideCell; context: { targetClass: 'PinClaim', targetName: cl.name, field: 'mode', value: cl.mode, derived: cl.derived_mode, refs: cl.overrides_refs_json }"></ng-container>
+                          </td></tr>
+                          <tr><th>Pull</th><td>{{ cl.pull }}
+                            <ng-container *ngTemplateOutlet="overrideCell; context: { targetClass: 'PinClaim', targetName: cl.name, field: 'pull', value: cl.pull, derived: cl.derived_pull, refs: cl.overrides_refs_json }"></ng-container>
+                          </td></tr>
+                          <tr><th>Edge</th><td>{{ cl.edge }}
+                            <ng-container *ngTemplateOutlet="overrideCell; context: { targetClass: 'PinClaim', targetName: cl.name, field: 'edge', value: cl.edge, derived: cl.derived_edge, refs: cl.overrides_refs_json }"></ng-container>
+                          </td></tr>
+                          <tr><th>Initial</th><td>{{ cl.initial }}
+                            <ng-container *ngTemplateOutlet="overrideCell; context: { targetClass: 'PinClaim', targetName: cl.name, field: 'initial', value: cl.initial, derived: cl.derived_initial, refs: cl.overrides_refs_json }"></ng-container>
+                          </td></tr>
                           <tr><th>Provenance</th><td>{{ cl.provenance }}</td></tr>
                           <tr><th>Status</th><td [class.fsp-error]="cl.status !== 'ok'">{{ cl.status }}<span *ngIf="cl.why"> — {{ cl.why }}</span></td></tr>
                         </table>
@@ -656,8 +745,14 @@ const CAP_STATUS_COLORS: Record<string, string> = {
           <tbody>
             <tr *ngFor="let r of rows" [class.fsp-h-dim]="r.memory_field">
               <td>{{ r.port }}</td>
-              <td>{{ r.requirement_kind }}</td>
-              <td>{{ r.role || '—' }}</td>
+              <td>{{ r.requirement_kind }}
+                <ng-container *ngIf="r.target_definition_name" [ngTemplateOutlet]="overrideCell"
+                              [ngTemplateOutletContext]="{ targetClass: 'TargetDefinition', targetName: r.target_definition_name, field: 'requirement_kind', value: r.requirement_kind, derived: r.derived_requirement_kind, refs: r.overrides_refs_json }"></ng-container>
+              </td>
+              <td>{{ r.role || '—' }}
+                <ng-container *ngIf="r.target_definition_name" [ngTemplateOutlet]="overrideCell"
+                              [ngTemplateOutletContext]="{ targetClass: 'TargetDefinition', targetName: r.target_definition_name, field: 'role', value: r.role, derived: r.derived_role, refs: r.overrides_refs_json }"></ng-container>
+              </td>
               <td>{{ r.required ? 'yes' : 'no' }}</td>
               <td>
                 <span *ngIf="r.memory_field">memory field, no hardware</span>
@@ -671,6 +766,17 @@ const CAP_STATUS_COLORS: Record<string, string> = {
           </tbody>
         </table>
         <div class="fsp-state" *ngIf="!rows.length">No resources recorded for this task.</div>
+      </ng-template>
+
+      <!-- ucd-attest: ONE reusable cell — an "Override" link, or (once one is active) an "overridden" marker
+           carrying who/when/why + the derived value in its title, with "retire" to undo. Used by both the PinClaim
+           design-choice rows above and the TargetDefinition requirement_kind/role cells. -->
+      <ng-template #overrideCell let-targetClass="targetClass" let-targetName="targetName" let-field="field"
+                   let-value="value" let-derived="derived" let-refs="refs">
+        <span class="fsp-override-marker" *ngIf="derived !== undefined && derived !== null"
+              [title]="'overridden (derived: ' + derived + ') — click to retire'"
+              (click)="retireOverride(overrideRefFor(refs, field))">overridden</span>
+        <button type="button" class="fsp-override-btn" (click)="openOverride(targetClass, targetName, field, value)">Override</button>
       </ng-template>
     </div>
   `,
@@ -771,6 +877,15 @@ const CAP_STATUS_COLORS: Record<string, string> = {
     .fsp-chain-hop { white-space: nowrap; }
     .fsp-chain-hop a { color: var(--link-text, #1565c0); text-decoration: none; }
     .fsp-chain-hop a:hover { text-decoration: underline; }
+
+    /* ucd-attest: a person's own confirmation (Purpose chip) + a person's own correction of a derived value
+       (PinClaim/TargetDefinition/HardwareBinding) — rendered beside the derivation, never over it. */
+    .fsp-attest-btn, .fsp-override-btn { font-size: 0.75em; padding: 1px 7px; border-radius: 8px; border: 1px solid var(--brand-primary, #3f51b5); background: transparent; color: var(--brand-primary, #3f51b5); cursor: pointer; }
+    .fsp-attest-dialog, .fsp-override-dialog { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; padding: 8px 10px; margin: 4px 0 10px; border-left: 3px solid var(--brand-primary, #3f51b5); background: var(--surface-alt, rgba(63,81,181,.06)); font-size: 0.85em; }
+    .fsp-attest-dialog label, .fsp-override-dialog label { display: flex; flex-direction: column; gap: 2px; font-size: 0.9em; }
+    .fsp-attest-observed { flex: 1 1 220px; }
+    .fsp-attest-actions { display: flex; align-items: center; gap: 8px; }
+    .fsp-override-marker { font-size: 0.75em; margin-left: 4px; color: var(--warning-text, #e65100); border: 1px dashed currentColor; border-radius: 8px; padding: 0 6px; cursor: pointer; }
   `],
 })
 export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
@@ -857,6 +972,20 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
   assignError = '';
   assignWarning = '';
 
+  /** ucd-attest: "Confirm by hand" on a Purpose's chip — nothing is written before `confirmAttest()`. */
+  attestOpenFor: string | null = null;
+  attestForm: { mode: 'digital-twin' | 'hardware'; observed: string; boardInstance: string; outcome: 'passed' | 'failed' }
+    = { mode: 'digital-twin', observed: '', boardInstance: '', outcome: 'passed' };
+  attestBusy = false;
+  attestError = '';
+
+  /** ucd-attest: the Override dialog shared by every overridable field (PinClaim.pull/edge/mode/initial,
+   * TargetDefinition.requirement_kind/.role, HardwareBinding.status) — nothing is written before `confirmOverride()`. */
+  overrideOpenFor: { targetClass: string; targetName: string; field: string; derivedValue: string } | null = null;
+  overrideForm: { value: string; why: string } = { value: '', why: '' };
+  overrideBusy = false;
+  overrideError = '';
+
   loading = false;
   error: string | null = null;
 
@@ -871,9 +1000,11 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
     if (changes['solutionsPath'] && !changes['solutionsPath'].firstChange) { this.loadSolutions(); }
   }
 
-  /** fs-2c: a Polari-wide rule (HARDWARE_DEV_PRIORITIES.md §3b) — Escape clears every selection, from anywhere. */
+  /** fs-2c: a Polari-wide rule (HARDWARE_DEV_PRIORITIES.md §3b) — Escape clears every selection, from anywhere.
+   * ucd-attest: also cancels an open attest/override dialog — nothing is written before its own confirm, so
+   * Escape loses nothing but the unsent form. */
   @HostListener('document:keydown.escape')
-  onEscapeKey(): void { this.clearSelection(); }
+  onEscapeKey(): void { this.clearSelection(); this.cancelAttest(); this.cancelOverride(); }
 
   // ------------------------------------------------------------------ fs-2b: layout (collapse/expand + presets)
   sectionLabel(k: SectionKey): string { return SECTION_LABELS[k]; }
@@ -1093,7 +1224,7 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
       const rows: GroupedTaskRow[] = p.task_names.map(t => byTask.get(t)).filter((r): r is TaskRow => !!r)
         .map(r => ({ ...r, alsoIn: (purposesByTask.get(r.task) || []).filter(ref => ref.name !== p.name).map(ref => ref.title) }));
       rows.forEach(r => named.add(r.task));
-      if (rows.length) { groups.push({ key: p.name, title: titleFor(p), status: p.status, rows }); }
+      if (rows.length) { groups.push({ key: p.name, title: titleFor(p), status: p.status, rows, proofKind: p.proof_kind }); }
     }
     const rest: GroupedTaskRow[] = this.taskRows.filter(r => !named.has(r.task)).map(r => ({ ...r, alsoIn: [] }));
     if (rest.length) { groups.push({ key: this.NO_PURPOSE, title: 'No purpose yet', status: '', rows: rest }); }
@@ -1429,6 +1560,9 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
       bound_to: bound ? (a.lives_on.split(':').pop() || a.lives_on) : '—',
       status: a.status, route: a.signal_route || '',
       needs_pin: required && !bound, memory_field: !required,
+      target_definition_name: a.target_definition_name || '',
+      derived_requirement_kind: a.derived_requirement_kind, derived_role: a.derived_role,
+      overrides_refs_json: a.overrides_refs_json,
     };
   }
 
@@ -1627,6 +1761,87 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
         this.reloadSolution(); // ucd-0b2c: reloads the SAME binding the assign was made on, never the default
       },
       error: (err: any) => { const f = friendlyError(err, 'POST assign'); this.assignError = f.text; this.pending = null; },
+    });
+  }
+
+  // ------------------------------------------------------------------ ucd-attest: attestation + overrides
+
+  /** "Confirm by hand" on a Purpose's chip (`g.key` is the Purpose's own `name`) — opens the inline confirm dialog.
+   * Nothing is written until `confirmAttest()`. */
+  openAttest(purposeName: string): void {
+    this.attestOpenFor = purposeName;
+    this.attestForm = { mode: 'digital-twin', observed: '', boardInstance: '', outcome: 'passed' };
+    this.attestError = '';
+  }
+
+  cancelAttest(): void { this.attestOpenFor = null; this.attestError = ''; this.attestBusy = false; }
+
+  confirmAttest(): void {
+    if (!this.attestOpenFor || this.attestBusy) { return; }
+    const observed = (this.attestForm.observed || '').trim();
+    if (!observed) { this.attestError = "A person's own words on what was seen are required."; return; }
+    const purpose = this.attestOpenFor;
+    const body: any = { mode: this.attestForm.mode, observed, outcome: this.attestForm.outcome };
+    if (this.attestForm.boardInstance.trim()) { body.board_instance = this.attestForm.boardInstance.trim(); }
+    this.attestBusy = true; this.attestError = '';
+    this.http.post<any>(`${this.base}/api/capabilities/${encodeURIComponent(purpose)}/attest`, body, { headers: this.headers }).subscribe({
+      next: (r: any) => {
+        this.attestBusy = false;
+        if (!r || r.ok === false) { this.attestError = (r && r.error) || 'attest refused'; return; }
+        this.attestOpenFor = null;
+        this.reloadSolution(); // re-reads the chip: "proven-on-hardware (attested)" etc.
+      },
+      error: (err: any) => { this.attestBusy = false; this.attestError = friendlyError(err, 'POST attest').text; },
+    });
+  }
+
+  /** The "overridden" marker's own refs (from `overrides_refs_json`) for one field — '' when nothing overrides it. */
+  overrideRefFor(refsJson: string | undefined, field: string): string {
+    if (!refsJson) { return ''; }
+    try {
+      const refs: string[] = JSON.parse(refsJson) || [];
+      return refs.find(r => r.endsWith(':' + field)) || '';
+    } catch { return ''; }
+  }
+
+  /** Opens the Override dialog for one (targetClass, targetName, field) — `currentValue` is what the row shows
+   * RIGHT NOW (the override's own value if one is already active, else the bare derivation), seeded as the form's
+   * starting value so a person edits from what they see, never a blank. */
+  openOverride(targetClass: string, targetName: string, field: string, currentValue: string): void {
+    this.overrideOpenFor = { targetClass, targetName, field, derivedValue: currentValue };
+    this.overrideForm = { value: currentValue, why: '' };
+    this.overrideError = '';
+  }
+
+  cancelOverride(): void { this.overrideOpenFor = null; this.overrideError = ''; this.overrideBusy = false; }
+
+  confirmOverride(): void {
+    if (!this.overrideOpenFor || this.overrideBusy) { return; }
+    const why = (this.overrideForm.why || '').trim();
+    if (!why) { this.overrideError = "A person's own words (why) are required."; return; }
+    const { targetClass, targetName, field } = this.overrideOpenFor;
+    this.overrideBusy = true; this.overrideError = '';
+    this.http.post<any>(`${this.base}/api/firmware/overrides`,
+      { target_class: targetClass, target_name: targetName, field, value: this.overrideForm.value, why },
+      { headers: this.headers }).subscribe({
+      next: (r: any) => {
+        this.overrideBusy = false;
+        if (!r || r.ok === false) { this.overrideError = (r && r.error) || 'override refused'; return; }
+        this.overrideOpenFor = null;
+        this.reloadSolution();
+      },
+      error: (err: any) => { this.overrideBusy = false; this.overrideError = friendlyError(err, 'POST overrides').text; },
+    });
+  }
+
+  /** The marker's own "retire" — `ref` is an `overrides_refs_json` entry ("DerivedOverride:<name>"); the name after
+   * the first ':' is the DerivedOverride row's own name (which itself contains further ':'s — never re-split). */
+  retireOverride(ref: string): void {
+    if (!ref) { return; }
+    const name = ref.slice(ref.indexOf(':') + 1);
+    this.http.delete<any>(`${this.base}/api/firmware/overrides/${encodeURIComponent(name)}`, { headers: this.headers }).subscribe({
+      next: () => { this.reloadSolution(); },
+      error: (err: any) => { this.overrideError = friendlyError(err, 'DELETE overrides').text; },
     });
   }
 
