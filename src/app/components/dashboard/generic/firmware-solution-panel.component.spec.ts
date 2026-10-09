@@ -100,7 +100,9 @@ describe('FirmwareSolutionPanelComponent', () => {
       return of({
         ok: true, solution: SOLUTION, schedule: SCHEDULE, assignments: ASSIGNMENTS,
         unregistered_tasks: UNREGISTERED_TASKS, registered_tasks: REGISTERED_TASKS_BY_PIN,
-        capabilities: CAPABILITIES,
+        // D-ucd-12: `purposes` is the word the UI reads; `capabilities` kept alongside (same rows) to prove the
+        // fallback the component also honours for an older backend.
+        purposes: CAPABILITIES, capabilities: CAPABILITIES,
         validation: { ok: true, why: SOLUTION.validation_why } as any, builds: [],
       });
     }
@@ -172,23 +174,24 @@ describe('FirmwareSolutionPanelComponent', () => {
     });
   });
 
-  describe('Tasks grouped by Capability, status chips (fs-2c item 1)', () => {
-    it('groups known tasks under their capability and the rest under Ungrouped', () => {
+  describe('Tasks grouped by Purpose, status chips (fs-2c item 1, D-ucd-12)', () => {
+    it('groups known tasks under their Purpose and the rest under "No purpose yet"', () => {
       fixture.detectChanges();
       const keys = component.taskGroups.map(g => g.key);
       expect(keys).toContain('temp-sensor-to-os');
       expect(keys).toContain('blink-on-command');
-      expect(keys).toContain(component.UNGROUPED);
+      expect(keys).toContain(component.NO_PURPOSE);
       const tempGroup = component.taskGroups.find(g => g.key === 'temp-sensor-to-os')!;
       expect(tempGroup.rows.map(r => r.task).sort()).toEqual(['adc', 'adc_init', 'send', 'telemetry', 'temp']); // 'frame' isn't a schedule task here
       const blinkGroup = component.taskGroups.find(g => g.key === 'blink-on-command')!;
       expect(blinkGroup.rows.map(r => r.task).sort()).toEqual(['apply', 'led', 'rx_pop']);
-      const ungrouped = component.taskGroups.find(g => g.key === component.UNGROUPED)!;
-      expect(ungrouped.rows.map(r => r.task)).toContain('usart_init');
-      expect(ungrouped.rows.map(r => r.task)).toContain('clock');
+      const noPurpose = component.taskGroups.find(g => g.key === component.NO_PURPOSE)!;
+      expect(noPurpose.title).toBe('No purpose yet');
+      expect(noPurpose.rows.map(r => r.task)).toContain('usart_init');
+      expect(noPurpose.rows.map(r => r.task)).toContain('clock');
     });
 
-    it('carries the capability status chip and marks a registered pin vs "unregistered"', () => {
+    it('carries the Purpose status chip and marks a registered pin vs "unregistered"', () => {
       fixture.detectChanges();
       const tempGroup = component.taskGroups.find(g => g.key === 'temp-sensor-to-os')!;
       expect(tempGroup.status).toBe('proven-on-twin');
@@ -199,6 +202,40 @@ describe('FirmwareSolutionPanelComponent', () => {
       const text = (fixture.nativeElement as HTMLElement).textContent || '';
       expect(text).toContain('proven-on-twin');
       expect(text).toContain('planned');
+    });
+
+    // D-ucd-12 (his ruling): a task named by SEVERAL Purposes lands under EVERY one of them, each row carrying
+    // an "also in: …" chip — never one exclusive bucket. These two fixture Purposes share no task, so prove the
+    // "also in" chip stays empty here, then prove it fills in when a task IS shared.
+    it('a task named by only one Purpose carries no "also in" chip', () => {
+      fixture.detectChanges();
+      const tempGroup = component.taskGroups.find(g => g.key === 'temp-sensor-to-os')!;
+      const adcRow = tempGroup.rows.find(r => r.task === 'adc')!;
+      expect(adcRow.alsoIn).toEqual([]);
+    });
+
+    it('a task named by two Purposes lands under BOTH, each row naming the other as "also in"', () => {
+      getOverride = (url: string) => {
+        if (url.endsWith('/api/firmware/solutions/uno-sim-rig')) {
+          const sharedPurpose = { name: 'uplink-shared-test-only', goal: 'test-only: shares send with temp-sensor-to-os', status: 'planned', last_proof: '', task_names: ['send'] };
+          return of({
+            ok: true, solution: SOLUTION, schedule: SCHEDULE, assignments: ASSIGNMENTS,
+            unregistered_tasks: UNREGISTERED_TASKS, registered_tasks: REGISTERED_TASKS_BY_PIN,
+            purposes: [...CAPABILITIES, sharedPurpose],
+            validation: { ok: true, why: SOLUTION.validation_why } as any, builds: [],
+          });
+        }
+        return null;
+      };
+      fixture.detectChanges();
+      const tempGroup = component.taskGroups.find(g => g.key === 'temp-sensor-to-os')!;
+      const sharedGroup = component.taskGroups.find(g => g.key === 'uplink-shared-test-only')!;
+      expect(tempGroup.rows.map(r => r.task)).toContain('send');
+      expect(sharedGroup.rows.map(r => r.task)).toContain('send');
+      const sendInTemp = tempGroup.rows.find(r => r.task === 'send')!;
+      const sendInShared = sharedGroup.rows.find(r => r.task === 'send')!;
+      expect(sendInTemp.alsoIn).toEqual([sharedGroup.title]);
+      expect(sendInShared.alsoIn).toEqual([tempGroup.title]);
     });
   });
 
@@ -494,12 +531,14 @@ describe('FirmwareSolutionPanelComponent', () => {
           const schedule = SCHEDULE.map(s => ({
             ...s,
             composed_by: { graph: 'uno-sim-rig-graph', node: s.task, canvas_route: `/display/c-canvas?graph=uno-sim-rig-graph&node=${s.task}`,
-                          solution: 'uno-temp-split', capabilities: s.task === 'led' ? ['blink-on-command'] : [] },
+                          solution: 'uno-temp-split',
+                          capabilities: s.task === 'led' ? ['blink-on-command'] : [],
+                          purposes: s.task === 'led' ? ['blink-on-command'] : [] },
           }));
           return of({
             ok: true, solution: SOLUTION, schedule, assignments: ASSIGNMENTS,
             unregistered_tasks: UNREGISTERED_TASKS, registered_tasks: REGISTERED_TASKS_BY_PIN,
-            capabilities: CAPABILITIES, validation: { ok: true, why: SOLUTION.validation_why } as any, builds: [],
+            purposes: CAPABILITIES, capabilities: CAPABILITIES, validation: { ok: true, why: SOLUTION.validation_why } as any, builds: [],
           });
         }
         return null;
