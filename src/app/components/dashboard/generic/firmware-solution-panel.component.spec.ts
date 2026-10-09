@@ -555,4 +555,69 @@ describe('FirmwareSolutionPanelComponent', () => {
       expect(text).toContain('uno-sim-rig-graph:led');
     });
   });
+
+  // ucd-0b2c item 1 (§5h RULED: a Solution is hardware-agnostic; a HardwareBinding '<solution>@<board>' is the
+  // hardware-specific mask over one board). The default fixture (above) carries no `binding`/`bindings` keys at
+  // all, so every other describe block in this file is already the degrade proof: the picker never renders, no
+  // status line, no "+ bind" control, and every door keeps calling the bare solution name.
+  describe('HardwareBinding picker (ucd-0b2c item 1)', () => {
+    const BINDINGS = [
+      { name: 'uno-sim-rig@arduino-uno-r3', solution: 'uno-sim-rig', board: 'arduino-uno-r3', soc: 'atmega328p',
+        is_default: true, status: 'valid', why: '', requirements_total: 14, requirements_met: 14 },
+      { name: 'uno-sim-rig@esp32-c3', solution: 'uno-sim-rig', board: 'esp32-c3', soc: 'esp32-c3',
+        is_default: false, status: 'incomplete', why: 'the esp32-c3 does not meet 3 of 14 requirements: no pin function for uart-rx', requirements_total: 14, requirements_met: 11 },
+    ];
+
+    function withBindings(extra: any = {}): any {
+      return of({
+        ok: true, solution: SOLUTION, schedule: SCHEDULE, assignments: ASSIGNMENTS,
+        unregistered_tasks: UNREGISTERED_TASKS, registered_tasks: REGISTERED_TASKS_BY_PIN,
+        purposes: CAPABILITIES, capabilities: CAPABILITIES,
+        validation: { ok: true, why: SOLUTION.validation_why } as any, builds: [],
+        binding: BINDINGS[0], bindings: BINDINGS,
+        ...extra,
+      });
+    }
+
+    it('degrades to nothing when the payload carries no bindings key (the default fixture)', () => {
+      fixture.detectChanges();
+      expect(component.bindings).toEqual([]);
+      expect(component.binding).toBeNull();
+      expect(component.doorTarget).toBe('uno-sim-rig');
+      const text = (fixture.nativeElement as HTMLElement).textContent || '';
+      expect(text).not.toContain('Binding uno-sim-rig');
+      expect(text).not.toContain('+ bind to another board');
+    });
+
+    it('auto-selects the DEFAULT binding and keeps doorTarget as the bare solution name for it', () => {
+      getOverride = (url: string) => (url.endsWith('/api/firmware/solutions/uno-sim-rig') ? withBindings() : null);
+      fixture.detectChanges();
+      expect(component.bindingPick).toBe('uno-sim-rig@arduino-uno-r3');
+      expect(component.doorTarget).toBe('uno-sim-rig'); // the default binding -> bare name, so older backends still work
+      const text = (fixture.nativeElement as HTMLElement).textContent || '';
+      expect(text).toContain('Binding uno-sim-rig@arduino-uno-r3: valid — 14/14 required resources met');
+    });
+
+    it('selecting a NON-default binding re-targets every door to <solution>@<board> and shows its why', () => {
+      getOverride = (url: string) => {
+        if (url.endsWith('/api/firmware/solutions/uno-sim-rig')) { return withBindings(); }
+        if (url.endsWith('/api/firmware/solutions/uno-sim-rig%40esp32-c3')) {
+          return withBindings({ binding: BINDINGS[1] });
+        }
+        return null;
+      };
+      fixture.detectChanges();
+      component.selectBinding('uno-sim-rig@esp32-c3');
+      expect(component.doorTarget).toBe('uno-sim-rig@esp32-c3');
+      fixture.detectChanges();
+      const text = (fixture.nativeElement as HTMLElement).textContent || '';
+      expect(text).toContain('Binding uno-sim-rig@esp32-c3: incomplete — 11/14 required resources met');
+      expect(text).toContain('does not meet 3 of 14 requirements');
+      // every door the panel calls now targets the qualified name
+      component.handleTaskActivate(chipByTask('adc'));
+      component.handlePinActivate('A1');
+      component.confirmPending();
+      expect(posts[posts.length - 1].url).toBe('/api/firmware/solutions/uno-sim-rig@esp32-c3/assign');
+    });
+  });
 });
