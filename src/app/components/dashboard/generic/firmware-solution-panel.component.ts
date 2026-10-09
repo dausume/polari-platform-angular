@@ -84,6 +84,12 @@ interface ValidTargetsResponse { ok: boolean; solution: string; task: string; ki
 type PendingKind = 'register' | 'unregister';
 interface PendingAction { kind: PendingKind; task: RegisterAssignment; pin: string; }
 
+/** ucd-0b: the confirm bar's own config fields, shown only when the pending registration's task kind needs them
+ * (edge for interrupt-in; pull for digital-in/interrupt-in; initial for digital-out) — sent as `config` on the
+ * assign POST. Defaults match the backend contract's stated defaults. */
+interface PendingConfig { edge: PinEdge; pull: PinPull; initial: PinInitial; }
+const DEFAULT_PENDING_CONFIG: PendingConfig = { edge: 'any', pull: 'up', initial: 'low' };
+
 interface AltFunction { function: string; peripheral: string; signal: string; kind: string; fact: string; }
 /** fs-2d (his ask, verbatim: "the power pins have no definitions at all, they should at least have their target
  * sections reactively instead describe what they do and what they are for") — the content of the "Power /
@@ -106,6 +112,38 @@ interface PinDetail {
   power_reference?: PowerReferenceDetail | null; parts_that_connect_here?: KitPartRef[];
 }
 interface TargetCompatRow { name: string; kind: string; title: string; roles: string; description: string; matches: string; source_label: string; source_url: string; notes: string; }
+
+/** ucd-0b: the firmware-chain contract (HARDWARE_DEV_PRIORITIES.md §5f/§5g) — why a pin is configured the way the
+ * firmware configures it. `PinClaim` carries the novice's own design choices (mode/pull/edge/initial), authored at
+ * Register time (below); `RegisterFieldSetting`/`RegisterSetting` are the derived rows a claim produces; `hops` is
+ * the board's hardware chain for this one pin (BoardPin -> SocPin -> PinFunction -> PeripheralSignal -> Peripheral ->
+ * Register -> RegisterField), every hop a `ref` ('Class:name') the generic object page already resolves. Every field
+ * here is OPTIONAL in practice — an older backend (pre-ucd-0b) answers 404 on the chain door, or a payload missing a
+ * key — so every reader below tolerates absence (renders nothing for that piece, never an error).
+ */
+type PinMode = 'in' | 'out' | 'alt';
+type PinPull = 'none' | 'up' | 'undetermined';
+type PinEdge = 'none' | 'any' | 'rising' | 'falling' | 'low' | 'undetermined';
+type PinInitial = 'low' | 'high' | 'none';
+interface PinClaim {
+  name: string; solution: string; board_pin: string; soc_pin: string; task: string; port: string;
+  requirement_kind: string; mode: PinMode; pin_function: string; pull: PinPull; edge: PinEdge; initial: PinInitial;
+  rule: string; provenance: 'derived' | 'canvas'; status: 'ok' | 'conflict' | 'incomplete'; why: string;
+}
+interface RegisterFieldSettingRow {
+  name: string; register_setting: string; register_field: string; value: string; meaning: string;
+  pin_claim: string; task: string; rule: string;
+}
+interface RegisterSettingRow {
+  name: string; register: string; phase: string; value: string; value_bits?: string;
+  write_mask?: string; field_settings_refs_json?: string; status: string;
+}
+interface SignalRouteRow { name: string; pin_claim: string; pin_function: string; signal: string; peripheral: string; status: string; }
+interface ChainHop { hop: number; kind: string; name: string; what: string; detail: string; ref: string; }
+interface PinChainResponse {
+  ok: boolean; pin: string; claim: PinClaim | null; field_settings: RegisterFieldSettingRow[];
+  register_settings: RegisterSettingRow[]; route: SignalRouteRow | null; hops: ChainHop[];
+}
 
 type SectionKey = 'tasks' | 'schedule' | 'pins' | 'detail';
 const SECTION_ORDER: SectionKey[] = ['tasks', 'schedule', 'pins', 'detail'];
@@ -189,6 +227,27 @@ const CAP_STATUS_COLORS: Record<string, string> = {
       <div class="fsp-selection-bar" *ngIf="solution">
         <span class="fsp-selection-text">{{ selectionText }}</span>
         <ng-container *ngIf="pending">
+          <!-- ucd-0b: the config fields, shown only when THIS registration's task kind needs them (§ contract);
+               nothing is sent before Register — picking a value here only updates the pending config. -->
+          <label class="fsp-pending-field" *ngIf="pending.kind === 'register' && pendingNeeds.edge">
+            edge
+            <select [(ngModel)]="pendingConfig.edge">
+              <option value="any">any</option><option value="rising">rising</option>
+              <option value="falling">falling</option><option value="low">low</option>
+            </select>
+          </label>
+          <label class="fsp-pending-field" *ngIf="pending.kind === 'register' && pendingNeeds.pull">
+            pull
+            <select [(ngModel)]="pendingConfig.pull">
+              <option value="none">none</option><option value="up">up</option>
+            </select>
+          </label>
+          <label class="fsp-pending-field" *ngIf="pending.kind === 'register' && pendingNeeds.initial">
+            initial
+            <select [(ngModel)]="pendingConfig.initial">
+              <option value="low">low</option><option value="high">high</option>
+            </select>
+          </label>
           <button type="button" class="fsp-confirm-btn" (click)="confirmPending()">{{ pending.kind === 'register' ? 'Register' : 'Unregister' }}</button>
           <button type="button" class="fsp-cancel-btn" (click)="cancelPending()">Cancel</button>
         </ng-container>
@@ -233,7 +292,15 @@ const CAP_STATUS_COLORS: Record<string, string> = {
                           (click)="handleTaskActivate(taskAssignment(t.task))"
                           (keydown.enter)="handleTaskActivate(taskAssignment(t.task))"
                           (keydown.escape)="clearSelection()">
-                        <td>{{ t.task }}</td>
+                        <td>{{ t.task }}
+                          <!-- ucd-0b item 3: a status chip when this task's own PinClaim is incomplete/conflict
+                               (the Register dialog didn't finish gathering a field, or two claims collide);
+                               absent entirely when claims is empty (older backend) or the claim is 'ok'. -->
+                          <span class="fsp-badge fsp-claim-chip" *ngIf="taskClaimChip(t.task) as cc"
+                                [class.fsp-claim-conflict]="cc.status === 'conflict'"
+                                [class.fsp-claim-incomplete]="cc.status === 'incomplete'"
+                                [title]="cc.title">{{ cc.text }}</span>
+                        </td>
                         <td><span class="fsp-badge" [style.background]="laneColor(t.lane)">{{ t.lane }}</span></td>
                         <td [class.fsp-unregistered]="t.target === 'unregistered'">{{ t.target }}</td>
                         <td><span class="fsp-badge fsp-cap-badge" *ngIf="g.status" [style.background]="capStatusColor(g.status)">{{ g.status }}</span><span *ngIf="!g.status">—</span></td>
@@ -394,6 +461,51 @@ const CAP_STATUS_COLORS: Record<string, string> = {
                     </table>
                     </ng-container>
 
+                    <!-- ucd-0b item 1: "Why this pin is configured this way" — the PinClaim a task authored on this
+                         pin, the RegisterFieldSettings it produced, the register's final value as a bit strip, and
+                         the hardware chain hops (both navigable, both cited). Loaded once per pin (cached until the
+                         solution changes or an assign happens — see loadPinChain); a 404 (older backend) just
+                         leaves this block empty, never an error. -->
+                    <div class="fsp-chain-why">
+                      <h6>Why this pin is configured this way</h6>
+                      <ng-container *ngIf="pinChain as pc">
+                        <div class="fsp-state" *ngIf="!pc.claim">no task claims this pin in {{ selected }}</div>
+                        <table class="fsp-kv" *ngIf="pc.claim as cl">
+                          <tr><th>Task</th><td>{{ cl.task }}{{ cl.port ? '.' + cl.port : '' }}</td></tr>
+                          <tr><th>Mode</th><td>{{ cl.mode }}</td></tr>
+                          <tr><th>Pull</th><td>{{ cl.pull }}</td></tr>
+                          <tr><th>Edge</th><td>{{ cl.edge }}</td></tr>
+                          <tr><th>Initial</th><td>{{ cl.initial }}</td></tr>
+                          <tr><th>Provenance</th><td>{{ cl.provenance }}</td></tr>
+                          <tr><th>Status</th><td [class.fsp-error]="cl.status !== 'ok'">{{ cl.status }}<span *ngIf="cl.why"> — {{ cl.why }}</span></td></tr>
+                        </table>
+                        <ul class="fsp-fieldsetting-list" *ngIf="pc.field_settings?.length">
+                          <li *ngFor="let fs of pc.field_settings">{{ fieldSettingLine(fs) }}</li>
+                        </ul>
+                        <div class="fsp-regstrip" *ngFor="let rs of pc.register_settings">
+                          <div class="fsp-regstrip-title">{{ rs.register }} <small>({{ rs.phase }})</small> <code>{{ rs.value }}</code></div>
+                          <ng-container *ngIf="rs.value_bits">
+                            <div class="fsp-bitstrip">
+                              <span class="fsp-bit" *ngFor="let b of bitIndices(rs.value_bits)">{{ b }}</span>
+                            </div>
+                            <div class="fsp-bitstrip">
+                              <span class="fsp-bit" *ngFor="let b of bitChars(rs.value_bits); let i = index"
+                                    [class.fsp-bit-set]="b === '1'">{{ b }}</span>
+                            </div>
+                          </ng-container>
+                        </div>
+                        <div class="fsp-chain-hops" *ngIf="pc.hops?.length">
+                          <div class="fsp-chain-hop" *ngFor="let h of pc.hops" [style.paddingLeft.px]="(h.hop || 0) * 12">
+                            <a *ngIf="h.ref; else hopPlain" [routerLink]="hopRouterLink(h.ref)">{{ h.kind }}: {{ h.name }}</a>
+                            <ng-template #hopPlain>{{ h.kind }}: {{ h.name }}</ng-template>
+                            <small *ngIf="h.detail"> — {{ h.detail }}</small>
+                          </div>
+                        </div>
+                        <a class="fsp-link" [routerLink]="'/display/hardware-chain'">Hardware chain page</a>
+                      </ng-container>
+                      <div class="fsp-error" *ngIf="!pinChain && pinChainError">{{ pinChainError }}</div>
+                    </div>
+
                     <!-- fs-2d (his follow-up ask): a power/reference pin's "Parts that connect here" (board.custom.
                          kit_parts.parts_for_pin) replaces the always-empty Registered Tasks list — a power rail is
                          never a task target, but it IS where real kit parts wire (5V -> the TMP36, the potentiometer…). -->
@@ -529,6 +641,22 @@ const CAP_STATUS_COLORS: Record<string, string> = {
     .fsp-conflict { color: var(--error-text, #b00020); }
     .fsp-detail h5 { margin: 2px 0 8px; }
     .fsp-detail h6 { margin: 12px 0 4px; font-size: 0.85em; opacity: 0.8; }
+    .fsp-pending-field { display: inline-flex; align-items: center; gap: 4px; font-size: 0.85em; }
+    .fsp-claim-chip { font-size: 0.75em; margin-left: 6px; color: var(--warning-text, #e65100); background: transparent; border: 1px solid currentColor; border-radius: 8px; padding: 0 6px; }
+    .fsp-claim-incomplete { color: var(--warning-text, #e65100); }
+    .fsp-claim-conflict { color: var(--error-text, #b00020); }
+    .fsp-chain-why { margin-top: 10px; }
+    .fsp-fieldsetting-list { margin: 4px 0 8px; padding-left: 18px; font-size: 0.82em; }
+    .fsp-fieldsetting-list li { margin-bottom: 2px; }
+    .fsp-regstrip { margin-bottom: 8px; }
+    .fsp-regstrip-title { font-size: 0.82em; margin-bottom: 2px; }
+    .fsp-bitstrip { display: flex; gap: 2px; }
+    .fsp-bit { display: inline-flex; justify-content: center; width: 16px; font-size: 0.72em; font-family: monospace; color: var(--text-on-card-muted); }
+    .fsp-bit-set { color: var(--text-on-card); font-weight: 700; background: var(--brand-primary, #3f51b5); color: var(--brand-primary-text, #fff); border-radius: 2px; }
+    .fsp-chain-hops { margin: 6px 0; font-size: 0.82em; }
+    .fsp-chain-hop { white-space: nowrap; }
+    .fsp-chain-hop a { color: var(--link-text, #1565c0); text-decoration: none; }
+    .fsp-chain-hop a:hover { text-decoration: underline; }
   `],
 })
 export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
@@ -574,8 +702,19 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
   compatRows: TargetCompatRow[] = [];
   private compatLoaded = false;
   pending: PendingAction | null = null;
+  pendingConfig: PendingConfig = { ...DEFAULT_PENDING_CONFIG };
   showMoreInvalidTask = false;
   showMoreRestPin = false;
+
+  /** ucd-0b item 3: the solution-level PinClaim rows (payload gains `claims`) — used only to surface a status chip
+   * on an incomplete/conflicting task in the Tasks table; empty array (older backend) renders no chips at all. */
+  claims: PinClaim[] = [];
+
+  /** ucd-0b item 1: the chain door's response for the selected pin, cached per pin until the solution reloads or an
+   * assign happens (both go through `select()`, which clears the cache). */
+  pinChain: PinChainResponse | null = null;
+  pinChainError = '';
+  private pinChainCache: Record<string, PinChainResponse> = {};
 
   /** fs-2c item 3: per-task valid-targets responses, cached as they are fetched — the ONLY source the pin→task
    * symmetric highlight and the pin-first register offer use (no new per-pin compatibility door). */
@@ -690,6 +829,7 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
     this.selected = name;
     this.clearSelection();
     this.taskValidityCache = {};
+    this.pinChainCache = {}; // ucd-0b: a new solution (or a just-confirmed assign re-selecting it) invalidates every cached chain
     this.loading = true; this.error = null;
     this.http.get<any>(`${this.base}${this.solutionsPath}/${encodeURIComponent(name)}`, { headers: this.headers }).subscribe({
       next: (r: any) => {
@@ -699,6 +839,7 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
         this.unregisteredTasks = r.unregistered_tasks || this.assignments.filter((a: RegisterAssignment) => a.status === 'unbound');
         this.registeredTasks = r.registered_tasks || {};
         this.capabilities = r.capabilities || [];
+        this.claims = r.claims || []; // ucd-0b item 3: absent on an older backend — chips just never render
         this.validation = r.validation || null;
         this.buildTaskRows();
         this.buildLanes();
@@ -986,6 +1127,7 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
     this.selectedTask = null; this.taskValidity = null; this.taskValidityError = '';
     const board = this.solution?.board_resolved || '';
     this.loadCompatRowsOnce();
+    this.loadPinChain(pin);
     this.http.get<PinDetail>(`${this.base}/api/board/${encodeURIComponent(board)}/pins/${encodeURIComponent(pin)}`, { headers: this.headers }).subscribe({
       next: (r: any) => {
         if (!r || r.ok === false) { this.pinDetailError = (r && r.error) || `could not load pin ${pin}`; return; }
@@ -999,9 +1141,71 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
   clearSelection(): void {
     this.selectedTask = null; this.taskValidity = null; this.taskValidityError = '';
     this.selectedPin = ''; this.pinDetail = null; this.pinDetailError = '';
-    this.detailMode = 'none'; this.pending = null;
+    this.pinChain = null; this.pinChainError = '';
+    this.detailMode = 'none'; this.pending = null; this.pendingConfig = { ...DEFAULT_PENDING_CONFIG };
     this.assignError = ''; this.assignWarning = '';
     this.applyHighlighting();
+  }
+
+  /** ucd-0b item 1: GET .../pins/{pin}/chain, cached per pin (cleared by `select()` on a new solution or a
+   * just-confirmed assign). A 404 (older backend without the chain door) is swallowed — the block above just
+   * shows nothing beyond what `pinDetail` already gives; any other error surfaces as `pinChainError`. */
+  private loadPinChain(pin: string): void {
+    this.pinChain = null; this.pinChainError = '';
+    const cached = this.pinChainCache[pin];
+    if (cached) { this.pinChain = cached; return; }
+    const url = `${this.base}${this.solutionsPath}/${encodeURIComponent(this.selected)}/pins/${encodeURIComponent(pin)}/chain`;
+    this.http.get<PinChainResponse>(url, { headers: this.headers }).subscribe({
+      next: (r: any) => {
+        if (!r || r.ok === false) { return; }
+        this.pinChain = r; this.pinChainCache[pin] = r;
+      },
+      error: (err: any) => {
+        if (err?.status === 404) { return; } // older backend — tolerate silently
+        this.pinChainError = friendlyError(err, 'GET pin chain').text;
+      },
+    });
+  }
+
+  /** ucd-0b item 1: one line per RegisterFieldSetting, e.g. "EICRA.ISC1 = 01 — Any logical change on INT1 generates
+   * an interrupt request · from sense.isr · rule edge-any-to-ISC". */
+  fieldSettingLine(fs: RegisterFieldSettingRow): string {
+    const from = fs.task || fs.pin_claim || '—';
+    return `${fs.register_field} = ${fs.value} — ${fs.meaning} · from ${from} · rule ${fs.rule}`;
+  }
+
+  /** ucd-0b item 1: the bit strip above/below a RegisterSetting's final value — a plain flex row of spans, no
+   * library. `value_bits` is a bit string, e.g. "00001101"; absent entirely when the backend hasn't derived it. */
+  bitIndices(bits: string): number[] { return bits.split('').map((_, i) => bits.length - 1 - i); }
+  bitChars(bits: string): string[] { return bits.split(''); }
+
+  /** ucd-0b item 1: a chain hop's `ref` ('Class:name') -> the generic object page's route. */
+  hopRouterLink(ref: string): string[] {
+    const idx = ref.indexOf(':');
+    if (idx < 0) { return ['/object', ref]; }
+    return ['/object', ref.slice(0, idx), ref.slice(idx + 1)];
+  }
+
+  /** ucd-0b item 3: a status chip for a Tasks-table row when its own PinClaim is 'incomplete' or 'conflict' — null
+   * (no chip) when `claims` is empty/absent or every claim for this task is 'ok'. The short text names the first
+   * undetermined design-choice field for 'incomplete' (e.g. "edge?"), else falls back to the status word. */
+  taskClaimChip(task: string): { text: string; title: string; status: 'conflict' | 'incomplete' } | null {
+    const c = this.claims.find(cl => cl.task === task && (cl.status === 'incomplete' || cl.status === 'conflict'));
+    if (!c) { return null; }
+    if (c.status === 'conflict') { return { text: 'conflict', title: c.why || 'conflicting claim', status: 'conflict' }; }
+    const missing = c.edge === 'undetermined' ? 'edge?' : c.pull === 'undetermined' ? 'pull?' : 'incomplete';
+    return { text: missing, title: c.why || 'incomplete claim', status: 'incomplete' };
+  }
+
+  /** ucd-0b item 2: which config selects the confirm bar shows for the pending registration's task kind
+   * (`target_kind`, the same kind vocabulary as `compatRowsForSelectedPin`'s rule kinds). */
+  get pendingNeeds(): { edge: boolean; pull: boolean; initial: boolean } {
+    const kind = this.pending?.task.target_kind || '';
+    return {
+      edge: kind === 'interrupt-in',
+      pull: kind === 'digital-in' || kind === 'interrupt-in',
+      initial: kind === 'digital-out',
+    };
   }
 
   private loadCompatRowsOnce(): void {
@@ -1086,7 +1290,7 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
       const cached = this.taskValidityCache[a.task];
       if (cached) { this.offerPair(a, pin, cached.pins.find(p => p.pin === pin)); return; }
       const ownPins = this.taskOwnPins(a.task);
-      if (ownPins.includes(pin)) { this.pending = { kind: 'unregister', task: a, pin }; return; }
+      if (ownPins.includes(pin)) { this.setPending({ kind: 'unregister', task: a, pin }); return; }
       this.http.get<ValidTargetsResponse>(this.validTargetsUrl(a.task), { headers: this.headers }).subscribe({
         next: (r: any) => {
           if (!r || r.ok === false) { return; }
@@ -1105,17 +1309,30 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
    * pin-first) so the offer is identical regardless of which side was clicked first. */
   private offerPair(task: RegisterAssignment, pin: string, row: ValidTargetPin | undefined): void {
     const ownPins = this.taskOwnPins(task.task);
-    if (ownPins.includes(pin)) { this.pending = { kind: 'unregister', task, pin }; return; }
-    if (row && (row.verdict === 'valid' || row.verdict === 'undetermined')) { this.pending = { kind: 'register', task, pin }; return; }
+    if (ownPins.includes(pin)) { this.setPending({ kind: 'unregister', task, pin }); return; }
+    if (row && (row.verdict === 'valid' || row.verdict === 'undetermined')) { this.setPending({ kind: 'register', task, pin }); return; }
     this.assignError = row ? row.reason : `${task.task} has no known compatibility with ${pin} yet — select ${task.task} once to check`;
+  }
+
+  /** ucd-0b: the one place `pending` is ever set to a non-null offer — always resets `pendingConfig` to defaults so
+   * a stale pick from a previous offer never carries over. */
+  private setPending(p: PendingAction): void {
+    this.pending = p;
+    this.pendingConfig = { ...DEFAULT_PENDING_CONFIG };
   }
 
   get selectionText(): string {
     if (this.pending) {
       const label = this.taskLabel(this.pending.task);
-      return this.pending.kind === 'register'
-        ? `Register ${label} to ${this.pending.pin}? `
-        : `Unregister ${label} from ${this.pending.pin}? `;
+      if (this.pending.kind === 'unregister') { return `Unregister ${label} from ${this.pending.pin}? `; }
+      // ucd-0b item 2: state what Register will actually write — the needed config fields, in the chosen values.
+      const needs = this.pendingNeeds;
+      const bits: string[] = [];
+      if (needs.edge) { bits.push(`${this.pendingConfig.edge} edge`); }
+      if (needs.pull) { bits.push(this.pendingConfig.pull === 'up' ? 'pull-up on' : 'no pull'); }
+      if (needs.initial) { bits.push(`initial ${this.pendingConfig.initial}`); }
+      const extra = bits.length ? `, ${bits.join(', ')}` : '';
+      return `Register ${label} to ${this.pending.pin}${extra}? `;
     }
     if (this.selectedTask) {
       const label = this.taskLabel(this.selectedTask);
@@ -1134,17 +1351,30 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
     const { task, pin, kind } = this.pending;
     const board = this.solution?.board_resolved || '';
     const livesOn = kind === 'unregister' ? 'unbound' : `${board}:${pin}`;
-    this.postAssign(task, livesOn);
+    // ucd-0b item 2: only the fields this task kind needs ever go in `config` — never a stray default for a field
+    // the backend didn't ask for.
+    let config: Partial<PendingConfig> | undefined;
+    if (kind === 'register') {
+      const needs = this.pendingNeeds;
+      config = {};
+      if (needs.edge) { config.edge = this.pendingConfig.edge; }
+      if (needs.pull) { config.pull = this.pendingConfig.pull; }
+      if (needs.initial) { config.initial = this.pendingConfig.initial; }
+    }
+    this.postAssign(task, livesOn, config);
   }
 
-  cancelPending(): void { this.pending = null; }
+  cancelPending(): void { this.pending = null; this.pendingConfig = { ...DEFAULT_PENDING_CONFIG }; }
 
   /** fs-2c item 4: the SAME door for Register and Unregister — `lives_on: 'unbound'` is fs-0's existing unassign
    * path (`cmod_firmware_api.py`'s `on_post_assign` already treats it as "set status back to unbound"), so no new
-   * backend endpoint was needed ("one path to a write"). */
-  private postAssign(task: RegisterAssignment, livesOn: string): void {
+   * backend endpoint was needed ("one path to a write"). ucd-0b: `config` rides beside the existing fields, only
+   * on a register (never on an unregister, and never a field the task kind doesn't need). */
+  private postAssign(task: RegisterAssignment, livesOn: string, config?: Partial<PendingConfig>): void {
+    const body: any = { task: task.task, port: task.port, lives_on: livesOn };
+    if (config && Object.keys(config).length) { body.config = config; }
     this.http.post<any>(`${this.base}${this.solutionsPath}/${encodeURIComponent(this.selected)}/assign`,
-      { task: task.task, port: task.port, lives_on: livesOn }, { headers: this.headers }).subscribe({
+      body, { headers: this.headers }).subscribe({
       next: (r: any) => {
         if (!r || r.ok === false) { this.assignError = (r && (r.error || r.refused)) || 'assign refused'; this.pending = null; return; }
         if (r.warning) { this.assignWarning = r.warning; }
