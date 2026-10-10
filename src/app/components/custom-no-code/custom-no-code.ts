@@ -2545,7 +2545,17 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
         nextX += LANE_PITCH;
       }
     });
-    if (positions.length) this.solutionStateService.updateStatePositions(name, positions);
+    if (positions.length) {
+      this.solutionStateService.updateStatePositions(name, positions);
+      // ucd-hdr3 fix (verified in his Chrome 2026-10-10: the canvas still showed buildCAtomsSolution's
+      // 4-per-row grid): selectSolution() already ran loadSelectedSolution() with the grid positions
+      // BEFORE this method wrote the staged ones, and loadSelectedSolution() skips a same-name reload
+      // inside 1 s — so nothing ever re-read them. Force the re-read now that the positions are staged.
+      if (this.solutionStateService.getSelectedSolutionData()?.solutionName === name) {
+        this.lastLoadedTimestamp = 0;
+        this.loadSelectedSolution();
+      }
+    }
     const crossings: CCrossingInfo[] = [];
     states.forEach((s: any) => {
       (s.slots || []).forEach((slot: any) => {
@@ -3710,7 +3720,13 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
    * Filter solutions to only show those belonging to the selected object
    */
   private updateFilteredSolutions(): void {
-    if (isHiddenCanvasSolution(this.selectedSolutionName)) {
+    // ucd-hdr3 fix (verified in his Chrome 2026-10-10): graph mode ONLY while the selected OBJECT is
+    // still the open graph. When the person picks a backend object in the Object select while a
+    // hidden c-canvas solution is open, selectedObjectName is already that object and the list must
+    // be ITS solutions — otherwise onObjectChange's "select the first solution" sees the one
+    // "atoms of <graph>" option (== the current selection) and the pick silently does nothing.
+    if (isHiddenCanvasSolution(this.selectedSolutionName)
+        && this.selectedObjectName === graphOfHiddenSolution(this.selectedSolutionName)) {
       this.filteredSolutions = solutionOptionsFor(this.selectedSolutionName, []);
       return;
     }
