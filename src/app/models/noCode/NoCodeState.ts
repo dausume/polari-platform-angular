@@ -28,8 +28,9 @@ export class NoCodeState {
     // selfix 2026-10-05 (demo-4b): the hardware-lane Runtime this state runs on (one of the
     // Runtime class's 6 seeded rows: python-backend/typescript-browser/c-device/c-twin/
     // java-bridge/javafx-native). Set from custom-no-code's "New state runtime" picker when the
-    // state is created from the palette; c-graph-canvas-panel's applyLanes() prefers this field
-    // when present, falling back to its stateClass-based inference otherwise.
+    // state is created from the palette; custom-no-code's own applyCLanes() (ucd-hdr — moved from
+    // the deleted c-graph-canvas-panel) prefers this field when present, falling back to its
+    // stateClass-based inference otherwise.
     runtime?: string;
     // Indicates the modified x-dimension size of the svg element for this state.
     stateSvgSizeX?: number | null;

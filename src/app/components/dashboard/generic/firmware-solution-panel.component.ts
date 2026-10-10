@@ -459,7 +459,8 @@ const CAP_STATUS_COLORS: Record<string, string> = {
                         </td>
                         <td>{{ t.cost }}</td>
                         <!-- fs-2d: the reverse link from a task to the no-code graph/node that composes it —
-                             opens the c-canvas at exactly that node (CGraphCanvasPanelComponent honours ?node=). -->
+                             opens the c-canvas at exactly that node (ucd-hdr: CustomNoCodeComponent's own
+                             "node" input honours ?node=, moved from the deleted c-graph-canvas-panel). -->
                         <td>
                           <a *ngIf="t.composed_by as cb" class="fsp-composed-link" title="open on the c-canvas"
                              [routerLink]="['/display/c-canvas']" [queryParams]="{ graph: cb.graph, node: cb.node }"
