@@ -9,7 +9,7 @@
  */
 import {
   RUNTIME_OPTIONS_FALLBACK, RUNTIME_DISPLAY_LABELS, RUNTIME_TO_LEGACY_TARGET, LEGACY_TARGET_TO_RUNTIME,
-  commandGroupForRuntime, deriveRuntimeForSolution,
+  commandGroupForRuntime, deriveRuntimeForSolution, dispatchHeaderSolution, HeaderSolutionOpener,
 } from './custom-no-code';
 
 describe('custom-no-code — hardware-lane Runtime options (demo-4b)', () => {
@@ -122,5 +122,64 @@ describe('custom-no-code — deriveRuntimeForSolution (the Runtime select deriva
 
   it('an untagged/unknown state runtime value is ignored, not treated as agreement', () => {
     expect(deriveRuntimeForSolution('', {}, [{ runtime: 'not-a-real-runtime' }])).toBeNull();
+  });
+
+  it('solution mode (the caller passes graph=\'\' even when a CGraph name is also known): derives '
+     + 'from the solution\'s own states, never forced to c-device', () => {
+    // hwnocode_page.py's /display/hardware-solutions passes BOTH graph (the board-half CGraph name)
+    // and solution together; applyDerivedRuntime() passes '' for graph whenever `solution` is set
+    // (this.solution ? '' : this.graph) — exactly what this call shapes.
+    expect(deriveRuntimeForSolution('', { targetRuntime: 'python_backend' }, [{ runtime: 'java-bridge' }, { runtime: 'java-bridge' }]))
+      .toBe('java-bridge');
+  });
+});
+
+/**
+ * ucd-hdr follow-up — the deleted c-graph-canvas-panel's `solution` input mode (demo-4b's "both
+ * ways" adapter), ported into custom-no-code's dispatchHeaderSolution(): with a `solution` name,
+ * open that REAL HardwareSolution drawing directly (selectSolution(name, false) — persist=false —
+ * then applyLanes); `solution` wins outright over `graph` when both are given (hwnocode_page.py's
+ * own shape). Exported standalone (the opener is an injected seam) so the DISPATCH decision specs
+ * without mounting CustomNoCodeComponent's heavy dependency graph.
+ */
+describe('custom-no-code — dispatchHeaderSolution (the solution-mode port)', () => {
+  function mockOpener() {
+    return {
+      selectSolution: jasmine.createSpy('selectSolution'),
+      applyLanes: jasmine.createSpy('applyLanes'),
+      openCGraph: jasmine.createSpy('openCGraph'),
+    } as unknown as HeaderSolutionOpener & {
+      selectSolution: jasmine.Spy; applyLanes: jasmine.Spy; openCGraph: jasmine.Spy;
+    };
+  }
+
+  it('a `solution` name opens it directly: selectSolution(name, false), then lanes applied', () => {
+    const opener = mockOpener();
+    dispatchHeaderSolution('uno-sim-rig-graph', 'uno-temp-split', opener);
+    expect(opener.selectSolution).toHaveBeenCalledWith('uno-temp-split', false);
+    expect(opener.applyLanes).toHaveBeenCalledWith('uno-temp-split');
+    expect(opener.openCGraph).not.toHaveBeenCalled();
+  });
+
+  it('`solution` wins outright over `graph` when both are given (hwnocode_page.py\'s own shape)', () => {
+    const opener = mockOpener();
+    dispatchHeaderSolution('uno-sim-rig-graph', 'uno-temp-split', opener);
+    expect(opener.openCGraph).not.toHaveBeenCalled();
+  });
+
+  it('no `solution`: falls through to the CGraph atoms-only adapter', () => {
+    const opener = mockOpener();
+    dispatchHeaderSolution('uno-sim-rig-graph', '', opener);
+    expect(opener.openCGraph).toHaveBeenCalledWith('uno-sim-rig-graph');
+    expect(opener.selectSolution).not.toHaveBeenCalled();
+    expect(opener.applyLanes).not.toHaveBeenCalled();
+  });
+
+  it('neither given: no-op (the /custom-no-code editor route — Object/Solution selectors stay in charge)', () => {
+    const opener = mockOpener();
+    dispatchHeaderSolution('', '', opener);
+    expect(opener.selectSolution).not.toHaveBeenCalled();
+    expect(opener.applyLanes).not.toHaveBeenCalled();
+    expect(opener.openCGraph).not.toHaveBeenCalled();
   });
 });

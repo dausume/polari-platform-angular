@@ -173,6 +173,12 @@ export function commandGroupForRuntime(runtime: string): RuntimeCommandGroup {
  * solution's legacy `targetRuntime` (python_backend/typescript_frontend) mapped through
  * LEGACY_TARGET_TO_RUNTIME. Returns null when none of these say anything — the caller keeps
  * whatever default is already showing, rather than guessing from the solution's NAME.
+ *
+ * ucd-hdr follow-up: `graph` here means "the CGraph IS this canvas' whole identity" — the caller
+ * (applyDerivedRuntime) passes '' whenever a `solution` input is ALSO active (hwnocode_page.py's
+ * /display/hardware-solutions passes both graph and solution together: there, `graph` only names
+ * the mixed solution's board-half CGraph, so rule (1) must not fire — the mixed solution's own
+ * states/targetRuntime (rules 2/3) decide instead).
  */
 export function deriveRuntimeForSolution(
   graph: string, solutionData: { targetRuntime?: string } | null | undefined, freshInstances: { runtime?: string }[],
@@ -193,6 +199,40 @@ export function deriveRuntimeForSolution(
     return legacyFromTarget;
   }
   return null;
+}
+
+/** The seam dispatchHeaderSolution() calls through — selectSolution/applyLanes are the component's
+ *  own NoCodeSolutionStateService.selectSolution()/applyCLanes(); openCGraph is openCGraphSolution().
+ *  Kept as an interface (not the component itself) so the dispatch DECISION specs without mounting
+ *  CustomNoCodeComponent's heavy dependency graph. */
+export interface HeaderSolutionOpener {
+  selectSolution(name: string, persist: boolean): void;
+  applyLanes(name: string): void;
+  openCGraph(graph: string): void;
+}
+
+/**
+ * ucd-hdr follow-up: the header's OPEN decision — ported from the deleted c-graph-canvas-panel's
+ * openSolutionFor(). With a `solution` argument, open that REAL, already-seeded HardwareSolution
+ * drawing by name (never re-synthesized) — persist=false (selfix 2026-10-05, prf-urgent, carried
+ * over verbatim): this header shares the GLOBAL NoCodeSolutionStateService singleton with the
+ * plain /custom-no-code editor route, so selecting with persist=true would write this page's
+ * choice into localStorage as the person's cross-page "last selected solution" (visiting
+ * /display/hardware-solutions then reloading /custom-no-code would restore THIS page's solution
+ * instead of whatever the person last chose there). Falls through to the CGraph atoms-only adapter
+ * only when no `solution` is given — `solution` wins outright over `graph` when both are set,
+ * exactly the old panel's own precedence (its picker could not override an active `solution`
+ * either; unchanged here).
+ */
+export function dispatchHeaderSolution(graph: string, solution: string, opener: HeaderSolutionOpener): void {
+  if (solution) {
+    opener.selectSolution(solution, false);
+    opener.applyLanes(solution);
+    return;
+  }
+  if (graph) {
+    opener.openCGraph(graph);
+  }
 }
 
 // An Editor which creates a new No-Code Solution by default.
@@ -222,12 +262,24 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
 
   /** ucd-hdr (moved from the deleted c-graph-canvas-panel): the cmod CGraph this canvas opens —
    *  set by cmod_page.py's `_canvas()` item input, or by ?graph= on this page's own URL (a direct
-   *  /display/c-canvas link, or a Firmware Solutions task's "Composed by" deep link). Non-empty
-   *  means: ensure (never duplicate) the atoms-only SolutionDefinition built from this CGraph's own
-   *  rows, select it, and derive the Runtime select to c-device (a CGraph is C on the device by
-   *  construction — RULE 2, cmod_page.py's own comment). Empty (the /custom-no-code editor route,
-   *  or any other object/solution) leaves the Object/Solution selectors in charge as before. */
+   *  /display/c-canvas link, or a Firmware Solutions task's "Composed by" deep link). When
+   *  `solution` (below) is ALSO set, `solution` wins outright (dispatchHeaderSolution) — `graph`
+   *  then only names the board half's own CGraph (hwnocode_page.py's /display/hardware-solutions
+   *  shape), never the whole canvas' identity, so it does NOT derive the Runtime select to
+   *  c-device in that case (see applyDerivedRuntime). With no `solution`, non-empty `graph` means:
+   *  ensure (never duplicate) the atoms-only SolutionDefinition built from this CGraph's own rows,
+   *  select it, and derive the Runtime select to c-device (a CGraph is C on the device by
+   *  construction — RULE 2, cmod_page.py's own comment). Both empty (the /custom-no-code editor
+   *  route, or any other object/solution) leaves the Object/Solution selectors in charge as before. */
   @Input() graph: string = '';
+  /** ucd-hdr follow-up (ported from the deleted c-graph-canvas-panel's demo-4b "both ways" adapter,
+   *  its `solution` input): when set, opens that REAL, already-seeded HardwareSolution drawing by
+   *  name instead of the synthetic atoms-only solution — its own SolutionDefinition already carries
+   *  the mixed board/bridge/backend nodes (hwnocode_page.py's /display/hardware-solutions). Wins
+   *  outright over `graph` when both are set (dispatchHeaderSolution). The Runtime select then
+   *  derives from the SOLUTION's own states'/targetRuntime (deriveRuntimeForSolution rules 2/3) —
+   *  never forced to c-device just because `graph` also names the board half's CGraph. */
+  @Input() solution: string = '';
   /** ucd-hdr (fs-2d, moved from the deleted c-graph-canvas-panel): the CGraphNode (instance) to
    *  focus once the CGraph's solution is open — set by ?node= on this page's own URL. */
   @Input() node: string = '';
@@ -524,10 +576,15 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
           // (shareable, survives refresh) — this is what makes the native
           // selector and URL-based nav coherent both ways. The queryParams
           // listener guards against a re-select loop.
-          // ucd-hdr: NEVER for the CGraph-backed synthetic solution this page's own ?graph=
-          // scheme opens (openCGraphSolution, persist=false) — that would fight the ?graph=/
-          // ?node= query params with a second, conflicting ?focusSolution= on the same URL.
-          if (!(this.graph && solutionName === this.solutionNameForCGraph(this.graph))) {
+          // ucd-hdr: NEVER for a solution THIS header's own `graph`/`solution` inputs opened
+          // (openCGraphSolution/dispatchHeaderSolution, both persist=false) — that would fight
+          // their own query-param scheme (?graph=/?node=) with a second, conflicting
+          // ?focusSolution= on the same URL (hwnocode_page.py's /display/hardware-solutions has no
+          // such scheme of its own, but the SAME reasoning applies: it is not the person's "last
+          // selected solution" context either).
+          const isHeaderDrivenSolution = (this.solution && solutionName === this.solution)
+            || (this.graph && solutionName === this.solutionNameForCGraph(this.graph));
+          if (!isHeaderDrivenSolution) {
             this.syncUrlToSelectedSolution(solutionName);
           }
         }
@@ -620,13 +677,15 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
 
     // ucd-hdr (moved from the deleted c-graph-canvas-panel's ngOnInit): ?graph=/?node= on THIS
     // page's own url (a direct /display/c-canvas link, or a Firmware Solutions task's "Composed
-    // by" deep link) win over the @Input defaults cmod_page.py's `_canvas()` item set.
+    // by" deep link) win over the @Input defaults cmod_page.py's `_canvas()` item set. The old
+    // panel never read a `solution` query param (only ever an @Input, from hwnocode_page.py's own
+    // item) — unchanged here.
     const cqp = this.route.snapshot.queryParamMap;
     const cGraphParam = cqp.get('graph');
     const cNodeParam = cqp.get('node');
     if (cGraphParam) { this.graph = cGraphParam; }
     if (cNodeParam) { this.node = cNodeParam; }
-    if (this.graph) {
+    if (this.graph || this.solution) {
       this.loadCGraphs();
       // Deferred to a microtask after loading$ settles so this selection is the one left
       // standing over initializeFromBackend()'s own default-first-solution reselect (both react
@@ -634,7 +693,7 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
       // microtask defer this could run BEFORE that reselect finishes and still get clobbered).
       this.solutionStateService.loading$.pipe(filter((loading: boolean) => !loading), take(1), takeUntil(this.destroy$))
         .subscribe(() => { Promise.resolve().then(() => {
-          this.openCGraphSolution(this.graph);
+          this.openHeaderSolution();
           if (this.node) { this.focusCNode(this.node); }
         }); });
     }
@@ -677,14 +736,16 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
   }
 
   /** ucd-hdr (moved from the deleted c-graph-canvas-panel's ngOnChanges): a LATER re-binding of
-   *  `graph`/`node` (the host page re-rendering this same component instance with a different
-   *  cmod_page.py item, or a Firmware Solutions "Composed by" deep link navigated to while already
-   *  mounted) re-opens / re-focuses — the first-change case is handled once already, in ngOnInit. */
+   *  `graph`/`solution`/`node` (the host page re-rendering this same component instance with a
+   *  different cmod_page.py/hwnocode_page.py item, or a Firmware Solutions "Composed by" deep link
+   *  navigated to while already mounted) re-opens / re-focuses — the first-change case is handled
+   *  once already, in ngOnInit. */
   ngOnChanges(changes: SimpleChanges): void {
     const graphChanged = changes['graph'] && !changes['graph'].firstChange;
+    const solutionInputChanged = changes['solution'] && !changes['solution'].firstChange;
     const nodeChanged = changes['node'] && !changes['node'].firstChange;
-    if (graphChanged && this.graph) {
-      this.openCGraphSolution(this.graph);
+    if ((graphChanged || solutionInputChanged) && (this.graph || this.solution)) {
+      this.openHeaderSolution();
       if (this.node) { this.focusCNode(this.node); }
     } else if (nodeChanged && this.node) {
       this.focusCNode(this.node);
@@ -939,7 +1000,11 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
     if (solutionChanged) {
       this.runtimeHandPicked = false;
     }
-    const derived = deriveRuntimeForSolution(this.graph, solutionData, freshInstances);
+    // ucd-hdr follow-up: rule (1) (a CGraph is c-device by construction) only applies when `graph`
+    // IS this canvas' whole identity — never when a `solution` input is ALSO active (hwnocode_page.py
+    // passes both graph and solution together: there, `graph` only names the mixed solution's
+    // board-half CGraph, so it must not force c-device over that solution's own states/targetRuntime).
+    const derived = deriveRuntimeForSolution(this.solution ? '' : this.graph, solutionData, freshInstances);
     if (derived) {
       this.newStateRuntime = derived;
       this.runtimeIsDefault = false;
@@ -1941,10 +2006,25 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
     return 'cmod.c-canvas.' + graph;
   }
 
+  /** ucd-hdr follow-up: the header's own thin wiring over dispatchHeaderSolution() — real seams
+   *  (selectSolution/applyLanes/openCGraph) bound to this component's own services/methods, so the
+   *  DECISION logic itself specs standalone (see dispatchHeaderSolution's own spec). */
+  private openHeaderSolution(): void {
+    dispatchHeaderSolution(this.graph, this.solution, {
+      selectSolution: (name, persist) => this.solutionStateService.selectSolution(name, persist),
+      applyLanes: (name) => this.applyCLanes(name),
+      openCGraph: (g) => this.openCGraphSolution(g),
+    });
+  }
+
+  /** the CGraph picker's own (change) handler — switches which CGraph the atoms-only adapter opens.
+   *  Routed through openHeaderSolution() (not openCGraphSolution directly) so an ACTIVE `solution`
+   *  input still wins outright, exactly the old panel's own precedence (its picker could not
+   *  override an active `solution` either — unchanged here). */
   pickCGraph(graph: string): void {
     this.graph = graph;
     this.cRenderResult = this.cBuildResult = this.cProveResult = this.cLastBuild = null;
-    this.openCGraphSolution(graph);
+    this.openHeaderSolution();
   }
 
   loadCGraphs(): void {
