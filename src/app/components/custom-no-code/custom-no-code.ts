@@ -114,6 +114,116 @@ interface CGraphNodeRow {
 interface CGraphEdgeRow { kind: string; from_node: string; from_port: string; to_node: string; to_port: string; order: number; }
 interface CLaneInfo { runtime: string; count: number; color: string; }
 interface CCrossingInfo { from: string; to: string; fromRuntime: string; toRuntime: string; }
+/** cmod_api.CModAPI._purposes — a Purpose (CapabilityDefinition) over THIS graph: its own
+ *  c-device task_names (CGraphNode instances), never the cross-runtime union
+ *  cmod_firmware_api.FirmwareAPI._capabilities computes for the firmware panel. */
+interface CPurposeRow { name: string; title: string; task_names: string[]; }
+/** the `?node=` reply's own `scope` object — always includes `node` itself in `task_names`. */
+interface CGraphScopeRow { node: string; purposes: string[]; task_names: string[]; neighbours: string[]; }
+
+/** ucd-hdr2 (defect "scope", deliverable 2, his report 2026-10-10 verbatim: "the only interface I
+ *  see has an absurd amount of c-atoms, it does not look like the c-atoms for just a single task at
+ *  all"). The three Scope settings a person can pick in the C command group:
+ *   'task'    — the focused node + its one-edge neighbours only (GET .../graphs/{graph}?node=
+ *               `scope.neighbours`).
+ *   'purpose' — the union of every Purpose (CapabilityDefinition) that NAMES the focused node
+ *               (`scope.task_names`, or a single hand-picked purpose's own `task_names` when the
+ *               person clicked a specific chip) — DEFAULT whenever `?node=` is given.
+ *   'graph'   — everything; DEFAULT when no node is focused. */
+export type CScopeMode = 'task' | 'purpose' | 'graph';
+
+/** Pure — the node-instance subset a given Scope setting resolves to, over a tiny fixture (never
+ *  touches the component/HTTP). `null` means "no filtering" (the whole graph). `scope` is the
+ *  backend's own `?node=` reply (CGraphScopeRow) when a node is focused, else undefined (a 'task'/
+ *  'purpose' mode with no scope data degrades to just the node itself, same honesty posture as
+ *  openCGraphSolution's other backend-shape degradations). `selectedPurpose` narrows 'purpose' mode
+ *  to ONE hand-picked chip's own task_names instead of the union of every purpose naming the node
+ *  (his click-toggle rule: a chip click scopes to THAT purpose alone). */
+export function cScopeSubset(
+  mode: CScopeMode, node: string, scope: CGraphScopeRow | null | undefined,
+  purposes: CPurposeRow[], selectedPurpose: string | null,
+): Set<string> | null {
+  if (mode === 'graph' || !node) {
+    return null;
+  }
+  if (mode === 'task') {
+    if (!scope) return new Set([node]);
+    return new Set([scope.node, ...(scope.neighbours || [])]);
+  }
+  // mode === 'purpose'
+  if (selectedPurpose) {
+    const p = purposes.find(p => p.name === selectedPurpose);
+    return new Set(p ? [node, ...p.task_names] : [node]);
+  }
+  if (scope) {
+    return new Set([node, ...(scope.task_names || [])]);
+  }
+  return new Set([node]);
+}
+
+/** ucd-hdr2 (defect "layout", deliverable 3, his report verbatim: "disorganized"). The real `stage`
+ *  values a CGraphNode ever carries (modules/cmod/custom/graph_seed.py's own `_n()` seeds): 'init',
+ *  'loop' and 'called' for a real c-atom, and '' (no stage at all) for every GLUE-GENERATED kind —
+ *  class/parser/frame/tick/rule — which `_n()` never passes a `stage` argument for. Fixed column
+ *  order, glue-generated last (his own "in their own column at the end"); any value this seed never
+ *  used (a future stage) degrades into the same last '' column rather than inventing a 5th. */
+export const C_STAGE_COLUMN_ORDER: ReadonlyArray<string> = ['init', 'loop', 'called', ''];
+
+/** Pure — buckets `nodes` into C_STAGE_COLUMN_ORDER's columns (empty columns dropped, so a graph
+ *  with no 'called' nodes has 3 columns, not 4 with a gap), then orders each column
+ *  TOPOLOGICALLY over `edges` restricted to that SAME column (Kahn's algorithm: a caller appears
+ *  before what it calls), falling back to the node's own declared `order` for ties and for any
+ *  cycle's leftover members (never alphabetical — a reader should see the real call chain
+ *  top-to-bottom). Returns the column list (not positions) — the caller (buildCAtomsSolution/
+ *  applyCLanes) turns that into x/y pixels at its own pitch. */
+export function assignCStageColumns(nodes: CGraphNodeRow[], edges: CGraphEdgeRow[]): CGraphNodeRow[][] {
+  const buckets = new Map<string, CGraphNodeRow[]>();
+  nodes.forEach(n => {
+    const stage = (C_STAGE_COLUMN_ORDER as string[]).includes(n.stage) ? n.stage : '';
+    if (!buckets.has(stage)) buckets.set(stage, []);
+    buckets.get(stage)!.push(n);
+  });
+  return C_STAGE_COLUMN_ORDER
+    .map(stage => buckets.get(stage) || [])
+    .filter(col => col.length > 0)
+    .map(col => topoOrderColumn(col, edges));
+}
+
+/** Kahn's algorithm restricted to edges with BOTH endpoints in `col` — a cross-column edge (the
+ *  overwhelming majority: init -> loop, loop -> called, etc.) says nothing about order WITHIN a
+ *  column and is ignored here. */
+function topoOrderColumn(col: CGraphNodeRow[], edges: CGraphEdgeRow[]): CGraphNodeRow[] {
+  const names = new Set(col.map(n => n.instance));
+  const byOrder = new Map(col.map(n => [n.instance, n.order]));
+  const byName = new Map(col.map(n => [n.instance, n]));
+  const indeg = new Map<string, number>(col.map(n => [n.instance, 0]));
+  const adj = new Map<string, string[]>(col.map(n => [n.instance, []]));
+  edges.forEach(e => {
+    if (names.has(e.from_node) && names.has(e.to_node) && e.from_node !== e.to_node) {
+      adj.get(e.from_node)!.push(e.to_node);
+      indeg.set(e.to_node, (indeg.get(e.to_node) || 0) + 1);
+    }
+  });
+  const liveIndeg = new Map(indeg);
+  const queue = col.filter(n => indeg.get(n.instance) === 0).map(n => n.instance);
+  const out: CGraphNodeRow[] = [];
+  const seen = new Set<string>();
+  const byOrderAsc = (a: string, b: string) => (byOrder.get(a) ?? 0) - (byOrder.get(b) ?? 0);
+  while (queue.length) {
+    queue.sort(byOrderAsc);
+    const n = queue.shift()!;
+    if (seen.has(n)) continue;
+    seen.add(n);
+    out.push(byName.get(n)!);
+    (adj.get(n) || []).forEach(m => {
+      liveIndeg.set(m, (liveIndeg.get(m) || 0) - 1);
+      if (liveIndeg.get(m) === 0) queue.push(m);
+    });
+  }
+  // a cycle (should never happen for a real call graph) leaves members unseen — append by order.
+  col.forEach(n => { if (!seen.has(n.instance)) out.push(n); });
+  return out;
+}
 
 /** mirrors hwnocode.custom.runtimes.runtime_for_kind — the ONE mapping, client-side (demo-4b, moved from
  *  the deleted c-graph-canvas-panel) */
@@ -235,6 +345,84 @@ export function dispatchHeaderSolution(graph: string, solution: string, opener: 
   }
 }
 
+/** ucd-hdr2 (defect 1+2, his report 2026-10-10, verbatim: "the nav from a composed by row on
+ *  composed by always goes to that url ... deleting the extra parameters ... always [takes] us only
+ *  to AdditionTester, and when trying to switch to something else, it goes back to addition
+ *  tester"). `selectionOrigin` is WHY a given solution got selected — tracked so the URL writer
+ *  (syncUrlToSelectedSolution) and the stale-param cleanup (clearStaleFocusParams) know whether
+ *  THIS particular selection is one to reflect in the URL at all. 'url' and 'selector' are the only
+ *  two a person can be said to have asked for directly; 'page' and 'default' never are. */
+export type SelectionOrigin = 'url' | 'selector' | 'page' | 'default';
+
+export interface InitialSelectionInput {
+  /** route.snapshot.queryParams, read once at ngOnInit (or recomputed on a later queryParams
+   *  emission) — never the queryParamMap, so a plain object fixture specs this without Angular. */
+  queryParams: { [key: string]: string };
+  /** the `graph` @Input as bound by the host page (cmod_page.py's `_canvas()` item), BEFORE any
+   *  URL `graph` override is applied to it. */
+  inputGraph: string;
+  /** the `solution` @Input as bound by the host page (hwnocode_page.py's own item). */
+  inputSolution: string;
+}
+
+export interface InitialSelection {
+  /** 'focusSolution' — select this exact, already-real SolutionDefinition name (the existing
+   *  applyUrlSolutionSelection/dispatchHeaderSolution `solution` seam). 'graph' — open the CGraph
+   *  atoms-only adapter (openHeaderSolution/openCGraphSolution) for this CGraph name. 'none' —
+   *  neither the URL nor the page says anything; the service's own default decides, and the
+   *  CALLER must never reflect whatever it picks back into the URL (shouldSyncUrlForOrigin). */
+  kind: 'focusSolution' | 'graph' | 'none';
+  value: string;
+  origin: SelectionOrigin;
+}
+
+/** THE single ordered rule for what this canvas opens on load (or on a later `graph`/`solution`
+ *  @Input rebind — ngOnChanges) — replacing the ad hoc, scattered checks that let the service's own
+ *  default-first-solution reselect win a race against a header-driven `graph`/`node` open and leak
+ *  into the URL (AdditionTester, verbatim from his report). Highest precedence first:
+ *   (a) an explicit URL `focusSolution` (alias `solution`) query param — the person's fast-nav link
+ *       (e.g. a Firmware Solutions "Composed by" deep link to a REAL SolutionDefinition by name);
+ *       kept working on this page. origin 'url'.
+ *   (b) URL `graph` (+ optional `node`) — a direct /display/c-canvas?graph=...&node=... link.
+ *       origin 'url' (same family as (a): an explicit URL fast-nav, just naming a CGraph instead of
+ *       a SolutionDefinition).
+ *   (c) the page item's own `graph`/`solution` @Input (cmod_page.py's `_canvas()` item, or
+ *       hwnocode_page.py's) — what the HOST PAGE says this canvas is for when the URL itself says
+ *       nothing. origin 'page'.
+ *   (d) neither — {kind:'none', origin:'default'}; the service's own default (first visible /
+ *       restored previous selection) decides, and the caller must not write anything to the URL for
+ *       whatever it picks.
+ *  Pure — decides WHAT wins, never HOW to open it (the caller still routes 'focusSolution' through
+ *  applyUrlSolutionSelection and 'graph' through openHeaderSolution, unchanged seams), so it specs
+ *  standalone on a plain object fixture (same reasoning as dispatchHeaderSolution above). */
+export function resolveInitialSelection(input: InitialSelectionInput): InitialSelection {
+  const urlFocus = input.queryParams['focusSolution'] || input.queryParams['solution'];
+  if (urlFocus) {
+    return { kind: 'focusSolution', value: urlFocus, origin: 'url' };
+  }
+  const urlGraph = input.queryParams['graph'];
+  if (urlGraph) {
+    return { kind: 'graph', value: urlGraph, origin: 'url' };
+  }
+  if (input.inputSolution) {
+    return { kind: 'focusSolution', value: input.inputSolution, origin: 'page' };
+  }
+  if (input.inputGraph) {
+    return { kind: 'graph', value: input.inputGraph, origin: 'page' };
+  }
+  return { kind: 'none', value: '', origin: 'default' };
+}
+
+/** The URL writer (syncUrlToSelectedSolution) runs ONLY for a selection the PERSON made — through
+ *  the native Object/Solution selector (origin 'selector') or an explicit URL fast-nav the
+ *  component is re-asserting (origin 'url'). NEVER for the service's own default reselect
+ *  ('default') and NEVER for a header/page-driven open ('page') — that would write a second,
+ *  conflicting ?focusSolution= over the page's own ?graph=/?node= scheme (his report, verbatim:
+ *  "the nav ... always goes to that url"). Exported standalone — pure, one line, spec'd directly. */
+export function shouldSyncUrlForOrigin(origin: SelectionOrigin): boolean {
+  return origin === 'selector' || origin === 'url';
+}
+
 // An Editor which creates a new No-Code Solution by default.
 @Component({
   standalone: false,
@@ -299,6 +487,15 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
    *  hasn't been applied yet because the backend cache hadn't loaded it.
    *  Retried from the availableSolutions$ subscription. */
   private pendingFocusSolution: string | null = null;
+
+  /** ucd-hdr2 (defect 1+2 fix): WHY the selection the selectedSolutionName$ subscription is about
+   *  to react to was made — see SelectionOrigin's own doc comment. Defaults to 'default' (the safe,
+   *  "never write to the URL" posture) and is set to the correct value immediately before every
+   *  call site that can trigger a NoCodeSolutionStateService.selectSolution() emission:
+   *  resolveInitialSelection()'s own result at ngOnInit/ngOnChanges, 'url' in the queryParams
+   *  listener and trySelectPendingFocusSolution(), 'selector' in onObjectChange/onSolutionChange/
+   *  the Scope control. Never read outside the selectedSolutionName$ subscription itself. */
+  private selectionOrigin: SelectionOrigin = 'default';
 
   // Used for binding the overlay which displays State Object UIs and their container elements to the d3 Objects.
   overlayStateSegments: { [key: number]: HTMLElement | null } = {};
@@ -483,6 +680,20 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
   cLanes: CLaneInfo[] = [];
   cCrossings: CCrossingInfo[] = [];
 
+  /** ucd-hdr2 (defect "scope", deliverable 2): the Purposes GET .../graphs/{graph} returned for the
+   *  OPEN graph (one chip per Purpose in the toolbar's Purpose chip row), the backend's own
+   *  `?node=` scope reply for the currently focused node (null when nothing is focused), the
+   *  person's current Scope setting + hand-picked Purpose chip (if any), and the one-line summary
+   *  the header shows ("Scope: purpose button-clock-to-os · 7 of 27 atoms"). */
+  cPurposes: CPurposeRow[] = [];
+  cGraphScope: CGraphScopeRow | null = null;
+  cScope: CScopeMode = 'graph';
+  cSelectedPurpose: string | null = null;
+  /** the Scope setting a Purpose chip click should restore on ITS OWN second click (his click-
+   *  toggle rule) — distinct from `cScope` itself, which a chip click overwrites to 'purpose'. */
+  private cScopePreChip: CScopeMode = 'graph';
+  cScopeSummaryText = '';
+
   // Track unique states (InitialState, ReturnStatement) that already exist in the solution
   // Used to filter these from the sidebar when they're already present
   existingUniqueStates: Set<string> = new Set();
@@ -572,20 +783,21 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
           // Trigger change detection immediately so dropdown updates
           this.changeDetectorRef.detectChanges();
           this.loadSelectedSolution();
-          // Keep the URL in sync so it always reflects the loaded solution
-          // (shareable, survives refresh) — this is what makes the native
-          // selector and URL-based nav coherent both ways. The queryParams
-          // listener guards against a re-select loop.
-          // ucd-hdr: NEVER for a solution THIS header's own `graph`/`solution` inputs opened
-          // (openCGraphSolution/dispatchHeaderSolution, both persist=false) — that would fight
-          // their own query-param scheme (?graph=/?node=) with a second, conflicting
-          // ?focusSolution= on the same URL (hwnocode_page.py's /display/hardware-solutions has no
-          // such scheme of its own, but the SAME reasoning applies: it is not the person's "last
-          // selected solution" context either).
-          const isHeaderDrivenSolution = (this.solution && solutionName === this.solution)
-            || (this.graph && solutionName === this.solutionNameForCGraph(this.graph));
-          if (!isHeaderDrivenSolution) {
+          // ucd-hdr2 (defect 1+2 fix, his report 2026-10-10): the URL writer runs ONLY for a
+          // selection the PERSON made — through the native selector, or an explicit URL fast-nav
+          // the component is re-asserting (shouldSyncUrlForOrigin: origin 'selector'/'url').
+          // NEVER for the service's own default-first-solution reselect ('default') and NEVER for
+          // a header/page-driven graph/solution open ('page') — that would write a second,
+          // conflicting ?focusSolution= over the page's own ?graph=/?node= scheme. A header/page-
+          // driven open instead CLEARS whatever focusSolution/solution/object the URL may still
+          // carry (replaces the old isHeaderDrivenSolution guard, which only ever stopped FUTURE
+          // writes, never cleaned up a write already made before the header-driven solution won
+          // the race — exactly how a stale ?focusSolution=AdditionTester kept fighting every later
+          // nav in his report).
+          if (shouldSyncUrlForOrigin(this.selectionOrigin)) {
             this.syncUrlToSelectedSolution(solutionName);
+          } else if (this.selectionOrigin === 'page') {
+            this.clearStaleFocusParams();
           }
         }
       });
@@ -605,9 +817,26 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
         }
       });
 
-    // Check query params BEFORE backend init — if we have a createSolution param,
-    // we'll create+select it after the backend loads so the new solution isn't overwritten.
-    const params = this.route.snapshot.queryParams;
+    // ucd-hdr2 (defect 1+2 fix): resolveInitialSelection() decides WHAT wins — see its own doc
+    // comment for the 4 ordered cases. Resolved once, up front, off the SAME snapshot every check
+    // below reads, so every one of them agrees with it. `selectionOrigin` starts 'default' (the
+    // safe "never write to the URL" posture) and is only set to this result's own origin
+    // immediately before whichever call site below is about to act on it — never any earlier,
+    // because the service's own default-first-solution reselect (initializeFromBackend, just
+    // below) can itself emit a DIFFERENT, unwanted solution name first (case (d), origin
+    // 'default') that this flag must not be mistaken for a person/page/url-driven pick.
+    const params = this.route.snapshot.queryParams as { [key: string]: string };
+    const initialSelection = resolveInitialSelection({
+      queryParams: params, inputGraph: this.graph, inputSolution: this.solution,
+    });
+    this.selectionOrigin = 'default';
+    // case (a) — an explicit URL focusSolution/solution — wins OUTRIGHT over this header's own
+    // `graph`/`solution` @Input adapter (cases (b)/(c)), even when both are present on this
+    // mount (a stale/attached focusSolution alongside a page-provided graph/solution): the graph/
+    // solution adapter block below must not run at all in that case — applyUrlSolutionSelection
+    // (the queryParams listener, right below) is the one honoring it.
+    const skipGraphAdapter = initialSelection.kind === 'focusSolution' && initialSelection.origin === 'url';
+
     const createSolutionParam = params['createSolution'];
 
     if (createSolutionParam) {
@@ -642,6 +871,7 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
               formFields
             });
           }
+          this.selectionOrigin = 'url';
           this.solutionStateService.selectSolution(createSolutionParam);
           this.solutionTargetRuntime = runtime;
         });
@@ -660,6 +890,7 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
       .subscribe(params => {
         const targetSolution = params['focusSolution'] || params['solution'];
         if (targetSolution) {
+          this.selectionOrigin = 'url';
           this.applyUrlSolutionSelection(targetSolution);
         }
       });
@@ -671,8 +902,15 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
     // already do that regardless of who calls initializeFromBackend()). Calling it here too raced
     // the embedder's own open: this component's default-first-solution reselect could run AFTER
     // the embedder's (both triggered by the same backend fetch, in either order) and clobber it.
+    // ucd-hdr2: `preferred` (case (a) only) tells the service to select that EXACT name the
+    // instant it confirms present in THIS SAME backend response — no intermediate default
+    // emission for the queryParams listener above to have raced against. `keepSelection` always on
+    // for every other case so a refresh/STOMP-replay keeps whatever is already selected (including
+    // a hidden `cmod.c-canvas.*` one) instead of defaulting.
     if (this.syncUrl) {
-      this.solutionStateService.initializeFromBackend();
+      const backendInitOptions: { keepSelection: boolean; preferred?: string } = { keepSelection: true };
+      if (skipGraphAdapter) { backendInitOptions.preferred = initialSelection.value; }
+      this.solutionStateService.initializeFromBackend(backendInitOptions);
     }
 
     // ucd-hdr (moved from the deleted c-graph-canvas-panel's ngOnInit): ?graph=/?node= on THIS
@@ -685,7 +923,7 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
     const cNodeParam = cqp.get('node');
     if (cGraphParam) { this.graph = cGraphParam; }
     if (cNodeParam) { this.node = cNodeParam; }
-    if (this.graph || this.solution) {
+    if (!skipGraphAdapter && (this.graph || this.solution)) {
       this.loadCGraphs();
       // Deferred to a microtask after loading$ settles so this selection is the one left
       // standing over initializeFromBackend()'s own default-first-solution reselect (both react
@@ -693,6 +931,7 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
       // microtask defer this could run BEFORE that reselect finishes and still get clobbered).
       this.solutionStateService.loading$.pipe(filter((loading: boolean) => !loading), take(1), takeUntil(this.destroy$))
         .subscribe(() => { Promise.resolve().then(() => {
+          this.selectionOrigin = initialSelection.origin;
           this.openHeaderSolution();
           if (this.node) { this.focusCNode(this.node); }
         }); });
@@ -718,9 +957,17 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
         this.regenerateCode();
 
         // Refresh the solution list so new/deleted solutions appear (not when embedded — see
-        // the ngOnInit call above for why).
+        // the ngOnInit call above for why). ucd-hdr2: `keepSelection` — this refresh must
+        // RE-ASSERT the current selection, never reset it to the default (his spec, verbatim: "the
+        // STOMP SolutionDefinition refresh must re-assert the current selection, not reset it").
+        // Reset to 'default' first: if the current selection still exists, selectSolution()
+        // re-fires with the SAME name and the selectedSolutionName$ subscription's
+        // `!== this.selectedSolutionName` guard never even runs its body, so this is never read;
+        // only if the selection vanished entirely does the service fall through to ITS OWN
+        // default, which this correctly marks as not-a-person-action.
         if (this.syncUrl) {
-          this.solutionStateService.initializeFromBackend();
+          this.selectionOrigin = 'default';
+          this.solutionStateService.initializeFromBackend({ keepSelection: true });
         }
 
         // If the active solution was affected, flag it
@@ -745,6 +992,9 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
     const solutionInputChanged = changes['solution'] && !changes['solution'].firstChange;
     const nodeChanged = changes['node'] && !changes['node'].firstChange;
     if ((graphChanged || solutionInputChanged) && (this.graph || this.solution)) {
+      // ucd-hdr2: a later @Input rebind is always case (c) (page-driven) — the URL's own
+      // focusSolution/graph/node (cases (a)/(b)) only ever get read once, at ngOnInit.
+      this.selectionOrigin = 'page';
       this.openHeaderSolution();
       if (this.node) { this.focusCNode(this.node); }
     } else if (nodeChanged && this.node) {
@@ -2023,7 +2273,13 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
    *  override an active `solution` either — unchanged here). */
   pickCGraph(graph: string): void {
     this.graph = graph;
+    this.node = '';
     this.cRenderResult = this.cBuildResult = this.cProveResult = this.cLastBuild = null;
+    // ucd-hdr2: a hand pick through the picker is page-driven (not a URL fast-nav the component is
+    // re-asserting) — never syncs ?focusSolution=, but DOES fold the newly picked graph into the
+    // URL (and clears `node`/any stale focusSolution/solution/object) so a refresh keeps it.
+    this.selectionOrigin = 'page';
+    this.clearStaleFocusParams({ graph, node: null });
     this.openHeaderSolution();
   }
 
@@ -2041,16 +2297,34 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
    *  cross-page "last selected solution" in localStorage. */
   private openCGraphSolution(graph: string): void {
     const name = this.solutionNameForCGraph(graph);
-    if (this.solutionStateService.getSolutionData(name)) {
-      this.solutionStateService.selectSolution(name, false);
-      this.applyCLanes(name);
-      return;
-    }
-    this.http.get<any>(`${this.polariService.getBackendBaseUrl()}/api/cmod/graphs/${encodeURIComponent(graph)}`, this.polariService.backendRequestOptions).subscribe({
+    // ucd-hdr2: always re-fetches and rebuilds (no "already in cache, just reselect" fast path
+    // anymore) — the Scope control/Purpose chips call this SAME method to re-scope an already-open
+    // graph, so the rebuild must reflect the CURRENT scope/node/purpose every time, never a stale
+    // full-graph build left over from the first open.
+    // ucd-hdr2 (defect "scope", deliverable 2, his report verbatim: "the only interface I see has
+    // an absurd amount of c-atoms ... it does not look like the c-atoms for just a single task at
+    // all"). `scope`/`purpose` are fast-nav URL params read BEFORE the request (same precedence
+    // family as focusSolution/graph/node) so the very first render already reflects them — never a
+    // flash of the whole graph first. Default: 'purpose' whenever a node is focused (?node=), else
+    // 'graph' (the whole thing — nothing focused to scope down to).
+    const qp = this.route.snapshot.queryParamMap;
+    const urlScope = qp.get('scope');
+    this.cScope = (urlScope === 'task' || urlScope === 'purpose' || urlScope === 'graph')
+      ? urlScope : (this.node ? 'purpose' : 'graph');
+    this.cSelectedPurpose = qp.get('purpose') || null;
+    this.cScopePreChip = this.cScope;
+
+    const url = `${this.polariService.getBackendBaseUrl()}/api/cmod/graphs/${encodeURIComponent(graph)}`
+      + (this.node ? `?node=${encodeURIComponent(this.node)}` : '');
+    this.http.get<any>(url, this.polariService.backendRequestOptions).subscribe({
       next: (r: any) => {
-        this.buildCAtomsSolution(name, r?.nodes || [], r?.edges || []);
+        this.cPurposes = r?.purposes || [];
+        this.cGraphScope = r?.scope || null;
+        const subset = cScopeSubset(this.cScope, this.node, this.cGraphScope, this.cPurposes, this.cSelectedPurpose);
+        this.buildCAtomsSolution(name, r?.nodes || [], r?.edges || [], subset);
         this.solutionStateService.selectSolution(name, false);
         this.applyCLanes(name);
+        this.updateCScopeSummary((r?.nodes || []).length, subset);
       },
       error: () => {
         // degrades: the graph detail could not be fetched — an empty solution still gives the canvas something to open
@@ -2063,11 +2337,15 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
   }
 
   /** ONE c-atom canvas node per CGraphNode (the glue's class/parser/frame/tick/rule kinds come
-   *  through read-only), wired by CGraphEdge — the real atoms, all in the c-device lane. */
-  private buildCAtomsSolution(name: string, nodes: CGraphNodeRow[], edges: CGraphEdgeRow[]): void {
+   *  through read-only), wired by CGraphEdge — the real atoms, all in the c-device lane.
+   *  `scopeSubset` (ucd-hdr2, deliverable 2) — null for 'graph' scope (everything); otherwise the
+   *  node-instance subset cScopeSubset() resolved — only THOSE nodes (and the edges among them)
+   *  become canvas states at all, instead of a task's view always showing the whole graph. */
+  private buildCAtomsSolution(name: string, nodes: CGraphNodeRow[], edges: CGraphEdgeRow[], scopeSubset: Set<string> | null = null): void {
     this.solutionStateService.createNewSolution(name, { targetRuntime: 'typescript_frontend' as any });
+    const scoped = scopeSubset ? nodes.filter(n => scopeSubset.has(n.instance)) : nodes;
     const perRow = 4;
-    nodes.forEach((n, i) => {
+    scoped.forEach((n, i) => {
       const stateName = n.instance;
       this.solutionStateService.addStateToSolution(name, {
         stateName, id: stateName, index: i, shapeType: 'rectangle', solutionName: name,
@@ -2087,7 +2365,7 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
         notes: n.kind === 'c-atom' ? '' : 'glue-generated (read-only) — cmod-glue owns this node\'s C',
       } as any);
     });
-    const known = new Set(nodes.map(n => n.instance));
+    const known = new Set(scoped.map(n => n.instance));
     edges.forEach(e => {
       if (known.has(e.from_node) && known.has(e.to_node)) {
         this.solutionStateService.addConnector(name, e.from_node, 1, e.to_node, 0);
@@ -2095,9 +2373,82 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
     });
   }
 
+  // =========================================================================================
+  // ucd-hdr2 (defect "scope", deliverable 2): the Scope control + Purpose chip row's own handlers.
+  // Each re-fetches/rebuilds the open CGraph solution through openCGraphSolution() (no new truth —
+  // the scope/purposes come back on the SAME GET already used to open it) rather than filtering
+  // client-side over a stale copy, so a scope change always reflects the live backend rows.
+  // =========================================================================================
+
+  /** The Scope control's own (click) handler — 'task' | 'purpose' | 'graph'. A person's deliberate
+   *  pick: origin 'selector', always reflected in the URL (shouldSyncUrlForOrigin family — scope/
+   *  purpose follow the SAME person-action gating as focusSolution). */
+  setCScope(scope: CScopeMode): void {
+    if (this.cScope === scope) { return; }
+    this.cScope = scope;
+    this.cScopePreChip = scope;
+    if (scope !== 'purpose') { this.cSelectedPurpose = null; }
+    this.selectionOrigin = 'selector';
+    this.syncCScopeUrl();
+    this.openCGraphSolution(this.graph);
+  }
+
+  /** A Purpose chip's own (click) handler — his click-toggle rule: a second click on the SAME chip
+   *  deselects back to the scope that was active before the first click (never hard-coded to
+   *  'graph'); Escape (clearCScope) always clears outright. */
+  togglePurposeChip(purposeName: string): void {
+    if (this.cSelectedPurpose === purposeName) {
+      this.cSelectedPurpose = null;
+      this.cScope = this.cScopePreChip === 'purpose' ? (this.node ? 'purpose' : 'graph') : this.cScopePreChip;
+    } else {
+      if (this.cScope !== 'purpose' || !this.cSelectedPurpose) { this.cScopePreChip = this.cScope; }
+      this.cSelectedPurpose = purposeName;
+      this.cScope = 'purpose';
+    }
+    this.selectionOrigin = 'selector';
+    this.syncCScopeUrl();
+    this.openCGraphSolution(this.graph);
+  }
+
+  /** Escape clears the Purpose selection and falls back to this graph's own default Scope (his
+   *  click-toggle rule: "Escape clears"). */
+  clearCScope(): void {
+    if (!this.cSelectedPurpose && this.cScope === (this.node ? 'purpose' : 'graph')) { return; }
+    this.cSelectedPurpose = null;
+    this.cScope = this.node ? 'purpose' : 'graph';
+    this.cScopePreChip = this.cScope;
+    this.selectionOrigin = 'selector';
+    this.syncCScopeUrl();
+    this.openCGraphSolution(this.graph);
+  }
+
+  private syncCScopeUrl(): void {
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { scope: this.cScope, purpose: this.cSelectedPurpose || null },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
+  }
+
+  private updateCScopeSummary(totalNodes: number, subset: Set<string> | null): void {
+    const shown = subset ? subset.size : totalNodes;
+    const label = this.cScope === 'graph' ? 'graph'
+      : this.cScope === 'task' ? `task ${this.node}`
+      : this.cSelectedPurpose ? `purpose ${this.cSelectedPurpose}` : 'purpose';
+    this.cScopeSummaryText = `Scope: ${label} · ${shown} of ${totalNodes} atoms`;
+  }
+
   /** demo-4b: group the currently-open solution's states into one lane per runtime present (a
    *  coloured legend + a lane-column layout), and list the edges that cross lanes as "crossing
-   *  interfaces" (moved verbatim from the deleted c-graph-canvas-panel's applyLanes()). */
+   *  interfaces" (moved verbatim from the deleted c-graph-canvas-panel's applyLanes()).
+   *  ucd-hdr2 (defect "layout", deliverable 3, his report verbatim: "an absurd amount of c-atoms
+   *  ... disorganized"): the c-device lane is no longer one 18-high column — assignCStageColumns()
+   *  (pure, standalone — see its own doc comment) buckets it into stage columns (init -> loop ->
+   *  called -> glue-generated) and orders each column topologically over the wiring; every OTHER
+   *  lane keeps its old single-column layout, just shifted right past however wide the c-device
+   *  lane's own columns turned out to be — "the lanes (other runtimes) keep their columns to the
+   *  right" (his spec). Crossings logic unchanged below. */
   private applyCLanes(name: string): void {
     const states = this.solutionStateService.getSolutionStateInstances(name) || [];
     if (!states.length) { this.cLanes = []; this.cCrossings = []; return; }
@@ -2111,11 +2462,37 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
     const present = RUNTIME_LANE_ORDER.filter(rt => byRuntime[rt]?.length);
     this.cLanes = present.map(rt => ({ runtime: rt, count: byRuntime[rt].length, color: RUNTIME_LANE_COLORS[rt] }));
     const positions: { stateName: string; x: number; y: number }[] = [];
-    present.forEach((rt, laneIdx) => {
-      byRuntime[rt].forEach((s: any, i: number) => {
-        positions.push({ stateName: s.stateName, x: 80 + laneIdx * 260, y: 60 + i * 150 });
-        this.solutionStateService.updateStateInstance(name, s.stateName, { backgroundColor: RUNTIME_LANE_COLORS[rt] } as any);
-      });
+    const COLUMN_PITCH = 220, ROW_PITCH = 130, LANE_X0 = 80, LANE_PITCH = 260;
+    let nextX = LANE_X0;
+    present.forEach((rt) => {
+      if (rt === 'c-device') {
+        const asNodeRows: CGraphNodeRow[] = byRuntime[rt].map((s: any) => ({
+          instance: s.stateName, kind: s.stateClass || '', atom: '',
+          stage: (s.boundObjectFieldValues?.stage ?? '') as string, order: s.index ?? 0, bindings: '', params: '',
+        }));
+        const edgeRows: CGraphEdgeRow[] = [];
+        byRuntime[rt].forEach((s: any) => {
+          (s.slots || []).forEach((slot: any) => {
+            (slot.connectors || []).forEach((c: any) => {
+              edgeRows.push({ kind: '', from_node: s.stateName, from_port: '', to_node: c.targetStateName, to_port: '', order: 0 });
+            });
+          });
+        });
+        const columns = assignCStageColumns(asNodeRows, edgeRows);
+        columns.forEach((col, colIdx) => {
+          col.forEach((n, row) => {
+            positions.push({ stateName: n.instance, x: nextX + colIdx * COLUMN_PITCH, y: 60 + row * ROW_PITCH });
+            this.solutionStateService.updateStateInstance(name, n.instance, { backgroundColor: RUNTIME_LANE_COLORS[rt] } as any);
+          });
+        });
+        nextX += Math.max(1, columns.length) * COLUMN_PITCH;
+      } else {
+        byRuntime[rt].forEach((s: any, i: number) => {
+          positions.push({ stateName: s.stateName, x: nextX, y: 60 + i * 150 });
+          this.solutionStateService.updateStateInstance(name, s.stateName, { backgroundColor: RUNTIME_LANE_COLORS[rt] } as any);
+        });
+        nextX += LANE_PITCH;
+      }
     });
     if (positions.length) this.solutionStateService.updateStatePositions(name, positions);
     const crossings: CCrossingInfo[] = [];
@@ -3158,6 +3535,10 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
       return;
     }
     if (this.solutionStateService.getSolutionData(name)) {
+      // ucd-hdr2: this retry (fired from the availableSolutions$ subscription, once the backend
+      // cache has actually loaded the name) is still honoring the SAME URL fast-nav request
+      // applyUrlSolutionSelection recorded — origin 'url', so it DOES sync (shouldSyncUrlForOrigin).
+      this.selectionOrigin = 'url';
       this.solutionStateService.selectSolution(name);
       this.pendingFocusSolution = null;
     }
@@ -3168,7 +3549,10 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
    *  native selector and URL-based nav stay coherent and the view is
    *  shareable / refresh-stable. replaceUrl avoids history spam; merge
    *  preserves other query params. The queryParams listener guards re-select
-   *  loops (it early-returns when the param already matches the selection). */
+   *  loops (it early-returns when the param already matches the selection).
+   *  ucd-hdr2: the CALLER (the selectedSolutionName$ subscription) only ever invokes this for
+   *  origin 'selector'/'url' (shouldSyncUrlForOrigin) — never for the service's own default pick
+   *  or a header/page-driven open; this method itself no longer needs its own origin check. */
   private syncUrlToSelectedSolution(solutionName: string): void {
     if (!this.syncUrl) return; // embedded (e.g. inside c-graph-canvas-panel) — never touch the host URL
     if (!solutionName) return;
@@ -3179,6 +3563,25 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
         focusSolution: solutionName,
         object: this.getObjectFromSolutionName(solutionName),
       },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
+  }
+
+  /** ucd-hdr2 (defect 1+2 fix): remove whatever `focusSolution`/`solution`/`object` the URL may
+   *  still carry (leftover from the service's own default-first-solution reselect, or a previous
+   *  focusSolution fast-nav the person has since navigated away from) once a header/page-driven
+   *  solution is the one actually open — replaceUrl so they don't linger to fight the next
+   *  queryParams emission (his report, verbatim: "when trying to switch to something else, it goes
+   *  back to addition tester"). `extra` lets a caller (pickCGraph) fold its own param update (the
+   *  newly picked `graph`) into the SAME navigation. */
+  private clearStaleFocusParams(extra: { [key: string]: string | null } = {}): void {
+    const current = this.route.snapshot.queryParams;
+    const hasStale = 'focusSolution' in current || 'solution' in current || 'object' in current;
+    if (!hasStale && Object.keys(extra).length === 0) return;
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { focusSolution: null, solution: null, object: null, ...extra },
       queryParamsHandling: 'merge',
       replaceUrl: true,
     });
@@ -3255,6 +3658,10 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
     if (this.filteredSolutions.length > 0) {
       const firstSolution = this.filteredSolutions[0].name;
       if (firstSolution !== this.selectedSolutionName) {
+        // ucd-hdr2: a dropdown pick is the person acting through the native selector — origin
+        // 'selector', always reflected in the URL (shouldSyncUrlForOrigin) and never reset by a
+        // later default reselect (switching by hand "must stick").
+        this.selectionOrigin = 'selector';
         this.solutionStateService.selectSolution(firstSolution);
       }
     }
@@ -3266,6 +3673,7 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
   onSolutionChange(solutionName: string): void {
     // console.log('[DEBUG] onSolutionChange called with:', solutionName);
     if (solutionName !== this.selectedSolutionName) {
+      this.selectionOrigin = 'selector';
       this.solutionStateService.selectSolution(solutionName);
     }
   }
@@ -3311,6 +3719,7 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
         this.solutionStateService.createNewSolution(solutionName, {
           targetRuntime: runtime as any
         });
+        this.selectionOrigin = 'selector';
         this.solutionStateService.selectSolution(solutionName);
       }
     });
@@ -3442,6 +3851,17 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
       // Optionally adjust viewBox to match container aspect ratio
       // This keeps the logical coordinate space consistent
       // while the SVG scales to fill the container
+    }
+  }
+
+  /** ucd-hdr2 (defect "scope", deliverable 2, his click-toggle rule: "Escape clears"). Only acts
+   *  when the C command group is actually showing (c-device runtime) and something is actually
+   *  scoped down — never swallows an unrelated Escape elsewhere on the page (a dialog closing, an
+   *  overlay's own Escape handler). */
+  @HostListener('document:keydown.escape')
+  onEscapeClearCScope(): void {
+    if (commandGroupForRuntime(this.newStateRuntime).cCommands && (this.cSelectedPurpose || this.cScope !== (this.node ? 'purpose' : 'graph'))) {
+      this.clearCScope();
     }
   }
 

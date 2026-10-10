@@ -324,6 +324,70 @@
   display: inline-block;
 }
 
+.c-commands-scope {
+  display: flex;
+  gap: 2px;
+}
+
+.c-commands-scope-btn {
+  background: transparent;
+  border: 1.5px solid rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.85);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 0.8em;
+  cursor: pointer;
+}
+
+.c-commands-scope-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.c-commands-scope-btn.active {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: #fff;
+  font-weight: 600;
+}
+
+.c-commands-purposes {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 4px 16px;
+  font-size: 0.82em;
+}
+
+.c-commands-purposes-label {
+  font-weight: 600;
+  opacity: 0.8;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.c-commands-purpose-chip {
+  background: transparent;
+  border: 1.5px solid rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.85);
+  border-radius: 10px;
+  padding: 1px 10px;
+  font-size: 0.95em;
+  cursor: pointer;
+}
+
+.c-commands-purpose-chip.active {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: #fff;
+  font-weight: 600;
+}
+
+.c-commands-scope-summary {
+  font-size: 0.8em;
+  padding: 2px 16px;
+  color: rgba(255, 255, 255, 0.75);
+  font-style: italic;
+}
+
 .c-commands-crossings {
   font-size: 0.8em;
   padding: 2px 16px;
