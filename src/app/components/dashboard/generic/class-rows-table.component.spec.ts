@@ -61,3 +61,57 @@ describe('ClassRowsTableComponent — dataPath resolves through the backend base
     expect(requestedUrl).toBe('/api/board/boards/readiness');
   });
 });
+
+/**
+ * ucd-iso-1: the `code` column format (his ruling 2026-10-10 — the C-atom code interface and C-isotopes need a
+ * reusable "render this cell like real C source" widget). What must hold: a `col:code` cell preserves the
+ * source's newlines (never collapsed/clamped like a long prose cell) and offers a "copy" control — the SAME
+ * `code-block` component the CFunctionAtom section's own code-interface block uses, so one fix serves both.
+ */
+describe('ClassRowsTableComponent — the `code` column format (ucd-iso-1)', () => {
+  let fixture: ComponentFixture<ClassRowsTableComponent>;
+  let component: ClassRowsTableComponent;
+
+  const multilineSource = 'void hal_adc_read(void) {\n  // ADC0 start\n  ADCSRA |= (1 << ADSC);\n}';
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      imports: [ClassRowsTableComponent],
+      providers: [
+        { provide: HttpClient, useValue: { get: () => of({ ok: true, rows: [] }) } },
+        { provide: PolariService, useValue: { getBackendBaseUrl: () => '', backendRequestOptions: {} } },
+        { provide: CRUDEservicesManager, useValue: {} },
+        { provide: AuthSessionService, useValue: {} },
+        { provide: PeopleService, useValue: {} },
+      ],
+    });
+    fixture = TestBed.createComponent(ClassRowsTableComponent);
+    component = fixture.componentInstance;
+    component.columns = 'name,source';
+    component.columnFormats = 'source:code';
+    component.dataPath = '/api/cmod/atoms/x/isotopes'; // any dataPath — the HttpClient stub answers every GET
+    component.ngOnInit();
+    fixture.detectChanges();
+  });
+
+  it('renders the cell as a code-block, preserving the source\'s newlines (never clamped)', () => {
+    component['applyRows']([{ name: 'uno:hal.adc@uno', source: multilineSource }]);
+    fixture.detectChanges();
+    expect(component.kindOf({ source: multilineSource }, 'source')).toBe('code');
+    expect(component.isLong({ source: multilineSource }, 'source')).toBe(false);
+    const el: HTMLElement = fixture.nativeElement;
+    const block = el.querySelector('code-block');
+    expect(block).toBeTruthy();
+    const pre = block!.querySelector('pre');
+    expect(pre!.textContent).toContain('ADCSRA |= (1 << ADSC);');
+  });
+
+  it('offers a copy control on the code-block', () => {
+    component['applyRows']([{ name: 'uno:hal.adc@uno', source: multilineSource }]);
+    fixture.detectChanges();
+    const el: HTMLElement = fixture.nativeElement;
+    const copyBtn = el.querySelector('code-block button.copy');
+    expect(copyBtn).toBeTruthy();
+    expect((copyBtn!.textContent || '').trim()).toBe('copy');
+  });
+});
