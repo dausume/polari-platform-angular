@@ -10,7 +10,7 @@
  */
 import {
   resolveInitialSelection, shouldSyncUrlForOrigin, cScopeSubset, assignCStageColumns, C_STAGE_COLUMN_ORDER,
-  SelectionOrigin,
+  SelectionOrigin, composeObjectOptions, solutionOptionsFor, isHiddenCanvasSolution, graphOfHiddenSolution,
 } from './custom-no-code';
 
 /** defect 1+2 — THE single ordered rule (deliverable 1): resolveInitialSelection's 4 cases. */
@@ -30,7 +30,7 @@ describe('custom-no-code — resolveInitialSelection (selection precedence, THE 
 
   it('(b) URL graph (no focusSolution) opens the CGraph adapter, origin url', () => {
     const r = resolveInitialSelection({ queryParams: { graph: 'uno-sim-rig-graph', node: 'led' }, inputGraph: '', inputSolution: '' });
-    expect(r).toEqual({ kind: 'graph', value: 'uno-sim-rig-graph', origin: 'url' });
+    expect(r).toEqual({ kind: 'graph', value: 'uno-sim-rig-graph', origin: 'graph' });
   });
 
   it('(c) no URL at all: the page\'s own `graph`/`solution` @Input decide, origin page', () => {
@@ -71,9 +71,54 @@ describe('custom-no-code — shouldSyncUrlForOrigin (the URL writer\'s own gate)
     expect(shouldSyncUrlForOrigin('default')).toBe(false);
   });
 
-  it('covers exactly the 4 SelectionOrigin values (a change to the union type is caught here)', () => {
-    const all: SelectionOrigin[] = ['url', 'selector', 'page', 'default'];
-    expect(all.map(shouldSyncUrlForOrigin)).toEqual([true, true, false, false]);
+  it('ucd-hdr3: the "graph" origin (URL graph/node open) never syncs — no focusSolution/object write', () => {
+    expect(shouldSyncUrlForOrigin('graph')).toBe(false);
+  });
+
+  it('covers exactly the 5 SelectionOrigin values (a change to the union type is caught here)', () => {
+    const all: SelectionOrigin[] = ['url', 'selector', 'page', 'default', 'graph'];
+    expect(all.map(shouldSyncUrlForOrigin)).toEqual([true, true, false, false, false]);
+  });
+
+  it('ucd-hdr3 hidden-name guard helpers: cmod.c-canvas.<g> is hidden and maps back to its graph', () => {
+    expect(isHiddenCanvasSolution('cmod.c-canvas.uno-sim-rig-graph')).toBe(true);
+    expect(isHiddenCanvasSolution('CalculusTester.derivative_test')).toBe(false);
+    expect(isHiddenCanvasSolution('')).toBe(false);
+    expect(graphOfHiddenSolution('cmod.c-canvas.uno-sim-rig-graph')).toBe('uno-sim-rig-graph');
+    expect(graphOfHiddenSolution('AdditionTester.x')).toBe('');
+  });
+});
+
+describe('custom-no-code — Object select composition + graph-mode Solution list (ucd-hdr3)', () => {
+  const graphs = [{ name: 'uno-sim-rig-graph', node_count: 18, atom_count: 18 }, { name: 'uno-button-clock-graph' }];
+  const objects = ['AdditionTester', 'CalculusTester'];
+
+  it('lists the backend objects AND one option per C graph; a backend selection stays the object', () => {
+    const o = composeObjectOptions(objects, graphs, 'CalculusTester.derivative_test', 'CalculusTester');
+    expect(o.objects).toEqual(objects);
+    expect(o.graphs.map(g => g.name)).toEqual(['uno-sim-rig-graph', 'uno-button-clock-graph']);
+    expect(o.selected).toBe('CalculusTester');
+  });
+
+  it('selected value = the graph name while a cmod.c-canvas.<graph> solution is open (never AdditionTester)', () => {
+    const o = composeObjectOptions(objects, graphs, 'cmod.c-canvas.uno-sim-rig-graph', 'AdditionTester');
+    expect(o.selected).toBe('uno-sim-rig-graph');
+  });
+
+  it('a deep-linked graph the list has not delivered yet is still offered and selected', () => {
+    const o = composeObjectOptions(objects, [], 'cmod.c-canvas.uno-sim-rig-graph', '');
+    expect(o.graphs).toEqual([{ name: 'uno-sim-rig-graph', label: 'uno-sim-rig-graph' }]);
+    expect(o.selected).toBe('uno-sim-rig-graph');
+  });
+
+  it('graph mode: the Solution select has exactly one option "atoms of <graph>" (value = the hidden name)', () => {
+    const one = solutionOptionsFor('cmod.c-canvas.uno-sim-rig-graph', [{ name: 'AdditionTester.a', shortName: 'a' }]);
+    expect(one).toEqual([{ name: 'cmod.c-canvas.uno-sim-rig-graph', shortName: 'atoms of uno-sim-rig-graph' }]);
+  });
+
+  it('backend mode: the object-filtered list passes through unchanged', () => {
+    const f = [{ name: 'CalculusTester.derivative_test', shortName: 'derivative_test' }];
+    expect(solutionOptionsFor('CalculusTester.derivative_test', f)).toBe(f);
   });
 });
 
