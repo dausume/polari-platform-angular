@@ -141,9 +141,25 @@ export class NoCodeSolutionStateService {
   /**
    * Try to load solutions from backend, then initialize.
    * Backend data is authoritative — it replaces the local cache entirely.
+   *
+   * ucd-hdr2 (selection precedence, his report 2026-10-10): `options.preferred` names a SPECIFIC
+   * solution (typically an explicit URL `focusSolution` the caller already knows it wants) that
+   * wins outright over the default-first-solution pick the instant it is confirmed present in this
+   * backend response — no intermediate "default" emission in between for the caller to have to
+   * suppress. `options.keepSelection` broadens the "restore the previous selection" eligibility to
+   * ANY currently-selected name whose data still exists — including a hidden `cmod.c-canvas.*`
+   * synthesized one or a dotless one — so a caller that is already showing a specific, deliberately
+   * selected solution (a header-driven CGraph view, a hand-picked Object/Solution) never has that
+   * reselected out from under it by this method's own default (the STOMP SolutionDefinition refresh
+   * calls this on every create/update/delete; without `keepSelection` it would reset to the default
+   * every time). The default-first-solution reselect only ever runs when NEITHER applies and
+   * nothing is currently selected — exactly case (d) of CustomNoCodeComponent's
+   * resolveInitialSelection().
    */
-  initializeFromBackend(): void {
+  initializeFromBackend(options?: { keepSelection?: boolean; preferred?: string }): void {
     // console.log('[StateService] Attempting to load solutions from backend...');
+    const keepSelection = !!options?.keepSelection;
+    const preferred = options?.preferred;
     this.loadingSubject.next(true);
     this.solutionManager.loadAllSolutions().subscribe({
       next: (solutions: NoCodeSolutionRawData[]) => {
@@ -172,6 +188,14 @@ export class NoCodeSolutionStateService {
           }
         });
 
+        // ucd-hdr2: a hidden cmod.c-canvas.* solution is NEVER in locallyCreatedSolutions' round
+        // trip (saveAllToBackend() skips it — it never touches the backend at all), so it needs
+        // its own carve-out to survive the cache wipe below when `keepSelection` asks to preserve
+        // it (the STOMP SolutionDefinition refresh re-running this same method must not blow away
+        // an open c-canvas view just because its synthesized solution isn't a real backend row).
+        const keptHidden = (keepSelection && previousSelection && this.isHiddenSolutionName(previousSelection))
+          ? this.solutionsCache.get(previousSelection) : undefined;
+
         this.solutionsCache.clear();
         this.backendIdMap.clear();
 
@@ -188,6 +212,9 @@ export class NoCodeSolutionStateService {
             this.solutionsCache.set(name, data);
           }
         });
+        if (keptHidden && previousSelection && !this.solutionsCache.has(previousSelection)) {
+          this.solutionsCache.set(previousSelection, keptHidden);
+        }
 
         this.updateAvailableSolutions();
         this.saveToLocalStorage();
@@ -202,22 +229,28 @@ export class NoCodeSolutionStateService {
         // a hidden/synthesized name, and never a stale name whose object the backend no longer
         // knows about. This stops a cross-page-sticky selection (e.g. a display page's
         // `uno-temp-split` or a leaked `cmod.c-canvas.*` row) from surviving into a page/object
-        // it has nothing to do with. Force re-select so the component renders the backend
-        // version even when the name is unchanged (reset the subject first).
+        // it has nothing to do with. `keepSelection` relaxes this: the caller already knows this
+        // IS the right selection to keep (including hidden/dotless), so the only check left is
+        // that its data still exists.
         const knownObjects = new Set(solutions.map(s => this.getObjectFromSolutionName(s.solutionName)));
-        const isValidPrevious = !!previousSelection
-          && !this.isHiddenSolutionName(previousSelection)
-          // A dotless name's "object" is itself — the exact pollution pattern (`uno-temp-split`)
-          // that let a /display page's selection survive as /custom-no-code's restored default.
-          // It stays selectABLE (the dropdown can still pick it explicitly), just never an
-          // AUTOMATIC restore target.
-          && !this.isDotlessName(previousSelection)
-          && this.solutionsCache.has(previousSelection)
-          && (knownObjects.has(this.getObjectFromSolutionName(previousSelection)) || pendingLocal.has(previousSelection));
+        const isValidPrevious = !!previousSelection && this.solutionsCache.has(previousSelection) && (
+          keepSelection
+            ? true
+            : (!this.isHiddenSolutionName(previousSelection)
+                // A dotless name's "object" is itself — the exact pollution pattern
+                // (`uno-temp-split`) that let a /display page's selection survive as
+                // /custom-no-code's restored default. It stays selectABLE (the dropdown can still
+                // pick it explicitly), just never an AUTOMATIC restore target.
+                && !this.isDotlessName(previousSelection)
+                && (knownObjects.has(this.getObjectFromSolutionName(previousSelection)) || pendingLocal.has(previousSelection)))
+        );
 
         const firstVisibleBackend = solutions.find(s => !this.isHiddenSolutionName(s.solutionName))?.solutionName;
         const firstVisibleCached = Array.from(this.solutionsCache.keys()).find(n => !this.isHiddenSolutionName(n));
-        const targetSolution = isValidPrevious ? previousSelection! : (firstVisibleBackend ?? firstVisibleCached);
+        const isPreferredPresent = !!preferred && this.solutionsCache.has(preferred);
+        const targetSolution = isPreferredPresent ? preferred!
+          : isValidPrevious ? previousSelection!
+          : (firstVisibleBackend ?? firstVisibleCached);
 
         if (!targetSolution) {
           // Only hidden solutions are in cache (e.g. a panel ensured one before any real
@@ -225,8 +258,15 @@ export class NoCodeSolutionStateService {
           return;
         }
 
-        this.selectedSolutionNameSubject.next(null);
-        this.selectSolution(targetSolution);
+        if (isValidPrevious && keepSelection && targetSolution === previousSelection) {
+          // Re-assert (not reset-then-select) so re-running this on an unchanged selection (the
+          // STOMP refresh) never flashes/clobbers it — persist stays false for a hidden name, same
+          // posture every other hidden-name selectSolution() call already uses.
+          this.selectSolution(targetSolution, !this.isHiddenSolutionName(targetSolution));
+        } else {
+          this.selectedSolutionNameSubject.next(null);
+          this.selectSolution(targetSolution);
+        }
 
         // console.log('[StateService] Backend data loaded. Selected:', targetSolution);
       },
