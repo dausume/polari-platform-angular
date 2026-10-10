@@ -190,6 +190,154 @@
   color: #fff;
 }
 
+.runtime-default-badge {
+  font-size: 11px;
+  opacity: 0.6;
+  font-style: italic;
+}
+
+/* ucd-hdr (his ruling 2026-10-10): the runtime-scoped command group — moved from the deleted
+   c-graph-canvas-panel.component.ts, restyled to match this toolbar's dark theme instead of its
+   old light-card palette. */
+.c-commands {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-left: 12px;
+  padding-left: 12px;
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.c-commands-pick {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.c-commands-pick select {
+  background-color: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  outline: none;
+}
+
+.c-commands-pick select option {
+  background-color: #2c3e50;
+  color: #fff;
+}
+
+.c-commands button {
+  background-color: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.c-commands button:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.c-commands button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.c-commands-busy {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.c-commands-fw-link {
+  font-size: 12px;
+  text-decoration: none;
+  color: #80cbc4;
+}
+
+.c-commands-fw-link:hover {
+  text-decoration: underline;
+}
+
+.c-commands-error {
+  color: #ff8a80;
+  padding: 2px 16px;
+  font-size: 0.85em;
+}
+
+.c-commands-result {
+  font-size: 0.82em;
+  padding: 2px 16px;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.c-commands-refused {
+  color: #ff8a80;
+}
+
+.c-commands-good {
+  color: #69f0ae;
+  font-weight: 600;
+}
+
+.c-commands-bad {
+  color: #ff8a80;
+  font-weight: 600;
+}
+
+.c-commands-lanes {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 4px 16px;
+  font-size: 0.82em;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.c-commands-lanes-label {
+  font-weight: 600;
+  opacity: 0.8;
+}
+
+.c-commands-lane-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1.5px solid rgba(255, 255, 255, 0.4);
+  border-radius: 10px;
+  padding: 1px 8px;
+}
+
+.c-commands-lane-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.c-commands-crossings {
+  font-size: 0.8em;
+  padding: 2px 16px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.c-commands-crossing {
+  border-left: 2px dashed rgba(255, 255, 255, 0.4);
+  padding-left: 6px;
+}
+
 .zoom-controls {
   display: flex;
   align-items: center;

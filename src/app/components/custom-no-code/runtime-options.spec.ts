@@ -9,6 +9,7 @@
  */
 import {
   RUNTIME_OPTIONS_FALLBACK, RUNTIME_DISPLAY_LABELS, RUNTIME_TO_LEGACY_TARGET, LEGACY_TARGET_TO_RUNTIME,
+  commandGroupForRuntime, deriveRuntimeForSolution,
 } from './custom-no-code';
 
 describe('custom-no-code — hardware-lane Runtime options (demo-4b)', () => {
@@ -57,5 +58,69 @@ describe('custom-no-code — ONE merged Runtime select: legacy TargetRuntime map
     Object.entries(RUNTIME_TO_LEGACY_TARGET).forEach(([runtime, legacy]) => {
       expect(LEGACY_TARGET_TO_RUNTIME[legacy]).toBe(runtime);
     });
+  });
+});
+
+/**
+ * ucd-hdr (his ruling 2026-10-10) — the header's runtime-scoped command group: ONE declarative
+ * table (RUNTIME_COMMAND_GROUPS), looked up by commandGroupForRuntime(), decides which pieces of
+ * the toolbar show. Exported standalone (same reasoning as RUNTIME_OPTIONS_FALLBACK above) so this
+ * specs without mounting CustomNoCodeComponent.
+ */
+describe('custom-no-code — commandGroupFor (runtime-scoped command group)', () => {
+  it('c-device shows the C command group', () => {
+    expect(commandGroupForRuntime('c-device')).toEqual({ cCommands: true });
+  });
+
+  it('typescript-browser hides the C command group (nothing of C\'s)', () => {
+    expect(commandGroupForRuntime('typescript-browser')).toEqual({ cCommands: false });
+  });
+
+  it('python-backend and java-bridge also hide the C command group', () => {
+    expect(commandGroupForRuntime('python-backend')).toEqual({ cCommands: false });
+    expect(commandGroupForRuntime('java-bridge')).toEqual({ cCommands: false });
+  });
+
+  it('an unknown runtime degrades to no command group, never throws', () => {
+    expect(commandGroupForRuntime('not-a-real-runtime')).toEqual({ cCommands: false });
+  });
+});
+
+/**
+ * ucd-hdr requirement 2 — the Runtime select is DERIVED from the loaded Object/Solution's own
+ * payload, never guessed from a name: a CGraph (`graph` input) is c-device by construction; a
+ * solution whose states all agree on one tagged runtime takes that; otherwise the solution's own
+ * legacy targetRuntime; otherwise null (caller keeps the current default and shows "(default)").
+ */
+describe('custom-no-code — deriveRuntimeForSolution (the Runtime select derivation)', () => {
+  it('a CGraph always derives c-device, even before any state is tagged', () => {
+    expect(deriveRuntimeForSolution('uno-sim-rig-graph', null, [])).toBe('c-device');
+  });
+
+  it('a CGraph wins even over states that would otherwise tag a different runtime', () => {
+    expect(deriveRuntimeForSolution('uno-sim-rig-graph', { targetRuntime: 'python_backend' }, [{ runtime: 'typescript-browser' }]))
+      .toBe('c-device');
+  });
+
+  it('no graph: every state agreeing on ONE tagged runtime derives that runtime', () => {
+    expect(deriveRuntimeForSolution('', null, [{ runtime: 'java-bridge' }, { runtime: 'java-bridge' }])).toBe('java-bridge');
+  });
+
+  it('no graph, states disagree: falls through to the legacy targetRuntime', () => {
+    expect(deriveRuntimeForSolution('', { targetRuntime: 'typescript_frontend' }, [{ runtime: 'java-bridge' }, { runtime: 'c-device' }]))
+      .toBe('typescript-browser');
+  });
+
+  it('no graph, no tagged states, legacy targetRuntime present: derives from it', () => {
+    expect(deriveRuntimeForSolution('', { targetRuntime: 'python_backend' }, [])).toBe('python-backend');
+  });
+
+  it('nothing says which runtime: returns null (the caller keeps the current default)', () => {
+    expect(deriveRuntimeForSolution('', {}, [])).toBeNull();
+    expect(deriveRuntimeForSolution('', null, [{ runtime: undefined }])).toBeNull();
+  });
+
+  it('an untagged/unknown state runtime value is ignored, not treated as agreement', () => {
+    expect(deriveRuntimeForSolution('', {}, [{ runtime: 'not-a-real-runtime' }])).toBeNull();
   });
 });

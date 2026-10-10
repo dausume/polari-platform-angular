@@ -14,7 +14,7 @@ import { FetOverviewComponent } from './fet-overview.component';
 import { FetParts2dComponent } from './fet-parts-2d.component';
 import { FirmwareInstallerPanelComponent } from './firmware-installer-panel.component';
 import { FirmwareSolutionPanelComponent } from './firmware-solution-panel.component';
-import { CGraphCanvasPanelComponent } from './c-graph-canvas-panel.component';
+import { CustomNoCodeComponent } from '../../custom-no-code/custom-no-code';
 import { FreedomProofPanelComponent } from './freedom-proof-panel.component';
 import { MicrochipLadderComponent } from './microchip-ladder.component';
 import { NamedGraphPanelComponent } from './named-graph-panel.component';
@@ -298,19 +298,20 @@ export function registerGenericDisplayComponents(): void {
       defaultInputs: { path: '/api/board/installer', board: 'arduino-uno-r3' },
     });
 
-  // demo-4 (DEMONSTRABLES_PLAN.md §3) — a cmod CGraph opened IN the existing no-code canvas: a configured table
-  // cannot host the canvas itself, a graph picker that swaps which SolutionDefinition is open, or render/build/prove
-  // buttons wired to cmod's own doors. /display/c-canvas (own page) and /display/hardware-solutions (embedded) both
-  // use it (input: graph).
+  // ucd-hdr (his ruling 2026-10-10): the canvas's own header (custom-no-code) now carries a
+  // runtime-scoped command group instead of a wrapping panel — demo-4's c-graph-canvas-panel is
+  // DELETED (its CGraph picker / Render-Build-Prove doors / lanes legend moved into custom-no-code
+  // itself, shown when its `graph` input derives the Runtime select to c-device). /display/c-canvas
+  // (cmod_page.py's `_canvas()`) places THIS component directly (input: graph).
   registerDisplayComponent(
-    'c-graph-canvas-panel', CGraphCanvasPanelComponent, {
-      displayName: 'C graph canvas (open a CGraph in the no-code canvas)',
-      description: 'The EXISTING no-code canvas opened on a cmod CGraph via a one-node SolutionDefinition '
-        + '(a HardwareSubgraph node referencing the graph — hn-0\'s own node kind; no second editor). A '
-        + 'graph picker (GET /api/cmod/graphs) swaps which CGraph is open; Render/Build/Prove call cmod\'s '
-        + 'render/build/prove doors and show the verdict (graph/files sha, .hex sha + sizes, twin-equivalence) '
-        + 'as badges, not JSON. Expand the subgraph node to see its atoms, ports, wires and derived target '
-        + 'badges (inputs: graph, default uno-sim-rig-graph)',
+    'custom-no-code', CustomNoCodeComponent, {
+      displayName: 'No-code canvas (Object/Solution header, runtime-scoped commands)',
+      description: 'The ONE no-code canvas, with its header\'s Runtime select DERIVED from the loaded Object/'
+        + 'Solution (a `graph` input is a cmod CGraph — C on the device by construction, RULE 2 — so the '
+        + 'Runtime select derives to c-device and the header\'s c-device command group shows: a CGraph picker, '
+        + 'Render/Build/Prove over cmod\'s own doors, the render/build/prove verdict and the runtime lanes '
+        + 'legend; any other loaded solution keeps only the controls common to every runtime). (inputs: graph, '
+        + 'default uno-sim-rig-graph; optional node to focus a CGraphNode)',
       defaultInputs: { graph: 'uno-sim-rig-graph' },
     });
 

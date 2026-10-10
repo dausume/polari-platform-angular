@@ -129,10 +129,6 @@ import { RunEngineModelOverlayComponent } from '@components/custom-no-code/state
 // hn-0 (HARDWARE_NOCODE_PLAN D-hn-2): the overlays of the hardware node kinds on the ONE canvas
 import { CAtomOverlayComponent } from '@components/custom-no-code/states/hardware/c-atom-overlay/c-atom-overlay.component';
 import { HwInterfaceOverlayComponent } from '@components/custom-no-code/states/hardware/hw-interface-overlay/hw-interface-overlay.component';
-// demo-4 (DEMONSTRABLES_PLAN.md §3): the CGraph ⇄ canvas adapter panel (graph picker + render/build/prove over the
-// EXISTING canvas — non-standalone like CustomNoCodeComponent so it shares this module's compilation scope and can
-// use <custom-no-code> in its own template without a second import boundary).
-import { CGraphCanvasPanelComponent } from '@components/dashboard/generic/c-graph-canvas-panel.component';
 import { RunEngineModelOverlayPopupComponent } from '@components/custom-no-code/states/engine-model/run-engine-model-overlay/popup/run-engine-model-overlay-popup.component';
 import { LatexEditDialogComponent } from '@components/shared/latex-edit-dialog/latex-edit-dialog';
 import { ClaimEditDialogComponent } from '@components/shared/claim-edit-dialog/claim-edit-dialog';
@@ -306,7 +302,6 @@ import { InstanceDetailPanelComponent } from '@components/dashboard/generic/inst
     RunEngineModelOverlayComponent,
     CAtomOverlayComponent,
     HwInterfaceOverlayComponent,
-    CGraphCanvasPanelComponent,
     RunEngineModelOverlayPopupComponent,
     LatexEditDialogComponent,
     ClaimEditDialogComponent,

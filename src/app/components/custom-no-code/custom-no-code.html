@@ -48,7 +48,29 @@
             (change)="onRuntimeSelectChange($any($event.target).value)">
             <option *ngFor="let r of runtimeOptions" [value]="r.value" [selected]="r.value === newStateRuntime">{{ r.label }}</option>
           </select>
+          <span *ngIf="runtimeIsDefault" class="runtime-default-badge" title="nothing in the loaded Object/Solution said which runtime this is — a default, not a derivation">(default)</span>
         </div>
+
+        <!-- ucd-hdr (his ruling 2026-10-10): the runtime-scoped command group, to the right of the
+             Runtime select — moved IN (not copied) from the deleted c-graph-canvas-panel. ONE
+             declarative table (commandGroupFor) decides which group shows; add a runtime's own
+             commands there, never as a new *ngIf here. c-device's group: the CGraph picker,
+             Render/Build/Prove over cmod's own doors, and (below the toolbar) the render/build/
+             prove summary line + the lanes/crossings legend. -->
+        <div class="c-commands" *ngIf="commandGroupFor(newStateRuntime).cCommands">
+          <label class="c-commands-pick">
+            <span>CGraph</span>
+            <select [value]="graph" (change)="pickCGraph($any($event.target).value)">
+              <option *ngFor="let g of cGraphs" [value]="g.name">{{ g.name }} ({{ g.node_count }} nodes, {{ g.atom_count }} atoms)</option>
+            </select>
+          </label>
+          <button type="button" (click)="doRenderC()" [disabled]="cBusy">Render</button>
+          <button type="button" (click)="doBuildC()" [disabled]="cBusy">Build</button>
+          <button type="button" (click)="doProveC()" [disabled]="cBusy">Prove</button>
+          <span class="c-commands-busy" *ngIf="cBusy">{{ cBusy }}…</span>
+          <a class="c-commands-fw-link" [routerLink]="'/display/firmware-solutions'">Firmware →</a>
+        </div>
+
         <div class="zoom-controls">
           <button (click)="zoomOut()" title="Zoom Out">-</button>
           <span class="zoom-level">{{ zoomPercent }}%</span>
@@ -140,6 +162,44 @@
           </mat-menu>
         </div>
       </div>
+
+      <!-- ucd-hdr: the c-device command group's own summary/legend rows — same *ngIf table as the
+           bar above, never shown for any other runtime. -->
+      <ng-container *ngIf="commandGroupFor(newStateRuntime).cCommands">
+        <div class="c-commands-error" *ngIf="cError">{{ cError }}</div>
+        <div class="c-commands-result" *ngIf="cRenderResult">
+          render: graph sha {{ cRenderResult.graph_sha256?.slice(0,12) }} · files sha {{ cRenderResult.files_sha256?.slice(0,12) }}
+          · {{ cRenderResult.unchanged ? 'unchanged vs the committed project' : 'would write ' + (cRenderResult.files?.length || 0) + ' file(s)' }}
+          · cost before building {{ cRenderResult.cost_before_building?.total_bytes }} B
+        </div>
+        <div class="c-commands-result" *ngIf="cBuildResult">
+          build: {{ cBuildResult.ok ? 'ok' : 'refused' }}
+          <span *ngIf="cBuildResult.ok">— .hex {{ cBuildResult.hex_sha256?.slice(0,12) }} · .text {{ cBuildResult.size_text }} B · .data {{ cBuildResult.size_data }} B · .bss {{ cBuildResult.size_bss }} B</span>
+          <span *ngIf="!cBuildResult.ok" class="c-commands-refused">{{ cBuildResult.refused }}</span>
+        </div>
+        <div class="c-commands-result" *ngIf="cProveResult">
+          prove:
+          <span [class.c-commands-good]="cProveResult.equivalent" [class.c-commands-bad]="cProveResult.ok && !cProveResult.equivalent">
+            {{ cProveResult.ok ? (cProveResult.equivalent ? 'EQUIVALENT' : 'NOT equivalent (' + cProveResult.n_differences + ' differences)') : cProveResult.refused }}
+          </span>
+          <span *ngIf="cProveResult.ok"> — {{ cProveResult.frames_compared }} frames compared{{ cProveResult.hex_identical ? '; .hex byte-identical to the hand-written build' : '' }}</span>
+        </div>
+        <div class="c-commands-result" *ngIf="cLastBuild">
+          last build on record: {{ cLastBuild.proof }} · .hex {{ cLastBuild.hex_sha256?.slice(0,12) }}
+        </div>
+
+        <div class="c-commands-lanes" *ngIf="cLanes.length">
+          <span class="c-commands-lanes-label">Runtimes (lanes):</span>
+          <span class="c-commands-lane-chip" *ngFor="let l of cLanes" [style.borderColor]="l.color">
+            <span class="c-commands-lane-dot" [style.background]="l.color"></span>{{ l.runtime }} ({{ l.count }})
+          </span>
+        </div>
+        <div class="c-commands-crossings" *ngIf="cCrossings.length">
+          Crossing interfaces:
+          <span class="c-commands-crossing" *ngFor="let c of cCrossings">{{ c.from }} ({{ c.fromRuntime }}) ⇢ {{ c.to }} ({{ c.toRuntime }})</span>
+        </div>
+      </ng-container>
+
       <div id="d3-graph"></div>
       <div class="canvas-info">
         Pan: Click & Drag | Zoom: Scroll or Buttons

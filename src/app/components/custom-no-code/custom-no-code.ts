@@ -1,6 +1,6 @@
 // Author: Dustin Etts
 // polari-platform-angular/src/app/components/custom-no-code/custom-no-code.ts
-import { Component, Input, Renderer2, HostListener, ElementRef, ChangeDetectorRef, ViewChild, ViewContainerRef, AfterViewInit, OnDestroy, OnInit } from '@angular/core';
+import { Component, Input, Renderer2, HostListener, ElementRef, ChangeDetectorRef, ViewChild, ViewContainerRef, AfterViewInit, OnChanges, OnDestroy, OnInit, SimpleChanges } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
 import { PolariService } from '@services/polari-service';
@@ -10,7 +10,7 @@ import { NoCodeSolution } from '@models/noCode/NoCodeSolution';
 import { Slot } from '@models/noCode/Slot';
 import { CdkDragStart, CdkDragEnd } from '@angular/cdk/drag-drop';
 import { BehaviorSubject, Subject } from "rxjs";
-import { debounceTime, filter, takeUntil } from 'rxjs/operators';
+import { debounceTime, filter, take, takeUntil } from 'rxjs/operators';
 import { OverlayComponentService } from '../../services/no-code-services/overlay-component-service';
 import * as d3 from 'd3';
 import { NoCodeStateInstanceComponent } from './editor/no-code-state-instance/no-code-state-instance';
@@ -96,6 +96,105 @@ export const LEGACY_TARGET_TO_RUNTIME: Record<string, string> = {
   'typescript_frontend': 'typescript-browser',
 };
 
+/**
+ * ucd-hdr (his ruling 2026-10-10, verbatim: "we already have a header dedicated to controlling
+ * runtime and other operations, it should have been incorporating into that... The pieces of the
+ * menu could be adjusted based on what sort of commands a particular runtime needs, with pieces
+ * hiding and displaying dynamically based on runtime"). Moved IN (not copied) from the deleted
+ * c-graph-canvas-panel.component.ts, which duplicated this header's own runtime/solution loading.
+ */
+interface CGraphRow { name: string; title: string; status: string; node_count: number; edge_count: number; atom_count: number; }
+interface CGlueBuildRow {
+  name: string; equivalent: boolean; proof: string; hex_sha256: string; size_text: number; size_data: number; size_bss: number;
+  build_ok: boolean;
+}
+interface CGraphNodeRow {
+  instance: string; kind: string; atom: string; stage: string; order: number; bindings: string; params: string;
+}
+interface CGraphEdgeRow { kind: string; from_node: string; from_port: string; to_node: string; to_port: string; order: number; }
+interface CLaneInfo { runtime: string; count: number; color: string; }
+interface CCrossingInfo { from: string; to: string; fromRuntime: string; toRuntime: string; }
+
+/** mirrors hwnocode.custom.runtimes.runtime_for_kind — the ONE mapping, client-side (demo-4b, moved from
+ *  the deleted c-graph-canvas-panel) */
+const C_DEVICE_CLASSES = new Set(['HardwareSubgraph', 'CAtom', 'c-atom', 'hardware-subgraph', 'class', 'parser', 'frame', 'tick', 'rule']);
+const C_BRIDGE_CLASSES = new Set(['HardwareInterface', 'hw-interface']);
+const C_BROWSER_CLASSES = new Set(['EmitFrontendEvent', 'FormSubscription', 'ReactiveTransform', 'display']);
+const RUNTIME_LANE_COLORS: Record<string, string> = {
+  'c-device': '#5D4037', 'c-twin': '#8D6E63', 'java-bridge': '#6D4C41',
+  'python-backend': '#1565c0', 'typescript-browser': '#2e7d32', 'javafx-native': '#6A1B9A',
+};
+const RUNTIME_LANE_ORDER = ['c-device', 'c-twin', 'java-bridge', 'python-backend', 'typescript-browser', 'javafx-native'];
+
+function runtimeForClass(cls: string): string {
+  if (C_BRIDGE_CLASSES.has(cls)) return 'java-bridge';
+  if (C_DEVICE_CLASSES.has(cls)) return 'c-device';
+  if (C_BROWSER_CLASSES.has(cls)) return 'typescript-browser';
+  return 'python-backend';
+}
+
+/** ucd-hdr: the header's runtime-scoped command group, as ONE declarative table — never scattered
+ *  *ngIfs through the template. Each runtime names which command groups it needs; a group hides or
+ *  shows as a whole, driven by commandGroupFor(). c-device is the only runtime with a group today
+ *  (the CGraph picker + Render/Build/Prove doors + the render/build/prove summary lines + the lanes/
+ *  crossings legend — exactly c-graph-canvas-panel's old bar, moved here); python-backend/typescript-
+ *  browser/java-bridge/c-twin/javafx-native keep only the controls already common to every runtime
+ *  (Object/Solution selectors, zoom, Recenter, Manual Process, Solution Options) — nothing of C's. A
+ *  future runtime-specific group (e.g. a java-bridge deploy door) is added as a new row here, never a
+ *  new *ngIf elsewhere. */
+export interface RuntimeCommandGroup {
+  /** CGraph picker, Render/Build/Prove, the render/build/prove summary lines, the lanes/crossings
+   *  legend, the Firmware link — c-device's own commands. */
+  cCommands: boolean;
+}
+export const RUNTIME_COMMAND_GROUPS: Record<string, RuntimeCommandGroup> = {
+  'c-device': { cCommands: true },
+  'c-twin': { cCommands: false },
+  'java-bridge': { cCommands: false },
+  'javafx-native': { cCommands: false },
+  'python-backend': { cCommands: false },
+  'typescript-browser': { cCommands: false },
+};
+
+/** Pure lookup — exported standalone (not a class method) so it specs without mounting the heavy
+ *  CustomNoCodeComponent (MatDialog, a dozen services), same reasoning as RUNTIME_OPTIONS_FALLBACK
+ *  above. The component's own `commandGroupFor` (used by the template) delegates to this. */
+export function commandGroupForRuntime(runtime: string): RuntimeCommandGroup {
+  return RUNTIME_COMMAND_GROUPS[runtime] || { cCommands: false };
+}
+
+/**
+ * ucd-hdr requirement 2 (his ruling 2026-10-10): the Runtime select is DERIVED, not guessed from a
+ * name. Exported standalone (same testability reasoning as commandGroupForRuntime above) — the
+ * mapping sources, in order: (1) a CGraph (`graph` truthy) is C on the device BY CONSTRUCTION
+ * (cmod_page.py's own RULE 2 comment — "a CGraph never holds anything else"). (2) every loaded
+ * state's own `runtime` field (set by the "New state runtime" picker when a state is created,
+ * demo-4b) — when every tagged state agrees on ONE runtime, that is the solution's runtime. (3) the
+ * solution's legacy `targetRuntime` (python_backend/typescript_frontend) mapped through
+ * LEGACY_TARGET_TO_RUNTIME. Returns null when none of these say anything — the caller keeps
+ * whatever default is already showing, rather than guessing from the solution's NAME.
+ */
+export function deriveRuntimeForSolution(
+  graph: string, solutionData: { targetRuntime?: string } | null | undefined, freshInstances: { runtime?: string }[],
+): string | null {
+  if (graph) {
+    return 'c-device';
+  }
+  const taggedRuntimes = new Set(
+    (freshInstances || [])
+      .map(s => s.runtime)
+      .filter((r): r is string => !!r && !!RUNTIME_LANE_COLORS[r])
+  );
+  if (taggedRuntimes.size === 1) {
+    return Array.from(taggedRuntimes)[0];
+  }
+  const legacyFromTarget = LEGACY_TARGET_TO_RUNTIME[solutionData?.targetRuntime || ''];
+  if (legacyFromTarget) {
+    return legacyFromTarget;
+  }
+  return null;
+}
+
 // An Editor which creates a new No-Code Solution by default.
 @Component({
   standalone: false,
@@ -103,7 +202,7 @@ export const LEGACY_TARGET_TO_RUNTIME: Record<string, string> = {
   templateUrl: 'custom-no-code.html',
   styleUrls: ['./custom-no-code.css']
 })
-export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
+export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, OnDestroy
 {
   @ViewChild('graphContainer', { read: ViewContainerRef, static: false }) graphContainerRef!: ViewContainerRef;
 
@@ -116,12 +215,22 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
   @ViewChild('d3Graph', { static: true }) d3Graph: ElementRef;
 
   /** selfix 2026-10-05: true (default) for the top-level /custom-no-code route — the
-   *  selectedSolutionName$ subscription keeps the URL in sync (shareable, survives refresh).
-   *  c-graph-canvas-panel sets this false on its embedded <custom-no-code> (used on /display
-   *  pages): an embedded canvas previewing a solution must never rewrite the HOST page's URL
-   *  (that's what appended `?focusSolution=uno-temp-split&object=uno-temp-split` to a display
-   *  page that has nothing to do with the no-code URL scheme). */
+   *  selectedSolutionName$ subscription keeps the URL in sync (shareable, survives refresh). A
+   *  `graph`-driven open (below) keeps this true (it IS the host page now, ucd-hdr) but never
+   *  syncs the URL for its own synthesized solution — see the selectedSolutionName$ subscription. */
   @Input() syncUrl = true;
+
+  /** ucd-hdr (moved from the deleted c-graph-canvas-panel): the cmod CGraph this canvas opens —
+   *  set by cmod_page.py's `_canvas()` item input, or by ?graph= on this page's own URL (a direct
+   *  /display/c-canvas link, or a Firmware Solutions task's "Composed by" deep link). Non-empty
+   *  means: ensure (never duplicate) the atoms-only SolutionDefinition built from this CGraph's own
+   *  rows, select it, and derive the Runtime select to c-device (a CGraph is C on the device by
+   *  construction — RULE 2, cmod_page.py's own comment). Empty (the /custom-no-code editor route,
+   *  or any other object/solution) leaves the Object/Solution selectors in charge as before. */
+  @Input() graph: string = '';
+  /** ucd-hdr (fs-2d, moved from the deleted c-graph-canvas-panel): the CGraphNode (instance) to
+   *  focus once the CGraph's solution is open — set by ?node= on this page's own URL. */
+  @Input() node: string = '';
 
   polariAccessNodeSubject = new BehaviorSubject<NoCodeState>(new NoCodeState());
 
@@ -295,6 +404,33 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
    *  states keep whatever runtime they already carry. */
   newStateRuntime: string = 'python-backend';
 
+  /** ucd-hdr requirement 2: true when newStateRuntime is a derivation-free default (nothing in the
+   *  loaded Object/Solution said which runtime it is) — the template shows "(default)" beside the
+   *  select in that case. False once a CGraph or a solution/its states' own runtime fields said so,
+   *  or the person picked by hand. */
+  runtimeIsDefault = true;
+  /** ucd-hdr: true once the person has hand-picked a runtime for the CURRENTLY open solution —
+   *  honoured (never overwritten by re-derivation) until the next solution change. Reset in
+   *  applyDerivedRuntime() whenever the solution actually changes. */
+  private runtimeHandPicked = false;
+  /** ucd-hdr: the solution name applyDerivedRuntime() last ran derivation for — lets it tell "the
+   *  same solution's data changed" (STOMP, etc. — keep a hand pick) apart from "a different
+   *  solution is now open" (re-derive, clear the hand pick). */
+  private lastRuntimeDerivedFor: string | null = null;
+
+  /** ucd-hdr (moved from the deleted c-graph-canvas-panel): the c-device command group's own
+   *  state — the CGraph picker, Render/Build/Prove doors, their summary lines, and the lanes/
+   *  crossings legend. Shown only when commandGroupFor(newStateRuntime).cCommands is true. */
+  cGraphs: CGraphRow[] = [];
+  cError = '';
+  cBusy = '';
+  cRenderResult: any = null;
+  cBuildResult: any = null;
+  cProveResult: any = null;
+  cLastBuild: CGlueBuildRow | null = null;
+  cLanes: CLaneInfo[] = [];
+  cCrossings: CCrossingInfo[] = [];
+
   // Track unique states (InitialState, ReturnStatement) that already exist in the solution
   // Used to filter these from the sidebar when they're already present
   existingUniqueStates: Set<string> = new Set();
@@ -388,7 +524,12 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
           // (shareable, survives refresh) — this is what makes the native
           // selector and URL-based nav coherent both ways. The queryParams
           // listener guards against a re-select loop.
-          this.syncUrlToSelectedSolution(solutionName);
+          // ucd-hdr: NEVER for the CGraph-backed synthetic solution this page's own ?graph=
+          // scheme opens (openCGraphSolution, persist=false) — that would fight the ?graph=/
+          // ?node= query params with a second, conflicting ?focusSolution= on the same URL.
+          if (!(this.graph && solutionName === this.solutionNameForCGraph(this.graph))) {
+            this.syncUrlToSelectedSolution(solutionName);
+          }
         }
       });
 
@@ -477,6 +618,27 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
       this.solutionStateService.initializeFromBackend();
     }
 
+    // ucd-hdr (moved from the deleted c-graph-canvas-panel's ngOnInit): ?graph=/?node= on THIS
+    // page's own url (a direct /display/c-canvas link, or a Firmware Solutions task's "Composed
+    // by" deep link) win over the @Input defaults cmod_page.py's `_canvas()` item set.
+    const cqp = this.route.snapshot.queryParamMap;
+    const cGraphParam = cqp.get('graph');
+    const cNodeParam = cqp.get('node');
+    if (cGraphParam) { this.graph = cGraphParam; }
+    if (cNodeParam) { this.node = cNodeParam; }
+    if (this.graph) {
+      this.loadCGraphs();
+      // Deferred to a microtask after loading$ settles so this selection is the one left
+      // standing over initializeFromBackend()'s own default-first-solution reselect (both react
+      // to the same backend fetch; BehaviorSubject notifies synchronously, so without the
+      // microtask defer this could run BEFORE that reselect finishes and still get clobbered).
+      this.solutionStateService.loading$.pipe(filter((loading: boolean) => !loading), take(1), takeUntil(this.destroy$))
+        .subscribe(() => { Promise.resolve().then(() => {
+          this.openCGraphSolution(this.graph);
+          if (this.node) { this.focusCNode(this.node); }
+        }); });
+    }
+
     // Connect STOMP and subscribe to SolutionVersion changes for real-time updates
     this.stompService.connect();
     this.stompService.watchChanges('SolutionVersion')
@@ -512,6 +674,21 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
 
         this.changeDetectorRef.markForCheck();
       });
+  }
+
+  /** ucd-hdr (moved from the deleted c-graph-canvas-panel's ngOnChanges): a LATER re-binding of
+   *  `graph`/`node` (the host page re-rendering this same component instance with a different
+   *  cmod_page.py item, or a Firmware Solutions "Composed by" deep link navigated to while already
+   *  mounted) re-opens / re-focuses — the first-change case is handled once already, in ngOnInit. */
+  ngOnChanges(changes: SimpleChanges): void {
+    const graphChanged = changes['graph'] && !changes['graph'].firstChange;
+    const nodeChanged = changes['node'] && !changes['node'].firstChange;
+    if (graphChanged && this.graph) {
+      this.openCGraphSolution(this.graph);
+      if (this.node) { this.focusCNode(this.node); }
+    } else if (nodeChanged && this.node) {
+      this.focusCNode(this.node);
+    }
   }
 
   // Track the last loaded solution to prevent unnecessary reloads
@@ -619,10 +796,9 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
    */
   private updateBoundClassAndCodeWithInstances(solutionData: any, freshInstances: NoCodeState[]): void {
     this.solutionTargetRuntime = solutionData.targetRuntime || 'python_backend';
-    // selfix round 3 (2026-10-05): keep the ONE merged Runtime select showing the loaded
-    // solution's own target — only for the two legacy-equivalent values; a hardware-lane pick
-    // (c-device/c-twin/java-bridge/javafx-native) has no targetRuntime counterpart to derive from.
-    this.newStateRuntime = LEGACY_TARGET_TO_RUNTIME[this.solutionTargetRuntime] || this.newStateRuntime;
+    // ucd-hdr requirement 2 (his ruling 2026-10-10): the Runtime select is DERIVED, not left at a
+    // default — never guessed from a name. See applyDerivedRuntime()/deriveRuntimeFromSolution().
+    this.applyDerivedRuntime(solutionData.solutionName || '', solutionData, freshInstances);
 
     // Update selected object name from boundClass or from solution name prefix. selfix
     // 2026-10-05: a DOTLESS solution name (no boundClass, no '.') used to blank this to '' —
@@ -729,9 +905,54 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
    *  the unchanged onRuntimeChange — keeping the old select's filter/run-target behavior working. */
   onRuntimeSelectChange(runtime: string): void {
     this.newStateRuntime = runtime;
+    this.runtimeIsDefault = false;
+    // ucd-hdr requirement 2: a hand pick is honoured until the solution itself next changes —
+    // mark it so applyDerivedRuntime() (regenerateCode() runs again on nearly every subsequent
+    // event: STOMP, onRuntimeChange below, …) never silently reverts it.
+    this.runtimeHandPicked = true;
     const legacy = RUNTIME_TO_LEGACY_TARGET[runtime];
     if (legacy) {
       this.onRuntimeChange(legacy);
+    }
+  }
+
+  /** ucd-hdr: ONE declarative table, looked up by the CURRENT runtime select value — never a
+   *  scattered *ngIf per control. Delegates to the standalone commandGroupForRuntime() (specced
+   *  directly, no component mount needed). */
+  commandGroupFor(runtime: string): RuntimeCommandGroup {
+    return commandGroupForRuntime(runtime);
+  }
+
+  /**
+   * ucd-hdr requirement 2 (his ruling 2026-10-10): decide newStateRuntime from what the loaded
+   * Object/Solution's OWN payload says (deriveRuntimeForSolution(), specced standalone) — never
+   * guess from a name. Runs on every solution (re)load (updateBoundClassAndCodeWithInstances);
+   * honours a hand pick made for the SAME solution (only a solution change clears it) by returning
+   * early.
+   */
+  private applyDerivedRuntime(solutionName: string, solutionData: any, freshInstances: NoCodeState[]): void {
+    const solutionChanged = solutionName !== this.lastRuntimeDerivedFor;
+    if (!solutionChanged && this.runtimeHandPicked) {
+      return; // the person's pick for THIS solution stands until it changes
+    }
+    this.lastRuntimeDerivedFor = solutionName;
+    if (solutionChanged) {
+      this.runtimeHandPicked = false;
+    }
+    const derived = deriveRuntimeForSolution(this.graph, solutionData, freshInstances);
+    if (derived) {
+      this.newStateRuntime = derived;
+      this.runtimeIsDefault = false;
+      // keep the legacy code-gen target in sync for the two values that have one (same mapping
+      // onRuntimeSelectChange/onRuntimeChange use) — set directly, never through onRuntimeChange
+      // (which would call regenerateCode() again, recursing back into this method).
+      const legacy = RUNTIME_TO_LEGACY_TARGET[derived];
+      if (legacy) { this.solutionTargetRuntime = legacy; }
+    } else {
+      // Nothing in the payload said which runtime this is — keep whatever newStateRuntime already
+      // holds (the prior solution's pick, or the component default) and mark it as a default in
+      // the template ("(default)"), never silently pretend it was derived.
+      this.runtimeIsDefault = true;
     }
   }
 
@@ -1707,6 +1928,177 @@ export class CustomNoCodeComponent implements OnInit, AfterViewInit, OnDestroy
     if (!svg) return null;
     const group = svg.querySelector(`g[data-state-name="${stateName}"]`) as SVGGElement;
     return group || null;
+  }
+
+  // ===========================================================================================
+  // ucd-hdr: the c-device command group — moved IN (not copied) from the deleted
+  // c-graph-canvas-panel.component.ts. Exactly its old CGraph picker / Render·Build·Prove doors /
+  // lanes-crossings legend, now driven straight off this header's own `graph` input and Runtime
+  // select, shown only when commandGroupFor(newStateRuntime).cCommands is true.
+  // ===========================================================================================
+
+  private solutionNameForCGraph(graph: string): string {
+    return 'cmod.c-canvas.' + graph;
+  }
+
+  pickCGraph(graph: string): void {
+    this.graph = graph;
+    this.cRenderResult = this.cBuildResult = this.cProveResult = this.cLastBuild = null;
+    this.openCGraphSolution(graph);
+  }
+
+  loadCGraphs(): void {
+    this.http.get<any>(`${this.polariService.getBackendBaseUrl()}/api/cmod/graphs`, this.polariService.backendRequestOptions).subscribe({
+      next: (r: any) => { this.cGraphs = r?.graphs || []; },
+      error: () => { /* the picker degrades to the default graph silently — the canvas itself still loads */ },
+    });
+  }
+
+  /** demo-4b's ADAPTER (moved here verbatim): ensure (once, never duplicated) and select the
+   *  atoms-only SolutionDefinition built from this CGraph's own rows — one c-atom node PER
+   *  CGraphNode, never a single collapsed HardwareSubgraph wrapper. persist=false (selfix
+   *  2026-10-05, prf-urgent): this is a page-specific synthesized solution, never the person's
+   *  cross-page "last selected solution" in localStorage. */
+  private openCGraphSolution(graph: string): void {
+    const name = this.solutionNameForCGraph(graph);
+    if (this.solutionStateService.getSolutionData(name)) {
+      this.solutionStateService.selectSolution(name, false);
+      this.applyCLanes(name);
+      return;
+    }
+    this.http.get<any>(`${this.polariService.getBackendBaseUrl()}/api/cmod/graphs/${encodeURIComponent(graph)}`, this.polariService.backendRequestOptions).subscribe({
+      next: (r: any) => {
+        this.buildCAtomsSolution(name, r?.nodes || [], r?.edges || []);
+        this.solutionStateService.selectSolution(name, false);
+        this.applyCLanes(name);
+      },
+      error: () => {
+        // degrades: the graph detail could not be fetched — an empty solution still gives the canvas something to open
+        if (!this.solutionStateService.getSolutionData(name)) {
+          this.solutionStateService.createNewSolution(name, { targetRuntime: 'typescript_frontend' as any });
+        }
+        this.solutionStateService.selectSolution(name, false);
+      },
+    });
+  }
+
+  /** ONE c-atom canvas node per CGraphNode (the glue's class/parser/frame/tick/rule kinds come
+   *  through read-only), wired by CGraphEdge — the real atoms, all in the c-device lane. */
+  private buildCAtomsSolution(name: string, nodes: CGraphNodeRow[], edges: CGraphEdgeRow[]): void {
+    this.solutionStateService.createNewSolution(name, { targetRuntime: 'typescript_frontend' as any });
+    const perRow = 4;
+    nodes.forEach((n, i) => {
+      const stateName = n.instance;
+      this.solutionStateService.addStateToSolution(name, {
+        stateName, id: stateName, index: i, shapeType: 'rectangle', solutionName: name,
+        stateClass: 'CAtom', boundObjectClass: 'CAtom',
+        boundObjectFieldValues: {
+          displayName: n.instance,
+          atom: n.kind === 'c-atom' ? n.atom : n.kind, stage: n.stage || '',
+          bindings: n.kind === 'c-atom' ? (n.bindings || '') : (n.params || ''),
+        },
+        stateSvgWidth: 160, stateSvgHeight: 90, cornerRadius: 8, stateSvgRadius: null, layerName: 'rectangle-layer',
+        stateLocationX: 80 + (i % perRow) * 220, stateLocationY: 80 + Math.floor(i / perRow) * 150, stateSvgName: 'rectangle',
+        slots: [
+          { index: 0, stateName, slotAngularPosition: 180, connectors: [], isInput: true, allowOneToMany: false, allowManyToOne: true, label: 'in' },
+          { index: 1, stateName, slotAngularPosition: 0, connectors: [], isInput: false, allowOneToMany: true, allowManyToOne: false, label: 'out' },
+        ] as any,
+        slotRadius: 5, backgroundColor: RUNTIME_LANE_COLORS['c-device'], runtime: 'c-device',
+        notes: n.kind === 'c-atom' ? '' : 'glue-generated (read-only) — cmod-glue owns this node\'s C',
+      } as any);
+    });
+    const known = new Set(nodes.map(n => n.instance));
+    edges.forEach(e => {
+      if (known.has(e.from_node) && known.has(e.to_node)) {
+        this.solutionStateService.addConnector(name, e.from_node, 1, e.to_node, 0);
+      }
+    });
+  }
+
+  /** demo-4b: group the currently-open solution's states into one lane per runtime present (a
+   *  coloured legend + a lane-column layout), and list the edges that cross lanes as "crossing
+   *  interfaces" (moved verbatim from the deleted c-graph-canvas-panel's applyLanes()). */
+  private applyCLanes(name: string): void {
+    const states = this.solutionStateService.getSolutionStateInstances(name) || [];
+    if (!states.length) { this.cLanes = []; this.cCrossings = []; return; }
+    const runtimeOf: Record<string, string> = {};
+    const byRuntime: Record<string, any[]> = {};
+    states.forEach((s: any) => {
+      const rt = (s.runtime && RUNTIME_LANE_COLORS[s.runtime]) ? s.runtime : runtimeForClass(s.stateClass || s.boundObjectClass || '');
+      runtimeOf[s.stateName] = rt;
+      (byRuntime[rt] = byRuntime[rt] || []).push(s);
+    });
+    const present = RUNTIME_LANE_ORDER.filter(rt => byRuntime[rt]?.length);
+    this.cLanes = present.map(rt => ({ runtime: rt, count: byRuntime[rt].length, color: RUNTIME_LANE_COLORS[rt] }));
+    const positions: { stateName: string; x: number; y: number }[] = [];
+    present.forEach((rt, laneIdx) => {
+      byRuntime[rt].forEach((s: any, i: number) => {
+        positions.push({ stateName: s.stateName, x: 80 + laneIdx * 260, y: 60 + i * 150 });
+        this.solutionStateService.updateStateInstance(name, s.stateName, { backgroundColor: RUNTIME_LANE_COLORS[rt] } as any);
+      });
+    });
+    if (positions.length) this.solutionStateService.updateStatePositions(name, positions);
+    const crossings: CCrossingInfo[] = [];
+    states.forEach((s: any) => {
+      (s.slots || []).forEach((slot: any) => {
+        (slot.connectors || []).forEach((c: any) => {
+          const a = runtimeOf[s.stateName], b = runtimeOf[c.targetStateName];
+          if (a && b && a !== b) crossings.push({ from: s.stateName, to: c.targetStateName, fromRuntime: a, toRuntime: b });
+        });
+      });
+    });
+    this.cCrossings = crossings;
+    // Best-effort view reset after (re)opening a solution — the view may already be live by the
+    // time this first runs, so this is a microtask-deferred nudge, never a hard dependency.
+    Promise.resolve().then(() => this.resetZoom());
+  }
+
+  /** fs-2d (moved verbatim): best-effort DOM focus for ?node= — scroll it into view and outline it
+   *  briefly. Reuses getStateGroupElement() (the SAME `data-state-name` attribute every rendered
+   *  state group already carries) — no new editor API. A 600ms delay gives the canvas time to
+   *  finish (re)rendering after openCGraphSolution's backend round trip; if the node never
+   *  appears, this silently no-ops rather than erroring. */
+  private focusCNode(name: string): void {
+    setTimeout(() => {
+      const group = this.getStateGroupElement(name);
+      if (!group) { return; }
+      group.scrollIntoView?.({ behavior: 'smooth', block: 'center', inline: 'center' });
+      const prevOutline = group.style.outline;
+      group.style.outline = '3px solid #1565c0';
+      group.style.outlineOffset = '2px';
+      setTimeout(() => { group.style.outline = prevOutline; }, 2500);
+    }, 600);
+  }
+
+  private refreshCGlueBuild(): void {
+    this.http.get<any>(`${this.polariService.getBackendBaseUrl()}/api/cmod/graphs/${encodeURIComponent(this.graph)}`, this.polariService.backendRequestOptions).subscribe({
+      next: (r: any) => { const builds = r?.glue_builds || []; this.cLastBuild = builds.length ? builds[builds.length - 1] : null; },
+      error: () => {},
+    });
+  }
+
+  doRenderC(): void {
+    this.cError = ''; this.cBusy = 'rendering'; this.cRenderResult = null;
+    this.http.get<any>(`${this.polariService.getBackendBaseUrl()}/api/cmod/graphs/${encodeURIComponent(this.graph)}/render`, this.polariService.backendRequestOptions).subscribe({
+      next: (r: any) => { this.cBusy = ''; this.cRenderResult = r; },
+      error: (e: any) => { this.cBusy = ''; this.cError = e?.error?.refused || e?.error?.error || 'render failed'; },
+    });
+  }
+
+  doBuildC(): void {
+    this.cError = ''; this.cBusy = 'building'; this.cBuildResult = null;
+    this.http.post<any>(`${this.polariService.getBackendBaseUrl()}/api/cmod/graphs/${encodeURIComponent(this.graph)}/build`, {}, this.polariService.backendRequestOptions).subscribe({
+      next: (r: any) => { this.cBusy = ''; this.cBuildResult = r; this.refreshCGlueBuild(); },
+      error: (e: any) => { this.cBusy = ''; this.cBuildResult = { ok: false, refused: e?.error?.refused || e?.error?.error || 'build failed' }; },
+    });
+  }
+
+  doProveC(): void {
+    this.cError = ''; this.cBusy = 'proving'; this.cProveResult = null;
+    this.http.post<any>(`${this.polariService.getBackendBaseUrl()}/api/cmod/graphs/${encodeURIComponent(this.graph)}/prove`, {}, this.polariService.backendRequestOptions).subscribe({
+      next: (r: any) => { this.cBusy = ''; this.cProveResult = Object.assign({ ok: true }, r); this.refreshCGlueBuild(); },
+      error: (e: any) => { this.cBusy = ''; this.cProveResult = { ok: false, refused: e?.error?.refused || e?.error?.error || 'prove failed' }; },
+    });
   }
 
   /**
