@@ -25,6 +25,8 @@ import { PolariService } from '@services/polari-service';
 import { AuthSessionService } from '@services/auth/auth-session.service';
 import { StructuredPayloadPanelComponent } from '@components/magnetics/structured-payload-panel.component';
 import { friendlyError } from '@components/dashboard/generic/friendly-error';
+import { CFunctionAtomSectionComponent } from './c-function-atom-section.component';
+import { CIsotopeSectionComponent } from './c-isotope-section.component';
 
 /** name column → the class its value names (the interconnects the tensor / proofs pages use) */
 const KNOWN_REF_COLUMNS: Record<string, string> = {
@@ -39,7 +41,7 @@ interface Ref { cls: string; name: string; from: string; }
 @Component({
   standalone: true,
   selector: 'object-detail-page',
-  imports: [CommonModule, RouterModule, StructuredPayloadPanelComponent],
+  imports: [CommonModule, RouterModule, StructuredPayloadPanelComponent, CFunctionAtomSectionComponent, CIsotopeSectionComponent],
   template: `
     <div class="object-page">
       <div class="crumbs">
@@ -76,6 +78,13 @@ interface Ref { cls: string; name: string; from: string; }
           <a *ngFor="let r of refs" class="chip" [routerLink]="['/object', r.cls, r.name]" [title]="r.from + ' → ' + r.cls">{{ r.name }}<small>{{ r.cls }}</small></a>
         </div>
         <structured-payload-panel [payload]="record"></structured-payload-panel>
+
+        <!-- ucd-iso-1: the ONE class-specific hook on this generic page (his ruling 2026-10-10) — a CFunctionAtom's
+             code interface + its isotopes, or a CIsotope's own extra widgets. Both degrade to nothing past the
+             generic record above when their class isn't this row's. -->
+        <c-function-atom-section *ngIf="className === 'CFunctionAtom'" [atomName]="objectName" [bindingParam]="bindingParam"></c-function-atom-section>
+        <c-isotope-section *ngIf="className === 'CIsotope'" [row]="row"></c-isotope-section>
+
         <div class="foot">A generic detail view, defined from the row itself. A configured instance display on the
           <a [routerLink]="['/class-main-page', className]">{{ className }} class page</a> refines what every reference to one of its rows shows.</div>
       </ng-container>
@@ -126,7 +135,11 @@ export class ObjectDetailPageComponent implements OnInit, OnDestroy {
   error = '';
   errorDetail = '';
   errorSignIn = false;
+  /** ucd-iso-1: a `?binding=<solution>@<board>` on the page URL (set by the no-code canvas's "Open C-atom
+   *  details" menu entry when it knows its binding) — the CFunctionAtom section's starting binding. */
+  bindingParam = '';
   private sub?: Subscription;
+  private qpSub?: Subscription;
 
   constructor(private route: ActivatedRoute, private crude: CRUDEservicesManager, private http: HttpClient,
               private polari: PolariService, private authSession: AuthSessionService) {}
@@ -137,9 +150,10 @@ export class ObjectDetailPageComponent implements OnInit, OnDestroy {
       this.objectName = p.get('name') || '';
       this.load();
     });
+    this.qpSub = this.route.queryParamMap.subscribe((q) => { this.bindingParam = q.get('binding') || ''; });
   }
 
-  ngOnDestroy(): void { this.sub?.unsubscribe(); }
+  ngOnDestroy(): void { this.sub?.unsubscribe(); this.qpSub?.unsubscribe(); }
 
   signIn(): void { void this.authSession.login(); }
 

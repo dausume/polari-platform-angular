@@ -3939,6 +3939,20 @@ private dragRectangle(): any {
   }
 
   /**
+   * ucd-iso-1 (his ruling 2026-10-10): the atom the right-clicked state names, when it is bound to a CAtom
+   * state-space object — '' for every other state (the menu's "Open C-atom details" disables itself on ''). A
+   * c-atom state carries its atom in `boundObjectFieldValues['atom']` under `boundObjectClass === 'CAtom'`,
+   * exactly like c-atom-overlay.component.ts's own `ref` getter reads it (the overlay drawn on the SAME state).
+   */
+  get contextMenuAtomName(): string {
+    const stateInstance = this.stateInstances.find(s => s.stateName === this.contextMenuStateName);
+    if (!stateInstance || stateInstance.boundObjectClass !== 'CAtom') {
+      return '';
+    }
+    return String(stateInstance.boundObjectFieldValues?.['atom'] || '');
+  }
+
+  /**
    * Handle right-click on a slot to open slot configuration popup directly
    */
   private handleSlotContextMenu(event: MouseEvent, stateName: string, slotIndex: number, isInput: boolean): void {
@@ -4110,9 +4124,26 @@ private dragRectangle(): any {
       case 'viewContext':
         this.handleViewContextAction(action);
         break;
+      case 'openCAtomDetails':
+        this.handleOpenCAtomDetailsAction(action);
+        break;
     }
 
     this.closeContextMenu();
+  }
+
+  /**
+   * ucd-iso-1: navigate to the generic object page for the atom the right-clicked state names. The canvas does
+   * not itself track a "current solution binding" (that picker lives on firmware-solution-panel's HardwareBinding
+   * selector, a separate display, not this editor) — so this navigates WITHOUT a `?binding=`, matching the spec's
+   * "else none"; the object page's own binding picker (c-function-atom-section) lets a person choose one there.
+   */
+  private handleOpenCAtomDetailsAction(action: StateContextMenuAction): void {
+    const atomName = String(action.value || '');
+    if (!atomName) {
+      return;
+    }
+    this.router.navigate(['/object', 'CFunctionAtom', atomName]);
   }
 
   /**

@@ -8,6 +8,7 @@ import { AuthSessionService } from '@services/auth/auth-session.service';
 import { friendlyError } from './friendly-error';
 import { PeopleService } from '@services/people.service';
 import { KatexDisplayComponent } from '@components/shared/katex-display/katex-display.component';
+import { CodeBlockComponent } from '@components/shared/code-block/code-block.component';
 import { PolariService } from '@services/polari-service';
 
 /**
@@ -28,7 +29,7 @@ import { PolariService } from '@services/polari-service';
 @Component({
   standalone: true,
   selector: 'class-rows-table',
-  imports: [CommonModule, RouterModule, MatProgressSpinnerModule, KatexDisplayComponent],
+  imports: [CommonModule, RouterModule, MatProgressSpinnerModule, KatexDisplayComponent, CodeBlockComponent],
   template: `
     <div class="class-rows-table">
       <div *ngIf="loading" class="state"><mat-spinner diameter="28"></mat-spinner></div>
@@ -46,6 +47,7 @@ import { PolariService } from '@services/polari-service';
                 [class.person]="formatOf(column) === 'person'"
                 [class.latex]="formatOf(column) === 'latex'"
                 [class.structured]="isJsonColumn(column)"
+                [class.code]="formatOf(column) === 'code'"
                 [class.clamped]="isLong(row, column) && !isExpanded(i, column)"
                 [class.person-unresolved]="formatOf(column) === 'person' && !personName(row, column)">
               <ng-container [ngSwitch]="kindOf(row, column)">
@@ -56,6 +58,8 @@ import { PolariService } from '@services/polari-service';
                   <span *ngIf="!refsOf(row, column).length" class="muted">—</span>
                 </ng-container>
                 <a *ngSwitchCase="'link'" class="ref" [href]="linkHref(row, column)" target="_blank" rel="noopener">open ↗</a>
+                <code-block *ngSwitchCase="'code'" [text]="raw(row, column)"></code-block>
+                <span *ngSwitchCase="'sha'" [title]="raw(row, column)">{{ cell(row, column) }}</span>
                 <ng-container *ngSwitchCase="'json'">
                   <ng-container *ngIf="jsonPairs(row, column) as pairs">
                     <span *ngIf="!pairs.length" class="muted">—</span>
@@ -98,6 +102,8 @@ import { PolariService } from '@services/polari-service';
     .state.error .signin { margin-left: 10px; padding: 2px 10px; border-radius: 12px; border: 1px solid currentColor; background: transparent; color: inherit; cursor: pointer; font: inherit; font-size: .85em; }
     th { color: var(--text-secondary, #666); font-weight: 600; }
     td.latex { max-width: 520px; }
+    td.code { max-width: 640px; min-width: 260px; }
+    td.code code-block { display: block; }
     td.person-unresolved {
       font-family: var(--font-mono, monospace);
       color: var(--text-secondary, #666);
@@ -130,6 +136,13 @@ export class ClassRowsTableComponent implements OnInit {
    *   name. The name is never stored: not in the row, not in localStorage,
    *   only in PeopleService's in-memory map for this tab. A viewer who may
    *   not resolve names (403) just keeps seeing the short id — no error.
+   *
+   *   `code` (ucd-iso-1): the cell is a plain multi-line string (e.g. a CIsotope's `source`) rendered through the
+   *   shared `code-block` component — a monospace `<pre>` block, theme tokens only, no library, newlines
+   *   preserved, with a "copy" control. Reusable anywhere a raw-text column needs to read like code.
+   *
+   *   `sha` (ucd-iso-1): a hex digest column shown short (its first 10 characters + '…'), the whole value in the
+   *   cell's tooltip — same shape as `person`'s short-id-with-full-tooltip, no resolution call needed.
    */
   @Input() columnFormats = '';
 
@@ -317,8 +330,14 @@ export class ClassRowsTableComponent implements OnInit {
 
   cell(row: any, column: string): string {
     const raw = this.raw(row, column);
-    if (this.formatOf(column) !== 'person' || !raw) { return raw; }
-    return this.personName(row, column) || PeopleService.short(raw);
+    if (!raw) { return raw; }
+    const f = this.formatOf(column);
+    if (f === 'person') { return this.personName(row, column) || PeopleService.short(raw); }
+    /** `sha` (ClassRowsTableComponent.columnFormats, e.g. `sha256:sha`): a hex digest is unreadable in full in a
+     *  table row — shown as its first 10 characters, the whole value in the tooltip (`cellTitle` below, same
+     *  fallback-to-`raw` path `person` already uses). */
+    if (f === 'sha') { return raw.length > 12 ? `${raw.slice(0, 10)}…` : raw; }
+    return raw;
   }
 
 
@@ -341,6 +360,8 @@ export class ClassRowsTableComponent implements OnInit {
     if (f === 'ref' && this.cell(row, column)) { return 'ref'; }
     if (f === 'refs') { return 'refs'; }
     if (f === 'link' && this.cell(row, column)) { return 'link'; }
+    if (f === 'code') { return 'code'; }
+    if (f === 'sha' && this.cell(row, column)) { return 'sha'; }
     if (this.isJsonColumn(column)) { return 'json'; }
     return 'plain';
   }
@@ -396,7 +417,8 @@ export class ClassRowsTableComponent implements OnInit {
   }
 
   isLong(row: any, column: string): boolean {
-    if (this.formatOf(column) === 'latex') { return false; }
+    // `code` renders its own scrolling block (never clamped to three lines like prose); `sha` is already shortened.
+    if (['latex', 'code', 'sha'].includes(this.formatOf(column))) { return false; }
     const n = this.isJsonColumn(column) ? this.jsonPairs(row, column).reduce((a, kv) => a + kv[0].length + kv[1].length + 2, 0) : this.raw(row, column).length;
     return n > 160;
   }
@@ -408,7 +430,8 @@ export class ClassRowsTableComponent implements OnInit {
     if (this.expandedCells.has(k)) { this.expandedCells.delete(k); } else { this.expandedCells.add(k); }
   }
 
-  private raw(row: any, column: string): string {
+  /** Public: `code`/`sha` cells in the template read the whole (untruncated) value directly. */
+  raw(row: any, column: string): string {
     const value = row?.[column];
     if (value === null || value === undefined) {
       return '';

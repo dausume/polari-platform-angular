@@ -54,6 +54,15 @@
 
   <div class="menu-divider"></div>
 
+  <!-- Open C-atom details (ucd-iso-1, his ruling 2026-10-10): only a c-atom-bound state has a details page -->
+  <div class="menu-item"
+       [class.disabled]="!cAtomAtomName"
+       [title]="cAtomDisabledTitle"
+       (click)="openCAtomDetails()">
+    <mat-icon>code</mat-icon>
+    <span class="menu-label">Open C-atom details</span>
+  </div>
+
   <!-- View Context (Debug) -->
   <div class="menu-item" (click)="viewContext()">
     <mat-icon>visibility</mat-icon>

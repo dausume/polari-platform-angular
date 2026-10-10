@@ -72,6 +72,19 @@
   color: var(--text-tertiary) !important;
 }
 
+.menu-item.disabled {
+  cursor: not-allowed;
+  color: var(--text-tertiary, #999);
+}
+
+.menu-item.disabled mat-icon {
+  color: var(--text-tertiary, #999);
+}
+
+.menu-item.disabled:hover {
+  background: none;
+}
+
 .menu-item.danger {
   color: #d32f2f;
 }

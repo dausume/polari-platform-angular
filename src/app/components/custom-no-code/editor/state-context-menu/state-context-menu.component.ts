@@ -3,7 +3,7 @@
 import { Component, EventEmitter, Input, Output, HostListener, ElementRef, OnInit, OnDestroy } from '@angular/core';
 
 export interface StateContextMenuAction {
-  type: 'resize' | 'changeShape' | 'delete' | 'duplicate' | 'editProperties' | 'manageSlots' | 'viewContext';
+  type: 'resize' | 'changeShape' | 'delete' | 'duplicate' | 'editProperties' | 'manageSlots' | 'viewContext' | 'openCAtomDetails';
   stateName: string;
   value?: any;
 }
@@ -39,6 +39,9 @@ export class StateContextMenuComponent implements OnInit, OnDestroy {
   @Input() currentShapeType: string = 'circle';
   @Input() currentSize: number = 100; // radius for circle, width for rectangle
   @Input() position: { x: number; y: number } = { x: 0, y: 0 };
+  /** ucd-iso-1 (his ruling 2026-10-10): the atom this state names when it is bound to a CAtom state-space
+   *  object ('' for every other state) — drives the "Open C-atom details" entry's enabled state. */
+  @Input() cAtomAtomName: string = '';
 
   @Output() menuAction = new EventEmitter<StateContextMenuAction>();
   @Output() menuClosed = new EventEmitter<void>();
@@ -162,6 +165,24 @@ export class StateContextMenuComponent implements OnInit, OnDestroy {
       stateName: this.stateName
     });
     this.closeMenu();
+  }
+
+  /** ucd-iso-1: a no-op when the right-clicked state is not a c-atom instance (no-op so a stray click on the
+   *  disabled row never closes the menu or navigates nowhere). */
+  openCAtomDetails(): void {
+    if (!this.cAtomAtomName) {
+      return;
+    }
+    this.menuAction.emit({
+      type: 'openCAtomDetails',
+      stateName: this.stateName,
+      value: this.cAtomAtomName
+    });
+    this.closeMenu();
+  }
+
+  get cAtomDisabledTitle(): string {
+    return this.cAtomAtomName ? '' : 'Only a C-atom state has a details page';
   }
 
   getCurrentSizeName(): string {
