@@ -1300,7 +1300,12 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
     // IS this canvas' whole identity — never when a `solution` input is ALSO active (hwnocode_page.py
     // passes both graph and solution together: there, `graph` only names the mixed solution's
     // board-half CGraph, so it must not force c-device over that solution's own states/targetRuntime).
-    const derived = deriveRuntimeForSolution(this.solution ? '' : this.graph, solutionData, freshInstances);
+    // ucd-hdr3 fix (verified in his Chrome 2026-10-10: Runtime stayed "C (Hardware)" and the C command
+    // group stayed shown after picking the Python CalculusTester): rule (1) "a CGraph → c-device" may
+    // only fire for the graph's OWN hidden atoms solution — `this.graph` is the page's standing input
+    // on /display/c-canvas and stays set no matter which solution the person opens afterwards.
+    const graphForDerivation = (!this.solution && isHiddenCanvasSolution(solutionName)) ? this.graph : '';
+    const derived = deriveRuntimeForSolution(graphForDerivation, solutionData, freshInstances);
     if (derived) {
       this.newStateRuntime = derived;
       this.runtimeIsDefault = false;
