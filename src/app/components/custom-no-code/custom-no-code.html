@@ -6,11 +6,15 @@
         <div class="toolbar-object-selector">
           <label>Object:</label>
           <select (change)="onObjectChange($any($event.target).value)">
-            <option *ngFor="let obj of availableObjectNames"
+            <option *ngFor="let obj of objectOptions.objects"
                     [value]="obj"
-                    [selected]="obj === selectedObjectName">
+                    [selected]="obj === objectOptions.selected">
               {{ obj }}
             </option>
+            <optgroup label="C graphs" *ngIf="objectOptions.graphs.length">
+              <option *ngFor="let g of objectOptions.graphs" [value]="g.name"
+                      [selected]="g.name === objectOptions.selected">{{ g.label }}</option>
+            </optgroup>
           </select>
         </div>
 
@@ -54,16 +58,10 @@
         <!-- ucd-hdr (his ruling 2026-10-10): the runtime-scoped command group, to the right of the
              Runtime select — moved IN (not copied) from the deleted c-graph-canvas-panel. ONE
              declarative table (commandGroupFor) decides which group shows; add a runtime's own
-             commands there, never as a new *ngIf here. c-device's group: the CGraph picker,
+             commands there, never as a new *ngIf here. c-device's group: the CGraph choice now lives in the Object select (ucd-hdr3),
              Render/Build/Prove over cmod's own doors, and (below the toolbar) the render/build/
              prove summary line + the lanes/crossings legend. -->
         <div class="c-commands" *ngIf="commandGroupFor(newStateRuntime).cCommands">
-          <label class="c-commands-pick">
-            <span>CGraph</span>
-            <select [value]="graph" (change)="pickCGraph($any($event.target).value)">
-              <option *ngFor="let g of cGraphs" [value]="g.name">{{ g.name }} ({{ g.node_count }} nodes, {{ g.atom_count }} atoms)</option>
-            </select>
-          </label>
           <button type="button" (click)="doRenderC()" [disabled]="cBusy">Render</button>
           <button type="button" (click)="doBuildC()" [disabled]="cBusy">Build</button>
           <button type="button" (click)="doProveC()" [disabled]="cBusy">Prove</button>

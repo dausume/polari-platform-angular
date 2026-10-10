@@ -60,7 +60,7 @@ interface SolutionDetail {
  * it, any SolutionDefinition/HardwareSolution over the same graph, and which Purposes name it (D-ucd-12). Backend:
  * GET /api/firmware/solutions/{name}'s `schedule`/`assignments` rows (cmod_firmware_api.FirmwareAPI._composed_by)
  * — `purposes` and the deprecated `capabilities` carry the same names. */
-interface ComposedBy { graph: string; node: string; canvas_route: string; solution: string; capabilities: string[]; purposes: string[]; }
+interface ComposedBy { graph: string; node: string; canvas_route: string; solution: string; capabilities: string[]; purposes: string[]; advice?: string; }
 interface ScheduleSlot {
   name: string; solution: string; task: string; lane: string; order: number; trigger: string;
   period_ms: number; measured_cycles: number; isr_vector: string; provenance: string; notes: string;
@@ -465,6 +465,7 @@ const CAP_STATUS_COLORS: Record<string, string> = {
                           <a *ngIf="t.composed_by as cb" class="fsp-composed-link" title="open on the c-canvas"
                              [routerLink]="['/display/c-canvas']" [queryParams]="{ graph: cb.graph, node: cb.node }"
                              (click)="$event.stopPropagation()">{{ cb.graph }}:{{ cb.node }}</a>
+                          <span *ngIf="t.composed_by?.advice as adv" class="fsp-no-purpose" [title]="adv">no Purpose</span>
                           <span *ngIf="!t.composed_by">—</span>
                         </td>
                       </tr>
@@ -802,6 +803,7 @@ const CAP_STATUS_COLORS: Record<string, string> = {
     .fsp-link { margin-left: auto; font-size: 0.85em; text-decoration: none; color: var(--link-text, #1565c0); }
     .fsp-link:hover { text-decoration: underline; }
     .fsp-composed-link { font-size: 0.85em; text-decoration: none; color: var(--link-text, #1565c0); }
+    .fsp-no-purpose { margin-left: 0.4em; padding: 0 0.4em; font-size: 0.75em; border-radius: 3px; background: #fff3e0; color: #b45309; border: 1px solid #f59e0b; }
     .fsp-composed-link:hover { text-decoration: underline; }
     .fsp-state { padding: 12px 0; color: var(--text-on-card-muted); }
     .fsp-error { color: var(--color-error-text, #b00020); }

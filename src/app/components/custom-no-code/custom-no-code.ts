@@ -352,7 +352,45 @@ export function dispatchHeaderSolution(graph: string, solution: string, opener: 
  *  (syncUrlToSelectedSolution) and the stale-param cleanup (clearStaleFocusParams) know whether
  *  THIS particular selection is one to reflect in the URL at all. 'url' and 'selector' are the only
  *  two a person can be said to have asked for directly; 'page' and 'default' never are. */
-export type SelectionOrigin = 'url' | 'selector' | 'page' | 'default';
+export type SelectionOrigin = 'url' | 'selector' | 'page' | 'default' | 'graph';
+
+/** ucd-hdr3: the hidden, synthesized solution a CGraph opens as (see the service's own
+ *  isHiddenSolutionName — same prefix). It is NOT a real Object/Solution: never written to the URL. */
+export const HIDDEN_CANVAS_PREFIX = 'cmod.c-canvas.';
+export function isHiddenCanvasSolution(name: string | null | undefined): boolean {
+  return !!name && name.startsWith(HIDDEN_CANVAS_PREFIX);
+}
+/** the CGraph name behind a hidden `cmod.c-canvas.<graph>` solution name ('' for any other name). */
+export function graphOfHiddenSolution(name: string | null | undefined): string {
+  return isHiddenCanvasSolution(name) ? (name as string).substring(HIDDEN_CANVAS_PREFIX.length) : '';
+}
+
+/** ucd-hdr3 (his one-header rule: the graph IS the object): the Object select's composition —
+ *  the backend objects AND one option per CGraph (an <optgroup label="C graphs">). `selected` is the
+ *  graph name while a hidden c-canvas solution is open, else the selected backend object. */
+export interface ObjectOptions { objects: string[]; graphs: { name: string; label: string }[]; selected: string; }
+export function composeObjectOptions(
+  objectNames: string[], cGraphs: { name: string; node_count?: number; atom_count?: number }[],
+  selectedSolutionName: string | null | undefined, selectedObjectName: string,
+): ObjectOptions {
+  const open = graphOfHiddenSolution(selectedSolutionName);
+  const graphs = cGraphs.map(g => ({
+    name: g.name,
+    label: g.node_count != null ? `${g.name} (${g.node_count} nodes, ${g.atom_count ?? 0} atoms)` : g.name,
+  }));
+  // a deep link can name a graph the list has not (yet) delivered — still show it as the selection
+  if (open && !graphs.some(g => g.name === open)) { graphs.push({ name: open, label: open }); }
+  return { objects: objectNames, graphs, selected: open || selectedObjectName };
+}
+
+/** ucd-hdr3: graph mode's Solution select has exactly ONE option, "atoms of <graph>" (value = the
+ *  hidden name); otherwise the object-filtered list unchanged. */
+export function solutionOptionsFor(
+  selectedSolutionName: string | null | undefined, filtered: { name: string; shortName: string }[],
+): { name: string; shortName: string }[] {
+  const g = graphOfHiddenSolution(selectedSolutionName);
+  return g ? [{ name: selectedSolutionName as string, shortName: `atoms of ${g}` }] : filtered;
+}
 
 export interface InitialSelectionInput {
   /** route.snapshot.queryParams, read once at ngOnInit (or recomputed on a later queryParams
@@ -384,8 +422,8 @@ export interface InitialSelection {
  *       (e.g. a Firmware Solutions "Composed by" deep link to a REAL SolutionDefinition by name);
  *       kept working on this page. origin 'url'.
  *   (b) URL `graph` (+ optional `node`) — a direct /display/c-canvas?graph=...&node=... link.
- *       origin 'url' (same family as (a): an explicit URL fast-nav, just naming a CGraph instead of
- *       a SolutionDefinition).
+ *       origin 'graph' (ucd-hdr3: its OWN origin — opening a graph/node never writes focusSolution/
+ *       object; it clears stale ones and leaves only graph=/node=/scope/purpose in the URL).
  *   (c) the page item's own `graph`/`solution` @Input (cmod_page.py's `_canvas()` item, or
  *       hwnocode_page.py's) — what the HOST PAGE says this canvas is for when the URL itself says
  *       nothing. origin 'page'.
@@ -402,7 +440,7 @@ export function resolveInitialSelection(input: InitialSelectionInput): InitialSe
   }
   const urlGraph = input.queryParams['graph'];
   if (urlGraph) {
-    return { kind: 'graph', value: urlGraph, origin: 'url' };
+    return { kind: 'graph', value: urlGraph, origin: 'graph' };
   }
   if (input.inputSolution) {
     return { kind: 'focusSolution', value: input.inputSolution, origin: 'page' };
@@ -420,6 +458,8 @@ export function resolveInitialSelection(input: InitialSelectionInput): InitialSe
  *  conflicting ?focusSolution= over the page's own ?graph=/?node= scheme (his report, verbatim:
  *  "the nav ... always goes to that url"). Exported standalone — pure, one line, spec'd directly. */
 export function shouldSyncUrlForOrigin(origin: SelectionOrigin): boolean {
+  // ucd-hdr3: 'graph' (URL graph/node open) never writes focusSolution/object; 'url' here means an
+  // EXPLICIT focusSolution pick (case (a)). The writer also hard-guards hidden names.
   return origin === 'selector' || origin === 'url';
 }
 
@@ -693,6 +733,8 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
    *  toggle rule) — distinct from `cScope` itself, which a chip click overwrites to 'purpose'. */
   private cScopePreChip: CScopeMode = 'graph';
   cScopeSummaryText = '';
+  /** ucd-hdr3: GET /api/cmod/graphs/{g} purpose_coverage.unnamed count (advice, never enforced). */
+  cPurposeCoverageUnnamed = 0;
 
   // Track unique states (InitialState, ReturnStatement) that already exist in the solution
   // Used to filter these from the sidebar when they're already present
@@ -775,8 +817,8 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
         if (solutionName && solutionName !== this.selectedSolutionName) {
           this.selectedSolutionName = solutionName;
           // Sync the object selector to match
-          const objName = this.getObjectFromSolutionName(solutionName);
-          if (objName !== this.selectedObjectName) {
+          const objName = this.objectForSolution(solutionName);
+          if (objName !== this.selectedObjectName || isHiddenCanvasSolution(solutionName)) {
             this.selectedObjectName = objName;
             this.updateFilteredSolutions();
           }
@@ -796,7 +838,7 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
           // nav in his report).
           if (shouldSyncUrlForOrigin(this.selectionOrigin)) {
             this.syncUrlToSelectedSolution(solutionName);
-          } else if (this.selectionOrigin === 'page') {
+          } else if (this.selectionOrigin === 'page' || this.selectionOrigin === 'graph') {
             this.clearStaleFocusParams();
           }
         }
@@ -810,7 +852,8 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
     this.solutionStateService.selectedObjectName$
       .pipe(takeUntil(this.destroy$))
       .subscribe(objectName => {
-        if (objectName && objectName !== this.selectedObjectName) {
+        // ucd-hdr3: the service reports 'cmod' for a hidden c-canvas solution — never the Object.
+        if (objectName && !isHiddenCanvasSolution(this.selectedSolutionName) && objectName !== this.selectedObjectName) {
           this.selectedObjectName = objectName;
           this.updateFilteredSolutions();
           this.changeDetectorRef.markForCheck();
@@ -923,8 +966,9 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
     const cNodeParam = cqp.get('node');
     if (cGraphParam) { this.graph = cGraphParam; }
     if (cNodeParam) { this.node = cNodeParam; }
+    // ucd-hdr3: the Object select lists the C graphs in EVERY path (deep links included).
+    this.loadCGraphs();
     if (!skipGraphAdapter && (this.graph || this.solution)) {
-      this.loadCGraphs();
       // Deferred to a microtask after loading$ settles so this selection is the one left
       // standing over initializeFromBackend()'s own default-first-solution reselect (both react
       // to the same backend fetch; BehaviorSubject notifies synchronously, so without the
@@ -1117,7 +1161,9 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
     // (`AdditionTester`), desyncing the toolbar's Object from the Solution actually open. A
     // dotless name's object, by the SAME convention getObjectFromSolutionName() uses everywhere
     // else, is itself.
-    if (solutionData.boundClass?.className) {
+    if (isHiddenCanvasSolution(solutionData.solutionName)) {
+      this.selectedObjectName = graphOfHiddenSolution(solutionData.solutionName);
+    } else if (solutionData.boundClass?.className) {
       this.selectedObjectName = solutionData.boundClass.className;
     } else if (solutionData.solutionName) {
       this.selectedObjectName = solutionData.solutionName.includes('.')
@@ -2275,12 +2321,13 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
     this.graph = graph;
     this.node = '';
     this.cRenderResult = this.cBuildResult = this.cProveResult = this.cLastBuild = null;
-    // ucd-hdr2: a hand pick through the picker is page-driven (not a URL fast-nav the component is
-    // re-asserting) — never syncs ?focusSolution=, but DOES fold the newly picked graph into the
-    // URL (and clears `node`/any stale focusSolution/solution/object) so a refresh keeps it.
-    this.selectionOrigin = 'page';
+    // ucd-hdr3: a pick in the Object select is the person acting through the native selector —
+    // origin 'selector'. The URL gets graph=<g>, node cleared, focusSolution/solution/object cleared
+    // (syncUrlToSelectedSolution never writes the hidden name). Opens the graph directly (an active
+    // `solution` @Input must not swallow the person's pick).
+    this.selectionOrigin = 'selector';
     this.clearStaleFocusParams({ graph, node: null });
-    this.openHeaderSolution();
+    this.openCGraphSolution(graph);
   }
 
   loadCGraphs(): void {
@@ -2320,6 +2367,7 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
       next: (r: any) => {
         this.cPurposes = r?.purposes || [];
         this.cGraphScope = r?.scope || null;
+        this.cPurposeCoverageUnnamed = (r?.purpose_coverage?.unnamed || []).length;
         const subset = cScopeSubset(this.cScope, this.node, this.cGraphScope, this.cPurposes, this.cSelectedPurpose);
         this.buildCAtomsSolution(name, r?.nodes || [], r?.edges || [], subset);
         this.solutionStateService.selectSolution(name, false);
@@ -2437,6 +2485,9 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
       : this.cScope === 'task' ? `task ${this.node}`
       : this.cSelectedPurpose ? `purpose ${this.cSelectedPurpose}` : 'purpose';
     this.cScopeSummaryText = `Scope: ${label} · ${shown} of ${totalNodes} atoms`;
+    // ucd-hdr3: ADVICE only (his ruling 2026-10-10: "should not be enforced").
+    const unnamed = this.cPurposeCoverageUnnamed;
+    if (unnamed > 0) { this.cScopeSummaryText += ` · ${unnamed} atoms without a Purpose`; }
   }
 
   /** demo-4b: group the currently-open solution's states into one lane per runtime present (a
@@ -3556,6 +3607,8 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
   private syncUrlToSelectedSolution(solutionName: string): void {
     if (!this.syncUrl) return; // embedded (e.g. inside c-graph-canvas-panel) — never touch the host URL
     if (!solutionName) return;
+    // ucd-hdr3 HARD GUARD: a hidden (synthesized) name is never written, whatever the origin.
+    if (isHiddenCanvasSolution(solutionName)) return;
     if (this.route.snapshot.queryParams['focusSolution'] === solutionName) return;
     this.router.navigate([], {
       relativeTo: this.route,
@@ -3590,6 +3643,16 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
   /**
    * Extract the object name from a solution name (before the first dot)
    */
+  /** the Object-select value for a solution: the graph name for a hidden c-canvas one. */
+  private objectForSolution(solutionName: string): string {
+    return isHiddenCanvasSolution(solutionName) ? graphOfHiddenSolution(solutionName) : this.getObjectFromSolutionName(solutionName);
+  }
+
+  /** the Object select's options (backend objects + the "C graphs" group) and its selected value. */
+  get objectOptions(): ObjectOptions {
+    return composeObjectOptions(this.availableObjectNames, this.cGraphs, this.selectedSolutionName, this.selectedObjectName);
+  }
+
   private getObjectFromSolutionName(solutionName: string): string {
     const dotIndex = solutionName.indexOf('.');
     return dotIndex >= 0 ? solutionName.substring(0, dotIndex) : solutionName;
@@ -3607,6 +3670,14 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
    * Rebuild the object list and filtered solutions from availableSolutions
    */
   private updateObjectAndSolutionLists(): void {
+    if (isHiddenCanvasSolution(this.selectedSolutionName)) {
+      // ucd-hdr3: graph mode — the graph is the object; NEVER fall back to availableObjectNames[0].
+      const objs = new Set<string>(this.availableSolutions.map(s => this.getObjectFromSolutionName(s.name)));
+      this.availableObjectNames = Array.from(objs).sort();
+      this.selectedObjectName = graphOfHiddenSolution(this.selectedSolutionName);
+      this.updateFilteredSolutions();
+      return;
+    }
     // Derive distinct object names from solution names
     const objectSet = new Set<string>();
     for (const sol of this.availableSolutions) {
@@ -3639,6 +3710,10 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
    * Filter solutions to only show those belonging to the selected object
    */
   private updateFilteredSolutions(): void {
+    if (isHiddenCanvasSolution(this.selectedSolutionName)) {
+      this.filteredSolutions = solutionOptionsFor(this.selectedSolutionName, []);
+      return;
+    }
     this.filteredSolutions = this.availableSolutions
       .filter(sol => this.getObjectFromSolutionName(sol.name) === this.selectedObjectName)
       .map(sol => ({
@@ -3651,6 +3726,11 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
    * Handle object selection change from the dropdown
    */
   onObjectChange(objectName: string): void {
+    // ucd-hdr3: a C graph in the Object select = pickCGraph (a backend object of the same name wins).
+    if (!this.availableObjectNames.includes(objectName) && this.cGraphs.some(g => g.name === objectName)) {
+      this.pickCGraph(objectName);
+      return;
+    }
     this.selectedObjectName = objectName;
     this.updateFilteredSolutions();
 
