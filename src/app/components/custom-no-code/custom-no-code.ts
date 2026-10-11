@@ -2405,10 +2405,16 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
         stateClass: 'CAtom', boundObjectClass: 'CAtom',
         boundObjectFieldValues: {
           displayName: n.instance,
-          atom: n.kind === 'c-atom' ? n.atom : n.kind, stage: n.stage || '',
+          // ui-pass 2026-10-11: a glue-generated node (class/parser/frame/tick/rule) is NOT an atom — its overlay
+          // used to fetch /api/cmod/atoms/<kind> and show "no atom named 'class'" in red on every such node.
+          // `kind` lets the overlay render it as what it is (read-only glue) without a fetch.
+          kind: n.kind,
+          atom: n.kind === 'c-atom' ? n.atom : '', stage: n.stage || '',
           bindings: n.kind === 'c-atom' ? (n.bindings || '') : (n.params || ''),
         },
-        stateSvgWidth: 160, stateSvgHeight: 90, cornerRadius: 8, stateSvgRadius: null, layerName: 'rectangle-layer',
+        // 200 wide: the stage columns sit 220 px apart (C_STAGE_COLUMN_ORDER), so a 160 card truncated most
+        // atom names ("hal_usart_i…"); 200 shows them whole and still leaves the column gutter.
+        stateSvgWidth: 200, stateSvgHeight: 90, cornerRadius: 8, stateSvgRadius: null, layerName: 'rectangle-layer',
         stateLocationX: 80 + (i % perRow) * 220, stateLocationY: 80 + Math.floor(i / perRow) * 150, stateSvgName: 'rectangle',
         slots: [
           { index: 0, stateName, slotAngularPosition: 180, connectors: [], isInput: true, allowOneToMany: false, allowManyToOne: true, label: 'in' },

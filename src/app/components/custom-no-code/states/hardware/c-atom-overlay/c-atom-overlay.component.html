@@ -7,13 +7,13 @@
 
   <!-- tiny: the icon + the name -->
   <div *ngSwitchCase="'tiny'" class="tier-tiny" [title]="title">
-    <mat-icon class="tier-tiny__icon">{{ mode === 'subgraph' ? 'developer_board' : 'memory' }}</mat-icon>
+    <mat-icon class="tier-tiny__icon">{{ mode === 'subgraph' ? 'developer_board' : (mode === 'glue' ? 'construction' : 'memory') }}</mat-icon>
   </div>
 
   <!-- compact + full share the shell; full adds the details -->
   <state-overlay-shell *ngSwitchDefault
       accent="#6D4C41"
-      [icon]="mode === 'subgraph' ? 'developer_board' : 'memory'"
+      [icon]="mode === 'subgraph' ? 'developer_board' : (mode === 'glue' ? 'construction' : 'memory')"
       [title]="title"
       [compact]="sizeTier === 'compact'"
       [bordered]="sizeTier === 'full'"
@@ -31,7 +31,8 @@
       <div class="hw-state hw-state--error" *ngIf="error">{{ error }}</div>
 
       <ng-container *ngIf="sizeTier === 'full'">
-        <label class="hw-ref">
+        <!-- a glue node has no atom to point at: no editor (ui-pass 2026-10-11) -->
+        <label class="hw-ref" *ngIf="mode !== 'glue'">
           <span>{{ mode === 'subgraph' ? 'CGraph' : 'Atom' }}</span>
           <input [value]="ref" (change)="onRefChange($any($event.target).value)"
                  (mousedown)="$event.stopPropagation()" (click)="$event.stopPropagation()" />
