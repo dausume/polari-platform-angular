@@ -1,5 +1,6 @@
 // Author: Dustin Etts
 // polari-platform-angular/src/app/components/custom-no-code/custom-no-code.ts
+import { CPurposeRow, purposeSubset, atomOptions, atomsWithoutPurpose, presetPurpose, purposeOptionLabel, purposeSummary, NO_PURPOSE_TITLE } from './c-purpose-nav';
 import { Component, Input, Renderer2, HostListener, ElementRef, ChangeDetectorRef, ViewChild, ViewContainerRef, AfterViewInit, OnChanges, OnDestroy, OnInit, SimpleChanges } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -114,52 +115,7 @@ interface CGraphNodeRow {
 interface CGraphEdgeRow { kind: string; from_node: string; from_port: string; to_node: string; to_port: string; order: number; }
 interface CLaneInfo { runtime: string; count: number; color: string; }
 interface CCrossingInfo { from: string; to: string; fromRuntime: string; toRuntime: string; }
-/** cmod_api.CModAPI._purposes — a Purpose (CapabilityDefinition) over THIS graph: its own
- *  c-device task_names (CGraphNode instances), never the cross-runtime union
- *  cmod_firmware_api.FirmwareAPI._capabilities computes for the firmware panel. */
-interface CPurposeRow { name: string; title: string; task_names: string[]; }
-/** the `?node=` reply's own `scope` object — always includes `node` itself in `task_names`. */
-interface CGraphScopeRow { node: string; purposes: string[]; task_names: string[]; neighbours: string[]; }
-
-/** ucd-hdr2 (defect "scope", deliverable 2, his report 2026-10-10 verbatim: "the only interface I
- *  see has an absurd amount of c-atoms, it does not look like the c-atoms for just a single task at
- *  all"). The three Scope settings a person can pick in the C command group:
- *   'task'    — the focused node + its one-edge neighbours only (GET .../graphs/{graph}?node=
- *               `scope.neighbours`).
- *   'purpose' — the union of every Purpose (CapabilityDefinition) that NAMES the focused node
- *               (`scope.task_names`, or a single hand-picked purpose's own `task_names` when the
- *               person clicked a specific chip) — DEFAULT whenever `?node=` is given.
- *   'graph'   — everything; DEFAULT when no node is focused. */
-export type CScopeMode = 'task' | 'purpose' | 'graph';
-
-/** Pure — the node-instance subset a given Scope setting resolves to, over a tiny fixture (never
- *  touches the component/HTTP). `null` means "no filtering" (the whole graph). `scope` is the
- *  backend's own `?node=` reply (CGraphScopeRow) when a node is focused, else undefined (a 'task'/
- *  'purpose' mode with no scope data degrades to just the node itself, same honesty posture as
- *  openCGraphSolution's other backend-shape degradations). `selectedPurpose` narrows 'purpose' mode
- *  to ONE hand-picked chip's own task_names instead of the union of every purpose naming the node
- *  (his click-toggle rule: a chip click scopes to THAT purpose alone). */
-export function cScopeSubset(
-  mode: CScopeMode, node: string, scope: CGraphScopeRow | null | undefined,
-  purposes: CPurposeRow[], selectedPurpose: string | null,
-): Set<string> | null {
-  if (mode === 'graph' || !node) {
-    return null;
-  }
-  if (mode === 'task') {
-    if (!scope) return new Set([node]);
-    return new Set([scope.node, ...(scope.neighbours || [])]);
-  }
-  // mode === 'purpose'
-  if (selectedPurpose) {
-    const p = purposes.find(p => p.name === selectedPurpose);
-    return new Set(p ? [node, ...p.task_names] : [node]);
-  }
-  if (scope) {
-    return new Set([node, ...(scope.task_names || [])]);
-  }
-  return new Set([node]);
-}
+// ucd-hdr4: Purpose/Atom dropdown model lives in ./c-purpose-nav.ts (CPurposeRow, purposeSubset, atomOptions, ...).
 
 /** ucd-hdr2 (defect "layout", deliverable 3, his report verbatim: "disorganized"). The real `stage`
  *  values a CGraphNode ever carries (modules/cmod/custom/graph_seed.py's own `_n()` seeds): 'init',
@@ -720,21 +676,18 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
   cLanes: CLaneInfo[] = [];
   cCrossings: CCrossingInfo[] = [];
 
-  /** ucd-hdr2 (defect "scope", deliverable 2): the Purposes GET .../graphs/{graph} returned for the
-   *  OPEN graph (one chip per Purpose in the toolbar's Purpose chip row), the backend's own
-   *  `?node=` scope reply for the currently focused node (null when nothing is focused), the
-   *  person's current Scope setting + hand-picked Purpose chip (if any), and the one-line summary
-   *  the header shows ("Scope: purpose button-clock-to-os · 7 of 27 atoms"). */
+  /** ucd-hdr4: the C command group's two dropdowns. `cPurposes` = this graph's Purposes (GET .../graphs/{graph});
+   *  `cSelectedPurpose` '' = "All purposes"; `cNodes` = the graph's nodes (for the Atom options and the advice);
+   *  the Atom dropdown's value is `node` (the focused atom, also ?node=). */
   cPurposes: CPurposeRow[] = [];
-  cGraphScope: CGraphScopeRow | null = null;
-  cScope: CScopeMode = 'graph';
-  cSelectedPurpose: string | null = null;
-  /** the Scope setting a Purpose chip click should restore on ITS OWN second click (his click-
-   *  toggle rule) — distinct from `cScope` itself, which a chip click overwrites to 'purpose'. */
-  private cScopePreChip: CScopeMode = 'graph';
+  cSelectedPurpose = '';
+  cNodes: CGraphNodeRow[] = [];
+  cAtomOptions: string[] = [];
+  cUnnamedAtoms: string[] = [];
+  cFirmwareGraphs = new Set<string>();
   cScopeSummaryText = '';
-  /** ucd-hdr3: GET /api/cmod/graphs/{g} purpose_coverage.unnamed count (advice, never enforced). */
-  cPurposeCoverageUnnamed = 0;
+  /** true until the first open of a graph has consumed the URL / deep-link presets (Purpose + Atom). */
+  private cPresetPending = true;
 
   // Track unique states (InitialState, ReturnStatement) that already exist in the solution
   // Used to filter these from the sidebar when they're already present
@@ -1039,6 +992,7 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
       // ucd-hdr2: a later @Input rebind is always case (c) (page-driven) — the URL's own
       // focusSolution/graph/node (cases (a)/(b)) only ever get read once, at ngOnInit.
       this.selectionOrigin = 'page';
+      this.cPresetPending = true;
       this.openHeaderSolution();
       if (this.node) { this.focusCNode(this.node); }
     } else if (nodeChanged && this.node) {
@@ -1671,6 +1625,8 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
         );
       }
       this.regenerateCode();
+      // ucd-hdr4: setting an atom's ref while a Purpose is selected joins that Purpose
+      if (updated && updated['atom'] && stateInstance.boundObjectClass === 'CAtom') { this.joinSelectedPurpose(stateName); }
     });
     this.wireOverlayViewEvents(componentRef, stateInstance);
     componentRef.instance.popupRequested.subscribe(() => onPopup());
@@ -2325,13 +2281,15 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
   pickCGraph(graph: string): void {
     this.graph = graph;
     this.node = '';
+    this.cSelectedPurpose = '';
+    this.cPresetPending = false;
     this.cRenderResult = this.cBuildResult = this.cProveResult = this.cLastBuild = null;
     // ucd-hdr3: a pick in the Object select is the person acting through the native selector —
     // origin 'selector'. The URL gets graph=<g>, node cleared, focusSolution/solution/object cleared
     // (syncUrlToSelectedSolution never writes the hidden name). Opens the graph directly (an active
     // `solution` @Input must not swallow the person's pick).
     this.selectionOrigin = 'selector';
-    this.clearStaleFocusParams({ graph, node: null });
+    this.clearStaleFocusParams({ graph, node: null, purpose: null, scope: null });
     this.openCGraphSolution(graph);
   }
 
@@ -2339,6 +2297,11 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
     this.http.get<any>(`${this.polariService.getBackendBaseUrl()}/api/cmod/graphs`, this.polariService.backendRequestOptions).subscribe({
       next: (r: any) => { this.cGraphs = r?.graphs || []; },
       error: () => { /* the picker degrades to the default graph silently — the canvas itself still loads */ },
+    });
+    // ucd-hdr4: which graphs carry a Firmware Solution (a Purpose over one that does not shows red advice)
+    this.http.get<any>(`${this.polariService.getBackendBaseUrl()}/api/firmware/solutions`, this.polariService.backendRequestOptions).subscribe({
+      next: (r: any) => { this.cFirmwareGraphs = new Set((r?.solutions || []).map((x: any) => x.graph).filter((g: string) => !!g)); },
+      error: () => { /* advice only — no mark rather than a wrong one */ },
     });
   }
 
@@ -2349,35 +2312,28 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
    *  cross-page "last selected solution" in localStorage. */
   private openCGraphSolution(graph: string): void {
     const name = this.solutionNameForCGraph(graph);
-    // ucd-hdr2: always re-fetches and rebuilds (no "already in cache, just reselect" fast path
-    // anymore) — the Scope control/Purpose chips call this SAME method to re-scope an already-open
-    // graph, so the rebuild must reflect the CURRENT scope/node/purpose every time, never a stale
-    // full-graph build left over from the first open.
-    // ucd-hdr2 (defect "scope", deliverable 2, his report verbatim: "the only interface I see has
-    // an absurd amount of c-atoms ... it does not look like the c-atoms for just a single task at
-    // all"). `scope`/`purpose` are fast-nav URL params read BEFORE the request (same precedence
-    // family as focusSolution/graph/node) so the very first render already reflects them — never a
-    // flash of the whole graph first. Default: 'purpose' whenever a node is focused (?node=), else
-    // 'graph' (the whole thing — nothing focused to scope down to).
-    const qp = this.route.snapshot.queryParamMap;
-    const urlScope = qp.get('scope');
-    this.cScope = (urlScope === 'task' || urlScope === 'purpose' || urlScope === 'graph')
-      ? urlScope : (this.node ? 'purpose' : 'graph');
-    this.cSelectedPurpose = qp.get('purpose') || null;
-    this.cScopePreChip = this.cScope;
-
-    const url = `${this.polariService.getBackendBaseUrl()}/api/cmod/graphs/${encodeURIComponent(graph)}`
-      + (this.node ? `?node=${encodeURIComponent(this.node)}` : '');
+    // ucd-hdr4: always re-fetches and rebuilds, so a Purpose pick reflects the live rows. The URL's `purpose=` and a
+    // deep link's `node=` are read ONCE per open of a graph (cPresetPending) — before the request, so the very first
+    // render already shows only that Purpose's atoms (never a flash of the whole graph).
+    const url = `${this.polariService.getBackendBaseUrl()}/api/cmod/graphs/${encodeURIComponent(graph)}`;
     this.http.get<any>(url, this.polariService.backendRequestOptions).subscribe({
       next: (r: any) => {
         this.cPurposes = r?.purposes || [];
-        this.cGraphScope = r?.scope || null;
-        this.cPurposeCoverageUnnamed = (r?.purpose_coverage?.unnamed || []).length;
-        const subset = cScopeSubset(this.cScope, this.node, this.cGraphScope, this.cPurposes, this.cSelectedPurpose);
-        this.buildCAtomsSolution(name, r?.nodes || [], r?.edges || [], subset);
+        this.cNodes = r?.nodes || [];
+        if (this.cPresetPending) {
+          this.cPresetPending = false;
+          this.cSelectedPurpose = presetPurpose(this.cPurposes, this.route.snapshot.queryParamMap.get('purpose'), this.node);
+        } else if (this.cSelectedPurpose && !this.cPurposes.some(p => p.name === this.cSelectedPurpose)) {
+          this.cSelectedPurpose = '';
+        }
+        this.refreshCNav();
+        const subset = purposeSubset(this.cPurposes, this.cSelectedPurpose);
+        this.buildCAtomsSolution(name, this.cNodes, r?.edges || [], subset);
         this.solutionStateService.selectSolution(name, false);
         this.applyCLanes(name);
-        this.updateCScopeSummary((r?.nodes || []).length, subset);
+        this.updateCScopeSummary(subset);
+        this.markNoPurposeCards();
+        if (this.node) { this.focusCNode(this.node); }
       },
       error: () => {
         // degrades: the graph detail could not be fetched — an empty solution still gives the canvas something to open
@@ -2391,8 +2347,8 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
 
   /** ONE c-atom canvas node per CGraphNode (the glue's class/parser/frame/tick/rule kinds come
    *  through read-only), wired by CGraphEdge — the real atoms, all in the c-device lane.
-   *  `scopeSubset` (ucd-hdr2, deliverable 2) — null for 'graph' scope (everything); otherwise the
-   *  node-instance subset cScopeSubset() resolved — only THOSE nodes (and the edges among them)
+   *  `scopeSubset` (ucd-hdr4) — null = everything (All purposes); otherwise the
+   *  node-instance subset purposeSubset() resolved — only THOSE nodes (and the edges among them)
    *  become canvas states at all, instead of a task's view always showing the whole graph. */
   private buildCAtomsSolution(name: string, nodes: CGraphNodeRow[], edges: CGraphEdgeRow[], scopeSubset: Set<string> | null = null): void {
     this.solutionStateService.createNewSolution(name, { targetRuntime: 'typescript_frontend' as any });
@@ -2433,72 +2389,98 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
   }
 
   // =========================================================================================
-  // ucd-hdr2 (defect "scope", deliverable 2): the Scope control + Purpose chip row's own handlers.
-  // Each re-fetches/rebuilds the open CGraph solution through openCGraphSolution() (no new truth —
-  // the scope/purposes come back on the SAME GET already used to open it) rather than filtering
-  // client-side over a stale copy, so a scope change always reflects the live backend rows.
+  // ucd-hdr4: the Purpose and Atom dropdowns' handlers. The graph itself is fixed (the Object select).
   // =========================================================================================
 
-  /** The Scope control's own (click) handler — 'task' | 'purpose' | 'graph'. A person's deliberate
-   *  pick: origin 'selector', always reflected in the URL (shouldSyncUrlForOrigin family — scope/
-   *  purpose follow the SAME person-action gating as focusSolution). */
-  setCScope(scope: CScopeMode): void {
-    if (this.cScope === scope) { return; }
-    this.cScope = scope;
-    this.cScopePreChip = scope;
-    if (scope !== 'purpose') { this.cSelectedPurpose = null; }
+  /** Atom options + the advice list, recomputed whenever the Purposes, nodes or selected Purpose change. */
+  private refreshCNav(): void {
+    this.cAtomOptions = atomOptions(this.cNodes, this.cPurposes, this.cSelectedPurpose);
+    this.cUnnamedAtoms = atomsWithoutPurpose(this.cNodes, this.cPurposes);
+  }
+
+  /** Purpose option text (red advice appended when the Purpose's graph has no Firmware Solution). */
+  purposeLabel(p: CPurposeRow): string {
+    return purposeOptionLabel(p, this.cFirmwareGraphs.has(this.graph));
+  }
+
+  /** the Purpose dropdown's (change): '' = All purposes. An Atom no longer in the chosen Purpose is cleared. */
+  onPurposeChange(purpose: string): void {
+    this.cSelectedPurpose = purpose || '';
+    if (this.node && !atomOptions(this.cNodes, this.cPurposes, this.cSelectedPurpose).includes(this.node)) { this.node = ''; }
     this.selectionOrigin = 'selector';
-    this.syncCScopeUrl();
+    this.syncCNavUrl();
     this.openCGraphSolution(this.graph);
   }
 
-  /** A Purpose chip's own (click) handler — his click-toggle rule: a second click on the SAME chip
-   *  deselects back to the scope that was active before the first click (never hard-coded to
-   *  'graph'); Escape (clearCScope) always clears outright. */
-  togglePurposeChip(purposeName: string): void {
-    if (this.cSelectedPurpose === purposeName) {
-      this.cSelectedPurpose = null;
-      this.cScope = this.cScopePreChip === 'purpose' ? (this.node ? 'purpose' : 'graph') : this.cScopePreChip;
-    } else {
-      if (this.cScope !== 'purpose' || !this.cSelectedPurpose) { this.cScopePreChip = this.cScope; }
-      this.cSelectedPurpose = purposeName;
-      this.cScope = 'purpose';
-    }
+  /** the Atom dropdown's (change): outlines + centres that atom (no rebuild); '' clears the focus. */
+  onAtomChange(atom: string): void {
+    this.node = atom || '';
     this.selectionOrigin = 'selector';
-    this.syncCScopeUrl();
-    this.openCGraphSolution(this.graph);
+    this.syncCNavUrl();
+    if (this.node) { this.focusCNode(this.node); }
   }
 
-  /** Escape clears the Purpose selection and falls back to this graph's own default Scope (his
-   *  click-toggle rule: "Escape clears"). */
+  /** ucd-hdr4: a new atom created INSIDE the selected Purpose — POST /api/capabilities/{purpose}/tasks {graph, node}.
+   *  Does nothing on "All purposes". The Purpose list refreshes after; a refusal (e.g. the node is not in the graph
+   *  yet) is said in the header, never silent. Advice only — nothing here blocks the canvas edit. */
+  private joinSelectedPurpose(node: string): void {
+    if (!this.cSelectedPurpose || !this.graph || !node) { return; }
+    const url = `${this.polariService.getBackendBaseUrl()}/api/capabilities/${encodeURIComponent(this.cSelectedPurpose)}/tasks`;
+    this.http.post<any>(url, { graph: this.graph, node }, this.polariService.backendRequestOptions).subscribe({
+      next: () => { this.cError = ''; this.openCGraphSolution(this.graph); },
+      error: (e: any) => { this.cError = `Could not add ${node} to Purpose ${this.cSelectedPurpose}: ${e?.error?.error || 'refused'}`; },
+    });
+  }
+
+  /** Escape clears the Atom focus (his click-toggle rule) — never swallows an unrelated Escape. */
   clearCScope(): void {
-    if (!this.cSelectedPurpose && this.cScope === (this.node ? 'purpose' : 'graph')) { return; }
-    this.cSelectedPurpose = null;
-    this.cScope = this.node ? 'purpose' : 'graph';
-    this.cScopePreChip = this.cScope;
+    if (!this.node) { return; }
+    this.node = '';
     this.selectionOrigin = 'selector';
-    this.syncCScopeUrl();
-    this.openCGraphSolution(this.graph);
+    this.syncCNavUrl();
   }
 
-  private syncCScopeUrl(): void {
+  private syncCNavUrl(): void {
     this.router.navigate([], {
       relativeTo: this.route,
-      queryParams: { scope: this.cScope, purpose: this.cSelectedPurpose || null },
+      queryParams: { purpose: this.cSelectedPurpose || null, node: this.node || null, scope: null },
       queryParamsHandling: 'merge',
       replaceUrl: true,
     });
   }
 
-  private updateCScopeSummary(totalNodes: number, subset: Set<string> | null): void {
-    const shown = subset ? subset.size : totalNodes;
-    const label = this.cScope === 'graph' ? 'graph'
-      : this.cScope === 'task' ? `task ${this.node}`
-      : this.cSelectedPurpose ? `purpose ${this.cSelectedPurpose}` : 'purpose';
-    this.cScopeSummaryText = `Scope: ${label} · ${shown} of ${totalNodes} atoms`;
-    // ucd-hdr3: ADVICE only (his ruling 2026-10-10: "should not be enforced").
-    const unnamed = this.cPurposeCoverageUnnamed;
-    if (unnamed > 0) { this.cScopeSummaryText += ` · ${unnamed} atoms without a Purpose`; }
+  private updateCScopeSummary(subset: Set<string> | null): void {
+    const total = this.cNodes.length;
+    const shown = subset ? this.cNodes.filter(n => subset.has(n.instance)).length : total;
+    this.cScopeSummaryText = purposeSummary(shown, total, this.cSelectedPurpose, this.cUnnamedAtoms.length);
+  }
+
+  /** ADVICE, never blocking: a real atom no Purpose names gets a red outline + a "!" and the plain-words title. */
+  private markNoPurposeCards(): void {
+    const names = new Set(this.cUnnamedAtoms);
+    setTimeout(() => {
+      names.forEach(n => {
+        const group = this.getStateGroupElement(n);
+        const rect = group?.querySelector('rect') as SVGRectElement | null;
+        if (!group || !rect || group.getAttribute('data-no-purpose')) { return; }
+        group.setAttribute('data-no-purpose', '1');
+        rect.setAttribute('stroke', '#d32f2f');
+        rect.setAttribute('stroke-width', '4');
+        const ns = 'http://www.w3.org/2000/svg';
+        const title = document.createElementNS(ns, 'title');
+        title.textContent = NO_PURPOSE_TITLE;
+        group.appendChild(title);
+        const box = rect.getBBox();
+        const mark = document.createElementNS(ns, 'text');
+        mark.setAttribute('x', String(box.x + 8));
+        mark.setAttribute('y', String(box.y + box.height - 8));
+        mark.setAttribute('fill', '#ff5252');
+        mark.setAttribute('font-size', '12');
+        mark.setAttribute('font-weight', '700');
+        mark.textContent = 'no Purpose';
+        group.appendChild(mark);
+      });
+    }, 700);
   }
 
   /** demo-4b: group the currently-open solution's states into one lane per runtime present (a
@@ -3967,7 +3949,7 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
    *  overlay's own Escape handler). */
   @HostListener('document:keydown.escape')
   onEscapeClearCScope(): void {
-    if (commandGroupForRuntime(this.newStateRuntime).cCommands && (this.cSelectedPurpose || this.cScope !== (this.node ? 'purpose' : 'graph'))) {
+    if (commandGroupForRuntime(this.newStateRuntime).cCommands && this.node) {
       this.clearCScope();
     }
   }
@@ -6257,6 +6239,9 @@ private dragRectangle(): any {
 
     // Re-render the solution to show the new state
     this.loadSelectedSolution();
+
+    // ucd-hdr4: a C Atom dropped while a Purpose is selected joins that Purpose
+    if (item.sourceClassName === 'CAtom') { this.joinSelectedPurpose(newState.stateName || stateName); }
 
     // console.log('[CustomNoCode] Created new state:', stateName, 'with', slots.length, 'slots');
   }

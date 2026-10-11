@@ -66,18 +66,22 @@
           <button type="button" (click)="doBuildC()" [disabled]="cBusy">Build</button>
           <button type="button" (click)="doProveC()" [disabled]="cBusy">Prove</button>
           <span class="c-commands-busy" *ngIf="cBusy">{{ cBusy }}…</span>
-          <!-- ucd-hdr2 (defect "scope", deliverable 2): a task's view, never the whole graph by
-               default — three Scope settings, toggled by click (his click-toggle rule applies to
-               the chip row below; the Scope buttons themselves are a plain radio-like pick, not
-               toggleable back to nothing — 'graph' is always a valid fallback). -->
-          <div class="c-commands-scope" role="group" aria-label="Scope">
-            <button type="button" class="c-commands-scope-btn" [class.active]="cScope === 'task'"
-                    [disabled]="!node" (click)="setCScope('task')" title="the focused node + its one-edge neighbours">Task</button>
-            <button type="button" class="c-commands-scope-btn" [class.active]="cScope === 'purpose'"
-                    [disabled]="!node" (click)="setCScope('purpose')" title="every Purpose naming the focused node">Purpose</button>
-            <button type="button" class="c-commands-scope-btn" [class.active]="cScope === 'graph'"
-                    (click)="setCScope('graph')" title="the whole graph">Graph</button>
-          </div>
+          <!-- ucd-hdr4: the graph is fixed (the Object select); a Purpose says WHY atoms are in this firmware, and the
+               Atom list is only that Purpose's atoms. Nothing here blocks anything. -->
+          <label class="c-commands-pick" title="Why these atoms are in this firmware — pick one to show only its atoms">Purpose:
+            <select id="c-purpose-select" (change)="onPurposeChange($any($event.target).value)">
+              <option value="" [selected]="!cSelectedPurpose">All purposes</option>
+              <option *ngFor="let p of cPurposes" [value]="p.name" [selected]="p.name === cSelectedPurpose"
+                      [class.c-advice]="!cFirmwareGraphs.has(graph)"
+                      [title]="p.title">{{ purposeLabel(p) }}</option>
+            </select>
+          </label>
+          <label class="c-commands-pick" title="Pick an atom of this Purpose to outline it and bring it to the centre">Atom:
+            <select id="c-atom-select" (change)="onAtomChange($any($event.target).value)">
+              <option value="" [selected]="!node">Pick an atom…</option>
+              <option *ngFor="let a of cAtomOptions" [value]="a" [selected]="a === node">{{ a }}</option>
+            </select>
+          </label>
           <a class="c-commands-fw-link" [routerLink]="'/display/firmware-solutions'">Firmware →</a>
         </div>
 
@@ -198,16 +202,7 @@
           last build on record: {{ cLastBuild.proof }} · .hex {{ cLastBuild.hex_sha256?.slice(0,12) }}
         </div>
 
-        <!-- ucd-hdr2 (deliverable 2): the Purpose chip row — one per Purpose this graph has, click
-             to scope to it (second click deselects back to the scope active before the first
-             click — his click-toggle rule), and the one-line Scope summary. -->
-        <div class="c-commands-purposes" *ngIf="cPurposes.length">
-          <span class="c-commands-purposes-label">Purposes:</span>
-          <button type="button" class="c-commands-purpose-chip" *ngFor="let p of cPurposes"
-                  [class.active]="cSelectedPurpose === p.name" (click)="togglePurposeChip(p.name)"
-                  [title]="p.title">{{ p.name }}</button>
-        </div>
-        <div class="c-commands-scope-summary" *ngIf="cScopeSummaryText">{{ cScopeSummaryText }}</div>
+        <div class="c-commands-scope-summary" *ngIf="cScopeSummaryText" [class.c-advice]="cUnnamedAtoms.length">{{ cScopeSummaryText }}</div>
 
         <div class="c-commands-lanes" *ngIf="cLanes.length">
           <span class="c-commands-lanes-label">Runtimes (lanes):</span>

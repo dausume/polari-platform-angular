@@ -9,7 +9,7 @@
  * column assignment.
  */
 import {
-  resolveInitialSelection, shouldSyncUrlForOrigin, cScopeSubset, assignCStageColumns, C_STAGE_COLUMN_ORDER,
+  resolveInitialSelection, shouldSyncUrlForOrigin, assignCStageColumns, C_STAGE_COLUMN_ORDER,
   SelectionOrigin, composeObjectOptions, solutionOptionsFor, isHiddenCanvasSolution, graphOfHiddenSolution,
 } from './custom-no-code';
 
@@ -122,48 +122,7 @@ describe('custom-no-code — Object select composition + graph-mode Solution lis
   });
 });
 
-/** defect "scope" (deliverable 2) — the scope subset function, on a tiny fixture. */
-describe('custom-no-code — cScopeSubset (task/purpose/graph scope, on a tiny fixture)', () => {
-  const scope = { node: 'led', purposes: ['blink-on-command'], task_names: ['rx_pop', 'apply', 'led'], neighbours: ['apply'] };
-  const purposes = [
-    { name: 'blink-on-command', title: 'Blink the LED on command', task_names: ['rx_pop', 'apply', 'led'] },
-    { name: 'temp-sensor-to-os', title: 'Temperature sensor to OS', task_names: ['adc_init', 'adc', 'temp', 'telemetry', 'frame', 'send'] },
-  ];
-
-  it('"graph" scope is unfiltered (null) regardless of node/scope/purposes', () => {
-    expect(cScopeSubset('graph', 'led', scope, purposes, null)).toBeNull();
-  });
-
-  it('no node focused degrades to "graph" (null) even if mode says otherwise', () => {
-    expect(cScopeSubset('task', '', scope, purposes, null)).toBeNull();
-  });
-
-  it('"task" scope is the node + its one-edge neighbours only', () => {
-    const s = cScopeSubset('task', 'led', scope, purposes, null)!;
-    expect(Array.from(s).sort()).toEqual(['apply', 'led']);
-  });
-
-  it('"task" scope with no backend scope data degrades to just the node itself', () => {
-    const s = cScopeSubset('task', 'led', null, purposes, null)!;
-    expect(Array.from(s)).toEqual(['led']);
-  });
-
-  it('"purpose" scope (no chip picked) is the union of every purpose naming the node, from the ' +
-     'backend\'s own scope.task_names — always including the node', () => {
-    const s = cScopeSubset('purpose', 'led', scope, purposes, null)!;
-    expect(Array.from(s).sort()).toEqual(['apply', 'led', 'rx_pop']);
-  });
-
-  it('"purpose" scope with ONE chip hand-picked narrows to just that purpose\'s own task_names', () => {
-    const s = cScopeSubset('purpose', 'led', scope, purposes, 'temp-sensor-to-os')!;
-    expect(Array.from(s).sort()).toEqual(['adc', 'adc_init', 'frame', 'led', 'send', 'telemetry', 'temp']);
-  });
-
-  it('a hand-picked chip that does not actually exist degrades to just the node', () => {
-    const s = cScopeSubset('purpose', 'led', scope, purposes, 'not-a-real-purpose')!;
-    expect(Array.from(s)).toEqual(['led']);
-  });
-});
+// ucd-hdr4: the "scope" specs (cScopeSubset) were replaced by custom-no-code-ucd-hdr4.spec.ts (Purpose/Atom dropdowns).
 
 /** defect "layout" (deliverable 3) — the staged layout column assignment. */
 describe('custom-no-code — assignCStageColumns (the staged C lane layout)', () => {
