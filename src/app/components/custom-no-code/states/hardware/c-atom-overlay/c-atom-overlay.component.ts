@@ -19,6 +19,7 @@ import { Subscription } from 'rxjs';
 
 import { StateOverlayBase } from '../../_shared/state-overlay/state-overlay-base';
 import { PolariService } from '@services/polari-service';
+import { NO_PURPOSE_TITLE } from '../../../c-purpose-nav';
 
 export interface CAtomView {
   name: string; function: string; signature: string; kind: string; isr_safe: string; pure: boolean;
@@ -96,6 +97,12 @@ export class CAtomOverlayComponent extends StateOverlayBase implements OnInit, O
 
   ngOnDestroy(): void {
     this.sub?.unsubscribe();
+  }
+
+  /** ucd-hdr4: true when the canvas says no Purpose names this (real) atom — see buildCAtomsSolution. */
+  readonly noPurposeTitle = NO_PURPOSE_TITLE;
+  get noPurpose(): boolean {
+    return !!(this.boundObjectFieldValues || {})['no_purpose'];
   }
 
   get ref(): string {

@@ -3,6 +3,7 @@
   width: 100%;
   height: 100%;
   box-sizing: border-box;
+  position: relative;
   container-type: inline-size;
   font-size: 10px;
   color: var(--text-primary);
@@ -57,3 +58,7 @@
 .hw-target-badge[data-kind="memory-field"] { border-color: #00796B; }
 .hw-target-badge[data-kind="pin"] { border-color: #6D4C41; }
 .hw-target-badge[data-unbound="true"] { opacity: 0.6; font-style: italic; }
+
+/* ucd-hdr4: red advice outline + label for an atom no Purpose names (never blocks anything) */
+.c-atom-overlay-root.no-purpose { box-shadow: inset 0 0 0 3px #d32f2f; border-radius: 8px; }
+.no-purpose-mark { position: absolute; left: 8px; bottom: 4px; color: #d32f2f; font-size: 11px; font-weight: 700; pointer-events: none; }

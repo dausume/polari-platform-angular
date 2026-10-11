@@ -1,6 +1,8 @@
 <div class="c-atom-overlay-root"
      [attr.data-size-tier]="sizeTier"
      [attr.data-mode]="mode"
+     [class.no-purpose]="noPurpose"
+     [attr.title]="noPurpose ? noPurposeTitle : null"
      [ngSwitch]="sizeTier"
      [appStateOverlayRoot]="stateName"
      (contextRequested)="fullViewRequested.emit($event)">
@@ -93,4 +95,7 @@
       </ng-container>
     </div>
   </state-overlay-shell>
+
+  <!-- ucd-hdr4: ADVICE only — a real atom no Purpose names (boundObjectFieldValues.no_purpose) -->
+  <span class="no-purpose-mark" *ngIf="noPurpose" [title]="noPurposeTitle">no Purpose</span>
 </div>

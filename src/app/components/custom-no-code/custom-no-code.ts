@@ -1,6 +1,6 @@
 // Author: Dustin Etts
 // polari-platform-angular/src/app/components/custom-no-code/custom-no-code.ts
-import { CPurposeRow, purposeSubset, atomOptions, atomsWithoutPurpose, presetPurpose, purposeOptionLabel, purposeSummary, NO_PURPOSE_TITLE } from './c-purpose-nav';
+import { CPurposeRow, purposeSubset, atomOptions, atomsWithoutPurpose, presetPurpose, purposeOptionLabel, purposeSummary } from './c-purpose-nav';
 import { Component, Input, Renderer2, HostListener, ElementRef, ChangeDetectorRef, ViewChild, ViewContainerRef, AfterViewInit, OnChanges, OnDestroy, OnInit, SimpleChanges } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -2332,7 +2332,6 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
         this.solutionStateService.selectSolution(name, false);
         this.applyCLanes(name);
         this.updateCScopeSummary(subset);
-        this.markNoPurposeCards();
         if (this.node) { this.focusCNode(this.node); }
       },
       error: () => {
@@ -2352,6 +2351,7 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
    *  become canvas states at all, instead of a task's view always showing the whole graph. */
   private buildCAtomsSolution(name: string, nodes: CGraphNodeRow[], edges: CGraphEdgeRow[], scopeSubset: Set<string> | null = null): void {
     this.solutionStateService.createNewSolution(name, { targetRuntime: 'typescript_frontend' as any });
+    const noPurpose = new Set(this.cUnnamedAtoms);
     const scoped = scopeSubset ? nodes.filter(n => scopeSubset.has(n.instance)) : nodes;
     const perRow = 4;
     scoped.forEach((n, i) => {
@@ -2365,6 +2365,8 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
           // used to fetch /api/cmod/atoms/<kind> and show "no atom named 'class'" in red on every such node.
           // `kind` lets the overlay render it as what it is (read-only glue) without a fetch.
           kind: n.kind,
+          // ucd-hdr4: the overlay draws the red advice from this (true only for a real c-atom no Purpose names)
+          no_purpose: n.kind === 'c-atom' && noPurpose.has(n.instance),
           atom: n.kind === 'c-atom' ? n.atom : '', stage: n.stage || '',
           bindings: n.kind === 'c-atom' ? (n.bindings || '') : (n.params || ''),
         },
@@ -2453,34 +2455,6 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
     const total = this.cNodes.length;
     const shown = subset ? this.cNodes.filter(n => subset.has(n.instance)).length : total;
     this.cScopeSummaryText = purposeSummary(shown, total, this.cSelectedPurpose, this.cUnnamedAtoms.length);
-  }
-
-  /** ADVICE, never blocking: a real atom no Purpose names gets a red outline + a "!" and the plain-words title. */
-  private markNoPurposeCards(): void {
-    const names = new Set(this.cUnnamedAtoms);
-    setTimeout(() => {
-      names.forEach(n => {
-        const group = this.getStateGroupElement(n);
-        const rect = group?.querySelector('rect') as SVGRectElement | null;
-        if (!group || !rect || group.getAttribute('data-no-purpose')) { return; }
-        group.setAttribute('data-no-purpose', '1');
-        rect.setAttribute('stroke', '#d32f2f');
-        rect.setAttribute('stroke-width', '4');
-        const ns = 'http://www.w3.org/2000/svg';
-        const title = document.createElementNS(ns, 'title');
-        title.textContent = NO_PURPOSE_TITLE;
-        group.appendChild(title);
-        const box = rect.getBBox();
-        const mark = document.createElementNS(ns, 'text');
-        mark.setAttribute('x', String(box.x + 8));
-        mark.setAttribute('y', String(box.y + box.height - 8));
-        mark.setAttribute('fill', '#ff5252');
-        mark.setAttribute('font-size', '12');
-        mark.setAttribute('font-weight', '700');
-        mark.textContent = 'no Purpose';
-        group.appendChild(mark);
-      });
-    }, 700);
   }
 
   /** demo-4b: group the currently-open solution's states into one lane per runtime present (a
