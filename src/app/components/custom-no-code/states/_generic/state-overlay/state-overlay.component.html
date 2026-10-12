@@ -43,6 +43,10 @@
            [style.font-size.px]="getSubtitleFontSize()">
         <span class="subtitle-text">{{ getStateSubtitle() }}</span>
       </div>
+
+      <!-- ucd-app: the step's purpose in a person's words (the seeded `purpose` field) -->
+      <div class="state-purpose" *ngIf="getStateDescription() && !isCompact"
+           [title]="getStateDescription()">{{ getStateDescription() }}</div>
     </div>
 
     <!-- Class search input (shown when editing - only for editable states) -->

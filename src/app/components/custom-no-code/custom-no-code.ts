@@ -3503,6 +3503,15 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
       if (fieldValues.subSolutionName) {
         info.subSolutionName = fieldValues.subSolutionName;
       }
+      // ucd-app (2026-10-11): a seeded state's own words — its displayName becomes the card's title and its
+      // `purpose` sentence its description. Without this every state of a kind with no overlay of its own
+      // (the Hardware App's six steps, a Firmware Run, a relay) was titled by its CLASS name ("NativeAppStep").
+      if (fieldValues.displayName) {
+        info.displayName = String(fieldValues.displayName);
+      }
+      if (fieldValues.purpose || fieldValues.description) {
+        info.description = String(fieldValues.purpose || fieldValues.description);
+      }
     }
 
     return Object.keys(info).length > 0 ? info : null;

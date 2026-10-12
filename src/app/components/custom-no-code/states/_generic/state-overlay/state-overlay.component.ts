@@ -162,8 +162,11 @@ export class StateOverlayComponent extends StateOverlayBase implements OnInit, O
    * Get the main title for this state (class name, block type, etc.)
    */
   getStateTitle(): string {
-    // Priority: boundObjectInfo > boundClassName > stateName
+    // Priority: the state's own displayName (ucd-app: a seeded step's words) > boundObjectInfo > boundClassName > stateName
     if (this.boundObjectInfo) {
+      if (this.boundObjectInfo.displayName) {
+        return this.boundObjectInfo.displayName;
+      }
       if (this.boundObjectInfo.className) {
         return this.boundObjectInfo.className;
       }
@@ -200,11 +203,18 @@ export class StateOverlayComponent extends StateOverlayBase implements OnInit, O
       return this.boundObjectInfo.memberName;
     }
 
+    // the displayName is the TITLE now (above); the kind becomes the subtitle so a person still sees what it is
     if (this.boundObjectInfo.displayName) {
-      return this.boundObjectInfo.displayName;
+      const cls = this.boundObjectInfo.className || this.boundClassName;
+      return cls ? (this.registry.getClass(cls)?.displayName || cls) : '';
     }
 
     return '';
+  }
+
+  /** ucd-app: a seeded state's one-sentence purpose, shown under the subtitle (never in compact mode). */
+  getStateDescription(): string {
+    return this.boundObjectInfo?.description || '';
   }
 
   /**
