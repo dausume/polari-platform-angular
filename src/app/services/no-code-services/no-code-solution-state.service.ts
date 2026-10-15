@@ -109,6 +109,114 @@ export class NoCodeSolutionStateService {
     return !!name && name.startsWith('cmod.c-canvas.');
   }
 
+  // ---- fgm-1b: Purpose drawings (category 'purpose') load and save through their doors ----------------
+  // The backend row (CapabilityDefinition) is the source of truth, so a Purpose drawing is never written by
+  // the generic CRUDE save: it loads from GET /api/capabilities/{name}/solution and saves by PUT to the same door.
+  private purposeFetched: Set<string> = new Set();
+  private purposeBaseline: Map<string, string> = new Map();
+  private purposeSaveSubject = new Subject<void>();
+
+  /** Plain-words line for the canvas about the Purpose drawing (empty = nothing to say). */
+  private purposeNoticeSubject = new BehaviorSubject<string>('');
+  public purposeNotice$ = this.purposeNoticeSubject.asObservable();
+
+  /** Emits a solution name when its drawing was replaced under an already-selected canvas (re-render it). */
+  private purposeReloadedSubject = new Subject<string>();
+  public purposeReloaded$ = this.purposeReloadedSubject.asObservable();
+
+  private static readonly PURPOSE_DERIVED_CLASSES = ['PurposeProofState', 'PurposeResolutionState', 'PurposeObservedState'];
+  private static readonly PURPOSE_DERIVED_KINDS = ['purpose-proof', 'purpose-resolution', 'purpose-observed'];
+
+  /** A Purpose drawing: the row's category is 'purpose'; the `purpose-` name prefix is used only when the
+   *  raw data carries no category at all. */
+  isPurposeSolution(name: string | null | undefined): boolean {
+    if (!name) return false;
+    const category = this.solutionsCache.get(name)?.category;
+    return category !== undefined ? category === 'purpose' : name.startsWith('purpose-');
+  }
+
+  /** One of the three worked-out cards of a Purpose drawing (proof / resolution / observed). */
+  isDerivedPurposeState(solutionName: string, stateName: string): boolean {
+    if (!this.isPurposeSolution(solutionName)) return false;
+    const st: any = this.solutionsCache.get(solutionName)?.stateInstances.find(x => x.stateName === stateName);
+    if (!st) return false;
+    const cls = st.boundObjectClass || st.stateClass || '';
+    const kind = st.boundObjectFieldValues?.kind || st.kind || '';
+    return NoCodeSolutionStateService.PURPOSE_DERIVED_CLASSES.includes(cls)
+      || NoCodeSolutionStateService.PURPOSE_DERIVED_KINDS.includes(kind);
+  }
+
+  /** True (and says why on the canvas) when this edit would touch a worked-out card of a Purpose drawing. */
+  private refuseDerivedEdit(solutionName: string, stateName: string): boolean {
+    if (!this.isDerivedPurposeState(solutionName, stateName)) return false;
+    this.purposeNoticeSubject.next(`"${stateName}" is worked out from the Purpose's record, so it cannot be edited or deleted here. You can still move it.`);
+    return true;
+  }
+
+  private drawingSignature(sol: NoCodeSolutionRawData): string {
+    // positions never change the row, so moving a card is not an edit to save
+    return JSON.stringify(sol, (k, v) => (k === 'stateLocationX' || k === 'stateLocationY' || k === '_backendId') ? undefined : v);
+  }
+
+  private applyPurposeDrawing(name: string, definition: any, keepPositionsOf?: NoCodeSolutionRawData): void {
+    const def: any = typeof definition === 'string' ? JSON.parse(definition) : { ...definition };
+    def.solutionName = name;
+    def.category = 'purpose';
+    const old = this.solutionsCache.get(name);
+    if (old && (old as any)._backendId) def._backendId = (old as any)._backendId;
+    if (keepPositionsOf) {
+      // the server lays the drawing out afresh; keep the cards where the person put them
+      (def.stateInstances || []).forEach((st: any) => {
+        const was = keepPositionsOf.stateInstances.find(x => x.stateName === st.stateName);
+        if (was) { st.stateLocationX = was.stateLocationX; st.stateLocationY = was.stateLocationY; }
+      });
+    }
+    this.solutionsCache.set(name, def);
+    this.purposeBaseline.set(name, this.drawingSignature(def));
+    this.purposeFetched.add(name);
+    this.saveToLocalStorage();
+  }
+
+  /** GET the door, replace the cached drawing, then run `then` (the stale stored drawing is never shown first). */
+  private loadPurposeDrawing(name: string, then: () => void, keepPositionsOf?: NoCodeSolutionRawData): void {
+    this.solutionManager.getPurposeDrawing(name.replace(/^purpose-/, '')).subscribe({
+      next: (r: any) => {
+        if (r?.definition) { this.applyPurposeDrawing(name, r.definition, keepPositionsOf); this.purposeNoticeSubject.next(''); }
+        then();
+      },
+      error: (e: any) => {
+        this.purposeNoticeSubject.next(`Could not read this Purpose from its record (${e?.error?.error || e?.statusText || 'no answer'}); showing the last stored drawing, which may be out of date.`);
+        then();
+      }
+    });
+  }
+
+  private savePurposeDrawings(): void {
+    this.purposeBaseline.forEach((base, name) => {
+      const sol = this.solutionsCache.get(name);
+      if (!sol || this.drawingSignature(sol) === base) return;
+      const body: any = { ...sol };
+      delete body._backendId;
+      this.solutionManager.putPurposeDrawing(name.replace(/^purpose-/, ''), body).subscribe({
+        next: () => {
+          this.purposeNoticeSubject.next('');
+          this.loadPurposeDrawing(name, () => {
+            if (this.selectedSolutionNameSubject.value === name) {
+              this.selectedSolutionDataSubject.next({ ...this.solutionsCache.get(name)! });
+              this.purposeReloadedSubject.next(name);
+            }
+          }, sol);
+        },
+        error: (e: any) => {
+          const why = e?.error?.error || e?.error?.refused || e?.statusText || 'the server did not answer';
+          this.purposeNoticeSubject.next(e?.status === 422
+            ? `This Purpose drawing was not saved: ${why}`
+            : `Could not save this Purpose drawing (${why}).`);
+        }
+      });
+    });
+  }
+
   private getObjectFromSolutionName(name: string): string {
     const dotIndex = name.indexOf('.');
     return dotIndex >= 0 ? name.substring(0, dotIndex) : name;
@@ -134,6 +242,7 @@ export class NoCodeSolutionStateService {
     ).subscribe(() => {
       this.saveAllToBackend();
     });
+    this.purposeSaveSubject.pipe(debounceTime(2000)).subscribe(() => this.savePurposeDrawings());
 
     this.initializeFromCache();
   }
@@ -198,6 +307,8 @@ export class NoCodeSolutionStateService {
 
         this.solutionsCache.clear();
         this.backendIdMap.clear();
+        this.purposeFetched.clear();
+        this.purposeBaseline.clear();
 
         solutions.forEach(solution => {
           this.solutionsCache.set(solution.solutionName, solution);
@@ -289,6 +400,8 @@ export class NoCodeSolutionStateService {
       // must never be auto-created on the backend — that's exactly how `cmod` leaked into the
       // real SolutionDefinition table and started showing up as an Object for every visitor.
       if (this.isHiddenSolutionName(name)) return;
+      // fgm-1b: a Purpose drawing is written only through its own door (savePurposeDrawings), never by CRUDE
+      if (this.isPurposeSolution(name)) return;
       const backendId = this.backendIdMap.get(name);
       if (backendId) {
         this.solutionManager.saveSolution(backendId, solution).subscribe({
@@ -421,6 +534,8 @@ export class NoCodeSolutionStateService {
     } catch (error) {
       console.warn('Failed to save solutions to localStorage:', error);
     }
+    // fgm-1b: every mutator ends here; a changed Purpose drawing goes to its door (debounced)
+    if (this.purposeBaseline.size) this.purposeSaveSubject.next();
   }
 
   /**
@@ -434,6 +549,19 @@ export class NoCodeSolutionStateService {
   selectSolution(solutionName: string, persist: boolean = true): void {
     // console.log('[StateService] selectSolution called with:', solutionName);
     const solution = this.solutionsCache.get(solutionName);
+    // fgm-1b: a Purpose drawing is read from its door before it is shown
+    if (solution && this.isPurposeSolution(solutionName) && !this.purposeFetched.has(solutionName)) {
+      const wasSelected = this.selectedSolutionNameSubject.value === solutionName;
+      this.loadPurposeDrawing(solutionName, () => {
+        // on a failed read the stored drawing is shown once; the next selection tries the door again
+        const failed = !this.purposeFetched.has(solutionName);
+        if (failed) this.purposeFetched.add(solutionName);
+        this.selectSolution(solutionName, persist);
+        if (failed) this.purposeFetched.delete(solutionName);
+        if (wasSelected) this.purposeReloadedSubject.next(solutionName);
+      });
+      return;
+    }
     // console.log('[StateService] Found solution:', solution);
     // console.log('[StateService] Solution stateInstances count:', solution?.stateInstances?.length);
     if (solution) {
@@ -786,6 +914,7 @@ export class NoCodeSolutionStateService {
    * This persists the change to localStorage
    */
   updateStateInstance(solutionName: string, stateName: string, updates: Partial<NoCodeStateRawData>): void {
+    if (Object.keys(updates).some(k => k !== 'stateLocationX' && k !== 'stateLocationY') && this.refuseDerivedEdit(solutionName, stateName)) return;
     const solution = this.solutionsCache.get(solutionName);
     if (!solution) {
       console.warn(`Solution '${solutionName}' not found`);
@@ -822,6 +951,7 @@ export class NoCodeSolutionStateService {
    * Returns true if the rename succeeded.
    */
   renameState(solutionName: string, oldName: string, newName: string): boolean {
+    if (this.refuseDerivedEdit(solutionName, oldName)) return false;
     const solution = this.solutionsCache.get(solutionName);
     if (!solution) return false;
 
@@ -948,6 +1078,7 @@ export class NoCodeSolutionStateService {
    * Update a state's shape type (circle or rectangle)
    */
   updateStateShape(solutionName: string, stateName: string, shapeType: string): void {
+    if (this.refuseDerivedEdit(solutionName, stateName)) return;
     const solution = this.solutionsCache.get(solutionName);
     if (!solution) return;
 
@@ -986,6 +1117,7 @@ export class NoCodeSolutionStateService {
    * Update all slots for a state
    */
   updateStateSlots(solutionName: string, stateName: string, slots: SlotRawData[]): void {
+    if (this.refuseDerivedEdit(solutionName, stateName)) return;
     const solution = this.solutionsCache.get(solutionName);
     if (!solution) return;
 
@@ -1218,6 +1350,7 @@ export class NoCodeSolutionStateService {
    * Remove a state from a solution
    */
   removeStateFromSolution(solutionName: string, stateName: string): void {
+    if (this.refuseDerivedEdit(solutionName, stateName)) return;
     const solution = this.solutionsCache.get(solutionName);
     if (!solution) return;
 
@@ -1441,6 +1574,7 @@ export class NoCodeSolutionStateService {
     objectInstanceId: string,
     fieldValues?: { [fieldName: string]: any }
   ): void {
+    if (this.refuseDerivedEdit(solutionName, stateName)) return;
     const solution = this.solutionsCache.get(solutionName);
     if (!solution) return;
 
@@ -1468,6 +1602,7 @@ export class NoCodeSolutionStateService {
     stateName: string,
     fieldValues: { [fieldName: string]: any }
   ): void {
+    if (this.refuseDerivedEdit(solutionName, stateName)) return;
     const solution = this.solutionsCache.get(solutionName);
     if (!solution) return;
 
@@ -1527,6 +1662,7 @@ export class NoCodeSolutionStateService {
    * Clear state-space bindings from a state
    */
   clearStateBindings(solutionName: string, stateName: string): void {
+    if (this.refuseDerivedEdit(solutionName, stateName)) return;
     const solution = this.solutionsCache.get(solutionName);
     if (!solution) return;
 

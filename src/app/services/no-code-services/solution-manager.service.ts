@@ -171,6 +171,23 @@ export class SolutionManagerService {
   }
 
   /**
+   * fgm-1b: the Purpose door. GET /api/capabilities/{name}/solution -> {solution, definition}: the drawing rendered
+   * FROM the CapabilityDefinition row, the three derived states worked out now.
+   */
+  getPurposeDrawing(capability: string): Observable<any> {
+    return this.http.get<any>(this.purposeUrl(capability), this.polariService.backendRequestOptions);
+  }
+
+  /** fgm-1b: PUT the drawing back to the Purpose row (422 names the state when it is refused). */
+  putPurposeDrawing(capability: string, drawing: NoCodeSolutionRawData): Observable<any> {
+    return this.http.put<any>(this.purposeUrl(capability), drawing, this.polariService.backendRequestOptions);
+  }
+
+  private purposeUrl(capability: string): string {
+    return `${this.polariService.getBackendBaseUrl()}/api/capabilities/${encodeURIComponent(capability)}/solution`;
+  }
+
+  /**
    * Delete a solution from the backend
    */
   deleteSolution(id: string): Observable<any> {
@@ -242,6 +259,8 @@ export class SolutionManagerService {
 
     // Attach the backend ID so we can update later
     (parsed as any)._backendId = backendObj.id;
+    // fgm-1b: carry the row's category so a Purpose drawing is recognised by it
+    if (backendObj.category) parsed.category = backendObj.category;
     return parsed;
   }
 

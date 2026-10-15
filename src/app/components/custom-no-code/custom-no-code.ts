@@ -668,6 +668,8 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
    *  crossings legend. Shown only when commandGroupFor(newStateRuntime).cCommands is true. */
   cGraphs: CGraphRow[] = [];
   cError = '';
+  /** fgm-1b: plain-words line about the open Purpose drawing (not saved / a worked-out card); empty = hidden */
+  purposeNotice = '';
   cBusy = '';
   cRenderResult: any = null;
   cBuildResult: any = null;
@@ -759,6 +761,19 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
         this.trySelectPendingFocusSolution();
         this.changeDetectorRef.markForCheck();
       });
+
+    // fgm-1b: a Purpose drawing re-read through its door under an open canvas is drawn again; the plain-words
+    // line about it (not saved / worked-out card) is shown under the toolbar
+    this.solutionStateService.purposeNotice$.pipe(takeUntil(this.destroy$)).subscribe(msg => {
+      this.purposeNotice = msg;
+      this.changeDetectorRef.markForCheck();
+    });
+    this.solutionStateService.purposeReloaded$.pipe(takeUntil(this.destroy$)).subscribe(name => {
+      if (name === this.selectedSolutionName) {
+        this.lastLoadedTimestamp = 0;
+        this.loadSelectedSolution();
+      }
+    });
 
     // Subscribe to selected solution changes
     // This will fire immediately with the current selected solution

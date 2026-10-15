@@ -121,4 +121,6 @@ export interface NoCodeSolutionRawData {
   functionName?: string;
   // Target runtime for this solution (defaults to 'python_backend' if undefined)
   targetRuntime?: TargetRuntime;
+  // The SolutionDefinition row's category (e.g. 'purpose'), carried from the row when the backend sends it
+  category?: string;
 }

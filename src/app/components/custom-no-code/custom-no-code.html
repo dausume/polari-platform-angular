@@ -177,6 +177,8 @@
         </div>
       </div>
 
+      <div class="c-commands-error" *ngIf="purposeNotice">{{ purposeNotice }}</div>
+
       <!-- ucd-hdr: the c-device command group's own summary/legend rows — same *ngIf table as the
            bar above, never shown for any other runtime. -->
       <ng-container *ngIf="commandGroupFor(newStateRuntime).cCommands">
