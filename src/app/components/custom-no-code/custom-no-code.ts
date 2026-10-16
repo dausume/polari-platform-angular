@@ -2486,6 +2486,11 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
   private applyCLanes(name: string): void {
     const states = this.solutionStateService.getSolutionStateInstances(name) || [];
     if (!states.length) { this.cLanes = []; this.cCrossings = []; return; }
+    // 2026-10-15: a Purpose drawing is declarative (nothing runs, no runtime lanes) and arrives already laid out as a
+    // left-to-right sentence by the backend — re-laning it pushed every card into a default lane, off-screen.
+    if (states.every((s: any) => String(s.stateClass || s.boundObjectClass || '').startsWith('Purpose'))) {
+      this.cLanes = []; this.cCrossings = []; return;
+    }
     const runtimeOf: Record<string, string> = {};
     const byRuntime: Record<string, any[]> = {};
     states.forEach((s: any) => {

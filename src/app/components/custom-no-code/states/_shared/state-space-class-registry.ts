@@ -74,7 +74,9 @@ export type StateSpaceCategory =
   // hn-0 (HARDWARE_NOCODE_PLAN D-hn-2): node kinds that arrive as DATA from GET /stateSpaceClasses
   // (c-atom, hw-interface, hardware-subgraph) — registered by StateSpacePaletteSourceService.
   | 'Hardware'
-  | 'Custom';
+  | 'Custom'
+  | 'Purpose'
+  | 'Cross-Domain';
 
 /**
  * State-space event method definition

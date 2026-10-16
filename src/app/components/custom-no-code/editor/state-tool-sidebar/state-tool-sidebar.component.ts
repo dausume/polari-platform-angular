@@ -497,7 +497,9 @@ export class StateToolSidebarComponent implements OnInit, OnDestroy, OnChanges {
       'Debug': 'bug_report',
       'Frontend': 'sensors',
       'Cross-Runtime': 'cloud_sync',
-      'Custom': 'extension'
+      'Custom': 'extension',
+      'Purpose': 'flag',
+      'Cross-Domain': 'hub'
     };
     return iconMap[category] || 'widgets';
   }
@@ -520,7 +522,9 @@ export class StateToolSidebarComponent implements OnInit, OnDestroy, OnChanges {
       'Debug': '#607D8B',
       'Frontend': '#E91E63',
       'Cross-Runtime': '#FF5722',
-      'Custom': '#795548'
+      'Custom': '#795548',
+      'Purpose': '#00695C',
+      'Cross-Domain': '#4527A0'
     };
     return colorMap[category] || '#666';
   }

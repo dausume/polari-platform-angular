@@ -51,6 +51,8 @@ export interface LiveStateSpaceConfig {
 const KNOWN_CATEGORIES: StateSpaceCategory[] = [
   'Initial States', 'Conditionals', 'Loops', 'List Operations', 'Math', 'Physics/Chemistry', 'Events',
   'Variables & Calls', 'End States', 'Flow Control', 'Debug', 'Frontend', 'Cross-Runtime', 'Hardware', 'Custom',
+  // 2026-10-15: the declarative Purpose kinds and the Cross-Domain kinds keep their own palette groups (were folded into Custom)
+  'Purpose', 'Cross-Domain',
 ];
 
 /**
