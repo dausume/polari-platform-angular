@@ -83,6 +83,9 @@ export class StateOverlayComponent extends StateOverlayBase implements OnInit, O
 
   // Field display configuration
   @Input() displayFields: DisplayField[] = [];
+  /** The state's own field values (boundObjectFieldValues) — the card shows these, falling back to the class default
+   *  (2026-10-15: before, every generic card showed only defaults, e.g. a Purpose criterion's Bound/Value/Unit read blank). */
+  @Input() fieldValues: { [key: string]: any } | null = null;
   @Input() fieldLayout: 'single' | 'double' = 'single';
 
   // Class names of unique states (InitialState, ReturnStatement) already in the solution
@@ -390,7 +393,8 @@ export class StateOverlayComponent extends StateOverlayBase implements OnInit, O
         .map(v => ({
           name: v.name,
           displayName: v.displayName,
-          value: v.defaultValue ?? '',
+          value: (this.fieldValues && this.fieldValues[v.name] !== undefined && this.fieldValues[v.name] !== null)
+            ? this.fieldValues[v.name] : (v.defaultValue ?? ''),
           type: v.type,
           isEditable: v.isEditable
         }));
