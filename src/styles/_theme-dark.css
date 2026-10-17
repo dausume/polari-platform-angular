@@ -98,3 +98,20 @@ body.dark-theme {
   --nav-color: var(--nav-background);
   --primary-color: var(--surface-app-background);
 }
+
+/* Pin-view protocol families, dark values (see _variables.css). */
+body.dark-theme {
+  --pin-gpio: #a7b7bf;  --pin-gpio-text: #000000;
+  --pin-interrupt: #59aeb6;  --pin-interrupt-text: #000000;
+  --pin-pwm-timer: #ef8e59;  --pin-pwm-timer-text: #000000;
+  --pin-analog: #679bd6;  --pin-analog-text: #000000;
+  --pin-uart: #77aa7a;  --pin-uart-text: #000000;
+  --pin-spi: #ca6692;  --pin-spi-text: #000000;
+  --pin-i2c: #9e6bbd;  --pin-i2c-text: #000000;
+  --pin-usb: #96837d;  --pin-usb-text: #000000;
+  --pin-clock: #c0bf71;  --pin-clock-text: #000000;
+  --pin-reset-programming: #a08b84;  --pin-reset-programming-text: #000000;
+  --pin-power: #da7373;  --pin-power-text: #000000;
+  --pin-ground: #848484;  --pin-ground-text: #000000;
+  --pin-other: #b7c4ca;  --pin-other-text: #000000;
+}

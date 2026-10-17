@@ -139,3 +139,25 @@
   --radius-lg: 8px;
   --radius-pill: 12px;
 }
+
+/* === Pin-view protocol families (pv-1, PIN_VIEW_PLAN 2.2) ===
+   Colour = signal family; each --pin-<family> is paired with --pin-<family>-text (the glyph / label
+   colour that reads on that fill). The light values are the pv-0 door's fallback hexes (the six
+   families the pin map already coloured reuse its palette; interrupt, usb, clock and
+   reset-programming are DRAWING KNOBS: only distinctness matters). --pin-other is a pin with no
+   family (a part's plain line). Dark values are lifted so they hold on the dark surface. */
+:root {
+  --pin-gpio: #78909c;  --pin-gpio-text: #000000;
+  --pin-interrupt: #00838f;  --pin-interrupt-text: #000000;
+  --pin-pwm-timer: #e65100;  --pin-pwm-timer-text: #000000;
+  --pin-analog: #1565c0;  --pin-analog-text: #ffffff;
+  --pin-uart: #2e7d32;  --pin-uart-text: #ffffff;
+  --pin-spi: #ad1457;  --pin-spi-text: #ffffff;
+  --pin-i2c: #6a1b9a;  --pin-i2c-text: #ffffff;
+  --pin-usb: #5d4037;  --pin-usb-text: #ffffff;
+  --pin-clock: #9e9d24;  --pin-clock-text: #000000;
+  --pin-reset-programming: #6d4c41;  --pin-reset-programming-text: #ffffff;
+  --pin-power: #c62828;  --pin-power-text: #ffffff;
+  --pin-ground: #424242;  --pin-ground-text: #ffffff;
+  --pin-other: #90a4ae;  --pin-other-text: #000000;
+}

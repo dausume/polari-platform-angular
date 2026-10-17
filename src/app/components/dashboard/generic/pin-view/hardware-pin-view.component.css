@@ -1,0 +1,94 @@
+/* hardware-pin-view (pv-1). Unencapsulated because d3 builds the SVG: every rule is prefixed .pv-root.
+   Colour comes from theme tokens only: --pin-<family> / --pin-<family>-text (set per mark as --fam / --fam-text). */
+hardware-pin-view { display: block; container-type: inline-size; container-name: pv; }
+
+.pv-root { display: flex; flex-direction: column; gap: 8px; color: var(--text-primary); }
+.pv-root .pv-bar { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: flex-end; }
+.pv-root .pv-ctl { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--text-secondary); }
+.pv-root .pv-ctl select { max-width: 100%; }
+.pv-root .pv-check { flex-direction: row; align-items: center; gap: 6px; }
+.pv-root .pv-btn { cursor: pointer; padding: 4px 10px; border: 1px solid var(--border-medium); border-radius: var(--radius-sm); background: var(--surface-secondary); color: var(--text-primary); }
+.pv-root .pv-btn:disabled { opacity: 0.5; cursor: default; }
+.pv-root .pv-status { margin: 0; font-size: 12px; color: var(--text-secondary); }
+.pv-root .pv-error { color: var(--color-error-text); }
+
+.pv-root .pv-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 340px); gap: 12px; align-items: start; }
+@container pv (max-width: 760px) {
+  .pv-root .pv-main { grid-template-columns: minmax(0, 1fr); }
+}
+.pv-root .pv-canvas { border: 1px solid var(--border-medium); border-radius: var(--radius-md); background: var(--surface-primary); min-width: 0; }
+.pv-root .pv-svg { display: block; width: 100%; aspect-ratio: 4 / 3; min-height: 300px; max-height: 78vh; touch-action: none; cursor: grab; }
+.pv-root .pv-side { min-width: 0; font-size: 13px; max-height: 78vh; overflow: auto; }
+
+/* ---- surfaces */
+.pv-root .pv-surface { stroke: var(--border-dark); stroke-width: 1.2px; vector-effect: non-scaling-stroke; cursor: pointer; fill: var(--surface-secondary); }
+.pv-root .pv-surface.kind-enclosure { fill: var(--surface-primary); }
+.pv-root .pv-surface.kind-soc { fill: var(--surface-tertiary); }
+.pv-root .pv-surface.kind-board-part { fill: var(--surface-primary); }
+.pv-root .pv-surface.kind-bench-part { fill: var(--surface-primary); stroke-dasharray: 4 3; }
+.pv-root .pv-surface:hover { stroke: var(--brand-blue); }
+.pv-root .pv-surface.sel { stroke: var(--brand-blue); stroke-width: 3px; }
+.pv-root .pv-surface.dim { opacity: 0.4; }
+.pv-root .pv-hole { fill: var(--surface-primary); stroke: var(--border-dark); stroke-width: 1px; vector-effect: non-scaling-stroke; pointer-events: none; }
+.pv-root .pv-hole.knob { stroke-dasharray: 3 2; }
+.pv-root .pv-title { fill: var(--text-secondary); pointer-events: none; }
+
+/* ---- pins: colour = family, fill = assignment, glyph = what the pin does */
+.pv-root .pv-pin { cursor: pointer; }
+.pv-root .pv-hit { fill: transparent; stroke: none; pointer-events: all; }
+.pv-root .pv-mark { fill: var(--surface-primary); stroke: var(--fam); stroke-width: 1.8px; vector-effect: non-scaling-stroke; }
+.pv-root .pv-pin[data-fill='proposed'] .pv-mark { fill: var(--fam); fill-opacity: 0.4; }
+.pv-root .pv-pin[data-fill='committed'] .pv-mark { fill: var(--fam); }
+.pv-root .pv-glyph, .pv-root .pv-hatch { fill: none; stroke: var(--fam); stroke-width: 1.5px; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; pointer-events: none; }
+.pv-root .pv-pin[data-fill='committed'] .pv-glyph { stroke: var(--fam-text); }
+.pv-root .pv-pin[data-fill='proposed'] .pv-glyph { stroke: var(--text-primary); }
+.pv-root .pv-internal { fill: none; stroke: var(--fam); stroke-width: 1.2px; stroke-dasharray: 2 2; vector-effect: non-scaling-stroke; pointer-events: none; }
+.pv-root .pv-halo { fill: none; stroke: var(--brand-orange); stroke-width: 2.5px; vector-effect: non-scaling-stroke; opacity: 0; pointer-events: none; }
+.pv-root .pv-pin.unassigned-hi .pv-halo { opacity: 1; }
+.pv-root .pv-pin.linked .pv-halo { opacity: 1; stroke: var(--text-primary); stroke-width: 1.5px; stroke-dasharray: 3 2; }
+.pv-root .pv-pin.sel .pv-halo { opacity: 1; stroke: var(--brand-blue); stroke-dasharray: none; stroke-width: 3px; }
+.pv-root .pv-pin.dim { opacity: 0.16; }
+.pv-root .pv-pin.soft { opacity: 0.4; }
+.pv-root .pv-label { fill: var(--text-primary); pointer-events: none; }
+
+/* ---- connections: only the selection's lines exist */
+.pv-root .pv-line-hit { fill: none; stroke: transparent; stroke-width: 12px; vector-effect: non-scaling-stroke; pointer-events: stroke; cursor: pointer; }
+.pv-root .pv-line { fill: none; stroke: var(--fam); stroke-width: 2.2px; vector-effect: non-scaling-stroke; pointer-events: none; }
+.pv-root .pv-conn:hover .pv-line { stroke-width: 3.6px; }
+.pv-root .pv-conn.sel .pv-line { stroke-width: 4.5px; stroke: var(--brand-blue); }
+
+/* ---- side panel */
+.pv-root .pv-h { margin: 0 0 2px; font-size: 15px; }
+.pv-root .pv-h4 { margin: 10px 0 2px; font-size: 13px; }
+.pv-root .pv-sub, .pv-root .pv-muted { color: var(--text-secondary); font-size: 12px; margin: 0 0 4px; }
+.pv-root .pv-fields { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 2px 10px; margin: 4px 0; }
+.pv-root .pv-fields dt { color: var(--text-secondary); }
+.pv-root .pv-fields dd { margin: 0; overflow-wrap: anywhere; }
+.pv-root .pv-sec { border-top: 1px solid var(--border-medium); padding-top: 4px; }
+.pv-root .pv-placeholder { color: var(--text-tertiary); font-style: italic; font-size: 12px; }
+.pv-root .pv-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.pv-root .pv-table th, .pv-root .pv-table td { text-align: left; padding: 2px 4px; border-bottom: 1px solid var(--border-light); vertical-align: top; }
+.pv-root .pv-table tr.sel td { background: var(--brand-blue-light); }
+.pv-root .pv-rowbtn { cursor: pointer; border: 0; padding: 0; background: transparent; color: var(--brand-blue); text-decoration: underline; font: inherit; }
+.pv-root .pv-list { margin: 2px 0; padding-left: 18px; }
+.pv-root .pv-counts { display: flex; gap: 12px; list-style: none; padding: 0; }
+.pv-root .pv-link { color: var(--brand-blue); }
+.pv-root .pv-chip { display: inline-block; margin: 0 3px 2px 0; padding: 0 6px; border-radius: var(--radius-pill); font-size: 11px; background: var(--fam, var(--pin-other)); color: var(--fam-text, var(--pin-other-text)); }
+.pv-root .pv-chip[data-family='gpio'] { --fam: var(--pin-gpio); --fam-text: var(--pin-gpio-text); }
+.pv-root .pv-chip[data-family='interrupt'] { --fam: var(--pin-interrupt); --fam-text: var(--pin-interrupt-text); }
+.pv-root .pv-chip[data-family='pwm-timer'] { --fam: var(--pin-pwm-timer); --fam-text: var(--pin-pwm-timer-text); }
+.pv-root .pv-chip[data-family='analog'] { --fam: var(--pin-analog); --fam-text: var(--pin-analog-text); }
+.pv-root .pv-chip[data-family='uart'] { --fam: var(--pin-uart); --fam-text: var(--pin-uart-text); }
+.pv-root .pv-chip[data-family='spi'] { --fam: var(--pin-spi); --fam-text: var(--pin-spi-text); }
+.pv-root .pv-chip[data-family='i2c'] { --fam: var(--pin-i2c); --fam-text: var(--pin-i2c-text); }
+.pv-root .pv-chip[data-family='usb'] { --fam: var(--pin-usb); --fam-text: var(--pin-usb-text); }
+.pv-root .pv-chip[data-family='clock'] { --fam: var(--pin-clock); --fam-text: var(--pin-clock-text); }
+.pv-root .pv-chip[data-family='reset-programming'] { --fam: var(--pin-reset-programming); --fam-text: var(--pin-reset-programming-text); }
+.pv-root .pv-chip[data-family='power'] { --fam: var(--pin-power); --fam-text: var(--pin-power-text); }
+.pv-root .pv-chip[data-family='ground'] { --fam: var(--pin-ground); --fam-text: var(--pin-ground-text); }
+
+/* ---- legend */
+.pv-root .pv-legend { margin-top: 12px; border-top: 1px solid var(--border-medium); padding-top: 6px; }
+.pv-root .pv-swatches, .pv-root .pv-fill-legend { list-style: none; padding: 0; margin: 2px 0 6px; display: flex; flex-wrap: wrap; gap: 2px 10px; }
+.pv-root .pv-fill-legend li { display: flex; align-items: center; gap: 4px; font-size: 12px; }
+.pv-root .pv-leg-svg { width: 18px; height: 18px; flex: none; }

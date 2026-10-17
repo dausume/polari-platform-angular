@@ -14,6 +14,7 @@ import { FetOverviewComponent } from './fet-overview.component';
 import { FetParts2dComponent } from './fet-parts-2d.component';
 import { FirmwareInstallerPanelComponent } from './firmware-installer-panel.component';
 import { FirmwareSolutionPanelComponent } from './firmware-solution-panel.component';
+import { HardwarePinViewComponent } from './pin-view/hardware-pin-view.component';
 import { CustomNoCodeComponent } from '../../custom-no-code/custom-no-code';
 import { FreedomProofPanelComponent } from './freedom-proof-panel.component';
 import { MicrochipLadderComponent } from './microchip-ladder.component';
@@ -338,5 +339,23 @@ export function registerGenericDisplayComponents(): void {
         + 'refused and named, never posted; a 422 the backend still returns shows its own reason '
         + '(inputs: solutionsPath, optional initial)',
       defaultInputs: { solutionsPath: '/api/firmware/solutions', initial: 'uno-sim-rig' },
+    });
+
+  // pv-1 (PIN_VIEW_PLAN.md, his explicit exception to "no new custom components", 2026-10-17) — the pin view:
+  // a dedicated d3 picture of a board, its chips (die in package on the board) and its parts, pins on every
+  // edge. Colour = signal family (theme tokens --pin-<family>), symbol = what the pin does, fill = how far it is
+  // assigned. Click a surface -> its pin-to-pin connections; click a pin -> its connections; click a connection
+  // -> Drive / Signal / Use as three separate sections. Reads GET /api/board/{board}/pin-view (names only);
+  // never writes, never navigates, never touches the global selection. Its side panels are lists and tables.
+  registerDisplayComponent(
+    'hardware-pin-view', HardwarePinViewComponent, {
+      displayName: 'Pin view (boards, chips and parts with their pins)',
+      description: 'A d3 picture of a board with each chip\'s package and die nested inside it and the parts beside it, '
+        + 'pins on every edge: colour = signal family, symbol = what the pin does, fill = assigned or not. Click a '
+        + 'board, package, die or part to see its pin-to-pin connections; click a pin, then a connection, to read '
+        + 'Drive (electricity), Signal (outputs, inputs, protocol) and Use (tasks, Purposes) separately. Filters: '
+        + 'composition stage, firmware binding, protocol or protocol set, show unassigned '
+        + '(inputs: board, system, binding, stage)',
+      defaultInputs: { board: 'arduino-uno-r3', system: 'uno-light-system', binding: '', stage: 'base' },
     });
 }
