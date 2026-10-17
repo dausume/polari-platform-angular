@@ -12,6 +12,7 @@ import { PvPayload, PvPin, PvSurface } from './pin-view.types';
 export interface PlacedSurface {
   surface: PvSurface;
   ox: number; oy: number;          // absolute origin
+  c: number; sn: number;           // absolute rotation (cos, sin): a surface turns with its parent (a rotated package turns its legs and its die)
   k: number;                       // display scale about the origin (1 unless a die was shrunk to fit)
   points: [number, number][];      // outline, absolute
   depth: number;
@@ -27,12 +28,17 @@ export interface Scene {
 
 const DIE_FIT = 0.55;   // a die may fill at most this share of its package's smaller side
 
-function absOrigin(id: string, byId: Map<string, PvSurface>, memo: Map<string, [number, number]>): [number, number] {
+type Xf = [number, number, number, number];   // ox, oy, cos, sin
+
+/** A surface's absolute placement: its parent's placement, then its own offset (in the parent's turned frame) and its own rotation. */
+function absOrigin(id: string, byId: Map<string, PvSurface>, memo: Map<string, Xf>): Xf {
   const hit = memo.get(id);
   if (hit) { return hit; }
   const s = byId.get(id)!;
-  const parent = s.parent && byId.has(s.parent) ? absOrigin(s.parent, byId, memo) : [0, 0];
-  const o: [number, number] = [parent[0] + (s.x || 0), parent[1] + (s.y || 0)];
+  const [px, py, pc, ps] = s.parent && byId.has(s.parent) ? absOrigin(s.parent, byId, memo) : [0, 0, 1, 0] as Xf;
+  const lx = s.x || 0, ly = s.y || 0, a = ((s.rot || 0) * Math.PI) / 180;
+  const c = Math.cos(a), sn = Math.sin(a);
+  const o: Xf = [px + pc * lx - ps * ly, py + ps * lx + pc * ly, pc * c - ps * sn, ps * c + pc * sn];
   memo.set(id, o);
   return o;
 }
@@ -66,18 +72,18 @@ const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v
 
 export function buildScene(payload: PvPayload): Scene {
   const byId = new Map(payload.surfaces.map(s => [s.id, s] as [string, PvSurface]));
-  const memo = new Map<string, [number, number]>();
+  const memo = new Map<string, Xf>();
   const surfaces = new Map<string, PlacedSurface>();
   for (const s of payload.surfaces) {
-    const [ox, oy] = absOrigin(s.id, byId, memo);
+    const [ox, oy, c, sn] = absOrigin(s.id, byId, memo);
     const parent = s.parent ? byId.get(s.parent) : undefined;
     let k = 1;
     if (s.kind === 'soc' && parent) {
       const ext = Math.max(s.w || 1, s.h || 1);
       k = Math.min(1, (DIE_FIT * Math.min(parent.w || ext, parent.h || ext)) / ext);
     }
-    const points = outline(s, payload).map(p => [ox + k * p[0], oy + k * p[1]] as [number, number]);
-    surfaces.set(s.id, { surface: s, ox, oy, k, points, depth: depthOf(s, byId), shrunk: k < 1 });
+    const points = outline(s, payload).map(p => [ox + k * (c * p[0] - sn * p[1]), oy + k * (sn * p[0] + c * p[1])] as [number, number]);
+    surfaces.set(s.id, { surface: s, ox, oy, c, sn, k, points, depth: depthOf(s, byId), shrunk: k < 1 });
   }
   const pins = new Map<string, PlacedPin>();
   const bySurface = new Map<string, PvPin[]>();
@@ -85,7 +91,7 @@ export function buildScene(payload: PvPayload): Scene {
   for (const [sid, list] of bySurface) {
     const ps = surfaces.get(sid);
     if (!ps) { continue; }
-    const abs = list.map(p => ({ x: ps.ox + ps.k * p.x, y: ps.oy + ps.k * p.y }));
+    const abs = list.map(p => ({ x: ps.ox + ps.k * (ps.c * p.x - ps.sn * p.y), y: ps.oy + ps.k * (ps.sn * p.x + ps.c * p.y) }));
     const r = radiusFor(abs, ps.surface, ps.k);
     list.forEach((p, i) => pins.set(p.id, { pin: p, x: abs[i].x, y: abs[i].y, r, surface: sid }));
   }
