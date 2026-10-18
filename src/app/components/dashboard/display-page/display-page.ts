@@ -1,12 +1,16 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
 import { DisplayManagerService } from '@services/dashboard/display-manager.service';
 import { Display } from '@models/dashboards/Display';
 import { DisplayRendererComponent } from '@components/dashboard/dashboard-renderer/dashboard-renderer';
 import { Subscription, combineLatest } from 'rxjs';
+import { DisplayTabBarComponent } from './display-tab-bar.component';
+import { ResolvedTab, expandTabs, listRowsOf, pickTab } from '../../../utils/display-tabs';
+import { PolariService } from '@services/polari-service';
 import { registerMsimDisplayComponents } from '@components/multi-scale/msim-display-components';
 import { registerMsciDisplayComponents } from '@components/materials-science/msci-display-components';
 import { registerAquaponicsDisplayComponents } from '@components/aquaponics/aquaponics-display-components';
@@ -45,6 +49,16 @@ import { hasDatePlaceholder, resolveDatePlaceholders } from '../../../utils/disp
         [dashboard]="display"
         [context]="rendererContext">
       </dashboard-renderer>
+
+      <!-- fsc-3: a tabbed page - the strip, the open tab's words, and the open tab rendered exactly as page rows are -->
+      <ng-container *ngIf="display && !loading && !error && !needsObject && display.tabbed">
+        <display-tab-bar [tabs]="tabList" [active]="activeTabKey" (selected)="openTab($event)"></display-tab-bar>
+        <p class="display-tab-note" *ngIf="activeTabNote">{{ activeTabNote }}</p>
+        <div class="display-tab-error" *ngIf="tabsError">{{ tabsError }}</div>
+        <ng-container *ngFor="let d of (tabDisplay ? [tabDisplay] : [])">
+          <dashboard-renderer [dashboard]="d" [context]="rendererContext"></dashboard-renderer>
+        </ng-container>
+      </ng-container>
     </div>
   `,
   styles: [`
@@ -79,12 +93,14 @@ import { hasDatePlaceholder, resolveDatePlaceholders } from '../../../utils/disp
       color: #ccc;
       margin-bottom: 16px;
     }
+    .display-tab-note { margin: 0 0 10px; color: var(--text-on-card-muted); font-size: 0.92em; }
+    .display-tab-error { padding: 12px; color: var(--error-text, #b3261e); }
     .display-page-error h3 {
       margin: 0 0 8px 0;
       color: var(--text-primary);
     }
   `],
-  imports: [CommonModule, MatProgressSpinnerModule, MatIconModule, DisplayRendererComponent]
+  imports: [CommonModule, MatProgressSpinnerModule, MatIconModule, DisplayRendererComponent, DisplayTabBarComponent]
 })
 export class DisplayPageComponent implements OnInit, OnDestroy {
   display: Display | null = null;
@@ -96,6 +112,14 @@ export class DisplayPageComponent implements OnInit, OnDestroy {
   /** true when the definition still contains '{object}' because the
    *  page was opened without ?object= — banner, not broken panels. */
   needsObject = false;
+
+  /** fsc-3 tabs: the resolved tabs (static + generated), the open tab's key, its Display (rows of the open tab only) and the `?tab=` asked for. */
+  tabList: ResolvedTab[] = [];
+  activeTabKey = '';
+  activeTabNote = '';
+  tabsError = '';
+  tabDisplay: Display | null = null;
+  private wantedTab: string | null = null;
 
   private sub?: Subscription;
   private eventsSub?: Subscription;
@@ -116,6 +140,9 @@ export class DisplayPageComponent implements OnInit, OnDestroy {
 
   constructor(
     private route: ActivatedRoute,
+    private router: Router,
+    private http: HttpClient,
+    private polariService: PolariService,
     private displayManager: DisplayManagerService,
     private displayEvents: DisplayEventsService
   ) {}
@@ -136,6 +163,9 @@ export class DisplayPageComponent implements OnInit, OnDestroy {
       .subscribe(([params, query]) => {
         const id = params.get('id');
         const objectName = query.get('object');
+        // fsc-3: ?tab= is NOT part of the reload key below - changing tab re-renders only the tab, never refetches the page
+        const tabChanged = (query.get('tab') ?? null) !== this.wantedTab;
+        this.wantedTab = query.get('tab') ?? null;
         if (!id) {
           this.loading = false;
           this.error = 'No display ID provided.';
@@ -150,6 +180,7 @@ export class DisplayPageComponent implements OnInit, OnDestroy {
         const key = `${id}::${objectName ?? ''}`;
         this.objectName = objectName;
         if (key === this.lastLoadedKey) {
+          if (tabChanged && this.tabList.length) { this.scope = {}; this.showTab(); }
           return;
         }
         this.lastLoadedKey = key;
@@ -177,6 +208,8 @@ export class DisplayPageComponent implements OnInit, OnDestroy {
         && Object.keys(next).every((k) => this.scope[k] === next[k]);
       if (unchanged) { return; }
       this.scope = next;
+      // a tabbed page re-renders only its open tab (the strip, and the page's own rows, stay put)
+      if (this.tabList.length) { this.showTab(); return; }
       if (this.currentId) { this.loadDisplay(this.currentId); }
     });
   }
@@ -193,6 +226,7 @@ export class DisplayPageComponent implements OnInit, OnDestroy {
         this.needsObject = this.substituteObject(display, this.objectName);
         this.display = display;
         this.loading = false;
+        this.loadTabs(display);
       },
       error: (err: any) => {
         this.loading = false;
@@ -200,6 +234,50 @@ export class DisplayPageComponent implements OnInit, OnDestroy {
         console.error('[DisplayPage] Load failed:', err);
       }
     });
+  }
+
+  /** fsc-3: resolve the page's tabs (static + one per row of the `tabs_from` list door) and show the one `?tab=` names. */
+  private loadTabs(display: Display): void {
+    this.tabList = [];
+    this.tabDisplay = null;
+    this.tabsError = '';
+    if (!display.tabbed) { return; }
+    const from = display.tabsFrom;
+    if (!from) {
+      this.tabList = expandTabs(display.tabs, undefined, []);
+      this.showTab();
+      return;
+    }
+    const url = /^https?:\/\//.test(from.data_path) ? from.data_path : this.polariService.getBackendBaseUrl() + from.data_path;
+    this.http.get<any>(url, this.polariService.backendRequestOptions).subscribe({
+      next: (payload: any) => {
+        this.tabList = expandTabs(display.tabs, from, listRowsOf(payload));
+        this.showTab();
+      },
+      error: () => {
+        // the generated tabs could not be listed: keep the static ones and say so in words
+        this.tabsError = 'The list of tabs could not be read, so only the fixed tabs are shown.';
+        this.tabList = expandTabs(display.tabs, undefined, []);
+        this.showTab();
+      },
+    });
+  }
+
+  /** Build the open tab's Display from its raw rows (a fresh object each time, so the tab's panels are re-created with the current page scope). */
+  private showTab(): void {
+    const tab = pickTab(this.tabList, this.wantedTab);
+    if (!this.display || !tab) { this.tabDisplay = null; return; }
+    this.activeTabKey = tab.key;
+    this.activeTabNote = tab.description || '';
+    const d = new Display(`${this.display.id}-tab-${tab.key}`, '', '');
+    this.displayManager.deserializeRows(tab.rows).forEach((row) => d.addRow(row));
+    this.substituteObject(d, this.objectName);
+    this.tabDisplay = d;
+  }
+
+  /** A tab strip click: the tab goes in the URL (`?tab=`), so a shared link opens the same tab. */
+  openTab(key: string): void {
+    void this.router.navigate([], { relativeTo: this.route, queryParams: { tab: key }, queryParamsHandling: 'merge' });
   }
 
   /** Replaces '{object}' in every item title and componentProps

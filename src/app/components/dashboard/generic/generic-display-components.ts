@@ -47,8 +47,14 @@ export function registerGenericDisplayComponents(): void {
         + 'time through the gated people door; optional filterField/'
         + 'filterValue — filterValue may be a csv SET; optional dataPath — '
         + 'GET {ok, rows} of already-computed records instead of a live '
-        + 'class, e.g. board readiness, same columns/format/filter rules)',
-      defaultInputs: { className: '', columns: '', maxRows: 0, columnFormats: '', filterField: '', filterValue: '', dataPath: '' },
+        + 'class, e.g. board readiness, same columns/format/filter rules; '
+        + 'fsc-3 row interaction, all optional: selectField+selectScope make a row '
+        + 'click set a page-scope key (click again or Escape clears; selectedValue '
+        + 'is `{scope:key}`), rowLinkTabField opens the page tab named by that row '
+        + 'field, emptyText is shown instead of a fetch while a dataPath param is '
+        + 'still blank)',
+      defaultInputs: { className: '', columns: '', maxRows: 0, columnFormats: '', filterField: '', filterValue: '', dataPath: '',
+                       selectField: '', selectScope: '', selectedValue: '', rowLinkTabField: '', emptyText: '' },
     });
 
   registerDisplayComponent(

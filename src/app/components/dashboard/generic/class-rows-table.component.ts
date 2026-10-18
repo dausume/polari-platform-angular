@@ -1,8 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input, OnInit } from '@angular/core';
+import { Component, HostListener, Input, OnInit } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { RouterModule } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { CRUDEservicesManager } from '@services/crude-services-manager';
 import { AuthSessionService } from '@services/auth/auth-session.service';
 import { friendlyError } from './friendly-error';
@@ -10,6 +10,8 @@ import { PeopleService } from '@services/people.service';
 import { KatexDisplayComponent } from '@components/shared/katex-display/katex-display.component';
 import { CodeBlockComponent } from '@components/shared/code-block/code-block.component';
 import { PolariService } from '@services/polari-service';
+import { DisplayEventsService } from '@services/no-code-services/display-events.service';
+import { clickIsOnControl, fieldText, hasBlankParam, nextSelection } from './class-rows-interaction';
 
 /**
  * Generic no-code class table: renders the live CRUDE rows of ANY
@@ -41,7 +43,10 @@ import { PolariService } from '@services/polari-service';
           <tr><th *ngFor="let column of activeColumns">{{ label(column) }}</th></tr>
         </thead>
         <tbody>
-          <tr *ngFor="let row of rows; let i = index">
+          <tr *ngFor="let row of rows; let i = index"
+              [class.clickable]="clickable" [class.selected]="isSelected(row)"
+              [attr.tabindex]="clickable ? 0 : null" [attr.aria-selected]="selectScope ? isSelected(row) : null"
+              (click)="onRowClick(row, $event)" (keydown.enter)="onRowClick(row, $event)">
             <td *ngFor="let column of activeColumns"
                 [title]="cellTitle(row, column)"
                 [class.person]="formatOf(column) === 'person'"
@@ -75,7 +80,7 @@ import { PolariService } from '@services/polari-service';
         </tbody>
       </table>
       <div *ngIf="!loading && !error && rows.length === 0" class="state">
-        No {{ className }} rows.
+        {{ emptyText || ('No ' + className + ' rows.') }}
       </div>
     </div>
   `,
@@ -88,6 +93,10 @@ import { PolariService } from '@services/polari-service';
       /* bp-2c: cells WRAP (his: "I would like to enable wrapping"); a long one is clamped to three lines with a more/less toggle */
       white-space: normal; overflow-wrap: anywhere; max-width: 380px; min-width: 60px;
     }
+    tr.clickable { cursor: pointer; }
+    tr.clickable:hover { background: var(--surface-hover, #f3f3f3); }
+    tr.selected { background: var(--surface-hover, #f3f3f3); box-shadow: inset 3px 0 0 var(--primary-color, #3f51b5); }
+    tr.clickable:focus-visible { outline: 2px solid var(--primary-color, #3f51b5); outline-offset: -2px; }
     td.clamped { position: relative; }
     td.clamped > :not(.more) { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
     td.structured { font-size: 0.92em; }
@@ -177,6 +186,24 @@ export class ClassRowsTableComponent implements OnInit {
    */
   @Input() dataPath = '';
 
+  /**
+   * fsc-3 ROW INTERACTION (all optional; a table without them behaves exactly as before).
+   *
+   *   `selectField` + `selectScope`: a click on a row sets the PAGE SCOPE key `selectScope` to that row's `selectField` (the display page re-renders
+   *   its open tab; another table reads it as `{scope:<key>}` in its dataPath). A second click on the selected row clears it, so does Escape (the
+   *   click-toggle rule). `selectedValue` is the current value, normally `{scope:<key>}` so the page fills it in; the matching row is highlighted.
+   *
+   *   `rowLinkTabField`: a click on a row opens the page tab whose key is that field of the row (`?tab=`) - a place to go, so no toggle.
+   *
+   *   `emptyText`: the words shown when there is nothing to list - and INSTEAD of a fetch while the dataPath still has an empty `param=`
+   *   (a scope nothing has picked yet), so a dependent table says what to do rather than erroring.
+   */
+  @Input() selectField = '';
+  @Input() selectScope = '';
+  @Input() selectedValue = '';
+  @Input() rowLinkTabField = '';
+  @Input() emptyText = '';
+
   rows: any[] = [];
   activeColumns: string[] = [];
   loading = true;
@@ -199,7 +226,38 @@ export class ClassRowsTableComponent implements OnInit {
     private authSession: AuthSessionService,
     private http: HttpClient,
     private polariService: PolariService,
+    private displayEvents: DisplayEventsService,
+    private router: Router,
   ) {}
+
+  /** fsc-3: true when a click on a row does something (selects it in the page scope, or opens a tab). */
+  get clickable(): boolean {
+    return !!((this.selectField && this.selectScope) || this.rowLinkTabField);
+  }
+
+  isSelected(row: any): boolean {
+    return !!(this.selectField && this.selectScope && this.selectedValue) && fieldText(row, this.selectField) === this.selectedValue;
+  }
+
+  onRowClick(row: any, event?: Event): void {
+    if (clickIsOnControl(event?.target ?? null)) { return; }
+    if (this.rowLinkTabField) {
+      const key = fieldText(row, this.rowLinkTabField);
+      if (key) { void this.router.navigate([], { queryParams: { tab: key }, queryParamsHandling: 'merge' }); }
+      return;
+    }
+    if (this.selectField && this.selectScope) { this.setScope(nextSelection(row, this.selectField, this.selectedValue)); }
+  }
+
+  /** Escape clears this table's selection (click-toggle rule); a table with nothing selected ignores it. */
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    if (this.selectScope && this.selectedValue) { this.setScope(''); }
+  }
+
+  private setScope(value: string): void {
+    this.displayEvents.dispatch({ name: 'setScope', payload: { key: this.selectScope, value }, sourceState: '', channel: 'frontend' });
+  }
 
   signIn(): void { void this.authSession.login(); }
 
@@ -210,6 +268,10 @@ export class ClassRowsTableComponent implements OnInit {
       return;
     }
     this.formats = this.parseFormats(this.columnFormats);
+    if (this.dataPath && hasBlankParam(this.dataPath)) {
+      this.loading = false;                     // fsc-3: a scope nobody has picked yet - say what to do, do not ask the door
+      return;
+    }
     if (this.dataPath) {
       // bugfix: a bare dataPath like `/api/board/boards/readiness` must resolve
       // against the BACKEND origin, not the SPA's own origin — otherwise the

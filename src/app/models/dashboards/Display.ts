@@ -1,5 +1,6 @@
 import { DisplayRow } from "./DisplayRow";
 import { DisplayStateDefinition } from "./DisplayStateDefinition";
+import { DisplayTabDef, DisplayTabsFrom } from "../../utils/display-tabs";
 
 /**
  * The types a display can be. A display can have multiple types simultaneously.
@@ -45,6 +46,12 @@ export class Display {
     /** URL-friendly slug for the page route (used when 'page' type is active) */
     pageRoute?: string;
 
+    /** fsc-3: static tabs from the definition JSON `tabs` (raw rows; the page builds a Display per open tab). Empty = an ordinary page. */
+    tabs: DisplayTabDef[] = [];
+
+    /** fsc-3: generated tabs from the definition JSON `tabs_from` (one tab per row of a list door). */
+    tabsFrom?: DisplayTabsFrom;
+
     /** Data sources and inputs available to components within this display */
     stateDefinition: DisplayStateDefinition = new DisplayStateDefinition();
 
@@ -70,6 +77,11 @@ export class Display {
         } else if (!value) {
             this.displayTypes = this.displayTypes.filter(t => t !== 'page');
         }
+    }
+
+    /** Whether the page is tabbed (static `tabs` and/or `tabs_from`); its own `rows` then render above the tab strip. */
+    get tabbed(): boolean {
+        return this.tabs.length > 0 || !!this.tabsFrom;
     }
 
     /** Whether this display has the 'row' type (single instance). */

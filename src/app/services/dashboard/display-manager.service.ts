@@ -185,6 +185,8 @@ export class DisplayManagerService {
       rows: display.rows.map(row => this.serializeRow(row))
     };
     if (display.title) { data.title = display.title; }
+    if (display.tabs.length) { data.tabs = display.tabs; }            // fsc-3: a tabbed page keeps its tabs when it is saved
+    if (display.tabsFrom) { data.tabs_from = display.tabsFrom; }
     if (display.stateDefinition &&
         (display.stateDefinition.dataSources.length > 0 || display.stateDefinition.inputs.length > 0)) {
       data.stateDefinition = display.stateDefinition.toJSON();
@@ -286,11 +288,20 @@ export class DisplayManagerService {
       });
     }
 
+    // fsc-3: tabs stay RAW here (the page templates + deserializes only the open tab, through deserializeRows)
+    if (Array.isArray(parsed.tabs)) { display.tabs = parsed.tabs; }
+    if (parsed.tabs_from && typeof parsed.tabs_from === 'object') { display.tabsFrom = parsed.tabs_from; }
+
     if (parsed.stateDefinition) {
       display.stateDefinition = DisplayStateDefinition.fromJSON(parsed.stateDefinition);
     }
 
     return display;
+  }
+
+  /** fsc-3: raw row JSON (a tab's rows) -> DisplayRow[], the same way a page's own rows are read. */
+  deserializeRows(rowsData: any[]): DisplayRow[] {
+    return (rowsData ?? []).map((rowData: any) => this.deserializeRow(rowData));
   }
 
   private deserializeRow(rowData: any): DisplayRow {

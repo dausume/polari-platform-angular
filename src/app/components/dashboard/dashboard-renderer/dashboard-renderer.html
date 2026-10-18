@@ -330,7 +330,7 @@
     <ng-container *ngTemplateOutlet="rowContent; context: {rows: dashboard.rows, availableWidth: containerWidth}"></ng-container>
 
     <!-- Empty State -->
-    <div class="empty-dashboard" *ngIf="dashboard.rows.length === 0">
+    <div class="empty-dashboard" *ngIf="dashboard.rows.length === 0 && !dashboard.tabbed">
         <mat-icon>dashboard</mat-icon>
         <p>This dashboard is empty</p>
     </div>
