@@ -189,22 +189,27 @@ export class PinViewCanvas {
       if (ps.surface.title_pos || ps.surface.kind === 'soc') { continue; }
       const x = Math.min(...ps.points.map(p => p[0])), y = Math.min(...ps.points.map(p => p[1]));
       const lift = ps.surface.kind === 'enclosure' ? TITLE_LIFT_PX / k : 0.4;
-      grow(x, y - lift - TITLE_PX / k, x + (ps.surface.title.length * TITLE_PX * CHAR_EM) / k, y);
+      grow(x, y - lift - TITLE_PX / k, x + (this.titleText(ps.surface).length * TITLE_PX * CHAR_EM) / k, y);
     }
     return b;
   }
 
-  fit(animate = true): void {
-    if (!this.scene) { return; }
-    const node = this.svg.node()!;
-    const w = node.clientWidth || 800, hgt = node.clientHeight || 520, pad = 18;
-    let b = this.scene.bounds;
+  /** The fit-all transform: content (scene bounds + label boxes) scaled to the viewport, centred across, and hung from the TOP edge (a wide board in a tall viewport leaves its slack below, not as a blank band above). */
+  fitTransform(w: number, hgt: number, pad = 18): { k: number; tx: number; ty: number; bounds: { x0: number; y0: number; x1: number; y1: number } } {
+    let b = this.scene!.bounds;
     let k = Math.min((w - 2 * pad) / Math.max(b.x1 - b.x0, 1), (hgt - 2 * pad) / Math.max(b.y1 - b.y0, 1));
     for (let i = 0; i < 3; i++) {   // the labels' share depends on the zoom: settle it
       b = this.boundsWithLabels(k);
       k = Math.min((w - 2 * pad) / Math.max(b.x1 - b.x0, 1), (hgt - 2 * pad) / Math.max(b.y1 - b.y0, 1));
     }
-    const t = d3.zoomIdentity.translate(w / 2 - (k * (b.x0 + b.x1)) / 2, hgt / 2 - (k * (b.y0 + b.y1)) / 2).scale(k);
+    return { k, tx: w / 2 - (k * (b.x0 + b.x1)) / 2, ty: pad - k * b.y0, bounds: b };
+  }
+
+  fit(animate = true): void {
+    if (!this.scene) { return; }
+    const node = this.svg.node()!;
+    const f = this.fitTransform(node.clientWidth || 800, node.clientHeight || 520);
+    const t = d3.zoomIdentity.translate(f.tx, f.ty).scale(f.k);
     if (animate) { this.svg.transition().duration(250).call(this.zoom.transform, t); } else { this.svg.call(this.zoom.transform, t); }
   }
 

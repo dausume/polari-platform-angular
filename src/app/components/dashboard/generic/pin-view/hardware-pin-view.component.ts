@@ -96,6 +96,8 @@ export class HardwarePinViewComponent implements OnInit, OnChanges, OnDestroy {
   errorDetail = '';
 
   @ViewChild('svg', { static: true }) svgRef!: ElementRef<SVGSVGElement>;
+  /** A selection asked for by the page's query (?pin= ?surface= ?connection=), applied by the first payload that contains it. */
+  private pendingSelection: PvSelection = null;
   private canvas?: PinViewCanvas;
   private sub?: Subscription;
   private route = inject(ActivatedRoute, { optional: true });
@@ -110,6 +112,9 @@ export class HardwarePinViewComponent implements OnInit, OnChanges, OnDestroy {
       this.binding = q.get('binding') || this.binding;
       this.stage = (q.get('stage') as PvStage) || this.stage;
       this.protocol = q.get('protocol') || this.protocol;
+      // table -> view: ?pin= / ?surface= / ?connection= select (and zoom to) that item once the payload is in; a second click clears it like any selection
+      const want = q.get('pin') ? { kind: 'pin', id: q.get('pin')! } : q.get('surface') ? { kind: 'surface', id: q.get('surface')! } : q.get('connection') ? { kind: 'connection', id: q.get('connection')! } : null;
+      this.pendingSelection = want as PvSelection;
       this.mode = (['all', 'drive', 'signal'].includes(q.get('mode') || '') ? q.get('mode') : this.mode) as PvMode;
     }
     this.canvas = new PinViewCanvas(this.svgRef.nativeElement, {
@@ -145,6 +150,10 @@ export class HardwarePinViewComponent implements OnInit, OnChanges, OnDestroy {
         this.ix = new PvIndex(p);
         if (this.selection && !this.exists(this.selection)) { this.selection = null; }
         if (this.anchor && !this.exists(this.anchor)) { this.anchor = null; }
+        if (this.pendingSelection) {
+          if (this.exists(this.pendingSelection)) { this.selection = this.pendingSelection; this.anchor = null; }
+          this.pendingSelection = null;
+        }
         this.canvas!.setData(p, this.ix, buildScene(p));
         this.redraw();
       },

@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpClient } from '@angular/common/http';
-import { provideRouter } from '@angular/router';
+import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 
 import { HardwarePinViewComponent } from './hardware-pin-view.component';
@@ -29,12 +29,13 @@ describe('HardwarePinViewComponent', () => {
   const DIE = 'die:arduino-uno-r3:U1';   // its connections are the pad-to-leg lines only: fewer than the whole board's
   const MOSI_LEG = 'PackageContact:atmega328p-28-spdip:17';
 
-  function create(): void {
+  function create(query: Record<string, string> = {}): void {
     urls = [];
     TestBed.configureTestingModule({
       imports: [HardwarePinViewComponent],
       providers: [
         provideRouter([]),
+        ...(Object.keys(query).length ? [{ provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: convertToParamMap(query) }, queryParamMap: of(convertToParamMap(query)) } }] : []),
         { provide: HttpClient, useValue: { get: (url: string) => { urls.push(url); return reply(url); } } },
         { provide: PolariService, useValue: { getBackendBaseUrl: () => '', backendRequestOptions: {} } },
       ],
@@ -412,5 +413,40 @@ describe('HardwarePinViewComponent', () => {
     for (const ps of sc.surfaces.values()) {
       for (const [x, y] of ps.points) { expect(x).toBeGreaterThanOrEqual(sc.bounds.x0 - 1e-9); expect(y).toBeLessThanOrEqual(sc.bounds.y1 + 1e-9); }
     }
+  });
+
+  it('fit-all hangs the content from the top of the viewport: no blank band above the board (top edge within a small margin; bottom inside the viewport)', () => {
+    create();
+    const canvas = (component as any).canvas;
+    for (const [w, h] of [[1000, 700], [900, 1200], [1400, 520]]) {
+      const f = canvas.fitTransform(w, h);
+      const top = f.ty + f.k * f.bounds.y0, bottom = f.ty + f.k * f.bounds.y1;
+      expect(top).toBeGreaterThanOrEqual(0);
+      expect(top).toBeLessThanOrEqual(24);
+      expect(bottom).toBeLessThanOrEqual(h);
+      expect(f.tx + f.k * f.bounds.x0).toBeGreaterThanOrEqual(0);
+      expect(f.tx + f.k * f.bounds.x1).toBeLessThanOrEqual(w + 1e-6);
+    }
+  });
+
+  it('?pin= selects that pin on load (its connections are drawn); a second click clears it (click-toggle rule); Escape clears too', () => {
+    create({ pin: MOSI_LEG });
+    expect(component.selection).toEqual({ kind: 'pin', id: MOSI_LEG });
+    expect(lines().length).toBeGreaterThan(0);
+    click(pinEl(MOSI_LEG));
+    expect(component.selection).toBeNull();
+    expect(lines().length).toBe(0);
+  });
+
+  it('?surface= selects a surface and ?connection= a connection on load; an id the payload does not hold selects nothing', () => {
+    create({ surface: PKG });
+    expect(component.selection).toEqual({ kind: 'surface', id: PKG });
+    TestBed.resetTestingModule();
+    const conn = FIXTURE_BASE.connections[0].id;
+    create({ connection: conn });
+    expect(component.selection).toEqual({ kind: 'connection', id: conn });
+    TestBed.resetTestingModule();
+    create({ pin: 'no-such-pin' });
+    expect(component.selection).toBeNull();
   });
 });

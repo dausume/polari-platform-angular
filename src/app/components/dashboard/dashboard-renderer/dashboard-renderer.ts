@@ -16,6 +16,7 @@ import {
 } from '@components/shared/screen-support-notice/screen-support-notice.component';
 import { DisplaySolutionRunnerService, DisplayRunSummary } from '@services/no-code-services/display-solution-runner.service';
 import { DisplayFormFeedbackService, DisplayFormFeedback } from '@services/no-code-services/display-form-feedback.service';
+import { displayHeaderTitle } from '../../../utils/display-title';
 import { hasDatePlaceholder, resolveDatePlaceholders, todayIso } from '../../../utils/display-placeholders';
 
 /**
@@ -75,6 +76,9 @@ export interface GridCell {
 export class DisplayRendererComponent implements OnInit, OnChanges, AfterViewInit, OnDestroy {
     /** The dashboard model to render */
     @Input() dashboard: Display | null = null;
+
+    /** The page header: the display's own title, else its name made readable */
+    get headerTitle(): string { return displayHeaderTitle(this.dashboard); }
 
     /** Context data to pass to child components */
     @Input() context: DisplayContext = {};

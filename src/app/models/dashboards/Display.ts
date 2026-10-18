@@ -21,6 +21,9 @@ export class Display {
     /** Display name of the dashboard */
     name: string;
 
+    /** Optional readable page title (from the definition JSON `title` / `displayTitle`); the header shows it in place of the internal name */
+    title?: string;
+
     /** Optional description of the dashboard's purpose */
     description: string;
 
@@ -216,6 +219,7 @@ export class Display {
         cloned.linkedSolutions = [...this.linkedSolutions];
         cloned.displayTypes = [...this.displayTypes];
         cloned.pageRoute = this.pageRoute;
+        cloned.title = this.title;
         cloned.stateDefinition = DisplayStateDefinition.fromJSON(this.stateDefinition.toJSON());
         this.rows.forEach(row => {
             // Create new row with same configuration

@@ -58,6 +58,7 @@ import { PolariService } from '@services/polari-service';
                   <span *ngIf="!refsOf(row, column).length" class="muted">—</span>
                 </ng-container>
                 <a *ngSwitchCase="'link'" class="ref" [href]="linkHref(row, column)" target="_blank" rel="noopener">open ↗</a>
+                <a *ngSwitchCase="'view'" class="ref" [routerLink]="viewLink(row, column).path" [queryParams]="viewLink(row, column).query">show in view ↗</a>
                 <code-block *ngSwitchCase="'code'" [text]="raw(row, column)"></code-block>
                 <span *ngSwitchCase="'sha'" [title]="raw(row, column)">{{ cell(row, column) }}</span>
                 <ng-container *ngSwitchCase="'json'">
@@ -140,6 +141,10 @@ export class ClassRowsTableComponent implements OnInit {
    *   `code` (ucd-iso-1): the cell is a plain multi-line string (e.g. a CIsotope's `source`) rendered through the
    *   shared `code-block` component — a monospace `<pre>` block, theme tokens only, no library, newlines
    *   preserved, with a "copy" control. Reusable anywhere a raw-text column needs to read like code.
+   *
+   *   `view` (sf): a VIRTUAL link column - `view:view:/display/pin-view?pin={id}` (column : format : target; no ':' or ',' inside the target).
+   *   Every `{field}` in the target is replaced by that field of the row (URL-encoded), and the cell is an in-app link, so a table row opens
+   *   the same item in a view page (the pin view reads ?pin= / ?surface= / ?connection=). A row missing a named field shows no link.
    *
    *   `sha` (ucd-iso-1): a hex digest column shown short (its first 10 characters + '…'), the whole value in the
    *   cell's tooltip — same shape as `person`'s short-id-with-full-tooltip, no resolution call needed.
@@ -360,10 +365,32 @@ export class ClassRowsTableComponent implements OnInit {
     if (f === 'ref' && this.cell(row, column)) { return 'ref'; }
     if (f === 'refs') { return 'refs'; }
     if (f === 'link' && this.cell(row, column)) { return 'link'; }
+    if (f === 'view') { return this.viewLink(row, column).path ? 'view' : 'plain'; }
     if (f === 'code') { return 'code'; }
     if (f === 'sha' && this.cell(row, column)) { return 'sha'; }
     if (this.isJsonColumn(column)) { return 'json'; }
     return 'plain';
+  }
+
+  /** A `view` cell's in-app target: the path and the query params of the template with every `{field}` filled from the row; `path` is '' when a field is missing. */
+  viewLink(row: any, column: string): { path: string; query: Record<string, string> } {
+    const tpl = this.formatArgs[column] || '';
+    let missing = false;
+    const filled = tpl.replace(/\{([A-Za-z0-9_]+)\}/g, (_m, f) => {
+      const v = row?.[f];
+      if (v === null || v === undefined || v === '') { missing = true; return ''; }
+      return encodeURIComponent(String(v));
+    });
+    const i = filled.indexOf('?');
+    const path = i < 0 ? filled : filled.slice(0, i);
+    const query: Record<string, string> = {};
+    if (i >= 0) {
+      filled.slice(i + 1).split('&').filter(Boolean).forEach((kv) => {
+        const j = kv.indexOf('=');
+        query[decodeURIComponent(j < 0 ? kv : kv.slice(0, j))] = j < 0 ? '' : decodeURIComponent(kv.slice(j + 1));
+      });
+    }
+    return { path: missing ? '' : path, query };
   }
 
   /** The detail view of the object a `ref` cell names: /object/<Class>/<name>; the class comes from the format argument. */

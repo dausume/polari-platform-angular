@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpClient } from '@angular/common/http';
 import { of } from 'rxjs';
+import { RouterTestingModule } from '@angular/router/testing';
 
 import { ClassRowsTableComponent } from './class-rows-table.component';
 import { PolariService } from '@services/polari-service';
@@ -113,5 +114,40 @@ describe('ClassRowsTableComponent — the `code` column format (ucd-iso-1)', () 
     const copyBtn = el.querySelector('code-block button.copy');
     expect(copyBtn).toBeTruthy();
     expect((copyBtn!.textContent || '').trim()).toBe('copy');
+  });
+});
+
+
+/** sf: the `view` column format - a virtual link column that opens the same item in a view page, `{field}` filled from the row. */
+describe('ClassRowsTableComponent - view link column', () => {
+  let component: ClassRowsTableComponent;
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      imports: [ClassRowsTableComponent, RouterTestingModule],
+      providers: [
+        { provide: HttpClient, useValue: { get: () => of({ ok: true, rows: [] }) } },
+        { provide: PolariService, useValue: { getBackendBaseUrl: () => '', backendRequestOptions: {} } },
+        { provide: CRUDEservicesManager, useValue: {} },
+        { provide: AuthSessionService, useValue: {} },
+        { provide: PeopleService, useValue: {} },
+      ],
+    });
+    component = TestBed.createComponent(ClassRowsTableComponent).componentInstance;
+    component.dataPath = '/api/x/rows';
+    component.columnFormats = 'view:view:/display/pin-view?pin={id}';
+    component.ngOnInit();
+  });
+
+  it('fills {id} from the row, URL-decoding it into the query params', () => {
+    const l = component.viewLink({ id: 'ConnectorPin:arduino-uno-r3:DIGITAL_L:1' }, 'view');
+    expect(l.path).toBe('/display/pin-view');
+    expect(l.query).toEqual({ pin: 'ConnectorPin:arduino-uno-r3:DIGITAL_L:1' });
+    expect(component.kindOf({ id: 'a' }, 'view')).toBe('view');
+  });
+
+  it('a row without the named field shows no link; a column without the format is untouched', () => {
+    expect(component.viewLink({ label: 'x' }, 'view').path).toBe('');
+    expect(component.kindOf({ label: 'x' }, 'view')).toBe('plain');
+    expect(component.kindOf({ id: 'a' }, 'label')).toBe('plain');
   });
 });

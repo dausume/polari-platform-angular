@@ -184,6 +184,7 @@ export class DisplayManagerService {
     const data: any = {
       rows: display.rows.map(row => this.serializeRow(row))
     };
+    if (display.title) { data.title = display.title; }
     if (display.stateDefinition &&
         (display.stateDefinition.dataSources.length > 0 || display.stateDefinition.inputs.length > 0)) {
       data.stateDefinition = display.stateDefinition.toJSON();
@@ -274,6 +275,10 @@ export class DisplayManagerService {
         console.warn('[DisplayManager] Failed to parse definition:', e);
       }
     }
+
+    // a readable page title, when the row or its definition carries one (the header otherwise humanizes the name)
+    const rawTitle = parsed.title || parsed.displayTitle || backendObj.title || backendObj.displayTitle;
+    if (typeof rawTitle === 'string' && rawTitle.trim()) { display.title = rawTitle.trim(); }
 
     if (parsed.rows && Array.isArray(parsed.rows)) {
       parsed.rows.forEach((rowData: any) => {
