@@ -134,3 +134,19 @@ hardware-pin-view { display: block; container-type: inline-size; container-name:
 /* SVG text lives in model units (mm, font ~0.9 unit) under the zoom: the page's inherited letter-spacing (0.25px, measured on the live page 2026-10-17)
    is a quarter of a letter at that size and the zoom magnifies it into "a r d u i n o" gaps — reset it for every label in the drawing. */
 .pv-root svg text { letter-spacing: normal; word-spacing: normal; }
+
+/* ---- pv-4: phase bar, the blank-state banner and the configuration-event timeline */
+.pv-root .pv-phasebar { flex-wrap: wrap; }
+.pv-root .pv-banner { border-left: 4px solid var(--brand-orange); padding-left: 8px; font-weight: 600; color: var(--text-primary); }
+.pv-root .pv-blankline { color: var(--text-secondary); font-size: 12px; }
+.pv-root .pv-timeline { display: flex; flex-direction: column; gap: 4px; }
+.pv-root .pv-events { display: flex; gap: 6px; list-style: none; margin: 0; padding: 2px 0 6px; overflow-x: auto; }
+.pv-root .pv-events > li { flex: 0 0 auto; max-width: 280px; }
+.pv-root .pv-event { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; width: 100%; text-align: left; cursor: pointer; padding: 4px 8px; font-size: 12px;
+  border: 1px solid var(--border-dark); border-radius: var(--radius-sm); background: var(--surface-primary); color: var(--text-primary); }
+.pv-root .pv-event.on { background: var(--brand-blue-light); border-color: var(--brand-blue); box-shadow: inset 0 -3px 0 var(--brand-blue); }
+.pv-root .pv-ev-kind { font-weight: 600; }
+.pv-root .pv-ev-meta, .pv-root .pv-ev-when { font-size: 11px; }
+.pv-root .pv-event-detail { max-height: 180px; overflow: auto; }
+.pv-root .pv-surface.event-hi { stroke: var(--brand-orange); }
+.pv-root .pv-pin.event-hi .pv-halo { opacity: 1; stroke: var(--brand-orange); stroke-width: 3px; stroke-dasharray: none; }

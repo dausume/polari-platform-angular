@@ -36,7 +36,7 @@ export interface PvPin {
   id: string; level: string; surface: string; label: string; number: number | null;
   x: number; y: number; side: string; kind: string; bonded: boolean;
   soc?: string; soc_pin?: string; canonical: string; functions: string[]; default_function: string;
-  drive_class: string; drive_role: string; notes: string;
+  drive_class: string; drive_role: string; notes: string; phase_basis?: string[];
   stage: PvPinStage; stage_why: string; consumers: PvConsumer[];
   lit: { family: string; families?: string[]; children: PvLitChild[] } | null; dim: boolean;
   signals: PvPinSignal[]; families: string[]; reach?: string; surface_title?: string; short_label?: string;
@@ -56,8 +56,29 @@ export interface PvConnection {
 
 export interface PvShape { name: string; display_name?: string; parameters: { vertices?: [number, number][]; holes?: { x: number; y: number; d: number; cited?: boolean }[]; [k: string]: unknown }; }
 
+/** pv-4: the phases of a board's life (the lifecycle rows' phases) and the two blank baselines. */
+export type PvPhase = 'power-up' | 'reset' | 'bootloader' | 'init' | 'runtime';
+export type PvBlank = 'chip' | 'board';
+export interface PvBlankFacts {
+  baseline: PvBlank; label: string;
+  bootloader: { present: string; running_in_phase: boolean; why: string; cites: { fact: string; value: string; document: string; where: string }[] };
+  factory_sketch: { status: string; why?: string };
+  registers: { register: string; reset_value: string; cite: string }[];
+}
+export interface PvPhaseInfo {
+  phase: string; blank: PvBlank; blank_label: string; banner: string; decided_by: string[]; undetermined: string[]; notes: string[];
+  pins_blank: number; pins_serving: number; requested_stage: string; effective_stage: string; blank_facts: PvBlankFacts;
+}
+/** pv-4: one pin an event changed, with the before / after in plain words (drive and signal kept apart). */
+export interface PvEventPin { pin: string; label: string; level: string; surface: string; before: string; after: string; what: string[]; }
+export interface PvConfigEvent {
+  name: string; board: string; board_instance: string; kind: string; label: string; cause: string; refs: string[]; who: string; when: string; dated: boolean;
+  provenance: string; pins_changed: PvEventPin[]; pins_basis: string; seq: number;
+}
+export interface PvEventsPayload { ok: boolean; error?: string; board: string; events: PvConfigEvent[]; count: number; derived: number; recorded: number; }
+
 export interface PvPayload {
-  ok: boolean; error?: string; board: string; source?: string; system: string; binding: string; phase?: string;
+  ok: boolean; error?: string; board: string; source?: string; system: string; binding: string; phase?: string; blank?: PvBlank; phase_info?: PvPhaseInfo;
   stage: { stage: PvStage; binding: string; claims: number; committed_claims: number; undetermined: string[]; notes: string[] };
   protocol: { protocol: string; protocols?: string[]; children: string[]; lit_pads: number; activated_only?: boolean; ladder?: string; note?: string } | null;
   layout?: PvLayout;
@@ -69,4 +90,4 @@ export interface PvPayload {
 
 export type PvSelection = { kind: 'surface' | 'pin' | 'connection'; id: string } | null;
 
-export interface PvQuery { system: string; binding: string; stage: PvStage; protocol: string; activated_only?: boolean; }
+export interface PvQuery { system: string; binding: string; stage: PvStage; protocol: string; activated_only?: boolean; phase?: PvPhase; blank?: PvBlank; }

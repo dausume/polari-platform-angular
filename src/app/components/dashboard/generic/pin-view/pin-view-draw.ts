@@ -17,7 +17,8 @@ import { PvConnection, PvMode, PvPayload, PvPin, PvSelection } from './pin-view.
  */
 export interface DrawHandlers { surface(id: string): void; pin(id: string): void; connection(id: string): void; background(): void; }
 /** `anchor` is the surface or pin whose connections are drawn when a connection is the selection (its siblings stay on screen). */
-export interface DrawState { selection: PvSelection; anchor: PvSelection; protocol: string; showUnassigned: boolean; mode?: PvMode; filters?: PvModeFilters; }
+/** `eventPins`: the pins a chosen configuration event changed (pv-4) - they are highlighted and every other pin and surface is dimmed. */
+export interface DrawState { selection: PvSelection; anchor: PvSelection; protocol: string; showUnassigned: boolean; mode?: PvMode; filters?: PvModeFilters; eventPins?: ReadonlySet<string> | null; }
 
 interface PinMark { placed: PlacedPin; family: string; role: PvRole; fill: PvFill; }
 
@@ -351,17 +352,21 @@ export class PinViewCanvas {
     const focusSet = focus ?? (selConn ? new Set([selConn.a, selConn.b]) : null);
     const linked = new Set<string>();
     drawn.forEach(c => { linked.add(c.a); linked.add(c.b); });
+    const ev = st.eventPins && st.eventPins.size ? st.eventPins : null;
     const surfaceHasFocus = new Set<string>();
+    const evSurfaces = new Set<string>();
+    if (ev) { ev.forEach(id => { const p = ix.pins.get(id); if (p) { evSurfaces.add(p.surface); } }); }
     if (focusSet) { focusSet.forEach(id => { const p = ix.pins.get(id); if (p) { surfaceHasFocus.add(p.surface); } }); }
     const selPin = sel?.kind === 'pin' ? sel.id : (base?.kind === 'pin' ? base.id : '');
     const selSurface = sel?.kind === 'surface' ? sel.id : (base?.kind === 'surface' ? base.id : '');
     this.zoomG.selectAll<SVGPathElement, any>('.pv-surface')
       .classed('sel', d => selSurface === d.surface.id)
-      .classed('dim', d => !!sel && selSurface !== d.surface.id && !surfaceHasFocus.has(d.surface.id));
+      .classed('dim', d => (!!sel && selSurface !== d.surface.id && !surfaceHasFocus.has(d.surface.id)) || (!!ev && !evSurfaces.has(d.surface.id)))
+      .classed('event-hi', d => !!ev && evSurfaces.has(d.surface.id));
     const byLimit = filters.limits.size > 0, driveOn = driveFilterOn(filters);
     this.zoomG.selectAll<SVGGElement, PinMark>('.pv-pin').each((m, i, nodes) => {
       const p = m.placed.pin, lit = this.litOf(p, st.protocol), hollow = isHollow(p);
-      const inFocus = !focusSet || focusSet.has(p.id);
+      const inFocus = (!focusSet || focusSet.has(p.id)) && (!ev || ev.has(p.id));
       const grey = lit === false || (driveOn && !matchesDrive(p, filters));   // a filter is on and this pin does not match: greyed, not hidden
       const el = d3.select(nodes[i]);
       this.paint(el as d3.Selection<SVGGElement, PinMark, null, undefined>, m, mode, byLimit);
@@ -369,6 +374,7 @@ export class PinViewCanvas {
         .classed('linked', linked.has(p.id) && selPin !== p.id)
         .classed('lit', lit === true && !(driveOn && !matchesDrive(p, filters)))
         .classed('match', driveOn && matchesDrive(p, filters))
+        .classed('event-hi', !!ev && ev.has(p.id))
         .classed('dim', !inFocus || grey)
         .classed('soft', st.showUnassigned && !hollow)
         .classed('unassigned-hi', st.showUnassigned && hollow);

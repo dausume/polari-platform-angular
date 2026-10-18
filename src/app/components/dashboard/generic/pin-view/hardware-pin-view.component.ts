@@ -11,7 +11,7 @@ import {
 import { buildScene } from './pin-view-layout';
 import { ConnPanel, Panel, PinPanel, PvIndex, SurfacePanel, buildPanel } from './pin-view-panel';
 import { PinViewService } from './pin-view.service';
-import { PvFamily, PvMode, PvPayload, PvSelection, PvStage } from './pin-view.types';
+import { PvBlank, PvConfigEvent, PvFamily, PvMode, PvPayload, PvPhase, PvSelection, PvStage } from './pin-view.types';
 
 /**
  * hardware-pin-view — the pin view (PIN_VIEW_PLAN.md, pv-1): THE ONE sanctioned new custom component for pins
@@ -44,6 +44,18 @@ const MODES: { id: PvMode; label: string; hint: string }[] = [
   { id: 'drive', label: 'Drive', hint: 'Electricity: only the pins that supply, return, source, sink or pull current' },
   { id: 'signal', label: 'Signal', hint: 'Only the pins that carry a signal, and which function is activated on each' },
 ];
+/** The phases of a board's life, in order (the lifecycle rows' phases); runtime is the stage selector's own picture. */
+const PHASES: { id: PvPhase; label: string; hint: string }[] = [
+  { id: 'power-up', label: 'Power-up', hint: 'Power just arrived: every I/O pin is blank (tri-stated, pull-up off)' },
+  { id: 'reset', label: 'Reset', hint: 'A reset is active: every I/O pin is blank until init runs' },
+  { id: 'bootloader', label: 'Bootloader', hint: 'The bootloader runs: its serial link and the reset line are served; everything else is still blank' },
+  { id: 'init', label: 'Init', hint: 'The Initialization Purpose\'s claims applied' },
+  { id: 'runtime', label: 'Runtime', hint: 'The chosen stage\'s claims' },
+];
+const BLANKS: { id: PvBlank; label: string; hint: string }[] = [
+  { id: 'chip', label: 'Chip blank', hint: 'The silicon after reset with no program: no bootloader' },
+  { id: 'board', label: 'Board as delivered', hint: 'Before any of our firmware: the bootloader is present' },
+];
 const FILLS = ['hollow', 'proposed', 'committed', 'hatched'] as const;
 
 @Component({
@@ -61,7 +73,11 @@ export class HardwarePinViewComponent implements OnInit, OnChanges, OnDestroy {
   @Input() binding = '';
   @Input() stage: PvStage = 'base';
   @Input() protocol = '';
+  @Input() phase: PvPhase = 'runtime';
+  @Input() blank: PvBlank = 'board';
 
+  readonly phases = PHASES;
+  readonly blanks = BLANKS;
   readonly stages = STAGES;
   readonly defaultBinding = 'uno-light@arduino-uno-r3';
   readonly fills = FILLS;
@@ -90,6 +106,11 @@ export class HardwarePinViewComponent implements OnInit, OnChanges, OnDestroy {
   anchor: PvSelection = null;
   showUnassigned = false;
   bindings: string[] = [];
+  /** pv-4: the configuration-event timeline (derived from install records and canvas wirings, plus recorded events) and the event whose pins are highlighted. */
+  events: PvConfigEvent[] = [];
+  eventsNote = '';
+  eventSel: PvConfigEvent | null = null;
+  private eventsSub?: Subscription;
   loading = false;
   workingNote = '';
   error = '';
@@ -111,6 +132,8 @@ export class HardwarePinViewComponent implements OnInit, OnChanges, OnDestroy {
       this.system = q.get('system') || this.system;
       this.binding = q.get('binding') || this.binding;
       this.stage = (q.get('stage') as PvStage) || this.stage;
+      this.phase = (PHASES.some(x => x.id === q.get('phase')) ? q.get('phase') : this.phase) as PvPhase;
+      this.blank = (q.get('blank') === 'chip' || q.get('blank') === 'board' ? q.get('blank') : this.blank) as PvBlank;
       this.protocol = q.get('protocol') || this.protocol;
       // table -> view: ?pin= / ?surface= / ?connection= select (and zoom to) that item once the payload is in; a second click clears it like any selection
       const want = q.get('pin') ? { kind: 'pin', id: q.get('pin')! } : q.get('surface') ? { kind: 'surface', id: q.get('surface')! } : q.get('connection') ? { kind: 'connection', id: q.get('connection')! } : null;
@@ -125,24 +148,40 @@ export class HardwarePinViewComponent implements OnInit, OnChanges, OnDestroy {
     });
     this.svc.bindings(this.board).subscribe(b => (this.bindings = b));
     this.reload();
+    this.loadEvents();
   }
 
   ngOnChanges(ch: SimpleChanges): void {
     if (!this.canvas) { return; }
-    if (['board', 'system', 'binding', 'stage', 'protocol'].some(k => ch[k] && !ch[k].firstChange)) { this.reload(); }
+    if (['board', 'system', 'binding', 'stage', 'protocol', 'phase', 'blank'].some(k => ch[k] && !ch[k].firstChange)) { this.reload(); }
+    if (['board', 'system', 'binding'].some(k => ch[k] && !ch[k].firstChange)) { this.loadEvents(); }
   }
 
-  ngOnDestroy(): void { this.sub?.unsubscribe(); this.canvas?.destroy(); }
+  ngOnDestroy(): void { this.sub?.unsubscribe(); this.eventsSub?.unsubscribe(); this.canvas?.destroy(); }
 
   // ---- data
   /** A stage past base needs a binding; the light demo's is the default. */
-  effectiveBinding(): string { return this.binding || (this.stage !== 'base' ? this.defaultBinding : ''); }
+  effectiveBinding(): string { return this.binding || (this.stage !== 'base' || this.phase === 'init' ? this.defaultBinding : ''); }
+
+  /** The event timeline: its own read (it can take a few seconds - every event's pins are worked out from the payload difference); a failure is said in words and never blocks the picture. */
+  loadEvents(): void {
+    this.eventsSub?.unsubscribe();
+    this.eventsNote = 'Loading the events…';
+    this.eventsSub = this.svc.events(this.board, this.system, this.binding).subscribe({
+      next: r => {
+        this.events = (r && r.ok !== false && r.events) || [];
+        this.eventsNote = this.events.length ? '' : ((r && r.error) || 'No real-world changes are recorded for this board yet: no install, no wire drawn on the canvas.');
+        if (this.eventSel && !this.events.some(e => e.name === this.eventSel!.name)) { this.eventSel = null; this.redraw(); }
+      },
+      error: e => { this.events = []; this.eventsNote = friendlyError(e, 'the event timeline').text; },
+    });
+  }
 
   reload(): void {
     this.sub?.unsubscribe();
     this.loading = true; this.error = ''; this.errorDetail = '';
     this.workingNote = this.stage !== 'base' || this.protocol ? 'Working out the claims… this can take several seconds.' : 'Loading the pins…';
-    this.sub = this.svc.load(this.board, { system: this.system, binding: this.effectiveBinding(), stage: this.stage, protocol: this.protocol, activated_only: this.activatedOnly }).subscribe({
+    this.sub = this.svc.load(this.board, { system: this.system, binding: this.effectiveBinding(), stage: this.stage, protocol: this.protocol, activated_only: this.activatedOnly, phase: this.phase, blank: this.blank }).subscribe({
       next: p => {
         this.loading = false;
         if (!p || p.ok === false) { this.error = (p && p.error) || 'The pin view came back empty.'; return; }
@@ -172,6 +211,20 @@ export class HardwarePinViewComponent implements OnInit, OnChanges, OnDestroy {
 
   // ---- controls
   setStage(id: string): void { this.stage = id as PvStage; this.reload(); }
+  /** Phase and baseline are part of the question to the door, so each change is one read. A phase before init has no claims: the stage selector then follows the phase. */
+  setPhase(id: string): void { this.phase = id as PvPhase; this.reload(); }
+  setBlank(id: string): void { this.blank = id as PvBlank; if (this.phase !== 'runtime') { this.reload(); } }
+  get phaseLocksStage(): boolean { return this.phase !== 'runtime'; }
+  /** The stage the picture really shows (the phase decides it before runtime). */
+  get shownStage(): PvStage { return (this.payload?.stage.stage as PvStage) || this.stage; }
+  get banner(): string { const b = this.payload?.phase_info?.banner || ''; return b ? b.charAt(0).toUpperCase() + b.slice(1) + '.' : ''; }
+  get phaseHint(): string { return PHASES.find(p => p.id === this.phase)?.hint || ''; }
+  get bootloaderLine(): string {
+    const f = this.payload?.phase_info?.blank_facts;
+    if (!f) { return ''; }
+    const b = f.bootloader;
+    return `${f.label}. Bootloader: ${b.present}${b.why ? ' (' + b.why + ')' : ''}. Factory sketch: ${f.factory_sketch.status}${f.factory_sketch.why ? ' (' + f.factory_sketch.why + ')' : ''}.`;
+  }
   setBinding(name: string): void { this.binding = name; this.reload(); }
   /** One protocol (or none): the older single-select entry point; the chips call toggleProtocol. */
   setProtocol(name: string): void { this.protocol = name; this.redraw(); this.reload(); }
@@ -222,6 +275,7 @@ export class HardwarePinViewComponent implements OnInit, OnChanges, OnDestroy {
 
   // ---- selection: every selectable deselects on a second click; Escape clears
   toggle(sel: NonNullable<PvSelection>): void {
+    this.eventSel = null;   // picking something on the picture leaves the event highlight
     const same = this.selection && this.selection.kind === sel.kind && this.selection.id === sel.id;
     this.anchor = null;
     this.selection = same ? null : sel;
@@ -239,16 +293,31 @@ export class HardwarePinViewComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   clear(): void {
-    if (!this.selection && !this.anchor) { return; }
-    this.selection = null; this.anchor = null;
+    if (!this.selection && !this.anchor && !this.eventSel) { return; }
+    this.selection = null; this.anchor = null; this.eventSel = null;
     this.redraw();
   }
+
+  /** Click an event: the pins it changed are highlighted and everything else dimmed; a second click on it clears. */
+  pickEvent(ev: PvConfigEvent): void {
+    if (this.eventSel?.name === ev.name) { this.eventSel = null; }
+    else { this.eventSel = ev; this.selection = null; this.anchor = null; }
+    this.redraw();
+  }
+  isEventSel(ev: PvConfigEvent): boolean { return this.eventSel?.name === ev.name; }
+  /** "2026-10-18T09:01:10" -> "18 Oct 2026, 09:01"; an event with no time recorded says so. */
+  whenText(ev: PvConfigEvent): string {
+    if (!ev.dated) { return 'time not recorded'; }
+    const d = new Date(ev.when);
+    return isNaN(d.getTime()) ? ev.when : d.toLocaleString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+  get eventPinSet(): ReadonlySet<string> | null { return this.eventSel ? new Set(this.eventSel.pins_changed.map(p => p.pin)) : null; }
 
   @HostListener('document:keydown.escape') onEscape(): void { this.clear(); }
 
   private redraw(): void {
     this.panel = this.ix ? buildPanel(this.ix, this.selection, this.mode) : null;
-    this.canvas?.setState({ selection: this.selection, anchor: this.anchor, protocol: this.protocol, showUnassigned: this.showUnassigned, mode: this.mode, filters: this.modeFilters });
+    this.canvas?.setState({ selection: this.selection, anchor: this.anchor, protocol: this.protocol, showUnassigned: this.showUnassigned, mode: this.mode, filters: this.modeFilters, eventPins: this.eventPinSet });
   }
 
   // ---- template helpers
@@ -266,4 +335,5 @@ export class HardwarePinViewComponent implements OnInit, OnChanges, OnDestroy {
   pickPin(id: string): void { this.toggle({ kind: 'pin', id }); }
   pickConnection(id: string): void { this.toggleConnection(id); }
   trackId = (_: number, x: { id: string }) => x.id;
+  trackName = (_: number, x: { name: string }) => x.name;
 }

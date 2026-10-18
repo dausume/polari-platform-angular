@@ -5,6 +5,7 @@ import { defer, of, throwError } from 'rxjs';
 
 import { HardwarePinViewComponent } from './hardware-pin-view.component';
 import { FIXTURE_BASE, FIXTURE_COMMITTED, FIXTURE_SPI } from './pin-view.fixture';
+import { FIXTURE_BOOTLOADER, FIXTURE_EVENTS, FIXTURE_RESET } from './pin-view-phases.fixture';
 import { DRIVE_GLYPHS, GLYPHS } from './pin-view-encode';
 import { buildScene } from './pin-view-layout';
 import { PolariService } from '@services/polari-service';
@@ -48,6 +49,9 @@ describe('HardwarePinViewComponent', () => {
   beforeEach(() => {
     reply = (url: string) => {
       if (url.includes('/api/firmware/bindings')) { return of({ ok: true, bindings: [{ name: 'uno-light@arduino-uno-r3', board: 'arduino-uno-r3' }] }); }
+      if (url.includes('/config-events')) { return of(FIXTURE_EVENTS); }
+      if (url.includes('phase=reset') || url.includes('phase=power-up')) { return of(FIXTURE_RESET); }
+      if (url.includes('phase=bootloader')) { return of(FIXTURE_BOOTLOADER); }
       if (url.includes('stage=firmware-committed')) { return of(FIXTURE_COMMITTED); }
       return of(url.includes('protocol=') || url.includes('stage=tasks-assigned') ? FIXTURE_SPI : FIXTURE_BASE);
     };
@@ -176,7 +180,7 @@ describe('HardwarePinViewComponent', () => {
 
   it('says in plain words when the door fails (after ONE retry for a 5xx / network failure)', fakeAsync(() => {
     let calls = 0;
-    reply = (url: string) => (url.includes('/api/firmware/bindings') ? of({ bindings: [] })
+    reply = (url: string) => (url.includes('/api/firmware/bindings') || url.includes('/config-events') ? of({ bindings: [], ok: true, events: [] })
       : defer(() => { calls++; return throwError(() => ({ status: 503, error: { error: 'engines still starting' } })); }));
     create();
     tick(1600);
@@ -188,7 +192,7 @@ describe('HardwarePinViewComponent', () => {
 
   it('does not retry a 4xx (a bad name is reported at once)', fakeAsync(() => {
     let calls = 0;
-    reply = (url: string) => (url.includes('/api/firmware/bindings') ? of({ bindings: [] })
+    reply = (url: string) => (url.includes('/api/firmware/bindings') || url.includes('/config-events') ? of({ bindings: [], ok: true, events: [] })
       : defer(() => { calls++; return throwError(() => ({ status: 404, error: { error: 'no such board' } })); }));
     create();
     tick(1600);
@@ -462,5 +466,101 @@ describe('HardwarePinViewComponent', () => {
     TestBed.resetTestingModule();
     create({ pin: 'no-such-pin' });
     expect(component.selection).toBeNull();
+  });
+
+  // ================================================================ pv-4: phases, the blank baselines and the configuration-event timeline
+  const phaseBtn = (id: string) => root().querySelector(`.pv-phase[data-phase="${id}"]`)!;
+  const blankBtn = (id: string) => root().querySelector(`.pv-blank[data-blank="${id}"]`)!;
+  const eventBtns = () => q('.pv-events .pv-event');
+
+  it('the phase selector lists power-up, reset, bootloader, init and runtime next to the stage selector; runtime is on by default and asks nothing extra of the door', () => {
+    create();
+    expect(q('.pv-phase').map(b => b.getAttribute('data-phase'))).toEqual(['power-up', 'reset', 'bootloader', 'init', 'runtime']);
+    expect(phaseBtn('runtime').classList).toContain('on');
+    expect(q('.pv-blank').map(b => b.getAttribute('data-blank'))).toEqual(['chip', 'board']);
+    expect(urls.filter(u => u.includes('/pin-view')).every(u => !u.includes('phase='))).toBeTrue();
+    expect((root().querySelector('.pv-stage-select') as HTMLSelectElement).disabled).toBeFalse();
+    expect(root().querySelector('.pv-banner')).toBeNull();
+  });
+
+  it('switching to reset changes the marks: every I/O pin goes blank (high-impedance in Drive, nothing activated in Signal), the banner says so, the stage selector follows the phase', () => {
+    committed();
+    click(modeBtn('drive'));
+    expect(pinEl(D6).getAttribute('data-role')).toBe('sources-or-sinks');
+    expect(pinEl(D2).getAttribute('data-role')).toBe('pulled-up');
+    click(phaseBtn('reset'));
+    expect(urls[urls.length - 1]).toContain('phase=reset');
+    expect(urls[urls.length - 1]).toContain('blank=board');
+    for (const id of [D6, D2, D0]) { expect(pinEl(id).getAttribute('data-role')).toBe('high-impedance'); expect(pinEl(id).getAttribute('data-fill')).toBe('hollow'); }
+    expect(root().querySelector('.pv-banner')!.textContent).toContain('After every reset the pins are blank until init runs');
+    expect((root().querySelector('.pv-stage-select') as HTMLSelectElement).disabled).toBeTrue();
+    click(modeBtn('signal'));
+    expect(q('.pv-badge').filter(b => b.style.display !== 'none').length).toBe(0);
+    click(phaseBtn('runtime'));
+    expect(root().querySelector('.pv-banner')).toBeNull();
+    click(modeBtn('drive'));
+    expect(pinEl(D6).getAttribute('data-role')).toBe('sources-or-sinks');
+  });
+
+  it('bootloader (board as delivered): D0 serves the bootloader link as RXD, D6 stays blank; the blank line cites the bootloader and says the factory sketch is undetermined; the chip baseline asks again', () => {
+    committed();
+    click(modeBtn('signal'));
+    click(phaseBtn('bootloader'));
+    expect(urls[urls.length - 1]).toContain('phase=bootloader');
+    const d0 = pinEl(D0).querySelector('.pv-badge') as HTMLElement;
+    expect(d0.textContent).toBe('RXD');
+    expect(d0.style.display).not.toBe('none');
+    expect((pinEl(D6).querySelector('.pv-badge') as HTMLElement).style.display).toBe('none');
+    const line = root().querySelector('.pv-blankline')!.textContent!;
+    expect(line).toContain('Bootloader: yes');
+    expect(line).toContain('Factory sketch: undetermined');
+    const n = urls.length;
+    click(blankBtn('chip'));
+    expect(urls.length).toBe(n + 1);
+    expect(urls[urls.length - 1]).toContain('blank=chip');
+  });
+
+  it('the event timeline lists the real-world changes oldest first in plain words (cause, time, who); an event with no time says so', () => {
+    create();
+    expect(urls.some(u => u.includes('/api/board/arduino-uno-r3/config-events'))).toBeTrue();
+    const btns = eventBtns();
+    expect(btns.length).toBe(FIXTURE_EVENTS.events.length);
+    expect(btns[0].textContent).toContain('Wire added');
+    expect(btns[0].textContent).toContain('time not recorded');
+    expect(btns[1].textContent).toContain('Firmware flashed');
+    expect(btns[1].textContent).toContain('was installed');
+    expect(btns[1].textContent).toContain('not recorded');
+  });
+
+  it('clicking an event highlights the pins it changed and dims the rest; a second click clears; Escape clears too; no raw JSON appears', () => {
+    create();
+    const flash = FIXTURE_EVENTS.events.find(e => e.kind === 'flash')!;
+    const ids = new Set(flash.pins_changed.map(p => p.pin));
+    expect(ids.size).toBeGreaterThan(3);
+    const btn = eventBtns().find(b => b.getAttribute('data-kind') === 'flash')!;
+    click(btn);
+    expect(component.eventSel!.name).toBe(flash.name);
+    expect(pins().filter(p => p.classList.contains('event-hi')).map(p => p.getAttribute('data-pin-id')).sort()).toEqual([...ids].sort());
+    expect(pins().filter(p => !ids.has(p.getAttribute('data-pin-id')!)).every(p => p.classList.contains('dim'))).toBeTrue();
+    expect(pins().filter(p => ids.has(p.getAttribute('data-pin-id')!)).every(p => !p.classList.contains('dim'))).toBeTrue();
+    expect(root().querySelector('.pv-event-table')!.textContent).toContain('sources-or-sinks');
+    expect(root().textContent).not.toMatch(/[{}\[\]]\s*"|":\s*[{"\[\d]|\[object Object\]/);
+    click(btn);
+    expect(component.eventSel).toBeNull();
+    expect(pins().some(p => p.classList.contains('event-hi') || p.classList.contains('dim'))).toBeFalse();
+    click(btn);
+    expect(pins().some(p => p.classList.contains('event-hi'))).toBeTrue();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    fixture.detectChanges();
+    expect(component.eventSel).toBeNull();
+    expect(pins().some(p => p.classList.contains('event-hi') || p.classList.contains('dim'))).toBeFalse();
+  });
+
+  it('a failed event read says so in words and never blocks the picture', () => {
+    reply = (url: string) => (url.includes('/config-events') ? throwError(() => ({ status: 500, error: { error: 'events broke' } })) : url.includes('/api/firmware/bindings') ? of({ bindings: [] }) : of(FIXTURE_BASE));
+    create();
+    expect(pins().length).toBe(FIXTURE_BASE.pins.length);
+    expect(root().querySelector('.pv-events-note')!.textContent!.length).toBeGreaterThan(5);
+    expect(eventBtns().length).toBe(0);
   });
 });

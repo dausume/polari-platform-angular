@@ -5,10 +5,21 @@
     </span>
     <span class="pv-muted pv-modehint">{{ modeHint }}</span>
   </div>
+  <div class="pv-modebar pv-phasebar" role="group" aria-label="Phase of the board's life">
+    <span class="pv-chips-h">Phase</span>
+    <span class="pv-modes">
+      <button *ngFor="let p of phases" type="button" class="pv-btn pv-mode pv-phase" [class.on]="phase === p.id" [attr.data-phase]="p.id" [attr.aria-pressed]="phase === p.id" [attr.title]="p.hint" (click)="setPhase(p.id)">{{ p.label }}</button>
+    </span>
+    <span class="pv-chips-h">Blank baseline</span>
+    <span class="pv-modes">
+      <button *ngFor="let b of blanks" type="button" class="pv-btn pv-mode pv-blank" [class.on]="blank === b.id" [attr.data-blank]="b.id" [attr.aria-pressed]="blank === b.id" [attr.title]="b.hint" (click)="setBlank(b.id)">{{ b.label }}</button>
+    </span>
+    <span class="pv-muted pv-modehint">{{ phaseHint }}</span>
+  </div>
   <div class="pv-bar">
     <label class="pv-ctl">Stage
-      <select class="pv-stage-select" (change)="setStage($any($event.target).value)">
-        <option *ngFor="let s of stages" [value]="s.id" [selected]="s.id === stage">{{ s.label }}</option>
+      <select class="pv-stage-select" [disabled]="phaseLocksStage" [attr.title]="phaseLocksStage ? 'The phase decides the stage; pick Runtime to choose one' : null" (change)="setStage($any($event.target).value)">
+        <option *ngFor="let s of stages" [value]="s.id" [selected]="s.id === shownStage">{{ s.label }}</option>
       </select>
     </label>
     <label class="pv-ctl">Firmware binding
@@ -42,6 +53,31 @@
     </div>
   </div>
 
+  <section class="pv-timeline" aria-label="Configuration events" *ngIf="events.length || eventsNote">
+    <span class="pv-chips-h">Real-world changes, oldest first</span>
+    <p class="pv-muted pv-events-note" *ngIf="eventsNote">{{ eventsNote }}</p>
+    <ol class="pv-events" *ngIf="events.length">
+      <li *ngFor="let e of events; trackBy: trackName">
+        <button type="button" class="pv-event" [class.on]="isEventSel(e)" [attr.data-event]="e.name" [attr.data-kind]="e.kind" [attr.aria-pressed]="isEventSel(e)" (click)="pickEvent(e)">
+          <span class="pv-ev-kind">{{ e.label }}</span>
+          <span class="pv-ev-when pv-muted">{{ whenText(e) }}</span>
+          <span class="pv-ev-cause">{{ e.cause }}</span>
+          <span class="pv-muted pv-ev-meta">{{ e.pins_changed.length }} pins &middot; by {{ e.who }}</span>
+        </button>
+      </li>
+    </ol>
+    <div class="pv-event-detail" *ngIf="eventSel as ev">
+      <p class="pv-muted">{{ ev.pins_basis }}</p>
+      <table class="pv-table pv-event-table" *ngIf="ev.pins_changed.length">
+        <thead><tr><th>Pin</th><th>Before</th><th>After</th></tr></thead>
+        <tbody><tr *ngFor="let p of ev.pins_changed"><td>{{ p.label }} <span class="pv-muted">{{ p.surface }}</span></td><td>{{ p.before }}</td><td>{{ p.after }}</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <p class="pv-status pv-banner" *ngIf="banner && !loading">{{ banner }}</p>
+  <p class="pv-status pv-blankline" *ngIf="payload?.phase_info && phase !== 'runtime' && !loading">{{ bootloaderLine }}
+    <span *ngIf="payload!.phase_info!.undetermined.length"> Not known yet: {{ payload!.phase_info!.undetermined.join('; ') }}.</span></p>
   <p class="pv-status pv-loading" *ngIf="loading">{{ workingNote }}</p>
   <p class="pv-status pv-error" *ngIf="error" [attr.title]="errorDetail">{{ error }}</p>
   <p class="pv-status pv-note" *ngIf="payload && !loading && !error">
