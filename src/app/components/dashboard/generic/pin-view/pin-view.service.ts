@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable, map, of, catchError } from 'rxjs';
+import { Observable, map, of, catchError, retry, timer } from 'rxjs';
 
 import { PolariService } from '@services/polari-service';
 import { PvPayload, PvQuery } from './pin-view.types';
@@ -24,8 +24,11 @@ export class PinViewService {
     return `${this.polari.getBackendBaseUrl()}${door}/${encodeURIComponent(board)}/pin-view${params ? '?' + params : ''}`;
   }
 
+  /** One retry after a short back-off on a network / server failure (status 0 or 5xx): the first read right after a backend boot can fail
+   *  while the next answers in under a second (seen on the test node 2026-10-18). A 4xx (a bad name) is reported at once, never retried. */
   load(board: string, q: PvQuery): Observable<PvPayload> {
-    return this.http.get<PvPayload>(this.url(board, q), this.opts());
+    return this.http.get<PvPayload>(this.url(board, q), this.opts()).pipe(
+      retry({ count: 1, delay: (err: any) => ((err?.status === 0 || err?.status >= 500) ? timer(1500) : (() => { throw err; })()) }));
   }
 
   /** The firmware bindings of one board, for the binding picker (an empty list when the door is not there). */

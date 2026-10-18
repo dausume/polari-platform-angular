@@ -1,7 +1,7 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { defer, of, throwError } from 'rxjs';
 
 import { HardwarePinViewComponent } from './hardware-pin-view.component';
 import { FIXTURE_BASE, FIXTURE_COMMITTED, FIXTURE_SPI } from './pin-view.fixture';
@@ -174,12 +174,26 @@ describe('HardwarePinViewComponent', () => {
     expect(q('.pv-pins .pv-pin.soft').length).toBe(assigned);
   });
 
-  it('says in plain words when the door fails', () => {
-    reply = (url: string) => (url.includes('/api/firmware/bindings') ? of({ bindings: [] }) : throwError(() => ({ status: 503, error: { error: 'engines still starting' } })));
+  it('says in plain words when the door fails (after ONE retry for a 5xx / network failure)', fakeAsync(() => {
+    let calls = 0;
+    reply = (url: string) => (url.includes('/api/firmware/bindings') ? of({ bindings: [] })
+      : defer(() => { calls++; return throwError(() => ({ status: 503, error: { error: 'engines still starting' } })); }));
     create();
+    tick(1600);
+    fixture.detectChanges();
+    expect(calls).toBe(2);
     expect(root().querySelector('.pv-error')!.textContent).toContain('starting');
     expect(root().querySelector('.pv-loading')).toBeNull();
-  });
+  }));
+
+  it('does not retry a 4xx (a bad name is reported at once)', fakeAsync(() => {
+    let calls = 0;
+    reply = (url: string) => (url.includes('/api/firmware/bindings') ? of({ bindings: [] })
+      : defer(() => { calls++; return throwError(() => ({ status: 404, error: { error: 'no such board' } })); }));
+    create();
+    tick(1600);
+    expect(calls).toBe(1);
+  }));
 
   it('never puts raw JSON on screen, in any panel', () => {
     create();
