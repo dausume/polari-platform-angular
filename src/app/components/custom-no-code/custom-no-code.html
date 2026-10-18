@@ -178,6 +178,10 @@
       </div>
 
       <div class="c-commands-error" *ngIf="purposeNotice">{{ purposeNotice }}</div>
+      <div class="c-commands-result" *ngIf="missionLinks.length">
+        Open a Purpose's own drawing:
+        <a *ngFor="let l of missionLinks; let last = last" href="javascript:void(0)" (click)="openPurposeDrawing(l)">{{ l.label }}<span *ngIf="!last"> · </span></a>
+      </div>
 
       <!-- ucd-hdr: the c-device command group's own summary/legend rows — same *ngIf table as the
            bar above, never shown for any other runtime. -->

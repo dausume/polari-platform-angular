@@ -76,6 +76,7 @@ export type StateSpaceCategory =
   | 'Hardware'
   | 'Custom'
   | 'Purpose'
+  | 'Mission'
   | 'Cross-Domain';
 
 /**

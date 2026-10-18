@@ -1,5 +1,6 @@
 // Author: Dustin Etts
 // polari-platform-angular/src/app/components/custom-no-code/custom-no-code.ts
+import { MissionPurposeLink, missionPurposeLinks } from './mission-links';
 import { CPurposeRow, purposeSubset, atomOptions, atomsWithoutPurpose, presetPurpose, purposeOptionLabel, purposeSummary } from './c-purpose-nav';
 import { Component, Input, Renderer2, HostListener, ElementRef, ChangeDetectorRef, ViewChild, ViewContainerRef, AfterViewInit, OnChanges, OnDestroy, OnInit, SimpleChanges } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
@@ -670,6 +671,8 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
   cError = '';
   /** fgm-1b: plain-words line about the open Purpose drawing (not saved / a worked-out card); empty = hidden */
   purposeNotice = '';
+  /** mis-0: on a Mission drawing, one link per Purpose state into that Purpose's own drawing (empty on every other drawing) */
+  missionLinks: MissionPurposeLink[] = [];
   cBusy = '';
   cRenderResult: any = null;
   cBuildResult: any = null;
@@ -1027,6 +1030,7 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
 
     // Get state instances from the state service
     this.stateInstances = this.solutionStateService.getSelectedSolutionStateInstances();
+    this.missionLinks = missionPurposeLinks(this.solutionStateService.getSelectedSolutionData()?.stateInstances);
     const solutionData = this.solutionStateService.getSelectedSolutionData();
     const solutionName = solutionData?.solutionName || null;
 
@@ -2407,6 +2411,11 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
   }
 
   // =========================================================================================
+  /** mis-0: open one Purpose's own drawing from a Mission drawing (the URL-driven selection every other deep link uses). */
+  openPurposeDrawing(link: MissionPurposeLink): void {
+    this.router.navigate([], { relativeTo: this.route, queryParams: { focusSolution: link.solution }, queryParamsHandling: 'merge' });
+  }
+
   // ucd-hdr4: the Purpose and Atom dropdowns' handlers. The graph itself is fixed (the Object select).
   // =========================================================================================
 
@@ -2488,7 +2497,8 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
     if (!states.length) { this.cLanes = []; this.cCrossings = []; return; }
     // 2026-10-15: a Purpose drawing is declarative (nothing runs, no runtime lanes) and arrives already laid out as a
     // left-to-right sentence by the backend — re-laning it pushed every card into a default lane, off-screen.
-    if (states.every((s: any) => String(s.stateClass || s.boundObjectClass || '').startsWith('Purpose'))) {
+    // mis-0: so is a Mission drawing (the same sentence, one level up)
+    if (states.every((s: any) => /^(Purpose|Mission)/.test(String(s.stateClass || s.boundObjectClass || '')))) {
       this.cLanes = []; this.cCrossings = []; return;
     }
     const runtimeOf: Record<string, string> = {};

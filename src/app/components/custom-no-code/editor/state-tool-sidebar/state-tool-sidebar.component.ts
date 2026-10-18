@@ -499,6 +499,7 @@ export class StateToolSidebarComponent implements OnInit, OnDestroy, OnChanges {
       'Cross-Runtime': 'cloud_sync',
       'Custom': 'extension',
       'Purpose': 'flag',
+      'Mission': 'rocket_launch',
       'Cross-Domain': 'hub'
     };
     return iconMap[category] || 'widgets';
@@ -524,6 +525,7 @@ export class StateToolSidebarComponent implements OnInit, OnDestroy, OnChanges {
       'Cross-Runtime': '#FF5722',
       'Custom': '#795548',
       'Purpose': '#00695C',
+      'Mission': '#AD1457',
       'Cross-Domain': '#4527A0'
     };
     return colorMap[category] || '#666';

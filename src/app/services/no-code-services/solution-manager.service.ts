@@ -183,6 +183,21 @@ export class SolutionManagerService {
     return this.http.put<any>(this.purposeUrl(capability), drawing, this.polariService.backendRequestOptions);
   }
 
+  /** mis-0: the Mission door. GET /api/missions/{name}/solution -> {solution, definition}: the drawing rendered FROM the
+   *  HardwareMission row, the resolution worked out now. */
+  getMissionDrawing(mission: string): Observable<any> {
+    return this.http.get<any>(this.missionUrl(mission), this.polariService.backendRequestOptions);
+  }
+
+  /** mis-0: PUT the drawing back to the Mission row (422 names the state when it is refused). */
+  putMissionDrawing(mission: string, drawing: NoCodeSolutionRawData): Observable<any> {
+    return this.http.put<any>(this.missionUrl(mission), drawing, this.polariService.backendRequestOptions);
+  }
+
+  private missionUrl(mission: string): string {
+    return `${this.polariService.getBackendBaseUrl()}/api/missions/${encodeURIComponent(mission)}/solution`;
+  }
+
   private purposeUrl(capability: string): string {
     return `${this.polariService.getBackendBaseUrl()}/api/capabilities/${encodeURIComponent(capability)}/solution`;
   }
