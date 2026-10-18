@@ -130,3 +130,7 @@ hardware-pin-view { display: block; container-type: inline-size; container-name:
 /* rail stubs: one short stub + a tag instead of a line to every pin of the rail (outside Drive mode) */
 .pv-root .pv-stub line { stroke: var(--fam); stroke-width: 2.4px; vector-effect: non-scaling-stroke; pointer-events: none; }
 .pv-root .pv-stub-tag { fill: var(--text-primary); font-weight: 600; pointer-events: none; }
+
+/* SVG text lives in model units (mm, font ~0.9 unit) under the zoom: the page's inherited letter-spacing (0.25px, measured on the live page 2026-10-17)
+   is a quarter of a letter at that size and the zoom magnifies it into "a r d u i n o" gaps — reset it for every label in the drawing. */
+.pv-root svg text { letter-spacing: normal; word-spacing: normal; }
