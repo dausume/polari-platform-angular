@@ -6,6 +6,7 @@ import { defer, of, throwError } from 'rxjs';
 import { HardwarePinViewComponent } from './hardware-pin-view.component';
 import { FIXTURE_BASE, FIXTURE_COMMITTED, FIXTURE_SPI } from './pin-view.fixture';
 import { FIXTURE_BOOTLOADER, FIXTURE_EVENTS, FIXTURE_RESET } from './pin-view-phases.fixture';
+import { FIXTURE_CANDIDATE_CHOSEN, FIXTURE_CANDIDATE_OTHER, FIXTURE_SOLVE_RUNS } from './pin-view-candidate.fixture';
 import { DRIVE_GLYPHS, GLYPHS } from './pin-view-encode';
 import { buildScene } from './pin-view-layout';
 import { PolariService } from '@services/polari-service';
@@ -562,5 +563,102 @@ describe('HardwarePinViewComponent', () => {
     expect(pins().length).toBe(FIXTURE_BASE.pins.length);
     expect(root().querySelector('.pv-events-note')!.textContent!.length).toBeGreaterThan(5);
     expect(eventBtns().length).toBe(0);
+  });
+
+  // ---- pv-5: the candidate stage (a stored solution search drawn) and ?event=
+  const candReply = () => {
+    const prev = reply;
+    reply = (url: string) => {
+      if (url.includes('/solve-runs')) { return of(FIXTURE_SOLVE_RUNS); }
+      if (url.includes('stage=candidate')) { return of(url.includes('candidate=') ? FIXTURE_CANDIDATE_OTHER : FIXTURE_CANDIDATE_CHOSEN); }
+      return prev(url);
+    };
+  };
+
+  it('the stage selector offers "Candidate (from a solution search)"; choosing it reads the stored runs (newest first) and the door at stage=candidate, and sends no write', () => {
+    candReply();
+    create();
+    const opts = Array.from((root().querySelector('.pv-stage-select') as HTMLSelectElement).options).map(o => o.textContent!.trim());
+    expect(opts).toContain('Candidate (from a solution search)');
+    expect(root().querySelector('.pv-run-select')).toBeNull();
+    (root().querySelector('.pv-stage-select') as HTMLSelectElement).value = 'candidate';
+    root().querySelector('.pv-stage-select')!.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    expect(urls.some(u => u.includes('/api/missions/uno-light-mission/solve-runs'))).toBeTrue();
+    expect(urls.some(u => u.includes('/pin-view?') && u.includes('stage=candidate') && !u.includes('run=') && !u.includes('candidate='))).toBeTrue();
+    const runOpts = q('.pv-run-select option').map(o => o.textContent!);
+    expect(runOpts.length).toBe(3);   // the latest + two stored runs, newest first
+    expect(runOpts[1]).toContain('fastest cycle');
+    expect(runOpts[2]).toContain('minimum resources');
+    expect(urls.every(u => !u.includes('/solve') || u.includes('/solve-runs'))).toBeTrue();   // the view never POSTs the search, nor GETs the live search
+  });
+
+  it('the candidate stage marks the assigned pins proposed (D2, D6, D0, D1), leaves the rest alone, and lists "Why these pins" with the run\'s reasons and "What lost" with the D0 / D1 refusal', () => {
+    candReply();
+    create({ stage: 'candidate' });
+    expect(component.shownStage).toBe('candidate');
+    const marked = pins().filter(p => p.getAttribute('data-fill') === 'proposed');
+    expect(marked.length).toBeGreaterThan(0);
+    const want = new Set(FIXTURE_CANDIDATE_CHOSEN.pins.filter(p => p.stage === 'proposed').map(p => p.id));
+    expect(new Set(marked.map(p => p.getAttribute('data-pin-id')))).toEqual(want);
+    expect(want.size).toBe(12);
+    expect(pinEl('PackageContact:atmega328p-28-spdip:4').getAttribute('data-fill')).toBe('proposed');   // D2 at package level too
+    const side = (root().querySelector('.pv-cand') as HTMLElement).textContent!;
+    expect(side).toContain('the chosen plan');
+    expect(side).toContain('Why these pins');
+    const rows = q('.pv-cand-why .pv-cand-row');
+    expect(rows.map(r => r.getAttribute('data-pin')).sort()).toEqual(['D0', 'D1', 'D2', 'D3', 'D6']);
+    expect(rows.find(r => r.getAttribute('data-pin') === 'D2')!.textContent).toContain('ext-interrupt');
+    expect(rows.find(r => r.getAttribute('data-pin') === 'D2')!.textContent).toContain('INT0');
+    expect(rows.find(r => r.getAttribute('data-pin') === 'D6')!.textContent).toContain('bench is already wired');
+    expect(side).toContain('What lost');
+    expect(q('.pv-cand-lost li').map(l => l.textContent).join(' ')).toMatch(/Pin D0 was refused .* rung 8/);
+    expect(q('.pv-cand-lost li').map(l => l.textContent).join(' ')).toMatch(/Pin D1 was refused/);
+    expect((root().querySelector('.pv-cand-link') as HTMLElement).getAttribute('href')).toContain('/display/solutions-found');
+    expect(root().textContent).not.toMatch(/[{}\[\]]\s*"|":\s*[{"\[\d]|\[object Object\]/);
+    // a consumer reads as the profile role + the route
+    click(pinEl('PackageContact:atmega328p-28-spdip:4'));
+    expect((root().querySelector('.pv-side') as HTMLElement).textContent).toContain('task the button via ext-interrupt');
+  });
+
+  it('switching candidates changes the marks (the other candidate leaves D2 free) and asks the door for that candidate by id; the run picker asks for that run', () => {
+    candReply();
+    create({ stage: 'candidate' });
+    expect(pinEl('PackageContact:atmega328p-28-spdip:4').getAttribute('data-fill')).toBe('proposed');
+    const sel = root().querySelector('.pv-cand-select') as HTMLSelectElement;
+    expect(sel.options.length).toBeGreaterThan(1);
+    const other = FIXTURE_CANDIDATE_OTHER.candidate!.id;
+    sel.value = other;
+    sel.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    expect(urls.some(u => u.includes('stage=candidate') && u.includes('candidate=' + other))).toBeTrue();
+    expect(pinEl('PackageContact:atmega328p-28-spdip:4').getAttribute('data-fill')).not.toBe('proposed');
+    expect(pinEl('PackageContact:atmega328p-28-spdip:12').getAttribute('data-fill')).toBe('proposed');
+    expect(root().querySelector('.pv-cand-title')!.textContent).toContain('#' + FIXTURE_CANDIDATE_OTHER.candidate!.rank);
+    expect(root().querySelector('.pv-cand-title')!.textContent).not.toContain('chosen plan');
+    const run = root().querySelector('.pv-run-select') as HTMLSelectElement;
+    run.value = FIXTURE_SOLVE_RUNS.rows[1].name;
+    run.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    expect(urls.some(u => u.includes('run=' + encodeURIComponent(FIXTURE_SOLVE_RUNS.rows[1].name)) && !u.includes('candidate='))).toBeTrue();   // a new run starts at its chosen candidate
+  });
+
+  it('a stored-run read that finds nothing says so in words (and the door\'s 404 reason shows), never an empty picture without a word', () => {
+    reply = (url: string) => (url.includes('/solve-runs') ? of({ ok: true, mission: 'uno-light-mission', count: 0, rows: [] })
+      : url.includes('stage=candidate') ? throwError(() => ({ status: 404, error: { ok: false, error: 'no solution search has been stored for board arduino-uno-r3' } }))
+      : url.includes('/api/firmware/bindings') ? of({ bindings: [] }) : url.includes('/config-events') ? of(FIXTURE_EVENTS) : of(FIXTURE_BASE));
+    create({ stage: 'candidate' });
+    expect(root().querySelector('.pv-runs-note')!.textContent).toContain('No solution search is stored');
+    expect(root().querySelector('.pv-error')!.textContent!.length).toBeGreaterThan(5);
+  });
+
+  it('?event= selects that event from the timeline on load (its pins highlighted); one the timeline does not hold selects nothing', () => {
+    const flash = FIXTURE_EVENTS.events.find(e => e.kind === 'flash')!;
+    create({ event: flash.name });
+    expect(component.eventSel?.name).toBe(flash.name);
+    expect(pins().some(p => p.classList.contains('event-hi'))).toBeTrue();
+    TestBed.resetTestingModule();
+    create({ event: 'derived:Nothing:here' });
+    expect(component.eventSel).toBeNull();
   });
 });

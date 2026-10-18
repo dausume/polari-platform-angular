@@ -22,7 +22,18 @@
         <option *ngFor="let s of stages" [value]="s.id" [selected]="s.id === shownStage">{{ s.label }}</option>
       </select>
     </label>
-    <label class="pv-ctl">Firmware binding
+    <label class="pv-ctl pv-run-ctl" *ngIf="stage === 'candidate'">Solution search
+      <select class="pv-run-select" (change)="setRun($any($event.target).value)">
+        <option value="" [selected]="!run">the latest for this board</option>
+        <option *ngFor="let r of runs" [value]="r.name" [selected]="r.name === run">{{ runLabel(r) }}</option>
+      </select>
+    </label>
+    <label class="pv-ctl pv-cand-ctl" *ngIf="stage === 'candidate' && cand">Candidate
+      <select class="pv-cand-select" (change)="setCandidate($any($event.target).value)">
+        <option *ngFor="let c of cand.candidates" [value]="c.id" [selected]="c.id === cand.id">#{{ c.rank }}{{ c.chosen ? ' (chosen)' : '' }} - resources {{ c.resources }}, cycle {{ cycleText(c.cycle_us) }}</option>
+      </select>
+    </label>
+    <label class="pv-ctl" *ngIf="stage !== 'candidate'">Firmware binding
       <select class="pv-binding-select" (change)="setBinding($any($event.target).value)">
         <option value="" [selected]="!binding">{{ stage === 'base' ? 'none (base composition)' : 'the light demo (default)' }}</option>
         <option *ngFor="let b of bindings" [value]="b" [selected]="b === binding">{{ b }}</option>
@@ -93,6 +104,25 @@
     </div>
 
     <aside class="pv-side" aria-live="polite" [attr.data-mode]="mode">
+      <section class="pv-cand" *ngIf="cand as c" aria-label="The candidate drawn">
+        <h3 class="pv-h pv-cand-title">Candidate #{{ c.rank }}<span *ngIf="c.chosen"> (the chosen plan)</span></h3>
+        <p class="pv-sub">{{ c.hardware }} &middot; tier {{ c.tier }} &middot; run {{ c.run }}</p>
+        <p class="pv-cand-score">{{ c.score.text }}</p>
+        <p class="pv-cand-variants">{{ c.variants_text }}</p>
+        <h4 class="pv-h4">Why these pins</h4>
+        <table class="pv-table pv-cand-why">
+          <thead><tr><th>Profile</th><th>Pin</th><th>Route</th><th>Reason</th></tr></thead>
+          <tbody><tr *ngFor="let a of c.assignment" class="pv-cand-row" [attr.data-pin]="a.pin"><td>{{ a.role }}<span class="pv-muted" *ngIf="a.purposes.length"> ({{ a.purposes.join(', ') }})</span></td><td>{{ a.pin }}<span *ngIf="a.function !== 'GPIO'"> ({{ a.function }})</span></td><td>{{ a.route }}</td><td>{{ a.why }}</td></tr></tbody>
+        </table>
+        <h4 class="pv-h4">What lost</h4>
+        <ul class="pv-list pv-cand-lost"><li *ngFor="let t of c.what_lost">{{ t }}</li><li class="pv-muted" *ngIf="!c.what_lost.length">Nothing was refused or lost for this plan.</li></ul>
+        <h4 class="pv-h4" *ngIf="c.risks.length">Open risks <span class="pv-muted">(not checked yet)</span></h4>
+        <ul class="pv-list pv-cand-risks" *ngIf="c.risks.length"><li *ngFor="let t of c.risks">{{ t }}</li></ul>
+        <p class="pv-muted pv-cand-notes" *ngFor="let n of c.notes">{{ n }}</p>
+        <p><a class="pv-link pv-cand-link" [routerLink]="c.links.solutions_found">Solutions found: the whole search, with the score card</a></p>
+      </section>
+      <p class="pv-muted pv-runs-note" *ngIf="stage === 'candidate' && runsNote">{{ runsNote }}</p>
+
       <ng-container *ngIf="!panel">
         <h3 class="pv-h">Pin view</h3>
         <p>Click a board, a chip package, the silicon inside it or a part to see which pins it connects to. Nothing is wired until you pick something. Click it again, or press Escape, to clear.</p>

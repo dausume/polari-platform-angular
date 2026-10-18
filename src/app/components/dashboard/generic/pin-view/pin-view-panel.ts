@@ -80,7 +80,7 @@ const words = (m: Record<string, string>, k: string): string => m[k] || k || 'un
 
 function consumersOf(ix: PvIndex, p: PvPin): string[] {
   const out: string[] = [];
-  for (const c of p.consumers) { out.push(c.kind === 'task' ? `task ${c.who}${c.function ? ' (' + c.function + ')' : ''}` : `Purpose ${c.who}`); }
+  for (const c of p.consumers) { out.push(c.kind === 'task' ? `task ${c.who}${c.route ? ' via ' + c.route : ''}${c.function ? ' (' + c.function + ')' : ''}` : `Purpose ${c.who}`); }
   for (const c of ix.byPin.get(p.id) || []) {
     const other = ix.pins.get(c.a === p.id ? c.b : c.a);
     if (!other) { continue; }

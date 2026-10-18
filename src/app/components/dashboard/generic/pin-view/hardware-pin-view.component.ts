@@ -11,7 +11,7 @@ import {
 import { buildScene } from './pin-view-layout';
 import { ConnPanel, Panel, PinPanel, PvIndex, SurfacePanel, buildPanel } from './pin-view-panel';
 import { PinViewService } from './pin-view.service';
-import { PvBlank, PvConfigEvent, PvFamily, PvMode, PvPayload, PvPhase, PvSelection, PvStage } from './pin-view.types';
+import { PvBlank, PvCandidate, PvConfigEvent, PvFamily, PvMode, PvPayload, PvPhase, PvSelection, PvSolveRun, PvStage } from './pin-view.types';
 
 /**
  * hardware-pin-view — the pin view (PIN_VIEW_PLAN.md, pv-1): THE ONE sanctioned new custom component for pins
@@ -33,6 +33,7 @@ const STAGES: { id: PvStage; label: string }[] = [
   { id: 'after-init', label: 'After init' },
   { id: 'tasks-assigned', label: 'Tasks assigned' },
   { id: 'firmware-committed', label: 'Firmware committed' },
+  { id: 'candidate', label: 'Candidate (from a solution search)' },
 ];
 /** The protocol chips (multi-select): the eight the person asked for; the ids are the door's family names. */
 const PROTOCOL_CHIPS: { id: string; label: string }[] = [
@@ -75,6 +76,11 @@ export class HardwarePinViewComponent implements OnInit, OnChanges, OnDestroy {
   @Input() protocol = '';
   @Input() phase: PvPhase = 'runtime';
   @Input() blank: PvBlank = 'board';
+  /** pv-5: the stored solution search (SolveRun name) and the candidate (rank or id) the candidate stage draws; empty = the latest run's chosen candidate. */
+  @Input() run = '';
+  @Input() candidate = '';
+  /** The Mission whose stored runs the run picker lists (the page's query ?mission= overrides). */
+  @Input() mission = 'uno-light-mission';
 
   readonly phases = PHASES;
   readonly blanks = BLANKS;
@@ -111,6 +117,12 @@ export class HardwarePinViewComponent implements OnInit, OnChanges, OnDestroy {
   eventsNote = '';
   eventSel: PvConfigEvent | null = null;
   private eventsSub?: Subscription;
+  /** pv-5: the stored runs for the picker (newest first) and why none are listed. */
+  runs: PvSolveRun[] = [];
+  runsNote = '';
+  private runsSub?: Subscription;
+  /** An event the page's query asked for (?event=): selected by the first timeline that holds it. */
+  private pendingEvent = '';
   loading = false;
   workingNote = '';
   error = '';
@@ -135,6 +147,10 @@ export class HardwarePinViewComponent implements OnInit, OnChanges, OnDestroy {
       this.phase = (PHASES.some(x => x.id === q.get('phase')) ? q.get('phase') : this.phase) as PvPhase;
       this.blank = (q.get('blank') === 'chip' || q.get('blank') === 'board' ? q.get('blank') : this.blank) as PvBlank;
       this.protocol = q.get('protocol') || this.protocol;
+      this.run = q.get('run') || this.run;
+      this.candidate = q.get('candidate') || this.candidate;
+      this.mission = q.get('mission') || this.mission;
+      this.pendingEvent = q.get('event') || '';
       // table -> view: ?pin= / ?surface= / ?connection= select (and zoom to) that item once the payload is in; a second click clears it like any selection
       const want = q.get('pin') ? { kind: 'pin', id: q.get('pin')! } : q.get('surface') ? { kind: 'surface', id: q.get('surface')! } : q.get('connection') ? { kind: 'connection', id: q.get('connection')! } : null;
       this.pendingSelection = want as PvSelection;
@@ -149,19 +165,20 @@ export class HardwarePinViewComponent implements OnInit, OnChanges, OnDestroy {
     this.svc.bindings(this.board).subscribe(b => (this.bindings = b));
     this.reload();
     this.loadEvents();
+    if (this.stage === 'candidate') { this.loadRuns(); }
   }
 
   ngOnChanges(ch: SimpleChanges): void {
     if (!this.canvas) { return; }
-    if (['board', 'system', 'binding', 'stage', 'protocol', 'phase', 'blank'].some(k => ch[k] && !ch[k].firstChange)) { this.reload(); }
+    if (['board', 'system', 'binding', 'stage', 'protocol', 'phase', 'blank', 'run', 'candidate'].some(k => ch[k] && !ch[k].firstChange)) { this.reload(); }
     if (['board', 'system', 'binding'].some(k => ch[k] && !ch[k].firstChange)) { this.loadEvents(); }
   }
 
-  ngOnDestroy(): void { this.sub?.unsubscribe(); this.eventsSub?.unsubscribe(); this.canvas?.destroy(); }
+  ngOnDestroy(): void { this.sub?.unsubscribe(); this.eventsSub?.unsubscribe(); this.runsSub?.unsubscribe(); this.canvas?.destroy(); }
 
   // ---- data
   /** A stage past base needs a binding; the light demo's is the default. */
-  effectiveBinding(): string { return this.binding || (this.stage !== 'base' || this.phase === 'init' ? this.defaultBinding : ''); }
+  effectiveBinding(): string { return this.stage === 'candidate' && this.phase === 'runtime' ? '' : this.binding || (this.stage !== 'base' || this.phase === 'init' ? this.defaultBinding : ''); }
 
   /** The event timeline: its own read (it can take a few seconds - every event's pins are worked out from the payload difference); a failure is said in words and never blocks the picture. */
   loadEvents(): void {
@@ -172,8 +189,26 @@ export class HardwarePinViewComponent implements OnInit, OnChanges, OnDestroy {
         this.events = (r && r.ok !== false && r.events) || [];
         this.eventsNote = this.events.length ? '' : ((r && r.error) || 'No real-world changes are recorded for this board yet: no install, no wire drawn on the canvas.');
         if (this.eventSel && !this.events.some(e => e.name === this.eventSel!.name)) { this.eventSel = null; this.redraw(); }
+        if (this.pendingEvent) {   // ?event= from the Configuration events table: select that event (its pins are highlighted); one that is not in the timeline selects nothing
+          const want = this.events.find(e => e.name === this.pendingEvent);
+          this.pendingEvent = '';
+          if (want) { this.eventSel = want; this.selection = null; this.anchor = null; this.redraw(); }
+        }
       },
       error: e => { this.events = []; this.eventsNote = friendlyError(e, 'the event timeline').text; },
+    });
+  }
+
+  /** pv-5: the stored runs of the Mission, newest first (a plain GET); a failure says so and never blocks the picture. */
+  loadRuns(): void {
+    this.runsSub?.unsubscribe();
+    this.runsNote = 'Loading the stored solution searches…';
+    this.runsSub = this.svc.runs(this.mission).subscribe({
+      next: r => {
+        this.runs = (r && r.ok !== false && r.rows) || [];
+        this.runsNote = this.runs.length ? '' : ((r && r.error) || `No solution search is stored for ${this.mission} yet: run one from the "Solutions found" page or with \`pol capability solve mission ${this.mission}\`.`);
+      },
+      error: e => { this.runs = []; this.runsNote = friendlyError(e, 'the stored solution searches').text; },
     });
   }
 
@@ -181,11 +216,12 @@ export class HardwarePinViewComponent implements OnInit, OnChanges, OnDestroy {
     this.sub?.unsubscribe();
     this.loading = true; this.error = ''; this.errorDetail = '';
     this.workingNote = this.stage !== 'base' || this.protocol ? 'Working out the claims… this can take several seconds.' : 'Loading the pins…';
-    this.sub = this.svc.load(this.board, { system: this.system, binding: this.effectiveBinding(), stage: this.stage, protocol: this.protocol, activated_only: this.activatedOnly, phase: this.phase, blank: this.blank }).subscribe({
+    this.sub = this.svc.load(this.board, { system: this.system, binding: this.effectiveBinding(), stage: this.stage, protocol: this.protocol, activated_only: this.activatedOnly, phase: this.phase, blank: this.blank, run: this.run, candidate: this.candidate }).subscribe({
       next: p => {
         this.loading = false;
         if (!p || p.ok === false) { this.error = (p && p.error) || 'The pin view came back empty.'; return; }
         this.payload = p;
+        if (p.candidate) { this.run = p.candidate.run; this.mission = p.candidate.mission || this.mission; }
         this.ix = new PvIndex(p);
         if (this.selection && !this.exists(this.selection)) { this.selection = null; }
         if (this.anchor && !this.exists(this.anchor)) { this.anchor = null; }
@@ -210,7 +246,23 @@ export class HardwarePinViewComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   // ---- controls
-  setStage(id: string): void { this.stage = id as PvStage; this.reload(); }
+  setStage(id: string): void {
+    this.stage = id as PvStage;
+    if (this.stage !== 'candidate') { this.candidate = ''; }
+    else if (!this.runs.length) { this.loadRuns(); }
+    this.reload();
+  }
+  /** pv-5: pick a stored run (its chosen candidate is drawn) or a candidate of the shown run (by rank or id); the empty choice means the latest run / its chosen candidate. */
+  setRun(name: string): void { this.run = name; this.candidate = ''; this.reload(); }
+  setCandidate(id: string): void { this.candidate = id; this.reload(); }
+  get cand(): PvCandidate | null { return this.shownStage === 'candidate' ? (this.payload?.candidate || null) : null; }
+  /** "18 Oct 2026, 09:01" for a run's time. */
+  runWhen(r: PvSolveRun): string {
+    const d = new Date(r.ran_at);
+    return isNaN(d.getTime()) ? r.ran_at : d.toLocaleString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+  cycleText(us: number): string { return us >= 1000 ? `${(us / 1000).toFixed(1)} ms` : `${us.toFixed(1)} us`; }
+  runLabel(r: PvSolveRun): string { return `${this.runWhen(r)} - ${r.objective.replace('-', ' ')}, ${r.candidate_count} candidates`; }
   /** Phase and baseline are part of the question to the door, so each change is one read. A phase before init has no claims: the stage selector then follows the phase. */
   setPhase(id: string): void { this.phase = id as PvPhase; this.reload(); }
   setBlank(id: string): void { this.blank = id as PvBlank; if (this.phase !== 'runtime') { this.reload(); } }

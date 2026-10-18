@@ -3,7 +3,7 @@ import { Injectable } from '@angular/core';
 import { Observable, map, of, catchError, retry, timer } from 'rxjs';
 
 import { PolariService } from '@services/polari-service';
-import { PvEventsPayload, PvPayload, PvQuery } from './pin-view.types';
+import { PvEventsPayload, PvPayload, PvQuery, PvRunsPayload } from './pin-view.types';
 
 /**
  * pv-1 — the pin view's one data door. It sends NAMES only (board, system, binding, stage, protocol) in a GET;
@@ -19,6 +19,10 @@ export class PinViewService {
   url(board: string, q: PvQuery, door = '/api/board'): string {
     const names = (['system', 'binding', 'stage', 'protocol'] as const)
       .filter(k => q[k]).map(k => `${k}=${encodeURIComponent(q[k])}`);
+    if (q.stage === 'candidate') {   // pv-5: the stored run and candidate are asked for by name; the view never makes the search itself (a POST)
+      if (q.run) { names.push(`run=${encodeURIComponent(q.run)}`); }
+      if (q.candidate) { names.push(`candidate=${encodeURIComponent(q.candidate)}`); }
+    }
     if (q.protocol && q.activated_only) { names.push('activated_only=1'); }
     if (q.phase && q.phase !== 'runtime') { names.push(`phase=${encodeURIComponent(q.phase)}`, `blank=${encodeURIComponent(q.blank || 'board')}`); }
     const params = names.join('&');
@@ -36,6 +40,12 @@ export class PinViewService {
   events(board: string, system: string, binding: string): Observable<PvEventsPayload> {
     const names = [system && `system=${encodeURIComponent(system)}`, binding && `binding=${encodeURIComponent(binding)}`].filter(Boolean).join('&');
     return this.http.get<PvEventsPayload>(`${this.polari.getBackendBaseUrl()}/api/board/${encodeURIComponent(board)}/config-events${names ? '?' + names : ''}`, this.opts());
+  }
+
+  /** pv-5: the stored solution searches of one Mission (GET only), newest first, for the run picker. */
+  runs(mission: string): Observable<PvRunsPayload> {
+    return this.http.get<PvRunsPayload>(`${this.polari.getBackendBaseUrl()}/api/missions/${encodeURIComponent(mission)}/solve-runs`, this.opts()).pipe(
+      map(r => ({ ...r, rows: [...(r?.rows || [])].sort((a, b) => (b.ran_at || '').localeCompare(a.ran_at || '') || b.name.localeCompare(a.name)) })));
   }
 
   /** The firmware bindings of one board, for the binding picker (an empty list when the door is not there). */
