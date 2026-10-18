@@ -50,7 +50,7 @@
              groups render as dropdowns beside the base nav. -->
         <ng-container *ngIf="currentApp">
             <span class="header-app-name" (click)="go('/app/' + currentApp.name)">{{ currentApp.title }}</span>
-            <ng-container *ngFor="let g of topGroups">
+            <ng-container *ngFor="let g of inlineGroups">
                 <button mat-button [matMenuTriggerFor]="appGroupMenu" class="header-nav-button app-group">
                     <span class="header-nav-label">{{ g.group }}</span>
                     <mat-icon class="header-nav-caret">arrow_drop_down</mat-icon>
@@ -60,6 +60,23 @@
                         <mat-icon *ngIf="it.availability === 'absent'" class="header-item-off">power_off</mat-icon>
                         <span [class.header-item-dim]="it.availability !== 'enabled'">{{ it.label }}</span>
                     </button>
+                </mat-menu>
+            </ng-container>
+            <!-- the groups that do not fit in the bar: one menu, each group's items under its name -->
+            <ng-container *ngIf="moreGroups.length">
+                <button mat-button [matMenuTriggerFor]="moreMenu" class="header-nav-button app-group header-more-button">
+                    <span class="header-more-label">More</span>
+                    <mat-icon class="header-nav-caret">arrow_drop_down</mat-icon>
+                </button>
+                <mat-menu #moreMenu="matMenu">
+                    <ng-container *ngFor="let g of moreGroups; let first = first">
+                        <mat-divider *ngIf="!first"></mat-divider>
+                        <div class="header-more-group" role="presentation">{{ g.group }}</div>
+                        <button mat-menu-item *ngFor="let it of g.items" (click)="openNavItem(it)">
+                            <mat-icon *ngIf="it.availability === 'absent'" class="header-item-off">power_off</mat-icon>
+                            <span [class.header-item-dim]="it.availability !== 'enabled'">{{ it.label }}</span>
+                        </button>
+                    </ng-container>
                 </mat-menu>
             </ng-container>
         </ng-container>

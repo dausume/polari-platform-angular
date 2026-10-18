@@ -1,4 +1,5 @@
-import { Input, OnInit, OnDestroy } from '@angular/core';
+import { HostListener, Input, OnInit, OnDestroy } from '@angular/core';
+import { inlineGroupCount } from './header-nav-fit';
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatToolbarModule } from '@angular/material/toolbar';
@@ -43,6 +44,17 @@ export class HeaderComponent implements OnInit, OnDestroy {
   useCaseApps: AppNav[] = [];
   currentApp: AppNav | null = null;
   topGroups: AppNavGroup[] = [];
+  /** The first `inlineCount` topMenu groups sit in the bar; the rest are listed under one "More" menu (header-nav-fit.ts). */
+  inlineCount = 0;
+
+  get inlineGroups(): AppNavGroup[] { return this.topGroups.slice(0, this.inlineCount); }
+  get moreGroups(): AppNavGroup[] { return this.topGroups.slice(this.inlineCount); }
+
+  @HostListener('window:resize')
+  refitGroups(): void {
+    // 860 = the room the rest of the bar takes: logo, title, Apps, Core, the app's name, and the right-hand buttons
+    this.inlineCount = inlineGroupCount(this.topGroups.map(g => g.group), window.innerWidth, 860);
+  }
   readonly coreViews = [
     { label: 'Topology', route: '/topology', icon: 'hub' },
     { label: 'Module Management', route: '/module-management',
@@ -149,6 +161,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     this.currentApp = this.appsNav.appForUrl(url);
     this.topGroups =
       (this.currentApp?.nav ?? []).filter(g => g.topMenu);
+    this.refitGroups();
   }
 
   openNavItem(it: AppNavItem): void {

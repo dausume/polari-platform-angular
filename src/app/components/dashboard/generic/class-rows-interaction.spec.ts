@@ -1,4 +1,4 @@
-import { clickIsOnControl, fieldText, hasBlankParam, nextSelection } from './class-rows-interaction';
+import { fixedText, clickIsOnControl, fieldText, hasBlankParam, nextSelection } from './class-rows-interaction';
 
 describe('class-rows-interaction (fsc-3)', () => {
   it('hasBlankParam: an unpicked scope leaves an empty value in the query', () => {
@@ -39,5 +39,15 @@ describe('class-rows-interaction (fsc-3)', () => {
     expect(clickIsOnControl(box)).toBeTrue();
     expect(clickIsOnControl(cell)).toBeFalse();
     expect(clickIsOnControl(null)).toBeFalse();
+  });
+
+  it('fixedText: one decimal by default, the asked number of decimals, and anything not a number as it came', () => {
+    expect(fixedText('99.9535')).toBe('100.0');
+    expect(fixedText('99.9535', '1')).toBe('100.0');
+    expect(fixedText('3.14159', '2')).toBe('3.14');
+    expect(fixedText('7', '0')).toBe('7');
+    expect(fixedText('0.04', undefined)).toBe('0.0');
+    expect(fixedText('n/a')).toBe('n/a');
+    expect(fixedText('')).toBe('');
   });
 });

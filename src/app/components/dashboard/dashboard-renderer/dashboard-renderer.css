@@ -547,3 +547,11 @@
 .df-feedback-dismiss mat-icon { font-size: 16px; width: 16px; height: 16px; }
 .df-no-solution { font-size: 12px; color: #b26a00; margin: 4px 0 0; }
 .button-display-item { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; padding: 6px; }
+
+/* A row marked `side-by-side` (a configured page's row of two panels, e.g. a ranked list and its working) keeps its columns on a wide page and
+   STACKS them (full width, one under the other) when the page body is narrow. The size container is the page's tab body (`tabpage`, display-page). */
+.dashboard-row.side-by-side > * { align-self: start; min-width: 0; }
+@container tabpage (max-width: 980px) {
+    .dashboard-row.side-by-side { display: flex; flex-direction: column; }
+    .dashboard-row.side-by-side > * { width: 100%; }
+}

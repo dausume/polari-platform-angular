@@ -11,7 +11,7 @@ import { KatexDisplayComponent } from '@components/shared/katex-display/katex-di
 import { CodeBlockComponent } from '@components/shared/code-block/code-block.component';
 import { PolariService } from '@services/polari-service';
 import { DisplayEventsService } from '@services/no-code-services/display-events.service';
-import { clickIsOnControl, fieldText, hasBlankParam, nextSelection } from './class-rows-interaction';
+import { clickIsOnControl, fieldText, fixedText, hasBlankParam, nextSelection } from './class-rows-interaction';
 import { RowActionConfig, actionShown, failureWords, fillBody, fillPath, parseWeight, rowEditable } from './class-rows-action';
 
 /**
@@ -34,7 +34,7 @@ import { RowActionConfig, actionShown, failureWords, fillBody, fillPath, parseWe
   selector: 'class-rows-table',
   imports: [CommonModule, RouterModule, MatProgressSpinnerModule, KatexDisplayComponent, CodeBlockComponent],
   template: `
-    <div class="class-rows-table">
+    <div class="class-rows-table" [class.scrolls]="maxHeight > 0" [style.max-height.px]="maxHeight > 0 ? maxHeight : null">
       <div *ngIf="loading" class="state"><mat-spinner diameter="28"></mat-spinner></div>
       <div *ngIf="error" class="state error" [title]="errorDetail">{{ error }}
         <button *ngIf="errorSignIn" type="button" class="signin" (click)="signIn()">Sign in</button>
@@ -94,6 +94,9 @@ import { RowActionConfig, actionShown, failureWords, fillBody, fillPath, parseWe
   `,
   styles: [`
     .class-rows-table { overflow-x: auto; }
+    /* maxHeight: the table scrolls INSIDE its own box and the header row stays in view */
+    .class-rows-table.scrolls { overflow-y: auto; }
+    .class-rows-table.scrolls th { position: sticky; top: 0; z-index: 1; background: var(--surface-primary, #fff); box-shadow: 0 1px 0 var(--border-medium, #ddd); }
     table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
     th, td {
       text-align: left; padding: 6px 10px; vertical-align: top;
@@ -102,14 +105,18 @@ import { RowActionConfig, actionShown, failureWords, fillBody, fillPath, parseWe
       white-space: normal; overflow-wrap: anywhere; max-width: 380px; min-width: 60px;
     }
     input.edit { width: 7em; font: inherit; padding: 2px 6px; border: 1px solid var(--border-medium, #bbb); border-radius: 4px; background: var(--surface, transparent); color: inherit; }
-    button.act { font: inherit; padding: 2px 10px; border: 1px solid var(--primary-color, #3f51b5); border-radius: 12px; background: transparent; color: var(--primary-color, #3f51b5); cursor: pointer; }
-    button.act:disabled { opacity: 0.5; cursor: default; }
+    /* a normal filled button: the nav pair is a dark surface with its own light text (--primary-color is the pale page colour here, so it read as disabled) */
+    button.act { font: inherit; padding: 3px 12px; border: 1px solid var(--nav-background, #2e3a5c); border-radius: 12px; background: var(--nav-background, #2e3a5c); color: var(--nav-text, #fff); cursor: pointer; white-space: nowrap; }
+    button.act:hover:not(:disabled) { background: var(--primary-hover-color, #4d4d6c); border-color: var(--primary-hover-color, #4d4d6c); }
+    button.act:focus-visible { outline: 2px solid var(--nav-background, #2e3a5c); outline-offset: 2px; }
+    button.act:disabled { opacity: 0.55; cursor: default; }
     .message { margin: 6px 10px; font-size: 0.9em; color: var(--text-secondary, #666); }
     .message.bad { color: var(--error-text, #b3261e); }
     tr.clickable { cursor: pointer; }
     tr.clickable:hover { background: var(--surface-hover, #f3f3f3); }
-    tr.selected { background: var(--surface-hover, #f3f3f3); box-shadow: inset 3px 0 0 var(--primary-color, #3f51b5); }
-    tr.clickable:focus-visible { outline: 2px solid var(--primary-color, #3f51b5); outline-offset: -2px; }
+    /* the picked row: a clear tint and a bar in the nav colour (the page's --primary-color is too pale to see) */
+    tr.selected, tr.selected:hover { background: color-mix(in srgb, var(--nav-background, #2e3a5c) 16%, transparent); box-shadow: inset 4px 0 0 var(--nav-background, #2e3a5c); font-weight: 600; }
+    tr.clickable:focus-visible { outline: 2px solid var(--nav-background, #2e3a5c); outline-offset: -2px; }
     td.clamped { position: relative; }
     td.clamped > :not(.more) { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
     td.structured { font-size: 0.92em; }
@@ -216,6 +223,9 @@ export class ClassRowsTableComponent implements OnInit, OnChanges {
   @Input() selectedValue = '';
   @Input() rowLinkTabField = '';
   @Input() emptyText = '';
+
+  /** Cap the table's height in px (0 = no cap): it scrolls inside its own box and its header row stays in view. For a long ranked list that must not push the rest of the page down. */
+  @Input() maxHeight = 0;
 
   /**
    * fsc-3 EDITING (all optional). `editFields` = csv of NUMERIC columns shown as input boxes; leaving a box (or Enter) calls `editAction`
@@ -446,6 +456,8 @@ export class ClassRowsTableComponent implements OnInit, OnChanges {
      *  table row — shown as its first 10 characters, the whole value in the tooltip (`cellTitle` below, same
      *  fallback-to-`raw` path `person` already uses). */
     if (f === 'sha') { return raw.length > 12 ? `${raw.slice(0, 10)}…` : raw; }
+    /** `fixed` (e.g. `score:fixed:1`): a number shown with that many decimals (default 1); the tooltip keeps the precise value. */
+    if (f === 'fixed') { return fixedText(raw, this.formatArgs[column]); }
     return raw;
   }
 

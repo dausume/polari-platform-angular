@@ -175,6 +175,10 @@
     opacity: 0.65;
 }
 
+/* "More": the in-app groups that do not fit in the bar (header-nav-fit.ts). The label always shows, even where the other nav labels collapse to icons. */
+.header-more-label { margin: 0 2px 0 4px; }
+.header-more-group { padding: 8px 16px 2px; font-size: 0.78em; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-on-card-muted, #495057); }
+
 /* Tablet: labels collapse to their icons, the in-context app name
    drops — the nav still works, it just stops competing for width. */
 @media (max-width: 1023px) {

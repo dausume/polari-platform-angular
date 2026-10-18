@@ -55,9 +55,12 @@ import { hasDatePlaceholder, resolveDatePlaceholders } from '../../../utils/disp
         <display-tab-bar [tabs]="tabList" [active]="activeTabKey" (selected)="openTab($event)"></display-tab-bar>
         <p class="display-tab-note" *ngIf="activeTabNote">{{ activeTabNote }}</p>
         <div class="display-tab-error" *ngIf="tabsError">{{ tabsError }}</div>
-        <ng-container *ngFor="let d of (tabDisplay ? [tabDisplay] : [])">
-          <dashboard-renderer [dashboard]="d" [context]="rendererContext"></dashboard-renderer>
-        </ng-container>
+        <!-- the tab body is a size container: rows marked side-by-side sit in one line when it is wide and stack when it is narrow (dashboard-renderer.css) -->
+        <div class="display-tab-body">
+          <ng-container *ngFor="let d of (tabDisplay ? [tabDisplay] : [])">
+            <dashboard-renderer [dashboard]="d" [context]="rendererContext"></dashboard-renderer>
+          </ng-container>
+        </div>
       </ng-container>
     </div>
   `,
@@ -93,6 +96,7 @@ import { hasDatePlaceholder, resolveDatePlaceholders } from '../../../utils/disp
       color: #ccc;
       margin-bottom: 16px;
     }
+    .display-tab-body { container: tabpage / inline-size; }
     .display-tab-note { margin: 0 0 10px; color: var(--text-on-card-muted); font-size: 0.92em; }
     .display-tab-error { padding: 12px; color: var(--error-text, #b3261e); }
     .display-page-error h3 {
@@ -274,7 +278,10 @@ export class DisplayPageComponent implements OnInit, OnDestroy {
     this.activeTabKey = tab.key;
     this.activeTabNote = tab.description || '';
     const d = new Display(`${this.display.id}-tab-${tab.key}`, '', '');
-    this.displayManager.deserializeRows(tab.rows).forEach((row) => d.addRow(row));
+    // The Display must NOT share objects with the tab's raw rows: the substitution below rewrites each item's inputs IN PLACE, and a shared inputs object would lose its
+    // `{scope:..}` placeholders on the first render - so no later scope change (a picked row, a `rev` bump, a copy's new profile) would ever reach the tables.
+    const rawRows = JSON.parse(JSON.stringify(tab.rows ?? []));
+    this.displayManager.deserializeRows(rawRows).forEach((row) => d.addRow(row));
     this.substituteObject(d, this.objectName);
     if (inPlace && this.tabDisplay && this.tabDisplay.id === d.id) {
       syncInputs(this.tabDisplay, d);

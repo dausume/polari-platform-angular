@@ -36,3 +36,12 @@ export function clickIsOnControl(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null;
   return !!el && typeof el.closest === 'function' && !!el.closest('a, button, input, select, textarea');
 }
+
+/** A number shown with `decimals` decimals (default 1) - the `fixed` column format. Not a number: shown as it came. The data keeps its precise value. */
+export function fixedText(raw: string, decimals?: string | number): string {
+  const n = Number(raw);
+  if (raw === '' || raw === null || raw === undefined || !isFinite(n)) { return raw; }
+  const k = decimals === undefined || decimals === null || decimals === '' ? 1 : Math.floor(Number(decimals));
+  const d = isFinite(k) ? Math.max(0, Math.min(8, k)) : 1;
+  return n.toFixed(d);
+}

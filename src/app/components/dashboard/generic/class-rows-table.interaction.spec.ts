@@ -92,4 +92,25 @@ describe('ClassRowsTableComponent — row interaction (fsc-3)', () => {
     expect(requested.length).toBe(0);
     expect(fixture.nativeElement.textContent).toContain('Pick a row first.');
   });
+
+  it('columnFormats score:fixed:1 shows one decimal and keeps the precise value in the tooltip', () => {
+    component.dataPath = '/api/x?profile=p';
+    component.columns = 'solution,score';
+    component.columnFormats = 'score:fixed:1';
+    (TestBed.inject(HttpClient) as any).get = () => of({ ok: true, rows: [{ solution: 's1', score: 99.9535 }] });
+    fixture.detectChanges();
+    const cell = fixture.nativeElement.querySelectorAll('tbody td')[1] as HTMLElement;
+    expect(cell.textContent?.trim()).toBe('100.0');
+    expect(cell.title).toBe('99.9535');
+  });
+
+  it('maxHeight caps the table box (it scrolls inside); without it there is no cap', () => {
+    fixture.detectChanges();
+    expect((fixture.nativeElement.querySelector('.class-rows-table') as HTMLElement).style.maxHeight).toBe('');
+    component.maxHeight = 600;
+    fixture.detectChanges();
+    const box = fixture.nativeElement.querySelector('.class-rows-table') as HTMLElement;
+    expect(box.style.maxHeight).toBe('600px');
+    expect(box.classList).toContain('scrolls');
+  });
 });
