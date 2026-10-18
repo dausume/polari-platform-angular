@@ -9,7 +9,7 @@ import { Display } from '@models/dashboards/Display';
 import { DisplayRendererComponent } from '@components/dashboard/dashboard-renderer/dashboard-renderer';
 import { Subscription, combineLatest } from 'rxjs';
 import { DisplayTabBarComponent } from './display-tab-bar.component';
-import { ResolvedTab, expandTabs, listRowsOf, pickTab } from '../../../utils/display-tabs';
+import { ResolvedTab, expandTabs, listRowsOf, pickTab, syncInputs } from '../../../utils/display-tabs';
 import { PolariService } from '@services/polari-service';
 import { registerMsimDisplayComponents } from '@components/multi-scale/msim-display-components';
 import { registerMsciDisplayComponents } from '@components/materials-science/msci-display-components';
@@ -180,7 +180,7 @@ export class DisplayPageComponent implements OnInit, OnDestroy {
         const key = `${id}::${objectName ?? ''}`;
         this.objectName = objectName;
         if (key === this.lastLoadedKey) {
-          if (tabChanged && this.tabList.length) { this.scope = {}; this.showTab(); }
+          if (tabChanged && this.tabList.length) { this.scope = {}; this.showTab(false); }
           return;
         }
         this.lastLoadedKey = key;
@@ -209,7 +209,7 @@ export class DisplayPageComponent implements OnInit, OnDestroy {
       if (unchanged) { return; }
       this.scope = next;
       // a tabbed page re-renders only its open tab (the strip, and the page's own rows, stay put)
-      if (this.tabList.length) { this.showTab(); return; }
+      if (this.tabList.length) { this.showTab(true); return; }
       if (this.currentId) { this.loadDisplay(this.currentId); }
     });
   }
@@ -245,26 +245,30 @@ export class DisplayPageComponent implements OnInit, OnDestroy {
     const from = display.tabsFrom;
     if (!from) {
       this.tabList = expandTabs(display.tabs, undefined, []);
-      this.showTab();
+      this.showTab(false);
       return;
     }
     const url = /^https?:\/\//.test(from.data_path) ? from.data_path : this.polariService.getBackendBaseUrl() + from.data_path;
     this.http.get<any>(url, this.polariService.backendRequestOptions).subscribe({
       next: (payload: any) => {
         this.tabList = expandTabs(display.tabs, from, listRowsOf(payload));
-        this.showTab();
+        this.showTab(false);
       },
       error: () => {
         // the generated tabs could not be listed: keep the static ones and say so in words
         this.tabsError = 'The list of tabs could not be read, so only the fixed tabs are shown.';
         this.tabList = expandTabs(display.tabs, undefined, []);
-        this.showTab();
+        this.showTab(false);
       },
     });
   }
 
-  /** Build the open tab's Display from its raw rows (a fresh object each time, so the tab's panels are re-created with the current page scope). */
-  private showTab(): void {
+  /**
+   * Build the open tab's Display from its raw rows. A new tab (or a reload) makes a fresh Display, so its panels are created anew. A SCOPE change on the open tab
+   * (`inPlace`) does not: the new inputs are copied into the Display already on screen, so a table whose inputs did not change (the ranked list when a row is clicked)
+   * is not rebuilt or refetched, and one whose dataPath changed fetches again by itself.
+   */
+  private showTab(inPlace: boolean): void {
     const tab = pickTab(this.tabList, this.wantedTab);
     if (!this.display || !tab) { this.tabDisplay = null; return; }
     this.activeTabKey = tab.key;
@@ -272,6 +276,10 @@ export class DisplayPageComponent implements OnInit, OnDestroy {
     const d = new Display(`${this.display.id}-tab-${tab.key}`, '', '');
     this.displayManager.deserializeRows(tab.rows).forEach((row) => d.addRow(row));
     this.substituteObject(d, this.objectName);
+    if (inPlace && this.tabDisplay && this.tabDisplay.id === d.id) {
+      syncInputs(this.tabDisplay, d);
+      return;
+    }
     this.tabDisplay = d;
   }
 

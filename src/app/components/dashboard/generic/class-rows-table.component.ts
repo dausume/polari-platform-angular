@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, HostListener, Input, OnInit } from '@angular/core';
+import { Component, HostListener, Input, OnChanges, OnInit, SimpleChanges } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Router, RouterModule } from '@angular/router';
@@ -12,6 +12,7 @@ import { CodeBlockComponent } from '@components/shared/code-block/code-block.com
 import { PolariService } from '@services/polari-service';
 import { DisplayEventsService } from '@services/no-code-services/display-events.service';
 import { clickIsOnControl, fieldText, hasBlankParam, nextSelection } from './class-rows-interaction';
+import { RowActionConfig, actionShown, failureWords, fillBody, fillPath, parseWeight, rowEditable } from './class-rows-action';
 
 /**
  * Generic no-code class table: renders the live CRUDE rows of ANY
@@ -40,7 +41,7 @@ import { clickIsOnControl, fieldText, hasBlankParam, nextSelection } from './cla
       </div>
       <table *ngIf="!loading && !error && rows.length > 0">
         <thead>
-          <tr><th *ngFor="let column of activeColumns">{{ label(column) }}</th></tr>
+          <tr><th *ngFor="let column of activeColumns">{{ label(column) }}</th><th *ngIf="rowAction"></th></tr>
         </thead>
         <tbody>
           <tr *ngFor="let row of rows; let i = index"
@@ -66,6 +67,9 @@ import { clickIsOnControl, fieldText, hasBlankParam, nextSelection } from './cla
                 <a *ngSwitchCase="'view'" class="ref" [routerLink]="viewLink(row, column).path" [queryParams]="viewLink(row, column).query">show in view ↗</a>
                 <code-block *ngSwitchCase="'code'" [text]="raw(row, column)"></code-block>
                 <span *ngSwitchCase="'sha'" [title]="raw(row, column)">{{ cell(row, column) }}</span>
+                <input *ngSwitchCase="'edit'" class="edit" type="number" min="0" step="any" inputmode="decimal"
+                       [value]="raw(row, column)" [attr.aria-label]="'New ' + label(column)"
+                       (change)="commitEdit(row, column, $any($event.target))" (keydown.enter)="$any($event.target).blur()">
                 <ng-container *ngSwitchCase="'json'">
                   <ng-container *ngIf="jsonPairs(row, column) as pairs">
                     <span *ngIf="!pairs.length" class="muted">—</span>
@@ -76,9 +80,13 @@ import { clickIsOnControl, fieldText, hasBlankParam, nextSelection } from './cla
               </ng-container>
               <button *ngIf="isLong(row, column)" type="button" class="more" (click)="toggle(i, column)">{{ isExpanded(i, column) ? 'less' : 'more' }}</button>
             </td>
+            <td *ngIf="rowAction" class="row-action">
+              <button *ngIf="actionAllowed(row)" type="button" class="act" [disabled]="busy" (click)="runRowAction(row)">{{ rowAction.label || 'Do' }}</button>
+            </td>
           </tr>
         </tbody>
       </table>
+      <p *ngIf="message" class="message" [class.bad]="messageBad" role="status">{{ message }}</p>
       <div *ngIf="!loading && !error && rows.length === 0" class="state">
         {{ emptyText || ('No ' + className + ' rows.') }}
       </div>
@@ -93,6 +101,11 @@ import { clickIsOnControl, fieldText, hasBlankParam, nextSelection } from './cla
       /* bp-2c: cells WRAP (his: "I would like to enable wrapping"); a long one is clamped to three lines with a more/less toggle */
       white-space: normal; overflow-wrap: anywhere; max-width: 380px; min-width: 60px;
     }
+    input.edit { width: 7em; font: inherit; padding: 2px 6px; border: 1px solid var(--border-medium, #bbb); border-radius: 4px; background: var(--surface, transparent); color: inherit; }
+    button.act { font: inherit; padding: 2px 10px; border: 1px solid var(--primary-color, #3f51b5); border-radius: 12px; background: transparent; color: var(--primary-color, #3f51b5); cursor: pointer; }
+    button.act:disabled { opacity: 0.5; cursor: default; }
+    .message { margin: 6px 10px; font-size: 0.9em; color: var(--text-secondary, #666); }
+    .message.bad { color: var(--error-text, #b3261e); }
     tr.clickable { cursor: pointer; }
     tr.clickable:hover { background: var(--surface-hover, #f3f3f3); }
     tr.selected { background: var(--surface-hover, #f3f3f3); box-shadow: inset 3px 0 0 var(--primary-color, #3f51b5); }
@@ -122,7 +135,7 @@ import { clickIsOnControl, fieldText, hasBlankParam, nextSelection } from './cla
     .state.error { color: var(--error-text, #b3261e); }
   `],
 })
-export class ClassRowsTableComponent implements OnInit {
+export class ClassRowsTableComponent implements OnInit, OnChanges {
   /** Backend class name, e.g. 'FoodItem', 'CompostLoopDefinition'. */
   @Input() className = '';
   /** Optional comma-separated column pin, e.g. 'name,status,notes'. */
@@ -204,6 +217,24 @@ export class ClassRowsTableComponent implements OnInit {
   @Input() rowLinkTabField = '';
   @Input() emptyText = '';
 
+  /**
+   * fsc-3 EDITING (all optional). `editFields` = csv of NUMERIC columns shown as input boxes; leaving a box (or Enter) calls `editAction`
+   * ({method, path, body_template}: `{field}` = a field of the row, a body value of exactly "{value}" = the edited number) and, on success,
+   * sets page scope `rev` so every table whose dataPath carries `rev=r{scope:rev}` fetches again. `editEnabledField`: the row field that must
+   * be truthy for the row's boxes to show (else the number is plain text). `rowAction` = {label, method, path, body_template, show_when_field,
+   * then_scope: {key, from}}: a button in the row's last cell, same templating; `then_scope` sets scope `key` to the response's field `from`.
+   * A refused call (e.g. the door's 409 "copy it first") shows the door's own words under the table and refetches, so the box never lies.
+   */
+  @Input() editFields = '';
+  @Input() editAction: RowActionConfig | null = null;
+  @Input() editEnabledField = '';
+  @Input() rowAction: RowActionConfig | null = null;
+
+  /** The last edit / action outcome in words, and whether a call is in flight. */
+  message = '';
+  messageBad = false;
+  busy = false;
+
   rows: any[] = [];
   activeColumns: string[] = [];
   loading = true;
@@ -261,6 +292,16 @@ export class ClassRowsTableComponent implements OnInit {
 
   signIn(): void { void this.authSession.login(); }
 
+  /** fsc-3: the page re-substitutes a table's inputs in place (a scope changed): a new dataPath fetches again, a new selectedValue only re-marks the row. */
+  ngOnChanges(changes: SimpleChanges): void {
+    const c = changes['dataPath'];
+    if (c && !c.firstChange && c.currentValue !== c.previousValue) {
+      this.loading = true;
+      this.error = null;
+      this.ngOnInit();
+    }
+  }
+
   ngOnInit(): void {
     if (!this.className && !this.dataPath) {
       this.loading = false;
@@ -270,6 +311,7 @@ export class ClassRowsTableComponent implements OnInit {
     this.formats = this.parseFormats(this.columnFormats);
     if (this.dataPath && hasBlankParam(this.dataPath)) {
       this.loading = false;                     // fsc-3: a scope nobody has picked yet - say what to do, do not ask the door
+      this.rows = [];
       return;
     }
     if (this.dataPath) {
@@ -421,8 +463,62 @@ export class ClassRowsTableComponent implements OnInit {
     return f === 'json' || (!f && column.endsWith('_json'));
   }
 
+  /** fsc-3: true when this column is an edit box on this row. */
+  isEditCell(row: any, column: string): boolean {
+    return !!this.editAction && this.editFields.split(',').map((x) => x.trim()).includes(column) && rowEditable(row, this.editEnabledField);
+  }
+
+  actionAllowed(row: any): boolean {
+    return actionShown(row, this.rowAction);
+  }
+
+  /** An edit box was left: send the number to the configured door. */
+  commitEdit(row: any, column: string, box: HTMLInputElement): void {
+    const n = parseWeight(box.value);
+    if (n === null) {
+      this.say('Type a number of 0 or more.', true);
+      box.value = this.raw(row, column);
+      return;
+    }
+    if (String(n) === String(row?.[column])) { return; }       // unchanged: nothing to save
+    this.call(this.editAction, row, n);
+  }
+
+  runRowAction(row: any): void {
+    this.call(this.rowAction, row);
+  }
+
+  private say(text: string, bad: boolean): void { this.message = text; this.messageBad = bad; }
+
+  private call(action: RowActionConfig | null, row: any, value?: number): void {
+    if (!action || this.busy) { return; }
+    this.busy = true;
+    const url = this.polariService.getBackendBaseUrl() + fillPath(action.path, row);
+    const body = fillBody(action.body_template ?? {}, row, value);
+    const req = (action.method || 'POST').toUpperCase() === 'PUT'
+      ? this.http.put<any>(url, body, this.polariService.backendRequestOptions)
+      : this.http.post<any>(url, body, this.polariService.backendRequestOptions);
+    req.subscribe({
+      next: (res: any) => {
+        this.busy = false;
+        this.say(action === this.rowAction ? 'Done.' : 'Saved.', false);
+        if (action.then_scope && res && res[action.then_scope.from] !== undefined) {
+          this.displayEvents.dispatch({ name: 'setScope', payload: { key: action.then_scope.key, value: String(res[action.then_scope.from]) }, sourceState: '', channel: 'frontend' });
+        }
+        this.displayEvents.dispatch({ name: 'setScope', payload: { key: 'rev', value: String(Date.now()) }, sourceState: '', channel: 'frontend' });
+      },
+      error: (err: any) => {
+        this.busy = false;
+        this.say(failureWords(err), true);
+        this.loading = true;
+        this.ngOnInit();                                     // show what is really stored
+      },
+    });
+  }
+
   kindOf(row: any, column: string): string {
     const f = this.formatOf(column);
+    if (this.isEditCell(row, column)) { return 'edit'; }
     if (f === 'latex' && this.cell(row, column)) { return 'latex'; }
     if (f === 'ref' && this.cell(row, column)) { return 'ref'; }
     if (f === 'refs') { return 'refs'; }

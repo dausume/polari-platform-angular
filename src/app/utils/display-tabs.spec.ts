@@ -1,4 +1,4 @@
-import { expandTabs, listRowsOf, pickTab, templateRows } from './display-tabs';
+import { expandTabs, listRowsOf, pickTab, syncInputs, templateRows } from './display-tabs';
 
 describe('display-tabs (fsc-3)', () => {
   const template = [{ index: 0, items: [{ title: 'Ranked: {title}', componentProps: { inputs: { dataPath: '/api/x?profile={key}&solution={scope:solution}' } } }] }];
@@ -72,5 +72,31 @@ describe('display-tabs (fsc-3)', () => {
     expect(listRowsOf({ data: [2] })).toEqual([2]);
     expect(listRowsOf([3])).toEqual([3]);
     expect(listRowsOf({ ok: false })).toEqual([]);
+  });
+});
+
+describe('syncInputs (fsc-3)', () => {
+  const mk = (path: string, sel: string) => ({ rows: [{ dashboardItems: [{ title: 'T', componentProps: { inputs: { dataPath: '/ranked', selectedValue: sel } } }, { title: 'B', componentProps: { inputs: { dataPath: path } } }] }] });
+
+  it('copies only the changed inputs into the items on screen, and counts the items that changed', () => {
+    const onScreen = mk('/breakdown?solution=', '');
+    const fresh = mk('/breakdown?solution=s1', 's1');
+    const first = onScreen.rows[0].dashboardItems[0];
+    expect(syncInputs(onScreen, fresh)).toBe(2);
+    expect(first.componentProps.inputs.selectedValue).toBe('s1');
+    expect(first.componentProps.inputs.dataPath).toBe('/ranked');
+    expect(onScreen.rows[0].dashboardItems[1].componentProps.inputs.dataPath).toBe('/breakdown?solution=s1');
+  });
+
+  it('changes nothing (and keeps the same item objects) when the inputs are the same', () => {
+    const onScreen = mk('/b', 's1');
+    const item = onScreen.rows[0].dashboardItems[0];
+    expect(syncInputs(onScreen, mk('/b', 's1'))).toBe(0);
+    expect(onScreen.rows[0].dashboardItems[0]).toBe(item);
+  });
+
+  it('copes with a missing side', () => {
+    expect(syncInputs(null, mk('/b', ''))).toBe(0);
+    expect(syncInputs(mk('/b', ''), null)).toBe(0);
   });
 });

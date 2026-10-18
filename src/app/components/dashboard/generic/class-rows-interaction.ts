@@ -4,9 +4,13 @@
  * (class-rows-interaction.spec.ts).
  */
 
-/** True when a path still has a query parameter with an empty value (`…&solution=&profile=x`): a scope nothing has picked yet. */
+/**
+ * True when a path still has an empty piece where a page-scope value should be: a query parameter with an empty value (`…&solution=&profile=x`)
+ * or an empty path segment (`/api/profiles//terms`) - a scope nothing has picked yet.
+ */
 export function hasBlankParam(path: string): boolean {
-  const q = (path || '').split('?')[1];
+  const [route, q] = (path || '').split('?');
+  if (/^[a-z]+:\/\//i.test(route) ? /\/\//.test(route.replace(/^[a-z]+:\/\//i, '')) : /\/\//.test(route)) { return true; }
   if (!q) { return false; }
   return q.split('&').some((kv) => kv.length > 0 && /^[^=]+=$/.test(kv));
 }
@@ -27,8 +31,8 @@ export function nextSelection(row: any, selectField: string, selectedValue: stri
   return value === (selectedValue || '') ? '' : value;
 }
 
-/** True when the click came from a link or button INSIDE the row (a ref chip, a more/less toggle): the row itself must not react. */
+/** True when the click came from a link or button INSIDE the row (a ref chip, a more/less toggle, an edit box): the row itself must not react. */
 export function clickIsOnControl(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null;
-  return !!el && typeof el.closest === 'function' && !!el.closest('a, button');
+  return !!el && typeof el.closest === 'function' && !!el.closest('a, button, input, select, textarea');
 }

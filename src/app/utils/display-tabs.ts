@@ -74,3 +74,33 @@ export function pickTab(tabs: ResolvedTab[], wanted: string | null | undefined):
   if (!tabs.length) { return null; }
   return tabs.find((t) => t.key === wanted) ?? tabs[0];
 }
+
+/**
+ * A page scope changed: the open tab's items are re-substituted into `fresh`; copy every CHANGED title / input into the items already on screen
+ * (same rows, same positions) instead of replacing the tab. A table whose inputs did not change is left alone - it neither refetches nor flickers -
+ * and one whose dataPath changed fetches again through its own ngOnChanges. Returns the number of items that changed.
+ */
+export function syncInputs(target: { rows?: any[] } | null, fresh: { rows?: any[] } | null): number {
+  let changed = 0;
+  const rowsA = target?.rows ?? [];
+  const rowsB = fresh?.rows ?? [];
+  rowsA.forEach((rowA: any, i: number) => {
+    const itemsA: any[] = rowA?.dashboardItems ?? [];
+    const itemsB: any[] = rowsB[i]?.dashboardItems ?? [];
+    itemsA.forEach((a: any, j: number) => {
+      const b = itemsB[j];
+      if (!a || !b) { return; }
+      let touched = false;
+      if (a.title !== b.title) { a.title = b.title; touched = true; }
+      const ia = a.componentProps?.inputs;
+      const ib = b.componentProps?.inputs;
+      if (ia && ib) {
+        Object.keys(ib).forEach((k) => {
+          if (JSON.stringify(ia[k]) !== JSON.stringify(ib[k])) { ia[k] = ib[k]; touched = true; }
+        });
+      }
+      if (touched) { changed++; }
+    });
+  });
+  return changed;
+}

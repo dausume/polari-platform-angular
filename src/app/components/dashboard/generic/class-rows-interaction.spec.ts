@@ -7,6 +7,9 @@ describe('class-rows-interaction (fsc-3)', () => {
     expect(hasBlankParam('/api/x?mission=m&solution=s1')).toBeFalse();
     expect(hasBlankParam('/api/x')).toBeFalse();
     expect(hasBlankParam('')).toBeFalse();
+    expect(hasBlankParam('/api/firmware-score-profiles//terms?rev=r')).toBeTrue();
+    expect(hasBlankParam('/api/firmware-score-profiles/p1/terms?rev=r')).toBeFalse();
+    expect(hasBlankParam('https://api.example/api/x?a=1')).toBeFalse();
   });
 
   it('nextSelection: a click selects, a second click on the same row clears (click-toggle rule)', () => {
@@ -31,6 +34,9 @@ describe('class-rows-interaction (fsc-3)', () => {
     const link = document.createElement('a');
     cell.appendChild(link);
     expect(clickIsOnControl(link)).toBeTrue();
+    const box = document.createElement('input');
+    cell.appendChild(box);
+    expect(clickIsOnControl(box)).toBeTrue();
     expect(clickIsOnControl(cell)).toBeFalse();
     expect(clickIsOnControl(null)).toBeFalse();
   });
