@@ -1,5 +1,5 @@
-import { DRIVE_WORDS, KIND_ORDER, KIND_WORDS, LIMIT_WORDS, SURFACE_WORDS, STAGE_WORDS } from './pin-view-encode';
-import { PvConnection, PvPayload, PvPin, PvSelection, PvSurface } from './pin-view.types';
+import { isRailLink, DRIVE_WORDS, DRIVE_WORDS_SHORT, KIND_ORDER, KIND_WORDS, LIMIT_WORDS, RAIL_WORDS, SURFACE_WORDS, STAGE_WORDS, relevantIn } from './pin-view-encode';
+import { PvConnection, PvMode, PvPayload, PvPin, PvSelection, PvSurface } from './pin-view.types';
 
 /**
  * pv-1 side panel models (PIN_VIEW_PLAN 2.7 + 2.8). Pure functions: the payload and the selection in,
@@ -8,16 +8,26 @@ import { PvConnection, PvPayload, PvPin, PvSelection, PvSurface } from './pin-vi
  * Vocabulary (his ruling): DRIVE = electricity (current, supply, rail, pull, the class of the limit);
  * SIGNAL = outputs / inputs + the protocol signal; USE = tasks, Purposes, stage. Three separate sections.
  */
-export interface PanelPinRow { id: string; label: string; canonical: string; level: string; stage: string; stageWhy: string; families: string[]; functions: string; consumers: string[]; }
+export interface PanelPinRow {
+  id: string; label: string; canonical: string; level: string; stage: string; stageWhy: string; families: string[]; functions: string; consumers: string[];
+  /** DRIVE columns (electricity) and SIGNAL columns - the template shows the pair for the mode. */
+  driveStatus: string; rail: string; limitClass: string; activated: string; activatedFamily: string; locked: boolean;
+}
 export interface PanelGroup { kind: string; title: string; pins: PanelPinRow[]; }
 export interface Field { name: string; value: string; }
 
 export interface SurfacePanel {
   type: 'surface'; title: string; kindWord: string; parentTitle: string; counts: Field[]; groups: PanelGroup[];
-  register: { text: string; route: string } | null; connectionCount: number; notes: string;
+  register: { text: string; route: string } | null; connectionCount: number; notes: string; rails: RailGroup[];
 }
+export interface RailGroup { rail: string; pins: string[]; }
 export interface PanelConnRow { id: string; label: string; kind: string; via: string; other: string; }
-export interface PinPanel { type: 'pin'; title: string; owner: string; fields: Field[]; families: string[]; consumers: string[]; connections: PanelConnRow[]; }
+export interface CapableRow { name: string; family: string; direction: string; active: boolean; }
+export interface PinPanel {
+  type: 'pin'; title: string; owner: string; fields: Field[]; families: string[]; consumers: string[]; connections: PanelConnRow[];
+  /** pv-2: the Drive section (electricity), the Signal section (the activated function with the capable ones greyed) and the lifecycle rows. */
+  drive: Field[]; signal: Field[]; capable: CapableRow[]; lifecycle: string[]; budgets: string[]; rails: RailGroup[];
+}
 export interface ConnPanel {
   type: 'connection'; title: string; kindWord: string; via: string;
   drive: Field[]; signal: Field[]; use: Field[]; family: string; electricalPlaceholder: string;
@@ -84,12 +94,32 @@ function consumersOf(ix: PvIndex, p: PvPin): string[] {
   return [...new Set(out)];
 }
 
-function pinRow(ix: PvIndex, p: PvPin): PanelPinRow {
-  return { id: p.id, label: p.label, canonical: p.canonical, level: p.level, stage: p.stage, stageWhy: p.stage_why, families: p.families, functions: p.functions.join(' · '), consumers: consumersOf(ix, p) };
+/** The rail links of some pins as lists (outside Drive mode they are not drawn as lines): per rail, the OTHER pins on it with their owner. */
+function railGroups(ix: PvIndex, ids: string[]): RailGroup[] {
+  const own = new Set(ids), by = new Map<string, Set<string>>();
+  for (const id of ids) {
+    const me = ix.pins.get(id);
+    for (const c of ix.byPin.get(id) || []) {
+      if (!isRailLink(c)) { continue; }
+      const other = ix.pins.get(c.a === id ? c.b : c.a);
+      if (!other || own.has(other.id)) { continue; }
+      const rail = me?.rail && me.rail !== 'undetermined' ? me.rail : (c.signal.family === 'ground' ? 'GND' : 'supply');
+      (by.get(rail) || by.set(rail, new Set()).get(rail)!).add(`${other.label} (${other.surface_title || other.level})`);
+    }
+  }
+  return [...by].map(([rail, s]) => ({ rail, pins: [...s].sort() }));
 }
 
-function surfacePanel(ix: PvIndex, s: PvSurface): SurfacePanel {
-  const mine = ix.payload.pins.filter(p => p.surface === s.id);
+function pinRow(ix: PvIndex, p: PvPin): PanelPinRow {
+  return {
+    id: p.id, label: p.label, canonical: p.canonical, level: p.level, stage: p.stage, stageWhy: p.stage_why, families: p.families, functions: p.functions.join(' · '), consumers: consumersOf(ix, p),
+    driveStatus: p.drive_status || 'undetermined', rail: p.rail || 'undetermined', limitClass: p.limit_class || 'unchecked',
+    activated: p.activated?.function || '', activatedFamily: p.activated?.family || '', locked: (p.lifecycle || []).some(l => l.locks),
+  };
+}
+
+function surfacePanel(ix: PvIndex, s: PvSurface, mode: PvMode): SurfacePanel {
+  const mine = ix.payload.pins.filter(p => p.surface === s.id && relevantIn(p, mode));   // a mode lists only the pins it shows
   const conns = ix.surfaceConnections(s.id);
   const groups = new Map<string, PanelPinRow[]>();
   for (const p of mine) {
@@ -107,7 +137,7 @@ function surfacePanel(ix: PvIndex, s: PvSurface): SurfacePanel {
     register: rp ? (rp.includes('/socs/atmega328p/')
       ? { text: 'Register profile: what each register of this SoC is for', route: '/display/register-profile' }
       : { text: `Register profile door: ${rp}`, route: '' }) : null,
-    connectionCount: conns.length, notes: s.notes || '',
+    connectionCount: conns.length, notes: s.notes || '', rails: railGroups(ix, mine.map(x => x.id)),
   };
 }
 
@@ -123,6 +153,18 @@ function pinPanel(ix: PvIndex, p: PvPin): PinPanel {
       { name: 'Can do', value: p.functions.join(' · ') || 'nothing documented' }, { name: 'Pad class', value: p.drive_class || 'undetermined' },
     ],
     families: p.families, consumers: consumersOf(ix, p), connections: conns,
+    drive: [
+      { name: 'Status', value: words(DRIVE_WORDS_SHORT, p.drive_status) }, { name: 'Rail', value: words(RAIL_WORDS, p.rail) },
+      { name: 'Pull', value: p.pull && p.pull !== 'none' ? p.pull.replace('-', ' ') : 'none set' }, { name: 'Limit class', value: words(LIMIT_WORDS, p.limit_class) },
+      ...(p.limit_basis ? [{ name: 'Judged by', value: p.limit_basis }] : []), { name: 'Why', value: p.drive_why || 'undetermined' },
+    ],
+    signal: [
+      { name: 'Activated', value: p.activated ? `${p.activated.function} (${p.activated.family}, ${p.activated.direction})` : 'nothing activated at this stage' },
+      { name: 'Carries a signal', value: p.signal_relevant === false ? 'no (a supply, ground or regulator pin)' : 'yes' },
+    ],
+    capable: (p.capable || []).map(c => ({ name: c.function, family: c.family, direction: c.direction, active: !!p.activated && p.activated.resource === c.function })),
+    lifecycle: (p.lifecycle || []).map(l => `${l.policy}${l.condition ? ' if ' + l.condition : ''} (${l.phase})${l.locks ? ' — locked' : ''}`),
+    budgets: p.group_budget || [], rails: railGroups(ix, [p.id]),
   };
 }
 
@@ -150,9 +192,9 @@ function connPanel(ix: PvIndex, c: PvConnection): ConnPanel {
   };
 }
 
-export function buildPanel(ix: PvIndex, sel: PvSelection): Panel | null {
+export function buildPanel(ix: PvIndex, sel: PvSelection, mode: PvMode = 'all'): Panel | null {
   if (!sel) { return null; }
-  if (sel.kind === 'surface') { const s = ix.surfaces.get(sel.id); return s ? surfacePanel(ix, s) : null; }
+  if (sel.kind === 'surface') { const s = ix.surfaces.get(sel.id); return s ? surfacePanel(ix, s, mode) : null; }
   if (sel.kind === 'pin') { const p = ix.pins.get(sel.id); return p ? pinPanel(ix, p) : null; }
   const c = ix.conns.get(sel.id);
   return c ? connPanel(ix, c) : null;

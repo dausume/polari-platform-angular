@@ -17,8 +17,10 @@ export class PinViewService {
 
   /** Builds the door URL; empty values are left out. */
   url(board: string, q: PvQuery, door = '/api/board'): string {
-    const params = (['system', 'binding', 'stage', 'protocol'] as const)
-      .filter(k => q[k]).map(k => `${k}=${encodeURIComponent(q[k])}`).join('&');
+    const names = (['system', 'binding', 'stage', 'protocol'] as const)
+      .filter(k => q[k]).map(k => `${k}=${encodeURIComponent(q[k])}`);
+    if (q.protocol && q.activated_only) { names.push('activated_only=1'); }
+    const params = names.join('&');
     return `${this.polari.getBackendBaseUrl()}${door}/${encodeURIComponent(board)}/pin-view${params ? '?' + params : ''}`;
   }
 

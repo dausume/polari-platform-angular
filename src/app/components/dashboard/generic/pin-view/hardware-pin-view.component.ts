@@ -5,11 +5,13 @@ import { Subscription } from 'rxjs';
 
 import { friendlyError } from '../friendly-error';
 import { PinViewCanvas } from './pin-view-draw';
-import { FILL_WORDS, GLYPHS, ROLE_WORDS, PvRole } from './pin-view-encode';
+import {
+  DRIVE_GLYPHS, DRIVE_WORDS_SHORT, FILL_WORDS, GLYPHS, RAIL_WORDS, ROLE_WORDS, SIGNAL_SYMBOL_WORDS, PvDriveSymbol, PvModeFilters, PvRole, driveToken, driveFilterOn,
+} from './pin-view-encode';
 import { buildScene } from './pin-view-layout';
 import { ConnPanel, Panel, PinPanel, PvIndex, SurfacePanel, buildPanel } from './pin-view-panel';
 import { PinViewService } from './pin-view.service';
-import { PvFamily, PvPayload, PvSelection, PvStage } from './pin-view.types';
+import { PvFamily, PvMode, PvPayload, PvSelection, PvStage } from './pin-view.types';
 
 /**
  * hardware-pin-view — the pin view (PIN_VIEW_PLAN.md, pv-1): THE ONE sanctioned new custom component for pins
@@ -32,7 +34,16 @@ const STAGES: { id: PvStage; label: string }[] = [
   { id: 'tasks-assigned', label: 'Tasks assigned' },
   { id: 'firmware-committed', label: 'Firmware committed' },
 ];
-const DEFAULT_PROTOCOLS = ['spi', 'i2c', 'uart', 'usb'];
+/** The protocol chips (multi-select): the eight the person asked for; the ids are the door's family names. */
+const PROTOCOL_CHIPS: { id: string; label: string }[] = [
+  { id: 'i2c', label: 'I²C' }, { id: 'spi', label: 'SPI' }, { id: 'uart', label: 'UART' }, { id: 'usb', label: 'USB' },
+  { id: 'interrupt', label: 'Interrupt' }, { id: 'pwm-timer', label: 'PWM / timer' }, { id: 'analog', label: 'Analog' }, { id: 'gpio', label: 'GPIO' },
+];
+const MODES: { id: PvMode; label: string; hint: string }[] = [
+  { id: 'all', label: 'All', hint: 'Every pin, coloured by the signal family' },
+  { id: 'drive', label: 'Drive', hint: 'Electricity: only the pins that supply, return, source, sink or pull current' },
+  { id: 'signal', label: 'Signal', hint: 'Only the pins that carry a signal, and which function is activated on each' },
+];
 const FILLS = ['hollow', 'proposed', 'committed', 'hatched'] as const;
 
 @Component({
@@ -58,6 +69,19 @@ export class HardwarePinViewComponent implements OnInit, OnChanges, OnDestroy {
   readonly roleKeys = Object.keys(GLYPHS) as Exclude<PvRole, 'none'>[];
   readonly roleWords = ROLE_WORDS;
   glyph = GLYPHS;
+  readonly modes = MODES;
+  readonly protocolChips = PROTOCOL_CHIPS;
+  readonly driveGlyph = DRIVE_GLYPHS;
+  readonly driveWords = DRIVE_WORDS_SHORT;
+  readonly railWords = RAIL_WORDS;
+  readonly signalSymbolWords = SIGNAL_SYMBOL_WORDS;
+  readonly signalSymbols = ['output', 'input', 'inout', 'clock', 'analog'] as const;
+  driveToken = driveToken;
+  mode: PvMode = 'all';
+  activatedOnly = false;
+  fRails = new Set<string>();
+  fStatuses = new Set<string>();
+  fLimits = new Set<string>();
 
   payload: PvPayload | null = null;
   ix: PvIndex | null = null;
@@ -86,6 +110,7 @@ export class HardwarePinViewComponent implements OnInit, OnChanges, OnDestroy {
       this.binding = q.get('binding') || this.binding;
       this.stage = (q.get('stage') as PvStage) || this.stage;
       this.protocol = q.get('protocol') || this.protocol;
+      this.mode = (['all', 'drive', 'signal'].includes(q.get('mode') || '') ? q.get('mode') : this.mode) as PvMode;
     }
     this.canvas = new PinViewCanvas(this.svgRef.nativeElement, {
       surface: id => this.toggle({ kind: 'surface', id }),
@@ -112,7 +137,7 @@ export class HardwarePinViewComponent implements OnInit, OnChanges, OnDestroy {
     this.sub?.unsubscribe();
     this.loading = true; this.error = ''; this.errorDetail = '';
     this.workingNote = this.stage !== 'base' || this.protocol ? 'Working out the claims… this can take several seconds.' : 'Loading the pins…';
-    this.sub = this.svc.load(this.board, { system: this.system, binding: this.effectiveBinding(), stage: this.stage, protocol: this.protocol }).subscribe({
+    this.sub = this.svc.load(this.board, { system: this.system, binding: this.effectiveBinding(), stage: this.stage, protocol: this.protocol, activated_only: this.activatedOnly }).subscribe({
       next: p => {
         this.loading = false;
         if (!p || p.ok === false) { this.error = (p && p.error) || 'The pin view came back empty.'; return; }
@@ -139,7 +164,50 @@ export class HardwarePinViewComponent implements OnInit, OnChanges, OnDestroy {
   // ---- controls
   setStage(id: string): void { this.stage = id as PvStage; this.reload(); }
   setBinding(name: string): void { this.binding = name; this.reload(); }
+  /** One protocol (or none): the older single-select entry point; the chips call toggleProtocol. */
   setProtocol(name: string): void { this.protocol = name; this.redraw(); this.reload(); }
+  get protocols(): string[] { return this.protocol.split(',').filter(Boolean); }
+  hasProtocol(id: string): boolean { return this.protocols.includes(id); }
+  /** Chips are multi-select (i2c + spi at once); a second click on a chip clears it. */
+  toggleProtocol(id: string): void {
+    const cur = this.protocols;
+    this.protocol = (cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id]).join(',');
+    if (!this.protocol) { this.activatedOnly = false; }
+    this.redraw(); this.reload();
+  }
+  setActivatedOnly(on: boolean): void { this.activatedOnly = on; if (this.protocol) { this.reload(); } }
+  setMode(m: PvMode): void { this.mode = m; this.redraw(); }
+  private toggleIn(set: Set<string>, id: string): void { if (set.has(id)) { set.delete(id); } else { set.add(id); } this.redraw(); }
+  toggleRail(id: string): void { this.toggleIn(this.fRails, id); }
+  toggleStatus(id: string): void { this.toggleIn(this.fStatuses, id); }
+  toggleLimit(id: string): void { this.toggleIn(this.fLimits, id); }
+  get filtersOn(): boolean { return !!this.protocol || this.activatedOnly || driveFilterOn(this.modeFilters); }
+  get modeFilters(): PvModeFilters { return { rails: this.fRails, statuses: this.fStatuses, limits: this.fLimits }; }
+  /** Clears every filter (protocols, activated only, rail, status, limit class); reloads only if the door's answer depends on one. */
+  clearFilters(): void {
+    const asked = !!this.protocol;
+    this.protocol = ''; this.activatedOnly = false;
+    this.fRails = new Set(); this.fStatuses = new Set(); this.fLimits = new Set();
+    this.redraw();
+    if (asked) { this.reload(); }
+  }
+  /** The values present in the payload, in the door's vocabulary order: the chips offer only what exists. */
+  private present(key: 'rail' | 'drive_status' | 'limit_class', order: string[] | undefined): string[] {
+    const have = new Set((this.payload?.pins || []).filter(p => p.drive_relevant !== false).map(p => p[key]));
+    const known = (order || []).filter(v => have.has(v));
+    return [...known, ...[...have].filter(v => !known.includes(v))];
+  }
+  get railOptions(): string[] { return this.present('rail', this.payload?.vocabulary.drive?.rails); }
+  get statusOptions(): string[] { return this.present('drive_status', this.payload?.vocabulary.drive?.drive_statuses); }
+  get limitOptions(): string[] { return this.present('limit_class', this.payload?.vocabulary.drive?.limit_classes); }
+  get driveSymbols(): PvDriveSymbol[] { return this.statusOptions.filter(s => s in DRIVE_GLYPHS) as PvDriveSymbol[]; }
+  get showDriveFilters(): boolean { return this.mode !== 'signal'; }
+  get showSignalFilters(): boolean { return this.mode !== 'drive'; }
+  get modeHint(): string { return MODES.find(m => m.id === this.mode)?.hint || ''; }
+  get matchCount(): number { return this.payload ? this.payload.pins.filter(p => this.matchesNow(p)).length : 0; }
+  private matchesNow(p: { rail: string; drive_status: string; limit_class: string }): boolean {
+    return (!this.fRails.size || this.fRails.has(p.rail)) && (!this.fStatuses.size || this.fStatuses.has(p.drive_status)) && (!this.fLimits.size || this.fLimits.has(p.limit_class));
+  }
   setShowUnassigned(on: boolean): void { this.showUnassigned = on; this.redraw(); }
   fit(): void { this.canvas?.fit(); }
 
@@ -170,20 +238,16 @@ export class HardwarePinViewComponent implements OnInit, OnChanges, OnDestroy {
   @HostListener('document:keydown.escape') onEscape(): void { this.clear(); }
 
   private redraw(): void {
-    this.panel = this.ix ? buildPanel(this.ix, this.selection) : null;
-    this.canvas?.setState({ selection: this.selection, anchor: this.anchor, protocol: this.protocol, showUnassigned: this.showUnassigned });
+    this.panel = this.ix ? buildPanel(this.ix, this.selection, this.mode) : null;
+    this.canvas?.setState({ selection: this.selection, anchor: this.anchor, protocol: this.protocol, showUnassigned: this.showUnassigned, mode: this.mode, filters: this.modeFilters });
   }
 
   // ---- template helpers
   get families(): PvFamily[] { return this.payload?.vocabulary.families || []; }
-  get protocolOptions(): { id: string; label: string }[] {
-    const v = this.payload?.vocabulary;
-    const sets = v ? Object.keys(v.sets) : DEFAULT_PROTOCOLS;
-    const rest = v ? v.families.map(f => f.family).filter(f => !sets.includes(f)) : [];
-    return [...sets.map(s => ({ id: s, label: `${s.toUpperCase()} (${(v?.sets[s] || []).join(' · ')})` })), ...rest.map(f => ({ id: f, label: f }))];
-  }
-  get protocolChildren(): string[] { return this.payload?.vocabulary.sets[this.protocol] || []; }
+  get protocolChildren(): string[] { return this.payload?.protocol?.children || []; }
   get litCount(): number { return this.payload ? this.payload.pins.filter(p => !!p.lit).length : 0; }
+  /** The two custom properties a swatch or chip paints from, for any token name (`--pin-spi`, `--drive-5v`). */
+  vars(token: string): Record<string, string> { return { '--fam': `var(${token}, #90a4ae)`, '--fam-text': `var(${token}-text, #000000)` }; }
   famVars(f: PvFamily): Record<string, string> { return { '--fam': `var(${f.token}, ${f.fallback_hex})`, '--fam-text': `var(${f.text_token}, #ffffff)` }; }
   get sp(): SurfacePanel | null { return this.panel?.type === 'surface' ? this.panel : null; }
   get pp(): PinPanel | null { return this.panel?.type === 'pin' ? this.panel : null; }

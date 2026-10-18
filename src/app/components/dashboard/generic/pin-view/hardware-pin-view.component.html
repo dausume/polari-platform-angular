@@ -1,4 +1,10 @@
 <div class="pv-root">
+  <div class="pv-modebar" role="group" aria-label="View mode">
+    <span class="pv-modes">
+      <button *ngFor="let m of modes" type="button" class="pv-btn pv-mode" [class.on]="mode === m.id" [attr.data-mode]="m.id" [attr.aria-pressed]="mode === m.id" [attr.title]="m.hint" (click)="setMode(m.id)">{{ m.label }}</button>
+    </span>
+    <span class="pv-muted pv-modehint">{{ modeHint }}</span>
+  </div>
   <div class="pv-bar">
     <label class="pv-ctl">Stage
       <select class="pv-stage-select" (change)="setStage($any($event.target).value)">
@@ -11,15 +17,29 @@
         <option *ngFor="let b of bindings" [value]="b" [selected]="b === binding">{{ b }}</option>
       </select>
     </label>
-    <label class="pv-ctl">Show pins able to carry
-      <select class="pv-protocol-select" (change)="setProtocol($any($event.target).value)">
-        <option value="" [selected]="!protocol">any protocol</option>
-        <option *ngFor="let o of protocolOptions" [value]="o.id" [selected]="o.id === protocol">{{ o.label }}</option>
-      </select>
-    </label>
     <label class="pv-ctl pv-check"><input type="checkbox" class="pv-unassigned-toggle" [checked]="showUnassigned" (change)="setShowUnassigned($any($event.target).checked)"> Show unassigned</label>
+    <button type="button" class="pv-btn pv-clear-filters" (click)="clearFilters()" [disabled]="!filtersOn">Clear filters</button>
     <button type="button" class="pv-btn pv-fit" (click)="fit()">Fit</button>
     <button type="button" class="pv-btn pv-clear" (click)="clear()" [disabled]="!selection">Clear selection</button>
+  </div>
+
+  <div class="pv-filters">
+    <div class="pv-chips pv-protocol-chips" *ngIf="showSignalFilters" role="group" aria-label="Protocols">
+      <span class="pv-chips-h">Protocols</span>
+      <button *ngFor="let c of protocolChips" type="button" class="pv-fchip pv-protocol-chip" [class.on]="hasProtocol(c.id)" [attr.data-protocol]="c.id" [attr.aria-pressed]="hasProtocol(c.id)"
+        [ngStyle]="vars('--pin-' + c.id)" (click)="toggleProtocol(c.id)">{{ c.label }}</button>
+      <label class="pv-check"><input type="checkbox" class="pv-activated-only" [checked]="activatedOnly" [disabled]="!protocol" (change)="setActivatedOnly($any($event.target).checked)"> Activated only</label>
+    </div>
+    <div class="pv-chips pv-drive-chips" *ngIf="showDriveFilters && railOptions.length" role="group" aria-label="Drive filters">
+      <span class="pv-chips-h">Rail</span>
+      <button *ngFor="let r of railOptions" type="button" class="pv-fchip pv-rail-chip" [class.on]="fRails.has(r)" [attr.data-rail]="r" [attr.aria-pressed]="fRails.has(r)"
+        [ngStyle]="vars(driveToken(r))" (click)="toggleRail(r)">{{ r }}</button>
+      <span class="pv-chips-h">Status</span>
+      <button *ngFor="let s of statusOptions" type="button" class="pv-fchip pv-status-chip plain" [class.on]="fStatuses.has(s)" [attr.data-status]="s" [attr.aria-pressed]="fStatuses.has(s)" (click)="toggleStatus(s)">{{ s }}</button>
+      <span class="pv-chips-h">Limit</span>
+      <button *ngFor="let l of limitOptions" type="button" class="pv-fchip pv-limit-chip" [class.on]="fLimits.has(l)" [attr.data-limit]="l" [attr.aria-pressed]="fLimits.has(l)"
+        [ngStyle]="vars(driveToken(l))" (click)="toggleLimit(l)">{{ l }}</button>
+    </div>
   </div>
 
   <p class="pv-status pv-loading" *ngIf="loading">{{ workingNote }}</p>
@@ -27,7 +47,8 @@
   <p class="pv-status pv-note" *ngIf="payload && !loading && !error">
     {{ payload.stage.notes[0] }}
     <span *ngIf="payload.stage.undetermined.length"> Not known yet: {{ payload.stage.undetermined.join('; ') }}.</span>
-    <span *ngIf="protocol && payload.protocol"> {{ litCount }} pins can carry {{ protocol }}<span *ngIf="protocolChildren.length"> ({{ protocolChildren.join(' · ') }})</span>; the rest are dimmed. Hover a pin for the ladder's reason.</span>
+    <span *ngIf="protocol && payload.protocol"> {{ litCount }} pins {{ activatedOnly ? 'have' : 'can carry' }} {{ protocols.join(' + ') }}<span *ngIf="activatedOnly"> activated by a claim</span><span *ngIf="protocolChildren.length"> ({{ protocolChildren.join(' · ') }})</span>; the rest are greyed. Hover a pin for the ladder's reason.</span>
+    <span class="pv-drive-note" *ngIf="showDriveFilters && (fRails.size || fStatuses.size || fLimits.size)"> {{ matchCount }} pins match the drive filters; the rest are greyed.</span>
   </p>
 
   <div class="pv-main">
@@ -35,7 +56,7 @@
       <svg #svg class="pv-svg" role="img" aria-label="Board, chips and parts with their pins. Click a part to see its connections; press Escape to clear."></svg>
     </div>
 
-    <aside class="pv-side" aria-live="polite">
+    <aside class="pv-side" aria-live="polite" [attr.data-mode]="mode">
       <ng-container *ngIf="!panel">
         <h3 class="pv-h">Pin view</h3>
         <p>Click a board, a chip package, the silicon inside it or a part to see which pins it connects to. Nothing is wired until you pick something. Click it again, or press Escape, to clear.</p>
@@ -49,16 +70,36 @@
         <p class="pv-sub">{{ s.kindWord }}<span *ngIf="s.parentTitle"> inside {{ s.parentTitle }}</span> &middot; {{ s.connectionCount }} connections drawn</p>
         <dl class="pv-fields pv-counts-dl"><ng-container *ngFor="let f of s.counts"><dt>{{ f.name }}</dt><dd>{{ f.value }}</dd></ng-container></dl>
         <p *ngIf="s.register"><a *ngIf="s.register.route" class="pv-link pv-register-link" [routerLink]="s.register.route">{{ s.register.text }}</a><span *ngIf="!s.register.route" class="pv-register-note">{{ s.register.text }}</span></p>
+<section class="pv-group pv-rails" *ngIf="s.rails.length && mode !== 'drive'">
+          <h4 class="pv-h4">Rail links <span class="pv-muted">(shown as a stub and tag, not as lines)</span></h4>
+          <p class="pv-rail" *ngFor="let r of s.rails"><strong>{{ r.rail }}</strong> also reaches: {{ r.pins.join('; ') }}</p>
+        </section>
         <section class="pv-group" *ngFor="let g of s.groups">
           <h4 class="pv-h4">{{ g.title }} <span class="pv-muted">({{ g.pins.length }})</span></h4>
           <table class="pv-table">
-            <thead><tr><th>Pin</th><th>Can do</th><th>Stage</th><th>Consumed by</th></tr></thead>
+            <thead>
+              <tr *ngIf="mode === 'all'"><th>Pin</th><th>Can do</th><th>Stage</th><th>Consumed by</th></tr>
+              <tr *ngIf="mode === 'drive'"><th>Pin</th><th>Drive</th><th>Rail</th><th>Limit</th></tr>
+              <tr *ngIf="mode === 'signal'"><th>Pin</th><th>Activated</th><th>Can carry</th><th>Stage</th></tr>
+            </thead>
             <tbody>
               <tr *ngFor="let r of g.pins; trackBy: trackId" [class.sel]="isSelectedPin(r.id)">
-                <td><button type="button" class="pv-rowbtn" (click)="pickPin(r.id)">{{ r.label }}<span *ngIf="r.canonical && r.canonical !== r.label"> ({{ r.canonical }})</span></button></td>
-                <td><span class="pv-chip" *ngFor="let f of r.families" [attr.data-family]="f">{{ f }}</span><span class="pv-muted" *ngIf="!r.families.length">{{ r.functions || 'nothing documented' }}</span></td>
-                <td>{{ r.stage }}</td>
-                <td><span *ngFor="let c of r.consumers; let last = last">{{ c }}<span *ngIf="!last">; </span></span><span class="pv-muted" *ngIf="!r.consumers.length">nothing yet</span></td>
+                <td><button type="button" class="pv-rowbtn" (click)="pickPin(r.id)">{{ r.label }}<span *ngIf="r.canonical && r.canonical !== r.label"> ({{ r.canonical }})</span></button><span class="pv-lock-mark" *ngIf="r.locked && mode !== 'drive'" title="reserved or prohibited in this phase"> &#128274;</span></td>
+                <ng-container *ngIf="mode === 'all'">
+                  <td><span class="pv-chip" *ngFor="let f of r.families" [attr.data-family]="f">{{ f }}</span><span class="pv-muted" *ngIf="!r.families.length">{{ r.functions || 'nothing documented' }}</span></td>
+                  <td>{{ r.stage }}</td>
+                  <td><span *ngFor="let c of r.consumers; let last = last">{{ c }}<span *ngIf="!last">; </span></span><span class="pv-muted" *ngIf="!r.consumers.length">nothing yet</span></td>
+                </ng-container>
+                <ng-container *ngIf="mode === 'drive'">
+                  <td>{{ driveWords[r.driveStatus] || r.driveStatus }}</td>
+                  <td>{{ railWords[r.rail] || r.rail }}</td>
+                  <td>{{ r.limitClass }}</td>
+                </ng-container>
+                <ng-container *ngIf="mode === 'signal'">
+                  <td><span class="pv-chip pv-badge-chip" *ngIf="r.activated" [attr.data-family]="r.activatedFamily">{{ r.activated }}</span><span class="pv-muted" *ngIf="!r.activated">none yet</span></td>
+                  <td><span class="pv-chip pv-grey" *ngFor="let f of r.families" [attr.data-family]="f">{{ f }}</span></td>
+                  <td>{{ r.stage }}</td>
+                </ng-container>
               </tr>
             </tbody>
           </table>
@@ -69,7 +110,26 @@
         <h3 class="pv-h pv-pin-title">{{ p.title }}</h3>
         <p class="pv-sub">{{ p.owner }}</p>
         <dl class="pv-fields"><ng-container *ngFor="let f of p.fields"><dt>{{ f.name }}</dt><dd>{{ f.value }}</dd></ng-container></dl>
+        <div class="pv-secs">
+          <section class="pv-sec pv-psec pv-psec-drive">
+            <h4 class="pv-h4">Drive</h4>
+            <p class="pv-muted">Electricity: current and supply.</p>
+            <dl class="pv-fields"><ng-container *ngFor="let f of p.drive"><dt>{{ f.name }}</dt><dd>{{ f.value }}</dd></ng-container></dl>
+            <p class="pv-muted" *ngIf="p.budgets.length">Counts toward: <span class="pv-chip plain" *ngFor="let b of p.budgets">{{ b }}</span></p>
+          </section>
+          <section class="pv-sec pv-psec pv-psec-signal">
+            <h4 class="pv-h4">Signal</h4>
+            <p class="pv-muted">What the pin carries; the functions it could carry are greyed.</p>
+            <dl class="pv-fields"><ng-container *ngFor="let f of p.signal"><dt>{{ f.name }}</dt><dd>{{ f.value }}</dd></ng-container></dl>
+            <p class="pv-capable"><span class="pv-chip" *ngFor="let c of p.capable" [attr.data-family]="c.family" [class.pv-grey]="!c.active" [class.pv-active]="c.active" [attr.title]="c.family + ', ' + c.direction">{{ c.name }}</span></p>
+            <ul class="pv-list pv-lifecycle" *ngIf="p.lifecycle.length"><li *ngFor="let l of p.lifecycle">{{ l }}</li></ul>
+          </section>
+        </div>
         <p><span class="pv-chip" *ngFor="let f of p.families" [attr.data-family]="f">{{ f }}</span></p>
+<section class="pv-group pv-rails" *ngIf="p.rails.length && mode !== 'drive'">
+          <h4 class="pv-h4">Rail links <span class="pv-muted">(shown as a stub and tag, not as lines)</span></h4>
+          <p class="pv-rail" *ngFor="let r of p.rails"><strong>{{ r.rail }}</strong> also reaches: {{ r.pins.join('; ') }}</p>
+        </section>
         <h4 class="pv-h4">Consumed by</h4>
         <ul class="pv-list"><li *ngFor="let c of p.consumers">{{ c }}</li><li class="pv-muted" *ngIf="!p.consumers.length">nothing yet</li></ul>
         <h4 class="pv-h4">Connections <span class="pv-muted">(click one on the picture or here)</span></h4>
@@ -82,6 +142,7 @@
       <ng-container *ngIf="cp as c">
         <h3 class="pv-h pv-conn-title">{{ c.title }}</h3>
         <p class="pv-sub">{{ c.kindWord }}<span *ngIf="c.via"> &middot; through {{ c.via }}</span></p>
+        <div class="pv-secs">
         <section class="pv-sec pv-sec-drive">
           <h4 class="pv-h4">Drive</h4>
           <p class="pv-muted">Electricity: current and supply. No numbers here.</p>
@@ -98,23 +159,50 @@
           <p class="pv-muted">Who claims this connection and for what.</p>
           <dl class="pv-fields"><ng-container *ngFor="let f of c.use"><dt>{{ f.name }}</dt><dd>{{ f.value }}</dd></ng-container></dl>
         </section>
+        </div>
       </ng-container>
 
-      <details class="pv-legend" open>
-        <summary>Legend</summary>
-        <p class="pv-muted">Colour is the signal family.</p>
-        <ul class="pv-swatches">
-          <li *ngFor="let f of families"><span class="pv-chip" [ngStyle]="famVars(f)" [attr.data-family]="f.family">{{ f.family }}</span></li>
-        </ul>
+      <details class="pv-legend" open [attr.data-mode]="mode">
+        <summary>Legend ({{ mode === 'all' ? 'all pins' : mode === 'drive' ? 'drive: electricity' : 'signal' }})</summary>
+        <ng-container *ngIf="mode === 'all'">
+          <p class="pv-muted">Colour is the signal family.</p>
+          <ul class="pv-swatches">
+            <li *ngFor="let f of families"><span class="pv-chip" [ngStyle]="famVars(f)" [attr.data-family]="f.family">{{ f.family }}</span></li>
+          </ul>
+        </ng-container>
+        <ng-container *ngIf="mode === 'drive'">
+          <p class="pv-muted">Colour is the rail (or the limit class while a limit filter is on). Only pins that take part in current and supply are shown.</p>
+          <ul class="pv-swatches pv-rail-legend">
+            <li *ngFor="let r of railOptions"><span class="pv-chip" [ngStyle]="vars(driveToken(r))" [attr.data-rail]="r">{{ railWords[r] || r }}</span></li>
+          </ul>
+          <p class="pv-muted">Symbols show the power flow.</p>
+          <ul class="pv-fill-legend pv-drive-legend">
+            <li *ngFor="let s of driveSymbols" [attr.data-status]="s"><svg class="pv-leg-svg" viewBox="-1.2 -1.2 2.4 2.4" aria-hidden="true"><g class="pv-pin" data-fill="hollow" style="--fam: var(--drive-logic-io); --fam-text: var(--drive-logic-io-text)"><path class="pv-glyph" [attr.d]="driveGlyph[s]"></path></g></svg> {{ driveWords[s] }}</li>
+          </ul>
+          <p class="pv-muted">Hatched: the limit is undetermined or over (never silently fine).</p>
+        </ng-container>
+        <ng-container *ngIf="mode === 'signal'">
+          <p class="pv-muted">Colour is the activated function's family; the badge names the function. Only pins that carry a signal are shown.</p>
+          <ul class="pv-swatches">
+            <li *ngFor="let f of families"><span class="pv-chip" [ngStyle]="famVars(f)" [attr.data-family]="f.family">{{ f.family }}</span></li>
+          </ul>
+          <p class="pv-muted">Symbols say which way the activated signal goes.</p>
+          <ul class="pv-fill-legend pv-signal-legend">
+            <li *ngFor="let r of signalSymbols" [attr.data-role]="r"><svg class="pv-leg-svg" viewBox="-1 -1 2 2" aria-hidden="true"><g class="pv-pin" data-fill="hollow" style="--fam: var(--pin-gpio); --fam-text: var(--pin-gpio-text)"><path class="pv-glyph" [attr.d]="glyph[r]"></path></g></svg> {{ signalSymbolWords[r] }}</li>
+            <li><svg class="pv-leg-svg" viewBox="-1 -1 2 2" aria-hidden="true"><g class="pv-pin" data-fill="hollow" style="--fam: var(--pin-gpio)"><path class="pv-glyph" [attr.d]="glyph.reserved"></path></g></svg> locked: reserved or prohibited in this phase</li>
+          </ul>
+        </ng-container>
         <p class="pv-muted">Fill says how far a pin is assigned.</p>
         <ul class="pv-fill-legend">
           <li *ngFor="let f of fills"><svg class="pv-leg-svg" viewBox="-1.2 -1.2 2.4 2.4" aria-hidden="true"><g class="pv-pin" [attr.data-fill]="f" style="--fam: var(--pin-gpio); --fam-text: var(--pin-gpio-text)"><circle class="pv-mark" r="0.8"></circle><path *ngIf="f === 'hatched'" class="pv-hatch" d="M-0.7,0.7L0.7,-0.7M-0.7,0L0,-0.7M0,0.7L0.7,0" transform="scale(0.8)"></path></g></svg> {{ fillWords[f] }}</li>
         </ul>
-        <p class="pv-muted">Symbols say what a pin does (signal direction, not electricity).</p>
-        <ul class="pv-fill-legend">
-          <li *ngFor="let r of roleKeys"><svg class="pv-leg-svg" viewBox="-1 -1 2 2" aria-hidden="true"><g class="pv-pin" data-fill="hollow" style="--fam: var(--pin-gpio); --fam-text: var(--pin-gpio-text)"><path class="pv-glyph" [attr.d]="glyph[r]"></path></g></svg> {{ roleWords[r] }}</li>
-          <li><svg class="pv-leg-svg" viewBox="-1.2 -1.2 2.4 2.4" aria-hidden="true"><g class="pv-pin" data-fill="hollow" style="--fam: var(--pin-gpio)"><circle class="pv-internal" r="1"></circle><circle class="pv-mark" r="0.55"></circle></g></svg> dotted ring: used on the board only, no header</li>
-        </ul>
+        <ng-container *ngIf="mode === 'all'">
+          <p class="pv-muted">Symbols say what a pin does (signal direction, not electricity).</p>
+          <ul class="pv-fill-legend">
+            <li *ngFor="let r of roleKeys"><svg class="pv-leg-svg" viewBox="-1 -1 2 2" aria-hidden="true"><g class="pv-pin" data-fill="hollow" style="--fam: var(--pin-gpio); --fam-text: var(--pin-gpio-text)"><path class="pv-glyph" [attr.d]="glyph[r]"></path></g></svg> {{ roleWords[r] }}</li>
+            <li><svg class="pv-leg-svg" viewBox="-1.2 -1.2 2.4 2.4" aria-hidden="true"><g class="pv-pin" data-fill="hollow" style="--fam: var(--pin-gpio)"><circle class="pv-internal" r="1"></circle><circle class="pv-mark" r="0.55"></circle></g></svg> dotted ring: used on the board only, no header</li>
+          </ul>
+        </ng-container>
         <p class="pv-muted" *ngIf="payload">Silicon that would not fit inside its package is drawn smaller than its true size.</p>
       </details>
     </aside>

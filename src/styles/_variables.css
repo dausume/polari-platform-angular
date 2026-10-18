@@ -161,3 +161,20 @@
   --pin-ground: #424242;  --pin-ground-text: #ffffff;
   --pin-other: #90a4ae;  --pin-other-text: #000000;
 }
+
+/* === Pin-view DRIVE mode (pv-2, PIN_VIEW_PLAN section 7) ===
+   Drive = electricity (current flow and supply). Colour = the RAIL (5V, 3V3, VBUS, GND, logic-io) or, while a limit
+   filter is on, the CLASS of the limit (within-recommended, undetermined, over, unchecked). Each --drive-<name> is
+   paired with --drive-<name>-text. Kept apart from the signal-family tokens above on purpose (never mix drive and
+   signal). Distinctness is the only requirement: these are DRAWING KNOBS, not measurements. */
+:root {
+  --drive-5v: #ef6c00;  --drive-5v-text: #000000;
+  --drive-3v3: #fbc02d;  --drive-3v3-text: #000000;
+  --drive-vbus: #5e35b1;  --drive-vbus-text: #ffffff;
+  --drive-gnd: #455a64;  --drive-gnd-text: #ffffff;
+  --drive-logic-io: #00897b;  --drive-logic-io-text: #ffffff;
+  --drive-undetermined: #90a4ae;  --drive-undetermined-text: #000000;
+  --drive-within-recommended: #2e7d32;  --drive-within-recommended-text: #ffffff;
+  --drive-over: #c62828;  --drive-over-text: #ffffff;
+  --drive-unchecked: #9e9e9e;  --drive-unchecked-text: #000000;
+}

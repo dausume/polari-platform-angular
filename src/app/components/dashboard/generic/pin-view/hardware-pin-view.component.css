@@ -92,3 +92,41 @@ hardware-pin-view { display: block; container-type: inline-size; container-name:
 .pv-root .pv-swatches, .pv-root .pv-fill-legend { list-style: none; padding: 0; margin: 2px 0 6px; display: flex; flex-wrap: wrap; gap: 2px 10px; }
 .pv-root .pv-fill-legend li { display: flex; align-items: center; gap: 4px; font-size: 12px; }
 .pv-root .pv-leg-svg { width: 18px; height: 18px; flex: none; }
+
+/* ---- pv-2: the mode switch, the filter chips, the mode legends. Colour from theme tokens only (--pin-<family>, --drive-<rail|limit class>, each with its -text pair). */
+.pv-root .pv-modebar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+.pv-root .pv-modes { display: inline-flex; border: 1px solid var(--border-medium); border-radius: var(--radius-sm); overflow: hidden; }
+.pv-root .pv-mode { border: 0; border-radius: 0; border-right: 1px solid var(--border-medium); }
+.pv-root .pv-mode:last-child { border-right: 0; }
+.pv-root .pv-mode.on { background: var(--brand-blue-light); color: var(--text-primary); box-shadow: inset 0 -3px 0 var(--brand-blue); }
+.pv-root .pv-filters { display: flex; flex-direction: column; gap: 4px; }
+.pv-root .pv-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.pv-root .pv-chips-h { font-size: 11px; color: var(--text-secondary); margin-left: 4px; }
+.pv-root .pv-chips-h:first-child { margin-left: 0; }
+.pv-root .pv-fchip { cursor: pointer; padding: 1px 9px; font-size: 12px; border-radius: var(--radius-pill); border: 2px solid var(--fam, var(--border-dark)); background: var(--surface-primary); color: var(--text-primary); }
+.pv-root .pv-fchip.on { background: var(--fam, var(--brand-blue)); color: var(--fam-text, var(--text-primary)); }
+.pv-root .pv-fchip.plain { --fam: var(--border-dark); --fam-text: var(--text-primary); }
+.pv-root .pv-fchip.plain.on { background: var(--surface-tertiary); border-color: var(--brand-blue); }
+.pv-root .pv-check input { margin-right: 4px; }
+
+/* the activated function's badge (signal mode) and the lock corner (reserved / prohibited in the phase) */
+.pv-root .pv-badge { fill: var(--fam); stroke: var(--surface-primary); stroke-width: 0.15px; paint-order: stroke; font-weight: 600; pointer-events: none; }
+.pv-root .pv-lock { fill: none; stroke: var(--text-primary); stroke-width: 1.4px; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; pointer-events: none; }
+.pv-root .pv-pin.match .pv-halo { opacity: 1; stroke: var(--brand-orange); stroke-width: 2.2px; }
+.pv-root .pv-title.kind-board-part, .pv-root .pv-title.kind-bench-part { fill: var(--text-primary); }
+.pv-root .pv-title.kind-soc { fill: var(--text-secondary); }
+
+/* the side panel's sections lead with the mode (Drive first in drive mode, Signal first in signal mode) */
+.pv-root .pv-secs { display: flex; flex-direction: column; }
+.pv-root .pv-side[data-mode='signal'] .pv-secs .pv-sec-signal, .pv-root .pv-side[data-mode='signal'] .pv-secs .pv-psec-signal { order: -1; }
+.pv-root .pv-side[data-mode='drive'] .pv-secs .pv-sec-drive, .pv-root .pv-side[data-mode='drive'] .pv-secs .pv-psec-drive { order: -1; }
+.pv-root .pv-chip.pv-grey { background: var(--surface-tertiary); color: var(--text-tertiary); border: 1px solid var(--border-light); }
+.pv-root .pv-chip.pv-active { outline: 2px solid var(--brand-blue); }
+.pv-root .pv-chip.plain { background: var(--surface-tertiary); color: var(--text-secondary); }
+.pv-root .pv-capable { margin: 2px 0; }
+.pv-root .pv-lock-mark { font-size: 11px; }
+.pv-root .pv-modehint { font-size: 12px; }
+
+/* rail stubs: one short stub + a tag instead of a line to every pin of the rail (outside Drive mode) */
+.pv-root .pv-stub line { stroke: var(--fam); stroke-width: 2.4px; vector-effect: non-scaling-stroke; pointer-events: none; }
+.pv-root .pv-stub-tag { fill: var(--text-primary); font-weight: 600; pointer-events: none; }

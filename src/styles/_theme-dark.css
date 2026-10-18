@@ -115,3 +115,16 @@ body.dark-theme {
   --pin-ground: #848484;  --pin-ground-text: #000000;
   --pin-other: #b7c4ca;  --pin-other-text: #000000;
 }
+
+/* Pin-view drive mode, dark values (see _variables.css). */
+body.dark-theme {
+  --drive-5v: #ffa040;  --drive-5v-text: #000000;
+  --drive-3v3: #ffe082;  --drive-3v3-text: #000000;
+  --drive-vbus: #9575cd;  --drive-vbus-text: #000000;
+  --drive-gnd: #90a4ae;  --drive-gnd-text: #000000;
+  --drive-logic-io: #4db6ac;  --drive-logic-io-text: #000000;
+  --drive-undetermined: #b7c4ca;  --drive-undetermined-text: #000000;
+  --drive-within-recommended: #81c784;  --drive-within-recommended-text: #000000;
+  --drive-over: #e57373;  --drive-over-text: #000000;
+  --drive-unchecked: #bdbdbd;  --drive-unchecked-text: #000000;
+}

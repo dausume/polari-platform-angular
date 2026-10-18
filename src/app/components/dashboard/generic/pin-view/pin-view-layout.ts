@@ -101,6 +101,15 @@ export function buildScene(payload: PvPayload): Scene {
     for (const [x, y] of ps.points) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
   }
   for (const p of pins.values()) { x0 = Math.min(x0, p.x - p.r); y0 = Math.min(y0, p.y - p.r); x1 = Math.max(x1, p.x + p.r); y1 = Math.max(y1, p.y + p.r); }
+  // pv-2: a part's extent (box + pin labels + title, drawn in model units) belongs to the view's bounds - the bench parts at the right were clipped without it
+  for (const ps of surfaces.values()) {
+    const e = ps.surface.extent;
+    if (!e) { continue; }
+    for (const [ex, ey] of [[e.x0, e.y0], [e.x1, e.y0], [e.x1, e.y1], [e.x0, e.y1]]) {
+      const ax = ps.ox + ps.c * ex - ps.sn * ey, ay = ps.oy + ps.sn * ex + ps.c * ey;
+      x0 = Math.min(x0, ax); y0 = Math.min(y0, ay); x1 = Math.max(x1, ax); y1 = Math.max(y1, ay);
+    }
+  }
   if (!isFinite(x0)) { x0 = 0; y0 = 0; x1 = 100; y1 = 100; }
   return { surfaces, pins, order, bounds: { x0, y0, x1, y1 } };
 }

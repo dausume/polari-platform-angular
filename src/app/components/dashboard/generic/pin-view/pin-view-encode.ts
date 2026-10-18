@@ -131,3 +131,94 @@ export const SURFACE_WORDS: Record<string, string> = {
 export function connectionLabel(c: PvConnection, byId: Map<string, PvPin>): string {
   return `${byId.get(c.a)?.label ?? c.a} ↔ ${byId.get(c.b)?.label ?? c.b}`;
 }
+
+// ================================================================ pv-2: the view modes
+/**
+ * DRIVE = electricity (current flow and supply): its symbols revolve around power flow, its colour is the RAIL (or the class of the limit
+ * while a limit filter is on). SIGNAL = what the pin carries: symbols outputs / inputs / bidirectional / clock / analog, colour = family.
+ * Every verdict below is read from the payload fields the server computed (drive_status, rail, limit_class, activated ...); nothing is re-derived.
+ */
+export type PvDriveSymbol = 'supplies' | 'supplied' | 'returns' | 'sources' | 'sinks' | 'sources-or-sinks' | 'pulled-up' | 'pulled-down' | 'high-impedance' | 'not-driven' | 'undetermined';
+
+/** Unit glyphs in a [-1, 1] box, stroked: arrow out = sources, arrow in = sinks, double-headed = sources or sinks, ⊕ = supply, ⏚ = return, a zig-zag resistor = a pull. */
+export const DRIVE_GLYPHS: Record<PvDriveSymbol, string> = {
+  sources: GLYPHS.output,
+  sinks: GLYPHS.input,
+  'sources-or-sinks': GLYPHS.inout,
+  supplies: 'M-0.7,0A0.7,0.7 0 1 0 0.7,0A0.7,0.7 0 1 0 -0.7,0M0,-0.4V0.4M-0.4,0H0.4',
+  supplied: 'M-0.7,0A0.7,0.7 0 1 0 0.7,0A0.7,0.7 0 1 0 -0.7,0M0,-0.4V0.4M-0.4,0H0.4',
+  returns: GLYPHS.ground,
+  'pulled-up': 'M0,0.8V0.5L-0.3,0.35L0.3,0.05L-0.3,-0.25L0.3,-0.55L0,-0.7V-0.8M-0.5,-0.85H0.5',
+  'pulled-down': 'M0,-0.8V-0.5L-0.3,-0.35L0.3,-0.05L-0.3,0.25L0.3,0.55L0,0.7M-0.5,0.85H0.5M-0.3,1.05H0.3',
+  'high-impedance': 'M-0.75,0H-0.4M-0.2,0H0.2M0.4,0H0.75',
+  'not-driven': 'M-0.35,0H0.35',
+  undetermined: 'M-0.35,-0.45A0.4,0.4 0 1 1 0.25,-0.05C0,0.1 0,0.2 0,0.4M0,0.7V0.72',
+};
+export const DRIVE_WORDS_SHORT: Record<string, string> = {
+  supplies: 'supplies (a rail source)', supplied: 'is supplied', returns: 'returns current (ground)', sources: 'sources current', sinks: 'sinks current',
+  'sources-or-sinks': 'sources or sinks current (the level decides)', 'pulled-up': 'pulled up (internal pull-up on)', 'pulled-down': 'pulled down (internal pull-down on)',
+  'high-impedance': 'high impedance (leakage only)', 'not-driven': 'not driven (blank, nothing configures it)', undetermined: 'undetermined',
+};
+export const RAIL_WORDS: Record<string, string> = { '5V': '5 V rail', '3V3': '3.3 V rail', VBUS: 'USB VBUS', GND: 'ground', 'logic-io': 'logic I/O', undetermined: 'rail undetermined' };
+export const SIGNAL_SYMBOL_WORDS: Record<string, string> = {
+  output: 'outputs the signal', input: 'takes the signal in', inout: 'both ways (bidirectional)', clock: 'clock', analog: 'analog',
+};
+
+/** Token name of a rail / limit-class colour: `--drive-5v`, `--drive-3v3`, `--drive-vbus`, `--drive-gnd`, `--drive-logic-io`, `--drive-over` ... (text pair: `-text`). */
+export const driveToken = (name: string): string => `--drive-${(name || 'undetermined').toLowerCase()}`;
+const DRIVE_FALLBACK_HEX = '#90a4ae';
+
+export interface PvModeFilters { rails: ReadonlySet<string>; statuses: ReadonlySet<string>; limits: ReadonlySet<string>; }
+export const NO_FILTERS: PvModeFilters = { rails: new Set<string>(), statuses: new Set<string>(), limits: new Set<string>() };
+export const driveFilterOn = (f: PvModeFilters): boolean => f.rails.size + f.statuses.size + f.limits.size > 0;
+
+/** Does the pin pass the drive filters (an empty group passes everything)? */
+export function matchesDrive(p: PvPin, f: PvModeFilters): boolean {
+  return (!f.rails.size || f.rails.has(p.rail)) && (!f.statuses.size || f.statuses.has(p.drive_status)) && (!f.limits.size || f.limits.has(p.limit_class));
+}
+
+/** A pin belongs to a mode when the server said so (a pin from an older door without the field stays visible). */
+export function relevantIn(p: PvPin, mode: 'all' | 'drive' | 'signal'): boolean {
+  if (mode === 'drive') { return p.drive_relevant !== false; }
+  if (mode === 'signal') { return p.signal_relevant !== false; }
+  return true;
+}
+export function connRelevantIn(c: PvConnection, mode: 'all' | 'drive' | 'signal'): boolean {
+  if (mode === 'drive') { return c.drive_relevant !== false; }
+  if (mode === 'signal') { return c.signal_relevant !== false; }
+  return true;
+}
+
+/** Drive mode: the colour is the rail, or the class of the limit while a limit filter is on. Returns the token name and its fallback. */
+export function driveColour(p: PvPin, byLimit: boolean): { token: string; hex: string } {
+  const name = byLimit ? p.limit_class : p.rail;
+  return { token: driveToken(name), hex: DRIVE_FALLBACK_HEX };
+}
+
+/** Drive mode: hatched = the limit is undetermined / over, or the status itself is undetermined. */
+export function driveHatched(p: PvPin): boolean {
+  return p.limit_class === 'undetermined' || p.limit_class === 'over' || (p.drive_relevant !== false && p.drive_status === 'undetermined');
+}
+
+export function driveSymbol(p: PvPin): PvDriveSymbol {
+  return (p.drive_status in DRIVE_GLYPHS ? p.drive_status : 'undetermined') as PvDriveSymbol;
+}
+
+/** Signal mode: the symbol of the ACTIVATED function (outputs / inputs / bidirectional / clock / analog); none while nothing is activated. */
+export function signalRole(p: PvPin): PvRole {
+  const a = p.activated;
+  if (!a) { return 'none'; }
+  if (a.family === 'clock') { return 'clock'; }
+  if (a.family === 'analog') { return 'analog'; }
+  if (a.family === 'reset-programming' && /reset/i.test(a.function)) { return 'reset'; }
+  if (a.direction === 'outputs') { return 'output'; }
+  if (a.direction === 'inputs') { return 'input'; }
+  if (a.direction === 'bidirectional') { return 'inout'; }
+  return 'none';
+}
+/** Signal mode: the colour is the ACTIVATED family; while nothing is activated the pin keeps its own family (what it can carry first). */
+export function signalFamily(p: PvPin, fallback: string): string { return p.activated?.family || fallback; }
+export const isLocked = (p: PvPin): boolean => (p.lifecycle || []).some(l => l.locks);
+
+/** A rail link: a power / ground connection that fans out to the other pins of the rail (a pad-to-leg link is one short line and stays a line). Outside Drive mode it collapses to a stub + a rail tag. */
+export const isRailLink = (c: PvConnection): boolean => (c.signal?.family === 'power' || c.signal?.family === 'ground') && c.kind !== 'pad-to-leg';
