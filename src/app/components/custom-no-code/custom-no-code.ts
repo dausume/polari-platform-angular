@@ -615,6 +615,8 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
   executionInputParams: InputParamField[] = [];
   executionInstanceFields: InputParamField[] = [];
   executionBoundClassName: string = '';
+  /** The class whose rows a run starts on: the bound class, else what the graph's states act on. */
+  executionTargetClass: string = '';
 
   // State-space class registry
   private stateSpaceRegistry = StateSpaceClassRegistry.getInstance();
@@ -1104,8 +1106,8 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
     // Get the CircleStateLayer and set up overlay callbacks
     this.setupOverlayCallbacks();
 
-    // Reset zoom to default view
-    this.resetZoom();
+    // Fit the graph in the canvas (not the raw identity view, which clips negative coordinates)
+    this.fitOnLoad();
 
     // Extract bound class and generate code (Python or TypeScript based on runtime).
     // Uses regenerateCode() which builds a temporary NoCodeSolution from the raw cache
@@ -2566,7 +2568,7 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
     this.cCrossings = crossings;
     // Best-effort view reset after (re)opening a solution — the view may already be live by the
     // time this first runs, so this is a microtask-deferred nudge, never a hard dependency.
-    Promise.resolve().then(() => this.resetZoom());
+    Promise.resolve().then(() => this.fitOnLoad());
   }
 
   /** fs-2d (moved verbatim): best-effort DOM focus for ?node= — scroll it into view and outline it
@@ -4124,12 +4126,43 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
     }
   }
 
+  /** Recenter = fit the whole graph in the canvas (never zoomed in past 100%). An empty or not-yet-drawn
+   *  graph falls back to the identity view. */
   resetZoom(): void {
     if (this.zoomBehavior && this.d3GraphRenderingSVG) {
       this.d3GraphRenderingSVG.transition()
         .duration(300)
-        .call(this.zoomBehavior.transform, d3.zoomIdentity);
+        .call(this.zoomBehavior.transform, this.fitTransform());
     }
+  }
+
+  /** The zoom transform that frames every drawn state with a margin (the graph used to start clipped
+   *  at the top/left until Recenter, because Recenter was the identity). */
+  private fitTransform(): d3.ZoomTransform {
+    const svg = this.d3GraphRenderingSVG?.node() as SVGSVGElement | null | undefined;
+    const content = this.zoomContainer?.node() as SVGGElement | null | undefined;
+    if (!svg || !content) return d3.zoomIdentity;
+    const groups = Array.from(content.querySelectorAll('g.state-group')) as SVGGElement[];
+    if (!groups.length) return d3.zoomIdentity;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const g of groups) {
+      const b = g.getBBox();
+      const m = g.transform.baseVal.consolidate()?.matrix;
+      const tx = m ? m.e : 0, ty = m ? m.f : 0;
+      x0 = Math.min(x0, b.x + tx); y0 = Math.min(y0, b.y + ty);
+      x1 = Math.max(x1, b.x + b.width + tx); y1 = Math.max(y1, b.y + b.height + ty);
+    }
+    const w = svg.clientWidth, h = svg.clientHeight, bw = x1 - x0, bh = y1 - y0;
+    if (!w || !h || !(bw > 0) || !(bh > 0)) return d3.zoomIdentity;
+    const pad = 40;
+    const k = Math.max(this.minZoom, Math.min(1, (w - 2 * pad) / bw, (h - 2 * pad) / bh));
+    return d3.zoomIdentity.translate(w / 2 - k * (x0 + bw / 2), h / 2 - k * (y0 + bh / 2)).scale(k);
+  }
+
+  /** Fit on load, then once more after the layers have drawn (a solution change re-draws them). */
+  private fitOnLoad(): void {
+    this.resetZoom();
+    setTimeout(() => this.resetZoom(), 500);
   }
 
   // ==================== Solution Options Methods ====================
@@ -4404,10 +4437,22 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
     }
   }
 
+  /** The class an unbound solution acts on: the first BackendStateChange's model or StateChangeCommit's
+   *  target class (light-toggle -> LightState). '' when no state names one. */
+  private targetClassOfStates(): string {
+    for (const s of this.stateInstances || []) {
+      const fv: any = s.boundObjectFieldValues || {};
+      const cls = fv.targetClassName || fv.modelName;
+      if (typeof cls === 'string' && cls.trim()) return cls.trim();
+    }
+    return '';
+  }
+
   private buildExecutionInputParams(): void {
     this.executionInputParams = [];
     this.executionInstanceFields = [];
     this.executionBoundClassName = this.boundClass?.displayName || this.boundClass?.className || '';
+    this.executionTargetClass = this.boundClass?.className || this.targetClassOfStates();
     if (!this.noCodeSolution) return;
 
     const registry = this.stateSpaceRegistry;

@@ -98,6 +98,30 @@ describe('FirmwareInstallerPanelComponent', () => {
     expect(component.build).toBe('');   // a stale build is never picked
   });
 
+  it('leads with the Mission sample, folds the scenario builds away, and names the machine (id in a tooltip)', () => {
+    fixture.detectChanges();
+    const v = (name: string, title: string, group: string) =>
+      ({ name, title, purpose: 'p', app: 'light', classes_json: '["LightState"]', what_to_watch: 'w', group });
+    component.doc = Object.assign(doc(), { host: '1c859e8274aa', host_label: 'pol-core', variants: [
+      v('uno-light', 'The light test', 'sample'), v('uno-echo', 'Echo', 'more'), v('uno-ack-wait', 'SCENARIO ONLY — no timeout', 'scenario'),
+    ] }) as any;
+    component.variant = 'uno-light';
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const host = el.querySelector('.fip-host strong') as HTMLElement;
+    expect(host.textContent).toBe('pol-core');
+    expect(host.title).toContain('1c859e8274aa');
+    expect(el.querySelector('.fip-host')!.textContent).not.toContain('1c859e8274aa');
+    const scen = el.querySelector('details.fip-scenarios') as HTMLDetailsElement;
+    expect(scen.open).toBeFalse();
+    expect(scen.textContent).toContain('SCENARIO ONLY — no timeout');
+    expect(scen.textContent).not.toContain('The light test');
+    expect(text().indexOf('The light test')).toBeLessThan(text().indexOf('Echo'));
+    component.pickVariant('uno-ack-wait');
+    fixture.detectChanges();
+    expect(scen.open).toBeTrue();   // a picked scenario build is never hidden
+  });
+
   it('keeps the confirm disabled until a plan exists, then shows the argv VERBATIM', () => {
     fixture.detectChanges();
     component.pickVariant('uno-echo');

@@ -32,8 +32,20 @@ export class StateOverlayShellComponent {
   /** Material icon name shown in the header. */
   @Input() icon: string = 'widgets';
 
-  /** Header title text. */
+  /** The kind of state (e.g. "Variable Creation"). Shown as a subtitle when the state has its own name. */
   @Input() title: string = '';
+
+  /** The state's own name on the canvas (e.g. "turn-on"). It is the header title whenever set;
+   *  the kind (`title`) then moves to a small subtitle. */
+  @Input() stateName: string = '';
+
+  /** What the header shows as its title: the state's own name, else its kind. */
+  get headerTitle(): string { return this.stateName || this.title; }
+
+  /** Kind subtitle: only when the name is the title and the kind says something different. */
+  get classLabel(): string {
+    return this.stateName && this.title && this.title !== this.stateName ? this.title : '';
+  }
 
   /** Adds the bordered modifier to the header (full-tier divider line). */
   @Input() bordered: boolean = false;

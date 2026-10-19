@@ -20,7 +20,7 @@
     <!-- ============================================================
          TIER: compact — equation name + rendered LaTeX + fill chip.
          ============================================================ -->
-    <state-overlay-shell *ngSwitchCase="'compact'"
+    <state-overlay-shell [stateName]="stateName" *ngSwitchCase="'compact'"
         accent="#81C784"
         icon="view_module"
         [title]="config.matrixEquationName || 'Matrix Eq'"
@@ -55,7 +55,7 @@
     <!-- ============================================================
          TIER: full — picker + preview + per-operand source editors.
          ============================================================ -->
-    <state-overlay-shell *ngSwitchCase="'full'"
+    <state-overlay-shell [stateName]="stateName" *ngSwitchCase="'full'"
         accent="#81C784"
         icon="view_module"
         [title]="config.matrixEquationName ? 'Matrix Eq — ' + config.matrixEquationName : 'Matrix Equation Operation'"

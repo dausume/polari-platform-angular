@@ -8,7 +8,7 @@
     <mat-icon class="tier-tiny__icon">settings_input_hdmi</mat-icon>
   </div>
 
-  <state-overlay-shell *ngSwitchDefault
+  <state-overlay-shell [stateName]="stateName" *ngSwitchDefault
       accent="#00796B"
       icon="settings_input_hdmi"
       [title]="binding?.object_name ? (binding?.object_class + ' · ' + binding?.object_name) : 'Hardware Interface'"

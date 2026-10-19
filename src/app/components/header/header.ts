@@ -165,6 +165,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
   }
 
   openNavItem(it: AppNavItem): void {
+    // the header keeps this app's group on the page it opens, even when another app lists the same tool
+    this.appsNav.rememberPriorApp(this.currentApp?.name);
     if (it.availability === 'absent') {
       this.router.navigateByUrl(
         it.bringup?.route || '/modules/bringup');

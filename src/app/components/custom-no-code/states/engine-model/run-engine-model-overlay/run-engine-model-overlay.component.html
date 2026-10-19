@@ -17,7 +17,7 @@
     <!-- ============================================================
          TIER: compact — model ref + binding-count fill chip.
          ============================================================ -->
-    <state-overlay-shell *ngSwitchCase="'compact'"
+    <state-overlay-shell [stateName]="stateName" *ngSwitchCase="'compact'"
         accent="#7986CB"
         icon="science"
         [title]="config.modelRef || 'Engine Model'"
@@ -49,7 +49,7 @@
     <!-- ============================================================
          TIER: full — model ref + input bindings + result key map + result.
          ============================================================ -->
-    <state-overlay-shell *ngSwitchCase="'full'"
+    <state-overlay-shell [stateName]="stateName" *ngSwitchCase="'full'"
         accent="#7986CB"
         icon="science"
         [title]="config.modelRef ? 'Engine Model — ' + config.modelRef : 'Engine Model (FEM/DFT)'"

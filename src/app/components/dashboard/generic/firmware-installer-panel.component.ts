@@ -34,14 +34,14 @@ import { StompService } from '@services/stomp.service';
  * NO RAW JSON. Fields are a two-column table, frames a table, argv a code line.
  */
 interface Target { name: string; kind: 'twin' | 'board'; label: string; port: string; }
-interface Variant { name: string; title: string; purpose: string; app: string; classes_json: string; what_to_watch: string; }
+interface Variant { name: string; title: string; purpose: string; app: string; classes_json: string; what_to_watch: string; group?: string; }
 interface Build {
   name: string; variant: string; state: string; flash_bytes: number; flash_max: number; ram_bytes: number; ram_max: number;
   flash_pct: number; ram_pct: number; artifact_sha256: string; header_sha256: string; compat: string; compat_why: string;
   installable: boolean; engines: string; built_at: string;
 }
 interface InstallerDoc {
-  ok: boolean; host: string; board: string; targets: Target[]; adapters: any[]; scan_note: string;
+  ok: boolean; host: string; host_label?: string; board: string; targets: Target[]; adapters: any[]; scan_note: string;
   variants: Variant[]; builds: Build[]; twin: any; records: any[]; error?: string;
 }
 interface Plan {
@@ -62,7 +62,7 @@ interface Result {
   template: `
     <div class="fip">
       <div class="fip-bar">
-        <span class="fip-host">installs run on <strong>{{ doc?.host || '…' }}</strong> — the machine holding the port</span>
+        <span class="fip-host">installs run on <strong [title]="'host id: ' + (doc?.host || '')">{{ doc?.host_label || 'this server' }}</strong> — the machine holding the port</span>
         <span class="fip-scan">{{ doc?.scan_note }}</span>
         <button type="button" (click)="reload()" [disabled]="busy">Refresh</button>
       </div>
@@ -82,15 +82,25 @@ interface Result {
 
       <section class="fip-step">
         <h3><span class="fip-num">2</span> What to try</h3>
-        <div class="fip-variants">
-          <label class="fip-variant" *ngFor="let v of doc?.variants" [class.on]="variant === v.name">
-            <input type="radio" name="fip-variant" [checked]="variant === v.name" (change)="pickVariant(v.name)" [disabled]="busy">
-            <span class="fip-vtitle">{{ v.title }}</span>
-            <span class="fip-vname">{{ v.name }} · speaks {{ classes(v) }}</span>
-            <span class="fip-vtext">{{ v.purpose }}</span>
-            <span class="fip-vwatch"><em>Watch for:</em> {{ v.what_to_watch }}</span>
-          </label>
-        </div>
+        <ng-template #vcards let-list>
+          <div class="fip-variants">
+            <label class="fip-variant" *ngFor="let v of list" [class.on]="variant === v.name">
+              <input type="radio" name="fip-variant" [checked]="variant === v.name" (change)="pickVariant(v.name)" [disabled]="busy">
+              <span class="fip-vtitle">{{ v.title }}</span>
+              <span class="fip-vname">{{ v.name }} · speaks {{ classes(v) }}</span>
+              <span class="fip-vtext">{{ v.purpose }}</span>
+              <span class="fip-vwatch"><em>Watch for:</em> {{ v.what_to_watch }}</span>
+            </label>
+          </div>
+        </ng-template>
+        <p class="fip-group" *ngIf="variantsIn('sample').length">The Mission's sample — the light configurations (the first one is the demo's)</p>
+        <ng-container *ngTemplateOutlet="vcards; context: { $implicit: variantsIn('sample') }"></ng-container>
+        <p class="fip-group" *ngIf="variantsIn('more').length">Other firmware to try</p>
+        <ng-container *ngTemplateOutlet="vcards; context: { $implicit: variantsIn('more') }"></ng-container>
+        <details class="fip-scenarios" *ngIf="variantsIn('scenario').length" [open]="inScenarioGroup()">
+          <summary>Fault-scenario builds ({{ variantsIn('scenario').length }}) — scenario only, for the fault tests, not the demo</summary>
+          <ng-container *ngTemplateOutlet="vcards; context: { $implicit: variantsIn('scenario') }"></ng-container>
+        </details>
         <ng-container *ngIf="variant">
           <table class="fip-table" *ngIf="buildsFor().length">
             <thead><tr><th></th><th>build</th><th>flash</th><th>RAM</th><th>.hex sha256</th><th>fits this server?</th></tr></thead>
@@ -121,7 +131,7 @@ interface Result {
             <tr><th>adapter</th><td>{{ plan.adapter || 'none — native USB' }}</td></tr>
             <tr><th>compatibility</th><td [class]="'c-' + plan.compat">{{ plan.compat }} — {{ plan.compat_why }}</td></tr>
             <tr><th>will stamp</th><td>{{ plan.will_stamp }}</td></tr>
-            <tr><th>runs on</th><td>{{ plan.host }} · {{ plan.port }}</td></tr>
+            <tr><th>runs on</th><td><span [title]="'host id: ' + plan.host">{{ doc?.host_label || 'this server' }}</span> · {{ plan.port }}</td></tr>
           </table>
         </div>
       </section>
@@ -166,6 +176,13 @@ interface Result {
     .fip-step h3 { font-size: 14px; margin: 0 0 8px; display: flex; gap: 8px; align-items: baseline; }
     .fip-num { opacity: .6; font-weight: 400; }
     .fip-choice { display: flex; gap: 6px; align-items: baseline; margin: 4px 0; }
+    /* one size for every radio circle (the cards, the targets and the build table drew them differently) */
+    .fip input[type=radio] { width: 16px; height: 16px; min-width: 16px; margin: 0; padding: 0; flex: none;
+                             accent-color: var(--color-success); align-self: flex-start; }
+    .fip-choice input[type=radio] { align-self: center; }
+    .fip-group { margin: 10px 0 6px; font-weight: 600; }
+    .fip-scenarios { margin: 10px 0; }
+    .fip-scenarios summary { cursor: pointer; opacity: .85; margin-bottom: 8px; }
     .fip-note { margin: 6px 0; opacity: .85; }
     .fip-variants { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); margin-bottom: 8px; }
     .fip-variant { display: grid; gap: 3px; padding: 8px; border: 1px solid var(--border-medium); cursor: pointer; }
@@ -253,6 +270,14 @@ export class FirmwareInstallerPanelComponent implements OnInit, OnChanges, OnDes
 
   short(sha: string): string { return sha ? sha.slice(0, 16) + '…' : '—'; }
   isTwin(): boolean { return this.target.startsWith('twin:'); }
+
+  /** The variants of one group (sample | more | scenario); a document without groups lists all under "more". */
+  variantsIn(group: string): Variant[] {
+    return (this.doc?.variants || []).filter(v => (v.group || 'more') === group);
+  }
+
+  /** The collapsed scenario section opens itself when the picked variant lives in it. */
+  inScenarioGroup(): boolean { return this.variantsIn('scenario').some(v => v.name === this.variant); }
 
   buildsFor(): Build[] { return (this.doc?.builds || []).filter(b => b.variant === this.variant); }
 

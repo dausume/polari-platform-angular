@@ -62,6 +62,13 @@
       <div class="input-params-form">
         <!-- Input Parameters tab content -->
         <ng-container *ngIf="activeTab === 'params' || instanceFields.length === 0">
+          <div class="param-row object-row" *ngIf="targetClassName">
+            <label class="param-label">Object <span class="param-type">({{ targetClassName }} row)</span></label>
+            <select class="param-input" [(ngModel)]="selectedObjectName" title="The row the run starts on">
+              <option *ngFor="let r of objectRows" [value]="r.name">{{ r.name }}</option>
+            </select>
+            <span class="no-params" *ngIf="objectRowsError">{{ objectRowsError }}</span>
+          </div>
           <div class="param-row" *ngFor="let param of inputParams">
             <label class="param-label">{{ param.name }} <span class="param-type">({{ param.type }})</span></label>
             <input class="param-input" [(ngModel)]="param.value"

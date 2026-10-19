@@ -21,7 +21,7 @@
          TIER: compact — equation name + rendered LaTeX + fill chip.
          Still no editing controls; the expand button opens the popup.
          ============================================================ -->
-    <state-overlay-shell *ngSwitchCase="'compact'"
+    <state-overlay-shell [stateName]="stateName" *ngSwitchCase="'compact'"
         accent="#FFB74D"
         icon="functions"
         [title]="config.equationName || 'Calculus Op'"
@@ -56,7 +56,7 @@
     <!-- ============================================================
          TIER: full — original editor (unchanged content).
          ============================================================ -->
-    <state-overlay-shell *ngSwitchCase="'full'"
+    <state-overlay-shell [stateName]="stateName" *ngSwitchCase="'full'"
         accent="#FFB74D"
         icon="functions"
         [title]="config.equationName ? 'Calculus Op — ' + config.equationName : 'Calculus Operation'"

@@ -12,6 +12,9 @@ export default class RectangleStateDataPoint {
     stateName?: string; // name of the state this data point.
     // Used for determining the color of the rectangle
     styleName?: string; // name of the style class to be applied to the rectangle
+    // The state's own fill: set from the state's class colour (red only for End States) or its
+    // runtime-lane colour. Undefined = the neutral node-fill theme token.
+    fillColor?: string;
 
     // Corner radius for rounded rectangles (0 for sharp corners)
     cornerRadius?: number;

@@ -7,6 +7,7 @@ import { NoCodeStateRendererManager } from '@services/no-code-services/no-code-s
 import { BehaviorSubject, Subscription } from 'rxjs';
 import { Slot } from '../Slot';
 import * as d3 from 'd3';
+import { getStateSpaceClassMetadata } from '@components/custom-no-code/states/_shared/state-space-class-registry';
 import { NoCodeState } from '../NoCodeState';
 import { NoCodeSolution } from '../NoCodeSolution';
 import { InteractionStateService } from '@services/no-code-services/interaction-state-service';
@@ -166,7 +167,7 @@ export class RectangleStateLayer extends D3ModelLayer {
 
     return noCodeSolution.stateInstances
       .filter(state => state.shapeType === "rectangle")
-      .map(state => new RectangleStateDataPoint(
+      .map(state => this.withFill(state, new RectangleStateDataPoint(
         state.stateLocationX ?? 0,
         state.stateLocationY ?? 0,
         state.stateSvgWidth ?? state.stateSvgRadius ?? 20,
@@ -174,7 +175,18 @@ export class RectangleStateLayer extends D3ModelLayer {
         state.slotRadius ?? 4,
         state.stateName ?? "unknown",
         state.cornerRadius ?? 0
-      ));
+      )));
+  }
+
+  /**
+   * The node's fill. It used to be a hard-coded End-State red on EVERY rectangle (the "red border"
+   * seen around every node). Now: an explicit runtime-lane colour, else the state class's own
+   * colour (End States are red there), else undefined (the neutral --surface-tertiary token).
+   */
+  private withFill(state: NoCodeState, dp: RectangleStateDataPoint): RectangleStateDataPoint {
+    const own = state.backgroundColor && state.backgroundColor !== 'blue' ? state.backgroundColor : undefined;
+    dp.fillColor = own ?? getStateSpaceClassMetadata(state.stateClass ?? '')?.color;
+    return dp;
   }
 
   private calculateDefaultSlotAngle(slot: Slot, state: NoCodeState): number {
@@ -560,7 +572,7 @@ export class RectangleStateLayer extends D3ModelLayer {
           .attr('height', datapoint.height)
           .attr('rx', cornerRadius)
           .attr('ry', cornerRadius)
-          .attr('fill', "#F44336") // Red for end states
+          .style('fill', datapoint.fillColor ?? 'var(--surface-tertiary, #cfd8dc)')
           .attr('stroke', "black")
           .on('contextmenu', function(event: MouseEvent) {
             event.preventDefault();

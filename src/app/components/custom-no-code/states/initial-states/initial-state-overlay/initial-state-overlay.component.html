@@ -1,4 +1,4 @@
-<state-overlay-shell
+<state-overlay-shell [stateName]="stateName"
   [appStateOverlayRoot]="stateName"
   (contextRequested)="fullViewRequested.emit($event)"
   (click)="onOverlayClick($event)"

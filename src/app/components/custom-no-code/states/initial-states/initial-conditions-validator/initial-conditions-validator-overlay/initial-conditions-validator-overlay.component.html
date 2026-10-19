@@ -10,7 +10,7 @@
     </div>
 
     <!-- COMPACT -->
-    <state-overlay-shell *ngSwitchCase="'compact'"
+    <state-overlay-shell [stateName]="stateName" *ngSwitchCase="'compact'"
         accent="#26A69A"
         icon="fact_check"
         [title]="simulationDefinitionName || 'Validator'"
@@ -26,7 +26,7 @@
     </state-overlay-shell>
 
     <!-- FULL -->
-    <state-overlay-shell *ngSwitchCase="'full'"
+    <state-overlay-shell [stateName]="stateName" *ngSwitchCase="'full'"
         accent="#26A69A"
         icon="fact_check"
         title="Validate Initial Conditions"

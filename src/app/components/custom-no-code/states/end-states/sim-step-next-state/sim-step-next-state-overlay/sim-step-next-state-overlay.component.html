@@ -11,7 +11,7 @@
     </div>
 
     <!-- ===== TIER: compact ===== -->
-    <state-overlay-shell *ngSwitchCase="'compact'"
+    <state-overlay-shell [stateName]="stateName" *ngSwitchCase="'compact'"
         accent="#42A5F5"
         icon="last_page"
         [title]="simStateClassName || 'Sim Step Next State'"
@@ -25,7 +25,7 @@
     </state-overlay-shell>
 
     <!-- ===== TIER: full ===== -->
-    <state-overlay-shell *ngSwitchCase="'full'"
+    <state-overlay-shell [stateName]="stateName" *ngSwitchCase="'full'"
         accent="#42A5F5"
         icon="last_page"
         title="Sim Step Next State"

@@ -1,5 +1,5 @@
 <ng-container *ngIf="!isCompact">
-  <state-overlay-shell
+  <state-overlay-shell [stateName]="stateName"
     [appStateOverlayRoot]="stateName"
     (contextRequested)="fullViewRequested.emit($event)"
     accent="#673AB7"

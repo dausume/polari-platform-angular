@@ -379,6 +379,14 @@ export class AppsNavService {
       this.payload$.pipe(filter((p): p is AppsNavPayload => p !== null)));
   }
 
+  /** Name of the app the person last opened a nav item in (see appForUrl). */
+  private priorApp: string | null = null;
+
+  /** Remember which app a nav item was opened in, so the header keeps that app's group. */
+  rememberPriorApp(appName: string | null | undefined): void {
+    this.priorApp = appName || null;
+  }
+
   appByName(name: string): AppNav | null {
     return this.payload$.value?.apps
       .find(a => a.name === name) ?? null;
@@ -397,6 +405,14 @@ export class AppsNavService {
     const path = (url.split('?')[0] || '/');
     const direct = /^\/app\/([^/]+)/.exec(path);
     if (direct) { return this.appByName(direct[1]); }
+    // The app the person last opened a nav item in keeps the header while the page they landed on is
+    // one of ITS items (query ignored): a shared tool (the no-code editor) opened in the Hardware app
+    // must not flip the top bar to the app that merely also lists that tool.
+    const prior = this.priorApp ? this.appByName(this.priorApp) : null;
+    if (prior && prior.nav.some(g => g.items.some(i => {
+      const rp = (i.route || '').split('?')[0];
+      return !!rp && (path === rp || path.startsWith(rp + '/'));
+    }))) { return prior; }
     let best: AppNav | null = null;
     let bestLen = 0;
     for (const app of apps) {

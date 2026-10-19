@@ -13,7 +13,7 @@
   </div>
 
   <!-- compact + full share the shell; full adds the details -->
-  <state-overlay-shell *ngSwitchDefault
+  <state-overlay-shell [stateName]="stateName" *ngSwitchDefault
       accent="#6D4C41"
       [icon]="mode === 'subgraph' ? 'developer_board' : (mode === 'glue' ? 'construction' : 'memory')"
       [title]="title"

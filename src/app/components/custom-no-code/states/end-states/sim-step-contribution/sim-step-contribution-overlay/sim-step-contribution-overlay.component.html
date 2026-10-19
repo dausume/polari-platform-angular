@@ -11,7 +11,7 @@
     </div>
 
     <!-- ===== TIER: compact ===== -->
-    <state-overlay-shell *ngSwitchCase="'compact'"
+    <state-overlay-shell [stateName]="stateName" *ngSwitchCase="'compact'"
         accent="#FF7043"
         icon="merge_type"
         [title]="simStateClassName || 'Sim Step Contribution'"
@@ -25,7 +25,7 @@
     </state-overlay-shell>
 
     <!-- ===== TIER: full ===== -->
-    <state-overlay-shell *ngSwitchCase="'full'"
+    <state-overlay-shell [stateName]="stateName" *ngSwitchCase="'full'"
         accent="#FF7043"
         icon="merge_type"
         title="Sim Step Contribution"

@@ -91,6 +91,22 @@ describe('AppsNavService single-app clamp (sep-0)', () => {
   });
 });
 
+describe('header keeps the app a nav item was opened in', () => {
+  it('a shared tool opened in app-b stays in app-b (query ignored); otherwise the owner', () => {
+    const svc = setup();
+    svc.payload$.next(payloadOf(
+      appOf('app-a', ['/custom-no-code']),
+      appOf('app-b', ['/custom-no-code?focusSolution=light-toggle'])));
+    expect(svc.appForUrl('/custom-no-code?focusSolution=light-toggle')?.name).toBe('app-a');
+    svc.rememberPriorApp('app-b');
+    expect(svc.appForUrl('/custom-no-code?focusSolution=light-toggle')?.name).toBe('app-b');
+    // a page that app-b does not list is not captured
+    expect(svc.appForUrl('/magnetics')).toBeNull();
+    svc.rememberPriorApp('app-a');
+    expect(svc.appForUrl('/custom-no-code')?.name).toBe('app-a');
+  });
+});
+
 describe('single-app auto-route (sep-7, decision 11a)', () => {
   afterEach(() => sessionStorage.removeItem(LOCK_KEY));
 

@@ -3,12 +3,14 @@
 //
 // Execution Panel Component - Bottom panel for manual process step-by-step execution.
 
-import { Component, Input, Output, EventEmitter, OnInit, OnDestroy } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, OnChanges, SimpleChanges } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { SolutionExecutionService, ExecutionStatus } from '@services/no-code-services/solution-execution.service';
 import { ExecutionStepSnapshot, ContextDiff, VariableChange, computeContextDiff } from '@models/noCode/ExecutionTrace';
 import { TargetRuntime } from '@models/noCode/mock-NCS-data';
+import { RuntimeConfigService } from '@services/runtime-config.service';
 
 export interface InputParamField {
   name: string;
@@ -23,13 +25,15 @@ export interface InputParamField {
   templateUrl: './execution-panel.component.html',
   styleUrls: ['./execution-panel.component.css']
 })
-export class ExecutionPanelComponent implements OnInit, OnDestroy {
+export class ExecutionPanelComponent implements OnInit, OnDestroy, OnChanges {
 
   @Input() solutionName: string = '';
   @Input() targetRuntime: TargetRuntime = 'python_backend';
   @Input() inputParamDefinitions: InputParamField[] = [];
   @Input() instanceFieldDefinitions: InputParamField[] = [];
   @Input() boundClassName: string = '';
+  /** The class the solution acts on (its rows are what a run is started on), e.g. LightState. */
+  @Input() targetClassName: string = '';
   @Output() closed = new EventEmitter<void>();
   @Output() activeStateChanged = new EventEmitter<string | null>();
 
@@ -57,7 +61,46 @@ export class ExecutionPanelComponent implements OnInit, OnDestroy {
 
   private destroy$ = new Subject<void>();
 
-  constructor(private executionService: SolutionExecutionService) {}
+  // The "Object" picker: rows of the solution's target class. A run is started ON a row.
+  objectRows: any[] = [];
+  selectedObjectName: string = '';
+  objectRowsError: string = '';
+
+  constructor(
+    private executionService: SolutionExecutionService,
+    private http: HttpClient,
+    private runtimeConfig: RuntimeConfigService
+  ) {}
+
+  /** Load the target class's rows (envelope: [{Class:[{data:[rows]}]}]) and select the first. */
+  private loadObjectRows(): void {
+    const cls = this.targetClassName;
+    if (!cls) return;
+    this.http.get<any>(`${this.runtimeConfig.getBackendBaseUrl()}/${cls}`).subscribe({
+      next: env => {
+        this.objectRows = (env?.[0]?.[cls]?.[0]?.data ?? []).filter((r: any) => r?.name);
+        if (!this.objectRows.some(r => r.name === this.selectedObjectName)) {
+          this.selectedObjectName = this.objectRows[0]?.name ?? '';
+        }
+        this.objectRowsError = this.objectRows.length ? '' : `No ${cls} rows yet.`;
+      },
+      error: () => { this.objectRowsError = `Could not read the ${cls} rows.`; }
+    });
+  }
+
+  /** What a run on the chosen row sends: `object` = its name, plus its plain fields (e.g. led_on) as the
+   *  starting values. Names the row carries are not taken from the parameter form. */
+  private objectRowParams(): Record<string, any> {
+    const row = this.objectRows.find(r => r.name === this.selectedObjectName);
+    if (!row) return {};
+    const out: Record<string, any> = {};
+    for (const [k, v] of Object.entries(row)) {
+      if (k === 'id' || k === 'class' || (v !== null && typeof v === 'object')) continue;
+      out[k] = v;
+    }
+    out['object'] = row.name;
+    return out;
+  }
 
   ngOnInit(): void {
     // Initialize input params from definitions
@@ -74,6 +117,8 @@ export class ExecutionPanelComponent implements OnInit, OnDestroy {
       value: f.value !== undefined ? f.value : this.getDefaultValue(f.type),
       displayName: f.displayName
     }));
+
+    this.loadObjectRows();
 
     // Subscribe to execution service state
     this.executionService.executionStatus$
@@ -114,6 +159,13 @@ export class ExecutionPanelComponent implements OnInit, OnDestroy {
       .subscribe(name => this.activeStateChanged.emit(name));
   }
 
+  ngOnChanges(changes: SimpleChanges): void {
+    // a different solution (another target class) re-fills the Object picker; first load is in ngOnInit
+    if (changes['targetClassName'] && !changes['targetClassName'].firstChange) {
+      this.objectRows = []; this.selectedObjectName = ''; this.loadObjectRows();
+    }
+  }
+
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
@@ -122,8 +174,10 @@ export class ExecutionPanelComponent implements OnInit, OnDestroy {
   // --- Actions ---
 
   execute(): void {
-    const params: Record<string, any> = {};
+    const params: Record<string, any> = this.objectRowParams();
     for (const p of this.inputParams) {
+      // the picked row supplies the names it carries (object, led_on, ...); the form fills in the rest
+      if (p.name in params) continue;
       params[p.name] = this.coerceValue(p.value, p.type);
     }
 
