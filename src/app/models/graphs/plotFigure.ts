@@ -36,6 +36,9 @@ export interface PlotFigureOptions {
      *  figure-replica graphs (v_xo vs Lg) need a log X. */
     xType?: 'linear' | 'log';
     yType?: 'linear' | 'log';
+    /** 'data' keeps categories in the order the rows arrive (a ranked list stays ranked) instead of
+     *  Observable Plot's default alphabetical ordinal domain. */
+    categoryOrder?: 'data';
 }
 
 /** One long-form series group (see PlotFigure.longForm). */
@@ -435,6 +438,8 @@ export class PlotFigure {
                 y: {
                     ...(this.options.yLabel
                         ? { label: this.options.yLabel } : {}),
+                    ...(this.horizontalBars() && this.dataOrderCategories()
+                        ? { domain: this.dataOrderCategories() } : {}),
                     ...(this.options.yType === 'log'
                         ? { type: 'log' } : {}),
                 },
@@ -447,6 +452,26 @@ export class PlotFigure {
             console.error('[PlotFigure] Rendering failed:', e);
             return null;
         }
+    }
+
+    /** True when a barX mark draws the categories down the y axis. */
+    private horizontalBars(): boolean {
+        return this.dimensionPlots.some(p => (p as any).renderStyle === 'barX');
+    }
+
+    /** The category field's values in row order (options.categoryOrder === 'data'), else null. For barX the category is the
+     *  primary Y dimension (NamedGraphConfig puts it on Y for X-type charts). */
+    private dataOrderCategories(): string[] | null {
+        if (this.options.categoryOrder !== 'data') { return null; }
+        const field = this.horizontalBars() ? this.getPrimaryYDimension() : this.getPrimaryXDimension();
+        const points = this.dataseries?.dataPoints;
+        if (!field || !Array.isArray(points)) { return null; }
+        const seen: string[] = [];
+        for (const point of points) {
+            const v = (point as any)?.[field] ?? (point as any)?.values?.[field];
+            if (v !== undefined && v !== null && !seen.includes(String(v))) { seen.push(String(v)); }
+        }
+        return seen.length ? seen : null;
     }
 
     /**
