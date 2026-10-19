@@ -4,6 +4,7 @@ import { BehaviorSubject, Observable, of, throwError } from 'rxjs';
 import { map, tap, catchError } from 'rxjs/operators';
 import { PolariService } from '@services/polari-service';
 import { NoCodeSolutionRawData } from '@models/noCode/mock-NCS-data';
+import { retryTransient } from '../http-retry';
 
 export interface SolutionSummary {
   id: string;
@@ -53,6 +54,7 @@ export class SolutionManagerService {
   loadSolution(id: string): Observable<NoCodeSolutionRawData> {
     this.loading$.next(true);
     return this.http.get<any>(this.baseUrl, this.polariService.backendRequestOptions).pipe(
+      retryTransient(),
       map((response: any) => {
         const items = this.parseReadAllResponse(response);
         const backendObj = items.find((item: any) => item.id === id);
@@ -75,6 +77,7 @@ export class SolutionManagerService {
   loadSolutionByName(name: string): Observable<NoCodeSolutionRawData> {
     this.loading$.next(true);
     return this.http.get<any>(this.baseUrl, this.polariService.backendRequestOptions).pipe(
+      retryTransient(),
       map((response: any) => {
         const items = this.parseReadAllResponse(response);
         const backendObj = items.find((item: any) => item.name === name);
@@ -99,6 +102,7 @@ export class SolutionManagerService {
    */
   loadRawSolutionRows(): Observable<any[]> {
     return this.http.get<any>(this.baseUrl, this.polariService.backendRequestOptions).pipe(
+      retryTransient(),
       map((response: any) => this.parseReadAllResponse(response)),
       catchError((err: any) => {
         console.error('[SolutionManager] Failed to load raw solution rows:', err);
@@ -113,6 +117,7 @@ export class SolutionManagerService {
   loadAllSolutions(): Observable<NoCodeSolutionRawData[]> {
     this.loading$.next(true);
     return this.http.get<any>(this.baseUrl, this.polariService.backendRequestOptions).pipe(
+      retryTransient(),
       map((response: any) => {
         const items = this.parseReadAllResponse(response);
         return items.map((item: any) => this.deserializeSolution(item));

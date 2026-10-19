@@ -1,8 +1,10 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, firstValueFrom } from 'rxjs';
+import { filter, take } from 'rxjs/operators';
 
 import { PolariService } from '@services/polari-service';
+import { RuntimeConfigService } from '@services/runtime-config.service';
 
 /**
  * roleplay.service — the frontend half of dev-mode role-play observation.
@@ -77,13 +79,16 @@ export class RoleplayService {
 
   constructor(
     private http: HttpClient,
-    private polariService: PolariService
+    private polariService: PolariService,
+    private runtimeConfig: RuntimeConfigService
   ) {
     this.role$.next(this.readStoredRole());
-    // Deferred: the runtime config loads in an APP_INITIALIZER, and
-    // constructing this service from the interceptor must not re-enter
-    // the HTTP stack synchronously.
-    setTimeout(() => { void this.refresh(); }, 0);
+    // Deferred until the runtime config has LOADED (2026-10-19 Chrome sweep: a setTimeout(0) fired before it, so the first
+    // read went to the built-in default https://localhost:2096 and was refused on every deployed page). Still async, so
+    // constructing this service from the interceptor never re-enters the HTTP stack synchronously.
+    this.runtimeConfig.isConfigLoaded$.pipe(filter(Boolean), take(1)).subscribe(() => {
+      setTimeout(() => { void this.refresh(); }, 0);
+    });
     this.refreshTimer = setInterval(() => { void this.refresh(); }, REFRESH_MS);
   }
 

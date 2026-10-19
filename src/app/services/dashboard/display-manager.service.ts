@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, of, throwError } from 'rxjs';
 import { map, tap, catchError, switchMap } from 'rxjs/operators';
 import { PolariService } from '@services/polari-service';
+import { retryTransient } from '../http-retry';
 import { Display } from '@models/dashboards/Display';
 import { DisplayRow } from '@models/dashboards/DisplayRow';
 import { DisplayColumn } from '@models/dashboards/DisplayColumn';
@@ -92,6 +93,7 @@ export class DisplayManagerService {
     this.loading$.next(true);
     this.activeDisplayId$.next(id);
     return this.http.get<any>(this.baseUrl, this.polariService.backendRequestOptions).pipe(
+      retryTransient(),
       map((response: any) => {
         const items = this.parseReadAllResponse(response);
         // /display/<id> accepts either the row id or a page's declared
