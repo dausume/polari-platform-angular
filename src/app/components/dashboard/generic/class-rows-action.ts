@@ -5,7 +5,9 @@
  *   editAction / rowAction: { method?, path, body_template?, then_scope?: {key, from}, label?, show_when_field? }
  *
  * Templating: in the path and in the body (keys AND values) `{field}` is that field of the row. A body value that is exactly `"{value}"`
- * becomes the edited number itself (not text). In the path a filled field is URL-encoded; in the body it is inserted as it is.
+ * becomes the edited number itself (not text). A body value that is exactly one `"{field}"` keeps that field's own TYPE (a boolean stays a
+ * boolean: `{"led_on": "{led_on}"}` sends false, not "false" - the demo's light button needs it). In the path a filled field is URL-encoded;
+ * a placeholder inside longer text is inserted as text.
  */
 
 export interface RowActionConfig {
@@ -33,7 +35,10 @@ function fillString(text: string, row: any, encode: boolean): string {
 /** A body template filled from the row; `"{value}"` (exactly) becomes `value`. Objects, arrays, keys and values are all templated. */
 export function fillBody(node: any, row: any, value?: number): any {
   if (typeof node === 'string') {
-    return node === '{value}' ? value : fillString(node, row, false);
+    if (node === '{value}') { return value; }
+    const whole = /^\{([A-Za-z0-9_]+)\}$/.exec(node);
+    if (whole) { const v = row?.[whole[1]]; return v === undefined ? '' : v; }
+    return fillString(node, row, false);
   }
   if (Array.isArray(node)) { return node.map((n) => fillBody(n, row, value)); }
   if (node && typeof node === 'object') {
@@ -75,4 +80,17 @@ export function failureWords(err: any): string {
   if (body && typeof body === 'object' && typeof body.error === 'string' && body.error) { return body.error; }
   if (typeof body === 'string' && body) { return body.slice(0, 200); }
   return 'The change could not be saved.';
+}
+
+/** The words when a call answered 200 but says it failed (`ok: false`, `success: false`, or a solution run whose summary status is
+ *  errored/failed), else ''. */
+export function actionRefusal(res: any): string {
+  if (!res || typeof res !== 'object') { return ''; }
+  const status = res.displaySummary?.status;
+  if (res.ok === false || res.success === false || status === 'errored' || status === 'failed') {
+    const steps: any[] = res.trace?.steps || [];
+    const bad = steps.find((x: any) => x?.status === 'errored');
+    return (bad?.executionError || res.error || res.refused || 'The action did not complete.') as string;
+  }
+  return '';
 }
