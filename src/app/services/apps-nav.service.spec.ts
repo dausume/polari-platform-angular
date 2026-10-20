@@ -69,6 +69,14 @@ describe('AppsNavService single-app clamp (sep-0)', () => {
     expect(svc.appForUrl('/topology')).toBeNull();
   });
 
+  it('matches a direct URL to a nav item whose route carries its own query (sim-3 follow-up: /display/layout keeps the Hardware group)', () => {
+    const svc = setup();
+    svc.payload$.next(payloadOf(appOf('app-a', ['/magnetics']), appOf('app-hw', ['/display/layout?config=uno-light', '/display/sim-bench?config=uno-light'])));
+    expect(svc.appForUrl('/display/layout')?.name).toBe('app-hw');
+    expect(svc.appForUrl('/display/sim-bench?config=uno-light&session=s1')?.name).toBe('app-hw');
+    expect(svc.appForUrl('/display/other')).toBeNull();
+  });
+
   it('clamps appForUrl to the locked app unconditionally', () => {
     sessionStorage.setItem(LOCK_KEY, 'app-a');
     const svc = setup();

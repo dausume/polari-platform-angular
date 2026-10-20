@@ -418,7 +418,8 @@ export class AppsNavService {
     for (const app of apps) {
       for (const grp of app.nav) {
         for (const item of grp.items) {
-          const r = item.route;
+          // the item's own query (`/display/layout?config=uno-light`) is not part of the match: a direct URL to the page keeps the app's group
+          const r = (item.route || '').split('?')[0];
           if (!r) { continue; }
           if ((path === r || path.startsWith(r + '/'))
               && r.length > bestLen) {

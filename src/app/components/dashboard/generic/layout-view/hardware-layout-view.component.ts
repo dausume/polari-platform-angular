@@ -232,6 +232,15 @@ export class HardwareLayoutViewComponent implements OnInit, OnChanges, OnDestroy
         this.sessionRow = row;
         if (!row) { this.benchNote = `Session ${this.session} is not listed on this server (it may have ended and been cleared).`; this.redraw(); return; }
         if (!row.running_now) { this.benchNote = `Session ${row.name} has ended${row.end_reason ? ' (' + row.end_reason + ')' : ''}. Start a new one.`; this.redraw(); return; }
+        if (row.config && row.config !== this.effectiveConfig && this.payload?.config !== row.config) {
+          // sim-3 follow-up: the picture FOLLOWS the session's firmware - a session of another config redraws the layout for that config (its own
+          // parts, wires and watch list), so what is pressed on the picture is what that firmware reads; a config with no layout says so in words
+          this.queryConfig = row.config; this.config = row.config;
+          this.benchNote = `Session ${row.name} runs ${row.config}: the picture is being redrawn for that firmware.`;
+          void this.router?.navigate([], { relativeTo: this.route, queryParams: { config: row.config }, queryParamsHandling: 'merge', replaceUrl: true });
+          this.load();   // load() starts the bench again once the new layout is in
+          return;
+        }
         this.openStream(row.name);
       },
       error: e => { this.benchNote = friendlyError(e, 'the session').text; this.redraw(); },
