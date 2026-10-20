@@ -1,0 +1,93 @@
+<div class="lv-root">
+  <div class="lv-bar" role="group" aria-label="View controls">
+    <button type="button" class="lv-btn lv-fit" (click)="fit()">Fit</button>
+    <button type="button" class="lv-btn lv-zoom-in" (click)="zoomIn()" aria-label="Zoom in">+</button>
+    <button type="button" class="lv-btn lv-zoom-out" (click)="zoomOut()" aria-label="Zoom out">&minus;</button>
+    <button type="button" class="lv-btn lv-clear" (click)="clear()" [disabled]="!selection">Clear selection</button>
+    <ng-container *ngIf="mode === 'build' && stepCount">
+      <span class="lv-sep"></span>
+      <button type="button" class="lv-btn lv-prev" (click)="prev()" [disabled]="stepIndex === 0">&larr; Previous step</button>
+      <span class="lv-step-label" aria-live="polite">{{ stepLabel }}</span>
+      <button type="button" class="lv-btn lv-next" (click)="next()" [disabled]="stepIndex === stepCount - 1">Next step &rarr;</button>
+      <button type="button" class="lv-btn lv-whole" [class.on]="stepIndex === null" [attr.aria-pressed]="stepIndex === null" (click)="toggleWhole()">Whole build</button>
+    </ng-container>
+    <span class="lv-status" *ngIf="mode === 'bench'" [class.live]="ready" aria-live="polite">{{ ready ? 'Live: connected to the simulated board' : (session ? 'Not live' : 'No session') }}</span>
+  </div>
+
+  <p class="lv-note" *ngIf="loading">Loading the layout&hellip;</p>
+  <p class="lv-note lv-error" *ngIf="error">{{ error }}<span class="lv-detail" *ngIf="errorDetail"> ({{ errorDetail }})</span></p>
+
+  <div class="lv-main">
+    <div class="lv-canvas"><svg #svg class="lv-svg" role="img" aria-label="The boards, parts and wires of the build"></svg></div>
+
+    <aside class="lv-side" aria-live="polite">
+      <section class="lv-box lv-verdict" *ngIf="payload">
+        <h4>The build</h4>
+        <p>{{ payload.config }} on {{ payload.board.label || payload.board.name }} ({{ payload.board.ties }} tie points). <span [class.lv-ok]="payload.verdict.ok" [class.lv-bad]="!payload.verdict.ok">{{ payload.verdict.words }}</span></p>
+        <p class="lv-muted" *ngIf="headerNote">{{ headerNote }}</p>
+      </section>
+
+      <section class="lv-box lv-step" *ngIf="inStepMode && step">
+        <h4>Step {{ stepIndex! + 1 }}: {{ step.title }}</h4>
+        <p>{{ step.text }}</p>
+        <ul *ngIf="step.checks?.length"><li *ngFor="let c of step.checks">{{ c }}</li></ul>
+        <p class="lv-muted">The new part or wire is outlined; everything built so far is dimmed.</p>
+      </section>
+
+      <section class="lv-box lv-selection" *ngIf="selection">
+        <h4>Selected</h4>
+        <ng-container *ngIf="selection.kind === 'hole' && hole">
+          <p class="lv-hole-words">{{ hole.words }}</p>
+          <ul *ngIf="hole.onStrip.length"><li *ngFor="let x of hole.onStrip">{{ x.text }}</li></ul>
+          <p *ngIf="hole.net">Net {{ hole.net }} joins: {{ hole.netMembers.join(', ') }}.</p>
+        </ng-container>
+        <ng-container *ngIf="selPartRow as r">
+          <p class="lv-part-row"><strong>{{ r.name }}</strong> ({{ r.part }}): {{ r.legs }}</p>
+        </ng-container>
+        <ng-container *ngIf="selWire as w">
+          <p class="lv-wire-row"><strong>{{ w.name }}</strong>: {{ w.from.board }} {{ w.from.tie }} to {{ w.to.board }} {{ w.to.tie }}, net {{ w.net }}, {{ w.colour_effective }} wire<span *ngIf="w.colour_override"> (its own colour, set by a person)</span>. {{ w.note }}</p>
+        </ng-container>
+        <ng-container *ngIf="selection.kind === 'pin'">
+          <p class="lv-pin-row"><strong>{{ selection.id }}</strong> on {{ selection.board }}<span *ngIf="selPinNet">, net {{ selPinNet }}</span>.</p>
+          <ul *ngIf="selPinWires.length"><li *ngFor="let w of selPinWires">{{ w.name }} to {{ w.from.tie === selection.id ? w.to.tie : w.from.tie }} ({{ w.colour_effective }})</li></ul>
+          <p *ngIf="!selPinWires.length" class="lv-muted">No wire starts at this pin in this build.</p>
+        </ng-container>
+        <p class="lv-muted">Click it again, or press Escape, to clear.</p>
+      </section>
+
+      <section class="lv-box lv-bench" *ngIf="mode === 'bench'">
+        <h4>Bench</h4>
+        <p class="lv-bench-note" *ngIf="benchNote">{{ benchNote }}</p>
+        <p class="lv-session-facts" *ngIf="sessionFacts">{{ sessionFacts }}. No edit or reflash from this page.</p>
+        <div class="lv-touch" *ngFor="let t of touchables; trackBy: trackName" [attr.data-touch]="t.part">
+          <ng-container [ngSwitch]="t.inter.control">
+            <button *ngSwitchCase="'press'" type="button" class="lv-btn lv-hold" [class.on]="pressed.has(t.part)" [disabled]="!canTouch || !t.inter.twin_pin"
+              (pointerdown)="hold(t.part, true)" (pointerup)="hold(t.part, false)" (pointerleave)="hold(t.part, false)" (keydown.space)="$event.preventDefault(); hold(t.part, true)" (keyup.space)="$event.preventDefault(); hold(t.part, false)">
+              {{ t.inter.label }}: {{ t.part }} ({{ t.inter.pin }})
+            </button>
+            <label *ngSwitchCase="'toggle'" class="lv-check"><input type="checkbox" [disabled]="!canTouch" [checked]="!!toggled[t.part]" (change)="setToggle(t.part, $any($event.target).checked)"> {{ t.inter.label }}: {{ t.part }} ({{ t.inter.pin }})</label>
+            <label *ngSwitchCase="'slider'" class="lv-slider">{{ t.inter.label }}: {{ t.part }} ({{ t.inter.pin }}) &mdash; <span class="lv-slider-val">{{ sliderNow(t.part, t.inter) }} {{ t.inter.unit }}</span>
+              <input type="range" [min]="t.inter.min" [max]="t.inter.max" [step]="t.inter.step" [value]="sliderNow(t.part, t.inter)" [disabled]="!canTouch || t.inter.adc === null"
+                (input)="showSlider(t.part, +$any($event.target).value)" (change)="commitSlider(t.part, +$any($event.target).value)">
+            </label>
+          </ng-container>
+          <span class="lv-muted" *ngIf="t.inter.note">{{ t.inter.note }}</span>
+          <span class="lv-muted" *ngIf="t.inter.basis">{{ t.inter.basis }}</span>
+        </div>
+        <p class="lv-muted" *ngIf="!touchables.length">No part in this build has something to press or turn.</p>
+        <button type="button" class="lv-btn lv-reset" [disabled]="!canTouch" (click)="reset()">Reset the board</button>
+        <h5 *ngIf="outputs.length">Outputs</h5>
+        <ul class="lv-outputs" *ngIf="outputs.length">
+          <li *ngFor="let o of outputs" [attr.data-output]="o.part"><strong>{{ o.part }}</strong> ({{ o.pin }}): {{ o.kind === 'led' ? (o.look.lit ? 'lit' : 'dark') : (o.look.tone ? 'sounding' : 'quiet') }} &mdash; {{ o.look.note }}</li>
+        </ul>
+        <h5 *ngIf="actions.length">What you just did</h5>
+        <ul class="lv-actions" *ngIf="actions.length"><li *ngFor="let a of actions">{{ a }}</li></ul>
+      </section>
+
+      <section class="lv-box lv-notes" *ngIf="payload?.notes?.length">
+        <h4>Notes</h4>
+        <ul><li *ngFor="let n of payload!.notes">{{ n }}</li></ul>
+      </section>
+    </aside>
+  </div>
+</div>

@@ -128,3 +128,13 @@ body.dark-theme {
   --drive-over: #e57373;  --drive-over-text: #000000;
   --drive-unchecked: #bdbdbd;  --drive-unchecked-text: #000000;
 }
+
+/* Layout view (lay-2), dark values (see _variables.css). */
+body.dark-theme {
+  --band-black: #424242;  --band-brown: #8d6e63;  --band-red: #e57373;  --band-orange: #ffa040;  --band-yellow: #ffd54f;
+  --band-green: #81c784;  --band-blue: #64b5f6;  --band-violet: #ba68c8;  --band-grey: #bdbdbd;  --band-white: #eeeeee;
+  --band-gold: #e0c14e;  --band-silver: #cfd8dc;
+  --res-body: #b79f7a;
+  --rail-plus: #e57373;  --rail-minus: #64b5f6;
+  --led-off: #6d3a3a;  --led-on: #ff8a80;
+}

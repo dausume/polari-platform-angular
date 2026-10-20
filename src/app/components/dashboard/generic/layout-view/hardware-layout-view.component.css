@@ -1,0 +1,95 @@
+/* hardware-layout-view (lay-2 / sim-3). Unencapsulated because d3 builds the SVG: every rule is prefixed .lv-root.
+   Colour comes from theme tokens only; the two inline colours are DATA (a wire's colour from the scheme, a resistor's colour bands). */
+hardware-layout-view { display: block; container-type: inline-size; container-name: lv; }
+
+.lv-root { display: flex; flex-direction: column; gap: 8px; color: var(--text-primary); }
+.lv-root .lv-bar { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+.lv-root .lv-sep { width: 1px; align-self: stretch; background: var(--border-medium); }
+.lv-root .lv-btn { cursor: pointer; padding: 4px 10px; border: 1px solid var(--border-medium); border-radius: var(--radius-sm); background: var(--surface-secondary); color: var(--text-primary); }
+.lv-root .lv-btn:disabled { opacity: 0.5; cursor: default; }
+.lv-root .lv-btn.on { background: var(--brand-blue); color: var(--brand-blue-text, #ffffff); border-color: var(--brand-blue); }
+.lv-root .lv-hold { padding: 10px 14px; user-select: none; touch-action: none; }
+.lv-root .lv-step-label { font-size: 13px; color: var(--text-secondary); min-width: 9em; text-align: center; }
+.lv-root .lv-status { font-size: 12px; color: var(--text-secondary); margin-left: auto; }
+.lv-root .lv-status.live { color: var(--color-success-text, var(--text-primary)); }
+.lv-root .lv-note { margin: 0; font-size: 12px; color: var(--text-secondary); }
+.lv-root .lv-error { color: var(--color-error-text); }
+.lv-root .lv-muted { font-size: 12px; color: var(--text-secondary); }
+.lv-root .lv-ok { color: var(--color-success-text, var(--text-primary)); }
+.lv-root .lv-bad { color: var(--color-error-text); }
+
+.lv-root .lv-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 340px); gap: 12px; align-items: start; }
+@container lv (max-width: 760px) {
+  .lv-root .lv-main { grid-template-columns: minmax(0, 1fr); }           /* the side panel stacks under the picture */
+  .lv-root .lv-svg { min-width: 560px; }                                 /* the picture keeps a readable size and its box scrolls */
+}
+.lv-root .lv-canvas { border: 1px solid var(--border-medium); border-radius: var(--radius-md); background: var(--surface-primary); min-width: 0; overflow: auto; }
+.lv-root .lv-svg { display: block; width: 100%; aspect-ratio: 4 / 5; min-height: 380px; max-height: 80vh; touch-action: none; cursor: grab; }
+.lv-root .lv-side { min-width: 0; font-size: 13px; max-height: 80vh; overflow: auto; display: flex; flex-direction: column; gap: 8px; }
+.lv-root .lv-box { border: 1px solid var(--border-medium); border-radius: var(--radius-md); padding: 8px 10px; background: var(--surface-secondary); }
+.lv-root .lv-box h4, .lv-root .lv-box h5 { margin: 0 0 4px; font-size: 13px; }
+.lv-root .lv-box p { margin: 4px 0; }
+.lv-root .lv-box ul { margin: 4px 0; padding-left: 18px; }
+.lv-root .lv-touch { display: flex; flex-direction: column; gap: 2px; margin: 8px 0; }
+.lv-root .lv-slider input[type='range'] { width: 100%; }
+
+/* ---- boards */
+.lv-root .lv-board-body { fill: var(--surface-secondary); stroke: var(--border-dark); stroke-width: 1.2px; vector-effect: non-scaling-stroke; }
+.lv-root .lv-dev-body { fill: var(--surface-tertiary); }
+.lv-root .lv-trench { fill: var(--surface-primary); stroke: var(--border-medium); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.lv-root .lv-board-title { fill: var(--text-secondary); font-size: 8px; pointer-events: none; }
+.lv-root .lv-tiny { fill: var(--text-secondary); font-size: 5px; pointer-events: none; }
+.lv-root .lv-rail-line { stroke-width: 1.2px; vector-effect: non-scaling-stroke; }
+.lv-root .lv-rail-line.plus { stroke: var(--rail-plus, var(--color-error-text)); }
+.lv-root .lv-rail-line.minus { stroke: var(--rail-minus, var(--brand-blue)); }
+.lv-root .lv-hole { fill: var(--surface-primary); stroke: var(--border-dark); stroke-width: 0.8px; vector-effect: non-scaling-stroke; cursor: pointer; }
+.lv-root .lv-hole:hover { stroke: var(--brand-blue); stroke-width: 2px; }
+.lv-root .lv-hole.strip-hl { fill: var(--brand-orange); fill-opacity: 0.45; }
+.lv-root .lv-hole.sel { stroke: var(--brand-blue); stroke-width: 3px; fill: var(--brand-orange); }
+.lv-root .lv-pin { cursor: pointer; }
+.lv-root .lv-pin-sq { fill: var(--surface-primary); stroke: var(--border-dark); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.lv-root .lv-pin:hover .lv-pin-sq { stroke: var(--brand-blue); }
+.lv-root .lv-pin.sel .lv-pin-sq { stroke: var(--brand-blue); stroke-width: 3px; fill: var(--brand-orange); }
+.lv-root .lv-pin-label { fill: var(--text-primary); font-size: 5.5px; pointer-events: none; }
+
+/* ---- wires (the stroke colour is the scheme's, set inline) */
+.lv-root .lv-wire-hit { fill: none; stroke: transparent; stroke-width: 12px; vector-effect: non-scaling-stroke; pointer-events: stroke; cursor: pointer; }
+.lv-root .lv-wire-line { fill: none; stroke-width: 3px; stroke-linecap: round; pointer-events: none; opacity: 0.92; }
+.lv-root .lv-wire.sel .lv-wire-line { stroke-width: 5px; }
+.lv-root .lv-wire.net-hl .lv-wire-line { stroke-width: 4.5px; opacity: 1; }
+.lv-root .lv-wire-end { stroke: var(--border-dark); stroke-width: 0.6px; vector-effect: non-scaling-stroke; pointer-events: none; }
+.lv-root .lv-wire.new .lv-wire-line { stroke-width: 5px; filter: drop-shadow(0 0 3px var(--brand-orange)); }
+
+/* ---- step mode: not-yet-built is hidden, built-before is dimmed, the new one is outlined */
+.lv-root .hidden { display: none; }
+.lv-root .dimmed { opacity: 0.35; }
+.lv-root .lv-part.new .lv-part-hit { fill: none; stroke: var(--brand-orange); stroke-width: 2.5px; stroke-dasharray: 4 2; vector-effect: non-scaling-stroke; }
+.lv-root .lv-part.sel .lv-part-hit { fill: none; stroke: var(--brand-blue); stroke-width: 3px; vector-effect: non-scaling-stroke; }
+
+/* ---- parts */
+.lv-root .lv-part { cursor: pointer; }
+.lv-root .lv-part.touchable { cursor: grab; outline: none; }
+.lv-root .lv-part.touchable:focus .lv-part-hit { stroke: var(--brand-blue); stroke-width: 2px; fill: none; vector-effect: non-scaling-stroke; }
+.lv-root .lv-part-hit { fill: transparent; stroke: none; pointer-events: all; }
+.lv-root .lv-lead { stroke: var(--text-secondary); stroke-width: 1.4px; stroke-linecap: round; }
+.lv-root .lv-lead-long { stroke-width: 1.8px; }
+.lv-root .lv-part-label { fill: var(--text-primary); font-size: 5.5px; pointer-events: none; }
+.lv-root .lv-leg-label { fill: var(--text-secondary); font-size: 4.5px; pointer-events: none; text-anchor: middle; }
+.lv-root .lv-res-body { fill: var(--res-body, #e0c9a6); stroke: var(--border-dark); stroke-width: 0.8px; vector-effect: non-scaling-stroke; }
+.lv-root .lv-band { stroke: none; }
+.lv-root .lv-led-body { fill: var(--led-off, #8e3b3b); fill-opacity: 0.55; stroke: var(--border-dark); stroke-width: 0.8px; vector-effect: non-scaling-stroke; }
+.lv-root .lv-led-flat { stroke: var(--border-dark); stroke-width: 1.6px; }
+.lv-root .lv-led-glow { fill: var(--led-on, #ff5252); opacity: 0; pointer-events: none; }
+.lv-root .lv-part.lit .lv-led-body { fill: var(--led-on, #ff5252); fill-opacity: 1; }
+.lv-root .lv-part.lit .lv-led-glow { opacity: calc(0.45 * var(--lv-duty, 1)); }
+.lv-root .lv-btn-body { fill: var(--surface-tertiary); stroke: var(--border-dark); stroke-width: 0.9px; vector-effect: non-scaling-stroke; }
+.lv-root .lv-btn-cap { fill: var(--text-secondary); stroke: var(--border-dark); stroke-width: 0.8px; vector-effect: non-scaling-stroke; }
+.lv-root .lv-part.pressed .lv-btn-cap { fill: var(--brand-blue); }
+.lv-root .lv-btn-leg { fill: var(--text-secondary); }
+.lv-root .lv-pot-body { fill: var(--surface-tertiary); stroke: var(--border-dark); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.lv-root .lv-pot-notch { stroke: var(--text-primary); stroke-width: 1.6px; stroke-linecap: round; }
+.lv-root .lv-to92-body { fill: var(--surface-tertiary); stroke: var(--border-dark); stroke-width: 0.9px; vector-effect: non-scaling-stroke; }
+.lv-root .lv-to92-face { fill: var(--text-primary); font-size: 4.5px; text-anchor: middle; pointer-events: none; }
+.lv-root .lv-generic-body { fill: var(--surface-tertiary); stroke: var(--border-dark); stroke-width: 0.9px; vector-effect: non-scaling-stroke; }
+.lv-root .lv-generic-label { fill: var(--text-primary); font-size: 5px; text-anchor: middle; pointer-events: none; }
+.lv-root .lv-tone-mark { fill: var(--brand-orange); font-size: 12px; pointer-events: none; }

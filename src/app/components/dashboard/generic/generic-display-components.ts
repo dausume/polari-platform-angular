@@ -15,6 +15,7 @@ import { FetParts2dComponent } from './fet-parts-2d.component';
 import { FirmwareInstallerPanelComponent } from './firmware-installer-panel.component';
 import { FirmwareSolutionPanelComponent } from './firmware-solution-panel.component';
 import { HardwarePinViewComponent } from './pin-view/hardware-pin-view.component';
+import { HardwareLayoutViewComponent } from './layout-view/hardware-layout-view.component';
 import { CustomNoCodeComponent } from '../../custom-no-code/custom-no-code';
 import { FreedomProofPanelComponent } from './freedom-proof-panel.component';
 import { MicrochipLadderComponent } from './microchip-ladder.component';
@@ -363,5 +364,20 @@ export function registerGenericDisplayComponents(): void {
         + 'composition stage, firmware binding, protocol or protocol set, show unassigned '
         + '(inputs: board, system, binding, stage)',
       defaultInputs: { board: 'arduino-uno-r3', system: 'uno-light-system', binding: '', stage: 'base' },
+    });
+
+  // lay-2 / sim-3 (PROTOTYPING_VIEWS_PLAN section 3, D-ptv-1) — the layout view: ONE generic N-board renderer (d3/SVG like the pin view), the second and last sanctioned custom component
+  // for layouts. Draws every board from its model's geometry (breadboard half/full, the UNO's headers), parts as 2-D sprites derived from geometry (resistor colour bands from its value,
+  // LED with its flat side and long leg, pushbutton, potentiometer, TMP36, transistor, a generic one for the rest) and wires as curves in their EFFECTIVE colour. Click a hole / part / wire
+  // to see its net and row; click again or Escape clears. mode=build adds step mode (?step=); mode=bench binds the picture to a twin session (overlays derived on the server from each
+  // KitPart's interface kind; outputs follow the watched pins). Reads GET /api/layout/{config}; posts only to a session's inject door.
+  registerDisplayComponent(
+    'hardware-layout-view', HardwareLayoutViewComponent, {
+      displayName: 'Layout view (N boards, parts as sprites, wires as curves; build steps or a live simulated bench)',
+      description: 'A d3 picture of the boards a build is laid out on, drawn from their geometry, with the parts as small pictures and the wires in their scheme colours. Click a hole, part or wire '
+        + 'to see its net and row (click again or press Escape to clear). Build mode steps through the build (previous / next / whole build, kept in ?step=). Bench mode binds the picture to a '
+        + 'simulated board session: press the pushbutton, turn the knob, set the temperature, and the LED follows the board '
+        + '(inputs: dataPath, stepsPath, mode build|bench, config, board, scheme, session)',
+      defaultInputs: { dataPath: '/api/layout/{config}', stepsPath: '/api/layout/steps', mode: 'build', config: 'uno-light', board: '', scheme: '', session: '' },
     });
 }
