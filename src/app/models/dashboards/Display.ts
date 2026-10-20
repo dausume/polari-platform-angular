@@ -52,6 +52,9 @@ export class Display {
     /** fsc-3: generated tabs from the definition JSON `tabs_from` (one tab per row of a list door). */
     tabsFrom?: DisplayTabsFrom;
 
+    /** fst-1: page-scope keys seeded from the URL's query string (`scope_from_query: ['config', 'session']` → `?config=` fills `{scope:config}`). */
+    scopeFromQuery: string[] = [];
+
     /** Data sources and inputs available to components within this display */
     stateDefinition: DisplayStateDefinition = new DisplayStateDefinition();
 

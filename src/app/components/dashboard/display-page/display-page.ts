@@ -183,8 +183,15 @@ export class DisplayPageComponent implements OnInit, OnDestroy {
         // any query param write anywhere on the page.
         const key = `${id}::${objectName ?? ''}`;
         this.objectName = objectName;
+        // fst-1: the query params a page declares as scope (`scope_from_query`) are kept; they seed `{scope:..}` once the definition is known
+        this.queryParams = {};
+        for (const k of query.keys) { this.queryParams[k] = query.get(k) ?? ''; }
         if (key === this.lastLoadedKey) {
-          if (tabChanged && this.tabList.length) { this.scope = {}; this.showTab(false); }
+          if (tabChanged && this.tabList.length) { this.scope = {}; this.seedScopeFromQuery(); this.showTab(false); return; }
+          if (this.seedScopeFromQuery()) {
+            // a changed ?config= (or another declared key) on the same page: re-substitute in place, like a picked row would
+            if (this.tabList.length) { this.showTab(true); } else { this.loadDisplay(id); }
+          }
           return;
         }
         this.lastLoadedKey = key;
@@ -221,14 +228,28 @@ export class DisplayPageComponent implements OnInit, OnDestroy {
   /** The page scope: `{scope:tree}` → 'plate-mechanics', `{scope:tree.nodes}` → 'plate,plate-strain,…'. */
   private scope: Record<string, string> = {};
   private scopeSub?: Subscription;
+  /** fst-1: the current URL query, so a page's declared `scope_from_query` keys can seed the scope (`?config=uno-light` → `{scope:config}`). */
+  private queryParams: Record<string, string> = {};
+
+  /** Copies the declared query keys into the scope; true when something changed. A key absent from the URL leaves a picked value alone. */
+  private seedScopeFromQuery(): boolean {
+    const keys = this.display?.scopeFromQuery || [];
+    let changed = false;
+    for (const k of keys) {
+      const v = this.queryParams[k];
+      if (v !== undefined && v !== '' && this.scope[k] !== v) { this.scope = { ...this.scope, [k]: v }; changed = true; }
+    }
+    return changed;
+  }
 
   private loadDisplay(id: string): void {
     this.loading = true;
     this.error = null;
     this.displayManager.loadDisplay(id).subscribe({
       next: (display: Display) => {
-        this.needsObject = this.substituteObject(display, this.objectName);
         this.display = display;
+        this.seedScopeFromQuery();   // fst-1: before the first substitution, so `{scope:config}` is filled on the first render
+        this.needsObject = this.substituteObject(display, this.objectName);
         this.loading = false;
         this.loadTabs(display);
       },

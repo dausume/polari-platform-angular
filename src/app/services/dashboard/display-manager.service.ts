@@ -189,6 +189,7 @@ export class DisplayManagerService {
     if (display.title) { data.title = display.title; }
     if (display.tabs.length) { data.tabs = display.tabs; }            // fsc-3: a tabbed page keeps its tabs when it is saved
     if (display.tabsFrom) { data.tabs_from = display.tabsFrom; }
+    if (display.scopeFromQuery && display.scopeFromQuery.length) { data.scope_from_query = display.scopeFromQuery; }
     if (display.stateDefinition &&
         (display.stateDefinition.dataSources.length > 0 || display.stateDefinition.inputs.length > 0)) {
       data.stateDefinition = display.stateDefinition.toJSON();
@@ -293,6 +294,8 @@ export class DisplayManagerService {
     // fsc-3: tabs stay RAW here (the page templates + deserializes only the open tab, through deserializeRows)
     if (Array.isArray(parsed.tabs)) { display.tabs = parsed.tabs; }
     if (parsed.tabs_from && typeof parsed.tabs_from === 'object') { display.tabsFrom = parsed.tabs_from; }
+    // fst-1: which query params seed the page scope before the first render
+    if (Array.isArray(parsed.scope_from_query)) { display.scopeFromQuery = parsed.scope_from_query.filter((k: any) => typeof k === 'string' && k); }
 
     if (parsed.stateDefinition) {
       display.stateDefinition = DisplayStateDefinition.fromJSON(parsed.stateDefinition);
