@@ -164,6 +164,92 @@ describe('FirmwareInstallerPanelComponent', () => {
     expect(confirmButton().disabled).toBeTrue();
   });
 
+  // ---- ins-0/1: the Sim | Real toggle and the confirmed-sim gate
+  const gatedDoc = (offered: boolean) => {
+    const d = doc() as any;
+    d.targets.push({ name: 'pol-core:arduino-uno-r3@001-1', kind: 'board', label: 'UNO at /dev/serial/by-id/usb-Arduino', port: '/dev/serial/by-id/usb-Arduino' });
+    d.modes = [{ name: 'sim', title: 'Sim install', target_kind: 'twin', words: 'the simulated board (the twin)' },
+               { name: 'real', title: 'Real install', target_kind: 'board', words: 'a detected board on this host' }];
+    d.default_mode = 'sim';
+    d.attest = 'I checked the simulated board does what the firmware says';
+    d.variants.unshift({ name: 'uno-light', title: 'The light test', purpose: 'p', app: 'light', classes_json: '["LightState"]', what_to_watch: 'the LED', group: 'sample' });
+    d.builds.unshift({ name: 'uno-light-aaaa', variant: 'uno-light', state: 'built', flash_bytes: 3000, flash_max: 32256, ram_bytes: 700, ram_max: 2048, flash_pct: 9, ram_pct: 34,
+      artifact_sha256: 'ab'.repeat(32), header_sha256: 'x', compat: 'compatible', compat_why: 'byte-identical', installable: true, engines: '', built_at: '2026-10-20',
+      gate: offered
+        ? { gated: true, offered: true, words: 'Real install offered: every Purpose passed on the twin and dustin ticked', missing: [], offer: '', anyway: '' }
+        : { gated: true, offered: false, words: 'Real install not offered yet: the sim install has not run every Purpose on the twin yet — 0 of 4 passed; nobody has ticked',
+            missing: ['0 of 4 passed', 'nobody has ticked'], offer: 'Do the sim install first: install uno-light into the twin.', anyway: 'A real install anyway is possible: say why.' },
+      gate_purposes: [{ purpose: 'initialization', scenario: 'initialization-acceptance', status: offered ? 'proven-on-twin' : 'planned', run: offered ? 'sr-1' : '', ran_at: '', outcome: '', why: '' }],
+      gate_confirmation: offered ? { name: 'simconf-uno-light-1', who_words: 'dustin', confirmed_at: '2026-10-20T10:00:00', hex_short: 'abababab', words: 'I checked', state: 'valid', purposes_passed: 4, purposes_total: 4 } : null });
+    return d;
+  };
+  const modeButton = (m: string) => (fixture.nativeElement as HTMLElement).querySelector('button.fip-mode-' + m) as HTMLButtonElement;
+
+  it('ins-0: opens on the document\'s default mode, the toggle relabels the steps and moves the target (twin <-> the detected board)', () => {
+    component.doc = gatedDoc(false); component.variant = 'uno-light'; component.build = 'uno-light-aaaa'; (component as any).modeChosen = true;
+    fixture.detectChanges();
+    expect(modeButton('sim').classList).toContain('on');
+    expect(text()).toContain('Where it goes — the twin');
+    expect(text()).toContain('Show me what will run on the twin');
+    expect(text()).toContain('Validate on the twin, then confirm what you saw');
+    modeButton('real').click();
+    fixture.detectChanges();
+    expect(component.mode).toBe('real');
+    expect(component.target).toBe('pol-core:arduino-uno-r3@001-1');
+    expect(text()).toContain('Where it goes — the board');
+    expect(text()).toContain('Real install not offered yet');
+    expect(text()).toContain('Do the sim install first');
+    expect(text()).not.toContain('Validate on the twin');
+    modeButton('sim').click();
+    fixture.detectChanges();
+    expect(component.target).toBe('twin:arduino-uno-r3');
+  });
+
+  it('ins-1: a real install the gate does not offer cannot be planned until "install anyway" is ticked WITH a reason, which is sent and shown', () => {
+    component.doc = gatedDoc(false); component.variant = 'uno-light'; component.build = 'uno-light-aaaa'; (component as any).modeChosen = true;
+    component.setMode('real');
+    fixture.detectChanges();
+    const planButton = () => Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button')).find(b => /Show me what will run|not offered yet/.test(b.textContent || ''))!;
+    expect(planButton().disabled).toBeTrue();
+    expect(planButton().textContent).toContain('Real install not offered yet');
+    component.anyway = true;
+    fixture.detectChanges();
+    expect(planButton().disabled).toBeTrue();   // a tick without a reason is not enough
+    component.reason = 'bench check of the LED wiring';
+    fixture.detectChanges();
+    expect(planButton().disabled).toBeFalse();
+    postReply = (url: string) => of({ ok: true, plan: 'plan-uno-light-aaaa-1', argv_text: 'avrdude -p atmega328p …', wrapper_text: '', engine: 'avrdude', engine_how: 'local-binary',
+      engine_where: '', adapter: '', compat: 'compatible', compat_why: 'ok', will_stamp: 'BoardInstance …', target_kind: 'board', host: 'pol-core', port: '/dev/x', state: 'planned',
+      install_mode: 'real', gate: 'overridden', gate_words: 'not offered', override_reason: 'bench check of the LED wiring' });
+    component.makePlan();
+    fixture.detectChanges();
+    expect(posts[0].body).toEqual({ instance: 'pol-core:arduino-uno-r3@001-1', build: 'uno-light-aaaa', install_anyway: true, reason: 'bench check of the LED wiring' });
+    expect(text()).toContain('recorded — bench check of the LED wiring');
+    expect(text()).toContain('Confirm: run exactly this command on the board');
+  });
+
+  it('ins-1: an offered real install plans without any override field; the sim side ticks with {config, build, source} and runs the Purposes', () => {
+    component.doc = gatedDoc(true); component.variant = 'uno-light'; component.build = 'uno-light-aaaa'; (component as any).modeChosen = true;
+    component.setMode('real');
+    fixture.detectChanges();
+    expect(text()).toContain('Real install offered: every Purpose passed');
+    component.makePlan();
+    expect(posts[0].body).toEqual({ instance: 'pol-core:arduino-uno-r3@001-1', build: 'uno-light-aaaa' });
+    component.setMode('sim');
+    fixture.detectChanges();
+    expect(text()).toContain('Confirmed by dustin at 2026-10-20T10:00:00');
+    expect(text()).toContain('Go to the real install');
+    component.ticked = true;
+    component.confirmSim();
+    expect(posts.find(p => p.url.endsWith('/sim-confirmations'))!.body).toEqual({ config: 'uno-light', build: 'uno-light-aaaa', source: 'installer' });
+    postReply = () => throwError(() => ({ error: { ok: false, error: 'this server cannot run the twin itself', retry: 'pol firmware prove uno-light --api https://x' } }));
+    component.runPurposes();
+    fixture.detectChanges();
+    expect(posts.find(p => p.url.endsWith('/sim-install'))!.body).toEqual({ config: 'uno-light' });
+    expect(text()).toContain('this server cannot run the twin itself');
+    expect(text()).toContain('pol firmware prove uno-light --api https://x');
+  });
+
   it('"try another variant" keeps the target, clears the plan and result, and moves to the next variant', () => {
     fixture.detectChanges();
     component.pickVariant('uno-echo');
