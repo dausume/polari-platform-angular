@@ -239,6 +239,13 @@ describe('HardwareLayoutViewComponent', () => {
       expect(all('.lv-hold').every(b => (b as HTMLButtonElement).disabled)).toBeTrue();
     });
 
+    it('a session from ?session= is picked in the page scope (the sessions table highlights it) and kept in the address', async () => {
+      await create({ query: { session: 'uno-light-ab12cd' }, inputs: { mode: 'bench' } });
+      expect(scope('session')).toContain('uno-light-ab12cd');
+      expect(navigated.some(n => n.queryParams?.session === 'uno-light-ab12cd')).toBeTrue();
+      expect(log).toContain('events:uno-light-ab12cd:100');
+    });
+
     it('subscribes to the event stream FIRST (with a replay), and only after hello sets the watch list (the session\'s pins plus every output pin) and enables the controls', async () => {
       await create({ inputs: { mode: 'bench', session: 'uno-light-ab12cd' } });
       expect(log.filter(l => l.startsWith('events') || l.startsWith('inject'))).toEqual(['events:uno-light-ab12cd:100']);

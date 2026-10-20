@@ -224,6 +224,8 @@ export class HardwareLayoutViewComponent implements OnInit, OnChanges, OnDestroy
     this.stream?.close(); this.sessionSub?.unsubscribe();
     this.ready = false; this.pins = new Map(); this.sessionRow = null; this.actions = [];
     if (!this.session) { this.benchNote = 'No session is picked. Start one from the list below the picture, or click a running session to bind this picture to it.'; this.redraw(); return; }
+    this.setScope('session', this.session);   // a session that came from ?session= is picked in the sessions table too
+    void this.router?.navigate([], { relativeTo: this.route, queryParams: { session: this.session }, queryParamsHandling: 'merge', replaceUrl: true });   // and the address keeps it
     this.benchNote = `Connecting to session ${this.session}...`;
     this.sessionSub = this.svc.session(this.session).subscribe({
       next: row => {
