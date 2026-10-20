@@ -186,6 +186,7 @@ describe('FirmwareInstallerPanelComponent', () => {
   const modeButton = (m: string) => (fixture.nativeElement as HTMLElement).querySelector('button.fip-mode-' + m) as HTMLButtonElement;
 
   it('ins-0: opens on the document\'s default mode, the toggle relabels the steps and moves the target (twin <-> the detected board)', () => {
+    fixture.detectChanges();   // ngOnInit's reload first, so the gated document below is not overwritten by the mock's default
     component.doc = gatedDoc(false); component.variant = 'uno-light'; component.build = 'uno-light-aaaa'; (component as any).modeChosen = true;
     fixture.detectChanges();
     expect(modeButton('sim').classList).toContain('on');
@@ -206,6 +207,7 @@ describe('FirmwareInstallerPanelComponent', () => {
   });
 
   it('ins-1: a real install the gate does not offer cannot be planned until "install anyway" is ticked WITH a reason, which is sent and shown', () => {
+    fixture.detectChanges();   // ngOnInit's reload first, so the gated document below is not overwritten by the mock's default
     component.doc = gatedDoc(false); component.variant = 'uno-light'; component.build = 'uno-light-aaaa'; (component as any).modeChosen = true;
     component.setMode('real');
     fixture.detectChanges();
@@ -229,6 +231,7 @@ describe('FirmwareInstallerPanelComponent', () => {
   });
 
   it('ins-1: an offered real install plans without any override field; the sim side ticks with {config, build, source} and runs the Purposes', () => {
+    fixture.detectChanges();   // ngOnInit's reload first, so the gated document below is not overwritten by the mock's default
     component.doc = gatedDoc(true); component.variant = 'uno-light'; component.build = 'uno-light-aaaa'; (component as any).modeChosen = true;
     component.setMode('real');
     fixture.detectChanges();
@@ -242,6 +245,7 @@ describe('FirmwareInstallerPanelComponent', () => {
     component.ticked = true;
     component.confirmSim();
     expect(posts.find(p => p.url.endsWith('/sim-confirmations'))!.body).toEqual({ config: 'uno-light', build: 'uno-light-aaaa', source: 'installer' });
+    component.doc = gatedDoc(true); component.build = 'uno-light-aaaa';   // confirmSim() reloaded: the mock's default document has no gated build
     postReply = () => throwError(() => ({ error: { ok: false, error: 'this server cannot run the twin itself', retry: 'pol firmware prove uno-light --api https://x' } }));
     component.runPurposes();
     fixture.detectChanges();
