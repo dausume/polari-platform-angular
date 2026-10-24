@@ -4,7 +4,9 @@ import {
   connectionFamilies, connRelevantIn, DRIVE_GLYPHS, driveColour, driveFilterOn, driveHatched, driveSymbol, familyOf, isRailLink, fillOf, GLYPHS, isHollow, isInternal, isLocked, matchesDrive,
   NO_FILTERS, PvFill, PvModeFilters, PvRole, relevantIn, roleOf, signalFamily, signalRole,
 } from './pin-view-encode';
-import { linePath, PlacedPin, Scene } from './pin-view-layout';
+import { breadboardRows, breadboardW, COLS, P, RAILS, railX, stripX } from '../layout-view/layout-geometry';
+import { LvBoard } from '../layout-view/layout-view.types';
+import { linePath, PlacedPin, PlacedSurface, Scene } from './pin-view-layout';
 import { PvIndex } from './pin-view-panel';
 import { PvConnection, PvMode, PvPayload, PvPin, PvSelection } from './pin-view.types';
 
@@ -91,6 +93,36 @@ export class PinViewCanvas {
       g.selectAll(`circle.pv-hole-${ps.depth}`).data(holes).enter().append('circle')
         .attr('class', hl => (hl.cited === false ? 'pv-hole knob' : 'pv-hole')).attr('cx', hl => ps.ox + hl.x).attr('cy', hl => ps.oy + hl.y).attr('r', hl => hl.d / 2);
     }
+    // pv-6: the breadboard of the bench layout; the parts that sit on it are raised above its holes
+    let drew = false;
+    for (const ps of scene.order) {
+      const p = this.payload?.shapes?.[ps.surface.shape]?.parameters as { generator?: string; rows?: number; rail_holes?: number; pitch?: number } | undefined;
+      if (ps.surface.kind !== 'bench-board' || p?.generator !== 'breadboard' || !p.rows || !p.rail_holes) { continue; }
+      this.drawBreadboard(g, ps, p.rows, p.rail_holes, p.pitch || 2.54);
+      drew = true;
+    }
+    if (drew) { g.selectAll('path.pv-surface.kind-bench-part').raise(); }
+  }
+
+  /** pv-6: the breadboard drawn with the LAYOUT VIEW's own geometry (layout-geometry.ts: there one hole pitch is P picture units; the shape row says the pitch in mm, so the group is scaled by
+   *  pitch / P and every hole lands where the server's `hole_xy` puts the parts' legs). Holes take no clicks here: the picture of what sits where is the layout page's job. */
+  private drawBreadboard(g: d3.Selection<SVGGElement, unknown, null, undefined>, ps: PlacedSurface, rows: number, railHoles: number, pitch: number): void {
+    const board = { rows, rail_holes: railHoles, holes_per_side: 5 } as LvBoard;
+    const geo = breadboardRows(), w = breadboardW(board), k = pitch / P, r = 0.3 * P;
+    const x = Math.min(...ps.points.map(q => q[0])), y = Math.min(...ps.points.map(q => q[1]));
+    const bb = g.append('g').attr('class', 'pv-breadboard').attr('data-surface-id', ps.surface.id).attr('transform', `translate(${x} ${y}) scale(${k})`);
+    bb.append('rect').attr('class', 'pv-bb-trench').attr('x', P * 0.8).attr('y', geo.colY['e'] + P * 0.75).attr('width', w - P * 1.6).attr('height', P * 1.5).attr('rx', P * 0.3);
+    for (const [pos, pol] of RAILS) {
+      const ry = geo.railY[pos + pol];
+      bb.append('line').attr('class', `pv-bb-rail ${pol === '+' ? 'plus' : 'minus'}`).attr('x1', P * 0.9).attr('x2', w - P * 0.9).attr('y1', ry - P * 0.55).attr('y2', ry - P * 0.55);
+      bb.append('text').attr('class', 'pv-bb-text').attr('x', P * 0.5).attr('y', ry + P * 0.2).attr('text-anchor', 'middle').text(pol === '+' ? '+' : '−');
+      for (let n = 1; n <= railHoles; n++) { bb.append('circle').attr('class', 'pv-bb-hole').attr('cx', railX(board, n)).attr('cy', ry).attr('r', r).attr('data-hole', `rail:${pos}:${pol}:${n}`); }
+    }
+    for (let n = 1; n <= rows; n++) {
+      if (n === 1 || n % 5 === 0) { bb.append('text').attr('class', 'pv-bb-text').attr('x', stripX(n)).attr('y', geo.colY['a'] - P * 0.9).attr('text-anchor', 'middle').text(n); }
+      for (const c of COLS) { bb.append('circle').attr('class', 'pv-bb-hole').attr('cx', stripX(n)).attr('cy', geo.colY[c]).attr('r', r).attr('data-hole', `r${n}${c}`); }
+    }
+    for (const c of COLS) { bb.append('text').attr('class', 'pv-bb-text').attr('x', P * 0.2).attr('y', geo.colY[c] + P * 0.2).text(c); }
   }
 
   private drawPins(): void {

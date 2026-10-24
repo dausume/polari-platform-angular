@@ -128,6 +128,8 @@
         <p>Click a board, a chip package, the silicon inside it or a part to see which pins it connects to. Nothing is wired until you pick something. Click it again, or press Escape, to clear.</p>
         <ul class="pv-counts" *ngIf="payload">
           <li>{{ payload.surfaces.length }} surfaces</li><li>{{ payload.pins.length }} pins</li><li>{{ payload.connections.length }} connections</li>
+          <li *ngIf="payload.bench?.board">bench: {{ payload.bench!.board!.label || payload.bench!.board!.model }} laid out from {{ payload.bench!.config }} ({{ payload.bench!.placed.length }} parts in their holes)</li>
+          <li *ngIf="payload.bench && !payload.bench.board" [title]="payload.bench.why">bench: not laid out (parts shown beside the board)</li>
         </ul>
       </ng-container>
 

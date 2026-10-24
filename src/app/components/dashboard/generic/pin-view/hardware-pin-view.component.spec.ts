@@ -58,6 +58,42 @@ describe('HardwarePinViewComponent', () => {
     };
   });
 
+  /** pv-6: FIXTURE_BASE plus the bench the server now sends — a breadboard surface (shape generator `breadboard`, 30 strips, 25 rail holes) and one bench part placed ON it with its pin in a hole. */
+  function withBench(): any {
+    const base = JSON.parse(JSON.stringify(FIXTURE_BASE));
+    const w = 32 * 2.54, h = 20.4 * 2.54, x0 = 77, y0 = 3;
+    base.shapes['pv-bench-board-breadboard-half'] = { name: 'pv-bench-board-breadboard-half', parameters: { generator: 'breadboard', model: 'breadboard-half', rows: 30, rail_holes: 25, pitch: 2.54, vertices: [[-w / 2, -h / 2], [w / 2, -h / 2], [w / 2, h / 2], [-w / 2, h / 2]] } };
+    base.surfaces.push({ id: 'bench-board:bench-half-1', kind: 'bench-board', level: 'bench', title: 'half breadboard: the layout of uno-light', parent: '', shape: 'pv-bench-board-breadboard-half', x: x0 + w / 2, y: y0 + h / 2, rot: 0, w, h, pin_ids: [] });
+    const part = base.surfaces.find((s: any) => s.kind === 'bench-part');
+    if (part) { part.x = x0 + 1.5 * 2.54 + 8 * 2.54; part.y = y0 + (1.5 + 1 + 2.2 + 4) * 2.54; part.w = 12.7; part.h = 2.54; }
+    base.bench = { config: 'uno-light', board: { name: 'bench-half-1', model: 'breadboard-half', rows: 30, rail_holes: 25, label: 'half breadboard', surface: 'bench-board:bench-half-1' }, placed: part ? [{ part: 'ubc-r1', name: 'R1', holes: ['r7e', 'r11e'] }] : [], unplaced: [], why: '' };
+    return base;
+  }
+
+  it('pv-6: draws the breadboard of the bench layout (every hole of 30 strips x 10 + 4 rails x 25) under the bench parts, which are raised above it; a payload without a bench draws none', () => {
+    const bench = withBench();
+    reply = () => of(bench);
+    create();
+    const el: HTMLElement = fixture.nativeElement;
+    const bb = el.querySelectorAll('.pv-breadboard');
+    expect(bb.length).toBe(1);
+    expect(bb[0].querySelectorAll('.pv-bb-hole').length).toBe(30 * 10 + 4 * 25);
+    expect(bb[0].querySelector('[data-hole="r7e"]')).not.toBeNull();
+    expect(bb[0].querySelector('[data-hole="rail:top:-:1"]')).not.toBeNull();
+    expect(el.querySelectorAll('.pv-surface.kind-bench-board').length).toBe(1);
+    const surfaces = Array.from(el.querySelectorAll('.pv-surfaces > *'));
+    const boardIx = surfaces.findIndex(n => n.classList.contains('pv-breadboard'));
+    const partIx = surfaces.findIndex(n => n.classList.contains('kind-bench-part'));
+    if (partIx >= 0) { expect(partIx).toBeGreaterThan(boardIx); }
+    expect(el.textContent).toContain('laid out from uno-light');
+  });
+
+  it('pv-6: a payload without a bench layout draws no breadboard (the parts stay beside the board, as before)', () => {
+    create();
+    expect((fixture.nativeElement as HTMLElement).querySelectorAll('.pv-breadboard').length).toBe(0);
+    expect((fixture.nativeElement as HTMLElement).querySelectorAll('.pv-surface.kind-bench-board').length).toBe(0);
+  });
+
   const root = () => fixture.nativeElement as HTMLElement;
   const q = (sel: string) => Array.from(root().querySelectorAll(sel)) as HTMLElement[];
   const pins = () => q('.pv-pins .pv-pin');

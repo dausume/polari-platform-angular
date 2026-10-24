@@ -96,6 +96,8 @@ export interface PvPayload {
   stage: { stage: PvStage; binding: string; claims: number; committed_claims: number; undetermined: string[]; notes: string[] };
   protocol: { protocol: string; protocols?: string[]; children: string[]; lit_pads: number; activated_only?: boolean; ladder?: string; note?: string } | null;
   layout?: PvLayout;
+  /** pv-6: the bench layout the bench parts are drawn on (the binding's config, else the Layout page's default); `why` says in words when there is none. */
+  bench?: { config: string; board: { name: string; model: string; rows: number; rail_holes: number; label: string; surface: string } | null; placed: { part: string; name: string; holes: string[] }[]; unplaced: { part: string; why: string }[]; why: string };
   vocabulary: PvVocabulary;
   surfaces: PvSurface[]; pins: PvPin[]; connections: PvConnection[];
   unresolved?: { source: string; reason: string }[];

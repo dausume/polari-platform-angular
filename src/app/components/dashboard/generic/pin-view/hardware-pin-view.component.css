@@ -26,6 +26,15 @@ hardware-pin-view { display: block; container-type: inline-size; container-name:
 .pv-root .pv-surface.kind-soc { fill: var(--surface-tertiary); }
 .pv-root .pv-surface.kind-board-part { fill: var(--surface-primary); }
 .pv-root .pv-surface.kind-bench-part { fill: var(--surface-primary); stroke-dasharray: 4 3; }
+/* pv-6: the breadboard the bench parts sit on (the layout view's own geometry, scaled to mm) */
+.pv-root .pv-surface.kind-bench-board { fill: var(--surface-secondary); }
+.pv-root .pv-breadboard { pointer-events: none; }
+.pv-root .pv-bb-trench { fill: var(--surface-primary); stroke: var(--border-medium); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.pv-root .pv-bb-rail { stroke-width: 1.2px; vector-effect: non-scaling-stroke; }
+.pv-root .pv-bb-rail.plus { stroke: var(--rail-plus, var(--color-error-text)); }
+.pv-root .pv-bb-rail.minus { stroke: var(--rail-minus, var(--brand-blue)); }
+.pv-root .pv-bb-hole { fill: var(--surface-primary); stroke: var(--border-dark); stroke-width: 0.8px; vector-effect: non-scaling-stroke; }
+.pv-root .pv-bb-text { fill: var(--text-secondary); font-size: 5px; }
 .pv-root .pv-surface:hover { stroke: var(--brand-blue); }
 .pv-root .pv-surface.sel { stroke: var(--brand-blue); stroke-width: 3px; }
 .pv-root .pv-surface.dim { opacity: 0.4; }
