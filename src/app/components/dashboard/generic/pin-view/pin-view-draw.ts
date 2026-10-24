@@ -157,6 +157,11 @@ export class PinViewCanvas {
     const r = m.placed.r, side = m.placed.pin.side, s = this.scene?.surfaces.get(m.placed.surface);
     if (isPart(m.placed.pin.level)) {   // pv-2: a part's labels are drawn in MODEL units where the server's label boxes put them (left pins to the left, right and lone pins to the right)
       const gap = this.payload?.layout?.gap ?? 0.4, edge = (s?.surface.w || 1) / 2;
+      if (side === 'top' || side === 'bottom') {   // pv-6: a breadboard part's labels go outward by column half, centred on the pin (the strips are one pitch apart)
+        t.attr('x', 0).attr('text-anchor', 'middle');
+        if (side === 'top') { t.attr('y', -gap); } else { t.attr('y', gap).attr('dy', '0.8em'); }
+        return;
+      }
       t.attr('x', side === 'left' ? -gap : (side === 'right' ? gap : edge + gap)).attr('text-anchor', side === 'left' ? 'end' : 'start').attr('dy', '0.35em');
       return;
     }
