@@ -187,4 +187,11 @@
   --res-body: #e0c9a6;
   --rail-plus: #d32f2f;  --rail-minus: #1565c0;
   --led-off: #8e3b3b;  --led-on: #ff5252;
+
+  /* aut-1: code identifier kinds (background + matching -text) */
+  --code-kind-pin-macro: #ffe0b2;  --code-kind-pin-macro-text: #5d3200;
+  --code-kind-register: #c8e6c9;   --code-kind-register-text: #14401a;
+  --code-kind-knob: #bbdefb;       --code-kind-knob-text: #0d3a66;
+  --code-kind-global: #e1bee7;     --code-kind-global-text: #4a1458;
+  --code-kind-library: #e0e0e0;    --code-kind-library-text: #212121;
 }

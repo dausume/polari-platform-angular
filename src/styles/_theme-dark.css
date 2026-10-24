@@ -137,4 +137,11 @@ body.dark-theme {
   --res-body: #b79f7a;
   --rail-plus: #e57373;  --rail-minus: #64b5f6;
   --led-off: #6d3a3a;  --led-on: #ff8a80;
+
+  /* aut-1: code identifier kinds (background + matching -text) */
+  --code-kind-pin-macro: #6b4300;  --code-kind-pin-macro-text: #ffe8c2;
+  --code-kind-register: #1f5a27;   --code-kind-register-text: #d4f5d7;
+  --code-kind-knob: #124a80;       --code-kind-knob-text: #d3e8ff;
+  --code-kind-global: #5e2370;     --code-kind-global-text: #f3d9fa;
+  --code-kind-library: #444444;    --code-kind-library-text: #f0f0f0;
 }

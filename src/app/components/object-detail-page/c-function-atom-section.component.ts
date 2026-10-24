@@ -64,7 +64,7 @@ interface BindingRow { name: string; [k: string]: any; }
         </label>
       </div>
 
-      <code-block [lines]="code?.lines || []" [text]="code?.rendered || code?.source || ''"></code-block>
+      <code-block [lines]="code?.lines || []" [text]="code?.rendered || code?.source || ''" [identifiers]="identifiers"></code-block>
 
       <table class="idents" *ngIf="identifiers.length">
         <thead>
@@ -72,7 +72,7 @@ interface BindingRow { name: string; [k: string]: any; }
         </thead>
         <tbody>
           <tr *ngFor="let id of identifiers">
-            <td>{{ id.name }}</td>
+            <td><span class="ident" [ngClass]="'kind-' + id.kind" [title]="id.why || ''">{{ id.name }}</span></td>
             <td>{{ id.kind }}</td>
             <td>{{ id.datasheet_kind || '—' }}</td>
             <td>
@@ -110,6 +110,12 @@ interface BindingRow { name: string; [k: string]: any; }
     table.idents { width: 100%; border-collapse: collapse; font-size: .88em; margin-top: 12px; }
     table.idents th, table.idents td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--border-medium, #ddd); }
     table.idents th { color: var(--text-secondary, #666); font-weight: 600; }
+    .ident { border-radius: 3px; padding: 0 4px; }
+    .kind-pin-macro { background: var(--code-kind-pin-macro); color: var(--code-kind-pin-macro-text); }
+    .kind-register { background: var(--code-kind-register); color: var(--code-kind-register-text); }
+    .kind-knob { background: var(--code-kind-knob); color: var(--code-kind-knob-text); }
+    .kind-global { background: var(--code-kind-global); color: var(--code-kind-global-text); }
+    .kind-library { background: var(--code-kind-library); color: var(--code-kind-library-text); }
     .muted { color: var(--text-secondary, #666); }
   `],
 })
