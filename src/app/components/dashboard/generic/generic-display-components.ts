@@ -11,6 +11,7 @@ import { CardsComponent } from './cards.component';
 import { ClassRowsTableComponent } from './class-rows-table.component';
 import { PickerButtonComponent } from './picker-button.component';
 import { StepsComponent } from './steps.component';
+import { DoorFormComponent } from './door-form.component';
 import { EvidenceBrowserComponent } from './evidence-browser.component';
 import { FetCharacteristicExplorerComponent } from './fet-characteristic-explorer.component';
 import { FetOverviewComponent } from './fet-overview.component';
@@ -86,6 +87,15 @@ export function registerGenericDisplayComponents(): void {
       description: 'Ordered steps shown done / current / todo, derived from page scope (done_when scope_key written as {scope:key}, '
         + 'op set|gte); a step\'s optional target opens that page tab (input: steps)',
       defaultInputs: { steps: [] },
+    });
+
+  // wb-3: a configured form that posts to ONE door (the `form` item runs a no-code solution - a different contract)
+  registerDisplayComponent(
+    'door-form', DoorFormComponent, {
+      displayName: 'Door form (typed inputs → one POST/PUT)',
+      description: 'Typed inputs submitted as one RowActionConfig through the shared action runner: then_scope + rev on success, '
+        + 'refusal words shown and inputs kept on failure, required fields block submit (inputs: fields, action, submit_label, success_text)',
+      defaultInputs: { fields: [], action: null, submit_label: '', success_text: 'Done.' },
     });
 
   registerDisplayComponent(
