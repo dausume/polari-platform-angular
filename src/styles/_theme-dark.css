@@ -145,3 +145,10 @@ body.dark-theme {
   --code-kind-global: #5e2370;     --code-kind-global-text: #f3d9fa;
   --code-kind-library: #444444;    --code-kind-library-text: #f0f0f0;
 }
+
+/* wb-1 step strip, dark counterparts (lifted for the dark surface) */
+body.dark-theme {
+  --step-done: #66bb6a;  --step-done-text: #000000;
+  --step-current: #64b5f6;  --step-current-text: #000000;
+  --step-todo: #2d2d2d;  --step-todo-text: #e0e0e0;
+}

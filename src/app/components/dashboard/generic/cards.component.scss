@@ -1,0 +1,34 @@
+:host { display: block; container-type: inline-size; }
+.facets { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.facet { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.facet-label { font-weight: 600; color: var(--text-on-card-muted); margin-right: 4px; }
+.chip {
+  font: inherit; font-size: 0.85em; padding: 2px 10px; border-radius: var(--radius-pill);
+  border: 1px solid var(--border-medium); background: var(--surface-secondary); color: var(--text-on-card);
+}
+button.chip { cursor: pointer; }
+button.chip:focus-visible, button.act:focus-visible { outline: 2px solid var(--nav-background); outline-offset: 2px; }
+.chip.selected { background: var(--nav-background); color: var(--nav-text); border-color: var(--nav-background); }
+.group-heading { margin: 12px 0 6px; text-transform: capitalize; color: var(--text-on-card); }
+.grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr)); }
+.card {
+  display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 8px;
+  background: var(--surface-primary); color: var(--text-on-card);
+  border: 1px solid var(--border-light); box-shadow: var(--card-shadow);
+}
+.title { font-weight: 600; overflow-wrap: anywhere; }
+.subtitle { font-size: 0.85em; }
+.badges { display: flex; flex-wrap: wrap; gap: 4px; }
+.fields { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0; font-size: 0.88em; }
+.fields dt { color: var(--text-on-card-muted); }
+.fields dd { margin: 0; overflow-wrap: anywhere; }
+.dim { opacity: 0.6; font-style: italic; }
+.muted { color: var(--text-on-card-muted); }
+.message { margin: 6px 0; font-size: 0.9em; color: var(--text-on-card-muted); }
+.message.bad, .state.error { color: var(--color-error-text); }
+button.act {
+  align-self: flex-start; margin-top: auto; font: inherit; padding: 3px 14px; border-radius: var(--radius-pill); cursor: pointer;
+  border: 1px solid var(--nav-background); background: var(--nav-background); color: var(--nav-text);
+}
+button.act:disabled { opacity: 0.55; cursor: default; }
+@container (max-width: 24rem) { .fields { grid-template-columns: 1fr; } .fields dd { margin-bottom: 4px; } }

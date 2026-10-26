@@ -12,7 +12,8 @@ import { CodeBlockComponent } from '@components/shared/code-block/code-block.com
 import { PolariService } from '@services/polari-service';
 import { DisplayEventsService } from '@services/no-code-services/display-events.service';
 import { clickIsOnControl, fieldText, fixedText, hasBlankParam, nextSelection } from './class-rows-interaction';
-import { RowActionConfig, actionShown, failureWords, actionRefusal, fillBody, fillPath, parseWeight, rowEditable } from './class-rows-action';
+import { RowActionConfig, actionShown, parseWeight, rowEditable } from './class-rows-action';
+import { runRowAction } from './class-rows-action-run';
 
 /**
  * Generic no-code class table: renders the live CRUDE rows of ANY
@@ -505,34 +506,16 @@ export class ClassRowsTableComponent implements OnInit, OnChanges {
   private call(action: RowActionConfig | null, row: any, value?: number): void {
     if (!action || this.busy) { return; }
     this.busy = true;
-    const url = this.polariService.getBackendBaseUrl() + fillPath(action.path, row);
-    const body = fillBody(action.body_template ?? {}, row, value);
-    const req = (action.method || 'POST').toUpperCase() === 'PUT'
-      ? this.http.put<any>(url, body, this.polariService.backendRequestOptions)
-      : this.http.post<any>(url, body, this.polariService.backendRequestOptions);
-    req.subscribe({
-      next: (res: any) => {
-        this.busy = false;
-        const refused = actionRefusal(res);
-        if (refused) {                                       // a 200 that carries a failure (e.g. a solution run that errored) is not "Done."
-          this.say(refused, true);
-          this.loading = true;
-          this.ngOnInit();
-          return;
-        }
-        this.say(action === this.rowAction ? 'Done.' : 'Saved.', false);
-        if (action.then_scope && res && res[action.then_scope.from] !== undefined) {
-          this.displayEvents.dispatch({ name: 'setScope', payload: { key: action.then_scope.key, value: String(res[action.then_scope.from]) }, sourceState: '', channel: 'frontend' });
-        }
-        this.displayEvents.dispatch({ name: 'setScope', payload: { key: 'rev', value: String(Date.now()) }, sourceState: '', channel: 'frontend' });
-        if (action === this.rowAction) { this.loading = true; this.ngOnInit(); }   // the acted-on table shows the new state too
-      },
-      error: (err: any) => {
-        this.busy = false;
-        this.say(failureWords(err), true);
+    runRowAction(this.http, this.polariService, this.displayEvents, action, row, value).subscribe((out) => {
+      this.busy = false;
+      if (!out.ok) {                                       // refused / failed: say why and show what is really stored
+        this.say(out.message, true);
         this.loading = true;
-        this.ngOnInit();                                     // show what is really stored
-      },
+        this.ngOnInit();
+        return;
+      }
+      this.say(action === this.rowAction ? 'Done.' : 'Saved.', false);
+      if (action === this.rowAction) { this.loading = true; this.ngOnInit(); }   // the acted-on table shows the new state too
     });
   }
 

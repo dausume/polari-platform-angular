@@ -1,0 +1,35 @@
+<div class="cards" role="region" [attr.aria-label]="'cards'">
+  <div class="facets" *ngIf="facets.length">
+    <div class="facet" *ngFor="let f of facets">
+      <span class="facet-label">{{ f.label }}</span>
+      <button *ngFor="let o of f.options" type="button" class="chip facet-chip"
+              [class.selected]="selected[f.query_param] === o.value" [attr.aria-pressed]="selected[f.query_param] === o.value"
+              (click)="toggle(f.query_param, o.value)">{{ o.label }}</button>
+    </div>
+  </div>
+  <div *ngIf="loading" class="state"><mat-spinner diameter="28"></mat-spinner></div>
+  <div *ngIf="error" class="state error">{{ error }}</div>
+  <div *ngIf="message" class="message" [class.bad]="messageBad" role="status">{{ message }}</div>
+  <p *ngIf="!loading && !error && !rows.length" class="empty muted">{{ emptyText || 'Nothing matches.' }}</p>
+  <section *ngFor="let g of groups" class="group">
+    <h4 *ngIf="g.heading" class="group-heading">{{ g.heading }}</h4>
+    <div class="grid">
+      <article *ngFor="let row of g.rows" class="card">
+        <header>
+          <div class="title">{{ titleOf(row) }}</div>
+          <div class="subtitle muted" *ngIf="subtitleField">{{ text(row, subtitleField) }}</div>
+        </header>
+        <div class="badges" *ngIf="badgeFields.length">
+          <span *ngFor="let b of badgeFields" class="chip badge" [class.dim]="unverified(row, b)">{{ text(row, b) }}</span>
+        </div>
+        <dl class="fields">
+          <ng-container *ngFor="let k of fieldLabels">
+            <dt>{{ k }}</dt>
+            <dd [class.dim]="unverified(row, fields[k])">{{ text(row, fields[k]) }}</dd>
+          </ng-container>
+        </dl>
+        <button *ngIf="actionAllowed(row)" type="button" class="act" [disabled]="busy" (click)="runAction(row)">{{ action?.label || 'Do' }}</button>
+      </article>
+    </div>
+  </section>
+</div>

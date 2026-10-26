@@ -343,7 +343,10 @@ export class DisplayPageComponent implements OnInit, OnDestroy {
       item.title = sub(item.title);
       const inputs = item.componentProps?.inputs;
       if (inputs && typeof inputs === 'object') {
-        for (const k of Object.keys(inputs)) { inputs[k] = sub(inputs[k]); }
+        // wb-1: nested objects/arrays (a cards config, a picker's popup, a steps list) are substituted string by string
+        const deep = (v: any): any => Array.isArray(v) ? v.map(deep)
+          : (v && typeof v === 'object') ? Object.fromEntries(Object.keys(v).map((k) => [k, deep(v[k])])) : sub(v);
+        for (const k of Object.keys(inputs)) { inputs[k] = deep(inputs[k]); }
       }
       // mpc: a seeded FORM on a per-object page pre-fills the object
       // (e.g. the person) through its extra variables' defaults.

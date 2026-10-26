@@ -7,7 +7,10 @@ import { BlockDetailPanelComponent } from './block-detail-panel.component';
 import { CellDetailPanelComponent } from './cell-detail-panel.component';
 import { CellLogicDiagramComponent } from './cell-logic-diagram.component';
 import { CellSchematicComponent } from './cell-schematic.component';
+import { CardsComponent } from './cards.component';
 import { ClassRowsTableComponent } from './class-rows-table.component';
+import { PickerButtonComponent } from './picker-button.component';
+import { StepsComponent } from './steps.component';
 import { EvidenceBrowserComponent } from './evidence-browser.component';
 import { FetCharacteristicExplorerComponent } from './fet-characteristic-explorer.component';
 import { FetOverviewComponent } from './fet-overview.component';
@@ -56,6 +59,33 @@ export function registerGenericDisplayComponents(): void {
         + 'still blank)',
       defaultInputs: { className: '', columns: '', maxRows: 0, columnFormats: '', filterField: '', filterValue: '', dataPath: '',
                        selectField: '', selectScope: '', selectedValue: '', rowLinkTabField: '', emptyText: '' },
+    });
+
+  // wb-1 (D-wb-1): three generic display kinds - JSON shapes in class-rows-cards.ts
+  registerDisplayComponent(
+    'cards', CardsComponent, {
+      displayName: 'Cards (rows as a card grid)',
+      description: 'A door\'s rows as responsive cards: title/subtitle/badge chips/label-value rows, optional group_by headings, '
+        + 'facet chips that re-query the door (?query_param=value, click again clears), one action button per card '
+        + '(a RowActionConfig); -1 / unverified render as the word "unverified" (inputs: dataPath, title_field, subtitle_field, '
+        + 'badge_fields, fields, group_by, facets, action, empty_text)',
+      defaultInputs: { dataPath: '', title_field: '', subtitle_field: '', badge_fields: [], fields: {}, group_by: '', facets: [], action: null, empty_text: '' },
+    });
+
+  registerDisplayComponent(
+    'picker-button', PickerButtonComponent, {
+      displayName: 'Picker button (opens a cards modal)',
+      description: 'A button opening a modal with a nested `cards` config; card actions run inside it, bump page scope rev, and the '
+        + 'modal stays open (inputs: label, title, popup = a cards config)',
+      defaultInputs: { label: '', title: '', popup: null },
+    });
+
+  registerDisplayComponent(
+    'steps', StepsComponent, {
+      displayName: 'Steps (step strip from page scope)',
+      description: 'Ordered steps shown done / current / todo, derived from page scope (done_when scope_key written as {scope:key}, '
+        + 'op set|gte); a step\'s optional target opens that page tab (input: steps)',
+      defaultInputs: { steps: [] },
     });
 
   registerDisplayComponent(
