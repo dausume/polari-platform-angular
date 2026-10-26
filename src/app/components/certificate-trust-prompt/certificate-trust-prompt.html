@@ -1,43 +1,27 @@
 <div *ngIf="showPrompt" class="certificate-trust-overlay">
-  <mat-card class="certificate-trust-card">
+  <mat-card class="certificate-trust-card" role="dialog" aria-modal="true" aria-labelledby="service-connection-title">
     <mat-card-header>
       <mat-icon mat-card-avatar class="warning-icon">warning</mat-icon>
-      <mat-card-title>Certificate Trust Required</mat-card-title>
-      <mat-card-subtitle>
-        Your browser doesn't trust some security certificates needed for this application
-      </mat-card-subtitle>
+      <mat-card-title id="service-connection-title">Service connection needs attention</mat-card-title>
+      <mat-card-subtitle>A required service still failed after several connection attempts.</mat-card-subtitle>
     </mat-card-header>
-
     <mat-card-content>
-      <p class="explanation">
-        This application uses self-signed certificates for secure communication in development.
-        Your browser needs to trust these certificates before the app can connect to its services.
-      </p>
-
-      <h3>Untrusted Services</h3>
-      <mat-list>
-        <mat-list-item *ngFor="let endpoint of untrustedEndpoints">
-          <mat-icon matListItemIcon class="error-icon">lock_open</mat-icon>
-          <div matListItemTitle>{{ endpoint.name }}</div>
-          <div matListItemLine class="endpoint-url">{{ endpoint.url }}</div>
-          <button mat-stroked-button color="primary" (click)="openEndpoint(endpoint.url)">
-            Open & Trust
-          </button>
-        </mat-list-item>
-      </mat-list>
-
-      <h3>How to Trust Certificates</h3>
-      <ol class="instructions">
-        <li *ngFor="let instruction of instructions">{{ instruction }}</li>
-      </ol>
+      <p class="explanation">Check the affected service below. A failed connection does not necessarily mean its certificate is untrusted.</p>
+      <div class="endpoint-list">
+        <section class="endpoint" *ngFor="let endpoint of failedEndpoints">
+          <h3>{{ endpoint.name }}</h3>
+          <p class="endpoint-url">{{ endpoint.url }}</p>
+          <p role="status">{{ endpoint.error }}</p>
+          <button mat-stroked-button color="primary" (click)="openEndpoint(endpoint.url)">Open service</button>
+        </section>
+      </div>
+      <h3>If the browser shows a certificate warning</h3>
+      <p>Verify the service address and install your Isle's approved CA through the Isle setup app. Return here and retry after trust is configured.</p>
+      <p>If no certificate warning appears, check service availability, the configured address, and browser access settings instead.</p>
     </mat-card-content>
-
     <mat-card-actions align="end">
       <button mat-button (click)="dismiss()">Dismiss</button>
-      <button mat-raised-button color="primary" (click)="refresh()">
-        <mat-icon>refresh</mat-icon>
-        I've Trusted All - Refresh
-      </button>
+      <button mat-raised-button color="primary" [disabled]="checking" (click)="refresh()">{{ checking ? 'Checking…' : 'Retry connections' }}</button>
     </mat-card-actions>
   </mat-card>
 </div>

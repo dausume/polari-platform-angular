@@ -1,99 +1,35 @@
 .certificate-trust-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  inset: 0;
   background: rgba(0, 0, 0, 0.7);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 9999;
-  padding: 20px;
+  padding: 16px;
   box-sizing: border-box;
 }
-
 .certificate-trust-card {
-  max-width: 600px;
   width: 100%;
-  max-height: 90vh;
-  overflow-y: auto;
-}
-
-.certificate-trust-card mat-card-header {
-  margin-bottom: 16px;
-}
-
-.warning-icon {
-  background-color: var(--brand-orange);
-  color: var(--text-on-primary);
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
+  max-width: 600px;
+  max-height: calc(100dvh - 32px);
   display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
 }
-
-.explanation {
-  color: var(--text-secondary);
-  margin-bottom: 24px;
-  line-height: 1.5;
-}
-
-h3 {
-  font-size: 16px;
-  font-weight: 500;
-  margin: 16px 0 8px;
-  color: var(--text-primary);
-}
-
-mat-list {
-  margin-bottom: 16px;
-}
-
-mat-list-item {
-  height: auto;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--border-light);
-}
-
-mat-list-item:last-child {
-  border-bottom: none;
-}
-
-.error-icon {
-  color: var(--color-error);
-}
-
-.endpoint-url {
-  font-family: monospace;
-  font-size: 12px;
-  color: var(--text-secondary);
-  margin-top: 4px;
-}
-
-mat-list-item button {
-  margin-left: auto;
-}
-
-.instructions {
-  padding-left: 20px;
-  margin: 8px 0 16px;
-}
-
-.instructions li {
-  margin-bottom: 8px;
-  color: var(--text-secondary);
-  line-height: 1.4;
-}
-
-mat-card-actions {
-  padding: 16px;
-  gap: 8px;
-}
-
-mat-card-actions button mat-icon {
-  margin-right: 8px;
+.certificate-trust-card mat-card-header { flex: 0 0 auto; padding-bottom: 12px; }
+.certificate-trust-card mat-card-content { min-height: 0; overflow-y: auto; }
+.warning-icon { color: var(--brand-orange); flex-shrink: 0; }
+.explanation { color: var(--text-secondary); line-height: 1.5; }
+.endpoint-list { display: grid; gap: 12px; }
+.endpoint { border-bottom: 1px solid var(--border-light); padding-bottom: 16px; min-width: 0; }
+h3 { font-size: 16px; font-weight: 500; margin: 16px 0 8px; }
+p { line-height: 1.5; overflow-wrap: anywhere; }
+.endpoint-url { font-family: monospace; font-size: 12px; color: var(--text-secondary); }
+.endpoint button { max-width: 100%; }
+mat-card-actions { flex: 0 0 auto; display: flex; flex-wrap: wrap; padding: 12px 16px; gap: 8px; }
+@media (max-width: 420px) {
+  .certificate-trust-overlay { padding: 8px; }
+  .certificate-trust-card { max-height: calc(100dvh - 16px); }
 }
