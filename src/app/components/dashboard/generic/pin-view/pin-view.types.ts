@@ -6,7 +6,8 @@
 export type PvStage = 'base' | 'after-init' | 'tasks-assigned' | 'firmware-committed' | 'candidate';
 export type PvPinStage = 'unassigned' | 'available' | 'proposed' | 'committed';
 
-export interface PvFamily { family: string; token: string; text_token: string; fallback_hex: string; hex_is_drawing_knob?: boolean; }
+/** osc-6: `signal_kind` = the family's analog | digital | differential | undetermined (the one axis on the one vocabulary; board.custom.signal_kinds). */
+export interface PvFamily { family: string; token: string; text_token: string; fallback_hex: string; hex_is_drawing_knob?: boolean; signal_kind?: string; }
 export interface PvDriveVocabulary { drive_statuses: string[]; rails: string[]; pulls: string[]; limit_classes: string[]; note?: string; }
 export interface PvVocabulary { families: PvFamily[]; sets: Record<string, string[]>; drive?: PvDriveVocabulary; note?: string; }
 /** The view mode (pv-2): All, Drive (electricity: current and supply) or Signal (what the pin carries). */
@@ -25,7 +26,7 @@ export interface PvSurface {
 }
 
 export interface PvConsumer { kind: string; who: string; solution?: string; claim?: string; mode?: string; function?: string; pull?: string; task?: string; route?: string; why?: string; part?: string; }
-export interface PvPinSignal { function: string; family: string; signal: string; direction: string; }
+export interface PvPinSignal { function: string; family: string; signal: string; direction: string; kind?: string; }
 export interface PvLitChild { child: string; function: string; verdict: string; blocked_at?: number; blocked_why?: string; headline: string; protocol?: string; }
 /** SIGNAL side (pv-2): the function in use at the stage, null at stage base. */
 export interface PvActivated { function: string; resource: string; family: string; signal: string; direction: string; }

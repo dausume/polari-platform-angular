@@ -233,9 +233,9 @@
       <details class="pv-legend" open [attr.data-mode]="mode">
         <summary>Legend ({{ mode === 'all' ? 'all pins' : mode === 'drive' ? 'drive: electricity' : 'signal' }})</summary>
         <ng-container *ngIf="mode === 'all'">
-          <p class="pv-muted">Colour is the signal family.</p>
+          <p class="pv-muted">Colour is the signal family; the word after it is the signal kind (analog = a value, digital = a level, differential = a pair's difference).</p>
           <ul class="pv-swatches">
-            <li *ngFor="let f of families"><span class="pv-chip" [ngStyle]="famVars(f)" [attr.data-family]="f.family">{{ f.family }}</span></li>
+            <li *ngFor="let f of families"><span class="pv-chip" [ngStyle]="famVars(f)" [attr.data-family]="f.family">{{ f.family }}</span><span class="pv-muted" *ngIf="f.signal_kind"> {{ f.signal_kind }}</span></li>
           </ul>
         </ng-container>
         <ng-container *ngIf="mode === 'drive'">
