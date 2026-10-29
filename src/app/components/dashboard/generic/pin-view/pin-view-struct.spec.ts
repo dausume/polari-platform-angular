@@ -87,6 +87,7 @@ describe('pin view struct lane (component)', () => {
               urls.push(url);
               if (url.includes('/api/firmware/bindings')) { return of({ ok: true, bindings: [] }); }
               if (url.includes('/config-events')) { return of(FIXTURE_EVENTS); }
+              if (url.includes('/catom-assertions?board=')) { return of({ ok: true, rows: url.endsWith('esp32-c3') ? [{ variant: 'esp32c3-light' }] : [] }); }
               if (url.includes('/catom-assertions/')) { return of(FIXTURE_STRUCT_BINDINGS); }
               if (url.includes('view=hops')) { return of(FIXTURE_BRIDGE_HOPS); }
               if (url.includes('/bench-bridges/')) { return of(FIXTURE_BENCH_BRIDGES); }
@@ -169,11 +170,19 @@ describe('pin view struct lane (component)', () => {
     expect(component.fieldSel).toBe('');
   });
 
-  it('a board with no binding chosen says so in words and reads no binding door', () => {
+  it('a board with no binding chosen loads the variant asserted on that board (the C3: esp32c3-light) and says so', () => {
     create({ struct: '1', board: 'esp32-c3' });
     fixture.detectChanges();
-    expect(urls.some(u => u.includes('catom-assertions'))).toBeFalse();
-    expect(el().querySelector('.pv-struct-note')!.textContent).toContain('No firmware binding is chosen for esp32-c3');
+    expect(urls).toContain('/api/cmod/catom-assertions?board=esp32-c3');
+    expect(urls).toContain('/api/cmod/catom-assertions/esp32c3-light?view=bindings');
+    expect(el().querySelector('.pv-struct-note')!.textContent).toContain('esp32c3-light, the firmware variant asserted on esp32-c3');
+  });
+
+  it('a board with no binding and no asserted variant says so in words and reads no binding door', () => {
+    create({ struct: '1', board: 'nano-every' });
+    fixture.detectChanges();
+    expect(urls.some(u => u.includes('/catom-assertions/'))).toBeFalse();
+    expect(el().querySelector('.pv-struct-note')!.textContent).toContain('No firmware binding is chosen for nano-every');
   });
 
   it('never puts JSON on screen', () => {
