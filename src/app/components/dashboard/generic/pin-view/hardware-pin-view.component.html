@@ -40,9 +40,10 @@
       </select>
     </label>
     <label class="pv-ctl pv-check"><input type="checkbox" class="pv-unassigned-toggle" [checked]="showUnassigned" (change)="setShowUnassigned($any($event.target).checked)"> Show unassigned</label>
+    <label class="pv-ctl pv-check" title="The struct fields the firmware's Catom assertions bind to pins, and the bridge path out to the host"><input type="checkbox" class="pv-struct-toggle" [checked]="showStruct" (change)="setShowStruct($any($event.target).checked)"> Struct lane</label>
     <button type="button" class="pv-btn pv-clear-filters" (click)="clearFilters()" [disabled]="!filtersOn">Clear filters</button>
     <button type="button" class="pv-btn pv-fit" (click)="fit()">Fit</button>
-    <button type="button" class="pv-btn pv-clear" (click)="clear()" [disabled]="!selection">Clear selection</button>
+    <button type="button" class="pv-btn pv-clear" (click)="clear()" [disabled]="!selection && !fieldSel">Clear selection</button>
   </div>
 
   <div class="pv-filters">
@@ -90,6 +91,7 @@
   <p class="pv-status pv-blankline" *ngIf="payload?.phase_info && phase !== 'runtime' && !loading">{{ bootloaderLine }}
     <span *ngIf="payload!.phase_info!.undetermined.length"> Not known yet: {{ payload!.phase_info!.undetermined.join('; ') }}.</span></p>
   <p class="pv-status pv-loading" *ngIf="loading">{{ workingNote }}</p>
+  <p class="pv-status pv-struct-note" *ngIf="showStruct && structNotes.length"><span *ngFor="let n of structNotes">{{ n }} </span></p>
   <p class="pv-status pv-error" *ngIf="error" [attr.title]="errorDetail">{{ error }}</p>
   <p class="pv-status pv-note" *ngIf="payload && !loading && !error">
     {{ payload.stage.notes[0] }}
@@ -123,7 +125,7 @@
       </section>
       <p class="pv-muted pv-runs-note" *ngIf="stage === 'candidate' && runsNote">{{ runsNote }}</p>
 
-      <ng-container *ngIf="!panel">
+      <ng-container *ngIf="!panel && !fieldSel">
         <h3 class="pv-h">Pin view</h3>
         <p>Click a board, a chip package, the silicon inside it or a part to see which pins it connects to. Nothing is wired until you pick something. Click it again, or press Escape, to clear.</p>
         <ul class="pv-counts" *ngIf="payload">
@@ -131,6 +133,16 @@
           <li *ngIf="payload.bench?.board">bench: {{ payload.bench!.board!.label || payload.bench!.board!.model }} laid out from {{ payload.bench!.config }} ({{ payload.bench!.placed.length }} parts in their holes)</li>
           <li *ngIf="payload.bench && !payload.bench.board" [title]="payload.bench.why">bench: not laid out (parts shown beside the board)</li>
         </ul>
+      </ng-container>
+
+      <ng-container *ngIf="fieldSel">
+        <h3 class="pv-h pv-field-title">{{ fieldSel }}</h3>
+        <p class="pv-sub">a struct field of the firmware &middot; {{ fieldRows.length }} binding{{ fieldRows.length === 1 ? '' : 's' }} derived from its Catom assertions</p>
+        <ng-container *ngTemplateOutlet="structTable; context: { rows: fieldRows, byField: false }"></ng-container>
+        <ng-container *ngIf="fieldBridged && lane?.hops?.length">
+          <h4 class="pv-h4">The bridge it crosses <span class="pv-muted">({{ lane!.bridge?.name }}, {{ lane!.bridge?.mode }})</span></h4>
+          <ol class="pv-list pv-hop-list"><li *ngFor="let h of lane!.hops">{{ h.kind }}: {{ h.what }} <span class="pv-muted">&middot; {{ h.level }}</span></li></ol>
+        </ng-container>
       </ng-container>
 
       <ng-container *ngIf="sp as s">
@@ -197,6 +209,11 @@
 <section class="pv-group pv-rails" *ngIf="p.rails.length && mode !== 'drive'">
           <h4 class="pv-h4">Rail links <span class="pv-muted">(shown as a stub and tag, not as lines)</span></h4>
           <p class="pv-rail" *ngFor="let r of p.rails"><strong>{{ r.rail }}</strong> also reaches: {{ r.pins.join('; ') }}</p>
+        </section>
+        <section class="pv-group pv-pin-struct" *ngIf="showStruct">
+          <h4 class="pv-h4">Struct fields <span class="pv-muted">(from the Catom assertions)</span></h4>
+          <ng-container *ngIf="pinStructRows.length; else noStruct"><ng-container *ngTemplateOutlet="structTable; context: { rows: pinStructRows, byField: true }"></ng-container></ng-container>
+          <ng-template #noStruct><p class="pv-muted">No Catom assertion binds a struct field to this pin.</p></ng-template>
         </section>
         <h4 class="pv-h4">Consumed by</h4>
         <ul class="pv-list"><li *ngFor="let c of p.consumers">{{ c }}</li><li class="pv-muted" *ngIf="!p.consumers.length">nothing yet</li></ul>
@@ -271,8 +288,32 @@
             <li><svg class="pv-leg-svg" viewBox="-1.2 -1.2 2.4 2.4" aria-hidden="true"><g class="pv-pin" data-fill="hollow" style="--fam: var(--pin-gpio)"><circle class="pv-internal" r="1"></circle><circle class="pv-mark" r="0.55"></circle></g></svg> dotted ring: used on the board only, no header</li>
           </ul>
         </ng-container>
+        <ng-container *ngIf="showStruct">
+          <p class="pv-muted">Struct lane: an arrow per binding, coloured by the lane that runs the change; the stamp says who updated it.</p>
+          <ul class="pv-swatches pv-lane-legend">
+            <li *ngFor="let l of laneKeys"><span class="pv-chip" [ngStyle]="vars('--lane-' + l)" [attr.data-lane]="l">{{ l }}</span><span class="pv-muted"> {{ laneWords[l] }}</span></li>
+          </ul>
+          <ul class="pv-list pv-lane-words">
+            <li *ngFor="let u of updaterKeys"><strong>{{ u }}</strong> {{ updaterWords[u] }}</li>
+            <li>arrow into a field: the pin's event changes it; out of a field: it drives the pin or leaves through the bridge; dashed: the bridge path from the UART pins</li>
+            <li class="pv-muted">every binding is asserted, not yet verified, until a frame-decoding twin run checks it</li>
+          </ul>
+        </ng-container>
         <p class="pv-muted" *ngIf="payload">Silicon that would not fit inside its package is drawn smaller than its true size.</p>
       </details>
     </aside>
   </div>
 </div>
+
+<ng-template #structTable let-rows="rows" let-byField="byField">
+  <table class="pv-table pv-struct-table">
+    <thead><tr><th>{{ byField ? 'Field' : 'Pin' }}</th><th>What</th><th>Lane</th><th>Updater</th><th>Atom</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr *ngFor="let r of rows" class="pv-struct-row">
+        <td><button type="button" *ngIf="byField" class="pv-rowbtn" (click)="pickField(r.field)">{{ r.fieldLabel }}</button><span *ngIf="!byField">{{ r.pin }}</span></td>
+        <td>{{ r.direction }}<span class="pv-muted" *ngIf="r.event !== 'none named'"> ({{ r.event }})</span></td>
+        <td>{{ r.lane }}</td><td>{{ r.updater }}</td><td>{{ r.atom }}</td><td>{{ r.status }}</td>
+      </tr>
+    </tbody>
+  </table>
+</ng-template>

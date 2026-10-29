@@ -1,9 +1,11 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable, map, of, catchError, retry, timer } from 'rxjs';
+import { Observable, map, of, catchError, retry, switchMap, timer } from 'rxjs';
 
 import { PolariService } from '@services/polari-service';
-import { PvEventsPayload, PvPayload, PvQuery, PvRunsPayload } from './pin-view.types';
+import {
+  PvBenchBridge, PvBenchBridgesPayload, PvBridgeHop, PvEventsPayload, PvHopsPayload, PvPayload, PvQuery, PvRunsPayload, PvStructBindingsPayload,
+} from './pin-view.types';
 
 /**
  * pv-1 — the pin view's one data door. It sends NAMES only (board, system, binding, stage, protocol) in a GET;
@@ -46,6 +48,25 @@ export class PinViewService {
   runs(mission: string): Observable<PvRunsPayload> {
     return this.http.get<PvRunsPayload>(`${this.polari.getBackendBaseUrl()}/api/missions/${encodeURIComponent(mission)}/solve-runs`, this.opts()).pipe(
       map(r => ({ ...r, rows: [...(r?.rows || [])].sort((a, b) => (b.ran_at || '').localeCompare(a.ran_at || '') || b.name.localeCompare(a.name)) })));
+  }
+
+  /** hsp-3b: the pin <-> struct-field bindings of one firmware variant (derived from its Catom assertions; GET only). */
+  structBindings(variant: string): Observable<PvStructBindingsPayload> {
+    return this.http.get<PvStructBindingsPayload>(`${this.polari.getBackendBaseUrl()}/api/cmod/catom-assertions/${encodeURIComponent(variant)}?view=bindings`, this.opts());
+  }
+
+  /** hsp-3b: the bench's bridge whose path runs from this board, then that bridge's hops as its mode says (serial: the cable path; simulated: the twin). GET only.
+   *  A bench with no bridge from the board answers an empty chain with the reason in words. */
+  bridgeChain(bench: string, board: string): Observable<{ bridge: PvBenchBridge | null; hops: PvBridgeHop[]; note: string }> {
+    const base = `${this.polari.getBackendBaseUrl()}/api/grpc/bench-bridges/${encodeURIComponent(bench)}`;
+    return this.http.get<PvBenchBridgesPayload>(base, this.opts()).pipe(
+      switchMap(r => {
+        const paths = new Set((r?.paths || []).filter(p => p.board === board).map(p => p.name));
+        const bridge = (r?.bridges || []).find(b => paths.has(b.path)) || null;
+        if (!bridge) { return of({ bridge: null, hops: [] as PvBridgeHop[], note: (r && r.error) || `No bridge on ${bench} runs from ${board}.` }); }
+        return this.http.get<PvHopsPayload>(`${base}?view=hops&bridge=${encodeURIComponent(bridge.name)}`, this.opts()).pipe(
+          map(h => ({ bridge, hops: [...(h?.rows || [])].sort((a, b) => a.n - b.n), note: (h && (h.error || h.note)) || '' })));
+      }));
   }
 
   /** The firmware bindings of one board, for the binding picker (an empty list when the door is not there). */
