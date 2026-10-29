@@ -285,6 +285,8 @@ export class ClassRowsTableComponent implements OnInit, OnChanges {
     if (clickIsOnControl(event?.target ?? null)) { return; }
     if (this.rowLinkTabField) {
       const key = fieldText(row, this.rowLinkTabField);
+      // hsp-3b: with a selection too, the click carries the row INTO the tab it opens (a place to go, so set - never toggled off)
+      if (key && this.selectField && this.selectScope) { this.setScope(fieldText(row, this.selectField)); }
       if (key) { void this.router.navigate([], { queryParams: { tab: key }, queryParamsHandling: 'merge' }); }
       return;
     }

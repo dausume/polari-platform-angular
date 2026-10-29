@@ -85,6 +85,14 @@ describe('ClassRowsTableComponent — row interaction (fsc-3)', () => {
     expect(events.length).toBe(0);
   });
 
+  it('rowLinkTabField + a selection: the click sets the scope to the row (even when it is already selected) AND opens the tab (hsp-3b)', () => {
+    component.rowLinkTabField = 'label'; component.selectField = 'solution'; component.selectScope = 'solution'; component.selectedValue = 's2';
+    clickRow(1);
+    expect(events.length).toBe(1);
+    expect(events[0].payload).toEqual({ key: 'solution', value: 's2' });
+    expect(navigated[0].queryParams).toEqual({ tab: 'two' });
+  });
+
   it('a dataPath with an empty param shows emptyText and does not ask the door', () => {
     component.dataPath = '/api/x?solution=&profile=p';
     component.emptyText = 'Pick a row first.';
