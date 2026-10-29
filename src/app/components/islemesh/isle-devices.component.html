@@ -1,0 +1,52 @@
+<section class="devices-page" aria-labelledby="devices-title">
+  <header>
+    <div><h1 id="devices-title">Devices &amp; onboarding</h1>
+      <p>See what is recorded on each device and prepare it for the apps you want to run.</p></div>
+    <button mat-stroked-button (click)="refresh()" [disabled]="loading">Refresh devices</button>
+  </header>
+  <p role="status" *ngIf="loading">Loading device inventory…</p>
+  <p role="alert" *ngIf="error">{{ error }} Existing records below may be out of date.</p>
+  <p *ngIf="retrievedAt">Inventory retrieved {{ retrievedAt | date:'medium' }}.
+    Device observation times are not supplied by this inventory; these records do not prove current health.</p>
+  <p class="notice" *ngIf="mockNetwork">This inventory includes demonstration data. It cannot confirm real device readiness.</p>
+  <p *ngIf="!loading && !error && !devices.length">No devices have been reported yet. Use the onboarding steps below to prepare a device.</p>
+  <div class="device-grid">
+    <article *ngFor="let device of devices">
+      <h2>{{ device.name }}</h2>
+      <dl>
+        <dt>Network membership</dt><dd>Not verified by this inventory</dd>
+        <dt>Hosting agent</dt><dd>{{ device.agent_present === true ? 'Recorded as present' : device.agent_present === false ? 'Not reported as present' : 'Unknown' }}</dd>
+        <dt>Polari instances</dt><dd>{{ device.polari_instances?.join(', ') || 'None reported' }}</dd>
+        <dt>Assigned role</dt><dd>Not supplied</dd>
+        <dt>App types this device can host</dt><dd>Awaiting capability checks</dd>
+      </dl>
+      <h3>Registered apps</h3>
+      <ul><li *ngFor="let app of device.apps">{{ app.name }} <span *ngIf="app.domain">— {{ app.domain }}</span></li></ul>
+      <p *ngIf="!device.apps?.length">None reported</p>
+      <p>Registration alone does not confirm that an app is running or reachable.</p>
+    </article>
+  </div>
+  <section class="onboarding" aria-labelledby="onboarding-title">
+    <h2 id="onboarding-title">Add or prepare a device</h2>
+    <p>A device has joined when it has an Isle address and can reach Isle services.
+      Hosting apps is a separate capability you can add later.</p>
+    <ol>
+      <li><strong>Install the member tools.</strong> Use the versioned member package set supplied by this Isle.
+        Match package versions and checksums before installation.</li>
+      <li><strong>Connect Ethernet to the Isle.</strong> Select the physical Ethernet port attached to the Isle.
+        Reuse its existing connection profile and keep the normal internet connection.</li>
+      <li><strong>Verify access.</strong> Check the assigned address, Isle name resolution and trusted HTTPS.
+        An address alone does not verify DNS or certificate trust.</li>
+      <li><strong>Choose what to host.</strong> Check the requirements of the app you want to install.
+        Container apps, Polari apps, virtual machines and hardware bridges need different capabilities.
+        Hardware bridges also need access to the intended hardware.</li>
+      <li><strong>Prepare and verify hosting.</strong> Enable only the required capabilities, then check a real app
+        from another device. Refresh the inventory after setup.</li>
+    </ol>
+    <p>These are setup steps, not an automatic installer. Device setup actions and verified app-placement
+      checks will appear here when the corresponding management services are available.</p>
+  </section>
+  <section><h2>Capabilities missing across the Isle</h2>
+    <p>Not yet assessed. Missing evidence must not be treated as proof that no device supports an app.</p>
+  </section>
+</section>
