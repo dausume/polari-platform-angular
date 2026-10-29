@@ -105,6 +105,19 @@ export interface PvPayload {
   shapes: Record<string, PvShape>;
 }
 
+/** hsp-3b: one pin <-> struct-field binding (GET /api/cmod/catom-assertions/{variant}?view=bindings), derived from a Catom assertion. `pin` is the SoC pin name (PD2). */
+export type PvStructDirection = 'in' | 'out' | 'to-bridge' | 'from-bridge';
+export interface PvStructBinding {
+  struct: string; field: string; pin: string; direction: PvStructDirection; event: string; lane: string; updater: string; stamps: string; bridge: string;
+  atom: string; assertion: string; status: string; basis: string;
+}
+export interface PvStructBindingsPayload { ok: boolean; error?: string; variant: string; view: string; count: number; rows: PvStructBinding[]; }
+/** hsp-3b: one hop of a bridge path (GET /api/grpc/bench-bridges/{bench}?view=hops&bridge=), in order chip-pins -> converter -> connector -> host-port -> userspace; a level nobody cited is '-1'. */
+export interface PvBridgeHop { n: number; kind: string; what: string; ref: string; signal_level: string; basis: string; bridge: string; mode: string; path: string; board: string; }
+export interface PvBenchBridge { name: string; mode: string; path: string; pins: string; maps: string; status: string; status_why: string; }
+export interface PvBenchBridgesPayload { ok: boolean; error?: string; bench: string; bridges: PvBenchBridge[]; paths: { name: string; board: string; label: string; protocol: string; mode: string }[]; }
+export interface PvHopsPayload { ok: boolean; error?: string; rows: PvBridgeHop[]; note?: string; }
+
 export type PvSelection = { kind: 'surface' | 'pin' | 'connection'; id: string } | null;
 
 export interface PvQuery { system: string; binding: string; stage: PvStage; protocol: string; run?: string; candidate?: string; activated_only?: boolean; phase?: PvPhase; blank?: PvBlank; }

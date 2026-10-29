@@ -1,17 +1,20 @@
 import { CommonModule } from '@angular/common';
 import { Component, ElementRef, HostListener, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild, ViewEncapsulation, inject } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { Subscription } from 'rxjs';
+import { Subscription, catchError, combineLatest, of } from 'rxjs';
 
 import { friendlyError } from '../friendly-error';
 import { PinViewCanvas } from './pin-view-draw';
 import {
   DRIVE_GLYPHS, DRIVE_WORDS_SHORT, FILL_WORDS, GLYPHS, RAIL_WORDS, ROLE_WORDS, SIGNAL_SYMBOL_WORDS, PvDriveSymbol, PvModeFilters, PvRole, driveToken, driveFilterOn,
 } from './pin-view-encode';
-import { buildScene } from './pin-view-layout';
+import { Scene, buildScene } from './pin-view-layout';
 import { ConnPanel, Panel, PinPanel, PvIndex, SurfacePanel, buildPanel } from './pin-view-panel';
 import { PinViewService } from './pin-view.service';
-import { PvBlank, PvCandidate, PvConfigEvent, PvFamily, PvMode, PvPayload, PvPhase, PvSelection, PvSolveRun, PvStage } from './pin-view.types';
+import { LANE_WORDS, StructLane, StructRow, UPDATER_WORDS, buildStructLane, fieldPins, socPinName, structRows } from './pin-view-struct';
+import {
+  PvBenchBridge, PvBlank, PvBridgeHop, PvCandidate, PvConfigEvent, PvFamily, PvMode, PvPayload, PvPhase, PvSelection, PvSolveRun, PvStage, PvStructBinding,
+} from './pin-view.types';
 
 /**
  * hardware-pin-view — the pin view (PIN_VIEW_PLAN.md, pv-1): THE ONE sanctioned new custom component for pins
@@ -81,6 +84,8 @@ export class HardwarePinViewComponent implements OnInit, OnChanges, OnDestroy {
   @Input() candidate = '';
   /** The Mission whose stored runs the run picker lists (the page's query ?mission= overrides). */
   @Input() mission = 'uno-light-mission';
+  /** hsp-3b: the bench whose bridge the struct lane's chain is read from (the page's query ?bench= overrides). */
+  @Input() bench = 'home-bench';
 
   readonly phases = PHASES;
   readonly blanks = BLANKS;
@@ -121,6 +126,19 @@ export class HardwarePinViewComponent implements OnInit, OnChanges, OnDestroy {
   runs: PvSolveRun[] = [];
   runsNote = '';
   private runsSub?: Subscription;
+  /** hsp-3b: the struct lane - shown on request (?struct=1 or the toggle); the bindings, the bridge chain, the placed lane and the chosen field. */
+  showStruct = false;
+  structRows: PvStructBinding[] = [];
+  chain: { bridge: PvBenchBridge | null; hops: PvBridgeHop[]; note: string } | null = null;
+  lane: StructLane | null = null;
+  fieldSel = '';
+  structLoadNote = '';
+  readonly laneKeys = Object.keys(LANE_WORDS);
+  readonly laneWords = LANE_WORDS;
+  readonly updaterKeys = Object.keys(UPDATER_WORDS);
+  readonly updaterWords = UPDATER_WORDS;
+  private structSub?: Subscription;
+  private scene: Scene | null = null;
   /** An event the page's query asked for (?event=): selected by the first timeline that holds it. */
   private pendingEvent = '';
   loading = false;
@@ -155,10 +173,13 @@ export class HardwarePinViewComponent implements OnInit, OnChanges, OnDestroy {
       const want = q.get('pin') ? { kind: 'pin', id: q.get('pin')! } : q.get('surface') ? { kind: 'surface', id: q.get('surface')! } : q.get('connection') ? { kind: 'connection', id: q.get('connection')! } : null;
       this.pendingSelection = want as PvSelection;
       this.mode = (['all', 'drive', 'signal'].includes(q.get('mode') || '') ? q.get('mode') : this.mode) as PvMode;
+      this.bench = q.get('bench') || this.bench;
+      this.showStruct = q.get('struct') === '1';
     }
     this.canvas = new PinViewCanvas(this.svgRef.nativeElement, {
       surface: id => this.toggle({ kind: 'surface', id }),
       pin: id => this.toggle({ kind: 'pin', id }),
+      field: key => this.pickField(key),
       connection: id => this.toggleConnection(id),
       background: () => this.clear(),
     });
@@ -166,15 +187,17 @@ export class HardwarePinViewComponent implements OnInit, OnChanges, OnDestroy {
     this.reload();
     this.loadEvents();
     if (this.stage === 'candidate') { this.loadRuns(); }
+    if (this.showStruct) { this.loadStruct(); }
   }
 
   ngOnChanges(ch: SimpleChanges): void {
     if (!this.canvas) { return; }
     if (['board', 'system', 'binding', 'stage', 'protocol', 'phase', 'blank', 'run', 'candidate'].some(k => ch[k] && !ch[k].firstChange)) { this.reload(); }
     if (['board', 'system', 'binding'].some(k => ch[k] && !ch[k].firstChange)) { this.loadEvents(); }
+    if (this.showStruct && ['board', 'binding', 'bench'].some(k => ch[k] && !ch[k].firstChange)) { this.loadStruct(); }
   }
 
-  ngOnDestroy(): void { this.sub?.unsubscribe(); this.eventsSub?.unsubscribe(); this.runsSub?.unsubscribe(); this.canvas?.destroy(); }
+  ngOnDestroy(): void { this.sub?.unsubscribe(); this.eventsSub?.unsubscribe(); this.runsSub?.unsubscribe(); this.structSub?.unsubscribe(); this.canvas?.destroy(); }
 
   // ---- data
   /** A stage past base needs a binding; the light demo's is the default. */
@@ -229,7 +252,9 @@ export class HardwarePinViewComponent implements OnInit, OnChanges, OnDestroy {
           if (this.exists(this.pendingSelection)) { this.selection = this.pendingSelection; this.anchor = null; }
           this.pendingSelection = null;
         }
-        this.canvas!.setData(p, this.ix, buildScene(p));
+        this.scene = buildScene(p);
+        this.canvas!.setData(p, this.ix, this.scene);
+        this.rebuildLane();
         this.redraw();
       },
       error: e => {
@@ -277,7 +302,7 @@ export class HardwarePinViewComponent implements OnInit, OnChanges, OnDestroy {
     const b = f.bootloader;
     return `${f.label}. Bootloader: ${b.present}${b.why ? ' (' + b.why + ')' : ''}. Factory sketch: ${f.factory_sketch.status}${f.factory_sketch.why ? ' (' + f.factory_sketch.why + ')' : ''}.`;
   }
-  setBinding(name: string): void { this.binding = name; this.reload(); }
+  setBinding(name: string): void { this.binding = name; this.reload(); if (this.showStruct) { this.loadStruct(); } }
   /** One protocol (or none): the older single-select entry point; the chips call toggleProtocol. */
   setProtocol(name: string): void { this.protocol = name; this.redraw(); this.reload(); }
   get protocols(): string[] { return this.protocol.split(',').filter(Boolean); }
@@ -323,11 +348,63 @@ export class HardwarePinViewComponent implements OnInit, OnChanges, OnDestroy {
     return (!this.fRails.size || this.fRails.has(p.rail)) && (!this.fStatuses.size || this.fStatuses.has(p.drive_status)) && (!this.fLimits.size || this.fLimits.has(p.limit_class));
   }
   setShowUnassigned(on: boolean): void { this.showUnassigned = on; this.redraw(); }
+
+  // ---- hsp-3b: the struct lane (GETs only; off until asked for, so the base picture reads one door)
+  /** The firmware variant whose Catom assertions the lane draws: the chosen binding's, else the light demo's on its own board. */
+  get structVariant(): string { return (this.binding || (this.board === this.defaultBinding.split('@')[1] ? this.defaultBinding : '')).split('@')[0]; }
+  setShowStruct(on: boolean): void {
+    this.showStruct = on;
+    if (!on) { this.fieldSel = ''; this.rebuildLane(); this.redraw(); this.fit(); return; }
+    this.loadStruct();
+  }
+  loadStruct(): void {
+    this.structSub?.unsubscribe();
+    const variant = this.structVariant;
+    this.structLoadNote = 'Loading the struct bindings and the bridge path…';
+    if (!variant) {
+      this.structRows = []; this.chain = null;
+      this.structLoadNote = `No firmware binding is chosen for ${this.board}: pick one to see the struct its Catom assertions bind to the pins.`;
+      this.rebuildLane(); this.redraw();
+      return;
+    }
+    const rows$ = this.svc.structBindings(variant).pipe(catchError(e => of({ ok: false, error: friendlyError(e, 'the struct bindings').text, rows: [] as PvStructBinding[] })));
+    const chain$ = this.svc.bridgeChain(this.bench, this.board).pipe(catchError(e => of({ bridge: null, hops: [] as PvBridgeHop[], note: friendlyError(e, 'the bridge path').text })));
+    this.structSub = combineLatest([rows$, chain$]).subscribe(([r, c]) => {
+      this.structRows = (r && r.ok !== false && r.rows) || [];
+      this.chain = c;
+      const why = r && r.ok === false ? (r as { error?: string }).error : '';
+      this.structLoadNote = why || (this.structRows.length ? '' : `No Catom assertion of ${variant} binds a struct field to a pin yet.`);
+      this.rebuildLane(); this.redraw(); this.fit();
+    });
+  }
+  /** The lane is placed on the scene, so every new payload places it again. */
+  private rebuildLane(): void {
+    this.lane = this.showStruct && this.payload && this.scene ? buildStructLane(this.scene, this.payload, this.structRows, this.chain) : null;
+    if (this.fieldSel && !this.lane?.fields.some(f => f.key === this.fieldSel)) { this.fieldSel = ''; }
+    this.canvas?.setStruct(this.lane);
+  }
+  get structNotes(): string[] {
+    const out = [this.structLoadNote, this.chain?.note || ''];
+    if (this.chain?.bridge) { out.push(`Bridge ${this.chain.bridge.name} (${this.chain.bridge.mode}): ${this.chain.bridge.status_why}.`); }
+    (this.lane?.unplaced || []).forEach(u => out.push(`${u.pin}: ${u.why}.`));
+    return out.filter(Boolean);
+  }
+  /** A field click lights its pins and, if it crosses the bridge, the chain; a second click clears (the click-toggle rule). */
+  pickField(key: string): void {
+    this.fieldSel = this.fieldSel === key ? '' : key;
+    if (this.fieldSel) { this.selection = null; this.anchor = null; this.eventSel = null; }
+    this.redraw();
+  }
+  get fieldRows(): StructRow[] { return this.fieldSel ? structRows(this.lane, { field: this.fieldSel }) : []; }
+  get fieldBridged(): boolean { return !!this.lane?.fields.find(f => f.key === this.fieldSel)?.bridged; }
+  private get selPinName(): string { return this.selection?.kind === 'pin' ? socPinName(this.ix?.pins.get(this.selection.id)?.soc_pin) : ''; }
+  get pinStructRows(): StructRow[] { const n = this.selPinName; return n ? structRows(this.lane, { pinName: n }) : []; }
   fit(): void { this.canvas?.fit(); }
 
   // ---- selection: every selectable deselects on a second click; Escape clears
   toggle(sel: NonNullable<PvSelection>): void {
     this.eventSel = null;   // picking something on the picture leaves the event highlight
+    this.fieldSel = '';
     const same = this.selection && this.selection.kind === sel.kind && this.selection.id === sel.id;
     this.anchor = null;
     this.selection = same ? null : sel;
@@ -345,15 +422,15 @@ export class HardwarePinViewComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   clear(): void {
-    if (!this.selection && !this.anchor && !this.eventSel) { return; }
-    this.selection = null; this.anchor = null; this.eventSel = null;
+    if (!this.selection && !this.anchor && !this.eventSel && !this.fieldSel) { return; }
+    this.selection = null; this.anchor = null; this.eventSel = null; this.fieldSel = '';
     this.redraw();
   }
 
   /** Click an event: the pins it changed are highlighted and everything else dimmed; a second click on it clears. */
   pickEvent(ev: PvConfigEvent): void {
     if (this.eventSel?.name === ev.name) { this.eventSel = null; }
-    else { this.eventSel = ev; this.selection = null; this.anchor = null; }
+    else { this.eventSel = ev; this.selection = null; this.anchor = null; this.fieldSel = ''; }
     this.redraw();
   }
   isEventSel(ev: PvConfigEvent): boolean { return this.eventSel?.name === ev.name; }
@@ -369,7 +446,9 @@ export class HardwarePinViewComponent implements OnInit, OnChanges, OnDestroy {
 
   private redraw(): void {
     this.panel = this.ix ? buildPanel(this.ix, this.selection, this.mode) : null;
-    this.canvas?.setState({ selection: this.selection, anchor: this.anchor, protocol: this.protocol, showUnassigned: this.showUnassigned, mode: this.mode, filters: this.modeFilters, eventPins: this.eventPinSet });
+    const fieldHi = this.fieldSel ? fieldPins(this.lane, this.fieldSel) : null;   // a chosen field highlights its pins the way an event does
+    this.canvas?.setState({ selection: this.selection, anchor: this.anchor, protocol: this.protocol, showUnassigned: this.showUnassigned, mode: this.mode, filters: this.modeFilters, eventPins: this.eventPinSet ?? fieldHi });
+    this.canvas?.paintStruct({ field: this.fieldSel, pinName: this.selPinName });
   }
 
   // ---- template helpers

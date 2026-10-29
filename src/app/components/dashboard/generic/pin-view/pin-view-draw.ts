@@ -8,6 +8,8 @@ import { breadboardRows, breadboardW, COLS, P, RAILS, railX, stripX } from '../l
 import { LvBoard } from '../layout-view/layout-view.types';
 import { linePath, PlacedPin, PlacedSurface, Scene } from './pin-view-layout';
 import { PvIndex } from './pin-view-panel';
+import { StructLane } from './pin-view-struct';
+import { LaneState, StructLaneLayer } from './pin-view-struct-draw';
 import { PvConnection, PvMode, PvPayload, PvPin, PvSelection } from './pin-view.types';
 
 /**
@@ -17,7 +19,7 @@ import { PvConnection, PvMode, PvPayload, PvPin, PvSelection } from './pin-view.
  * Colours are never set here: each pin carries `--fam` / `--fam-text` pointing at the theme tokens
  * (`--pin-<family>`, with the server's fallback hex), and the component stylesheet paints from those.
  */
-export interface DrawHandlers { surface(id: string): void; pin(id: string): void; connection(id: string): void; background(): void; }
+export interface DrawHandlers { surface(id: string): void; pin(id: string): void; connection(id: string): void; background(): void; field?(key: string): void; }
 /** `anchor` is the surface or pin whose connections are drawn when a connection is the selection (its siblings stay on screen). */
 /** `eventPins`: the pins a chosen configuration event changed (pv-4) - they are highlighted and every other pin and surface is dimmed. */
 export interface DrawState { selection: PvSelection; anchor: PvSelection; protocol: string; showUnassigned: boolean; mode?: PvMode; filters?: PvModeFilters; eventPins?: ReadonlySet<string> | null; }
@@ -43,6 +45,9 @@ export class PinViewCanvas {
   private fitted = false;
   private mode: PvMode = 'all';
   private selKey = '';
+  /** hsp-3b: the struct lane beside the board (null = not shown); its marks live in their own layer. */
+  private lane: StructLane | null = null;
+  private laneLayer: StructLaneLayer;
 
   constructor(svgEl: SVGSVGElement, private h: DrawHandlers) {
     this.svg = d3.select(svgEl);
@@ -50,6 +55,7 @@ export class PinViewCanvas {
     this.zoom = d3.zoom<SVGSVGElement, unknown>().scaleExtent([0.2, 120]).on('zoom', ev => this.applyZoom(ev.transform));
     this.svg.call(this.zoom).on('dblclick.zoom', null);
     this.svg.on('click', () => this.h.background());
+    this.laneLayer = new StructLaneLayer(key => this.h.field?.(key));
   }
 
   destroy(): void { this.svg.interrupt(); this.svg.on('.zoom', null).on('click', null); this.svg.selectAll('*').remove(); }
@@ -68,6 +74,7 @@ export class PinViewCanvas {
     this.zoomG.append('g').attr('class', 'pv-stubs');
     this.drawPins();
     this.drawTitles(scene);
+    this.lane = null;   // the lane is placed on the scene: the component hands the new scene's lane over (setStruct)
     this.applyZoom(d3.zoomTransform(this.svg.node()!));
     if (!this.fitted) { this.fit(false); this.fitted = true; }
   }
@@ -206,9 +213,23 @@ export class PinViewCanvas {
     return s.title;
   }
 
+  /** hsp-3b: shows (or, with null, removes) the struct lane; the fit then takes the lane in. */
+  setStruct(lane: StructLane | null): void {
+    this.lane = lane;
+    this.laneLayer.draw(this.zoomG, lane);
+  }
+
+  paintStruct(st: LaneState): void { this.laneLayer.paint(st); }
+
+  /** The scene's bounds, grown by the struct lane while it is shown. */
+  private contentBounds(): { x0: number; y0: number; x1: number; y1: number } {
+    const b = this.scene!.bounds, l = this.lane?.bounds;
+    return l ? { x0: Math.min(b.x0, l.x0), y0: Math.min(b.y0, l.y0), x1: Math.max(b.x1, l.x1), y1: Math.max(b.y1, l.y1) } : { ...b };
+  }
+
   /** The scene bounds plus every label's estimated box at zoom `k` (labels are screen-sized, so their share of the model shrinks as k grows). */
   private boundsWithLabels(k: number): { x0: number; y0: number; x1: number; y1: number } {
-    const b = { ...this.scene!.bounds };
+    const b = { ...this.contentBounds() };
     const grow = (x0: number, y0: number, x1: number, y1: number) => { b.x0 = Math.min(b.x0, x0); b.y0 = Math.min(b.y0, y0); b.x1 = Math.max(b.x1, x1); b.y1 = Math.max(b.y1, y1); };
     const font = this.payload?.layout?.font ?? 1;
     for (const m of this.marks) {
@@ -234,7 +255,7 @@ export class PinViewCanvas {
 
   /** The fit-all transform: content (scene bounds + label boxes) scaled to the viewport, centred across, and hung from the TOP edge (a wide board in a tall viewport leaves its slack below, not as a blank band above). */
   fitTransform(w: number, hgt: number, pad = 18): { k: number; tx: number; ty: number; bounds: { x0: number; y0: number; x1: number; y1: number } } {
-    let b = this.scene!.bounds;
+    let b = this.contentBounds();
     let k = Math.min((w - 2 * pad) / Math.max(b.x1 - b.x0, 1), (hgt - 2 * pad) / Math.max(b.y1 - b.y0, 1));
     for (let i = 0; i < 3; i++) {   // the labels' share depends on the zoom: settle it
       b = this.boundsWithLabels(k);

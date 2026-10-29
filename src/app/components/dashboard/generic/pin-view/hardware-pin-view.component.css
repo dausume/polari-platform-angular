@@ -159,3 +159,29 @@ hardware-pin-view { display: block; container-type: inline-size; container-name:
 .pv-root .pv-event-detail { max-height: 180px; overflow: auto; }
 .pv-root .pv-surface.event-hi { stroke: var(--brand-orange); }
 .pv-root .pv-pin.event-hi .pv-halo { opacity: 1; stroke: var(--brand-orange); stroke-width: 3px; stroke-dasharray: none; }
+
+/* ---- hsp-3b: the struct lane. Arrow colour = the lane (--lane-<name>, set per arrow as --lane); the field and hop boxes use the surface tokens. */
+.pv-root .pv-lane-arrow .pv-lane-line { fill: none; stroke: var(--lane); stroke-width: 1.6px; vector-effect: non-scaling-stroke; opacity: 0.85; }
+.pv-root .pv-lane-arrow.dir-to-bridge .pv-lane-line, .pv-root .pv-lane-arrow.dir-from-bridge .pv-lane-line { stroke-dasharray: 6 3; }
+.pv-root .pv-lane-arrow.status-false .pv-lane-line { stroke-dasharray: 2 3; }
+.pv-root .pv-lane-arrow.hi .pv-lane-line { opacity: 1; stroke-width: 2.6px; }
+.pv-root .pv-lane-arrow.dim, .pv-root .pv-hop-link.dim, .pv-root .pv-lane-field.dim, .pv-root .pv-hop.dim, .pv-root .pv-hop-edge.dim { opacity: 0.2; }
+.pv-root .pv-lane-stamp { fill: var(--lane); font-weight: 700; pointer-events: none; }
+.pv-root .pv-lane-head.lane-isr path { fill: var(--lane-isr); }
+.pv-root .pv-lane-head.lane-loop path { fill: var(--lane-loop); }
+.pv-root .pv-lane-head.lane-task path { fill: var(--lane-task); }
+.pv-root .pv-lane-head.lane-userspace path { fill: var(--lane-userspace); }
+.pv-root .pv-lane-head.lane-init path { fill: var(--lane-init); }
+.pv-root .pv-lane-head.hop path { fill: var(--text-secondary); }
+.pv-root .pv-hop-link { fill: none; stroke: var(--pin-uart); stroke-width: 1.2px; vector-effect: non-scaling-stroke; stroke-dasharray: 4 3; opacity: 0.7; }
+.pv-root .pv-hop-link.hi { opacity: 1; }
+.pv-root .pv-hop-edge { fill: none; stroke: var(--text-secondary); stroke-width: 1.2px; vector-effect: non-scaling-stroke; }
+.pv-root .pv-lane-field { cursor: pointer; }
+.pv-root .pv-lane-field rect, .pv-root .pv-hop rect { fill: var(--surface-primary); stroke: var(--border-medium); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.pv-root .pv-lane-field text, .pv-root .pv-hop text, .pv-root .pv-lane-struct { fill: var(--text-primary); }
+.pv-root .pv-lane-struct { font-weight: 600; }
+.pv-root .pv-lane-field.bridged rect { stroke: var(--pin-uart); }
+.pv-root .pv-lane-field.sel rect { stroke: var(--brand-orange); stroke-width: 3px; }
+.pv-root .pv-lane-field.linked rect { stroke: var(--brand-orange); stroke-dasharray: 3 2; }
+.pv-root .pv-hop.hi rect { stroke: var(--brand-orange); stroke-width: 2px; }
+.pv-root .pv-hop text.pv-hop-level { fill: var(--text-secondary); }

@@ -129,6 +129,15 @@ body.dark-theme {
   --drive-unchecked: #bdbdbd;  --drive-unchecked-text: #000000;
 }
 
+/* Pin-view struct lane, dark values (see _variables.css). */
+body.dark-theme {
+  --lane-isr: #f06292;  --lane-isr-text: #000000;
+  --lane-loop: #64b5f6;  --lane-loop-text: #000000;
+  --lane-task: #ba68c8;  --lane-task-text: #000000;
+  --lane-userspace: #81c784;  --lane-userspace-text: #000000;
+  --lane-init: #a1887f;  --lane-init-text: #000000;
+}
+
 /* Layout view (lay-2), dark values (see _variables.css). */
 body.dark-theme {
   --band-black: #424242;  --band-brown: #8d6e63;  --band-red: #e57373;  --band-orange: #ffa040;  --band-yellow: #ffd54f;
