@@ -75,4 +75,17 @@ test('invalid status and malformed targets rejected', () => {
 test('missing service stays unknown rather than empty-ready', () => {
  assert.equal(read(null,'host'),null);assert.equal(read({ok:false},'host'),null);
 });
+test('older result retains verdict and actual observation date', () => {
+ const r=report();r.entries[0].status='unknown';const t=r.entries[0].targets[0];
+ t.status='unknown';t.last_reported_status='ready';
+ t.checks=[{dep:'runtime',status:'unknown',reason:'Recheck',observed_at:'2026-10-29T00:00:00Z'}];
+ const result=read(r,'host').entries[0].targets[0];
+ assert.equal(result.status,'unknown');assert.equal(result.lastReportedStatus,'ready');
+ assert.equal(result.observationDates.join(),'2026-10-29T00:00:00Z');
+});
+test('provider observation dates retained, invalid dates excluded', () => {
+ const r=report();r.entries[0].targets[0].checks=[{status:'ready',candidates:[{checks:[
+  {observed_at:'2026-10-29T00:00:00Z'},{observed_at:'bad'}]}]}];
+ assert.equal(read(r,'host').entries[0].targets[0].observationDates.join(),'2026-10-29T00:00:00Z');
+});
 console.log(`${count} inventory tests passed`);

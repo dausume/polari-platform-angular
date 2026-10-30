@@ -144,11 +144,14 @@ export interface CapabilityTarget {
   device: string;
   status: string;
   reasons: string[];
+  lastReportedStatus: string;
+  observationDates: string[];
 }
 export interface CapabilityEntry {
   entry: string;
   kind: string;
   status: string;
+  lastReportedStatus: string;
   targets: CapabilityTarget[];
 }
 export interface CapabilityReport {
@@ -161,9 +164,17 @@ export const CAPABILITY_LABELS: Record<string, string> = {
   unsupported: 'Unsupported by reported targets',
   'resource-limited': 'Insufficient resources',
   'policy-restricted': 'Restricted by device policy',
-  unknown: 'More evidence required',
+  unknown: 'Not fully reported; checks still needed',
   blocked: 'No eligible target; see device requirements',
 };
+function observationDates(checks: unknown): string[] {
+  const dates = rows(checks).flatMap(check => {
+    const observed = str(check['observed_at']);
+    return [...(observed && Number.isFinite(Date.parse(observed)) ? [observed] : []),
+      ...rows(check['candidates']).flatMap(candidate => observationDates(candidate['checks']))];
+  });
+  return [...new Set(dates)].sort((a, b) => Date.parse(a) - Date.parse(b));
+}
 /** Reject unsupported/malformed contracts instead of rendering an optimistic state. */
 export function readCapabilityReport(input: unknown, action: 'host' | 'use'): CapabilityReport | null {
   const data = record(input);
@@ -180,15 +191,17 @@ export function readCapabilityReport(input: unknown, action: 'host' | 'use'): Ca
     for (const rawTarget of entry['targets']) {
       const target = record(rawTarget), state = str(target['status']);
       if (!str(target['device']) || !Object.hasOwn(CAPABILITY_LABELS, state) || !Array.isArray(target['checks'])) return null;
-      targets.push({ device: str(target['device']), status: state,
+      targets.push({ observationDates: observationDates(target['checks']), device: str(target['device']), status: state,
+        lastReportedStatus: Object.hasOwn(CAPABILITY_LABELS, str(target['last_reported_status'])) ? str(target['last_reported_status']) : state,
         reasons: rows(target['checks']).filter(c => c['status'] !== 'ready')
-          .map(c => `${str(c['dep'])}: ${str(c['reason'])}`),
+          .map(c => `${str(c['dep'])}: ${str(c['reason'])}${str(c['observed_at']) ? ' (reported ' + str(c['observed_at']) + ')' : ''}`),
       });
     }
     // A ready aggregate must identify an eligible target. Unknown providers cannot
     // be turned into ready by a malformed summary alone.
     if (status === 'ready' && !targets.some(t => t.status === 'ready')) return null;
-    entries.push({ entry: str(entry['entry']), kind: str(entry['kind']), status, targets });
+    entries.push({ entry: str(entry['entry']), kind: str(entry['kind']), status, targets,
+      lastReportedStatus: Object.hasOwn(CAPABILITY_LABELS, str(entry['last_reported_status'])) ? str(entry['last_reported_status']) : status });
   }
   return { evaluatedAt, entries };
 }

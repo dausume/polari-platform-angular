@@ -28,8 +28,8 @@
         <thead><tr><th scope="col">App type</th><th scope="col">Catalog entries</th><th scope="col">Devices with registrations</th><th scope="col">Can host another app?</th></tr></thead>
         <tbody><tr *ngFor="let kind of inventory.kinds">
           <th scope="row">{{ kind.label }}</th>
-          <td>{{ unavailable.includes('App catalog') ? 'Unknown' : kind.catalogCount }}</td>
-          <td>{{ unavailable.includes('App catalog') ? 'Unknown' : kind.providerCount }}</td>
+          <td>{{ unavailable.includes('App catalog') ? 'Not reported' : kind.catalogCount }}</td>
+          <td>{{ unavailable.includes('App catalog') ? 'Not reported' : kind.providerCount }}</td>
           <td>Capability checks required</td>
         </tr></tbody>
       </table>
@@ -44,9 +44,9 @@
     <article *ngFor="let device of devices">
       <h3>{{ device.name }}</h3>
       <dl>
-        <dt>Network membership</dt><dd>Not verified by this inventory</dd>
-        <dt>Last inventory report</dt><dd>{{ device.lastReported ? (device.lastReported | date:'medium') : 'Unknown' }}</dd>
-        <dt>Hosting agent</dt><dd>{{ device.agent === true ? 'Recorded as present' : device.agent === false ? 'Not reported as present' : 'Unknown' }}</dd>
+        <dt>Network membership</dt><dd>Not reported by this inventory</dd>
+        <dt>Last inventory report</dt><dd>{{ device.lastReported ? (device.lastReported | date:'medium') : 'Not reported' }}</dd>
+        <dt>Hosting agent</dt><dd>{{ device.agent === true ? 'Recorded as present' : device.agent === false ? 'Not reported as present' : 'Not reported' }}</dd>
         <dt>Local Polari instances</dt><dd>{{ device.instances.join(', ') || 'None reported; shared Polari can still be used' }}</dd>
         <dt>Assigned role</dt><dd>Not supplied by the current inventory</dd>
       </dl>
@@ -67,10 +67,13 @@
         <p *ngIf="!device.shared.length">No shared endpoints reported. This does not establish that none exist.</p>
       </details>
       <details>
-        <summary>Apps this device can host</summary>
-        <p *ngIf="!hostReport">The capability service is not available. Hosting eligibility is unknown.</p>
+        <summary>Apps this device can host — last reported evaluation</summary>
+        <p *ngIf="hostReport">Report generated {{ hostReport.evaluatedAt | date:'medium' }}. Observation dates are shown with individual checks.</p>
+        <p *ngIf="!hostReport">The capability service is not available. No hosting evaluation reported yet.</p>
         <ul><li *ngFor="let target of targetsFor(device.name, hostReport)">
-          <strong>{{ target.app }}</strong>: {{ capabilityLabels[target.status] }}
+          <strong>{{ target.app }}</strong>: {{ capabilityLabels[target.lastReportedStatus] }}
+          <span *ngIf="target.lastReportedStatus !== target.status"> — older report; recheck needed</span>
+          <p *ngIf="target.observationDates.length">Observations: <span *ngFor="let stamp of target.observationDates; let last = last">{{ stamp | date:'medium' }}{{ last ? '' : '; ' }}</span></p>
           <p *ngIf="target.reasons.length">{{ target.reasons.join('; ') }}</p>
         </li></ul>
         <p *ngIf="hostReport && !targetsFor(device.name, hostReport).length">This device has no target evaluations yet.</p>
@@ -79,7 +82,9 @@
         <summary>App access checks for this device</summary>
         <p *ngIf="!useReport">Access evidence has not been evaluated. A shared endpoint alone does not establish access.</p>
         <ul><li *ngFor="let target of targetsFor(device.name, useReport)">
-          <strong>{{ target.app }}</strong>: {{ capabilityLabels[target.status] }}
+          <strong>{{ target.app }}</strong>: {{ capabilityLabels[target.lastReportedStatus] }}
+          <span *ngIf="target.lastReportedStatus !== target.status"> — older report; recheck needed</span>
+          <p *ngIf="target.observationDates.length">Observations: <span *ngFor="let stamp of target.observationDates; let last = last">{{ stamp | date:'medium' }}{{ last ? '' : '; ' }}</span></p>
           <p *ngIf="target.reasons.length">{{ target.reasons.join('; ') }}</p>
         </li></ul>
         <p *ngIf="useReport && !targetsFor(device.name, useReport).length">This device has no access evaluations yet.</p>
@@ -109,13 +114,15 @@
   <section aria-labelledby="eligibility-title"><h2 id="eligibility-title">Isle-wide app eligibility &amp; gaps</h2>
     <p *ngIf="!hostReport">Not yet assessed. The capability service is not available; missing evidence does not mean no device supports an app.</p>
     <ng-container *ngIf="hostReport">
-      <p>Hosting evaluated {{ hostReport.evaluatedAt | date:'medium' }} against published app requirements.
+      <p>Hosting report generated {{ hostReport.evaluatedAt | date:'medium' }} against published app requirements.
         Recheck on the target before installation; these results do not reserve resources or authorize changes.</p>
       <ul><li *ngFor="let app of hostReport.entries"><strong>{{ app.entry }}</strong>:
-        {{ capabilityLabels[app.status] }}
+        {{ capabilityLabels[app.lastReportedStatus] }}
+        <span *ngIf="app.lastReportedStatus !== app.status"> — older report; recheck needed</span>
+        <span> (observation dates in the device details above)</span>
       </li></ul>
       <p *ngIf="!hostReport.entries.length">No published app requirements were evaluated.</p>
     </ng-container>
-    <p *ngIf="useReport">Access evaluated {{ useReport.evaluatedAt | date:'medium' }}. Access and hosting are separate actions.</p>
+    <p *ngIf="useReport">Access report generated {{ useReport.evaluatedAt | date:'medium' }}. Access and hosting are separate actions.</p>
   </section>
 </section>

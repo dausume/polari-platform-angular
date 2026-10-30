@@ -88,9 +88,9 @@ interface Assessment {
             <span class="lvl">{{ a.level }}</span>
             {{ a.message }}
           </li>
-          <li *ngIf="!assessments.length" class="level-ok">
-            <span class="lvl">ok</span> nothing to flag —
-            topologies are coherent
+          <li *ngIf="!assessments.length" class="level-info">
+            No findings were returned for the reported inventory.
+            Device coverage, freshness, and domain ownership still need verification.
           </li>
         </ul>
 
@@ -223,14 +223,14 @@ interface Assessment {
 
         <h2>Scaling polari</h2>
         <p *ngIf="candidates.length" class="scale-hint">
-          polari could also run on
-          <strong>{{ candidates.join(', ') }}</strong> — on that
-          device: <code>isle polari instance deploy</code>
-          (a mesh-app install; it appears here and in the store as
-          another tracked instance).
+          These devices report an agent but no Polari instance:
+          <strong>{{ candidates.join(', ') }}</strong>.
+          Hosting requirements and available resources have not been checked.
+          A device can use hosted apps without running its own Polari instance.
         </p>
         <p *ngIf="!candidates.length" class="scale-hint">
-          every member device already hosts a polari instance.
+          No additional Polari hosts were suggested by the reported inventory.
+          This does not confirm that every Isle member is listed or hosts Polari.
         </p>
       </ng-container>
     </div>
