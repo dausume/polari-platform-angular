@@ -5,18 +5,19 @@
  * provides, and its INSTALL PLAN (the host commands `isle store
  * install` runs — the store proposes, the host executes).
  *
- * The two proven variants render side by side: mesh-apps (deploy a
- * container as an .isle app) and polari-apps (a shared-shell
- * launcher). Engine-providing apps are badged.
+ * App types are the landing page. Each type has a filtered view and
+ * action-specific, dated device evaluations; native install stays local.
  */
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { RouterModule } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
+import { RouterModule, Router, ActivatedRoute } from '@angular/router';
+import { firstValueFrom, timeout, Subscription } from 'rxjs';
+import { buildIsleInventory, readCapabilityReport, CAPABILITY_LABELS } from './isle-device-inventory';
+import { buildTypeCards, appTargets, typeId, TypeCard, InstallReports } from './isle-store-types';
 
 import { PolariService } from '@services/polari-service';
 import { AiAssistantService } from
@@ -36,6 +37,8 @@ interface CatalogEntry {
   title: string;
   description: string;
   kind: string;
+  realization?: string;
+  is_mock?: boolean;
   source_ref: string;
   provides_engine: string;
   category: string;
@@ -120,7 +123,22 @@ interface InstallPlan {
   templateUrl: './isle-store.component.html',
   styleUrls: ['./isle-store.component.scss'],
 })
-export class IsleStoreComponent implements OnInit {
+export class IsleStoreComponent implements OnInit, OnDestroy {
+  selectedType: string | null = null;
+  typeCards: TypeCard[] = [];
+  reports: InstallReports = {};
+  capabilityNotice = "";
+  readonly capabilityLabels = CAPABILITY_LABELS;
+  private navigation?: Subscription;
+  get activeType() { return this.typeCards.find(t => t.id === this.selectedType); }
+  get visibleEntries() { return this.entries.filter(e => !e.is_mock && typeId(e) === this.selectedType); }
+  targetsFor(entry: CatalogEntry) { return appTargets(entry, this.reports); }
+  openType(id: string | null): void {
+    if (this.installing || this.uninstalling || this.bindBusy) return;
+    void this.router.navigate([], {relativeTo:this.route, queryParams:{appType:id}, queryParamsHandling:"merge"});
+  }
+  ngOnDestroy(): void { this.navigation?.unsubscribe(); }
+
   entries: CatalogEntry[] = [];
   loading = true;
   loadError = '';
@@ -151,7 +169,8 @@ export class IsleStoreComponent implements OnInit {
   constructor(private http: HttpClient,
               private polariService: PolariService,
               private ai: AiAssistantService,
-              public bridge: ShellBridgeService) {}
+              public bridge: ShellBridgeService,
+              private router: Router, private route: ActivatedRoute) {}
 
   /** True when running inside the native JavaFX/JCEF shell — the
    *  page can then install locally (pkexec) instead of only
@@ -237,6 +256,10 @@ export class IsleStoreComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.navigation = this.route.queryParamMap.subscribe(params => {
+      this.selectedType = params.get("appType");
+      this.selected = null; this.plan = null; this.bindSecret = "";
+    });
     this.refresh();
   }
 
@@ -247,17 +270,27 @@ export class IsleStoreComponent implements OnInit {
   async refresh(): Promise<void> {
     this.loading = true;
     this.loadError = '';
-    const data: any = await firstValueFrom(this.http.get(
-      `${this.base()}/api/islemesh/catalog`,
-      this.polariService.backendRequestOptions))
-      .catch((err) => (err?.error ?? null));
+    const paths = ['/catalog', '', '/gaps?action=host', '/gaps?action=launcher', '/gaps?action=module'];
+    const results = await Promise.allSettled(paths.map(path => firstValueFrom(this.http.get<any>(
+      `${this.base()}/api/islemesh${path}`, this.polariService.backendRequestOptions).pipe(timeout(10000)))));
+    const values = results.map(r => r.status === 'fulfilled' && r.value?.ok ? r.value : null);
     this.loading = false;
-    if (!data?.ok) {
-      this.loadError = 'GET /api/islemesh/catalog did not answer — '
-        + 'is the islemesh module deployed?';
+    if (!Array.isArray(values[0]?.entries)) {
+      this.loadError = 'The app catalog could not be refreshed. Check your Isle connection and try again.';
       return;
     }
-    this.entries = data.entries;
+    this.entries = values[0].entries.filter((e: any) => e && typeof e.name === 'string' && typeof e.kind === 'string' && !e.is_mock);
+    const actions = ['host', 'launcher', 'module'] as const;
+    const missing: string[] = [];
+    actions.forEach((action, i) => {
+      const report = readCapabilityReport(values[i+2], action);
+      if (report) this.reports[action] = report;
+      else missing.push(action);
+    });
+    this.capabilityNotice = missing.length ? 'Some device checks could not be refreshed. Previous dated reports are retained where available; missing reports do not mean a device is incapable.' : '';
+    const inventory = buildIsleInventory(values[1], null, values[0]);
+    this.typeCards = buildTypeCards(this.entries, inventory.devices.map(d => d.name), this.reports);
+    if (this.selected) this.selected = this.visibleEntries.find(e => e.name === this.selected?.name) || null;
   }
 
   // installed-on-this-device state (native shell only). unin-4:
@@ -407,6 +440,7 @@ export class IsleStoreComponent implements OnInit {
       `${this.base()}/api/islemesh/catalog/${entry.name}`,
       this.polariService.backendRequestOptions))
       .catch(() => null);
+    if (this.selected?.name !== entry.name) return;
     this.planLoading = false;
     this.plan = data?.entry?.install_plan ?? null;
   }
@@ -446,11 +480,4 @@ export class IsleStoreComponent implements OnInit {
     navigator.clipboard?.writeText(text);
   }
 
-  kindsPresent(): string[] {
-    return [...new Set(this.entries.map((e) => e.kind))];
-  }
-
-  entriesOfKind(kind: string): CatalogEntry[] {
-    return this.entries.filter((e) => e.kind === kind);
-  }
 }

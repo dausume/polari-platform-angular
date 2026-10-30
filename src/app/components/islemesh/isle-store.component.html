@@ -3,9 +3,8 @@
     <div>
       <h1>App Store</h1>
       <p class="sub">
-        Install arbitrary apps as <code>.isle</code> endpoints,
-        polari apps as native shells, and engines that wire into
-        polari — one front door, everything auto-configured.
+        Choose an app type, see which devices can support its apps, then select an app to install.
+        Accessing an app served elsewhere does not require hosting it on this device.
       </p>
     </div>
     <button mat-stroked-button (click)="refresh()"
@@ -17,20 +16,41 @@
   <div class="load-error" *ngIf="loadError">{{ loadError }}</div>
   <div class="loading" *ngIf="loading">Loading catalog…</div>
 
-  <div class="store-body" *ngIf="!loading && !loadError">
+  <p class="capability-notice" *ngIf="capabilityNotice" role="status">{{ capabilityNotice }}</p>
+  <p *ngIf="!selectedType && !loading">Device summaries apply to individual apps at their last reported evaluation. Dates are shown in your local time.</p>
+  <section class="type-cards" *ngIf="!loading && !loadError && !selectedType" aria-label="App types">
+    <button type="button" class="type-card" *ngFor="let type of typeCards" (click)="openType(type.id)">
+      <span class="type-heading"><mat-icon>{{ type.icon }}</mat-icon><span>{{ type.title }}</span></span>
+      <span class="type-description">{{ type.description }}</span>
+      <span class="type-count">{{ type.count }} {{ type.count === 1 ? 'app' : 'apps' }} in the catalog</span>
+      <span class="type-devices-heading">Devices — {{ type.action === 'launcher' ? 'install a launcher' : type.action === 'module' ? 'add modules' : 'host apps' }}</span>
+      <span class="type-device" *ngFor="let device of type.devices">
+        <strong>{{ device.name }}</strong><span>{{ device.summary }}</span>
+        <small *ngIf="device.dates.length">Observed {{ device.dates[0] | date:'medium' }}<ng-container *ngIf="device.dates.length > 1"> – {{ device.dates[device.dates.length - 1] | date:'medium' }}</ng-container></small>
+      </span>
+      <span *ngIf="!type.devices.length" class="type-description">No device evaluations reported yet.</span>
+      <span class="type-open">Browse {{ type.title }} <mat-icon>arrow_forward</mat-icon></span>
+    </button>
+  </section>
+  <nav *ngIf="selectedType" class="type-navigation" aria-label="App Store navigation">
+    <button mat-stroked-button (click)="openType(null)" [disabled]="installing || uninstalling || bindBusy"><mat-icon>arrow_back</mat-icon> All app types</button>
+    <span>App Store / {{ activeType?.title || selectedType }}</span>
+  </nav>
+  <section *ngIf="selectedType && !loading && !loadError" class="type-intro">
+    <h2>{{ activeType?.title || 'App type not available' }}</h2>
+    <p>{{ activeType?.description || 'This app type is not in the current catalog. Return to all app types to choose another.' }}</p>
+    <p *ngIf="activeType && !visibleEntries.length">No apps have been published for this type yet. Other app types may still be available.</p>
+    <p *ngIf="visibleEntries.length">Select an app to see its requirements and device evaluations. A device may support some apps of this type without supporting all of them.</p>
+  </section>
+  <div class="store-body" *ngIf="!loading && !loadError && selectedType && activeType">
     <div class="catalog">
-      <section *ngFor="let kind of kindsPresent()">
-        <h2>{{ kindLabel[kind] || kind }}</h2>
+      <section aria-label="Apps of the selected type">
         <div class="cards">
-          <button class="card" *ngFor="let e of entriesOfKind(kind)"
+          <button class="card" *ngFor="let e of visibleEntries"
                   [class.active]="selected?.name === e.name"
                   (click)="select(e)">
             <div class="card-top">
-              <mat-icon>{{ kind === 'polari-app' ? 'desktop_windows'
-                : kind === 'polari-app-option' ? 'apps'
-                : kind === 'polari-module' ? 'extension'
-                : kind === 'ai-tool' ? 'smart_toy'
-                : 'dns' }}</mat-icon>
+              <mat-icon>{{ activeType.icon }}</mat-icon>
               <span class="card-title">{{ e.title }}</span>
               <span class="engine-badge" *ngIf="e.provides_engine">
                 engine: {{ e.provides_engine }}</span>
@@ -254,6 +274,20 @@ backend, never shown again; optional for your own servers)" />
         </ul>
       </div>
 
+      <section class="app-targets" aria-label="Device eligibility">
+        <h3>Where can this app be installed?</h3>
+        <p>{{ activeType.action === 'launcher' ? 'These checks concern installing the launcher; a Polari node may serve the app elsewhere.' : activeType.action === 'module' ? 'These checks concern adding the module to a Polari node.' : 'These checks concern hosting this app on the named device.' }}</p>
+        <ul *ngIf="targetsFor(selected).length; else noTargets">
+          <li *ngFor="let target of targetsFor(selected)">
+            <strong>{{ target.device }}</strong> — {{ capabilityLabels[target.lastReportedStatus] }}
+            <span *ngIf="target.status !== target.lastReportedStatus">; older report, recheck needed</span>
+            <p *ngIf="target.observationDates.length">Observed <span *ngFor="let stamp of target.observationDates; let last = last">{{ stamp | date:'medium' }}{{ last ? '' : '; ' }}</span></p>
+            <p *ngIf="target.reasons.length">{{ target.reasons.join('; ') }}</p>
+          </li>
+        </ul>
+        <ng-template #noTargets><p>Device requirements have not been reported for this app yet.</p></ng-template>
+        <p>Recheck requirements on the chosen device before installation. The native install button below acts on the device running this window.</p>
+      </section>
       <h3>Install</h3>
 
       <!-- sep-3: an option's honest state — where it stands before
@@ -349,7 +383,7 @@ backend, never shown again; optional for your own servers)" />
       <!-- Plain browser: the copyable host command ('' = no single
            host command, e.g. AI binding flows — the plan says all) -->
       <ng-container *ngIf="installCommand(selected)">
-        <p class="run-hint">Or run on any isle host:</p>
+        <p class="run-hint">Or run on a device that meets this app’s requirements:</p>
         <div class="cmd">
           <code>{{ installCommand(selected) }}</code>
           <button mat-icon-button

@@ -176,7 +176,7 @@ function observationDates(checks: unknown): string[] {
   return [...new Set(dates)].sort((a, b) => Date.parse(a) - Date.parse(b));
 }
 /** Reject unsupported/malformed contracts instead of rendering an optimistic state. */
-export function readCapabilityReport(input: unknown, action: 'host' | 'use'): CapabilityReport | null {
+export function readCapabilityReport(input: unknown, action: 'host' | 'use' | 'launcher' | 'module'): CapabilityReport | null {
   const data = record(input);
   if (data['ok'] !== true || data['schema_version'] !== 1 || data['action'] !== action
       || !Array.isArray(data['entries'])) return null;

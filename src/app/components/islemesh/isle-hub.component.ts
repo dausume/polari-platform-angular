@@ -1,5 +1,6 @@
 /** /isle — Isle management, app catalog and network topology. */
 import { Component } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatIconModule } from '@angular/material/icon';
@@ -61,4 +62,7 @@ import { IsleCoherenceComponent } from
 })
 export class IsleHubComponent {
   tab = 0;
+  constructor(route: ActivatedRoute) {
+    if (route.snapshot.queryParamMap.has("appType")) this.tab = 1;
+  }
 }
