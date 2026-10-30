@@ -1,29 +1,74 @@
 <section class="devices-page" aria-labelledby="devices-title">
   <header>
-    <div><h1 id="devices-title">Devices &amp; onboarding</h1>
+    <div><h1 id="devices-title">Your Isle</h1>
       <p>See what is recorded on each device and prepare it for the apps you want to run.</p></div>
     <button mat-stroked-button (click)="refresh()" [disabled]="loading">Refresh devices</button>
   </header>
   <p role="status" *ngIf="loading">Loading device inventory…</p>
   <p role="alert" *ngIf="error">{{ error }} Existing records below may be out of date.</p>
   <p *ngIf="retrievedAt">Inventory retrieved {{ retrievedAt | date:'medium' }}.
-    Device observation times are not supplied by this inventory; these records do not prove current health.</p>
+    Report times below describe received inventory, not a live health check.</p>
+  <p class="notice" *ngIf="unavailable.length">Unavailable sources: {{ unavailable.join(', ') }}. The overview is incomplete; missing records do not prove a capability is absent.</p>
   <p class="notice" *ngIf="mockNetwork">This inventory includes demonstration data. It cannot confirm real device readiness.</p>
   <p *ngIf="!loading && !error && !devices.length">No devices have been reported yet. Use the onboarding steps below to prepare a device.</p>
+  <section class="overview" aria-labelledby="overview-title">
+    <h2 id="overview-title">What this Isle can run</h2>
+    <p>Every Isle needs an infrastructure core and at least one Polari node to serve its apps.
+      They initially share a device; the primary Polari node can later move to another device.</p>
+    <dl class="foundation">
+      <dt>Router reported on</dt><dd>{{ inventory.routerDevices.join(', ') || 'Not reported' }}</dd>
+      <dt>Primary Polari route reported on</dt><dd>{{ inventory.primaryRoutes.join(', ') || 'Not reported' }}</dd>
+      <dt>Polari nodes reported on</dt><dd>{{ inventory.polariNodes.join(', ') || 'Not reported' }}</dd>
+    </dl>
+    <p *ngIf="inventory.primaryRoutes.length > 1" class="notice">Multiple devices report the primary Polari route. Service ownership needs review.</p>
+    <p>These are recorded locations. Core-role ownership, current service health and failover readiness are not verified by this inventory.</p>
+    <div class="table-scroll" tabindex="0" role="region" aria-label="App types across the Isle">
+      <table>
+        <caption>Catalog coverage and recorded providers — not installation eligibility</caption>
+        <thead><tr><th scope="col">App type</th><th scope="col">Catalog entries</th><th scope="col">Devices with registrations</th><th scope="col">Can host another app?</th></tr></thead>
+        <tbody><tr *ngFor="let kind of inventory.kinds">
+          <th scope="row">{{ kind.label }}</th>
+          <td>{{ unavailable.includes('App catalog') ? 'Unknown' : kind.catalogCount }}</td>
+          <td>{{ unavailable.includes('App catalog') ? 'Unknown' : kind.providerCount }}</td>
+          <td>Capability checks required</td>
+        </tr></tbody>
+      </table>
+    </div>
+    <p>VM hosting and hardware bridges have different prerequisites. A simulation worker may be a container;
+      its use of QEMU does not by itself require KVM. Zero registrations does not mean a type is unsupported.</p>
+  </section>
+  <h2>Apps by device</h2>
+  <p>Devices can use apps served by other devices. A local Polari node is optional;
+    the shared primary node supplies apps through Isle DNS.</p>
   <div class="device-grid">
     <article *ngFor="let device of devices">
-      <h2>{{ device.name }}</h2>
+      <h3>{{ device.name }}</h3>
       <dl>
         <dt>Network membership</dt><dd>Not verified by this inventory</dd>
-        <dt>Hosting agent</dt><dd>{{ device.agent_present === true ? 'Recorded as present' : device.agent_present === false ? 'Not reported as present' : 'Unknown' }}</dd>
-        <dt>Polari instances</dt><dd>{{ device.polari_instances?.join(', ') || 'None reported' }}</dd>
-        <dt>Assigned role</dt><dd>Not supplied</dd>
-        <dt>App types this device can host</dt><dd>Awaiting capability checks</dd>
+        <dt>Last inventory report</dt><dd>{{ device.lastReported ? (device.lastReported | date:'medium') : 'Unknown' }}</dd>
+        <dt>Hosting agent</dt><dd>{{ device.agent === true ? 'Recorded as present' : device.agent === false ? 'Not reported as present' : 'Unknown' }}</dd>
+        <dt>Local Polari instances</dt><dd>{{ device.instances.join(', ') || 'None reported; shared Polari can still be used' }}</dd>
+        <dt>Assigned role</dt><dd>Not supplied by the current inventory</dd>
       </dl>
-      <h3>Registered apps</h3>
-      <ul><li *ngFor="let app of device.apps">{{ app.name }} <span *ngIf="app.domain">— {{ app.domain }}</span></li></ul>
-      <p *ngIf="!device.apps?.length">None reported</p>
-      <p>Registration alone does not confirm that an app is running or reachable.</p>
+      <h4>Hosted here — recorded apps</h4>
+      <ul><li *ngFor="let app of device.hosted">
+        <strong>{{ app.name }}</strong> <span *ngIf="app.domain">— {{ app.domain }}</span>
+        <a *ngIf="app.url" [href]="app.url" target="_blank" rel="noopener noreferrer" [attr.aria-label]="'Open ' + app.name + ' on ' + device.name">Open</a>
+      </li></ul>
+      <p *ngIf="!device.hosted.length">None reported</p>
+      <details>
+        <summary>Use apps served elsewhere ({{ device.shared.length }} reported endpoints)</summary>
+        <p>These endpoints are registered elsewhere on the Isle. Access from this device, authentication
+          and app health must still be checked. Opening a link uses the device running this browser.</p>
+        <ul><li *ngFor="let app of device.shared">
+          <strong>{{ app.name }}</strong> — served by {{ app.device || 'an unreported device' }}
+          <a [href]="app.url" target="_blank" rel="noopener noreferrer" [attr.aria-label]="'Open ' + app.name + ' served by ' + app.device">Open</a>
+        </li></ul>
+        <p *ngIf="!device.shared.length">No shared endpoints reported. This does not establish that none exist.</p>
+      </details>
+      <h4>Apps this device can host</h4>
+      <p>Not yet assessed. App requirements, available resources, device policy and hardware permissions
+        must be verified before offering installation. A running agent alone is insufficient.</p>
     </article>
   </div>
   <section class="onboarding" aria-labelledby="onboarding-title">
