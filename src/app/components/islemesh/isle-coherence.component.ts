@@ -94,16 +94,21 @@ interface Assessment {
           </li>
         </ul>
 
-        <h2>Polari instances</h2>
+        <h2>Hosted Polari instances</h2>
+        <p>These rows describe Polari runtimes hosted on devices. Their Polari role is separate from
+          the device's infrastructure role and from any router VM or Hardware App it hosts.</p>
+        <p class="level-warning" *ngIf="duplicateEndpoints.length">Multiple device names report the same endpoint:
+          {{ duplicateEndpoints.join('; ') }}. These may be device aliases or competing registrations;
+          they do not establish that there are multiple physical devices or a host/VM pair.</p>
         <div class="dev-table">
           <div class="dev-row pol-head dev-head">
-            <span>instance</span><span>role</span>
-            <span>device</span><span>domains</span>
+            <span>Polari instance</span><span>Polari sub-role</span>
+            <span>Reported host device</span><span>Domains</span>
           </div>
           <div class="dev-row pol-row" *ngFor="let i of polari">
             <span class="dev-name mono">{{ i.app }}</span>
             <span>
-              <span class="role role-{{ i.role }}">{{ i.role }}
+              <span class="role role-{{ i.role === 'core' ? 'Shared frontend / API' : i.role === 'member' ? 'Additional provider' : i.role }}">{{ i.role === 'core' ? 'Shared frontend / API' : i.role === 'member' ? 'Additional provider' : i.role }}
               </span>
             </span>
             <span>{{ i.device || '?' }}</span>
@@ -282,6 +287,7 @@ interface Assessment {
   `],
 })
 export class IsleCoherenceComponent implements OnInit {
+  duplicateEndpoints: string[] = [];
   devices: CoherenceDevice[] = [];
   assessments: Assessment[] = [];
   candidates: string[] = [];
@@ -319,6 +325,16 @@ export class IsleCoherenceComponent implements OnInit {
     this.assessments = data.assessments ?? [];
     this.candidates = data.polari?.candidates ?? [];
     this.polari = data.polari?.instances ?? [];
+    const owners = new Map<string, Set<string>>();
+    for (const instance of this.polari) {
+      for (const domain of [instance.domain, ...(instance.subdomains || [])]) {
+        if (!domain || !instance.device) continue;
+        const names = owners.get(domain) || new Set<string>();
+        names.add(instance.device); owners.set(domain, names);
+      }
+    }
+    this.duplicateEndpoints = [...owners].filter(([, names]) => names.size > 1)
+      .map(([domain, names]) => `${domain}: ${[...names].join(', ')}`);
     this.components = data.polari?.components ?? null;
     // devices already carry pools/ports; default missing to []
     this.devices.forEach((d) => {

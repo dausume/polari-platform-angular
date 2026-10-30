@@ -4,12 +4,17 @@ export interface ReportedApp {
   device: string;
   domain: string;
   url: string | null;
+  kind: string;
+  realization: string;
+  subrole: string;
 }
 export interface DeviceInventory {
   name: string;
   agent: boolean | null;
   lastReported: string | null;
   routerReported: boolean;
+  osHostname: string;
+  responsibilities: string[];
   instances: string[];
   hosted: ReportedApp[];
   shared: ReportedApp[];
@@ -37,6 +42,20 @@ const KIND_LABELS: Record<string, string> = {
   'hardware-app': 'Hardware Apps (VM or bridge realization)',
   'hardware-extension-app': 'Hardware Extensions',
 };
+export function hostedAppType(app: ReportedApp): string {
+  if (app.kind === 'hardware-app') {
+    if (app.realization === 'kvm') return 'Hardware App — VM';
+    if (app.realization === 'bridge') return 'Hardware Bridge App';
+    return 'Hardware App — setup not reported';
+  }
+  const labels: Record<string, string> = {
+    'mesh-app': 'Mesh App', 'polari-app': 'Polari App',
+    'polari-instance': 'Polari Node', 'polari-module': 'Polari Module',
+    'hardware-bridge-app': 'Hardware Bridge App', 'hardware-extension-app': 'Hardware Extension',
+    'polari-app-option': 'Polari App option', 'ai-tool': 'AI Tool',
+  };
+  return labels[app.kind] || app.kind || 'App type not reported';
+}
 function rows(value: unknown): Record<string, unknown>[] {
   return Array.isArray(value) ? value.filter(v => v && typeof v === 'object' && !Array.isArray(v)) : [];
 }
@@ -64,14 +83,17 @@ export function buildIsleInventory(summaryInput: unknown, coherenceInput: unknow
   const ensure = (name: string): DeviceInventory | null => {
     if (!name || mocked.has(name)) return null;
     if (!devices.has(name)) devices.set(name, {
-      name, agent: null, lastReported: null, routerReported: false, instances: [], hosted: [], shared: [],
+      name, agent: null, lastReported: null, routerReported: false, osHostname: '', responsibilities: [], instances: [], hosted: [], shared: [],
     });
     return devices.get(name)!;
   };
-  const addApp = (name: string, device: string, domain: string): void => {
+  const addApp = (name: string, device: string, domain: string, kind = '', realization = '', subrole = ''): void => {
     if (!name || mocked.has(device)) return;
-    const app = { name, device, domain, url: isleServiceUrl(domain) };
-    apps.set(JSON.stringify([name, device, domain]), app);
+    const key = JSON.stringify([name, device, domain]);
+    const prior = apps.get(key);
+    const app = { name, device, domain, url: isleServiceUrl(domain), kind: prior?.kind || kind,
+      realization: prior?.realization || realization, subrole: prior?.subrole || subrole };
+    apps.set(key, app);
     if (device) ensure(device);
   };
   for (const row of rows(summary['devices'])) {
@@ -82,6 +104,7 @@ export function buildIsleInventory(summaryInput: unknown, coherenceInput: unknow
     const seen = str(row['last_seen']);
     d.lastReported = seen && Number.isFinite(Date.parse(seen)) ? seen : null;
     d.routerReported = row['router_running'] === true;
+    d.osHostname = str(row['os_hostname']);
   }
   for (const row of rows(coherence['devices'])) {
     if (row['is_mock'] === true) { hasMockData = true; continue; }
@@ -102,6 +125,8 @@ export function buildIsleInventory(summaryInput: unknown, coherenceInput: unknow
     if (!d || !name) continue;
     if (!d.instances.includes(name)) d.instances.push(name);
     polariNodes.add(device);
+    addApp(name, device, str(node['domain']), 'polari-instance', '',
+      str(node['domain']).toLowerCase() === 'polari.isle' ? 'Shared frontend and API' : 'Additional Polari provider');
     if (str(node['domain']).toLowerCase() === 'polari.isle') primaryRoutes.add(device);
   }
   const kindEntries = new Map<string, Set<string>>();
@@ -118,7 +143,7 @@ export function buildIsleInventory(summaryInput: unknown, coherenceInput: unknow
       const device = str(instance['device']);
       if (mocked.has(device)) continue;
       if (device) kindProviders.get(kind)!.add(device);
-      addApp(str(instance['app']) || name, device, str(instance['domain']));
+      addApp(str(instance['app']) || name, device, str(instance['domain']), kind, str(entry['realization']));
     }
   }
   const allApps = [...apps.values()].sort((a,b) => a.name.localeCompare(b.name) || a.device.localeCompare(b.device));
@@ -126,6 +151,12 @@ export function buildIsleInventory(summaryInput: unknown, coherenceInput: unknow
     d.hosted = allApps.filter(a => a.device === d.name);
     d.shared = allApps.filter(a => a.device !== d.name && a.url !== null);
     if (d.instances.length) polariNodes.add(d.name);
+    d.responsibilities = [
+      ...(d.routerReported ? ['Router host'] : []),
+      ...(d.instances.length ? ['Polari provider'] : []),
+      ...(d.hosted.some(a => a.kind === 'hardware-app' && a.realization === 'kvm') ? ['VM Hardware App host'] : []),
+      ...(d.hosted.some(a => a.kind === 'hardware-bridge-app' || (a.kind === 'hardware-app' && a.realization === 'bridge')) ? ['Hardware Bridge App host'] : []),
+    ];
   }
   return {
     devices: [...devices.values()].sort((a,b) => a.name.localeCompare(b.name)),

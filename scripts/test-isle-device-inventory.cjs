@@ -88,4 +88,17 @@ test('provider observation dates retained, invalid dates excluded', () => {
   {observed_at:'2026-10-29T00:00:00Z'},{observed_at:'bad'}]}]}];
  assert.equal(read(r,'host').entries[0].targets[0].observationDates.join(),'2026-10-29T00:00:00Z');
 });
+test('device responsibilities and hosted Polari sub-role stay distinct', () => {
+ const v=build({devices:[{name:'core',router_running:true,os_hostname:'host-os'}]}, {polari:{instances:[node('core')]}},null);
+ const d=v.devices[0];assert.equal(d.osHostname,'host-os');assert.equal(d.responsibilities.join(','),'Router host,Polari provider');
+ assert.equal(d.hosted[0].kind,'polari-instance');assert.equal(d.hosted[0].subrole,'Shared frontend and API');
+});
+test('explicit hardware realization supplies hosting role', () => {
+ const v=build(null,null,{entries:[{name:'vm',kind:'hardware-app',realization:'kvm',instances:[{app:'vm',device:'core',domain:'vm.isle'}]}]});
+ assert.equal(v.devices[0].responsibilities.join(),'VM Hardware App host');
+});
+test('untyped registration does not invent hardware or device roles', () => {
+ const v=build(null,{devices:[{name:'host-os',apps:[{name:'router',domain:'router.isle'}]}]},null);
+ assert.equal(v.devices[0].responsibilities.length,0);assert.equal(v.devices[0].hosted[0].kind,'');
+});
 console.log(`${count} inventory tests passed`);

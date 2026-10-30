@@ -5,7 +5,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { firstValueFrom, timeout } from 'rxjs';
 import { PolariService } from '@services/polari-service';
 
-import { buildIsleInventory, IsleInventory, CapabilityReport, readCapabilityReport, CAPABILITY_LABELS } from './isle-device-inventory';
+import { hostedAppType, buildIsleInventory, IsleInventory, CapabilityReport, readCapabilityReport, CAPABILITY_LABELS } from './isle-device-inventory';
 
 @Component({
   selector: 'app-isle-devices',
@@ -15,6 +15,7 @@ import { buildIsleInventory, IsleInventory, CapabilityReport, readCapabilityRepo
   styleUrls: ['./isle-devices.component.scss'],
 })
 export class IsleDevicesComponent implements OnInit {
+  readonly hostedAppType = hostedAppType;
   inventory: IsleInventory = buildIsleInventory(null, null, null);
   get devices() { return this.inventory.devices; }
   get mockNetwork() { return this.inventory.hasMockData; }

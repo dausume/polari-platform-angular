@@ -37,7 +37,10 @@
     <p>VM hosting and hardware bridges have different prerequisites. A simulation worker may be a container;
       its use of QEMU does not by itself require KVM. Zero registrations does not mean a type is unsupported.</p>
   </section>
-  <h2>Apps by device</h2>
+  <h2>Devices, roles and hosted apps</h2>
+  <p>A device can have several roles. A hosted app has its own type and sub-role:
+    for example, a VM Hardware App can provide the router, while a Polari instance provides the shared frontend.
+    Hosting these apps does not make them additional physical devices.</p>
   <p>Devices can use apps served by other devices. A local Polari node is optional;
     the shared primary node supplies apps through Isle DNS.</p>
   <div class="device-grid">
@@ -48,11 +51,15 @@
         <dt>Last inventory report</dt><dd>{{ device.lastReported ? (device.lastReported | date:'medium') : 'Not reported' }}</dd>
         <dt>Hosting agent</dt><dd>{{ device.agent === true ? 'Recorded as present' : device.agent === false ? 'Not reported as present' : 'Not reported' }}</dd>
         <dt>Local Polari instances</dt><dd>{{ device.instances.join(', ') || 'None reported; shared Polari can still be used' }}</dd>
-        <dt>Assigned role</dt><dd>Not supplied by the current inventory</dd>
+        <dt>OS hostname</dt><dd>{{ device.osHostname || 'Not separately reported' }}</dd>
+        <dt>Reported responsibilities</dt><dd>{{ device.responsibilities.join(', ') || 'Not reported yet' }}</dd>
       </dl>
       <h4>Hosted here — recorded apps</h4>
       <ul><li *ngFor="let app of device.hosted">
-        <strong>{{ app.name }}</strong> <span *ngIf="app.domain">— {{ app.domain }}</span>
+        <strong>{{ app.name }}</strong>
+        <span> — {{ hostedAppType(app) }}</span>
+        <span *ngIf="app.subrole"> — sub-role: {{ app.subrole }}</span>
+        <span *ngIf="app.domain">— {{ app.domain }}</span>
         <a *ngIf="app.url" [href]="app.url" target="_blank" rel="noopener noreferrer" [attr.aria-label]="'Open ' + app.name + ' on ' + device.name">Open</a>
       </li></ul>
       <p *ngIf="!device.hosted.length">None reported</p>
