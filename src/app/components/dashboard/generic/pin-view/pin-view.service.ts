@@ -55,6 +55,12 @@ export class PinViewService {
     return this.http.get<PvStructBindingsPayload>(`${this.polari.getBackendBaseUrl()}/api/cmod/catom-assertions/${encodeURIComponent(variant)}?view=bindings`, this.opts());
   }
 
+  /** The variants whose Catom assertions are on one board (the lane's variant when no firmware binding is chosen), in name order; [] when the door fails. */
+  assertedVariants(board: string): Observable<string[]> {
+    return this.http.get<{ rows?: { variant: string }[] }>(`${this.polari.getBackendBaseUrl()}/api/cmod/catom-assertions?board=${encodeURIComponent(board)}`, this.opts()).pipe(
+      map(r => (r?.rows || []).map(x => x.variant)), catchError(() => of([] as string[])));
+  }
+
   /** hsp-3b: the bench's bridge whose path runs from this board, then that bridge's hops as its mode says (serial: the cable path; simulated: the twin). GET only.
    *  A bench with no bridge from the board answers an empty chain with the reason in words. */
   bridgeChain(bench: string, board: string): Observable<{ bridge: PvBenchBridge | null; hops: PvBridgeHop[]; note: string }> {

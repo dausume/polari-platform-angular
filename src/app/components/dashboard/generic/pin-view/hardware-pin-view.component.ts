@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, ElementRef, HostListener, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild, ViewEncapsulation, inject } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { Subscription, catchError, combineLatest, of } from 'rxjs';
+import { Subscription, catchError, combineLatest, map, of, switchMap } from 'rxjs';
 
 import { friendlyError } from '../friendly-error';
 import { PinViewCanvas } from './pin-view-draw';
@@ -359,21 +359,27 @@ export class HardwarePinViewComponent implements OnInit, OnChanges, OnDestroy {
   }
   loadStruct(): void {
     this.structSub?.unsubscribe();
-    const variant = this.structVariant;
     this.structLoadNote = 'Loading the struct bindings and the bridge path…';
-    if (!variant) {
-      this.structRows = []; this.chain = null;
-      this.structLoadNote = `No firmware binding is chosen for ${this.board}: pick one to see the struct its Catom assertions bind to the pins.`;
-      this.rebuildLane(); this.redraw();
-      return;
-    }
-    const rows$ = this.svc.structBindings(variant).pipe(catchError(e => of({ ok: false, error: friendlyError(e, 'the struct bindings').text, rows: [] as PvStructBinding[] })));
-    const chain$ = this.svc.bridgeChain(this.bench, this.board).pipe(catchError(e => of({ bridge: null, hops: [] as PvBridgeHop[], note: friendlyError(e, 'the bridge path').text })));
-    this.structSub = combineLatest([rows$, chain$]).subscribe(([r, c]) => {
+    const chosen = this.structVariant;
+    const variant$ = chosen ? of(chosen) : this.svc.assertedVariants(this.board).pipe(map(vs => vs[0] || ''));
+    this.structSub = variant$.pipe(switchMap(variant => {
+      if (!variant) { return of(null); }
+      const rows$ = this.svc.structBindings(variant).pipe(catchError(e => of({ ok: false, error: friendlyError(e, 'the struct bindings').text, rows: [] as PvStructBinding[] })));
+      const chain$ = this.svc.bridgeChain(this.bench, this.board).pipe(catchError(e => of({ bridge: null, hops: [] as PvBridgeHop[], note: friendlyError(e, 'the bridge path').text })));
+      return combineLatest([rows$, chain$]).pipe(map(([r, c]) => ({ variant, r, c })));
+    })).subscribe(got => {
+      if (!got) {
+        this.structRows = []; this.chain = null;
+        this.structLoadNote = `No firmware binding is chosen for ${this.board} and no firmware variant has Catom assertions on it: pick a binding to see the struct its assertions bind to the pins.`;
+        this.rebuildLane(); this.redraw();
+        return;
+      }
+      const { variant, r, c } = got;
       this.structRows = (r && r.ok !== false && r.rows) || [];
       this.chain = c;
       const why = r && r.ok === false ? (r as { error?: string }).error : '';
-      this.structLoadNote = why || (this.structRows.length ? '' : `No Catom assertion of ${variant} binds a struct field to a pin yet.`);
+      this.structLoadNote = why || (this.structRows.length ? (chosen ? '' : `The struct of ${variant}, the firmware variant asserted on ${this.board} (no binding chosen).`)
+        : `No Catom assertion of ${variant} binds a struct field to a pin yet.`);
       this.rebuildLane(); this.redraw(); this.fit();
     });
   }
