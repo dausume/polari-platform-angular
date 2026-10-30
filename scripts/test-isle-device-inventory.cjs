@@ -55,4 +55,24 @@ test('Open links limited to valid Isle hostnames', () => {
  assert.equal(url('API.Polari.isle'),'https://api.polari.isle/');
  for(const v of ['javascript:alert(1)','evil.test','good.isle/x','good.isle:443','user@good.isle','-bad.isle','bad..isle','a'.repeat(64)+'.isle'])assert.equal(url(v),null,v);
 });
+const { readCapabilityReport: read } = exportsObject;
+const report = () => ({ ok:true, schema_version:1, action:'host', evaluated_at:'2026-10-30T00:00:00Z', entries:[{
+ entry:'worker',kind:'mesh-app',status:'ready',targets:[{device:'host',status:'ready',checks:[{dep:'runtime',status:'ready',reason:'passed'}]}]
+}] });
+test('capability report accepted separately from inventory', () => {
+ assert.equal(read(report(),'host').entries[0].targets[0].status,'ready');
+});
+test('wrong action or unsupported schema rejected', () => {
+ assert.equal(read(report(),'use'),null);const r=report();r.schema_version=2;assert.equal(read(r,'host'),null);
+});
+test('aggregate ready requires an eligible target', () => {
+ const r=report();r.entries[0].targets=[];assert.equal(read(r,'host'),null);
+});
+test('invalid status and malformed targets rejected', () => {
+ const r=report();r.entries[0].targets[0].status='probably';assert.equal(read(r,'host'),null);
+ r.entries[0].targets=[null];assert.equal(read(r,'host'),null);
+});
+test('missing service stays unknown rather than empty-ready', () => {
+ assert.equal(read(null,'host'),null);assert.equal(read({ok:false},'host'),null);
+});
 console.log(`${count} inventory tests passed`);

@@ -66,9 +66,24 @@
         </li></ul>
         <p *ngIf="!device.shared.length">No shared endpoints reported. This does not establish that none exist.</p>
       </details>
-      <h4>Apps this device can host</h4>
-      <p>Not yet assessed. App requirements, available resources, device policy and hardware permissions
-        must be verified before offering installation. A running agent alone is insufficient.</p>
+      <details>
+        <summary>Apps this device can host</summary>
+        <p *ngIf="!hostReport">The capability service is not available. Hosting eligibility is unknown.</p>
+        <ul><li *ngFor="let target of targetsFor(device.name, hostReport)">
+          <strong>{{ target.app }}</strong>: {{ capabilityLabels[target.status] }}
+          <p *ngIf="target.reasons.length">{{ target.reasons.join('; ') }}</p>
+        </li></ul>
+        <p *ngIf="hostReport && !targetsFor(device.name, hostReport).length">This device has no target evaluations yet.</p>
+      </details>
+      <details>
+        <summary>App access checks for this device</summary>
+        <p *ngIf="!useReport">Access evidence has not been evaluated. A shared endpoint alone does not establish access.</p>
+        <ul><li *ngFor="let target of targetsFor(device.name, useReport)">
+          <strong>{{ target.app }}</strong>: {{ capabilityLabels[target.status] }}
+          <p *ngIf="target.reasons.length">{{ target.reasons.join('; ') }}</p>
+        </li></ul>
+        <p *ngIf="useReport && !targetsFor(device.name, useReport).length">This device has no access evaluations yet.</p>
+      </details>
     </article>
   </div>
   <section class="onboarding" aria-labelledby="onboarding-title">
@@ -91,7 +106,16 @@
     <p>These are setup steps, not an automatic installer. Device setup actions and verified app-placement
       checks will appear here when the corresponding management services are available.</p>
   </section>
-  <section><h2>Capabilities missing across the Isle</h2>
-    <p>Not yet assessed. Missing evidence must not be treated as proof that no device supports an app.</p>
+  <section aria-labelledby="eligibility-title"><h2 id="eligibility-title">Isle-wide app eligibility &amp; gaps</h2>
+    <p *ngIf="!hostReport">Not yet assessed. The capability service is not available; missing evidence does not mean no device supports an app.</p>
+    <ng-container *ngIf="hostReport">
+      <p>Hosting evaluated {{ hostReport.evaluatedAt | date:'medium' }} against published app requirements.
+        Recheck on the target before installation; these results do not reserve resources or authorize changes.</p>
+      <ul><li *ngFor="let app of hostReport.entries"><strong>{{ app.entry }}</strong>:
+        {{ capabilityLabels[app.status] }}
+      </li></ul>
+      <p *ngIf="!hostReport.entries.length">No published app requirements were evaluated.</p>
+    </ng-container>
+    <p *ngIf="useReport">Access evaluated {{ useReport.evaluatedAt | date:'medium' }}. Access and hosting are separate actions.</p>
   </section>
 </section>

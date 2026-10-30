@@ -5,7 +5,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { firstValueFrom, timeout } from 'rxjs';
 import { PolariService } from '@services/polari-service';
 
-import { buildIsleInventory, IsleInventory } from './isle-device-inventory';
+import { buildIsleInventory, IsleInventory, CapabilityReport, readCapabilityReport, CAPABILITY_LABELS } from './isle-device-inventory';
 
 @Component({
   selector: 'app-isle-devices',
@@ -19,6 +19,13 @@ export class IsleDevicesComponent implements OnInit {
   get devices() { return this.inventory.devices; }
   get mockNetwork() { return this.inventory.hasMockData; }
   unavailable: string[] = [];
+  hostReport: CapabilityReport | null = null;
+  useReport: CapabilityReport | null = null;
+  readonly capabilityLabels = CAPABILITY_LABELS;
+  targetsFor(device: string, report: CapabilityReport | null) {
+    return (report?.entries || []).flatMap(app => app.targets
+      .filter(target => target.device === device).map(target => ({ app: app.entry, ...target })));
+  }
   loading = false;
   error = '';
   retrievedAt: Date | null = null;
@@ -30,13 +37,15 @@ export class IsleDevicesComponent implements OnInit {
     this.error = '';
     try {
       const base = this.polari.getBackendBaseUrl();
-      const sources = ['', '/coherence', '/catalog'];
+      const sources = ['', '/coherence', '/catalog', '/gaps?action=host', '/gaps?action=use'];
       const results = await Promise.allSettled(sources.map(path => firstValueFrom(
         this.http.get<{ok: boolean}>(`${base}/api/islemesh${path}`,
           this.polari.backendRequestOptions).pipe(timeout(10000)))));
       const values = results.map(r => r.status === 'fulfilled' && r.value?.ok === true ? r.value : null);
       this.unavailable = ['Device observations', 'App registrations', 'App catalog'].filter((_, i) => values[i] === null);
-      if (values.every(value => value === null)) throw new Error('Inventory unavailable');
+      this.hostReport = readCapabilityReport(values[3], 'host');
+      this.useReport = readCapabilityReport(values[4], 'use');
+      if (values.slice(0, 3).every(value => value === null)) throw new Error('Inventory unavailable');
       this.inventory = buildIsleInventory(values[0], values[1], values[2]);
       this.retrievedAt = new Date();
     } catch {

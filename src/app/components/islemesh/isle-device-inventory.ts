@@ -139,3 +139,56 @@ export function buildIsleInventory(summaryInput: unknown, coherenceInput: unknow
     hasMockData,
   };
 }
+
+export interface CapabilityTarget {
+  device: string;
+  status: string;
+  reasons: string[];
+}
+export interface CapabilityEntry {
+  entry: string;
+  kind: string;
+  status: string;
+  targets: CapabilityTarget[];
+}
+export interface CapabilityReport {
+  evaluatedAt: string;
+  entries: CapabilityEntry[];
+}
+export const CAPABILITY_LABELS: Record<string, string> = {
+  ready: 'Requirements met at last evaluation',
+  'needs-setup': 'Setup required',
+  unsupported: 'Unsupported by reported targets',
+  'resource-limited': 'Insufficient resources',
+  'policy-restricted': 'Restricted by device policy',
+  unknown: 'More evidence required',
+  blocked: 'No eligible target; see device requirements',
+};
+/** Reject unsupported/malformed contracts instead of rendering an optimistic state. */
+export function readCapabilityReport(input: unknown, action: 'host' | 'use'): CapabilityReport | null {
+  const data = record(input);
+  if (data['ok'] !== true || data['schema_version'] !== 1 || data['action'] !== action
+      || !Array.isArray(data['entries'])) return null;
+  const evaluatedAt = str(data['evaluated_at']);
+  if (!evaluatedAt || !Number.isFinite(Date.parse(evaluatedAt))) return null;
+  const entries: CapabilityEntry[] = [];
+  for (const raw of data['entries']) {
+    const entry = record(raw);
+    const status = str(entry['status']);
+    if (!str(entry['entry']) || !Object.hasOwn(CAPABILITY_LABELS, status) || !Array.isArray(entry['targets'])) return null;
+    const targets: CapabilityTarget[] = [];
+    for (const rawTarget of entry['targets']) {
+      const target = record(rawTarget), state = str(target['status']);
+      if (!str(target['device']) || !Object.hasOwn(CAPABILITY_LABELS, state) || !Array.isArray(target['checks'])) return null;
+      targets.push({ device: str(target['device']), status: state,
+        reasons: rows(target['checks']).filter(c => c['status'] !== 'ready')
+          .map(c => `${str(c['dep'])}: ${str(c['reason'])}`),
+      });
+    }
+    // A ready aggregate must identify an eligible target. Unknown providers cannot
+    // be turned into ready by a malformed summary alone.
+    if (status === 'ready' && !targets.some(t => t.status === 'ready')) return null;
+    entries.push({ entry: str(entry['entry']), kind: str(entry['kind']), status, targets });
+  }
+  return { evaluatedAt, entries };
+}
