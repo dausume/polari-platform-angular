@@ -31,7 +31,7 @@ import { IsleCoherenceComponent } from
         </mat-tab>
         <mat-tab>
           <ng-template mat-tab-label>
-            <mat-icon>storefront</mat-icon>&nbsp;Apps
+            <mat-icon>storefront</mat-icon>&nbsp;App Store
           </ng-template>
           <app-isle-store *ngIf="tab === 1"></app-isle-store>
         </mat-tab>
