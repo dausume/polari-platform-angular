@@ -68,7 +68,7 @@ test('sketched overview order and requirements remain visible for empty categori
  assert.ok(cards.every(c=>c.requirements && c.description));
 });
 test('Polari management is a destination; launchers remain Shell Apps',()=>{
- const a=app('app','polari-app'),option=app('defined-app','polari-app-option'),m=app('mod','polari-module');
+ const a=app('app','polari-app',{instances:[{device:'core'}]}),option=app('defined-app','polari-app-option',{installed_somewhere:true}),m=app('mod','polari-module');
  const cards=build([a,option,m],[],{},true);
  const c=cards.find(c=>c.id==='polari-software');assert.equal(c.count,0);
  assert.equal(c.title,'Polari Apps');assert.equal(c.managementRoute,'/apps');
@@ -80,7 +80,7 @@ test('VPN grouping requires explicit metadata, not a name guess',()=>{
  assert.equal(cards.find(c=>c.id==='isle-vpn').count,1);
 });
 test('Shell category never treats host readiness as launcher readiness',()=>{
- const a=app('a','mesh-app',{shell:'launcher'});
+ const a=app('a','mesh-app',{shell:'launcher',instances:[{device:'econ'}]});
  const c=build([a],[],{host:report([entry(a,[target('core')])])},true).find(c=>c.id==='shell-app');
  assert.equal(c.count,1);assert.equal(c.devices.length,0);
 });
@@ -95,3 +95,14 @@ test('Hardware baseline uses actual KVM/libvirt evidence, not catalog app counts
  assert.equal(baselineCapability('hardware-vm',{capability_evidence:{facts:{'runtime.kvm.usable':fact,'runtime.libvirt.usable':fact}}}).label,'Installable');
  assert.equal(baselineCapability('hardware-vm',null).ready,false);
 });
+
+test('actual VPN catalog kind is visible',()=>{
+ assert.equal(build([app('link','isle-vpn')],[],{},true).find(c=>c.id==='isle-vpn').count,1);
+});
+test('Shell Apps require installation evidence, not definitions or empty module coverage',()=>{
+ const entries=[app('defined','polari-app-option',{converted:true,placement:{complete:true}}),app('fake','polari-app',{instances:[{device:'fake',is_mock:true}]}),app('live','polari-app',{instances:[{device:'econ'}]})];
+ const cards=build(entries,[],{},true);
+ assert.equal(cards.find(c=>c.id==='shell-app').count,1);
+ assert.ok(!cards.some(c=>c.id==='polari-app'));
+});
+console.log(count+' app type tests passed');

@@ -1,7 +1,7 @@
 import { CapabilityReport, CAPABILITY_LABELS } from './isle-device-inventory';
 
 export type InstallAction = 'host' | 'launcher' | 'module';
-export interface TypedApp { name: string; kind: string; realization?: string; is_mock?: boolean; category?: string; shell?: string; management_system?: string; }
+export interface TypedApp { name: string; kind: string; realization?: string; is_mock?: boolean; category?: string; shell?: string; management_system?: string; instances?: {device?: string; is_mock?: boolean}[]; installed_somewhere?: boolean; }
 export interface AppType {
   id: string; title: string; icon: string; description: string; action: InstallAction; requirements?: string; managementRoute?: string;
 }
@@ -28,8 +28,8 @@ export const OVERVIEW_TYPES: AppType[] = [
 ];
 export function matchesCategory(entry: TypedApp, category: string): boolean {
   if (entry.management_system === 'polari') return false;
-  if (category === 'isle-vpn') return entry.kind === 'isle-vpn-app' || entry.category === 'isle-vpn';
-  if (category === 'shell-app') return entry.kind === 'shell-app' || entry.kind === 'polari-app' || entry.kind === 'polari-app-option' || !!entry.shell;
+  if (category === 'isle-vpn') return entry.kind === 'isle-vpn' || entry.kind === 'isle-vpn-app' || entry.category === 'isle-vpn';
+  if (category === 'shell-app') return (entry.installed_somewhere === true || !!entry.instances?.some(i => !!i.device && !i.is_mock)) && (entry.kind === 'shell-app' || entry.kind === 'polari-app' || entry.kind === 'polari-app-option' || !!entry.shell);
   if (category === 'polari-software') return false; // Polari owns this management destination, not an Isle catalog category.
   return typeId(entry) === category;
 }
@@ -54,7 +54,7 @@ export function buildTypeCards(entries: TypedApp[], devices: string[], reports: 
   const apps = [...new Map(entries.filter(e => !e.is_mock && e.management_system !== 'polari' && !(overview && e.kind === 'polari-module')).map(e => [`${e.kind}/${e.name}/${e.realization || ''}`, e])).values()];
   const types = [...(overview ? OVERVIEW_TYPES : APP_TYPES)];
   for (const id of new Set(apps.map(typeId))) {
-    if (!types.some(t => t.id === id) && !(overview && apps.filter(e => typeId(e) === id).every(e => types.some(t => matchesCategory(e, t.id))))) types.push({id, title:id === 'hardware-app' ? 'Hardware Apps — setup not specified' : id,
+    if (!(overview && ['polari-app','shell-app'].includes(id)) && !types.some(t => t.id === id) && !(overview && apps.filter(e => typeId(e) === id).every(e => types.some(t => matchesCategory(e, t.id))))) types.push({id, title:id === 'hardware-app' ? 'Hardware Apps — setup not specified' : id,
       icon:'category', action:'host', description:'Browse this catalog type. Its individual app requirements describe the setup needed on a device.'});
   }
   return types.map(type => {

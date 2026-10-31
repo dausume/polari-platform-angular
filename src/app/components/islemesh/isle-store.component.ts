@@ -139,6 +139,14 @@ export class IsleStoreComponent implements OnInit, OnDestroy {
     const f = this.localReport?.capability_evidence?.facts?.['hardware.openwrt.running'];
     return f?.status === 'observed' && f.value === true;
   }
+  get installedRouters(): {device: string; date: string}[] {
+    const devices = this.reportedDevices.filter(d => d.name !== this.currentDevice);
+    if (this.currentDevice && this.localReport) devices.push({...this.localReport, name:this.currentDevice});
+    return devices.flatMap(d => {
+      const f = d.capability_evidence?.facts?.['hardware.openwrt.running'];
+      return f?.status === 'observed' && f.value === true ? [{device:d.name, date:f.observed_at}] : [];
+    });
+  }
   async refreshLocalDevice(): Promise<void> {
     this.currentDevice = ''; this.localReport = null;
     if (!this.bridge.available) return;
@@ -309,6 +317,7 @@ export class IsleStoreComponent implements OnInit, OnDestroy {
   }
 
   async refresh(): Promise<void> {
+    void this.refreshLocalDevice();
     this.loading = true;
     this.loadError = '';
     const paths = ['/catalog', '', '/gaps?action=host', '/gaps?action=launcher', '/gaps?action=module', '/devices'];

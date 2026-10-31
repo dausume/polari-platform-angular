@@ -39,7 +39,9 @@
         {{ currentDevice }}: {{ currentCapability(type.id).label }}
         <small *ngIf="currentCapability(type.id).date"> · Checked {{ currentCapability(type.id).date | date:'medium' }}</small>
       </p>
-      <p *ngIf="type.id === 'hardware-vm' && routerHardwareInstalled"><strong>Installed Hardware App:</strong> OpenWrt router (running KVM virtual machine).</p>
+      <ng-container *ngIf="type.id === 'hardware-vm'">
+        <p *ngFor="let router of installedRouters"><strong>Installed Hardware App:</strong> OpenWrt router on {{ router.device }}{{ router.device === currentDevice ? ' (this device)' : '' }} — running KVM virtual machine. <small>Reported {{ router.date | date:'medium' }}</small></p>
+      </ng-container>
       <p class="type-description">{{ type.description }}</p>
       <p class="type-requirements" *ngIf="type.requirements"><strong>Requires:</strong> {{ type.requirements }}</p>
       <nav *ngIf="type.managementRoute" aria-label="Polari management">
