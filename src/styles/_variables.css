@@ -197,6 +197,7 @@
   --band-gold: #c9a227;  --band-silver: #b0bec5;
   --res-body: #e0c9a6;
   --rail-plus: #d32f2f;  --rail-minus: #1565c0;
+  --heat-hot: #e65100;  /* bob-3f: the pin view's temperature-rise shading (opacity scales with the rise) */
   --led-off: #8e3b3b;  --led-on: #ff5252;
 
   /* aut-1: code identifier kinds (background + matching -text) */

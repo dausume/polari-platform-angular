@@ -103,7 +103,11 @@ export interface PvPayload {
   surfaces: PvSurface[]; pins: PvPin[]; connections: PvConnection[];
   unresolved?: { source: string; reason: string }[];
   shapes: Record<string, PvShape>;
+  /** bob-3f: a PCB's temperature-rise field (pcb.custom.thermal_spread, the plate FEM) on its surface's frame - rise[j][i] at (xs[i], ys[j]) mm, null off
+   *  the board; `why` (non-empty) says in words why there is none. */
+  thermal?: PvThermal;
 }
+export interface PvThermal { surface: string; why: string; unit: string; xs?: number[]; ys?: number[]; rise?: (number | null)[][]; max?: number; mean?: number; title?: string; basis?: string; }
 
 /** hsp-3b: one pin <-> struct-field binding (GET /api/cmod/catom-assertions/{variant}?view=bindings), derived from a Catom assertion. `pin` is the SoC pin name (PD2). */
 export type PvStructDirection = 'in' | 'out' | 'to-bridge' | 'from-bridge';

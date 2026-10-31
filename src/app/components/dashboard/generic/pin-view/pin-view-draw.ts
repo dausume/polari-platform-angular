@@ -10,6 +10,7 @@ import { linePath, PlacedPin, PlacedSurface, Scene } from './pin-view-layout';
 import { PvIndex } from './pin-view-panel';
 import { StructLane } from './pin-view-struct';
 import { LaneState, StructLaneLayer } from './pin-view-struct-draw';
+import { drawThermal } from './pin-view-thermal';
 import { PvConnection, PvMode, PvPayload, PvPin, PvSelection } from './pin-view.types';
 
 /**
@@ -100,7 +101,16 @@ export class PinViewCanvas {
       g.selectAll(`circle.pv-hole-${ps.depth}`).data(holes).enter().append('circle')
         .attr('class', hl => (hl.cited === false ? 'pv-hole knob' : 'pv-hole')).attr('cx', hl => ps.ox + hl.x).attr('cy', hl => ps.oy + hl.y).attr('r', hl => hl.d / 2);
     }
-    // pv-6: the breadboard of the bench layout; the parts that sit on it are raised above its holes
+    // bob-3f: a PCB's cut-outs (its Edge.Cuts holes) and its temperature-rise field, under the pads
+    for (const ps of scene.order) {
+      const cut = this.payload?.shapes?.[ps.surface.shape]?.parameters?.cutouts as [number, number][][] | undefined;
+      for (const loop of cut || []) {
+        g.append('path').attr('class', 'pv-cutout').attr('d', 'M' + loop.map(([x, y]) => [ps.ox + ps.k * (ps.c * x - ps.sn * y), ps.oy + ps.k * (ps.sn * x + ps.c * y)].join(',')).join('L') + 'Z');
+      }
+      const t = this.payload?.thermal;
+      if (t && t.surface === ps.surface.id) { drawThermal(g, ps, t, `pv-thermal-clip-${ps.depth}`); }
+    }
+        // pv-6: the breadboard of the bench layout; the parts that sit on it are raised above its holes
     let drew = false;
     for (const ps of scene.order) {
       const p = this.payload?.shapes?.[ps.surface.shape]?.parameters as { generator?: string; rows?: number; rail_holes?: number; pitch?: number } | undefined;

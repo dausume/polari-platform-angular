@@ -145,6 +145,7 @@ body.dark-theme {
   --band-gold: #e0c14e;  --band-silver: #cfd8dc;
   --res-body: #b79f7a;
   --rail-plus: #e57373;  --rail-minus: #64b5f6;
+  --heat-hot: #ff9e40;
   --led-off: #6d3a3a;  --led-on: #ff8a80;
 
   /* aut-1: code identifier kinds (background + matching -text) */

@@ -40,6 +40,9 @@ hardware-pin-view { display: block; container-type: inline-size; container-name:
 .pv-root .pv-surface.dim { opacity: 0.4; }
 .pv-root .pv-hole { fill: var(--surface-primary); stroke: var(--border-dark); stroke-width: 1px; vector-effect: non-scaling-stroke; pointer-events: none; }
 .pv-root .pv-hole.knob { stroke-dasharray: 3 2; }
+.pv-root .pv-thermal { pointer-events: none; }
+.pv-root .pv-thermal rect { fill: var(--heat-hot); stroke: none; }
+.pv-root .pv-cutout { fill: var(--surface-secondary); stroke: var(--border-dark); stroke-width: 1px; vector-effect: non-scaling-stroke; pointer-events: none; }
 .pv-root .pv-title { fill: var(--text-secondary); pointer-events: none; }
 
 /* ---- pins: colour = family, fill = assignment, glyph = what the pin does */
