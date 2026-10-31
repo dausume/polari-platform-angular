@@ -27,27 +27,24 @@ import { IsleCoherenceComponent } from
                      [selectedIndex]="tab"
                      (selectedIndexChange)="tab = $event">
         <mat-tab>
-          <ng-template mat-tab-label><mat-icon>devices</mat-icon>&nbsp;Devices</ng-template>
-          <app-isle-devices *ngIf="tab === 0"></app-isle-devices>
-        </mat-tab>
-        <mat-tab>
           <ng-template mat-tab-label>
             <mat-icon>storefront</mat-icon>&nbsp;App Store
           </ng-template>
-          <app-isle-store *ngIf="tab === 1"></app-isle-store>
+          <app-isle-store *ngIf="tab === 0"></app-isle-store>
         </mat-tab>
         <mat-tab>
           <ng-template mat-tab-label>
             <mat-icon>hub</mat-icon>&nbsp;Topology
           </ng-template>
-          <app-isle-mesh-graph *ngIf="tab === 2">
+          <app-isle-devices *ngIf="tab === 1"></app-isle-devices>
+          <app-isle-mesh-graph *ngIf="tab === 1">
           </app-isle-mesh-graph>
         </mat-tab>
         <mat-tab>
           <ng-template mat-tab-label>
             <mat-icon>fact_check</mat-icon>&nbsp;Coherence
           </ng-template>
-          <app-isle-coherence *ngIf="tab === 3">
+          <app-isle-coherence *ngIf="tab === 2">
           </app-isle-coherence>
         </mat-tab>
       </mat-tab-group>
@@ -63,6 +60,6 @@ import { IsleCoherenceComponent } from
 export class IsleHubComponent {
   tab = 0;
   constructor(route: ActivatedRoute) {
-    if (route.snapshot.queryParamMap.has("appType")) this.tab = 1;
+    if (route.snapshot.queryParamMap.has("appType")) this.tab = 0;
   }
 }

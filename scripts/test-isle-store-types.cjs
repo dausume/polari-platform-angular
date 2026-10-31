@@ -62,4 +62,25 @@ test('launcher and module API reports parsed only under matching action',()=>{
   const r={ok:true,schema_version:1,action,evaluated_at:'2026-10-30T00:00:00Z',entries:[]};assert.ok(read(r,action));assert.equal(read(r,'host'),null);
  }
 });
+test('sketched overview order and requirements remain visible for empty categories',()=>{
+ const cards=build([],[],{},true);
+ assert.equal(cards.map(c=>c.id).join(','),'mesh-app,hardware-vm,isle-vpn,polari-instance,shell-app,polari-software,hardware-extension-app,hardware-bridge');
+ assert.ok(cards.every(c=>c.requirements && c.description));
+});
+test('Polari apps and modules share a page without borrowing evaluation actions',()=>{
+ const a=app('app','polari-app'),m=app('mod','polari-module');
+ const cards=build([a,m],[],{launcher:report([entry(a,[target('client')])]),module:report([entry(m,[target('pol')])])},true);
+ const c=cards.find(c=>c.id==='polari-software');assert.equal(c.count,2);
+ assert.equal(c.devices.find(d=>d.name==='client').ready,1);assert.equal(c.devices.find(d=>d.name==='pol').ready,1);
+ assert.equal(cards.find(c=>c.id==='shell-app').count,1);
+});
+test('VPN grouping requires explicit metadata, not a name guess',()=>{
+ const cards=build([app('vpn-name'),app('link','mesh-app',{category:'isle-vpn'})],[],{},true);
+ assert.equal(cards.find(c=>c.id==='isle-vpn').count,1);
+});
+test('Shell category never treats host readiness as launcher readiness',()=>{
+ const a=app('a','mesh-app',{shell:'launcher'});
+ const c=build([a],[],{host:report([entry(a,[target('core')])])},true).find(c=>c.id==='shell-app');
+ assert.equal(c.count,1);assert.equal(c.devices.length,0);
+});
 console.log(count+' app type tests passed');

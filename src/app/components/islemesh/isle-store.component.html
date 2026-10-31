@@ -17,20 +17,31 @@
   <div class="loading" *ngIf="loading">Loading catalog…</div>
 
   <p class="capability-notice" *ngIf="capabilityNotice" role="status">{{ capabilityNotice }}</p>
-  <p *ngIf="!selectedType && !loading">Device summaries apply to individual apps at their last reported evaluation. Dates are shown in your local time.</p>
   <section class="type-cards" *ngIf="!loading && !loadError && !selectedType" aria-label="App types">
-    <button type="button" class="type-card" *ngFor="let type of typeCards" (click)="openType(type.id)">
-      <span class="type-heading"><mat-icon>{{ type.icon }}</mat-icon><span>{{ type.title }}</span></span>
-      <span class="type-description">{{ type.description }}</span>
-      <span class="type-count">{{ type.count }} {{ type.count === 1 ? 'app' : 'apps' }} in the catalog</span>
-      <span class="type-devices-heading">Devices — {{ type.action === 'launcher' ? 'install a launcher' : type.action === 'module' ? 'add modules' : 'host apps' }}</span>
-      <span class="type-device" *ngFor="let device of type.devices">
-        <strong>{{ device.name }}</strong><span>{{ device.summary }}</span>
-        <small *ngIf="device.dates.length">Observed {{ device.dates[0] | date:'medium' }}<ng-container *ngIf="device.dates.length > 1"> – {{ device.dates[device.dates.length - 1] | date:'medium' }}</ng-container></small>
-      </span>
-      <span *ngIf="!type.devices.length" class="type-description">No device evaluations reported yet.</span>
-      <span class="type-open">Browse {{ type.title }} <mat-icon>arrow_forward</mat-icon></span>
-    </button>
+    <article class="type-card" *ngFor="let type of typeCards">
+      <header class="type-heading">
+        <h2><button type="button" class="type-title" (click)="openType(type.id)">{{ type.title }}</button></h2>
+        <div class="type-actions">
+          <button mat-stroked-button type="button" (click)="toggleDevices(type.id)"
+                  [attr.aria-expanded]="expandedDevices === type.id" [attr.aria-controls]="'devices-' + type.id">Devices</button>
+          <button mat-stroked-button type="button" (click)="openType(type.id)"
+                  title="Choose an app, then review installation on this device">Install Here</button>
+        </div>
+      </header>
+      <p class="type-description">{{ type.description }}</p>
+      <p class="type-requirements" *ngIf="type.requirements"><strong>Requires:</strong> {{ type.requirements }}</p>
+      <footer class="type-footer">
+        <button type="button" class="type-browse" (click)="openType(type.id)">{{ type.count }} {{ type.count === 1 ? 'app' : 'apps' }} available <mat-icon>arrow_forward</mat-icon></button>
+      </footer>
+      <section class="type-device-details" *ngIf="expandedDevices === type.id" [id]="'devices-' + type.id" aria-label="Device evaluations">
+        <p>Per-app evaluations, dated when last reported. Meeting one app's requirements does not mean every app in this category can run here.</p>
+        <div class="type-device" *ngFor="let device of type.devices">
+          <strong>{{ device.name }}</strong><span>{{ device.summary }}</span>
+          <small *ngIf="device.dates.length">Observed {{ device.dates[0] | date:'medium' }}<ng-container *ngIf="device.dates.length > 1"> – {{ device.dates[device.dates.length - 1] | date:'medium' }}</ng-container></small>
+        </div>
+        <p *ngIf="!type.devices.length">No device evaluations reported yet.</p>
+      </section>
+    </article>
   </section>
   <nav *ngIf="selectedType" class="type-navigation" aria-label="App Store navigation">
     <button mat-stroked-button (click)="openType(null)" [disabled]="installing || uninstalling || bindBusy"><mat-icon>arrow_back</mat-icon> All app types</button>
@@ -39,6 +50,7 @@
   <section *ngIf="selectedType && !loading && !loadError" class="type-intro">
     <h2>{{ activeType?.title || 'App type not available' }}</h2>
     <p>{{ activeType?.description || 'This app type is not in the current catalog. Return to all app types to choose another.' }}</p>
+    <p *ngIf="activeType?.requirements"><strong>Requires:</strong> {{ activeType?.requirements }}</p>
     <p *ngIf="activeType && !visibleEntries.length">No apps have been published for this type yet. Other app types may still be available.</p>
     <p *ngIf="visibleEntries.length">Select an app to see its requirements and device evaluations. A device may support some apps of this type without supporting all of them.</p>
   </section>

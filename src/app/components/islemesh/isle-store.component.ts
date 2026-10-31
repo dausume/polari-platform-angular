@@ -17,7 +17,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { RouterModule, Router, ActivatedRoute } from '@angular/router';
 import { firstValueFrom, timeout, Subscription } from 'rxjs';
 import { buildIsleInventory, readCapabilityReport, CAPABILITY_LABELS } from './isle-device-inventory';
-import { buildTypeCards, appTargets, typeId, TypeCard, InstallReports } from './isle-store-types';
+import { buildTypeCards, appTargets, matchesCategory, TypeCard, InstallReports } from './isle-store-types';
 
 import { PolariService } from '@services/polari-service';
 import { AiAssistantService } from
@@ -126,13 +126,15 @@ interface InstallPlan {
 export class IsleStoreComponent implements OnInit, OnDestroy {
   selectedType: string | null = null;
   typeCards: TypeCard[] = [];
+  expandedDevices: string | null = null;
+  toggleDevices(id: string): void { this.expandedDevices = this.expandedDevices === id ? null : id; }
   reports: InstallReports = {};
   capabilityNotice = "";
   readonly capabilityLabels = CAPABILITY_LABELS;
   private navigation?: Subscription;
   get activeType() { return this.typeCards.find(t => t.id === this.selectedType); }
-  get visibleEntries() { return this.entries.filter(e => !e.is_mock && typeId(e) === this.selectedType); }
-  targetsFor(entry: CatalogEntry) { return appTargets(entry, this.reports); }
+  get visibleEntries() { return this.entries.filter(e => !e.is_mock && matchesCategory(e, this.selectedType || '')); }
+  targetsFor(entry: CatalogEntry) { return appTargets(entry, this.reports, this.selectedType === 'shell-app' ? 'launcher' : undefined); }
   openType(id: string | null): void {
     if (this.installing || this.uninstalling || this.bindBusy) return;
     void this.router.navigate([], {relativeTo:this.route, queryParams:{appType:id}, queryParamsHandling:"merge"});
@@ -289,7 +291,7 @@ export class IsleStoreComponent implements OnInit, OnDestroy {
     });
     this.capabilityNotice = missing.length ? 'Some device checks could not be refreshed. Previous dated reports are retained where available; missing reports do not mean a device is incapable.' : '';
     const inventory = buildIsleInventory(values[1], null, values[0]);
-    this.typeCards = buildTypeCards(this.entries, inventory.devices.map(d => d.name), this.reports);
+    this.typeCards = buildTypeCards(this.entries, inventory.devices.map(d => d.name), this.reports, true);
     if (this.selected) this.selected = this.visibleEntries.find(e => e.name === this.selected?.name) || null;
   }
 

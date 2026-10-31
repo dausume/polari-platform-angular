@@ -225,7 +225,8 @@ section h2 {
 
 .type-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
   gap: 16px;
 }
 .type-card {
@@ -233,7 +234,7 @@ section h2 {
   text-align: left; padding: 20px; border-radius: 12px;
   border: 1px solid var(--border-light);
   background: var(--surface-primary); color: var(--text-on-card);
-  font: inherit; cursor: pointer; min-width: 0; overflow-wrap: anywhere;
+  font: inherit; min-width: 0; overflow-wrap: anywhere;
   &:hover { border-color: var(--brand-blue-light); }
   &:focus-visible { outline: 3px solid var(--brand-blue-light); outline-offset: 3px; }
 }
@@ -258,3 +259,17 @@ section h2 {
   .catalog, .detail { width: 100%; box-sizing: border-box; }
   .detail { flex-basis: auto; position: static; }
 }
+
+.type-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.type-heading h2 { margin: 0; font-size: 1.2rem; text-transform: none; letter-spacing: normal; }
+.type-title, .type-browse { background: none; border: 0; color: inherit; padding: 0; text-align: left; font: inherit; cursor: pointer; }
+.type-title { font-weight: 650; }
+.type-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.type-description, .type-requirements { margin: 0; line-height: 1.6; }
+.type-requirements { color: var(--text-on-card); }
+.type-footer { margin-top: auto; font-size: .85rem; color: var(--text-on-card-muted); }
+.type-browse { display: inline-flex; align-items: center; gap: 6px; }
+.type-device-details { border-top: 1px solid var(--border-light); font-size: .85rem; }
+.type-device { margin: 12px 0; }
+.type-title:focus-visible, .type-browse:focus-visible { outline: 3px solid var(--brand-blue-light); outline-offset: 4px; }
+@media (max-width: 700px) { .type-cards { grid-template-columns: minmax(0, 1fr); } }
