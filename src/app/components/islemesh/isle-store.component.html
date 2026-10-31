@@ -13,6 +13,11 @@
     </button>
   </div>
 
+  <p class="current-device"><strong>Current device:</strong> {{ currentDevice || 'Not identified by this browser' }}
+    <span *ngIf="!currentDevice"> — Open the updated native Isle App to identify this device and install capabilities.</span>
+  </p>
+  <p>Other devices can be inspected using Devices. Capability installation always happens on this device.</p>
+  <pre *ngIf="capabilitySetupMessage" role="status">{{ capabilitySetupMessage }}</pre>
   <div class="load-error" *ngIf="loadError">{{ loadError }}</div>
   <div class="loading" *ngIf="loading">Loading catalog…</div>
 
@@ -21,22 +26,34 @@
     <article class="type-card" *ngFor="let type of typeCards">
       <header class="type-heading">
         <h2><button type="button" class="type-title" (click)="openType(type.id)">{{ type.title }}</button></h2>
-        <div class="type-actions">
+        <div class="type-actions" *ngIf="!type.managementRoute">
           <button mat-stroked-button type="button" (click)="toggleDevices(type.id)"
                   [attr.aria-expanded]="expandedDevices === type.id" [attr.aria-controls]="'devices-' + type.id">Devices</button>
-          <button mat-stroked-button type="button" (click)="openType(type.id)"
-                  title="Choose an app, then review installation on this device">Install Here</button>
+          <span *ngIf="currentDevice && currentCapability(type.id).ready" class="capability-ready">Installable</span>
+          <button *ngIf="supportsCapabilitySetup(type.id) && !currentCapability(type.id).ready"
+                  mat-stroked-button type="button" (click)="installCapabilities(type.id)"
+                  [disabled]="!currentDevice || preparingCapabilities">Install Capabilities</button>
         </div>
       </header>
+      <p *ngIf="!type.managementRoute && currentDevice && supportsCapabilitySetup(type.id)">
+        {{ currentDevice }}: {{ currentCapability(type.id).label }}
+        <small *ngIf="currentCapability(type.id).date"> · Checked {{ currentCapability(type.id).date | date:'medium' }}</small>
+      </p>
+      <p *ngIf="type.id === 'hardware-vm' && routerHardwareInstalled"><strong>Installed Hardware App:</strong> OpenWrt router (running KVM virtual machine).</p>
       <p class="type-description">{{ type.description }}</p>
       <p class="type-requirements" *ngIf="type.requirements"><strong>Requires:</strong> {{ type.requirements }}</p>
-      <footer class="type-footer">
+      <nav *ngIf="type.managementRoute" aria-label="Polari management">
+        <a mat-stroked-button [routerLink]="type.managementRoute">Manage Polari Apps</a>
+        <a mat-button routerLink="/module-management">Manage modules</a>
+        <a mat-button routerLink="/topology">Polari node topology</a>
+      </nav>
+      <footer class="type-footer" *ngIf="!type.managementRoute">
         <button type="button" class="type-browse" (click)="openType(type.id)">{{ type.count }} {{ type.count === 1 ? 'app' : 'apps' }} available <mat-icon>arrow_forward</mat-icon></button>
       </footer>
       <section class="type-device-details" *ngIf="expandedDevices === type.id" [id]="'devices-' + type.id" aria-label="Device evaluations">
         <p>Per-app evaluations, dated when last reported. Meeting one app's requirements does not mean every app in this category can run here.</p>
         <div class="type-device" *ngFor="let device of type.devices">
-          <strong>{{ device.name }}</strong><span>{{ device.summary }}</span>
+          <strong>{{ device.name }}</strong><span>{{ deviceCapability(type.id, device.name).label }} — {{ device.summary }}</span>
           <small *ngIf="device.dates.length">Observed {{ device.dates[0] | date:'medium' }}<ng-container *ngIf="device.dates.length > 1"> – {{ device.dates[device.dates.length - 1] | date:'medium' }}</ng-container></small>
         </div>
         <p *ngIf="!type.devices.length">No device evaluations reported yet.</p>

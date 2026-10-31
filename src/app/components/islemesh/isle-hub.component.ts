@@ -23,6 +23,7 @@ import { IsleCoherenceComponent } from
   template: `
     <div class="isle-hub">
       <h1 class="app-title">Isle App</h1>
+      <app-isle-mesh-graph></app-isle-mesh-graph>
       <mat-tab-group animationDuration="0ms"
                      [selectedIndex]="tab"
                      (selectedIndexChange)="tab = $event">
@@ -37,8 +38,6 @@ import { IsleCoherenceComponent } from
             <mat-icon>hub</mat-icon>&nbsp;Topology
           </ng-template>
           <app-isle-devices *ngIf="tab === 1"></app-isle-devices>
-          <app-isle-mesh-graph *ngIf="tab === 1">
-          </app-isle-mesh-graph>
         </mat-tab>
         <mat-tab>
           <ng-template mat-tab-label>

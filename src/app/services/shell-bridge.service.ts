@@ -83,6 +83,13 @@ export class ShellBridgeService {
     });
   }
 
+  deviceContext(): Promise<{ok: boolean; report?: any; error?: string}> {
+    return this.call('device.context', {});
+  }
+  enableCapabilities(profile: string): Promise<InstallResult> {
+    return this.call('device.enableCapabilities', {profile});
+  }
+
   /** Install a named catalog app on THIS device via pkexec. */
   install(name: string): Promise<InstallResult> {
     return this.call('store.install', { name });

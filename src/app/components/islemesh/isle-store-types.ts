@@ -1,13 +1,13 @@
 import { CapabilityReport, CAPABILITY_LABELS } from './isle-device-inventory';
 
 export type InstallAction = 'host' | 'launcher' | 'module';
-export interface TypedApp { name: string; kind: string; realization?: string; is_mock?: boolean; category?: string; shell?: string; }
+export interface TypedApp { name: string; kind: string; realization?: string; is_mock?: boolean; category?: string; shell?: string; management_system?: string; }
 export interface AppType {
-  id: string; title: string; icon: string; description: string; action: InstallAction; requirements?: string;
+  id: string; title: string; icon: string; description: string; action: InstallAction; requirements?: string; managementRoute?: string;
 }
 export const APP_TYPES: AppType[] = [
   {id:'mesh-app', title:'Mesh Apps', icon:'dns', action:'host', description:'Run container services on an Isle device and use them across the Isle, including websites and simulation workers.'},
-  {id:'polari-app', title:'Polari Apps', icon:'desktop_windows', action:'launcher', description:'Install a window onto a Polari app. Its frontend and services can be provided by a Polari node elsewhere on the Isle.'},
+  {id:'polari-app', title:'Polari App Launchers', icon:'desktop_windows', action:'launcher', description:'Install a window onto a Polari app. Its frontend and services can be provided by a Polari node elsewhere on the Isle.'},
   {id:'polari-instance', title:'Polari Nodes', icon:'hub', action:'host', description:'Host the Polari runtime that provides frontends and runs app modules. An Isle needs at least one Polari node; every device does not need its own.'},
   {id:'polari-module', title:'Polari Modules', icon:'extension', action:'module', description:'Add functionality to a Polari node, such as electronics tools or shared computation.'},
   {id:'hardware-vm', title:'Hardware Apps — VMs', icon:'computer', action:'host', description:'Run a virtual machine with the required virtualization resources and, where needed, hardware passthrough. Container simulations belong under Mesh Apps.'},
@@ -17,19 +17,20 @@ export const APP_TYPES: AppType[] = [
 ];
 /** Presentation categories follow the management overview; catalog kinds stay unchanged. */
 export const OVERVIEW_TYPES: AppType[] = [
-  {id:'mesh-app', title:'Mesh Apps', icon:'dns', action:'host', description:'Containerized apps wrapped by the Isle, including open-source services and simulation workers.', requirements:'Docker and a device joined to the Isle with a hosting address.'},
+  {id:'mesh-app', title:'Mesh Apps', icon:'dns', action:'host', description:'External applications wrapped by the Isle, such as Odoo, LiveKit and Whoami. Polari runtime components are managed within Polari.', requirements:'Docker and a device joined to the Isle with a hosting address.'},
   {id:'hardware-vm', title:'Hardware Apps', icon:'computer', action:'host', description:'QEMU/KVM apps let a computer act as a substitute for hardware. They virtualize hardware and can connect to USB devices for functions that cannot be virtualized.', requirements:'A device with QEMU/KVM support and any physical interfaces required by the app.'},
   {id:'isle-vpn', title:'Isle VPN Apps', icon:'vpn_lock', action:'host', description:'Apps that provide containers and/or virtual machines to establish VPNs through bridges and links between Isles.', requirements:'Docker or QEMU/KVM, according to the app, and the network access needed to connect the Isles.'},
-  {id:'polari-instance', title:'Polari Instance', icon:'hub', action:'host', description:'The core runtime for Polari Apps and Modules. Other devices can use its frontend across the Isle.', requirements:'Docker on a joined device. At least one Polari instance is needed across the Isle.'},
+  {id:'polari-instance', title:'Polari Instance', icon:'hub', action:'host', description:'The core runtime configured by Polari Apps. Other devices can use its frontend across the Isle.', requirements:'Docker on a joined device. At least one Polari instance is needed across the Isle.'},
   {id:'shell-app', title:'Shell Apps', icon:'desktop_windows', action:'launcher', description:'Lightweight launchers for apps running on other devices. They provide an app window without hosting the app here.', requirements:'Access to the Isle and its certificate trust. A hosting address is not required.'},
-  {id:'polari-software', title:'Polari Apps & Modules', icon:'extension', action:'module', description:'Apps and modules for running simulations, developing hardware, running businesses, and other tasks.', requirements:'A compatible Polari instance. The selected app explains which modules or launcher it installs.'},
+  {id:'polari-software', title:'Polari Apps', icon:'extension', action:'module', description:'Polari Apps configure Polari with the capabilities, pages and tools for a particular purpose. Manage these apps and their underlying modules across Polari nodes in Polari itself.', requirements:'A Polari instance. Polari manages app definitions, module placement and its own node topology.', managementRoute:'/apps'},
   {id:'hardware-extension-app', title:'Hardware Extension Apps', icon:'memory', action:'host', description:'Extensions that add functions to a compatible Hardware App.', requirements:'The parent Hardware App and the interfaces required by the extension.'},
   {id:'hardware-bridge', title:'Hardware Bridge Apps', icon:'usb', action:'host', description:'Connect apps to real hardware attached to a device, including boards and instruments.', requirements:'The required physical connections, drivers and hardware access. A VM is not inherently required.'},
 ];
 export function matchesCategory(entry: TypedApp, category: string): boolean {
+  if (entry.management_system === 'polari') return false;
   if (category === 'isle-vpn') return entry.kind === 'isle-vpn-app' || entry.category === 'isle-vpn';
   if (category === 'shell-app') return entry.kind === 'shell-app' || entry.kind === 'polari-app' || entry.kind === 'polari-app-option' || !!entry.shell;
-  if (category === 'polari-software') return ['polari-app', 'polari-app-option', 'polari-module'].includes(entry.kind);
+  if (category === 'polari-software') return false; // Polari owns this management destination, not an Isle catalog category.
   return typeId(entry) === category;
 }
 export function typeId(entry: TypedApp): string {
@@ -50,7 +51,7 @@ export function appTargets(entry: TypedApp, reports: InstallReports, actionOverr
   return reports[action]?.entries.find(r => r.entry === entry.name && r.kind === entry.kind)?.targets || [];
 }
 export function buildTypeCards(entries: TypedApp[], devices: string[], reports: InstallReports, overview = false): TypeCard[] {
-  const apps = [...new Map(entries.filter(e => !e.is_mock).map(e => [`${e.kind}/${e.name}/${e.realization || ''}`, e])).values()];
+  const apps = [...new Map(entries.filter(e => !e.is_mock && e.management_system !== 'polari' && !(overview && e.kind === 'polari-module')).map(e => [`${e.kind}/${e.name}/${e.realization || ''}`, e])).values()];
   const types = [...(overview ? OVERVIEW_TYPES : APP_TYPES)];
   for (const id of new Set(apps.map(typeId))) {
     if (!types.some(t => t.id === id) && !(overview && apps.filter(e => typeId(e) === id).every(e => types.some(t => matchesCategory(e, t.id))))) types.push({id, title:id === 'hardware-app' ? 'Hardware Apps — setup not specified' : id,
@@ -73,4 +74,24 @@ export function buildTypeCards(entries: TypedApp[], devices: string[], reports: 
         dates:[...new Set(targets.flatMap(t => t.observationDates))].sort((a,b) => Date.parse(a)-Date.parse(b))};
     })};
   });
+}
+
+/** Baseline hosting capability, distinct from an individual app's placement checks. */
+export function capabilityProfile(id: string): string[] | null {
+  switch (id) {
+    case 'mesh-app': case 'polari-instance': return ['runtime.docker.usable','runtime.compose.usable','agent.running'];
+    case 'hardware-vm': return ['runtime.libvirt.usable','runtime.kvm.usable'];
+    case 'shell-app': return ['runtime.shell.installed','access.polari-frontend.https'];
+    default: return null;
+  }
+}
+export function baselineCapability(id: string, report: any): {label: string; date: string; ready: boolean} {
+  const required = capabilityProfile(id);
+  if (!required) return {label:'App-specific capabilities', date:'', ready:false};
+  const facts = report?.capability_evidence?.facts || {};
+  const evidence = required.map(k => facts[k]);
+  const observed = evidence.every(f => f?.status === 'observed');
+  const ready = observed && evidence.every(f => f.value === true);
+  return {label:ready ? 'Installable' : observed ? 'Capabilities needed' : 'Not yet checked',
+    date:evidence.map(f => f?.observed_at || '').filter(Boolean).sort()[0] || '', ready};
 }

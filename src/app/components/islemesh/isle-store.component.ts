@@ -17,7 +17,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { RouterModule, Router, ActivatedRoute } from '@angular/router';
 import { firstValueFrom, timeout, Subscription } from 'rxjs';
 import { buildIsleInventory, readCapabilityReport, CAPABILITY_LABELS } from './isle-device-inventory';
-import { buildTypeCards, appTargets, matchesCategory, TypeCard, InstallReports } from './isle-store-types';
+import { buildTypeCards, appTargets, matchesCategory, TypeCard, InstallReports, baselineCapability, capabilityProfile } from './isle-store-types';
 
 import { PolariService } from '@services/polari-service';
 import { AiAssistantService } from
@@ -124,6 +124,42 @@ interface InstallPlan {
   styleUrls: ['./isle-store.component.scss'],
 })
 export class IsleStoreComponent implements OnInit, OnDestroy {
+  currentDevice = '';
+  localReport: any = null;
+  reportedDevices: any[] = [];
+  preparingCapabilities = false;
+  capabilitySetupMessage = '';
+  currentCapability(id: string) { return baselineCapability(id, this.localReport); }
+  deviceCapability(id: string, name: string) {
+    const device = this.reportedDevices.find(d => d.name === name);
+    return baselineCapability(id, device);
+  }
+  supportsCapabilitySetup(id: string) { return capabilityProfile(id) !== null; }
+  get routerHardwareInstalled(): boolean {
+    const f = this.localReport?.capability_evidence?.facts?.['hardware.openwrt.running'];
+    return f?.status === 'observed' && f.value === true;
+  }
+  async refreshLocalDevice(): Promise<void> {
+    this.currentDevice = ''; this.localReport = null;
+    if (!this.bridge.available) return;
+    try {
+      const context = await this.bridge.deviceContext();
+      if (context.ok && /^[a-z0-9][a-z0-9-]{0,62}$/.test(context.report?.device || '')) {
+        this.currentDevice = context.report.device; this.localReport = context.report;
+      }
+    } catch { /* Older shells cannot identify their host; never guess from the server. */ }
+  }
+  async installCapabilities(id: string): Promise<void> {
+    if (!this.currentDevice || !this.bridge.available || !this.supportsCapabilitySetup(id) || this.preparingCapabilities) return;
+    this.preparingCapabilities = true;
+    this.capabilitySetupMessage = `Preparing capabilities on ${this.currentDevice}…`;
+    try {
+      const result = await this.bridge.enableCapabilities(id);
+      this.capabilitySetupMessage = result.output || result.error || (result.ok ? 'Capabilities prepared.' : 'Setup did not finish.');
+      await this.refreshLocalDevice(); await this.refresh();
+    } catch (e: any) { this.capabilitySetupMessage = e?.message || 'Capability setup failed.'; }
+    finally { this.preparingCapabilities = false; }
+  }
   selectedType: string | null = null;
   typeCards: TypeCard[] = [];
   expandedDevices: string | null = null;
@@ -136,6 +172,7 @@ export class IsleStoreComponent implements OnInit, OnDestroy {
   get visibleEntries() { return this.entries.filter(e => !e.is_mock && matchesCategory(e, this.selectedType || '')); }
   targetsFor(entry: CatalogEntry) { return appTargets(entry, this.reports, this.selectedType === 'shell-app' ? 'launcher' : undefined); }
   openType(id: string | null): void {
+    if (id === "polari-software") { void this.router.navigate(["/apps"]); return; }
     if (this.installing || this.uninstalling || this.bindBusy) return;
     void this.router.navigate([], {relativeTo:this.route, queryParams:{appType:id}, queryParamsHandling:"merge"});
   }
@@ -260,8 +297,10 @@ export class IsleStoreComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.navigation = this.route.queryParamMap.subscribe(params => {
       this.selectedType = params.get("appType");
+      if (this.selectedType === "polari-software") { void this.router.navigate(["/apps"]); return; }
       this.selected = null; this.plan = null; this.bindSecret = "";
     });
+    void this.refreshLocalDevice();
     this.refresh();
   }
 
@@ -272,11 +311,12 @@ export class IsleStoreComponent implements OnInit, OnDestroy {
   async refresh(): Promise<void> {
     this.loading = true;
     this.loadError = '';
-    const paths = ['/catalog', '', '/gaps?action=host', '/gaps?action=launcher', '/gaps?action=module'];
+    const paths = ['/catalog', '', '/gaps?action=host', '/gaps?action=launcher', '/gaps?action=module', '/devices'];
     const results = await Promise.allSettled(paths.map(path => firstValueFrom(this.http.get<any>(
       `${this.base()}/api/islemesh${path}`, this.polariService.backendRequestOptions).pipe(timeout(10000)))));
     const values = results.map(r => r.status === 'fulfilled' && r.value?.ok ? r.value : null);
     this.loading = false;
+    this.reportedDevices = (values[5]?.devices || []).filter((d: any) => !d.is_mock);
     if (!Array.isArray(values[0]?.entries)) {
       this.loadError = 'The app catalog could not be refreshed. Check your Isle connection and try again.';
       return;

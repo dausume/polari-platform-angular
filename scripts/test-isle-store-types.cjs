@@ -7,7 +7,7 @@ function load(file){
  vm.runInNewContext(code,{exports,require:name=>load(path.resolve(path.dirname(file),name+'.ts'))});return exports;
 }
 const root=path.resolve(__dirname,'../src/app/components/islemesh');
-const {buildTypeCards:build,typeId,appTargets}=load(root+'/isle-store-types.ts');
+const {buildTypeCards:build,typeId,appTargets,baselineCapability}=load(root+'/isle-store-types.ts');
 const {readCapabilityReport:read}=load(root+'/isle-device-inventory.ts');
 const app=(name,kind='mesh-app',extra={})=>({name,kind,...extra});
 const target=(device,status='ready',old=status)=>({device,status,lastReportedStatus:old,reasons:[],observationDates:['2026-10-30T00:00:00Z']});
@@ -67,12 +67,13 @@ test('sketched overview order and requirements remain visible for empty categori
  assert.equal(cards.map(c=>c.id).join(','),'mesh-app,hardware-vm,isle-vpn,polari-instance,shell-app,polari-software,hardware-extension-app,hardware-bridge');
  assert.ok(cards.every(c=>c.requirements && c.description));
 });
-test('Polari apps and modules share a page without borrowing evaluation actions',()=>{
- const a=app('app','polari-app'),m=app('mod','polari-module');
- const cards=build([a,m],[],{launcher:report([entry(a,[target('client')])]),module:report([entry(m,[target('pol')])])},true);
- const c=cards.find(c=>c.id==='polari-software');assert.equal(c.count,2);
- assert.equal(c.devices.find(d=>d.name==='client').ready,1);assert.equal(c.devices.find(d=>d.name==='pol').ready,1);
- assert.equal(cards.find(c=>c.id==='shell-app').count,1);
+test('Polari management is a destination; launchers remain Shell Apps',()=>{
+ const a=app('app','polari-app'),option=app('defined-app','polari-app-option'),m=app('mod','polari-module');
+ const cards=build([a,option,m],[],{},true);
+ const c=cards.find(c=>c.id==='polari-software');assert.equal(c.count,0);
+ assert.equal(c.title,'Polari Apps');assert.equal(c.managementRoute,'/apps');
+ assert.equal(cards.find(c=>c.id==='shell-app').count,2);
+ assert.ok(!cards.some(c=>c.id==='polari-module'));
 });
 test('VPN grouping requires explicit metadata, not a name guess',()=>{
  const cards=build([app('vpn-name'),app('link','mesh-app',{category:'isle-vpn'})],[],{},true);
@@ -84,3 +85,13 @@ test('Shell category never treats host readiness as launcher readiness',()=>{
  assert.equal(c.count,1);assert.equal(c.devices.length,0);
 });
 console.log(count+' app type tests passed');
+
+test('Polari runtime components are not external Mesh Apps',()=>{
+ const cards=build([app('external'),app('worker','mesh-app',{management_system:'polari'})],[],{},true);
+ assert.equal(cards.find(c=>c.id==='mesh-app').count,1);
+});
+test('Hardware baseline uses actual KVM/libvirt evidence, not catalog app counts',()=>{
+ const fact={status:'observed',value:true,observed_at:'2026-10-31T16:00:00Z'};
+ assert.equal(baselineCapability('hardware-vm',{capability_evidence:{facts:{'runtime.kvm.usable':fact,'runtime.libvirt.usable':fact}}}).label,'Installable');
+ assert.equal(baselineCapability('hardware-vm',null).ready,false);
+});
