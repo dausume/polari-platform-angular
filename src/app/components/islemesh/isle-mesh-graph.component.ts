@@ -303,7 +303,7 @@ export class IsleMeshGraphComponent implements AfterViewInit,
           Record<string, string>)[n.kind] || '');
       // SHORT labels inside boxes — the full label lives in the
       // detail panel (long ones caused the isle-core overlap).
-      const short = ({ proxy: 'nginx agent', router: 'router' } as
+      const short = ({ proxy: 'nginx agent', router: 'OpenWrt VM' } as
         Record<string, string>)[n.kind] || n.label;
       g.append('text').attr('class', 'node-label')
         .attr('dy', placed.r + 14)

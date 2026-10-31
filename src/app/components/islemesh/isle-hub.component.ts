@@ -50,9 +50,9 @@ import { IsleCoherenceComponent } from
     </div>
   `,
   styles: [`
-    .isle-hub { height: 100%; }
+    .isle-hub { height: auto; }
     .app-title { padding: 1rem 1rem 0; margin: 0; }
-    ::ng-deep .isle-hub .mat-mdc-tab-body-wrapper { height: 100%; }
+    ::ng-deep .isle-hub .mat-mdc-tab-body-wrapper { height: auto; }
     mat-icon { vertical-align: middle; }
   `],
 })
