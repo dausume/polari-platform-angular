@@ -31,6 +31,13 @@ describe('class-rows-action (fsc-3)', () => {
     expect(parseWeight('Infinity')).toBeNull();
   });
 
+  it('parseWeight signed (tmp-1): a negative number is kept, text and infinity still refused', () => {
+    expect(parseWeight('-40', true)).toBe(-40);
+    expect(parseWeight('-0.0039', true)).toBe(-0.0039);
+    expect(parseWeight('abc', true)).toBeNull();
+    expect(parseWeight('-Infinity', true)).toBeNull();
+  });
+
   it('rowEditable: no enabling field means editable; otherwise the field must be truthy', () => {
     expect(rowEditable(row, '')).toBeTrue();
     expect(rowEditable(row, 'editable')).toBeTrue();

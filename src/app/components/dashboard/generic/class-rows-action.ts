@@ -54,12 +54,13 @@ export function fillPath(path: string, row: any): string {
   return fillString(path || '', row, true);
 }
 
-/** A number typed into an edit box, or null when it is not a usable number >= 0 (empty, text, negative, NaN, infinite). */
-export function parseWeight(text: string): number | null {
+/** A number typed into an edit box, or null when it is not usable (empty, text, NaN, infinite, or negative unless `signed`: a temperature
+ *  of -40 C or a negative temperature coefficient is a real value - tmp-1). */
+export function parseWeight(text: string, signed = false): number | null {
   const t = (text ?? '').trim();
   if (!t) { return null; }
   const n = Number(t);
-  return Number.isFinite(n) && n >= 0 ? n : null;
+  return Number.isFinite(n) && (signed || n >= 0) ? n : null;
 }
 
 /** True when a row may be edited: no enabling field configured, or that field is truthy on the row. */

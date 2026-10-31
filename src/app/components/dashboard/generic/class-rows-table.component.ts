@@ -68,7 +68,7 @@ import { runRowAction } from './class-rows-action-run';
                 <a *ngSwitchCase="'view'" class="ref" [routerLink]="viewLink(row, column).path" [queryParams]="viewLink(row, column).query">show in view ↗</a>
                 <code-block *ngSwitchCase="'code'" [text]="raw(row, column)"></code-block>
                 <span *ngSwitchCase="'sha'" [title]="raw(row, column)">{{ cell(row, column) }}</span>
-                <input *ngSwitchCase="'edit'" class="edit" type="number" min="0" step="any" inputmode="decimal"
+                <input *ngSwitchCase="'edit'" class="edit" type="number" [attr.min]="signedRow(row) ? null : 0" step="any" inputmode="decimal"
                        [value]="raw(row, column)" [attr.aria-label]="'New ' + label(column)"
                        (change)="commitEdit(row, column, $any($event.target))" (keydown.enter)="$any($event.target).blur()">
                 <ng-container *ngSwitchCase="'json'">
@@ -235,10 +235,12 @@ export class ClassRowsTableComponent implements OnInit, OnChanges {
    * be truthy for the row's boxes to show (else the number is plain text). `rowAction` = {label, method, path, body_template, show_when_field,
    * then_scope: {key, from}}: a button in the row's last cell, same templating; `then_scope` sets scope `key` to the response's field `from`.
    * A refused call (e.g. the door's 409 "copy it first") shows the door's own words under the table and refetches, so the box never lies.
+   * `editSignedField` (tmp-1): the row field that, when truthy, lets that row's boxes take a NEGATIVE number (a temperature, a coefficient).
    */
   @Input() editFields = '';
   @Input() editAction: RowActionConfig | null = null;
   @Input() editEnabledField = '';
+  @Input() editSignedField = '';
   @Input() rowAction: RowActionConfig | null = null;
 
   /** The last edit / action outcome in words, and whether a call is in flight. */
@@ -483,15 +485,21 @@ export class ClassRowsTableComponent implements OnInit, OnChanges {
     return !!this.editAction && this.editFields.split(',').map((x) => x.trim()).includes(column) && rowEditable(row, this.editEnabledField);
   }
 
+  /** tmp-1: true when this row's boxes may take a negative number. */
+  signedRow(row: any): boolean {
+    return !!this.editSignedField && rowEditable(row, this.editSignedField);
+  }
+
   actionAllowed(row: any): boolean {
     return actionShown(row, this.rowAction);
   }
 
   /** An edit box was left: send the number to the configured door. */
   commitEdit(row: any, column: string, box: HTMLInputElement): void {
-    const n = parseWeight(box.value);
+    const signed = this.signedRow(row);
+    const n = parseWeight(box.value, signed);
     if (n === null) {
-      this.say('Type a number of 0 or more.', true);
+      this.say(signed ? 'Type a number.' : 'Type a number of 0 or more.', true);
       box.value = this.raw(row, column);
       return;
     }

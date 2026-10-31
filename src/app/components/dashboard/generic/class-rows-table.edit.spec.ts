@@ -152,4 +152,20 @@ describe('ClassRowsTableComponent — editing and row actions (fsc-3)', () => {
     component.ngOnChanges({ dataPath: { firstChange: false, previousValue: '/b', currentValue: '/b', isFirstChange: () => false } });
     expect(fetches).toBe(before + 1);
   });
+  it('tmp-1: a row whose signed field is true takes a negative number (no min on its box); other rows still refuse one', () => {
+    fetchedRows = [{ profile: 'b', term: 't_min_c', label: 'Min', weight: 0, editable: true, signed: true },
+                   { profile: 'b', term: 'power', label: 'Power', weight: 1, editable: true, signed: false }];
+    configureEdit();
+    component.editSignedField = 'signed';
+    fixture.detectChanges();
+    const [signed, plain] = boxes();
+    expect(signed.getAttribute('min')).toBeNull();
+    expect(plain.getAttribute('min')).toBe('0');
+    type(signed, '-40');
+    expect(posts.length).toBe(1);
+    expect(posts[0].body).toEqual({ name: 'b', weights: { t_min_c: -40 } });
+    type(plain, '-1');
+    expect(posts.length).toBe(1);
+    expect(component.message).toBe('Type a number of 0 or more.');
+  });
 });
