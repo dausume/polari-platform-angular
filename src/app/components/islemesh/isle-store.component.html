@@ -352,14 +352,15 @@ backend, never shown again; optional for your own servers)" />
           — installing again reinstalls/upgrades.
         </p>
         <button mat-raised-button color="primary"
-                [disabled]="installing"
+                [disabled]="installing || planLoading || !plan?.ok || !currentDevice"
                 (click)="installNative(selected)">
           <mat-icon>download</mat-icon>
           {{ installing ? 'Installing…'
+             : !plan?.ok ? 'Setup unavailable'
              : localInstalled ? 'Reinstall / upgrade'
              : 'Install on this device' }}
         </button>
-        <p class="native-hint">
+        <p class="native-hint" *ngIf="plan?.ok">
           You'll be asked for your password to install.
         </p>
         <pre class="install-log"
@@ -413,7 +414,7 @@ backend, never shown again; optional for your own servers)" />
 
       <!-- Plain browser: the copyable host command ('' = no single
            host command, e.g. AI binding flows — the plan says all) -->
-      <ng-container *ngIf="installCommand(selected)">
+      <ng-container *ngIf="plan?.ok && installCommand(selected)">
         <p class="run-hint">Or run on a device that meets this app’s requirements:</p>
         <div class="cmd">
           <code>{{ installCommand(selected) }}</code>
@@ -428,7 +429,7 @@ backend, never shown again; optional for your own servers)" />
       <div class="plan" *ngIf="planLoading">resolving plan…</div>
       <div class="plan" *ngIf="plan">
         <p class="plan-note">{{ plan.note }}</p>
-        <p class="plan-label">what it runs:</p>
+        <p class="plan-label" *ngIf="plan.steps.length">what it runs:</p>
         <pre *ngFor="let s of plan.steps">$ {{ s }}</pre>
       </div>
 

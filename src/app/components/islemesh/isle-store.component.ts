@@ -285,6 +285,7 @@ export class IsleStoreComponent implements OnInit, OnDestroy {
   }
 
   async installNative(entry: CatalogEntry): Promise<void> {
+    if (!this.currentDevice || !this.bridge.available || !this.plan?.ok || this.planLoading || this.installing || this.selected?.name !== entry.name) return;
     this.installing = true;
     this.installLog = `Requesting install of ${entry.name}… `
       + `(you'll be asked for your password)`;
