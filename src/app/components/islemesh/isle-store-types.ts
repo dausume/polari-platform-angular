@@ -80,7 +80,7 @@ export function buildTypeCards(entries: TypedApp[], devices: string[], reports: 
 export function capabilityProfile(id: string): string[] | null {
   switch (id) {
     case 'mesh-app': case 'polari-instance': return ['runtime.docker.usable','runtime.compose.usable','agent.running'];
-    case 'hardware-vm': return ['runtime.libvirt.usable','runtime.kvm.usable'];
+    case 'hardware-vm': return ['runtime.qemu.installed','runtime.libvirt.usable','runtime.kvm.usable'];
     case 'shell-app': return ['runtime.shell.installed','access.polari-frontend.https'];
     default: return null;
   }

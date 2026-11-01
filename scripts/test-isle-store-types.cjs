@@ -92,7 +92,7 @@ test('Polari runtime components are not external Mesh Apps',()=>{
 });
 test('Hardware baseline uses actual KVM/libvirt evidence, not catalog app counts',()=>{
  const fact={status:'observed',value:true,observed_at:'2026-10-31T16:00:00Z'};
- assert.equal(baselineCapability('hardware-vm',{capability_evidence:{facts:{'runtime.kvm.usable':fact,'runtime.libvirt.usable':fact}}}).label,'Installable');
+ assert.equal(baselineCapability('hardware-vm',{capability_evidence:{facts:{'runtime.qemu.installed':fact,'runtime.kvm.usable':fact,'runtime.libvirt.usable':fact}}}).label,'Installable');
  assert.equal(baselineCapability('hardware-vm',null).ready,false);
 });
 
