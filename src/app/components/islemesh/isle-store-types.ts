@@ -107,5 +107,6 @@ export function preparationProfile(id: string) {
   const profile = PREPARATION_PROFILES[id];
   return profile ? {...profile, command:'sudo isle capabilities enable '+id,
     planCommand:'isle capabilities plan '+id,
+    packageCommand:'sudo apt install ./'+profile.deb+'_0.1.0_amd64.deb',
     download:'https://apt.isle/'+profile.deb+'_0.1.0_amd64.deb'} : null;
 }

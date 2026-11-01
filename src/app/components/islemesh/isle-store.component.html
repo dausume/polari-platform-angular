@@ -53,7 +53,7 @@
           <div class="cmd"><code>{{ profile.command }}</code><button mat-icon-button (click)="copy(profile.command)" aria-label="Copy preparation command"><mat-icon>content_copy</mat-icon></button></div>
           <p>Preview missing packages without installing: <code>{{ profile.planCommand }}</code></p>
           <a [href]="profile.download">Download dependency DEB (Ubuntu 24.04, amd64)</a>
-          <p>Install the download using <code>sudo apt install ./downloaded-file.deb</code>, then run the preparation command to verify services and access. The DEB uses existing compatible Debian packages; it does not join an Isle or deploy an app.</p>
+          <p>Install the download using <code>{{ profile.packageCommand }}</code>, then run the preparation command to verify services and access. The DEB uses existing compatible Debian packages; it does not join an Isle or deploy an app.</p>
         </details>
       </section>
       <p *ngIf="!type.managementRoute && !supportsCapabilitySetup(type.id)">Preparation depends on the selected app. Open an app to see its specific requirements and setup availability.</p>
