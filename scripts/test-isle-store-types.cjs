@@ -106,3 +106,10 @@ test('Shell Apps require installation evidence, not definitions or empty module 
  assert.ok(!cards.some(c=>c.id==='polari-app'));
 });
 console.log(count+' app type tests passed');
+test('baseline preparation has local commands and versioned packages, not universal bridge/VPN promises',()=>{
+ const {preparationProfile}=load(root+'/isle-store-types.ts');
+ for(const name of ['mesh-app','polari-instance','hardware-vm','shell-app']) {
+  const p=preparationProfile(name);assert.equal(p.command,'sudo isle capabilities enable '+name);assert.match(p.download,/_0\.1\.0_amd64\.deb$/);
+ }
+ assert.equal(preparationProfile('hardware-bridge'),null);assert.equal(preparationProfile('isle-vpn'),null);
+});

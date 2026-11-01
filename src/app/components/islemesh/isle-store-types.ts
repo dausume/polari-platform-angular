@@ -95,3 +95,17 @@ export function baselineCapability(id: string, report: any): {label: string; dat
   return {label:ready ? 'Installable' : observed ? 'Capabilities needed' : 'Not yet checked',
     date:evidence.map(f => f?.observed_at || '').filter(Boolean).sort()[0] || '', ready};
 }
+
+/** Dependency packages prepare a baseline; they do not deploy apps or join an Isle. */
+export const PREPARATION_PROFILES: Record<string, {packages: string; deb: string}> = {
+  'mesh-app': {packages:'Docker Engine and Docker Compose', deb:'isle-capability-mesh'},
+  'polari-instance': {packages:'Docker Engine and Docker Compose; Polari images and modules are installed separately', deb:'isle-capability-polari'},
+  'hardware-vm': {packages:'QEMU, libvirt and KVM access; firmware virtualization and guest images are checked separately', deb:'isle-capability-kvm'},
+  'shell-app': {packages:'Polari shared shell runtime; Isle connectivity and certificate trust are checked separately', deb:'isle-capability-shell'},
+};
+export function preparationProfile(id: string) {
+  const profile = PREPARATION_PROFILES[id];
+  return profile ? {...profile, command:'sudo isle capabilities enable '+id,
+    planCommand:'isle capabilities plan '+id,
+    download:'https://apt.isle/'+profile.deb+'_0.1.0_amd64.deb'} : null;
+}

@@ -17,7 +17,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { RouterModule, Router, ActivatedRoute } from '@angular/router';
 import { firstValueFrom, timeout, Subscription } from 'rxjs';
 import { buildIsleInventory, readCapabilityReport, CAPABILITY_LABELS } from './isle-device-inventory';
-import { buildTypeCards, appTargets, matchesCategory, TypeCard, InstallReports, baselineCapability, capabilityProfile } from './isle-store-types';
+import { buildTypeCards, appTargets, matchesCategory, TypeCard, InstallReports, baselineCapability, capabilityProfile, preparationProfile } from './isle-store-types';
 
 import { PolariService } from '@services/polari-service';
 import { AiAssistantService } from
@@ -134,6 +134,7 @@ export class IsleStoreComponent implements OnInit, OnDestroy {
     const device = this.reportedDevices.find(d => d.name === name);
     return baselineCapability(id, device);
   }
+  preparationProfile = preparationProfile;
   supportsCapabilitySetup(id: string) { return capabilityProfile(id) !== null; }
   get routerHardwareInstalled(): boolean {
     const f = this.localReport?.capability_evidence?.facts?.['hardware.openwrt.running'];
@@ -309,7 +310,6 @@ export class IsleStoreComponent implements OnInit, OnDestroy {
       if (this.selectedType === "polari-software") { void this.router.navigate(["/apps"]); return; }
       this.selected = null; this.plan = null; this.bindSecret = "";
     });
-    void this.refreshLocalDevice();
     this.refresh();
   }
 
@@ -318,7 +318,6 @@ export class IsleStoreComponent implements OnInit, OnDestroy {
   }
 
   async refresh(): Promise<void> {
-    void this.refreshLocalDevice();
     this.loading = true;
     this.loadError = '';
     const paths = ['/catalog', '', '/gaps?action=host', '/gaps?action=launcher', '/gaps?action=module', '/devices'];
@@ -327,6 +326,8 @@ export class IsleStoreComponent implements OnInit, OnDestroy {
     const values = results.map(r => r.status === 'fulfilled' && r.value?.ok ? r.value : null);
     this.loading = false;
     this.reportedDevices = (values[5]?.devices || []).filter((d: any) => !d.is_mock);
+    // Finish HTTP requests before native probing, which can block the CEF callback thread.
+    void this.refreshLocalDevice();
     if (!Array.isArray(values[0]?.entries)) {
       this.loadError = 'The app catalog could not be refreshed. Check your Isle connection and try again.';
       return;

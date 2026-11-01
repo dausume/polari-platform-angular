@@ -30,9 +30,9 @@
           <button mat-stroked-button type="button" (click)="toggleDevices(type.id)"
                   [attr.aria-expanded]="expandedDevices === type.id" [attr.aria-controls]="'devices-' + type.id">Devices</button>
           <span *ngIf="currentDevice && currentCapability(type.id).ready" class="capability-ready">Installable</span>
-          <button *ngIf="supportsCapabilitySetup(type.id) && !currentCapability(type.id).ready"
+          <button *ngIf="supportsCapabilitySetup(type.id)"
                   mat-stroked-button type="button" (click)="installCapabilities(type.id)"
-                  [disabled]="!currentDevice || preparingCapabilities">Install Capabilities</button>
+                  [disabled]="!currentDevice || preparingCapabilities">{{ currentCapability(type.id).ready ? 'Verify / prepare' : 'Prepare this device' }}</button>
         </div>
       </header>
       <p *ngIf="!type.managementRoute && currentDevice && supportsCapabilitySetup(type.id)">
@@ -44,6 +44,19 @@
       </ng-container>
       <p class="type-description">{{ type.description }}</p>
       <p class="type-requirements" *ngIf="type.requirements"><strong>Requires:</strong> {{ type.requirements }}</p>
+      <section *ngIf="preparationProfile(type.id) as profile" class="profile-setup" aria-label="Prepare this device">
+        <p><strong>Shared dependencies:</strong> {{ profile.packages }}.</p>
+        <p>Preparation checks existing dependencies, installs missing ones and verifies this device. Each app still has its own requirements.</p>
+        <details>
+          <summary>Terminal command and dependency download</summary>
+          <p>Run on the device you want to prepare:</p>
+          <div class="cmd"><code>{{ profile.command }}</code><button mat-icon-button (click)="copy(profile.command)" aria-label="Copy preparation command"><mat-icon>content_copy</mat-icon></button></div>
+          <p>Preview missing packages without installing: <code>{{ profile.planCommand }}</code></p>
+          <a [href]="profile.download">Download dependency DEB (Ubuntu 24.04, amd64)</a>
+          <p>Install the download using <code>sudo apt install ./downloaded-file.deb</code>, then run the preparation command to verify services and access. The DEB uses existing compatible Debian packages; it does not join an Isle or deploy an app.</p>
+        </details>
+      </section>
+      <p *ngIf="!type.managementRoute && !supportsCapabilitySetup(type.id)">Preparation depends on the selected app. Open an app to see its specific requirements and setup availability.</p>
       <nav *ngIf="type.managementRoute" aria-label="Polari management">
         <a mat-stroked-button [routerLink]="type.managementRoute">Manage Polari Apps</a>
         <a mat-button routerLink="/module-management">Manage modules</a>
