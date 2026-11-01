@@ -78,6 +78,7 @@
           <dd>{{ selected.connectivity_mode || 'undeclared' }}</dd>
         </ng-container>
         <ng-container *ngIf="selected.kind === 'app'">
+          <dt>App type</dt><dd>{{ appType(selected) }} · {{ selected.classification_source || "reported role" }}</dd>
           <dt>Domain</dt><dd>{{ selected.domain || '—' }}</dd>
           <dt>Availability</dt>
           <dd>{{ selected.availability_mode || '—' }}</dd>
@@ -100,6 +101,27 @@
     </aside>
   </div>
 
+  <section *ngIf="graph?.resources" aria-label="Resource planning">
+    <h2>Resources for placement planning</h2>
+    <p>These are dated device reports and the existing Polari resource ledger. Availability is a snapshot,
+      not a reservation. Recheck the target before installation. Root disk space may differ from an app's storage volume.</p>
+    <article *ngFor="let entry of graph?.resources?.devices">
+      <h3>{{ entry.device }}</h3>
+      <p *ngIf="!resourceRows(entry).length">No agent resource snapshot reported yet.</p>
+      <dl>
+        <ng-container *ngFor="let row of resourceRows(entry)">
+          <dt>{{ row.label }}</dt><dd>{{ row.value | number:'1.0-0' }} · Reported {{ row.date | date:'medium' }}
+            {{ row.fresh ? '' : '— older report; recheck before placement' }}</dd>
+        </ng-container>
+        <dt>Polari workload RAM claims</dt><dd>{{ entry.consumed.ramMbTotal | number:'1.0-0' }} MiB ({{ entry.consumed.fidelity }})</dd>
+        <dt>Enforced reservations</dt><dd>Not reported by this ledger</dd>
+      </dl>
+      <p>Recorded app locations; separate resource costs still need profiles:</p>
+      <ul><li *ngFor="let app of entry.appWorkloads">{{ app.name }} · {{ app.kind }} — {{ app.costStatus }}</li></ul>
+      <p *ngIf="entry.consumed.unprofiledModules.length">Polari modules without cost profiles: {{ entry.consumed.unprofiledModules.join(', ') }}</p>
+    </article>
+    <a href="/topology">Open Polari placement planning</a>
+  </section>
   <div class="legend">
     <span><i class="dot device"></i> device box (contents run there)</span>
     <span><i class="dot segment"></i> shared segment (inferred)</span>

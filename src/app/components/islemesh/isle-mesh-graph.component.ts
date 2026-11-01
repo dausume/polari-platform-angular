@@ -34,6 +34,7 @@ interface IsleGraph {
   banner: string;
   nodes: SceneNode[];
   links: SceneLink[];
+  resources?: { devices: any[]; totals: any };
   error?: string;
 }
 
@@ -65,6 +66,17 @@ export class IsleMeshGraphComponent implements AfterViewInit,
     urls: Array<{ label: string; protocol?: string;
       upstream?: string; fragment?: string; is_mock: boolean }>;
   } | null = null;
+
+  resourceRows(entry: any): Array<{label: string; value: number; date: string; fresh: boolean}> {
+    const labels: Record<string, string> = {availableRamMb: 'Available RAM (MiB)', freeDiskMb: 'Free root disk (MiB)', ramMb: 'Total RAM (MiB)', threads: 'Logical CPUs'};
+    return Object.entries(entry?.reportedAvailability || {}).filter(([key]) => key in labels)
+      .map(([key, item]: [string, any]) => ({label: labels[key], value:item.value, date:item.observedAt, fresh:item.fresh}));
+  }
+  appType(n: SceneNode): string {
+    if (n.kind === 'router') return 'Hardware App · KVM';
+    const names: Record<string, string> = {'mesh-app':'Mesh App','polari-app':'Polari App','polari-instance':'Polari instance','shell-app':'Shell App','vpn-app':'VPN App','hardware-app':'Hardware App'};
+    return names[String(n['app_kind'])] || 'Type not reported';
+  }
 
   private resizeObserver: ResizeObserver | null = null;
   private paintedWidth = 0;
@@ -335,7 +347,7 @@ export class IsleMeshGraphComponent implements AfterViewInit,
               `translate(${placed.x},${placed.y})`)
         .on('click', () => select(n));
       g.append('circle').attr('r', placed.r)
-        .attr('fill', NODE_COLORS[n.kind] || '#455a64');
+        .attr('fill', n.kind === 'app' ? ({'mesh-app':'#1565c0','polari-app':'#00897b','polari-instance':'#00897b','shell-app':'#795548','hardware-app':'#6a1b9a','vpn-app':'#ef6c00'} as Record<string,string>)[String(n['app_kind'])] || '#607d8b' : NODE_COLORS[n.kind] || '#455a64');
       g.append('text').attr('class', 'node-glyph').attr('dy', 4)
         .text(({ proxy: 'ngx', router: '⇄', app: 'app' } as
           Record<string, string>)[n.kind] || '');
@@ -347,6 +359,10 @@ export class IsleMeshGraphComponent implements AfterViewInit,
         .attr('dy', placed.r + 14)
         .text(short.length > 16
           ? short.slice(0, 15) + '…' : short);
+      if (n.kind === 'app' || n.kind === 'router') {
+        g.append('text').attr('class', 'node-label').attr('dy', placed.r + 27)
+          .style('font-size', '9px').text(this.appType(n));
+      }
     };
     scene.boxes.forEach((b) => b.members.forEach(drawNode));
     scene.floats.forEach(drawNode);
