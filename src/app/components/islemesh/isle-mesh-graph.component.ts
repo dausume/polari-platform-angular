@@ -205,7 +205,8 @@ export class IsleMeshGraphComponent implements AfterViewInit,
         root.append('text')
           .attr('class', 'edge-iface'
             + (edge.is_mock ? ' mock' : ''))
-          .attr('x', (bx + scene.segment.x) / 2)
+          .attr('x', (bx + scene.segment.x) / 2 + 24)
+          .style('text-anchor', 'start')
           .attr('y', (by + scene.segment.y) / 2 - 5)
           .text(edge.label + ' · inferred');
       }
@@ -281,7 +282,8 @@ export class IsleMeshGraphComponent implements AfterViewInit,
       seg.append('text').attr('class', 'node-glyph')
         .attr('dy', 4).text('L2');
       seg.append('text').attr('class', 'node-label')
-        .attr('dy', 40).text(scene.segment.node.label);
+        .attr('dx', -32).attr('dy', 4).style('text-anchor', 'end')
+        .text(scene.segment.node.label);
     }
 
     // ---- serves edges (bundled) + stacked URL labels

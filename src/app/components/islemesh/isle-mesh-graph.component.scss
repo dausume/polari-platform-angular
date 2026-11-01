@@ -192,7 +192,7 @@
 
 /* ---- deterministic scene additions ---- */
 ::ng-deep .graph-canvas {
-  .edge-l2 {
+  .edge.edge-l2 {
     stroke: var(--text-on-card-muted);
     stroke-width: 14;
     stroke-dasharray: 4 3;
