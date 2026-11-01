@@ -74,7 +74,8 @@ export class IsleMeshGraphComponent implements AfterViewInit,
   }
   appType(n: SceneNode): string {
     if (n.kind === 'router') return 'Hardware App · KVM';
-    const names: Record<string, string> = {'mesh-app':'Mesh App','polari-app':'Polari App','polari-instance':'Polari instance','shell-app':'Shell App','vpn-app':'VPN App','hardware-app':'Hardware App'};
+    if (n['realization'] === 'bridge' || n['app_kind'] === 'hardware-bridge-app') return 'Hardware Bridge App';
+    const names: Record<string, string> = {'mesh-app':'Mesh App','polari-app':'Polari App','polari-instance':'Polari instance','shell-app':'Shell App','vpn-app':'VPN App','isle-vpn':'VPN App','isle-vpn-app':'VPN App','hardware-app':'Hardware App'};
     return names[String(n['app_kind'])] || 'Type not reported';
   }
 

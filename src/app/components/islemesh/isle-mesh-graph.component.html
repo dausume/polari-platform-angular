@@ -113,7 +113,7 @@
           <dt>{{ row.label }}</dt><dd>{{ row.value | number:'1.0-0' }} · Reported {{ row.date | date:'medium' }}
             {{ row.fresh ? '' : '— older report; recheck before placement' }}</dd>
         </ng-container>
-        <dt>Polari workload RAM claims</dt><dd>{{ entry.consumed.ramMbTotal | number:'1.0-0' }} MiB ({{ entry.consumed.fidelity }})</dd>
+        <dt>Profiled workload RAM claims</dt><dd>{{ entry.consumed.ramMbTotal | number:'1.0-0' }} MiB ({{ entry.consumed.fidelity }})</dd>
         <dt>Enforced reservations</dt><dd>Not reported by this ledger</dd>
       </dl>
       <p>Recorded app locations; separate resource costs still need profiles:</p>
