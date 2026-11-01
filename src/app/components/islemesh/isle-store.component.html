@@ -30,9 +30,9 @@
           <button mat-stroked-button type="button" (click)="toggleDevices(type.id)"
                   [attr.aria-expanded]="expandedDevices === type.id" [attr.aria-controls]="'devices-' + type.id">Devices</button>
           <span *ngIf="currentDevice && currentCapability(type.id).ready" class="capability-ready">Installable</span>
-          <button *ngIf="supportsCapabilitySetup(type.id)"
+          <button *ngIf="supportsCapabilitySetup(type.id) && !currentCapability(type.id).ready"
                   mat-stroked-button type="button" (click)="installCapabilities(type.id)"
-                  [disabled]="!currentDevice || preparingCapabilities">{{ currentCapability(type.id).ready ? 'Verify / prepare' : 'Prepare this device' }}</button>
+                  [disabled]="!currentDevice || preparingCapabilities">Prepare this device</button>
         </div>
       </header>
       <p *ngIf="!type.managementRoute && currentDevice && supportsCapabilitySetup(type.id)">

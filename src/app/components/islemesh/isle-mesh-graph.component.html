@@ -9,9 +9,9 @@
     <div>
       <h1>Isle mesh</h1>
       <p class="sub">
-        nginx proxies and the apps they serve — every edge label is
-        a real access URL parsed from the agent's own config
-        (the proxies ARE the policy).
+        Devices, reported interfaces and OpenWrt DNS relationships.
+        Hollow tubes show candidate physical links; dashed purple paths show expected .isle DNS.
+        The shared segment is inferred, not a discovered switch. Select a link for evidence and report time.
       </p>
     </div>
     <button mat-stroked-button (click)="refresh()"
@@ -29,7 +29,7 @@
     <aside class="detail" *ngIf="selectedEdge">
       <h2>
         <span class="kind-chip kind-{{ selectedEdge.kind }}">
-          {{ selectedEdge.kind === 'l2' ? 'L2 link' : 'serves' }}</span>
+          {{ selectedEdge.kind === 'l2' ? 'Physical link' : selectedEdge.kind === 'dns' ? 'DNS' : 'serves' }}</span>
         {{ selectedEdge.title }}
         <span class="mock-chip" *ngIf="selectedEdge.is_mock">MOCK</span>
       </h2>
@@ -56,6 +56,16 @@
         <span class="mock-chip" *ngIf="selected.is_mock">MOCK</span>
       </h2>
       <dl>
+        <ng-container *ngIf="selected.detection">
+          <dt>Evidence</dt><dd>{{ selected.detection }} — {{ selected.evidence }}</dd>
+        </ng-container>
+        <ng-container *ngIf="selected.reported_at">
+          <dt>Last report</dt><dd>{{ $any(selected.reported_at) | date:'medium' }}</dd>
+        </ng-container>
+        <ng-container *ngFor="let uplink of $any(selected.uplinks || [])">
+          <dt>{{ uplink.medium }} · {{ uplink.interface }}</dt>
+          <dd>{{ uplink.link_up ? 'Carrier reported up' : 'Carrier reported down' }} · {{ uplink.reported_at | date:'medium' }}. Physical peer not identified.</dd>
+        </ng-container>
         <ng-container *ngIf="selected.device">
           <dt>Device</dt><dd>{{ selected.device }}</dd>
         </ng-container>
@@ -92,10 +102,12 @@
 
   <div class="legend">
     <span><i class="dot device"></i> device box (contents run there)</span>
-    <span><i class="dot segment"></i> isle L2 segment (switch)</span>
+    <span><i class="dot segment"></i> shared segment (inferred)</span>
     <span><i class="dot proxy"></i> nginx proxy (isle-agent)</span>
     <span><i class="dot router"></i> OpenWRT router</span>
     <span><i class="dot app"></i> app</span>
+    <span>Hollow tube = candidate physical link</span>
+    <span><i class="dot router"></i> dashed purple = expected DNS, not a measured packet path</span>
     <span class="mock-key">dashed amber = mock</span>
   </div>
 </div>

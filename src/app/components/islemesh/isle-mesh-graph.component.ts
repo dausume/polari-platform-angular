@@ -156,11 +156,17 @@ export class IsleMeshGraphComponent implements AfterViewInit,
     const select = (n: SceneNode) =>
       this.zone.run(() => this.select(n));
 
-    // ---- l2 edges (under everything): box edge → segment hub
+    const port = (b: Scene['boxes'][number]) => {
+      const x = b.x + b.w / 2, y = b.y + b.h / 2;
+      const dx = (scene.segment?.x || 0) - x, dy = (scene.segment?.y || 0) - y;
+      const t = Math.min(dx ? b.w / 2 / Math.abs(dx) : Infinity,
+                         dy ? b.h / 2 / Math.abs(dy) : Infinity);
+      return { x: x + dx * t, y: y + dy * t };
+    };
+    // Hollow physical-link candidates. Interior leaves room for DNS overlays.
     if (scene.segment) {
       for (const edge of scene.l2) {
-        const bx = edge.from.x + edge.from.w / 2;
-        const by = edge.from.y + edge.from.h / 2;
+        const { x: bx, y: by } = port(edge.from);
         root.append('line')
           .attr('class', 'edge edge-l2'
             + (edge.is_mock ? ' mock' : ''))
@@ -168,22 +174,27 @@ export class IsleMeshGraphComponent implements AfterViewInit,
           .attr('x2', scene.segment.x)
           .attr('y2', scene.segment.y);
         root.append('line')
+          .attr('class', 'tube-interior')
+          .attr('x1', bx).attr('y1', by)
+          .attr('x2', scene.segment.x).attr('y2', scene.segment.y);
+        root.append('line')
           .attr('class', 'edge-hit')
           .attr('x1', bx).attr('y1', by)
           .attr('x2', scene.segment.x)
           .attr('y2', scene.segment.y)
           .on('click', () => this.zone.run(() => this.selectEdge({
             kind: 'l2', is_mock: edge.is_mock,
-            title: `${edge.from.device} — isle L2 segment`,
-            urls: [{ label: `interface ${edge.label}`,
-              is_mock: edge.is_mock }],
+            title: `${edge.from.device} — candidate physical link`,
+            urls: [{ label: edge.label, is_mock: edge.is_mock },
+              { label: edge.link.evidence || 'Physical path not verified', is_mock: edge.is_mock },
+              { label: 'Last reported: ' + (edge.link.reported_at || 'not supplied'), is_mock: edge.is_mock }],
           })));
         root.append('text')
           .attr('class', 'edge-iface'
             + (edge.is_mock ? ' mock' : ''))
           .attr('x', (bx + scene.segment.x) / 2)
           .attr('y', (by + scene.segment.y) / 2 - 5)
-          .text(edge.label);
+          .text(edge.label + ' · inferred');
       }
     }
 
@@ -217,6 +228,33 @@ export class IsleMeshGraphComponent implements AfterViewInit,
       .attr('x', (b: any) => b.w / 2)
       .attr('y', (b: any) => (30 + b.h) / 2 + 4)
       .text('no isle containers yet');
+
+    // DNS is a logical service relationship, never a physical cable.
+    // Cross-device paths use the same ports and segment as the hollow tubes.
+    for (const dns of scene.dns) {
+      const a = scene.boxes.find(b => b.device === dns.from.node.device);
+      const b = scene.boxes.find(b => b.device === dns.to.node.device);
+      const cross = a && b && a !== b;
+      const connected = a && b && scene.l2.some(e => e.from === a) && scene.l2.some(e => e.from === b);
+      let points = [dns.from, dns.to].map(n => [n.x, n.y]);
+      if (cross && connected && scene.segment) {
+        const ap = port(a!), bp = port(b!);
+        points = [[dns.from.x, dns.from.y], [ap.x, ap.y],
+          [scene.segment.x, scene.segment.y], [bp.x, bp.y], [dns.to.x, dns.to.y]];
+      }
+      const path = 'M ' + points.map(p => p.join(' ')).join(' L ');
+      const line = root.append('path').attr('d', path)
+        .attr('class', 'edge-dns' + (dns.link.is_mock ? ' mock' : ''));
+      line.append('title').text(dns.link.label + ' — ' + dns.link.evidence);
+      root.append('path').attr('d', path).attr('class', 'edge-hit')
+        .on('click', () => this.zone.run(() => this.selectEdge({
+          kind: 'dns', title: dns.link.label, is_mock: dns.link.is_mock,
+          urls: [
+            { label: dns.link.evidence || 'Resolver path not verified', is_mock: dns.link.is_mock },
+            { label: 'Last agent report: ' + (dns.link.reported_at || 'not supplied'), is_mock: dns.link.is_mock },
+          ],
+        })));
+    }
 
     // ---- segment hub
     if (scene.segment) {

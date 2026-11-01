@@ -24,6 +24,10 @@ export interface SceneLink {
   target: string;
   kind: string;
   label: string;
+  detection?: string;
+  evidence?: string;
+  reported_at?: string;
+  medium?: string;
   protocol?: string;
   upstream?: string;
   fragment?: string;
@@ -61,6 +65,7 @@ export interface ServesBundle {
 }
 
 export interface L2Edge {
+  link: SceneLink;
   from: DeviceBox;
   label: string;
   is_mock: boolean;
@@ -70,6 +75,7 @@ export interface Scene {
   boxes: DeviceBox[];
   floats: PlacedNode[];
   segment: { x: number; y: number; node: SceneNode } | null;
+  dns: Array<{ from: PlacedNode; to: PlacedNode; link: SceneLink }>;
   serves: ServesBundle[];
   l2: L2Edge[];
   bbox: { x: number; y: number; w: number; h: number };
@@ -205,7 +211,7 @@ export function buildScene(nodes: SceneNode[],
     const dev = byId.get(link.source);
     const box = boxes.find((b) => b.device === dev?.device);
     if (box) {
-      l2.push({ from: box, label: link.label,
+      l2.push({ link, from: box, label: link.label,
         is_mock: link.is_mock });
     }
   }
@@ -224,6 +230,11 @@ export function buildScene(nodes: SceneNode[],
     maxY = Math.max(maxY, f.y + 60);
   });
 
-  return { boxes, floats, segment, serves, l2,
+  const dns = links.filter(l => l.kind === 'dns')
+    .flatMap(link => {
+      const from = placedById.get(link.source), to = placedById.get(link.target);
+      return from && to ? [{ from, to, link }] : [];
+    });
+  return { boxes, floats, segment, serves, l2, dns,
     bbox: { x: minX, y: minY, w: maxX - minX, h: maxY - minY } };
 }
