@@ -9,7 +9,7 @@ import { DragDropModule, CdkDragDrop } from '@angular/cdk/drag-drop';
  <section class="device-lane" *ngFor="let name of names" [class.unassigned]="!name">
   <header><span class="device-symbol" aria-hidden="true">{{name ? '▣' : '＋'}}</span><div><h4>{{name===':deferred' ? 'Deferred' : name || 'Unassigned'}}</h4><small>{{on(name).length}} apps · {{name ? 'Desired placement' : 'Drag onto a device'}}</small></div></header>
   <div class="drop-zone" cdkDropList [cdkDropListData]="name" [cdkDropListSortingDisabled]="true" (cdkDropListDropped)="drop($event)">
-   <article *ngFor="let item of on(name);trackBy:identify" class="placement-card" cdkDrag [cdkDragData]="item" (cdkDragStarted)="dragging=true" (cdkDragEnded)="dragging=false" (contextmenu)="context($event,item)" [class.existing]="item.state==='existing'">
+   <article *ngFor="let item of on(name);trackBy:identify" class="placement-card" cdkDrag [cdkDragData]="item" [cdkDragConstrainPosition]="constrainDrag" (cdkDragStarted)="dragging=true" (cdkDragEnded)="dragging=false" (contextmenu)="context($event,item)" [class.existing]="item.state==='existing'">
     <button class="grip" cdkDragHandle aria-label="Drag app to a device" title="Drag to another device">⠿</button>
     <button class="card-details" (click)="choose.emit(item)"><strong>{{item.title}}</strong><span>{{item.kind==='task' ? 'Planning task' : item.kind==='polari' ? 'Polari app' : 'Isle app'}} · {{item.state}}</span><small>{{item.ramMiB ?? '—'}} MiB RAM · {{item.cpus ?? '—'}} CPU</small></button>
     <button class="card-menu" aria-label="App actions" (click)="menu.emit({item:item,x:$event.clientX,y:$event.clientY})">⋮</button>
@@ -33,6 +33,7 @@ import { DragDropModule, CdkDragDrop } from '@angular/cdk/drag-drop';
 export class IslePlannedTopologyComponent {
  @Input() items:any[]=[];@Input() devices:any[]=[];@Output() choose=new EventEmitter<any>();@Output() menu=new EventEmitter<any>();@Output() moved=new EventEmitter<any>();
  dragging=false;
+ constrainDrag=(point:any,_drag:any,rect:any,pickup:any)=>({x:Math.max(pickup.x,Math.min(point.x,window.innerWidth-Math.min(window.innerWidth,310)+pickup.x)),y:Math.max(pickup.y,Math.min(point.y,window.innerHeight-rect.height+pickup.y))});
  identify(_index:number,item:any){return item.id;}
  drop(event:CdkDragDrop<string>){if(event.previousContainer!==event.container)this.moved.emit({item:event.item.data,device:event.container.data});}
  context(event:MouseEvent,item:any){event.preventDefault();this.menu.emit({item,x:event.clientX,y:event.clientY});}
