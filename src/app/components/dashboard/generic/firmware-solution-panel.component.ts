@@ -57,7 +57,7 @@ interface SolutionDetail {
 }
 /** fs-2d (his ask, verbatim: "our tasks to be linked to their no-code solutions that compose them") — the reverse
  * link from a task to where it is COMPOSED: the CGraph + the node it IS, the canvas route that opens straight at
- * it, any SolutionDefinition/HardwareSolution over the same graph, and which Purposes name it (D-ucd-12). Backend:
+ * it, any SolutionDefinition/HardwareNoCodeSolution over the same graph, and which Purposes name it (D-ucd-12). Backend:
  * GET /api/firmware/solutions/{name}'s `schedule`/`assignments` rows (cmod_firmware_api.FirmwareAPI._composed_by)
  * — `purposes` and the deprecated `capabilities` carry the same names. */
 interface ComposedBy { graph: string; node: string; canvas_route: string; solution: string; capabilities: string[]; purposes: string[]; advice?: string; }

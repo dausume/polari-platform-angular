@@ -280,7 +280,7 @@ export interface HeaderSolutionOpener {
 
 /**
  * ucd-hdr follow-up: the header's OPEN decision — ported from the deleted c-graph-canvas-panel's
- * openSolutionFor(). With a `solution` argument, open that REAL, already-seeded HardwareSolution
+ * openSolutionFor(). With a `solution` argument, open that REAL, already-seeded HardwareNoCodeSolution
  * drawing by name (never re-synthesized) — persist=false (selfix 2026-10-05, prf-urgent, carried
  * over verbatim): this header shares the GLOBAL NoCodeSolutionStateService singleton with the
  * plain /custom-no-code editor route, so selecting with persist=true would write this page's
@@ -458,7 +458,7 @@ export class CustomNoCodeComponent implements OnInit, OnChanges, AfterViewInit, 
    *  route, or any other object/solution) leaves the Object/Solution selectors in charge as before. */
   @Input() graph: string = '';
   /** ucd-hdr follow-up (ported from the deleted c-graph-canvas-panel's demo-4b "both ways" adapter,
-   *  its `solution` input): when set, opens that REAL, already-seeded HardwareSolution drawing by
+   *  its `solution` input): when set, opens that REAL, already-seeded HardwareNoCodeSolution drawing by
    *  name instead of the synthetic atoms-only solution — its own SolutionDefinition already carries
    *  the mixed board/bridge/backend nodes (hwnocode_page.py's /display/hardware-solutions). Wins
    *  outright over `graph` when both are set (dispatchHeaderSolution). The Runtime select then

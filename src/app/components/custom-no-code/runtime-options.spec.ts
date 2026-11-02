@@ -137,7 +137,7 @@ describe('custom-no-code — deriveRuntimeForSolution (the Runtime select deriva
 /**
  * ucd-hdr follow-up — the deleted c-graph-canvas-panel's `solution` input mode (demo-4b's "both
  * ways" adapter), ported into custom-no-code's dispatchHeaderSolution(): with a `solution` name,
- * open that REAL HardwareSolution drawing directly (selectSolution(name, false) — persist=false —
+ * open that REAL HardwareNoCodeSolution drawing directly (selectSolution(name, false) — persist=false —
  * then applyLanes); `solution` wins outright over `graph` when both are given (hwnocode_page.py's
  * own shape). Exported standalone (the opener is an injected seam) so the DISPATCH decision specs
  * without mounting CustomNoCodeComponent's heavy dependency graph.
