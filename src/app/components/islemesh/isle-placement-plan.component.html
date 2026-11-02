@@ -1,56 +1,60 @@
 <ng-container *ngIf="queueOnly; else planningBoard">
-<section *ngIf="queue.length" class="planned-here">
+<section *ngIf="queue.length || removals.length" class="planned-here">
  <h2>Planned for this device · {{currentDevice}}</h2><p>{{saved.title}} · Saved {{saved.updatedAt | date:'medium'}}</p>
- <article *ngFor="let item of queue"><h3>{{item.title}}</h3><p>{{cost(item)}} · {{item.notes}}</p>
+ <h3 *ngIf="queue.length">Planned additions</h3><article *ngFor="let item of queue"><h3>{{item.title}}</h3><p>{{cost(item)}} · {{item.notes}}</p>
  <button mat-stroked-button *ngIf="item.kind==='catalog' && catalogEntry(item.app)" (click)="review.emit(item.app)">Review local installation</button>
  <a *ngIf="item.kind==='polari'" routerLink="/module-management">Open Polari module management</a>
  <p *ngIf="item.kind==='task'">Planning task · no installation action</p></article>
+ <h3 *ngIf="removals.length">Planned removals</h3><article *ngFor="let item of removals"><strong>{{item.title}}</strong><p>Excluded from the active plan on {{currentDevice}}. Review before uninstalling; data is preserved by the normal uninstall action.</p><button mat-stroked-button (click)="review.emit(item.app)">Review local removal</button></article>
  <a routerLink="/isle" [queryParams]="{tab:'planning'}">Open Planning tab</a>
 </section></ng-container>
 <ng-template #planningBoard>
 <section class="planner">
 <header><div><h2>Plan apps across your Isle</h2><p>Add apps, adjust their resource allowance, then drag them onto devices.</p></div>
-<button mat-stroked-button (click)="load()" [disabled]="busy">Reload reports and plan</button><button mat-raised-button (click)="save()" [disabled]="busy || !loaded">Save plan{{dirty ? ' *' : ''}}</button></header>
+<button mat-stroked-button (click)="load()" [disabled]="busy">Reload reports and plan</button><button mat-raised-button (click)="openSave()" [disabled]="busy || !loaded">Save plan…{{dirty ? ' *' : ''}}</button><button mat-stroked-button (click)="openLibrary()" [disabled]="busy">Saved plans…</button><button mat-stroked-button *ngIf="!draft.active || inspection" (click)="planDialog='activate'" [disabled]="busy || dirty">Make active…</button></header>
+<p><strong>{{draft.active ? 'Active plan' : 'Inactive plan'}}</strong><span *ngIf="inspection"> · inspecting saved revision</span></p>
 <p class="notice">Planning changes do not install, remove or migrate running apps. Resource allowances are planning budgets; installation stays local to each device.</p>
 <p role="status">{{message}}</p><label>Plan name <input [(ngModel)]="draft.title" (ngModelChange)="dirty=true" maxlength="120"></label>
 <p *ngIf="draft.updatedAt">Saved {{draft.updatedAt | date:'medium'}} · revision {{draft.revision}}</p>
-<app-isle-planned-topology [items]="draft.items" [devices]="devices" (choose)="selected=$event" (menu)="showMenu($event)" (moved)="move($event.item,$event.device)"></app-isle-planned-topology>
 <div class="workspace">
 <aside><h3>Add apps</h3><input aria-label="Search apps to plan" placeholder="Search apps" [(ngModel)]="search"><div class="app-list">
-<article *ngFor="let app of filteredCatalog"><strong>{{app.title || app.name}}</strong><small>{{app.kind}} · {{app.management_system==='polari' ? 'Managed by Polari' : 'Isle app'}}</small><small>{{app.planningRequirements?.complete ? 'Resource minimums defined' : 'Resource minimums incomplete'}}</small><button mat-stroked-button (click)="addApp(app)" [disabled]="!loaded || busy || draft.items.length>=128">Add to plan</button></article></div></aside>
+<article *ngFor="let app of filteredCatalog"><strong>{{app.title || app.name}}</strong><small>{{app.kind}} · {{app.management_system==='polari' ? 'Managed by Polari' : 'Isle app'}}</small><small>{{app.planningRequirements?.complete ? 'Resource minimums defined' : 'Resource minimums incomplete'}}</small><small *ngIf="app.observedUsage?.length">Runtime observations available · {{app.observedUsage.length}} device/version groups</small><button mat-stroked-button (click)="addApp(app)" [disabled]="!loaded || busy || draft.items.length>=128">Add to plan</button></article></div></aside>
 <div class="board">
-<section class="unassigned" (dragover)="allowDrop($event)" (drop)="drop($event,'')"><h3>Unassigned apps · {{items('').length}}</h3><p>Drop here to clear a proposed device assignment.</p><ng-container *ngFor="let item of items('')"><ng-container *ngTemplateOutlet="appCard;context:{$implicit:item}"></ng-container></ng-container></section>
+<app-isle-planned-topology [items]="draft.items" [devices]="devices" (choose)="selected=$event" (menu)="showMenu($event)" (moved)="move($event.item,$event.device)"></app-isle-planned-topology>
 <div *ngIf="selected" class="modal-shade" (click)="selected=null"></div><section *ngIf="selected as item" class="editor" role="dialog" aria-modal="true" aria-label="Planned app details" (keydown.escape)="selected=null"><header><h3>{{item.title}}</h3><button mat-button (click)="selected=null">Close details</button></header>
 <div class="fields"><label>Device<select [ngModel]="item.device" (ngModelChange)="move(item,$event)"><option value="">Unassigned</option><option *ngFor="let device of devices" [value]="device.device">{{device.device}}</option></select></label>
-<label>Stage<select [(ngModel)]="item.state" (ngModelChange)="dirty=true"><option value="planned">Planned addition / move</option><option value="existing">Keep existing</option><option value="deferred">Deferred</option></select></label>
+<label>Stage<select [ngModel]="item.state" (ngModelChange)="setStage(item,$event)"><option value="planned">Planned addition / move</option><option value="existing">Keep existing</option><option value="deferred">Deferred</option></select></label>
 <label>Storage mount<input [(ngModel)]="item.volume" (ngModelChange)="dirty=true"></label></div>
 <h4>App-defined resource allowance · {{item.multiplier || 1 | number:'1.0-2'}}× minimum</h4>
 <input class="allowance" type="range" min="1" max="2" step="0.05" aria-label="App resource allowance multiplier" [disabled]="!hasMinimum(item)" [ngModel]="item.multiplier || 1" (ngModelChange)="scale(item,$event)">
 <div class="range-labels"><span>Minimum · 1×</span><span>Double · 2×</span></div>
 <p>Minimum: {{minimumText(item)}}</p><p>Planned: {{cost(item)}}</p><small>{{requirements(item)?.source || 'No app resource profile published yet. Slider unavailable until minima are defined.'}}</small>
 <p *ngIf="!requirements(item)?.complete" class="warning">Some resource minimums are missing. Placement is a draft, not verified capacity.</p>
-<p *ngIf="!item.requirementsBased">This saved item contains a legacy estimate, not an app-defined minimum.</p>
+<p *ngIf="!item.requirementsBased">This item uses an estimated budget, not an app-defined minimum.</p>
+<details open><summary>Observed usage on this Isle</summary><p *ngIf="!observed(item).length">No attributable runtime samples yet. Shared Polari module memory is not treated as per-app usage.</p><article *ngFor="let row of observed(item)"><strong>{{row.device}}</strong><small>Last sample {{row.lastAt | date:'medium'}} · version {{row.version.slice(0,19)}} · first {{row.firstAt | date:'medium'}}</small><p *ngIf="row.metrics.ramMiB as m">RAM: average {{m.mean | number:'1.0-1'}} MiB · sampled peak {{m.peak | number:'1.0-1'}} MiB · {{m.count}} samples</p><p *ngIf="row.metrics.cpus as m">CPU: average {{m.mean | number:'1.0-2'}} cores · sampled peak {{m.peak | number:'1.0-2'}} · {{m.count}} samples</p><button mat-stroked-button (click)="useObserved(item,row)">Use observed estimate</button><small>Uses peak or average +25%, whichever is larger, and respects known minima. Short samples may miss bursts; storage and minimum requirements remain separate.</small></article></details>
 <details><summary>App dependencies</summary><p *ngFor="let need of requirements(item)?.dependencies">{{need.dep}} · {{need.check}} {{need.value}}</p><p *ngIf="!requirements(item)?.dependenciesComplete">The app dependency declaration is incomplete.</p></details>
 <label>Notes<textarea [(ngModel)]="item.notes" (ngModelChange)="dirty=true" maxlength="2000"></textarea></label>
 <button mat-button (click)="requestAction('remove',item)">Remove from plan</button></section>
-<div class="devices"><article class="device" *ngFor="let device of devices" (dragover)="allowDrop($event)" (drop)="drop($event,device.device)">
-<h3>{{device.device}}</h3><p class="drop-hint">Drop an app here to plan its placement</p>
+<details class="baseline-details"><summary>Reported baseline and additional resource budget</summary><div class="devices"><article class="device" *ngFor="let device of devices" (dragover)="allowDrop($event)" (drop)="drop($event,device.device)">
+<h3>{{device.device}}</h3>
 <h4>Reported baseline + planned additions</h4><app-isle-resource-view [entries]="[device]" [compact]="true" [planned]="planned(device.device)"></app-isle-resource-view>
-<div class="device-apps"><ng-container *ngFor="let item of items(device.device)"><ng-container *ngTemplateOutlet="appCard;context:{$implicit:item}"></ng-container></ng-container><p *ngIf="!items(device.device).length">No apps assigned in this plan.</p></div>
 <section *ngIf="budget(device.device) as b" class="budget"><strong>Additional planned resources</strong><p>{{b.cost}}</p><p>{{b.ram}}</p><p>{{b.disk}}</p><p>{{b.cpu}}</p><strong>{{b.warning}}</strong></section>
-</article></div>
+</article></div></details>
 <p *ngIf="!devices.length">No devices have reported. Refresh the device reports to create placement targets.</p>
 <p>Existing apps remain included in observed usage even when removed from this plan. Moving an app does not claim resources have already been freed on its original device.</p>
 </div></div>
 </section>
 </ng-template>
-<ng-template #appCard let-item><article class="app-card" (contextmenu)="openMenu($event,item)" draggable="true" (dragstart)="startDrag($event,item)" (dragend)="dragged=''" [class.selected]="selected===item">
-<button class="app-title" (click)="selected=item">⠿ {{item.title}}</button><small>{{item.state}}<ng-container *ngIf="item.originDevice"> · currently on {{item.originDevice}}</ng-container></small><small>{{cost(item)}}</small>
-<div><button mat-button (click)="selected=item">Details</button><button mat-button (click)="requestAction('move',item)">Move</button><button mat-button (click)="requestAction('remove',item)">Remove</button></div></article></ng-template>
-
 <ng-container *ngIf="menu"><div class="menu-dismiss" (click)="menu=null" (contextmenu)="$event.preventDefault();menu=null"></div><div class="node-menu" role="menu" [style.left.px]="menu.x" [style.top.px]="menu.y" (keydown.escape)="menu=null">
 <button role="menuitem" (click)="selected=menu.item;menu=null">App details</button><button role="menuitem" (click)="requestAction('move',menu.item)">Move to device…</button><button role="menuitem" (click)="requestAction('remove',menu.item)">Remove from plan…</button></div></ng-container>
 <ng-container *ngIf="action as a"><div class="modal-shade" (click)="action=null"></div><section class="action-dialog" role="dialog" aria-modal="true" [attr.aria-label]="a.kind==='move'?'Move planned app':'Confirm planned app removal'" (keydown.escape)="action=null"><h2>{{a.kind==='move'?'Move':'Remove'}} {{a.item.title}}</h2>
 <ng-container *ngIf="a.kind==='move'"><label>Planned destination<select [(ngModel)]="moveTarget"><option value="">Unassigned</option><option *ngFor="let device of devices" [value]="device.device">{{device.device}}</option></select></label><p>Projected resources will move to the selected device. The running app will stay where it is until deployment.</p></ng-container>
 <p *ngIf="a.kind==='remove'">Remove this app from {{a.item.device || 'Unassigned'}} in the desired plan? Its planned resources will be removed from the projection. This will not uninstall the running app.</p>
 <button mat-button (click)="action=null">Cancel</button><button mat-raised-button (click)="confirmAction()">{{a.kind==='move'?'Confirm move':'Confirm removal'}}</button></section></ng-container>
+
+<ng-container *ngIf="safetyMessage"><div class="modal-shade" (click)="safetyMessage=''"></div><section class="action-dialog" role="alertdialog" aria-modal="true" aria-label="Required Isle service"><h2>Required Isle service</h2><p>{{safetyMessage}}</p><button mat-raised-button (click)="safetyMessage=''">Keep service</button></section></ng-container>
+<ng-container *ngIf="planDialog"><div class="modal-shade" (click)="planDialog=''"></div><section class="action-dialog" role="dialog" aria-modal="true" aria-label="Saved plans">
+<ng-container *ngIf="planDialog==='save'"><h2>Save plan</h2><label>Plan name<input [(ngModel)]="planName" maxlength="120"></label><p>Saving a new copy keeps it inactive. Updating this plan retains its previous revisions.</p><button mat-stroked-button (click)="save(false)" [disabled]="busy || inspection">Update this plan</button><button mat-raised-button (click)="save(true)" [disabled]="busy">Save new copy</button></ng-container>
+<ng-container *ngIf="planDialog==='library'"><h2>Saved plans</h2><p>Inspect any saved revision without changing the active plan. The latest eight revisions of each plan are retained.</p><article *ngFor="let p of library?.plans"><h3>{{p.title}} <small>{{p.active?'Active':'Inactive'}}</small></h3><button mat-stroked-button (click)="inspectPlan(p.id,p.revision)">Inspect latest</button><details><summary>Older revisions</summary><button mat-button *ngFor="let v of p.versions" (click)="inspectPlan(p.id,v.revision)">Revision {{v.revision}} · {{v.updatedAt | date:'medium'}}</button></details></article></ng-container>
+<ng-container *ngIf="planDialog==='activate'"><h2>Make this the active plan?</h2><p>{{saved.title}} · revision {{saved.revision}}</p><p>This replaces the planned additions and removals shown on all devices. Running apps remain unchanged. Only the latest saved revision can be activated.</p><button mat-raised-button (click)="activate()" [disabled]="busy">Confirm active plan</button></ng-container>
+<button mat-button (click)="planDialog=''">Close</button></section></ng-container>

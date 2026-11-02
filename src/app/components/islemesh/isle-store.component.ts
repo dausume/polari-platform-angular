@@ -268,11 +268,14 @@ export class IsleStoreComponent implements OnInit, OnDestroy {
 
   async uninstallNative(entry: CatalogEntry,
                         purge: boolean): Promise<void> {
+    if(!confirm('Uninstall '+entry.title+' from '+this.currentDevice+'? '+(purge?'App data will be backed up and erased.':'App data will be preserved.')))return;
     this.uninstalling = true;
     this.installLog = `Requesting uninstall of ${entry.name}… `
       + `(you'll be asked for your password)`;
     this.installOk = null;
     try {
+      const guard:any=await firstValueFrom(this.http.get(this.polariService.getBackendBaseUrl()+'/api/islemesh/removal-check?app='+encodeURIComponent(entry.name)+'&device='+encodeURIComponent(this.currentDevice),this.polariService.backendRequestOptions).pipe(timeout(10000)));
+      if(!guard.ok||!guard.allowed)throw Error((guard.reasons||[]).join(' ')||'Removal could not be verified.');
       const res = await this.bridge.uninstall(entry.name, purge);
       this.installOk = !!res.ok;
       this.installLog = (res.output || res.error

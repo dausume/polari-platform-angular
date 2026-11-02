@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
@@ -15,13 +15,15 @@ import { IsleResourceViewComponent } from './isle-resource-view.component';
 export class IslePlacementPlanComponent implements OnInit {
  @Input() currentDevice=''; @Input() catalog:any[]=[]; @Input() queueOnly=false;
  @Output() review=new EventEmitter<string>();
- busy=false;loaded=false;message='';resources:any[]=[];search='';selected:any=null;dragged='';dirty=false; menu:any=null; action:any=null; moveTarget='';
+ busy=false;loaded=false;message='';resources:any[]=[];search='';selected:any=null;dragged='';dirty=false; menu:any=null; action:any=null; moveTarget='';library:any=null;planDialog='';planName='';inspection=false;usageHistory:any[]=[];safetyMessage='';
  saved:any={title:'Isle deployment plan',revision:0,items:[]};draft:any=structuredClone(this.saved);
  constructor(private http:HttpClient,private polari:PolariService){}
  ngOnInit(){void this.load();}
+ @HostListener('window:isle-plan-changed') planChanged(){if(this.queueOnly)void this.load();}
  get installCatalog(){return this.catalog.filter(a=>!a.is_mock);}
  get filteredCatalog(){const s=this.search.toLowerCase();return this.installCatalog.filter(a=>(a.title+' '+a.name+' '+a.kind).toLowerCase().includes(s));}
  catalogEntry(name:string){return this.installCatalog.find(a=>a.name===name);}
+ get removals(){return (this.saved.removals||[]).filter((i:any)=>i.device===this.currentDevice && (!this.catalogEntry(i.app) || (this.catalogEntry(i.app).instances||[]).some((r:any)=>r.device===this.currentDevice)));}
  get queue(){return this.currentDevice?this.saved.items.filter((i:any)=>i.device===this.currentDevice && i.state==='planned'):[];}
  url(path:string){return this.polari.getBackendBaseUrl()+'/api/islemesh/'+path;}
  async load(){if(this.dirty && !confirm('Discard unsaved planning changes and reload?'))return;this.busy=true;
@@ -29,12 +31,20 @@ export class IslePlacementPlanComponent implements OnInit {
  if(!this.queueOnly){
  const results=await Promise.allSettled(['catalog','graph'].map(path=>firstValueFrom(this.http.get<any>(this.url(path),this.polari.backendRequestOptions).pipe(timeout(10000)))));
  const c=results[0],g=results[1];
- if(c.status==='fulfilled'&&c.value.ok)this.catalog=c.value.entries;else this.message+=' App definitions could not be refreshed.';
+ if(c.status==='fulfilled'&&c.value.ok){this.catalog=c.value.entries;this.usageHistory=c.value.usageHistory||[];}else this.message+=' App definitions could not be refreshed.';
  if(g.status==='fulfilled'&&g.value.ok)this.resources=g.value.resources?.devices||[];else this.message+=' Resource reports could not be refreshed.';
  if(this.loaded && c.status==='fulfilled' && g.status==='fulfilled' && !this.draft.baselineInitialized)this.seedExisting();
  }
  this.busy=false;}
- async save(){this.busy=true;try{const p:any=await firstValueFrom(this.http.put(this.url('placement-plan'),this.draft,this.polari.backendRequestOptions).pipe(timeout(10000)));if(!p.ok)throw Error(p.error);this.saved=p.plan;this.draft=structuredClone(p.plan);this.selected=null;this.dirty=false;this.message='Shared plan saved. Running apps are unchanged. Review planned additions locally on each device.';}catch(e:any){this.message=e.error?.error||e.message;}this.busy=false;}
+ openSave(){this.planName=this.draft.title;this.planDialog='save';}
+ async save(asNew=false){this.busy=true;try{const payload={...this.draft,title:this.planName||this.draft.title,operation:asNew?'saveAs':'save'};const p:any=await firstValueFrom(this.http.put(this.url('placement-plan'),payload,this.polari.backendRequestOptions).pipe(timeout(10000)));if(!p.ok)throw Error(p.error);this.saved=p.plan;this.draft=structuredClone(p.plan);this.selected=null;this.dirty=false;this.inspection=false;this.planDialog='';window.dispatchEvent(new Event('isle-plan-changed'));this.message=p.plan.active?'Active plan saved. Planned additions and removals are available locally on each device.':'Inactive plan saved. Activate it to publish its planned changes.';}catch(e:any){this.message=e.error?.error||e.message;}this.busy=false;}
+ async openLibrary(){try{this.library=await firstValueFrom(this.http.get(this.url('plan-library'),this.polari.backendRequestOptions).pipe(timeout(10000)));this.planDialog='library';}catch(e:any){this.message=e.error?.error||e.message;}}
+ async inspectPlan(id:string,revision:number){if(this.dirty&&!confirm('Discard unsaved edits to inspect this saved plan?'))return;try{const p:any=await firstValueFrom(this.http.get(this.url('placement-plan')+'?id='+encodeURIComponent(id)+'&revision='+revision,this.polari.backendRequestOptions).pipe(timeout(10000)));if(!p.ok)throw Error(p.error);this.saved=p.plan;this.draft=structuredClone(p.plan);this.dirty=false;this.inspection=true;this.selected=null;this.planDialog='';this.message='Inspecting a saved plan. Edit and save a new copy, or activate the latest saved revision.';}catch(e:any){this.message=e.error?.error||e.message;}}
+ async activate(){this.busy=true;try{const p:any=await firstValueFrom(this.http.put(this.url('placement-plan'),{operation:'activate',id:this.saved.id,generation:this.saved.generation,revision:this.saved.revision},this.polari.backendRequestOptions).pipe(timeout(10000)));if(!p.ok)throw Error(p.error);this.saved=p.plan;this.draft=structuredClone(p.plan);this.inspection=false;this.planDialog='';window.dispatchEvent(new Event('isle-plan-changed'));this.message='Active plan switched. No running apps were changed.';}catch(e:any){this.message=e.error?.error||e.message;}this.busy=false;}
+ roles(i:any):string[]{const n=(i.app||i.title||'').toLowerCase();return (({openwrt:['router'],apt:['apt'],polari:['frontend'],'polari (launcher)':['frontend'],'polari-api':['backend'],'polari-instance':['backend'],'polari-frontend':['frontend'],'polari-backend':['backend']} as Record<string,string[]>)[n]||[]).concat(i.protectedRoles||[]);}
+ protection(i:any,destination?:string){const explanations:Record<string,string>={router:'OpenWrt provides the Isle network and DNS. Keep the router on its current device.',apt:'Keep at least one apt service so devices can obtain Isle packages.',frontend:'Keep at least one Polari frontend so users can open Isle applications.',backend:'Keep at least one Polari backend so the Isle and its applications can function.'};for(const role of this.roles(i)){if(role==='router'&&destination!==i.device)return explanations[role];if(!destination&&!this.draft.items.some((j:any)=>j!==i&&j.device&&j.state!=='deferred'&&this.roles(j).includes(role)))return explanations[role];}return '';}
+ observed(i:any){return this.usageHistory.filter(r=>r.app===(i.app||i.title).toLowerCase()||r.app===this.catalogEntry(i.app)?.service).sort((a,b)=>b.lastAt.localeCompare(a.lastAt));}
+ useObserved(i:any,row:any){for(const k of ['ramMiB','cpus']){const m=row.metrics[k];if(m)i[k]=Math.ceil(Math.max(m.mean*1.25,m.peak,this.requirements(i)?.minimum?.[k]||0)*100)/100;}i.requirementsBased=false;i.notes=(i.notes+' Observed estimate from '+row.device+' at '+row.lastAt+'; peak or mean +25%, not a minimum.').slice(-2000);this.dirty=true;}
  get devices(){const names=new Set<string>([...this.resources.map(r=>r.device),...this.draft.items.map((i:any)=>i.device).filter(Boolean)]);return [...names].map(device=>this.resources.find(r=>r.device===device)||{device});}
  items(device:string){return this.draft.items.filter((i:any)=>i.device===device);}
  requirements(i:any){return this.catalogEntry(i.app)?.planningRequirements;}
@@ -51,10 +61,11 @@ export class IslePlacementPlanComponent implements OnInit {
  }
  openMenu(event:MouseEvent,item:any){event.preventDefault();this.showMenu({item,x:event.clientX,y:event.clientY});}
  showMenu(menu:any){this.menu={...menu,x:Math.min(menu.x,window.innerWidth-220),y:Math.min(menu.y,window.innerHeight-180)};}
- requestAction(kind:string,item:any){this.menu=null;this.action={kind,item};this.moveTarget=item.device;}
+ requestAction(kind:string,item:any){this.menu=null;if(kind==='remove'){const why=this.protection(item);if(why){this.safetyMessage=why;return;}}this.action={kind,item};this.moveTarget=item.device;}
  confirmAction(){if(!this.action)return;const {kind,item}=this.action;if(kind==='remove')this.remove(item);else this.move(item,this.moveTarget);this.action=null;}
- remove(i:any){this.draft.items=this.draft.items.filter((x:any)=>x.id!==i.id);if(this.selected===i)this.selected=null;this.dirty=true;}
- move(i:any,device:string){i.device=device;i.state=i.originDevice===device&&(i.multiplier||1)===1?'existing':'planned';this.dirty=true;}
+ remove(i:any){const why=this.protection(i);if(why){this.safetyMessage=why;return;}if(i.originDevice){this.draft.removals??=[];const app=i.app||i.title.toLowerCase();if(/^[a-z0-9_.-]+$/.test(app)&&!this.draft.removals.some((r:any)=>r.app===app&&r.device===i.originDevice))this.draft.removals.push({app,device:i.originDevice,title:i.title});}this.draft.items=this.draft.items.filter((x:any)=>x.id!==i.id);if(this.selected===i)this.selected=null;this.dirty=true;}
+ move(i:any,device:string){if(device===':deferred'){this.setStage(i,'deferred');return;}const why=this.protection(i,device);if(why){this.safetyMessage=why;return;}if(i.originDevice&&i.originDevice!==device){this.draft.removals??=[];const app=i.app||i.title.toLowerCase();if(/^[a-z0-9_.-]+$/.test(app)&&!this.draft.removals.some((r:any)=>r.app===app&&r.device===i.originDevice))this.draft.removals.push({app,device:i.originDevice,title:i.title});}this.draft.removals=(this.draft.removals||[]).filter((r:any)=>!(r.app===(i.app||i.title.toLowerCase())&&r.device===device));i.device=device;i.state=i.originDevice===device&&(i.multiplier||1)===1?'existing':'planned';this.dirty=true;}
+ setStage(i:any,state:string){if(state==='deferred'){const why=this.protection(i);if(why){this.safetyMessage=why;return;}}i.state=state;this.dirty=true;}
  startDrag(event:DragEvent,i:any){this.dragged=i.id;event.dataTransfer?.setData('text/plain',i.id);if(event.dataTransfer)event.dataTransfer.effectAllowed='move';}
  allowDrop(event:DragEvent){event.preventDefault();if(event.dataTransfer)event.dataTransfer.dropEffect='move';}
  drop(event:DragEvent,device:string){event.preventDefault();const id=event.dataTransfer?.getData('text/plain')||this.dragged;const i=this.draft.items.find((x:any)=>x.id===id);if(i)this.move(i,device);this.dragged='';}
