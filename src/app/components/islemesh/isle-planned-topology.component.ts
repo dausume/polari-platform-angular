@@ -4,12 +4,13 @@ import { scaleLinear } from 'd3';
 
 @Component({selector:'app-isle-planned-topology',standalone:true,imports:[CommonModule],template:`
 <section><h3>Planned topology</h3><p>Desired app placement. Lines connect apps to their planned devices; they do not represent physical network links. Select an app to edit its placement.</p>
-<div class="graph-scroll"><svg [attr.viewBox]="'0 0 '+width+' '+height" [style.min-width.px]="width" role="group" aria-label="Desired device and app topology">
-<g *ngFor="let name of names;let col=index" [attr.transform]="'translate('+(col*270)+',0)'">
+<div class="graph-scroll"><svg [attr.viewBox]="'0 0 '+width+' '+height" [style.width.px]="width" [style.height.px]="height" role="group" aria-label="Desired device and app topology">
+<g *ngFor="let name of names;let col=index" [attr.transform]="'translate('+(col*270)+',0)'" (pointerup)="finishDrag($event,name)">
  <rect x="10" y="8" width="250" [attr.height]="height-16" rx="12" fill="#f5f1fa" stroke="#8796a6"/>
  <rect x="10" y="8" width="250" height="42" rx="10" fill="#544170"/><text x="135" y="34" text-anchor="middle" fill="white" font-size="15">{{name || 'Unassigned'}}</text>
- <g *ngFor="let item of on(name);let row=index" [attr.transform]="'translate(0,'+(65+row*70)+')'" role="button" tabindex="0" [attr.aria-label]="item.title+' planned on '+(name||'no device')" (contextmenu)="context($event,item)" (click)="choose.emit(item)" (keydown.enter)="choose.emit(item)">
-  <path d="M135 -15V0" stroke="#8e44ad" stroke-width="2"/>
+ <path *ngIf="on(name).length" [attr.d]="'M18 50V'+(92+(on(name).length-1)*70)" stroke="#8e44ad" fill="none" stroke-width="2"/>
+ <g *ngFor="let item of on(name);let row=index" [attr.transform]="'translate(0,'+(65+row*70)+')'" role="button" tabindex="0" [attr.aria-label]="item.title+' planned on '+(name||'no device')" (contextmenu)="context($event,item)" (pointerdown)="beginDrag($event,item)" (click)="activate(item)" (keydown.enter)="choose.emit(item)">
+  <path d="M18 27H25" stroke="#8e44ad" stroke-width="2"/>
   <rect x="25" width="220" height="54" rx="8" fill="white" stroke="#8e44ad" stroke-width="2"/><title>{{item.title}} · {{item.state}}</title>
   <text x="135" y="23" text-anchor="middle" fill="#263445" font-size="12">{{item.title.length>29 ? item.title.slice(0,27)+'…' : item.title}}</text><text x="135" y="42" text-anchor="middle" fill="#53687c" font-size="11">{{item.state}}</text>
  </g>
@@ -21,11 +22,16 @@ import { scaleLinear } from 'd3';
  <small>{{missing(device.device,metric.key)}} apps without a defined {{metric.label}} budget <span *ngIf="sum(device.device,metric.key)>capacity(device,metric.report)">· exceeds reported capacity</span></small>
  </ng-container><small>Capacity report: {{device.reportedAvailability?.ramMb?.observedAt | date:'medium'}} <span *ngIf="!device.reportedAvailability?.ramMb?.fresh">· refresh needed</span></small>
  </article></div></section>`,styles:[`
-.graph-scroll {overflow:auto;max-height:420px;border-radius:10px;} svg {width:100%;display:block;} g[role=button]{cursor:pointer;} g:focus{outline:2px solid #1565c0;}
+.graph-scroll {overflow:auto;max-height:420px;border-radius:10px;} svg {width:100%;display:block;} .graph-scroll>svg {max-width:none;margin:0 auto;user-select:none;} g[role=button]{cursor:pointer;} g:focus{outline:2px solid #1565c0;}
 .utilization{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:1rem;margin-bottom:1rem;}.utilization article{border:1px solid #8796a6;border-radius:10px;padding:.8rem;min-width:0;}.utilization small{display:block;margin:.3rem 0 .8rem;}.utilization strong{font-size:.85rem;}
 `]})
 export class IslePlannedTopologyComponent {
- @Input() items:any[]=[];@Input() devices:any[]=[];@Output() choose=new EventEmitter<any>();@Output() menu=new EventEmitter<any>();
+ @Input() items:any[]=[];@Input() devices:any[]=[];@Output() choose=new EventEmitter<any>();@Output() menu=new EventEmitter<any>();@Output() moved=new EventEmitter<any>();
+ drag:any=null;suppressClick=false;
+ beginDrag(e:PointerEvent,item:any){if(e.button!==0)return;this.drag={item,x:e.clientX,y:e.clientY};}
+ finishDrag(e:PointerEvent,device:string){if(!this.drag)return;const d=this.drag;this.drag=null;if(Math.hypot(e.clientX-d.x,e.clientY-d.y)>6){this.suppressClick=true;this.moved.emit({item:d.item,device});}}
+ activate(item:any){if(this.suppressClick){this.suppressClick=false;return;}this.choose.emit(item);}
+
  context(event:MouseEvent,item:any){event.preventDefault();this.menu.emit({item,x:event.clientX,y:event.clientY});}
  metrics=[{key:'ramMiB',report:'ramMb',label:'RAM',unit:'MiB'},{key:'diskMiB',report:'diskMb',label:'Storage',unit:'MiB'},{key:'cpus',report:'threads',label:'CPU',unit:'threads'}];
  get names(){return [...new Set<string>([...this.devices.map(d=>d.device),...this.items.filter(i=>i.state!=='deferred').map(i=>i.device)])];}

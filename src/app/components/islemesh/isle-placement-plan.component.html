@@ -14,7 +14,7 @@
 <p class="notice">Planning changes do not install, remove or migrate running apps. Resource allowances are planning budgets; installation stays local to each device.</p>
 <p role="status">{{message}}</p><label>Plan name <input [(ngModel)]="draft.title" (ngModelChange)="dirty=true" maxlength="120"></label>
 <p *ngIf="draft.updatedAt">Saved {{draft.updatedAt | date:'medium'}} · revision {{draft.revision}}</p>
-<app-isle-planned-topology [items]="draft.items" [devices]="devices" (choose)="selected=$event" (menu)="showMenu($event)"></app-isle-planned-topology>
+<app-isle-planned-topology [items]="draft.items" [devices]="devices" (choose)="selected=$event" (menu)="showMenu($event)" (moved)="move($event.item,$event.device)"></app-isle-planned-topology>
 <div class="workspace">
 <aside><h3>Add apps</h3><input aria-label="Search apps to plan" placeholder="Search apps" [(ngModel)]="search"><div class="app-list">
 <article *ngFor="let app of filteredCatalog"><strong>{{app.title || app.name}}</strong><small>{{app.kind}} · {{app.management_system==='polari' ? 'Managed by Polari' : 'Isle app'}}</small><small>{{app.planningRequirements?.complete ? 'Resource minimums defined' : 'Resource minimums incomplete'}}</small><button mat-stroked-button (click)="addApp(app)" [disabled]="!loaded || busy || draft.items.length>=128">Add to plan</button></article></div></aside>
