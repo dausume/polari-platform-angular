@@ -273,3 +273,11 @@ section h2 {
 .type-device { margin: 12px 0; }
 .type-title:focus-visible, .type-browse:focus-visible { outline: 3px solid var(--brand-blue-light); outline-offset: 4px; }
 @media (max-width: 700px) { .type-cards { grid-template-columns: minmax(0, 1fr); } }
+
+.browse-controls { margin: 16px 0; }
+.browse-view, .browse-filters { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin-bottom: 12px; }
+.browse-view button[aria-pressed="true"] { font-weight: 700; border-bottom: 3px solid currentColor; }
+.browse-filters label { display: flex; flex-direction: column; gap: 6px; flex: 1 1 200px; min-width: 0; }
+.browse-filters input[type="search"], .browse-filters select { box-sizing: border-box; width: 100%; padding: 10px; font: inherit; color: var(--text-on-card); background: var(--surface-app-background); border: 1px solid var(--border-light); border-radius: 4px; }
+.browse-filters .installed-filter { flex-direction: row; align-items: center; }
+.browse-tags { font-size: .85rem; color: var(--text-on-card-muted); }

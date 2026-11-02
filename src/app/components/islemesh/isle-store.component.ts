@@ -19,6 +19,8 @@ import { firstValueFrom, timeout, Subscription } from 'rxjs';
 import { buildIsleInventory, readCapabilityReport, CAPABILITY_LABELS } from './isle-device-inventory';
 import { buildTypeCards, appTargets, matchesCategory, TypeCard, InstallReports, baselineCapability, capabilityProfile, preparationProfile } from './isle-store-types';
 
+import { PURPOSES, purposeIds, filterApps } from './isle-store-browse';
+
 import { PolariService } from '@services/polari-service';
 import { AiAssistantService } from
   '@services/ai-assistant/ai-assistant.service';
@@ -42,6 +44,8 @@ interface CatalogEntry {
   source_ref: string;
   provides_engine: string;
   category: string;
+  purposes?: string[];
+  installed_somewhere?: boolean;
   source: string;
   // running instances across the isle (duplicates are deliberate —
   // scaling is a genuine need; this is the tracking half)
@@ -169,6 +173,23 @@ export class IsleStoreComponent implements OnInit, OnDestroy {
     } catch (e: any) { this.capabilitySetupMessage = e?.message || 'Capability setup failed.'; }
     finally { this.preparingCapabilities = false; }
   }
+  browseView: 'deployment' | 'purpose' = 'deployment';
+  searchQuery = '';
+  selectedPurpose = '';
+  installedOnly = false;
+  browseAll = false;
+  readonly purposes = PURPOSES;
+  get browsing() { return this.browseAll || !!(this.selectedType || this.selectedPurpose || this.searchQuery.trim() || this.installedOnly); }
+  get purposeCards() { return PURPOSES.map(p=>({...p,count:filterApps(this.entries,this.searchQuery,this.selectedType || '',p.id,this.installedOnly).length})); }
+  purposeLabels(entry: CatalogEntry) { return purposeIds(entry).map(id=>PURPOSES.find(p=>p.id===id)?.title).join(' · '); }
+  get browseTitle() { return PURPOSES.find(p=>p.id===this.selectedPurpose)?.title || this.activeType?.title || 'All apps'; }
+  updateBrowse(params: Record<string, any> = {}): void {
+    if (this.installing || this.uninstalling || this.bindBusy) return;
+    void this.router.navigate([], {relativeTo:this.route, queryParams: {view:this.browseView, q:this.searchQuery || null, purpose:this.selectedPurpose || null, appType:this.selectedType || null, installed:this.installedOnly ? '1' : null, all:this.browseAll ? '1' : null,...params},queryParamsHandling:'merge'});
+  }
+  changeView(view: 'deployment' | 'purpose') { this.browseView=view; this.updateBrowse(); }
+  openPurpose(id:string) { this.updateBrowse({purpose:id,all:'1'}); }
+  clearBrowse() { this.updateBrowse({q:null,purpose:null,appType:null,installed:null,all:null}); }
   selectedType: string | null = null;
   typeCards: TypeCard[] = [];
   expandedDevices: string | null = null;
@@ -178,12 +199,12 @@ export class IsleStoreComponent implements OnInit, OnDestroy {
   readonly capabilityLabels = CAPABILITY_LABELS;
   private navigation?: Subscription;
   get activeType() { return this.typeCards.find(t => t.id === this.selectedType); }
-  get visibleEntries() { return this.entries.filter(e => !e.is_mock && matchesCategory(e, this.selectedType || '')); }
-  targetsFor(entry: CatalogEntry) { return appTargets(entry, this.reports, this.selectedType === 'shell-app' ? 'launcher' : undefined); }
+  get visibleEntries() { return filterApps(this.entries,this.searchQuery,this.selectedType || '',this.selectedPurpose,this.installedOnly); }
+  targetsFor(entry: CatalogEntry) { return appTargets(entry, this.reports, matchesCategory(entry, 'shell-app') ? 'launcher' : undefined); }
   openType(id: string | null): void {
     if (id === "polari-software") { void this.router.navigate(["/apps"]); return; }
     if (this.installing || this.uninstalling || this.bindBusy) return;
-    void this.router.navigate([], {relativeTo:this.route, queryParams:{appType:id}, queryParamsHandling:"merge"});
+    void this.router.navigate([], {relativeTo:this.route, queryParams:{appType:id,all:id ? "1" : null,purpose:null}, queryParamsHandling:"merge"});
   }
   ngOnDestroy(): void { this.navigation?.unsubscribe(); }
 
@@ -307,6 +328,11 @@ export class IsleStoreComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.navigation = this.route.queryParamMap.subscribe(params => {
       this.selectedType = params.get("appType");
+      this.browseView = params.get('view') === 'purpose' ? 'purpose' : 'deployment';
+      this.searchQuery = params.get('q') || '';
+      this.selectedPurpose = params.get('purpose') || '';
+      this.installedOnly = params.get('installed') === '1';
+      this.browseAll = params.get('all') === '1';
       if (this.selectedType === "polari-software") { void this.router.navigate(["/apps"]); return; }
       this.selected = null; this.plan = null; this.bindSecret = "";
     });

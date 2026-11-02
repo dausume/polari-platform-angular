@@ -3,7 +3,7 @@
     <div>
       <h1>App Store</h1>
       <p class="sub">
-        Choose an app type, see which devices can support its apps, then select an app to install.
+        Browse by deployment type or purpose, search the catalog, and check where an app can run.
         Accessing an app served elsewhere does not require hosting it on this device.
       </p>
     </div>
@@ -12,6 +12,23 @@
       <mat-icon>refresh</mat-icon> Refresh
     </button>
   </div>
+
+  <section class="browse-controls" aria-label="Browse and filter apps">
+    <div class="browse-view" role="group" aria-label="Browse view">
+      <button [disabled]="installing || uninstalling || bindBusy" mat-stroked-button [attr.aria-pressed]="browseView === 'deployment'" (click)="changeView('deployment')">Deployment types</button>
+      <button [disabled]="installing || uninstalling || bindBusy" mat-stroked-button [attr.aria-pressed]="browseView === 'purpose'" (click)="changeView('purpose')">Purpose categories</button>
+      <button [disabled]="installing || uninstalling || bindBusy" mat-button (click)="updateBrowse({all:'1'})">All apps</button>
+    </div>
+    <div class="browse-filters">
+      <label>Search apps<input type="search" placeholder="Name, description or purpose" [(ngModel)]="searchQuery" (ngModelChange)="updateBrowse()" [disabled]="installing || uninstalling || bindBusy"></label>
+      <label>Deployment type<select [disabled]="installing || uninstalling || bindBusy" [(ngModel)]="selectedType" (ngModelChange)="updateBrowse()"><option [ngValue]="null">All deployment types</option><ng-container *ngFor="let type of typeCards"><option *ngIf="!type.managementRoute" [value]="type.id">{{ type.title }}</option></ng-container></select></label>
+      <label>Purpose<select [disabled]="installing || uninstalling || bindBusy" [(ngModel)]="selectedPurpose" (ngModelChange)="updateBrowse()"><option value="">All purposes</option><option *ngFor="let purpose of purposes" [value]="purpose.id">{{ purpose.title }}</option></select></label>
+      <label class="installed-filter"><input type="checkbox" [disabled]="installing || uninstalling || bindBusy" [(ngModel)]="installedOnly" (ngModelChange)="updateBrowse()">Installed somewhere on this Isle</label>
+      <button [disabled]="installing || uninstalling || bindBusy" mat-button (click)="clearBrowse()">Clear filters</button>
+    </div>
+    <p *ngIf="browseView === 'purpose'">Apps can have several purposes. Each result is listed once; its deployment type determines hosting requirements.</p>
+    <p><a routerLink="/apps">Manage Polari Apps</a> · <a routerLink="/module-management">Manage Polari modules</a></p>
+  </section>
 
   <p class="current-device"><strong>Current device:</strong> {{ currentDevice || 'Not identified by this browser' }}
     <span *ngIf="!currentDevice"> — Open the updated native Isle App to identify this device and install capabilities.</span>
@@ -22,7 +39,7 @@
   <div class="loading" *ngIf="loading">Loading catalog…</div>
 
   <p class="capability-notice" *ngIf="capabilityNotice" role="status">{{ capabilityNotice }}</p>
-  <section class="type-cards" *ngIf="!loading && !loadError && !selectedType" aria-label="App types">
+  <section class="type-cards" *ngIf="!loading && !loadError && !browsing && browseView === 'deployment'" aria-label="App types">
     <article class="type-card" *ngFor="let type of typeCards">
       <header class="type-heading">
         <h2><button type="button" class="type-title" (click)="openType(type.id)">{{ type.title }}</button></h2>
@@ -83,18 +100,21 @@
       </section>
     </article>
   </section>
-  <nav *ngIf="selectedType" class="type-navigation" aria-label="App Store navigation">
-    <button mat-stroked-button (click)="openType(null)" [disabled]="installing || uninstalling || bindBusy"><mat-icon>arrow_back</mat-icon> All app types</button>
-    <span>App Store / {{ activeType?.title || selectedType }}</span>
-  </nav>
-  <section *ngIf="selectedType && !loading && !loadError" class="type-intro">
-    <h2>{{ activeType?.title || 'App type not available' }}</h2>
-    <p>{{ activeType?.description || 'This app type is not in the current catalog. Return to all app types to choose another.' }}</p>
-    <p *ngIf="activeType?.requirements"><strong>Requires:</strong> {{ activeType?.requirements }}</p>
-    <p *ngIf="activeType && !visibleEntries.length">No apps have been published for this type yet. Other app types may still be available.</p>
-    <p *ngIf="visibleEntries.length">Select an app to see its requirements and device evaluations. A device may support some apps of this type without supporting all of them.</p>
+  <section class="type-cards" *ngIf="!loading && !loadError && !browsing && browseView === 'purpose'" aria-label="Purpose categories">
+    <article class="type-card" *ngFor="let purpose of purposeCards">
+      <h2><button class="type-title" (click)="openPurpose(purpose.id)">{{ purpose.title }}</button></h2>
+      <p>{{ purpose.description }}</p>
+      <p *ngIf="purpose.id === 'networking' && installedRouters.length">{{ installedRouters.length }} installed OpenWrt router(s) — Hardware Apps. View these in the Topology tab.</p>
+      <button class="type-browse" (click)="openPurpose(purpose.id)">{{ purpose.count }} catalog apps <mat-icon>arrow_forward</mat-icon></button>
+    </article>
   </section>
-  <div class="store-body" *ngIf="!loading && !loadError && selectedType && activeType">
+  <section *ngIf="browsing && !loading && !loadError" class="type-intro" aria-label="Search results">
+    <h2>{{ browseTitle }}</h2>
+    <p role="status">{{ visibleEntries.length }} matching {{ visibleEntries.length === 1 ? 'app' : 'apps' }}</p>
+    <p *ngIf="!visibleEntries.length">No catalog apps match these filters. Try a different search or clear the filters.</p>
+    <p *ngIf="selectedPurpose === 'networking' && installedRouters.length">OpenWrt is already installed as a Hardware App on <ng-container *ngFor="let router of installedRouters; let last=last">{{ router.device }}{{ last ? '.' : ', ' }}</ng-container> Its existing installation is shown in Topology.</p>
+  </section>
+  <div class="store-body" *ngIf="!loading && !loadError && browsing">
     <div class="catalog">
       <section aria-label="Apps of the selected type">
         <div class="cards">
@@ -102,7 +122,7 @@
                   [class.active]="selected?.name === e.name"
                   (click)="select(e)">
             <div class="card-top">
-              <mat-icon>{{ activeType.icon }}</mat-icon>
+              <mat-icon>{{ activeType?.icon || 'apps' }}</mat-icon>
               <span class="card-title">{{ e.title }}</span>
               <span class="engine-badge" *ngIf="e.provides_engine">
                 engine: {{ e.provides_engine }}</span>
@@ -139,6 +159,7 @@
                 stays on isle</span>
             </div>
             <p class="card-desc">{{ e.description }}</p>
+            <p class="browse-tags">{{ kindLabel[e.kind] || e.kind }} · {{ purposeLabels(e) }}</p>
             <div class="card-meta">
               <span class="src">{{ e.source_ref }}</span>
               <span class="cat" *ngIf="e.category">{{ e.category }}</span>
