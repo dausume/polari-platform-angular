@@ -22,13 +22,13 @@ import { scaleLinear } from 'd3';
    <h4>CPU threads</h4>
    <p>Each tile is a logical CPU; hover, focus or select for its physical core and workload affinity. Activity is a short sample.</p>
    <svg *ngIf="detail.value.cpus?.length" viewBox="0 0 480 120" [attr.viewBox]="'0 0 480 '+cpuHeight(detail.value.cpus)" role="group" aria-label="CPU activity and affinity">
-    <g *ngFor="let cpu of detail.value.cpus; let i=index" [attr.transform]="'translate('+((i%8)*60)+','+(Math.floor(i/8)*52)+')'" tabindex="0" role="button" [attr.aria-label]="cpuText(cpu,detail.value)" (click)="cpuSelection=cpuText(cpu,detail.value)" (keydown.enter)="cpuSelection=cpuText(cpu,detail.value)" (focus)="cpuSelection=cpuText(cpu,detail.value)">
+    <g *ngFor="let cpu of detail.value.cpus; let i=index" [attr.transform]="'translate('+((i%8)*60)+','+(Math.floor(i/8)*52)+')'" tabindex="0" role="button" [attr.aria-label]="cpuText(cpu,detail.value)" (click)="cpuSelection[entry.device]=cpuText(cpu,detail.value)" (keydown.enter)="cpuSelection[entry.device]=cpuText(cpu,detail.value)" (focus)="cpuSelection[entry.device]=cpuText(cpu,detail.value)">
      <title>{{cpuText(cpu,detail.value)}}</title><rect x="2" y="2" width="54" height="46" rx="5" [attr.fill]="!cpu.online?'#616161':affinity(cpu,detail.value).length?'#6a1b9a':'#1565c0'" [attr.stroke]="cpu.isolated?'#ffb300':'none'" stroke-width="3"/>
      <text x="29" y="21" text-anchor="middle" fill="white" font-size="12">CPU {{cpu.id}}</text><text x="29" y="38" text-anchor="middle" fill="white" font-size="11">{{cpu.online ? (valid(cpu.busyPercent) ? cpu.busyPercent+'%' : 'no sample') : 'offline'}}</text>
     </g>
    </svg>
    <p>Blue: shared host CPU · Purple: explicit workload affinity · Grey: offline · Amber outline: kernel isolation</p>
-   <p *ngIf="cpuSelection" role="status">{{cpuSelection}}</p>
+   <p *ngIf="cpuSelection[entry.device]" role="status">{{cpuSelection[entry.device]}}</p>
    <p>{{detail.value.allocationNote}}</p>
    <details><summary>Running workload allocations</summary><p>VMs: {{detail.value.vmStatus}}. Containers: {{detail.value.containerStatus}}.</p>
     <ul><li *ngFor="let a of detail.value.allocations">{{a.name}} ({{a.kind}}): {{a.vcpus ? a.vcpus+' vCPUs; ' : ''}}{{a.quotaCpus ? 'quota '+a.quotaCpus+' CPUs; ' : ''}}{{a.cpus?.length ? 'allowed CPUs '+a.cpus.join(', ') : a.pins?.length ? 'per-vCPU affinity — inspect CPU tiles' : 'shared scheduling; no explicit CPU set'}}. Exclusivity not established.</li></ul>
@@ -50,12 +50,12 @@ svg { width:100%;display:block; } p { overflow-wrap:anywhere; } h4 { margin-bott
 `]})
 export class IsleResourceViewComponent {
  @Input() entries:any[]=[];
- readonly Math=Math; cpuSelection='';
+ readonly Math=Math; cpuSelection:Record<string,string>={};
  valid(n:any){return typeof n==='number' && Number.isFinite(n) && n>=0;}
  gib(n:number){return this.valid(n)?(n/1024).toFixed(1):'not reported';}
  usedWidth(total:number,available:number){return total>0?scaleLinear().domain([0,total]).range([0,480]).clamp(true)(total-available):0;}
  ramText(r:any){return this.gib(Math.max(0,r.ramMb.value-r.availableRamMb.value))+' GiB in use / '+this.gib(r.ramMb.value)+' GiB total · '+this.gib(r.availableRamMb.value)+' GiB available (includes reclaimable memory)';}
- storageText(v:any){return this.valid(v.totalMiB)&&this.valid(v.availableMiB)?this.gib(v.availableMiB)+' GiB available / '+this.gib(v.totalMiB)+' GiB total':'Capacity not reported';}
+ storageText(v:any){return this.valid(v.totalMiB)&&this.valid(v.availableMiB)?this.gib(Math.max(0,v.totalMiB-v.availableMiB))+' GiB used or filesystem-reserved / '+this.gib(v.totalMiB)+' GiB total · '+this.gib(v.availableMiB)+' GiB available':'Capacity not reported';}
  cpuHeight(cpus:any[]){return Math.ceil(cpus.length/8)*52;}
  affinity(cpu:any,d:any){return (d.allocations||[]).filter((a:any)=>(a.cpus||[]).includes(cpu.id)||(a.pins||[]).some((p:any)=>(p.cpus||[]).includes(cpu.id))).map((a:any)=>a.name);}
  cpuText(c:any,d:any){const a=this.affinity(c,d);return 'CPU '+c.id+' · socket '+(c.socket??'not reported')+' / core '+(c.core??'not reported')+' · '+(!c.online?'offline':this.valid(c.busyPercent)?c.busyPercent+'% active':'activity not reported')+(c.isolated?' · kernel-isolated':'')+' · '+(a.length?'affinity: '+a.join(', ')+'; not proven exclusive':'no explicit workload affinity reported; shared scheduling');}
