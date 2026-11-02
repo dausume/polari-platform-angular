@@ -47,6 +47,7 @@ interface PolariInstance {
   device: string;
   domain: string;
   role: string;
+  component_role?: string;
   subdomains: string[];
 }
 
@@ -95,7 +96,7 @@ interface Assessment {
         </ul>
 
         <h2>Hosted Polari instances</h2>
-        <p>These rows describe Polari runtimes hosted on devices. Their Polari role is separate from
+        <p>These rows describe independently deployed Polari frontend and backend instances. Normal Isle functionality requires at least one of each across the Isle. Usually one frontend serves multiple backends; additional frontends are supported. Their Polari role is separate from
           the device's infrastructure role and from any router VM or Hardware App it hosts.</p>
         <p class="level-warning" *ngIf="duplicateEndpoints.length">Multiple device names report the same endpoint:
           {{ duplicateEndpoints.join('; ') }}. These may be device aliases or competing registrations;
@@ -108,7 +109,7 @@ interface Assessment {
           <div class="dev-row pol-row" *ngFor="let i of polari">
             <span class="dev-name mono">{{ i.app }}</span>
             <span>
-              <span class="role role-{{ i.role === 'core' ? 'Shared frontend / API' : i.role === 'member' ? 'Additional provider' : i.role }}">{{ i.role === 'core' ? 'Shared frontend / API' : i.role === 'member' ? 'Additional provider' : i.role }}
+              <span class="role role-{{ i.component_role || 'Role not reported' }}">{{ i.component_role || 'Role not reported' }}
               </span>
             </span>
             <span>{{ i.device || '?' }}</span>
@@ -125,8 +126,7 @@ interface Assessment {
             <code>{{ c }}</code>
             <em>({{ components[c] }})</em><span *ngIf="!last">,
             </span>
-          </span>. Backends are the replicable part; component
-          installs land with the shared-db profile arc.
+          </span>. Frontend and backend counts are independent. Backend data sharing and routing need explicit configuration; additional backends do not imply shared databases.
         </p>
 
         <h2>Web exposure (the containment boundary)</h2>

@@ -126,7 +126,7 @@ export function buildIsleInventory(summaryInput: unknown, coherenceInput: unknow
     if (!d.instances.includes(name)) d.instances.push(name);
     polariNodes.add(device);
     addApp(name, device, str(node['domain']), 'polari-instance', '',
-      str(node['domain']).toLowerCase() === 'polari.isle' ? 'Shared frontend and API' : 'Additional Polari provider');
+      'Polari ' + (str(node['component_role']) || 'role not reported'));
     if (str(node['domain']).toLowerCase() === 'polari.isle') primaryRoutes.add(device);
   }
   const kindEntries = new Map<string, Set<string>>();

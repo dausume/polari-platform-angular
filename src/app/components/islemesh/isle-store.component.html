@@ -44,6 +44,14 @@
       </ng-container>
       <p class="type-description">{{ type.description }}</p>
       <p class="type-requirements" *ngIf="type.requirements"><strong>Requires:</strong> {{ type.requirements }}</p>
+      <details *ngIf="type.id === 'polari-instance'">
+        <summary>Choose a Polari deployment role</summary>
+        <p>Run on the device that will host this role. A complete Isle needs at least one frontend and one backend, which may be on different devices.</p>
+        <p>Both roles: <code>sudo isle polari instance deploy --role both</code></p>
+        <p>Backend only: <code>sudo isle polari instance deploy --role backend --name compute --frontend-origin https://polari.isle</code></p>
+        <p>Frontend only: <code>sudo isle polari instance deploy --role frontend --name interface --backend-url https://api.compute.isle</code></p>
+        <p>Use your actual deployment names. The selected backend must allow the frontend origin in its CORS configuration. Each backend has its own data unless sharing is explicitly configured.</p>
+      </details>
       <section *ngIf="preparationProfile(type.id) as profile" class="profile-setup" aria-label="Prepare this device">
         <p><strong>Shared dependencies:</strong> {{ profile.packages }}.</p>
         <p>Preparation checks existing dependencies, installs missing ones and verifies this device. Each app still has its own requirements.</p>

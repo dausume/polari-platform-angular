@@ -34,6 +34,7 @@ interface IsleGraph {
   banner: string;
   nodes: SceneNode[];
   links: SceneLink[];
+  polari?: { frontend_count: number; backend_count: number; minimum_deployment_present: boolean; message: string; recommended_shape: string };
   resources?: { devices: any[]; totals: any };
   error?: string;
 }
@@ -73,6 +74,7 @@ export class IsleMeshGraphComponent implements AfterViewInit,
       .map(([key, item]: [string, any]) => ({label: labels[key], value:item.value, date:item.observedAt, fresh:item.fresh}));
   }
   appType(n: SceneNode): string {
+    if (n['app_kind'] === 'polari-instance' && Array.isArray(n['component_roles']) && n['component_roles'].length) return 'Polari instance · ' + n['component_roles'].join(' + ');
     if (n.kind === 'router') return 'Hardware App · KVM';
     if (n['realization'] === 'bridge' || n['app_kind'] === 'hardware-bridge-app') return 'Hardware Bridge App';
     const names: Record<string, string> = {'mesh-app':'Mesh App','polari-app':'Polari App','polari-instance':'Polari instance','shell-app':'Shell App','vpn-app':'VPN App','isle-vpn':'VPN App','isle-vpn-app':'VPN App','hardware-app':'Hardware App'};
