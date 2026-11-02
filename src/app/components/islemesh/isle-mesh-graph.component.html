@@ -20,6 +20,7 @@
     </button>
   </div>
 
+  <nav aria-label="Topology view"><button mat-stroked-button (click)="resourceView=false" [attr.aria-pressed]="!resourceView">Network</button> <button mat-stroked-button (click)="resourceView=true" [attr.aria-pressed]="resourceView">Device resources</button></nav>
   <section *ngIf="graph?.polari as polari" aria-label="Polari deployment minimum">
     <strong>Polari: {{ polari.frontend_count }} frontend(s), {{ polari.backend_count }} backend(s)</strong>
     <p>{{ polari.message }} {{ polari.recommended_shape }}</p>
@@ -27,7 +28,7 @@
 
   <div class="load-error" *ngIf="loadError">{{ loadError }}</div>
 
-  <div class="isle-body">
+  <div class="isle-body" [hidden]="resourceView">
     <div #canvas class="graph-canvas"
          [class.loading]="loading"></div>
 
@@ -115,27 +116,7 @@
     </aside>
   </div>
 
-  <section *ngIf="graph?.resources" aria-label="Resource planning">
-    <h2>Resources for placement planning</h2>
-    <p>These are dated device reports and the existing Polari resource ledger. Availability is a snapshot,
-      not a reservation. Recheck the target before installation. Root disk space may differ from an app's storage volume.</p>
-    <article *ngFor="let entry of graph?.resources?.devices">
-      <h3>{{ entry.device }}</h3>
-      <p *ngIf="!resourceRows(entry).length">No agent resource snapshot reported yet.</p>
-      <dl>
-        <ng-container *ngFor="let row of resourceRows(entry)">
-          <dt>{{ row.label }}</dt><dd>{{ row.value | number:'1.0-0' }} · Reported {{ row.date | date:'medium' }}
-            {{ row.fresh ? '' : '— older report; recheck before placement' }}</dd>
-        </ng-container>
-        <dt>Profiled workload RAM claims</dt><dd>{{ entry.consumed.ramMbTotal | number:'1.0-0' }} MiB ({{ entry.consumed.fidelity }})</dd>
-        <dt>Enforced reservations</dt><dd>Not reported by this ledger</dd>
-      </dl>
-      <p>Recorded app locations; separate resource costs still need profiles:</p>
-      <ul><li *ngFor="let app of entry.appWorkloads">{{ app.name }} · {{ app.kind }} — {{ app.costStatus }}</li></ul>
-      <p *ngIf="entry.consumed.unprofiledModules.length">Polari modules without cost profiles: {{ entry.consumed.unprofiledModules.join(', ') }}</p>
-    </article>
-    <a href="/topology">Open Polari placement planning</a>
-  </section>
+  <section *ngIf="resourceView && graph?.resources" aria-label="Resource planning"><h2>Device resources</h2><p>Dated observations for placement planning. Plans do not reserve resources.</p><app-isle-resource-view [entries]="graph?.resources?.devices || []"></app-isle-resource-view><a href="/topology">Polari placement planning</a></section>
   <div class="legend">
     <span><i class="dot device"></i> device box (contents run there)</span>
     <span><i class="dot segment"></i> shared segment (inferred)</span>

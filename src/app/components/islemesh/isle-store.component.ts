@@ -13,12 +13,14 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { MatButtonModule } from '@angular/material/button';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterModule, Router, ActivatedRoute } from '@angular/router';
 import { firstValueFrom, timeout, Subscription } from 'rxjs';
 import { buildIsleInventory, readCapabilityReport, CAPABILITY_LABELS } from './isle-device-inventory';
 import { buildTypeCards, appTargets, matchesCategory, TypeCard, InstallReports, baselineCapability, capabilityProfile, preparationProfile } from './isle-store-types';
 
+import { IslePlacementPlanComponent } from './isle-placement-plan.component';
 import { PURPOSES, purposeIds, filterApps } from './isle-store-browse';
 
 import { PolariService } from '@services/polari-service';
@@ -123,7 +125,7 @@ interface InstallPlan {
   selector: 'app-isle-store',
   standalone: true,
   imports: [CommonModule, FormsModule, MatButtonModule,
-            MatIconModule, RouterModule],
+            MatIconModule, MatCheckboxModule, RouterModule, IslePlacementPlanComponent],
   templateUrl: './isle-store.component.html',
   styleUrls: ['./isle-store.component.scss'],
 })
@@ -473,6 +475,13 @@ export class IsleStoreComponent implements OnInit, OnDestroy {
           this.aiTool = d.tool;
         }
       }).catch(() => {});
+  }
+
+  async reviewPlanned(name: string): Promise<void> {
+    const entry=this.entries.find(e=>e.name===name && !e.is_mock && e.management_system!=='polari');
+    if (!entry || !this.currentDevice || this.installing || this.uninstalling) return;
+    await this.router.navigate([], {relativeTo:this.route,queryParams:{all:'1',appType:null,purpose:null,q:null,installed:null},queryParamsHandling:'merge'});
+    await this.select(entry);
   }
 
   async select(entry: CatalogEntry): Promise<void> {

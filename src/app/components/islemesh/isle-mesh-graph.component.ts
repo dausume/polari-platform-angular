@@ -22,6 +22,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { firstValueFrom } from 'rxjs';
 import * as d3 from 'd3';
+import { IsleResourceViewComponent } from './isle-resource-view.component';
 
 import { PolariService } from '@services/polari-service';
 import {
@@ -49,7 +50,7 @@ const NODE_COLORS: Record<string, string> = {
 @Component({
   selector: 'app-isle-mesh-graph',
   standalone: true,
-  imports: [CommonModule, MatButtonModule, MatIconModule],
+  imports: [CommonModule, MatButtonModule, MatIconModule, IsleResourceViewComponent],
   templateUrl: './isle-mesh-graph.component.html',
   styleUrls: ['./isle-mesh-graph.component.scss'],
 })
@@ -60,6 +61,7 @@ export class IsleMeshGraphComponent implements AfterViewInit,
   graph: IsleGraph | null = null;
   loadError = '';
   loading = true;
+  resourceView = false;
   selected: SceneNode | null = null;
   selectedLinks: SceneLink[] = [];
   selectedEdge: {
@@ -139,7 +141,6 @@ export class IsleMeshGraphComponent implements AfterViewInit,
     const host = this.canvasRef.nativeElement;
     const width = host.clientWidth;
     if (!width) {
-      requestAnimationFrame(() => this.paint());
       return;
     }
     this.paintedWidth = width;
