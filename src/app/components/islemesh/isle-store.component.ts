@@ -200,6 +200,7 @@ export class IsleStoreComponent implements OnInit, OnDestroy {
   private navigation?: Subscription;
   get activeType() { return this.typeCards.find(t => t.id === this.selectedType); }
   get visibleEntries() { return filterApps(this.entries,this.searchQuery,this.selectedType || '',this.selectedPurpose,this.installedOnly); }
+  isLauncher(entry: CatalogEntry) { return matchesCategory(entry, 'shell-app'); }
   targetsFor(entry: CatalogEntry) { return appTargets(entry, this.reports, matchesCategory(entry, 'shell-app') ? 'launcher' : undefined); }
   openType(id: string | null): void {
     if (id === "polari-software") { void this.router.navigate(["/apps"]); return; }

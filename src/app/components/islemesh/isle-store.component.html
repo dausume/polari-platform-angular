@@ -349,7 +349,7 @@ backend, never shown again; optional for your own servers)" />
 
       <section class="app-targets" aria-label="Device eligibility">
         <h3>Where can this app be installed?</h3>
-        <p>{{ activeType.action === 'launcher' ? 'These checks concern installing the launcher; a Polari node may serve the app elsewhere.' : activeType.action === 'module' ? 'These checks concern adding the module to a Polari node.' : 'These checks concern hosting this app on the named device.' }}</p>
+        <p>{{ isLauncher(selected) ? 'These checks concern installing the launcher; a Polari node may serve the app elsewhere.' : 'These checks concern hosting this app on the named device.' }}</p>
         <ul *ngIf="targetsFor(selected).length; else noTargets">
           <li *ngFor="let target of targetsFor(selected)">
             <strong>{{ target.device }}</strong> — {{ capabilityLabels[target.lastReportedStatus] }}
