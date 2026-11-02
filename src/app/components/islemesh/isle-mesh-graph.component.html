@@ -122,15 +122,6 @@
     <article *ngFor="let entry of graph?.resources?.devices">
       <h3>{{ entry.device }}</h3>
       <p *ngIf="!resourceRows(entry).length">No agent resource snapshot reported yet.</p>
-      <section *ngIf="selected.kind === 'proxy'" aria-label="Agent health checks">
-        <h3>Agent health checks</h3>
-        <p>Diagnostic endpoints validate this nginx agent; they are not separately installed apps.</p>
-        <div *ngFor="let check of $any(selected.diagnostics || [])">
-          <strong>{{ check.name }}</strong>: <code>{{ check.domain }}{{ check.path }}</code>
-          <p>{{ check.status }}</p>
-        </div>
-        <p *ngIf="!$any(selected.diagnostics)?.length">No diagnostic endpoint reported.</p>
-      </section>
       <dl>
         <ng-container *ngFor="let row of resourceRows(entry)">
           <dt>{{ row.label }}</dt><dd>{{ row.value | number:'1.0-0' }} · Reported {{ row.date | date:'medium' }}
