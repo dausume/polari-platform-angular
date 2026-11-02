@@ -47,6 +47,7 @@ interface CatalogEntry {
   provides_engine: string;
   category: string;
   purposes?: string[];
+  management_system?: string;
   installed_somewhere?: boolean;
   source: string;
   // running instances across the isle (duplicates are deliberate —
