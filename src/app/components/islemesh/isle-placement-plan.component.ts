@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnInit, HostListener } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
@@ -12,13 +12,22 @@ import { IsleResourceViewComponent } from './isle-resource-view.component';
 @Component({selector:'app-isle-placement-plan',standalone:true,
  imports:[CommonModule,FormsModule,MatButtonModule,RouterModule,IsleResourceViewComponent,IslePlannedTopologyComponent],
  templateUrl:'./isle-placement-plan.component.html',styleUrls:['./isle-placement-plan.component.scss']})
-export class IslePlacementPlanComponent implements OnInit {
+export class IslePlacementPlanComponent implements OnInit, OnDestroy {
  @Input() currentDevice=''; @Input() catalog:any[]=[]; @Input() queueOnly=false;
  @Output() review=new EventEmitter<string>();
- busy=false;loaded=false;message='';resources:any[]=[];search='';selected:any=null;dragged='';dirty=false; menu:any=null; action:any=null; moveTarget='';library:any=null;planDialog='';planName='';inspection=false;usageHistory:any[]=[];safetyMessage='';
+ busy=false;loaded=false;message='';resources:any[]=[];search='';selected:any=null;dragged='';dirty=false; menu:any=null; action:any=null; moveTarget='';library:any=null;planDialog='';planName='';inspection=false;usageHistory:any[]=[];safetyMessage='';planNotice='';updateInfo:any=null;updateDialog=false;updateDismissed=false;private timer:any;private polling=false;private lastUpdateCheck=0;
  saved:any={title:'Isle deployment plan',revision:0,items:[]};draft:any=structuredClone(this.saved);
  constructor(private http:HttpClient,private polari:PolariService){}
- ngOnInit(){void this.load();}
+ ngOnInit(){void this.load();this.timer=setInterval(()=>{if(!document.hidden)void this.pollShared();},30000);}
+ ngOnDestroy(){clearInterval(this.timer);}
+ @HostListener('document:visibilitychange') visible(){if(!document.hidden)void this.pollShared();}
+ signature(plan:any){return JSON.stringify({items:(plan.items||[]).filter((i:any)=>i.device===this.currentDevice),removals:(plan.removals||[]).filter((i:any)=>i.device===this.currentDevice)});}
+ remember(plan:any){if(!this.currentDevice)return;const key='isle-plan-seen:'+this.currentDevice;const value=this.signature(plan);try{const old=localStorage.getItem(key);if(old&&old!==value)this.planNotice='The active plan changed for '+this.currentDevice+'. Review the planned additions and removals below.';else if(!old)localStorage.setItem(key,value);}catch{}}
+ dismissPlanNotice(){this.planNotice='';try{localStorage.setItem('isle-plan-seen:'+this.currentDevice,this.signature(this.saved));}catch{}}
+ dismissUpdate(){this.updateDismissed=true;try{localStorage.setItem('isle-release-seen:'+this.currentDevice,this.updateInfo.release.id);}catch{}}
+ async checkUpdates(){if(!this.currentDevice||Date.now()-this.lastUpdateCheck<120000)return;this.lastUpdateCheck=Date.now();try{const u:any=await firstValueFrom(this.http.get(this.url('updates')+'?device='+encodeURIComponent(this.currentDevice),this.polari.backendRequestOptions).pipe(timeout(8000)));if(u.ok){this.updateInfo=u;try{this.updateDismissed=localStorage.getItem('isle-release-seen:'+this.currentDevice)===u.release?.id;}catch{}}}catch{}}
+ async pollShared(){if(this.polling||this.busy||!this.loaded)return;this.polling=true;try{const p:any=await firstValueFrom(this.http.get(this.url('placement-plan'),this.polari.backendRequestOptions).pipe(timeout(8000)));if(p.ok){if(this.queueOnly){this.remember(p.plan);this.saved=p.plan;}else if((p.plan.id!==this.saved.id||p.plan.revision!==this.saved.revision)&&this.saved.active){this.planNotice=this.dirty?'The active plan changed elsewhere. Your unsaved draft is preserved; save a copy before reloading.':'A newer active plan is available. Reload to inspect its changes.';}await this.checkUpdates();}}catch{}finally{this.polling=false;}}
+
  @HostListener('window:isle-plan-changed') planChanged(){if(this.queueOnly)void this.load();}
  get installCatalog(){return this.catalog.filter(a=>!a.is_mock);}
  get filteredCatalog(){const s=this.search.toLowerCase();return this.installCatalog.filter(a=>(a.title+' '+a.name+' '+a.kind).toLowerCase().includes(s));}
@@ -35,7 +44,7 @@ export class IslePlacementPlanComponent implements OnInit {
  if(g.status==='fulfilled'&&g.value.ok)this.resources=g.value.resources?.devices||[];else this.message+=' Resource reports could not be refreshed.';
  if(this.loaded && c.status==='fulfilled' && g.status==='fulfilled' && !this.draft.baselineInitialized)this.seedExisting();
  }
- this.busy=false;}
+ this.busy=false;if(this.queueOnly)this.remember(this.saved);void this.checkUpdates();}
  openSave(){this.planName=this.draft.title;this.planDialog='save';}
  async save(asNew=false){this.busy=true;try{const payload={...this.draft,title:this.planName||this.draft.title,operation:asNew?'saveAs':'save'};const p:any=await firstValueFrom(this.http.put(this.url('placement-plan'),payload,this.polari.backendRequestOptions).pipe(timeout(10000)));if(!p.ok)throw Error(p.error);this.saved=p.plan;this.draft=structuredClone(p.plan);this.selected=null;this.dirty=false;this.inspection=false;this.planDialog='';window.dispatchEvent(new Event('isle-plan-changed'));this.message=p.plan.active?'Active plan saved. Planned additions and removals are available locally on each device.':'Inactive plan saved. Activate it to publish its planned changes.';}catch(e:any){this.message=e.error?.error||e.message;}this.busy=false;}
  async openLibrary(){try{this.library=await firstValueFrom(this.http.get(this.url('plan-library'),this.polari.backendRequestOptions).pipe(timeout(10000)));this.planDialog='library';}catch(e:any){this.message=e.error?.error||e.message;}}
