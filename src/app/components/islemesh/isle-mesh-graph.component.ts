@@ -61,7 +61,7 @@ export class IsleMeshGraphComponent implements AfterViewInit,
   graph: IsleGraph | null = null;
   loadError = '';
   loading = true;
-  resourceView = false;
+  resourcesOpen = true;
   selected: SceneNode | null = null;
   selectedLinks: SceneLink[] = [];
   selectedEdge: {

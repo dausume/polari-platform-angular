@@ -20,7 +20,7 @@
     </button>
   </div>
 
-  <nav aria-label="Topology view"><button mat-stroked-button (click)="resourceView=false" [attr.aria-pressed]="!resourceView">Network</button> <button mat-stroked-button (click)="resourceView=true" [attr.aria-pressed]="resourceView">Device resources</button></nav>
+
   <section *ngIf="graph?.polari as polari" aria-label="Polari deployment minimum">
     <strong>Polari: {{ polari.frontend_count }} frontend(s), {{ polari.backend_count }} backend(s)</strong>
     <p>{{ polari.message }} {{ polari.recommended_shape }}</p>
@@ -28,7 +28,8 @@
 
   <div class="load-error" *ngIf="loadError">{{ loadError }}</div>
 
-  <div class="isle-body" [hidden]="resourceView">
+  <div class="topology-layout" [class.resources-closed]="!resourcesOpen">
+  <div class="isle-body">
     <div #canvas class="graph-canvas"
          [class.loading]="loading"></div>
 
@@ -116,7 +117,16 @@
     </aside>
   </div>
 
-  <section *ngIf="resourceView && graph?.resources" aria-label="Resource planning"><h2>Device resources</h2><p>Dated observations for placement planning. Plans do not reserve resources.</p><app-isle-resource-view [entries]="graph?.resources?.devices || []"></app-isle-resource-view><a href="/topology">Polari placement planning</a></section>
+  <aside class="resource-sidebar" aria-label="Device resources">
+    <button mat-stroked-button class="sidebar-toggle" (click)="resourcesOpen=!resourcesOpen" [attr.aria-expanded]="resourcesOpen" aria-controls="topology-resources"><mat-icon>{{resourcesOpen ? 'chevron_right' : 'chevron_left'}}</mat-icon>Device resources</button>
+    <section id="topology-resources" *ngIf="resourcesOpen" class="resource-scroll">
+      <p>Reported RAM, storage and CPU threads. Hover a CPU chip for its status.</p>
+      <article *ngFor="let entry of graph?.resources?.devices || []"><h2>{{entry.device}}</h2><app-isle-resource-view [entries]="[entry]" [compact]="true"></app-isle-resource-view></article>
+      <p *ngIf="!graph?.resources?.devices?.length">No device resource reports received yet.</p>
+      <a href="/isle?tab=planning">Plan app placement</a>
+    </section>
+  </aside>
+  </div>
   <div class="legend">
     <span><i class="dot device"></i> device box (contents run there)</span>
     <span><i class="dot segment"></i> shared segment (inferred)</span>

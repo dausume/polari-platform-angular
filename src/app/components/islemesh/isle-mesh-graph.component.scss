@@ -275,3 +275,14 @@
 .kind-chip.kind-dns { background: #6a1b9a; }
 
 .isle-body[hidden] { display:none; }
+
+.topology-layout {display:grid;grid-template-columns:minmax(0,1fr) minmax(330px,420px);gap:16px;align-items:start;}
+.topology-layout.resources-closed {grid-template-columns:minmax(0,1fr) auto;}
+.topology-layout .isle-body {min-width:0;flex-wrap:wrap;}
+.topology-layout .graph-canvas {min-width:100%;box-sizing:border-box;}
+.resource-sidebar {border:1px solid #8295a5;border-radius:8px;background:var(--surface-primary);overflow:hidden;}
+.sidebar-toggle {width:100%;font-weight:600;}
+.resource-scroll {padding:.7rem;max-height:clamp(380px,calc(100vh - 390px),680px);overflow:auto;}
+.resource-scroll article + article {border-top:2px solid #8295a5;margin-top:1rem;padding-top:.5rem;}
+.resource-scroll h2 {font-size:1.1rem;margin:.5rem 0;}
+@media(max-width:850px){.topology-layout {grid-template-columns:minmax(0,1fr);} .resource-scroll {max-height:600px;}.topology-layout.resources-closed{grid-template-columns:minmax(0,1fr);}}

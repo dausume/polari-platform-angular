@@ -5,6 +5,7 @@ import { CommonModule } from '@angular/common';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatIconModule } from '@angular/material/icon';
 
+import { IslePlacementPlanComponent } from './isle-placement-plan.component';
 import { IsleDevicesComponent } from './isle-devices.component';
 import { IsleStoreComponent } from './isle-store.component';
 import { IsleMeshGraphComponent } from
@@ -18,12 +19,12 @@ import { IsleCoherenceComponent } from
   imports: [
     CommonModule, MatTabsModule, MatIconModule,
     IsleStoreComponent, IsleMeshGraphComponent,
-    IsleCoherenceComponent, IsleDevicesComponent,
+    IsleCoherenceComponent, IsleDevicesComponent, IslePlacementPlanComponent,
   ],
   template: `
     <div class="isle-hub">
       <h1 class="app-title">Isle App</h1>
-      <mat-tab-group animationDuration="0ms"
+      <mat-tab-group [preserveContent]="true" animationDuration="0ms"
                      [selectedIndex]="tab"
                      (selectedIndexChange)="tab = $event">
         <mat-tab>
@@ -48,6 +49,9 @@ import { IsleCoherenceComponent } from
           <app-isle-coherence *ngIf="tab === 2">
           </app-isle-coherence>
         </mat-tab>
+        <mat-tab><ng-template mat-tab-label><mat-icon>dashboard_customize</mat-icon>&nbsp;Planning</ng-template>
+          <ng-template matTabContent><app-isle-placement-plan></app-isle-placement-plan></ng-template>
+        </mat-tab>
       </mat-tab-group>
     </div>
   `,
@@ -61,6 +65,9 @@ import { IsleCoherenceComponent } from
 export class IsleHubComponent {
   tab = 0;
   constructor(route: ActivatedRoute) {
-    if (route.snapshot.queryParamMap.has("appType")) this.tab = 0;
+    route.queryParamMap.subscribe(params=>{
+      if(params.get('tab')==='planning')this.tab=3;
+      else if(params.has('appType'))this.tab=0;
+    });
   }
 }
