@@ -222,14 +222,21 @@ export class IsleStoreComponent implements OnInit, OnDestroy {
   installOk: boolean | null = null;
 
   readonly kindLabel: Record<string, string> = {
-    'mesh-app': 'Mesh apps — run as containers on a device',
-    'polari-app': 'Polari apps — doors onto running instances',
-    'polari-instance': 'Polari instances — runtimes that host modules',
+    'mesh-app': 'Mesh Apps',
+    'hardware-app': 'Hardware Apps',
+    'hardware-vm': 'Hardware Apps',
+    'hardware-bridge-app': 'Hardware Bridge Apps',
+    'hardware-extension-app': 'Hardware Extension Apps',
+    'shell-app': 'Shell Apps',
+    'isle-vpn': 'Isle VPN Apps',
+    'isle-vpn-app': 'Isle VPN Apps',
+    'polari-app': 'Shell Apps',
+    'polari-instance': 'Polari Instances — frontend or backend',
     'polari-module': 'Polari modules',
     // sep-3: every PolariAppDefinition, projected as an OPTION —
     // launcher debs materialize at install time, never a shelf.
     'polari-app-option':
-      'Polari app options — any app, installable as its own shell',
+      'Shell Apps',
     // ai-2 (decision 1): the DEDICATED AI section — never buried
     // under generic apps.
     'ai-tool':
