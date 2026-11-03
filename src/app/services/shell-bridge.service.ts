@@ -83,6 +83,13 @@ export class ShellBridgeService {
     });
   }
 
+  securityStatus(): Promise<InstallResult & {state?: any; cancelled?: boolean}> {
+    return this.call('security.status', {});
+  }
+  setKeycloak(enabled: boolean): Promise<InstallResult & {state?: any; cancelled?: boolean}> {
+    return this.call('security.set', {action: enabled ? 'enable' : 'disable'});
+  }
+
   deviceContext(): Promise<{ok: boolean; report?: any; error?: string}> {
     return this.call('device.context', {});
   }
