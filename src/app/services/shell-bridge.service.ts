@@ -83,11 +83,16 @@ export class ShellBridgeService {
     });
   }
 
+  private securityResult(result: any): any {
+    if (result.error?.code === 'unknown-type') return {...result, error: 'Update the native Isle App shell to use the authenticated security toggle.'};
+    return {...result, error: typeof result.error === 'string' ? result.error : result.error?.message};
+  }
+
   securityStatus(): Promise<InstallResult & {state?: any; cancelled?: boolean}> {
-    return this.call('security.status', {});
+    return this.call('security.status', {}).then(result => this.securityResult(result));
   }
   setKeycloak(enabled: boolean): Promise<InstallResult & {state?: any; cancelled?: boolean}> {
-    return this.call('security.set', {action: enabled ? 'enable' : 'disable'});
+    return this.call('security.set', {action: enabled ? 'enable' : 'disable'}).then(result => this.securityResult(result));
   }
 
   deviceContext(): Promise<{ok: boolean; report?: any; error?: string}> {
