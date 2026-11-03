@@ -51,6 +51,10 @@ export interface FeaturesConfig {
 
 /** Keycloak / OIDC configuration. */
 export interface KeycloakConfig {
+    /** Omitted preserves existing enabled deployments. */
+    enabled?: boolean;
+    /** Deployment-declared apps/features that cannot operate without sign-in. */
+    requiredBy?: string[];
     authority: string;
     clientId: string;
     realm: string;

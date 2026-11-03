@@ -418,7 +418,17 @@ export class RuntimeConfigService {
      * callers must guard before wiring login UI.
      */
     getKeycloakConfig(): KeycloakConfig | null {
-        return this.startupConfig?.keycloak ?? null;
+        const config = this.startupConfig?.keycloak;
+        return config && config.enabled !== false ? config : null;
+    }
+
+    getKeycloakSecurity(): { enabled: boolean; requiredBy: string[]; configurationError: string | null } {
+        const config = this.startupConfig?.keycloak;
+        const requiredBy = (config?.requiredBy ?? []).filter(name => typeof name === 'string' && name.trim());
+        const enabled = !!config && config.enabled !== false;
+        const configurationError = requiredBy.length && (!enabled || !config?.authority || !config?.clientId)
+            ? `Keycloak is required by ${requiredBy.join(', ')}. Enable and configure sign-in before using these features.` : null;
+        return { enabled, requiredBy, configurationError };
     }
 
     /** The demo notice stanza, or null when this instance is not a demo. */

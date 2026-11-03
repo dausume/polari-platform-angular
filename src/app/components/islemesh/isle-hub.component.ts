@@ -1,4 +1,5 @@
 /** /isle — Isle management, app catalog and network topology. */
+import { RuntimeConfigService } from '@services/runtime-config.service';
 import { Component } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
@@ -52,6 +53,20 @@ import { IsleCoherenceComponent } from
         <mat-tab><ng-template mat-tab-label><mat-icon>dashboard_customize</mat-icon>&nbsp;Planning</ng-template>
           <ng-template matTabContent><app-isle-placement-plan></app-isle-placement-plan></ng-template>
         </mat-tab>
+        <mat-tab label="Security">
+          <section style="padding: 1rem">
+            <h2>Keycloak sign-in</h2>
+            <p>{{ security.enabled ? 'Enabled' : 'Disabled intentionally' }}. This setting applies to this Polari frontend.</p>
+            <p *ngIf="!security.enabled">Sign-in and its connection warning are disabled. Features requiring authentication remain unavailable; backend access rules still apply.</p>
+            <p *ngIf="security.requiredBy.length">Required by: {{ security.requiredBy.join(', ') }}. These dependencies must be removed before disabling sign-in.</p>
+            <p role="alert" *ngIf="security.configurationError">{{ security.configurationError }}</p>
+            <h3>Change the deployment setting</h3>
+            <p>Run on the device hosting this frontend, using its runtime configuration path. Reload the app afterward. Enabling requires a configured, reachable Keycloak service.</p>
+            <pre>sudo isle polari security enable --config /path/to/runtime-config.json</pre>
+            <pre>sudo isle polari security disable --config /path/to/runtime-config.json</pre>
+            <p>For the initial core deployment the file is in ~/polari-isle/runtime-config.json.</p>
+          </section>
+        </mat-tab>
       </mat-tab-group>
     </div>
   `,
@@ -64,7 +79,8 @@ import { IsleCoherenceComponent } from
 })
 export class IsleHubComponent {
   tab = 0;
-  constructor(route: ActivatedRoute) {
+  get security() { return this.runtime.getKeycloakSecurity(); }
+  constructor(route: ActivatedRoute, public runtime: RuntimeConfigService) {
     route.queryParamMap.subscribe(params=>{
       if(params.get('tab')==='planning')this.tab=3;
       else if(params.has('appType'))this.tab=0;

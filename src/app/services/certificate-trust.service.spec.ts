@@ -8,10 +8,18 @@ describe('Service connection diagnostics', () => {
   let fetchSpy: jasmine.Spy;
   beforeEach(() => {
     runtime = { isConfigLoaded$: new BehaviorSubject(true),
+      getKeycloakSecurity: () => ({ enabled: false, requiredBy: [], configurationError: null }),
       getBackendBaseUrl: () => 'https://api.example.test', getKeycloakConfig: () => null };
     service = new CertificateTrustService(runtime);
     fetchSpy = spyOn(window, 'fetch').and.resolveTo(new Response('{}', { status: 200 }));
   });
+  it('reports a required but disabled security dependency without probing an empty URL', fakeAsync(() => {
+    runtime.getKeycloakSecurity = () => ({ enabled: false, requiredBy: ['Private files'], configurationError: 'Required by Private files' });
+    void service.checkAllEndpoints(); flushMicrotasks();
+    expect(service.showPrompt).toBeTrue();
+    expect(service.failedEndpoints[0].state).toBe('configuration-error');
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  }));
   it('does not prompt for a healthy backend', fakeAsync(() => {
     void service.checkAllEndpoints(); flushMicrotasks();
     expect(service.showPrompt).toBeFalse();

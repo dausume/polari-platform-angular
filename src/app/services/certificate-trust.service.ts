@@ -3,7 +3,7 @@ import { BehaviorSubject, firstValueFrom, Observable } from 'rxjs';
 import { filter, take } from 'rxjs/operators';
 import { RuntimeConfigService } from './runtime-config.service';
 
-export type ConnectionState = 'reachable' | 'http-error' | 'timeout' | 'unreachable' | 'blocked' | 'offline' | 'mixed-content';
+export type ConnectionState = 'reachable' | 'http-error' | 'timeout' | 'unreachable' | 'blocked' | 'offline' | 'mixed-content' | 'configuration-error';
 export interface EndpointStatus {
   name: string;
   url: string;
@@ -44,6 +44,11 @@ export class CertificateTrustService {
         url: this.runtimeConfig.getBackendBaseUrl().replace(/\/$/, '') + '/polariAPI',
         trusted: false, checked: false
       }];
+      const security = this.runtimeConfig.getKeycloakSecurity();
+      if (security.configurationError) {
+        endpoints.push({ name: 'Required Keycloak security', url: '', trusted: false, checked: true,
+          state: 'configuration-error', error: security.configurationError });
+      }
       const keycloak = this.runtimeConfig.getKeycloakConfig();
       if (keycloak?.authority) {
         endpoints.push({ name: 'Keycloak sign-in',
@@ -51,6 +56,7 @@ export class CertificateTrustService {
           trusted: false, checked: false });
       }
       const results = await Promise.all(endpoints.map(async endpoint => {
+        if (endpoint.state === 'configuration-error') return endpoint;
         let result = endpoint;
         // Startup races are common after the router/proxy comes back. Retry before interrupting.
         for (let attempt = 0; attempt < 5; attempt++) {
