@@ -91,7 +91,9 @@ test('provider observation dates retained, invalid dates excluded', () => {
 test('device responsibilities and hosted Polari sub-role stay distinct', () => {
  const v=build({devices:[{name:'core',router_running:true,os_hostname:'host-os'}]}, {polari:{instances:[node('core')]}},null);
  const d=v.devices[0];assert.equal(d.osHostname,'host-os');assert.equal(d.responsibilities.join(','),'Router host,Polari provider');
- assert.equal(d.hosted[0].kind,'polari-instance');assert.equal(d.hosted[0].subrole,'Shared frontend and API');
+ assert.equal(d.hosted[0].kind,'polari-instance');assert.equal(d.hosted[0].subrole,'Polari role not reported');
+ const explicit=build(null,{polari:{instances:[{...node('core'),component_role:'frontend'}]}},null);
+ assert.equal(explicit.devices[0].hosted[0].subrole,'Polari frontend');
 });
 test('explicit hardware realization supplies hosting role', () => {
  const v=build(null,null,{entries:[{name:'vm',kind:'hardware-app',realization:'kvm',instances:[{app:'vm',device:'core',domain:'vm.isle'}]}]});
