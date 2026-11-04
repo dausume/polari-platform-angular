@@ -12,7 +12,8 @@
     "parity": "tsc -p parity.tsconfig.json && node .parity-out/parity/run-parity.js",
     "check:theme": "node scripts/check-theme-tokens.mjs",
     "check:responsive": "node scripts/check-responsive.mjs",
-    "check:styles": "node scripts/check-theme-tokens.mjs && node scripts/check-responsive.mjs"
+    "check:styles": "node scripts/check-theme-tokens.mjs && node scripts/check-responsive.mjs",
+    "build:safe": "isle capabilities build --run -- npm run build -- --source-map=false"
   },
   "private": true,
   "dependencies": {

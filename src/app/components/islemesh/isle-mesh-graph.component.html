@@ -9,9 +9,9 @@
     <div>
       <h1>Isle mesh</h1>
       <p class="sub">
-        nginx proxies and the apps they serve — every edge label is
-        a real access URL parsed from the agent's own config
-        (the proxies ARE the policy).
+        Devices, reported interfaces and OpenWrt DNS relationships.
+        Hollow tubes show candidate physical links; dashed purple paths show expected .isle DNS.
+        The shared segment is inferred, not a discovered switch. Select a link for evidence and report time.
       </p>
     </div>
     <button mat-stroked-button (click)="refresh()"
@@ -20,8 +20,15 @@
     </button>
   </div>
 
+
+  <section *ngIf="graph?.polari as polari" aria-label="Polari deployment minimum">
+    <strong>Polari: {{ polari.frontend_count }} frontend(s), {{ polari.backend_count }} backend(s)</strong>
+    <p>{{ polari.message }} {{ polari.recommended_shape }}</p>
+  </section>
+
   <div class="load-error" *ngIf="loadError">{{ loadError }}</div>
 
+  <div class="topology-layout" [class.resources-closed]="!resourcesOpen">
   <div class="isle-body">
     <div #canvas class="graph-canvas"
          [class.loading]="loading"></div>
@@ -29,7 +36,7 @@
     <aside class="detail" *ngIf="selectedEdge">
       <h2>
         <span class="kind-chip kind-{{ selectedEdge.kind }}">
-          {{ selectedEdge.kind === 'l2' ? 'L2 link' : 'serves' }}</span>
+          {{ selectedEdge.kind === 'l2' ? 'Physical link' : selectedEdge.kind === 'dns' ? 'DNS' : 'serves' }}</span>
         {{ selectedEdge.title }}
         <span class="mock-chip" *ngIf="selectedEdge.is_mock">MOCK</span>
       </h2>
@@ -55,7 +62,26 @@
         {{ selected.label }}
         <span class="mock-chip" *ngIf="selected.is_mock">MOCK</span>
       </h2>
+      <section *ngIf="selected.kind === 'proxy'" aria-label="Agent health checks">
+        <h3>Agent health checks</h3>
+        <p>Diagnostic endpoints validate this nginx agent; they are not separately installed apps.</p>
+        <div *ngFor="let check of $any(selected.diagnostics || [])">
+          <strong>{{ check.name }}</strong>: <code>{{ check.domain }}{{ check.path }}</code>
+          <p>{{ check.status }}</p>
+        </div>
+        <p *ngIf="!$any(selected.diagnostics)?.length">No diagnostic endpoint reported.</p>
+      </section>
       <dl>
+        <ng-container *ngIf="selected.detection">
+          <dt>Evidence</dt><dd>{{ selected.detection }} — {{ selected.evidence }}</dd>
+        </ng-container>
+        <ng-container *ngIf="selected.reported_at">
+          <dt>Last report</dt><dd>{{ $any(selected.reported_at) | date:'medium' }}</dd>
+        </ng-container>
+        <ng-container *ngFor="let uplink of $any(selected.uplinks || [])">
+          <dt>{{ uplink.medium }} · {{ uplink.interface }}</dt>
+          <dd>{{ uplink.link_up ? 'Carrier reported up' : 'Carrier reported down' }} · {{ uplink.reported_at | date:'medium' }}. Physical peer not identified.</dd>
+        </ng-container>
         <ng-container *ngIf="selected.device">
           <dt>Device</dt><dd>{{ selected.device }}</dd>
         </ng-container>
@@ -68,6 +94,7 @@
           <dd>{{ selected.connectivity_mode || 'undeclared' }}</dd>
         </ng-container>
         <ng-container *ngIf="selected.kind === 'app'">
+          <dt>App type</dt><dd>{{ appType(selected) }} · {{ selected.classification_source || "reported role" }}</dd>
           <dt>Domain</dt><dd>{{ selected.domain || '—' }}</dd>
           <dt>Availability</dt>
           <dd>{{ selected.availability_mode || '—' }}</dd>
@@ -90,12 +117,24 @@
     </aside>
   </div>
 
+  <aside class="resource-sidebar" aria-label="Device resources">
+    <button mat-stroked-button class="sidebar-toggle" (click)="resourcesOpen=!resourcesOpen" [attr.aria-expanded]="resourcesOpen" aria-controls="topology-resources"><mat-icon>{{resourcesOpen ? 'chevron_right' : 'chevron_left'}}</mat-icon>Device resources</button>
+    <section id="topology-resources" *ngIf="resourcesOpen" class="resource-scroll">
+      <p>Reported RAM, storage and CPU threads. Hover a CPU chip for its status.</p>
+      <article *ngFor="let entry of graph?.resources?.devices || []"><h2>{{entry.device}}</h2><app-isle-resource-view [entries]="[entry]" [compact]="true"></app-isle-resource-view></article>
+      <p *ngIf="!graph?.resources?.devices?.length">No device resource reports received yet.</p>
+      <a href="/isle?tab=planning">Plan app placement</a>
+    </section>
+  </aside>
+  </div>
   <div class="legend">
     <span><i class="dot device"></i> device box (contents run there)</span>
-    <span><i class="dot segment"></i> isle L2 segment (switch)</span>
+    <span><i class="dot segment"></i> shared segment (inferred)</span>
     <span><i class="dot proxy"></i> nginx proxy (isle-agent)</span>
     <span><i class="dot router"></i> OpenWRT router</span>
     <span><i class="dot app"></i> app</span>
+    <span>Hollow tube = candidate physical link</span>
+    <span><i class="dot router"></i> dashed purple = expected DNS, not a measured packet path</span>
     <span class="mock-key">dashed amber = mock</span>
   </div>
 </div>

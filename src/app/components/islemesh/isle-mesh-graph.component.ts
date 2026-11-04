@@ -22,6 +22,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { firstValueFrom } from 'rxjs';
 import * as d3 from 'd3';
+import { IsleResourceViewComponent } from './isle-resource-view.component';
 
 import { PolariService } from '@services/polari-service';
 import {
@@ -34,6 +35,8 @@ interface IsleGraph {
   banner: string;
   nodes: SceneNode[];
   links: SceneLink[];
+  polari?: { frontend_count: number; backend_count: number; minimum_deployment_present: boolean; message: string; recommended_shape: string };
+  resources?: { devices: any[]; totals: any };
   error?: string;
 }
 
@@ -47,7 +50,7 @@ const NODE_COLORS: Record<string, string> = {
 @Component({
   selector: 'app-isle-mesh-graph',
   standalone: true,
-  imports: [CommonModule, MatButtonModule, MatIconModule],
+  imports: [CommonModule, MatButtonModule, MatIconModule, IsleResourceViewComponent],
   templateUrl: './isle-mesh-graph.component.html',
   styleUrls: ['./isle-mesh-graph.component.scss'],
 })
@@ -58,6 +61,7 @@ export class IsleMeshGraphComponent implements AfterViewInit,
   graph: IsleGraph | null = null;
   loadError = '';
   loading = true;
+  resourcesOpen = true;
   selected: SceneNode | null = null;
   selectedLinks: SceneLink[] = [];
   selectedEdge: {
@@ -65,6 +69,19 @@ export class IsleMeshGraphComponent implements AfterViewInit,
     urls: Array<{ label: string; protocol?: string;
       upstream?: string; fragment?: string; is_mock: boolean }>;
   } | null = null;
+
+  resourceRows(entry: any): Array<{label: string; value: number; date: string; fresh: boolean}> {
+    const labels: Record<string, string> = {availableRamMb: 'Available RAM (MiB)', freeDiskMb: 'Free root disk (MiB)', ramMb: 'Total RAM (MiB)', threads: 'Logical CPUs'};
+    return Object.entries(entry?.reportedAvailability || {}).filter(([key]) => key in labels)
+      .map(([key, item]: [string, any]) => ({label: labels[key], value:item.value, date:item.observedAt, fresh:item.fresh}));
+  }
+  appType(n: SceneNode): string {
+    if (n['app_kind'] === 'polari-instance' && Array.isArray(n['component_roles']) && n['component_roles'].length) return 'Polari instance · ' + n['component_roles'].join(' + ');
+    if (n.kind === 'router') return 'Hardware App · KVM';
+    if (n['realization'] === 'bridge' || n['app_kind'] === 'hardware-bridge-app') return 'Hardware Bridge App';
+    const names: Record<string, string> = {'mesh-app':'Mesh App','polari-app':'Polari App','polari-instance':'Polari instance','shell-app':'Shell App','vpn-app':'VPN App','isle-vpn':'VPN App','isle-vpn-app':'VPN App','hardware-app':'Hardware App'};
+    return names[String(n['app_kind'])] || 'Type not reported';
+  }
 
   private resizeObserver: ResizeObserver | null = null;
   private paintedWidth = 0;
@@ -124,7 +141,6 @@ export class IsleMeshGraphComponent implements AfterViewInit,
     const host = this.canvasRef.nativeElement;
     const width = host.clientWidth;
     if (!width) {
-      requestAnimationFrame(() => this.paint());
       return;
     }
     this.paintedWidth = width;
@@ -156,11 +172,17 @@ export class IsleMeshGraphComponent implements AfterViewInit,
     const select = (n: SceneNode) =>
       this.zone.run(() => this.select(n));
 
-    // ---- l2 edges (under everything): box edge → segment hub
+    const port = (b: Scene['boxes'][number]) => {
+      const x = b.x + b.w / 2, y = b.y + b.h / 2;
+      const dx = (scene.segment?.x || 0) - x, dy = (scene.segment?.y || 0) - y;
+      const t = Math.min(dx ? b.w / 2 / Math.abs(dx) : Infinity,
+                         dy ? b.h / 2 / Math.abs(dy) : Infinity);
+      return { x: x + dx * t, y: y + dy * t };
+    };
+    // Hollow physical-link candidates. Interior leaves room for DNS overlays.
     if (scene.segment) {
       for (const edge of scene.l2) {
-        const bx = edge.from.x + edge.from.w / 2;
-        const by = edge.from.y + edge.from.h / 2;
+        const { x: bx, y: by } = port(edge.from);
         root.append('line')
           .attr('class', 'edge edge-l2'
             + (edge.is_mock ? ' mock' : ''))
@@ -168,22 +190,28 @@ export class IsleMeshGraphComponent implements AfterViewInit,
           .attr('x2', scene.segment.x)
           .attr('y2', scene.segment.y);
         root.append('line')
+          .attr('class', 'tube-interior')
+          .attr('x1', bx).attr('y1', by)
+          .attr('x2', scene.segment.x).attr('y2', scene.segment.y);
+        root.append('line')
           .attr('class', 'edge-hit')
           .attr('x1', bx).attr('y1', by)
           .attr('x2', scene.segment.x)
           .attr('y2', scene.segment.y)
           .on('click', () => this.zone.run(() => this.selectEdge({
             kind: 'l2', is_mock: edge.is_mock,
-            title: `${edge.from.device} — isle L2 segment`,
-            urls: [{ label: `interface ${edge.label}`,
-              is_mock: edge.is_mock }],
+            title: `${edge.from.device} — candidate physical link`,
+            urls: [{ label: edge.label, is_mock: edge.is_mock },
+              { label: edge.link.evidence || 'Physical path not verified', is_mock: edge.is_mock },
+              { label: 'Last reported: ' + (edge.link.reported_at || 'not supplied'), is_mock: edge.is_mock }],
           })));
         root.append('text')
           .attr('class', 'edge-iface'
             + (edge.is_mock ? ' mock' : ''))
-          .attr('x', (bx + scene.segment.x) / 2)
+          .attr('x', (bx + scene.segment.x) / 2 + 24)
+          .style('text-anchor', 'start')
           .attr('y', (by + scene.segment.y) / 2 - 5)
-          .text(edge.label);
+          .text(edge.label + ' · inferred');
       }
     }
 
@@ -218,6 +246,33 @@ export class IsleMeshGraphComponent implements AfterViewInit,
       .attr('y', (b: any) => (30 + b.h) / 2 + 4)
       .text('no isle containers yet');
 
+    // DNS is a logical service relationship, never a physical cable.
+    // Cross-device paths use the same ports and segment as the hollow tubes.
+    for (const dns of scene.dns) {
+      const a = scene.boxes.find(b => b.device === dns.from.node.device);
+      const b = scene.boxes.find(b => b.device === dns.to.node.device);
+      const cross = a && b && a !== b;
+      const connected = a && b && scene.l2.some(e => e.from === a) && scene.l2.some(e => e.from === b);
+      let points = [dns.from, dns.to].map(n => [n.x, n.y]);
+      if (cross && connected && scene.segment) {
+        const ap = port(a!), bp = port(b!);
+        points = [[dns.from.x, dns.from.y], [ap.x, ap.y],
+          [scene.segment.x, scene.segment.y], [bp.x, bp.y], [dns.to.x, dns.to.y]];
+      }
+      const path = 'M ' + points.map(p => p.join(' ')).join(' L ');
+      const line = root.append('path').attr('d', path)
+        .attr('class', 'edge-dns' + (dns.link.is_mock ? ' mock' : ''));
+      line.append('title').text(dns.link.label + ' — ' + dns.link.evidence);
+      root.append('path').attr('d', path).attr('class', 'edge-hit')
+        .on('click', () => this.zone.run(() => this.selectEdge({
+          kind: 'dns', title: dns.link.label, is_mock: dns.link.is_mock,
+          urls: [
+            { label: dns.link.evidence || 'Resolver path not verified', is_mock: dns.link.is_mock },
+            { label: 'Last agent report: ' + (dns.link.reported_at || 'not supplied'), is_mock: dns.link.is_mock },
+          ],
+        })));
+    }
+
     // ---- segment hub
     if (scene.segment) {
       const seg = root.append('g')
@@ -230,7 +285,8 @@ export class IsleMeshGraphComponent implements AfterViewInit,
       seg.append('text').attr('class', 'node-glyph')
         .attr('dy', 4).text('L2');
       seg.append('text').attr('class', 'node-label')
-        .attr('dy', 40).text(scene.segment.node.label);
+        .attr('dx', -32).attr('dy', 4).style('text-anchor', 'end')
+        .text(scene.segment.node.label);
     }
 
     // ---- serves edges (bundled) + stacked URL labels
@@ -297,18 +353,22 @@ export class IsleMeshGraphComponent implements AfterViewInit,
               `translate(${placed.x},${placed.y})`)
         .on('click', () => select(n));
       g.append('circle').attr('r', placed.r)
-        .attr('fill', NODE_COLORS[n.kind] || '#455a64');
+        .attr('fill', n.kind === 'app' ? ({'mesh-app':'#1565c0','polari-app':'#00897b','polari-instance':'#00897b','shell-app':'#795548','hardware-app':'#6a1b9a','vpn-app':'#ef6c00'} as Record<string,string>)[String(n['app_kind'])] || '#607d8b' : NODE_COLORS[n.kind] || '#455a64');
       g.append('text').attr('class', 'node-glyph').attr('dy', 4)
         .text(({ proxy: 'ngx', router: '⇄', app: 'app' } as
           Record<string, string>)[n.kind] || '');
       // SHORT labels inside boxes — the full label lives in the
       // detail panel (long ones caused the isle-core overlap).
-      const short = ({ proxy: 'nginx agent', router: 'router' } as
+      const short = ({ proxy: 'nginx agent', router: 'OpenWrt VM' } as
         Record<string, string>)[n.kind] || n.label;
       g.append('text').attr('class', 'node-label')
         .attr('dy', placed.r + 14)
         .text(short.length > 16
           ? short.slice(0, 15) + '…' : short);
+      if (n.kind === 'app' || n.kind === 'router') {
+        g.append('text').attr('class', 'node-label').attr('dy', placed.r + 27)
+          .style('font-size', '9px').text(this.appType(n));
+      }
     };
     scene.boxes.forEach((b) => b.members.forEach(drawNode));
     scene.floats.forEach(drawNode);

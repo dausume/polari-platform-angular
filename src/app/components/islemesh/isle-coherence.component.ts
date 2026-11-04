@@ -47,6 +47,7 @@ interface PolariInstance {
   device: string;
   domain: string;
   role: string;
+  component_role?: string;
   subdomains: string[];
 }
 
@@ -88,22 +89,27 @@ interface Assessment {
             <span class="lvl">{{ a.level }}</span>
             {{ a.message }}
           </li>
-          <li *ngIf="!assessments.length" class="level-ok">
-            <span class="lvl">ok</span> nothing to flag —
-            topologies are coherent
+          <li *ngIf="!assessments.length" class="level-info">
+            No findings were returned for the reported inventory.
+            Device coverage, freshness, and domain ownership still need verification.
           </li>
         </ul>
 
-        <h2>Polari instances</h2>
+        <h2>Hosted Polari instances</h2>
+        <p>These rows describe independently deployed Polari frontend and backend instances. Normal Isle functionality requires at least one of each across the Isle. Usually one frontend serves multiple backends; additional frontends are supported. Their Polari role is separate from
+          the device's infrastructure role and from any router VM or Hardware App it hosts.</p>
+        <p class="level-warning" *ngIf="duplicateEndpoints.length">Multiple device names report the same endpoint:
+          {{ duplicateEndpoints.join('; ') }}. These may be device aliases or competing registrations;
+          they do not establish that there are multiple physical devices or a host/VM pair.</p>
         <div class="dev-table">
           <div class="dev-row pol-head dev-head">
-            <span>instance</span><span>role</span>
-            <span>device</span><span>domains</span>
+            <span>Polari instance</span><span>Polari sub-role</span>
+            <span>Reported host device</span><span>Domains</span>
           </div>
           <div class="dev-row pol-row" *ngFor="let i of polari">
             <span class="dev-name mono">{{ i.app }}</span>
             <span>
-              <span class="role role-{{ i.role }}">{{ i.role }}
+              <span class="role role-{{ i.component_role || 'Role not reported' }}">{{ i.component_role || 'Role not reported' }}
               </span>
             </span>
             <span>{{ i.device || '?' }}</span>
@@ -120,8 +126,7 @@ interface Assessment {
             <code>{{ c }}</code>
             <em>({{ components[c] }})</em><span *ngIf="!last">,
             </span>
-          </span>. Backends are the replicable part; component
-          installs land with the shared-db profile arc.
+          </span>. Frontend and backend counts are independent. Backend data sharing and routing need explicit configuration; additional backends do not imply shared databases.
         </p>
 
         <h2>Web exposure (the containment boundary)</h2>
@@ -223,14 +228,14 @@ interface Assessment {
 
         <h2>Scaling polari</h2>
         <p *ngIf="candidates.length" class="scale-hint">
-          polari could also run on
-          <strong>{{ candidates.join(', ') }}</strong> — on that
-          device: <code>isle polari instance deploy</code>
-          (a mesh-app install; it appears here and in the store as
-          another tracked instance).
+          These devices report an agent but no Polari instance:
+          <strong>{{ candidates.join(', ') }}</strong>.
+          Hosting requirements and available resources have not been checked.
+          A device can use hosted apps without running its own Polari instance.
         </p>
         <p *ngIf="!candidates.length" class="scale-hint">
-          every member device already hosts a polari instance.
+          No additional Polari hosts were suggested by the reported inventory.
+          This does not confirm that every Isle member is listed or hosts Polari.
         </p>
       </ng-container>
     </div>
@@ -282,6 +287,7 @@ interface Assessment {
   `],
 })
 export class IsleCoherenceComponent implements OnInit {
+  duplicateEndpoints: string[] = [];
   devices: CoherenceDevice[] = [];
   assessments: Assessment[] = [];
   candidates: string[] = [];
@@ -319,6 +325,16 @@ export class IsleCoherenceComponent implements OnInit {
     this.assessments = data.assessments ?? [];
     this.candidates = data.polari?.candidates ?? [];
     this.polari = data.polari?.instances ?? [];
+    const owners = new Map<string, Set<string>>();
+    for (const instance of this.polari) {
+      for (const domain of [instance.domain, ...(instance.subdomains || [])]) {
+        if (!domain || !instance.device) continue;
+        const names = owners.get(domain) || new Set<string>();
+        names.add(instance.device); owners.set(domain, names);
+      }
+    }
+    this.duplicateEndpoints = [...owners].filter(([, names]) => names.size > 1)
+      .map(([domain, names]) => `${domain}: ${[...names].join(', ')}`);
     this.components = data.polari?.components ?? null;
     // devices already carry pools/ports; default missing to []
     this.devices.forEach((d) => {

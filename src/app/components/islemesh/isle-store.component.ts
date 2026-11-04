@@ -5,18 +5,23 @@
  * provides, and its INSTALL PLAN (the host commands `isle store
  * install` runs — the store proposes, the host executes).
  *
- * The two proven variants render side by side: mesh-apps (deploy a
- * container as an .isle app) and polari-apps (a shared-shell
- * launcher). Engine-providing apps are badged.
+ * App types are the landing page. Each type has a filtered view and
+ * action-specific, dated device evaluations; native install stays local.
  */
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { MatButtonModule } from '@angular/material/button';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatIconModule } from '@angular/material/icon';
-import { RouterModule } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
+import { RouterModule, Router, ActivatedRoute } from '@angular/router';
+import { firstValueFrom, timeout, Subscription } from 'rxjs';
+import { buildIsleInventory, readCapabilityReport, CAPABILITY_LABELS } from './isle-device-inventory';
+import { buildTypeCards, appTargets, matchesCategory, TypeCard, InstallReports, baselineCapability, capabilityProfile, preparationProfile } from './isle-store-types';
+
+import { IslePlacementPlanComponent } from './isle-placement-plan.component';
+import { PURPOSES, purposeIds, filterApps } from './isle-store-browse';
 
 import { PolariService } from '@services/polari-service';
 import { AiAssistantService } from
@@ -36,9 +41,14 @@ interface CatalogEntry {
   title: string;
   description: string;
   kind: string;
+  realization?: string;
+  is_mock?: boolean;
   source_ref: string;
   provides_engine: string;
   category: string;
+  purposes?: string[];
+  management_system?: string;
+  installed_somewhere?: boolean;
   source: string;
   // running instances across the isle (duplicates are deliberate —
   // scaling is a genuine need; this is the tracking half)
@@ -116,11 +126,92 @@ interface InstallPlan {
   selector: 'app-isle-store',
   standalone: true,
   imports: [CommonModule, FormsModule, MatButtonModule,
-            MatIconModule, RouterModule],
+            MatIconModule, MatCheckboxModule, RouterModule, IslePlacementPlanComponent],
   templateUrl: './isle-store.component.html',
   styleUrls: ['./isle-store.component.scss'],
 })
-export class IsleStoreComponent implements OnInit {
+export class IsleStoreComponent implements OnInit, OnDestroy {
+  currentDevice = '';
+  localReport: any = null;
+  reportedDevices: any[] = [];
+  preparingCapabilities = false;
+  capabilitySetupMessage = '';
+  currentCapability(id: string) { return baselineCapability(id, this.localReport); }
+  deviceCapability(id: string, name: string) {
+    const device = this.reportedDevices.find(d => d.name === name);
+    return baselineCapability(id, device);
+  }
+  preparationProfile = preparationProfile;
+  supportsCapabilitySetup(id: string) { return capabilityProfile(id) !== null; }
+  get routerHardwareInstalled(): boolean {
+    const f = this.localReport?.capability_evidence?.facts?.['hardware.openwrt.running'];
+    return f?.status === 'observed' && f.value === true;
+  }
+  get installedRouters(): {device: string; date: string}[] {
+    const devices = this.reportedDevices.filter(d => d.name !== this.currentDevice);
+    if (this.currentDevice && this.localReport) devices.push({...this.localReport, name:this.currentDevice});
+    return devices.flatMap(d => {
+      const f = d.capability_evidence?.facts?.['hardware.openwrt.running'];
+      return f?.status === 'observed' && f.value === true ? [{device:d.name, date:f.observed_at}] : [];
+    });
+  }
+  async refreshLocalDevice(): Promise<void> {
+    this.currentDevice = ''; this.localReport = null;
+    if (!this.bridge.available) return;
+    try {
+      const context = await this.bridge.deviceContext();
+      if (context.ok && /^[a-z0-9][a-z0-9-]{0,62}$/.test(context.report?.device || '')) {
+        this.currentDevice = context.report.device; this.localReport = context.report;
+      }
+    } catch { /* Older shells cannot identify their host; never guess from the server. */ }
+  }
+  async installCapabilities(id: string): Promise<void> {
+    if (!this.currentDevice || !this.bridge.available || !this.supportsCapabilitySetup(id) || this.preparingCapabilities) return;
+    this.preparingCapabilities = true;
+    this.capabilitySetupMessage = `Preparing capabilities on ${this.currentDevice}…`;
+    try {
+      const result = await this.bridge.enableCapabilities(id);
+      this.capabilitySetupMessage = result.output || result.error || (result.ok ? 'Capabilities prepared.' : 'Setup did not finish.');
+      await this.refreshLocalDevice(); await this.refresh();
+    } catch (e: any) { this.capabilitySetupMessage = e?.message || 'Capability setup failed.'; }
+    finally { this.preparingCapabilities = false; }
+  }
+  browseView: 'deployment' | 'purpose' = 'deployment';
+  searchQuery = '';
+  selectedPurpose = '';
+  installedOnly = false;
+  browseAll = false;
+  readonly purposes = PURPOSES;
+  get browsing() { return this.browseAll || !!(this.selectedType || this.selectedPurpose || this.searchQuery.trim() || this.installedOnly); }
+  get purposeCards() { return PURPOSES.map(p=>({...p,count:filterApps(this.entries,this.searchQuery,this.selectedType || '',p.id,this.installedOnly).length})); }
+  purposeLabels(entry: CatalogEntry) { return purposeIds(entry).map(id=>PURPOSES.find(p=>p.id===id)?.title).join(' · '); }
+  get browseTitle() { return PURPOSES.find(p=>p.id===this.selectedPurpose)?.title || this.activeType?.title || 'All apps'; }
+  updateBrowse(params: Record<string, any> = {}): void {
+    if (this.installing || this.uninstalling || this.bindBusy) return;
+    void this.router.navigate([], {relativeTo:this.route, queryParams: {view:this.browseView, q:this.searchQuery || null, purpose:this.selectedPurpose || null, appType:this.selectedType || null, installed:this.installedOnly ? '1' : null, all:this.browseAll ? '1' : null,...params},queryParamsHandling:'merge'});
+  }
+  changeView(view: 'deployment' | 'purpose') { this.browseView=view; this.updateBrowse(); }
+  openPurpose(id:string) { this.updateBrowse({purpose:id,all:'1'}); }
+  clearBrowse() { this.updateBrowse({q:null,purpose:null,appType:null,installed:null,all:null}); }
+  selectedType: string | null = null;
+  typeCards: TypeCard[] = [];
+  expandedDevices: string | null = null;
+  toggleDevices(id: string): void { this.expandedDevices = this.expandedDevices === id ? null : id; }
+  reports: InstallReports = {};
+  capabilityNotice = "";
+  readonly capabilityLabels = CAPABILITY_LABELS;
+  private navigation?: Subscription;
+  get activeType() { return this.typeCards.find(t => t.id === this.selectedType); }
+  get visibleEntries() { return filterApps(this.entries,this.searchQuery,this.selectedType || '',this.selectedPurpose,this.installedOnly); }
+  isLauncher(entry: CatalogEntry) { return this.selectedType === 'shell-app' || ['shell-app', 'polari-app', 'polari-app-option'].includes(entry.kind); }
+  targetsFor(entry: CatalogEntry) { return appTargets(entry, this.reports, this.isLauncher(entry) ? 'launcher' : undefined); }
+  openType(id: string | null): void {
+    if (id === "polari-software") { void this.router.navigate(["/apps"]); return; }
+    if (this.installing || this.uninstalling || this.bindBusy) return;
+    void this.router.navigate([], {relativeTo:this.route, queryParams:{appType:id,all:id ? "1" : null,purpose:null}, queryParamsHandling:"merge"});
+  }
+  ngOnDestroy(): void { this.navigation?.unsubscribe(); }
+
   entries: CatalogEntry[] = [];
   loading = true;
   loadError = '';
@@ -134,14 +225,21 @@ export class IsleStoreComponent implements OnInit {
   installOk: boolean | null = null;
 
   readonly kindLabel: Record<string, string> = {
-    'mesh-app': 'Mesh apps — run as containers on a device',
-    'polari-app': 'Polari apps — doors onto running instances',
-    'polari-instance': 'Polari instances — runtimes that host modules',
+    'mesh-app': 'Mesh Apps',
+    'hardware-app': 'Hardware Apps',
+    'hardware-vm': 'Hardware Apps',
+    'hardware-bridge-app': 'Hardware Bridge Apps',
+    'hardware-extension-app': 'Hardware Extension Apps',
+    'shell-app': 'Shell Apps',
+    'isle-vpn': 'Isle VPN Apps',
+    'isle-vpn-app': 'Isle VPN Apps',
+    'polari-app': 'Shell Apps',
+    'polari-instance': 'Polari Instances — frontend or backend',
     'polari-module': 'Polari modules',
     // sep-3: every PolariAppDefinition, projected as an OPTION —
     // launcher debs materialize at install time, never a shelf.
     'polari-app-option':
-      'Polari app options — any app, installable as its own shell',
+      'Shell Apps',
     // ai-2 (decision 1): the DEDICATED AI section — never buried
     // under generic apps.
     'ai-tool':
@@ -151,7 +249,8 @@ export class IsleStoreComponent implements OnInit {
   constructor(private http: HttpClient,
               private polariService: PolariService,
               private ai: AiAssistantService,
-              public bridge: ShellBridgeService) {}
+              public bridge: ShellBridgeService,
+              private router: Router, private route: ActivatedRoute) {}
 
   /** True when running inside the native JavaFX/JCEF shell — the
    *  page can then install locally (pkexec) instead of only
@@ -169,11 +268,14 @@ export class IsleStoreComponent implements OnInit {
 
   async uninstallNative(entry: CatalogEntry,
                         purge: boolean): Promise<void> {
+    if(!confirm('Uninstall '+entry.title+' from '+this.currentDevice+'? '+(purge?'App data will be backed up and erased.':'App data will be preserved.')))return;
     this.uninstalling = true;
     this.installLog = `Requesting uninstall of ${entry.name}… `
       + `(you'll be asked for your password)`;
     this.installOk = null;
     try {
+      const guard:any=await firstValueFrom(this.http.get(this.polariService.getBackendBaseUrl()+'/api/islemesh/removal-check?app='+encodeURIComponent(entry.name)+'&device='+encodeURIComponent(this.currentDevice),this.polariService.backendRequestOptions).pipe(timeout(10000)));
+      if(!guard.ok||!guard.allowed)throw Error((guard.reasons||[]).join(' ')||'Removal could not be verified.');
       const res = await this.bridge.uninstall(entry.name, purge);
       this.installOk = !!res.ok;
       this.installLog = (res.output || res.error
@@ -219,6 +321,7 @@ export class IsleStoreComponent implements OnInit {
   }
 
   async installNative(entry: CatalogEntry): Promise<void> {
+    if (!this.currentDevice || !this.bridge.available || !this.plan?.ok || this.planLoading || this.installing || this.selected?.name !== entry.name) return;
     this.installing = true;
     this.installLog = `Requesting install of ${entry.name}… `
       + `(you'll be asked for your password)`;
@@ -237,6 +340,16 @@ export class IsleStoreComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.navigation = this.route.queryParamMap.subscribe(params => {
+      this.selectedType = params.get("appType");
+      this.browseView = params.get('view') === 'purpose' ? 'purpose' : 'deployment';
+      this.searchQuery = params.get('q') || '';
+      this.selectedPurpose = params.get('purpose') || '';
+      this.installedOnly = params.get('installed') === '1';
+      this.browseAll = params.get('all') === '1';
+      if (this.selectedType === "polari-software") { void this.router.navigate(["/apps"]); return; }
+      this.selected = null; this.plan = null; this.bindSecret = "";
+    });
     this.refresh();
   }
 
@@ -247,17 +360,30 @@ export class IsleStoreComponent implements OnInit {
   async refresh(): Promise<void> {
     this.loading = true;
     this.loadError = '';
-    const data: any = await firstValueFrom(this.http.get(
-      `${this.base()}/api/islemesh/catalog`,
-      this.polariService.backendRequestOptions))
-      .catch((err) => (err?.error ?? null));
+    const paths = ['/catalog', '', '/gaps?action=host', '/gaps?action=launcher', '/gaps?action=module', '/devices'];
+    const results = await Promise.allSettled(paths.map(path => firstValueFrom(this.http.get<any>(
+      `${this.base()}/api/islemesh${path}`, this.polariService.backendRequestOptions).pipe(timeout(10000)))));
+    const values = results.map(r => r.status === 'fulfilled' && r.value?.ok ? r.value : null);
     this.loading = false;
-    if (!data?.ok) {
-      this.loadError = 'GET /api/islemesh/catalog did not answer — '
-        + 'is the islemesh module deployed?';
+    this.reportedDevices = (values[5]?.devices || []).filter((d: any) => !d.is_mock);
+    // Finish HTTP requests before native probing, which can block the CEF callback thread.
+    void this.refreshLocalDevice();
+    if (!Array.isArray(values[0]?.entries)) {
+      this.loadError = 'The app catalog could not be refreshed. Check your Isle connection and try again.';
       return;
     }
-    this.entries = data.entries;
+    this.entries = values[0].entries.filter((e: any) => e && typeof e.name === 'string' && typeof e.kind === 'string' && !e.is_mock);
+    const actions = ['host', 'launcher', 'module'] as const;
+    const missing: string[] = [];
+    actions.forEach((action, i) => {
+      const report = readCapabilityReport(values[i+2], action);
+      if (report) this.reports[action] = report;
+      else missing.push(action);
+    });
+    this.capabilityNotice = missing.length ? 'Some device checks could not be refreshed. Previous dated reports are retained where available; missing reports do not mean a device is incapable.' : '';
+    const inventory = buildIsleInventory(values[1], null, values[0]);
+    this.typeCards = buildTypeCards(this.entries, inventory.devices.map(d => d.name), this.reports, true);
+    if (this.selected) this.selected = this.visibleEntries.find(e => e.name === this.selected?.name) || null;
   }
 
   // installed-on-this-device state (native shell only). unin-4:
@@ -355,6 +481,13 @@ export class IsleStoreComponent implements OnInit {
       }).catch(() => {});
   }
 
+  async reviewPlanned(name: string): Promise<void> {
+    const entry=this.entries.find(e=>e.name===name && !e.is_mock && e.management_system!=='polari');
+    if (!entry || !this.currentDevice || this.installing || this.uninstalling) return;
+    await this.router.navigate([], {relativeTo:this.route,queryParams:{all:'1',appType:null,purpose:null,q:null,installed:null},queryParamsHandling:'merge'});
+    await this.select(entry);
+  }
+
   async select(entry: CatalogEntry): Promise<void> {
     this.selected = entry;
     this.plan = null;
@@ -407,6 +540,7 @@ export class IsleStoreComponent implements OnInit {
       `${this.base()}/api/islemesh/catalog/${entry.name}`,
       this.polariService.backendRequestOptions))
       .catch(() => null);
+    if (this.selected?.name !== entry.name) return;
     this.planLoading = false;
     this.plan = data?.entry?.install_plan ?? null;
   }
@@ -446,11 +580,4 @@ export class IsleStoreComponent implements OnInit {
     navigator.clipboard?.writeText(text);
   }
 
-  kindsPresent(): string[] {
-    return [...new Set(this.entries.map((e) => e.kind))];
-  }
-
-  entriesOfKind(kind: string): CatalogEntry[] {
-    return this.entries.filter((e) => e.kind === kind);
-  }
 }

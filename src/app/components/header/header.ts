@@ -1,3 +1,4 @@
+import { RuntimeConfigService } from '@services/runtime-config.service';
 import { HostListener, Input, OnInit, OnDestroy } from '@angular/core';
 import { inlineGroupCount } from './header-nav-fit';
 import { Component } from '@angular/core';
@@ -110,7 +111,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
     private router: Router,
     private dialog: MatDialog,
     private roleClaims: RoleClaimsService,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    public runtime: RuntimeConfigService
   ) {}
 
   /** "Claim a role…" — self-claimable roles, his ask 2026-09-18. */

@@ -83,6 +83,25 @@ export class ShellBridgeService {
     });
   }
 
+  private securityResult(result: any): any {
+    if (result.error?.code === 'unknown-type') return {...result, error: 'Update the native Isle App shell to use the authenticated security toggle.'};
+    return {...result, error: typeof result.error === 'string' ? result.error : result.error?.message};
+  }
+
+  securityStatus(): Promise<InstallResult & {state?: any; cancelled?: boolean}> {
+    return this.call('security.status', {}).then(result => this.securityResult(result));
+  }
+  setKeycloak(enabled: boolean): Promise<InstallResult & {state?: any; cancelled?: boolean}> {
+    return this.call('security.set', {action: enabled ? 'enable' : 'disable'}).then(result => this.securityResult(result));
+  }
+
+  deviceContext(): Promise<{ok: boolean; report?: any; error?: string}> {
+    return this.call('device.context', {});
+  }
+  enableCapabilities(profile: string): Promise<InstallResult> {
+    return this.call('device.enableCapabilities', {profile});
+  }
+
   /** Install a named catalog app on THIS device via pkexec. */
   install(name: string): Promise<InstallResult> {
     return this.call('store.install', { name });

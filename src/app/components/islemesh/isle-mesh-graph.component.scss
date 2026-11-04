@@ -2,7 +2,7 @@
   padding: 16px 20px 24px;
   color: var(--text-on-card);
   background: var(--surface-app-background);
-  min-height: 100%;
+  min-height: 0;
 }
 
 /* THE mock signal — large, top, unmissable. Real data never
@@ -192,10 +192,10 @@
 
 /* ---- deterministic scene additions ---- */
 ::ng-deep .graph-canvas {
-  .edge-l2 {
+  .edge.edge-l2 {
     stroke: var(--text-on-card-muted);
-    stroke-width: 1.5;
-    stroke-dasharray: 2 3;
+    stroke-width: 14;
+    stroke-dasharray: 4 3;
     &.mock { stroke: #ff8f00; }
   }
   .edge-iface {
@@ -254,3 +254,35 @@
   opacity: 0.7;
   &.mock { stroke: #ff8f00; }
 }
+
+
+// Physical shell and logical DNS are separate layers.
+::ng-deep .graph-canvas {
+  .tube-interior {
+    stroke: var(--surface-primary);
+    stroke-width: 9;
+    fill: none;
+    pointer-events: none;
+  }
+  .edge-dns {
+    fill: none;
+    stroke: #8e24aa;
+    stroke-width: 2.5;
+    stroke-dasharray: 7 4;
+    &.mock { stroke: #ff8f00; }
+  }
+}
+.kind-chip.kind-dns { background: #6a1b9a; }
+
+.isle-body[hidden] { display:none; }
+
+.topology-layout {display:grid;grid-template-columns:minmax(0,1fr) minmax(330px,420px);gap:16px;align-items:start;}
+.topology-layout.resources-closed {grid-template-columns:minmax(0,1fr) auto;}
+.topology-layout .isle-body {min-width:0;flex-wrap:wrap;}
+.topology-layout .graph-canvas {min-width:100%;box-sizing:border-box;}
+.resource-sidebar {border:1px solid #8295a5;border-radius:8px;background:var(--surface-primary);overflow:hidden;}
+.sidebar-toggle {width:100%;font-weight:600;}
+.resource-scroll {padding:.7rem;max-height:clamp(380px,calc(100vh - 390px),680px);overflow:auto;}
+.resource-scroll article + article {border-top:2px solid #8295a5;margin-top:1rem;padding-top:.5rem;}
+.resource-scroll h2 {font-size:1.1rem;margin:.5rem 0;}
+@media(max-width:850px){.topology-layout {grid-template-columns:minmax(0,1fr);} .resource-scroll {max-height:600px;}.topology-layout.resources-closed{grid-template-columns:minmax(0,1fr);}}

@@ -1,11 +1,11 @@
 <div class="store-page">
+  <app-isle-placement-plan [queueOnly]="true" [currentDevice]="currentDevice" [catalog]="entries" (review)="reviewPlanned($event)"></app-isle-placement-plan>
   <div class="store-header">
     <div>
-      <h1>Isle app store</h1>
+      <h1>App Store</h1>
       <p class="sub">
-        Install arbitrary apps as <code>.isle</code> endpoints,
-        polari apps as native shells, and engines that wire into
-        polari — one front door, everything auto-configured.
+        Browse by deployment type or purpose, search the catalog, and check where an app can run.
+        Accessing an app served elsewhere does not require hosting it on this device.
       </p>
     </div>
     <button mat-stroked-button (click)="refresh()"
@@ -14,23 +14,116 @@
     </button>
   </div>
 
+  <section class="browse-controls" aria-label="Browse and filter apps">
+    <div class="browse-view" role="group" aria-label="Browse view">
+      <button [disabled]="installing || uninstalling || bindBusy" mat-stroked-button [attr.aria-pressed]="browseView === 'deployment'" (click)="changeView('deployment')">Deployment types</button>
+      <button [disabled]="installing || uninstalling || bindBusy" mat-stroked-button [attr.aria-pressed]="browseView === 'purpose'" (click)="changeView('purpose')">Purpose categories</button>
+      <button [disabled]="installing || uninstalling || bindBusy" mat-button (click)="updateBrowse({all:'1'})">All apps</button>
+    </div>
+    <div class="browse-filters">
+      <label>Search apps<input type="search" placeholder="Name, description or purpose" [(ngModel)]="searchQuery" (ngModelChange)="updateBrowse()" [disabled]="installing || uninstalling || bindBusy"></label>
+      <label>Deployment type<select [disabled]="installing || uninstalling || bindBusy" [(ngModel)]="selectedType" (ngModelChange)="updateBrowse()"><option [ngValue]="null">All deployment types</option><ng-container *ngFor="let type of typeCards"><option *ngIf="!type.managementRoute" [value]="type.id">{{ type.title }}</option></ng-container></select></label>
+      <label>Purpose<select [disabled]="installing || uninstalling || bindBusy" [(ngModel)]="selectedPurpose" (ngModelChange)="updateBrowse()"><option value="">All purposes</option><option *ngFor="let purpose of purposes" [value]="purpose.id">{{ purpose.title }}</option></select></label>
+      <mat-checkbox class="installed-filter" [disabled]="installing || uninstalling || bindBusy" [(ngModel)]="installedOnly" (ngModelChange)="updateBrowse()">Installed somewhere on this Isle</mat-checkbox>
+      <button [disabled]="installing || uninstalling || bindBusy" mat-button (click)="clearBrowse()">Clear filters</button>
+    </div>
+    <p *ngIf="browseView === 'purpose'">Apps can have several purposes. Each result is listed once; its deployment type determines hosting requirements.</p>
+    <p><a routerLink="/apps">Manage Polari Apps</a> · <a routerLink="/module-management">Manage Polari modules</a></p>
+  </section>
+
+  <p class="current-device"><strong>Current device:</strong> {{ currentDevice || 'Not identified by this browser' }}
+    <span *ngIf="!currentDevice"> — Open the updated native Isle App to identify this device and install capabilities.</span>
+  </p>
+  <p>Other devices can be inspected using Devices. Capability installation always happens on this device.</p>
+  <pre *ngIf="capabilitySetupMessage" role="status">{{ capabilitySetupMessage }}</pre>
   <div class="load-error" *ngIf="loadError">{{ loadError }}</div>
   <div class="loading" *ngIf="loading">Loading catalog…</div>
 
-  <div class="store-body" *ngIf="!loading && !loadError">
+  <p class="capability-notice" *ngIf="capabilityNotice" role="status">{{ capabilityNotice }}</p>
+  <section class="type-cards" *ngIf="!loading && !loadError && !browsing && browseView === 'deployment'" aria-label="App types">
+    <article class="type-card" *ngFor="let type of typeCards">
+      <header class="type-heading">
+        <h2><button type="button" class="type-title" (click)="openType(type.id)">{{ type.title }}</button></h2>
+        <div class="type-actions" *ngIf="!type.managementRoute">
+          <button mat-stroked-button type="button" (click)="toggleDevices(type.id)"
+                  [attr.aria-expanded]="expandedDevices === type.id" [attr.aria-controls]="'devices-' + type.id">Devices</button>
+          <span *ngIf="currentDevice && currentCapability(type.id).ready" class="capability-ready">Installable</span>
+          <button *ngIf="supportsCapabilitySetup(type.id) && !currentCapability(type.id).ready"
+                  mat-stroked-button type="button" (click)="installCapabilities(type.id)"
+                  [disabled]="!currentDevice || preparingCapabilities">Prepare this device</button>
+        </div>
+      </header>
+      <p *ngIf="!type.managementRoute && currentDevice && supportsCapabilitySetup(type.id)">
+        {{ currentDevice }}: {{ currentCapability(type.id).label }}
+        <small *ngIf="currentCapability(type.id).date"> · Checked {{ currentCapability(type.id).date | date:'medium' }}</small>
+      </p>
+      <ng-container *ngIf="type.id === 'hardware-vm'">
+        <p *ngFor="let router of installedRouters"><strong>Installed Hardware App:</strong> OpenWrt router on {{ router.device }}{{ router.device === currentDevice ? ' (this device)' : '' }} — running KVM virtual machine. <small>Reported {{ router.date | date:'medium' }}</small></p>
+      </ng-container>
+      <p class="type-description">{{ type.description }}</p>
+      <p class="type-requirements" *ngIf="type.requirements"><strong>Requires:</strong> {{ type.requirements }}</p>
+      <details *ngIf="type.id === 'polari-instance'">
+        <summary>Choose a Polari deployment role</summary>
+        <p>Run on the device that will host this role. A complete Isle needs at least one frontend and one backend, which may be on different devices.</p>
+        <p>Both roles: <code>sudo isle polari instance deploy --role both</code></p>
+        <p>Backend only: <code>sudo isle polari instance deploy --role backend --name compute --frontend-origin https://polari.isle</code></p>
+        <p>Frontend only: <code>sudo isle polari instance deploy --role frontend --name interface --backend-url https://api.compute.isle</code></p>
+        <p>Use your actual deployment names. The selected backend must allow the frontend origin in its CORS configuration. Each backend has its own data unless sharing is explicitly configured.</p>
+      </details>
+      <section *ngIf="preparationProfile(type.id) as profile" class="profile-setup" aria-label="Prepare this device">
+        <p><strong>Shared dependencies:</strong> {{ profile.packages }}.</p>
+        <p>Preparation checks existing dependencies, installs missing ones and verifies this device. Each app still has its own requirements.</p>
+        <details>
+          <summary>Terminal command and dependency download</summary>
+          <p>Run on the device you want to prepare:</p>
+          <div class="cmd"><code>{{ profile.command }}</code><button mat-icon-button (click)="copy(profile.command)" aria-label="Copy preparation command"><mat-icon>content_copy</mat-icon></button></div>
+          <p>Preview missing packages without installing: <code>{{ profile.planCommand }}</code></p>
+          <a [href]="profile.download">Download dependency DEB (Ubuntu 24.04, amd64)</a>
+          <p>Install the download using <code>{{ profile.packageCommand }}</code>, then run the preparation command to verify services and access. The DEB uses existing compatible Debian packages; it does not join an Isle or deploy an app.</p>
+        </details>
+      </section>
+      <p *ngIf="!type.managementRoute && !supportsCapabilitySetup(type.id)">Preparation depends on the selected app. Open an app to see its specific requirements and setup availability.</p>
+      <nav *ngIf="type.managementRoute" aria-label="Polari management">
+        <a mat-stroked-button [routerLink]="type.managementRoute">Manage Polari Apps</a>
+        <a mat-button routerLink="/module-management">Manage modules</a>
+        <a mat-button routerLink="/topology">Polari node topology</a>
+      </nav>
+      <footer class="type-footer" *ngIf="!type.managementRoute">
+        <button type="button" class="type-browse" (click)="openType(type.id)">{{ type.count }} {{ type.count === 1 ? 'app' : 'apps' }} available <mat-icon>arrow_forward</mat-icon></button>
+      </footer>
+      <section class="type-device-details" *ngIf="expandedDevices === type.id" [id]="'devices-' + type.id" aria-label="Device evaluations">
+        <p>Per-app evaluations, dated when last reported. Meeting one app's requirements does not mean every app in this category can run here.</p>
+        <div class="type-device" *ngFor="let device of type.devices">
+          <strong>{{ device.name }}</strong><span>{{ deviceCapability(type.id, device.name).label }} — {{ device.summary }}</span>
+          <small *ngIf="device.dates.length">Observed {{ device.dates[0] | date:'medium' }}<ng-container *ngIf="device.dates.length > 1"> – {{ device.dates[device.dates.length - 1] | date:'medium' }}</ng-container></small>
+        </div>
+        <p *ngIf="!type.devices.length">No device evaluations reported yet.</p>
+      </section>
+    </article>
+  </section>
+  <section class="type-cards" *ngIf="!loading && !loadError && !browsing && browseView === 'purpose'" aria-label="Purpose categories">
+    <article class="type-card" *ngFor="let purpose of purposeCards">
+      <h2><button class="type-title" (click)="openPurpose(purpose.id)">{{ purpose.title }}</button></h2>
+      <p>{{ purpose.description }}</p>
+      <p *ngIf="purpose.id === 'networking' && installedRouters.length">{{ installedRouters.length }} installed OpenWrt router(s) — Hardware Apps. View these in the Topology tab.</p>
+      <button class="type-browse" (click)="openPurpose(purpose.id)">{{ purpose.count }} catalog apps <mat-icon>arrow_forward</mat-icon></button>
+    </article>
+  </section>
+  <section *ngIf="browsing && !loading && !loadError" class="type-intro" aria-label="Search results">
+    <h2>{{ browseTitle }}</h2>
+    <p role="status">{{ visibleEntries.length }} matching {{ visibleEntries.length === 1 ? 'app' : 'apps' }}</p>
+    <p *ngIf="!visibleEntries.length">No catalog apps match these filters. Try a different search or clear the filters.</p>
+    <p *ngIf="selectedPurpose === 'networking' && installedRouters.length">OpenWrt is already installed as a Hardware App on <ng-container *ngFor="let router of installedRouters; let last=last">{{ router.device }}{{ last ? '.' : ', ' }}</ng-container> Its existing installation is shown in Topology.</p>
+  </section>
+  <div class="store-body" *ngIf="!loading && !loadError && browsing">
     <div class="catalog">
-      <section *ngFor="let kind of kindsPresent()">
-        <h2>{{ kindLabel[kind] || kind }}</h2>
+      <section aria-label="Apps of the selected type">
         <div class="cards">
-          <button class="card" *ngFor="let e of entriesOfKind(kind)"
+          <button class="card" *ngFor="let e of visibleEntries"
                   [class.active]="selected?.name === e.name"
                   (click)="select(e)">
             <div class="card-top">
-              <mat-icon>{{ kind === 'polari-app' ? 'desktop_windows'
-                : kind === 'polari-app-option' ? 'apps'
-                : kind === 'polari-module' ? 'extension'
-                : kind === 'ai-tool' ? 'smart_toy'
-                : 'dns' }}</mat-icon>
+              <mat-icon>{{ activeType?.icon || 'apps' }}</mat-icon>
               <span class="card-title">{{ e.title }}</span>
               <span class="engine-badge" *ngIf="e.provides_engine">
                 engine: {{ e.provides_engine }}</span>
@@ -67,6 +160,7 @@
                 stays on isle</span>
             </div>
             <p class="card-desc">{{ e.description }}</p>
+            <p class="browse-tags">{{ kindLabel[e.kind] || e.kind }} · {{ purposeLabels(e) }}</p>
             <div class="card-meta">
               <span class="src">{{ e.source_ref }}</span>
               <span class="cat" *ngIf="e.category">{{ e.category }}</span>
@@ -254,6 +348,20 @@ backend, never shown again; optional for your own servers)" />
         </ul>
       </div>
 
+      <section class="app-targets" aria-label="Device eligibility">
+        <h3>Where can this app be installed?</h3>
+        <p>{{ isLauncher(selected) ? 'These checks concern installing the launcher; a Polari node may serve the app elsewhere.' : 'These checks concern hosting this app on the named device.' }}</p>
+        <ul *ngIf="targetsFor(selected).length; else noTargets">
+          <li *ngFor="let target of targetsFor(selected)">
+            <strong>{{ target.device }}</strong> — {{ capabilityLabels[target.lastReportedStatus] }}
+            <span *ngIf="target.status !== target.lastReportedStatus">; older report, recheck needed</span>
+            <p *ngIf="target.observationDates.length">Observed <span *ngFor="let stamp of target.observationDates; let last = last">{{ stamp | date:'medium' }}{{ last ? '' : '; ' }}</span></p>
+            <p *ngIf="target.reasons.length">{{ target.reasons.join('; ') }}</p>
+          </li>
+        </ul>
+        <ng-template #noTargets><p>Device requirements have not been reported for this app yet.</p></ng-template>
+        <p>Recheck requirements on the chosen device before installation. The native install button below acts on the device running this window.</p>
+      </section>
       <h3>Install</h3>
 
       <!-- sep-3: an option's honest state — where it stands before
@@ -287,20 +395,27 @@ backend, never shown again; optional for your own servers)" />
           — installing again reinstalls/upgrades.
         </p>
         <button mat-raised-button color="primary"
-                [disabled]="installing"
+                [disabled]="installing || planLoading || !plan?.ok || !currentDevice"
                 (click)="installNative(selected)">
           <mat-icon>download</mat-icon>
           {{ installing ? 'Installing…'
+             : !plan?.ok ? 'Setup unavailable'
              : localInstalled ? 'Reinstall / upgrade'
              : 'Install on this device' }}
         </button>
-        <p class="native-hint">
+        <p class="native-hint" *ngIf="plan?.ok">
           You'll be asked for your password to install.
         </p>
-        <pre class="install-log"
-             *ngIf="installLog"
-             [class.ok]="installOk === true"
-             [class.err]="installOk === false">{{ installLog }}</pre>
+        <section *ngIf="installLog" aria-live="polite">
+          <p><strong>{{ installing ? 'Installation in progress' : installOk === true ? 'Installation completed' : installOk === false ? 'Installation incomplete' : 'Installation status' }}</strong>
+            · {{ selected.name }} · {{ currentDevice }}</p>
+          <p *ngIf="installOk === false">Review the error below. Retry the same app after resolving it; a failed install may have retained files.</p>
+          <details [open]="installOk === false">
+            <summary>Installation details</summary>
+            <pre class="install-log" [class.ok]="installOk === true"
+                 [class.err]="installOk === false">{{ installLog }}</pre>
+          </details>
+        </section>
 
         <!-- unin-4: THIN uninstall buttons — each is one pkexec
              invocation of the terminal verb printed beside it; the
@@ -348,8 +463,8 @@ backend, never shown again; optional for your own servers)" />
 
       <!-- Plain browser: the copyable host command ('' = no single
            host command, e.g. AI binding flows — the plan says all) -->
-      <ng-container *ngIf="installCommand(selected)">
-        <p class="run-hint">Or run on any isle host:</p>
+      <ng-container *ngIf="plan?.ok && installCommand(selected)">
+        <p class="run-hint">Or run on a device that meets this app’s requirements:</p>
         <div class="cmd">
           <code>{{ installCommand(selected) }}</code>
           <button mat-icon-button
@@ -363,7 +478,7 @@ backend, never shown again; optional for your own servers)" />
       <div class="plan" *ngIf="planLoading">resolving plan…</div>
       <div class="plan" *ngIf="plan">
         <p class="plan-note">{{ plan.note }}</p>
-        <p class="plan-label">what it runs:</p>
+        <p class="plan-label" *ngIf="plan.steps.length">what it runs:</p>
         <pre *ngFor="let s of plan.steps">$ {{ s }}</pre>
       </div>
 

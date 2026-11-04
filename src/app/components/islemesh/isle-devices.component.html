@@ -1,0 +1,135 @@
+<section class="devices-page" aria-labelledby="devices-title">
+  <header>
+    <div><h1 id="devices-title">Your Isle</h1>
+      <p>See what is recorded on each device and prepare it for the apps you want to run.</p></div>
+    <button mat-stroked-button (click)="refresh()" [disabled]="loading">Refresh devices</button>
+  </header>
+  <p role="status" *ngIf="loading">Loading device inventory…</p>
+  <p role="alert" *ngIf="error">{{ error }} Existing records below may be out of date.</p>
+  <p *ngIf="retrievedAt">Inventory retrieved {{ retrievedAt | date:'medium' }}.
+    Report times below describe received inventory, not a live health check.</p>
+  <p class="notice" *ngIf="unavailable.length">Unavailable sources: {{ unavailable.join(', ') }}. The overview is incomplete; missing records do not prove a capability is absent.</p>
+  <p class="notice" *ngIf="mockNetwork">This inventory includes demonstration data. It cannot confirm real device readiness.</p>
+  <p *ngIf="!loading && !error && !devices.length">No devices have been reported yet. Use the onboarding steps below to prepare a device.</p>
+  <section class="overview" aria-labelledby="overview-title">
+    <h2 id="overview-title">What this Isle can run</h2>
+    <p>Every Isle needs an infrastructure core and at least one Polari node to serve its apps.
+      They initially share a device; the primary Polari node can later move to another device.</p>
+    <dl class="foundation">
+      <dt>Router reported on</dt><dd>{{ inventory.routerDevices.join(', ') || 'Not reported' }}</dd>
+      <dt>Primary Polari route reported on</dt><dd>{{ inventory.primaryRoutes.join(', ') || 'Not reported' }}</dd>
+      <dt>Polari nodes reported on</dt><dd>{{ inventory.polariNodes.join(', ') || 'Not reported' }}</dd>
+    </dl>
+    <p *ngIf="inventory.primaryRoutes.length > 1" class="notice">Multiple devices report the primary Polari route. Service ownership needs review.</p>
+    <p>These are recorded locations. Core-role ownership, current service health and failover readiness are not verified by this inventory.</p>
+    <div class="table-scroll" tabindex="0" role="region" aria-label="App types across the Isle">
+      <table>
+        <caption>Catalog coverage and recorded providers — not installation eligibility</caption>
+        <thead><tr><th scope="col">App type</th><th scope="col">Catalog entries</th><th scope="col">Devices with registrations</th><th scope="col">Can host another app?</th></tr></thead>
+        <tbody><tr *ngFor="let kind of inventory.kinds">
+          <th scope="row">{{ kind.label }}</th>
+          <td>{{ unavailable.includes('App catalog') ? 'Not reported' : kind.catalogCount }}</td>
+          <td>{{ unavailable.includes('App catalog') ? 'Not reported' : kind.providerCount }}</td>
+          <td>Capability checks required</td>
+        </tr></tbody>
+      </table>
+    </div>
+    <p>VM hosting and hardware bridges have different prerequisites. A simulation worker may be a container;
+      its use of QEMU does not by itself require KVM. Zero registrations does not mean a type is unsupported.</p>
+  </section>
+  <h2>Devices, roles and hosted apps</h2>
+  <p>A device can have several roles. A hosted app has its own type and sub-role:
+    for example, a VM Hardware App can provide the router, while a Polari instance provides the shared frontend.
+    Hosting these apps does not make them additional physical devices.</p>
+  <p>Devices can use apps served by other devices. A local Polari node is optional;
+    the shared primary node supplies apps through Isle DNS.</p>
+  <div class="device-grid">
+    <article *ngFor="let device of devices">
+      <h3>{{ device.name }}</h3>
+      <dl>
+        <dt>Network membership</dt><dd>Not reported by this inventory</dd>
+        <dt>Last inventory report</dt><dd>{{ device.lastReported ? (device.lastReported | date:'medium') : 'Not reported' }}</dd>
+        <dt>Hosting agent</dt><dd>{{ device.agent === true ? 'Recorded as present' : device.agent === false ? 'Not reported as present' : 'Not reported' }}</dd>
+        <dt>Local Polari instances</dt><dd>{{ device.instances.join(', ') || 'None reported; shared Polari can still be used' }}</dd>
+        <dt>OS hostname</dt><dd>{{ device.osHostname || 'Not separately reported' }}</dd>
+        <dt>Reported responsibilities</dt><dd>{{ device.responsibilities.join(', ') || 'Not reported yet' }}</dd>
+      </dl>
+      <h4>Hosted here — recorded apps</h4>
+      <ul><li *ngFor="let app of device.hosted">
+        <strong>{{ app.name }}</strong>
+        <span> — {{ hostedAppType(app) }}</span>
+        <span *ngIf="app.subrole"> — sub-role: {{ app.subrole }}</span>
+        <span *ngIf="app.domain">— {{ app.domain }}</span>
+        <a *ngIf="app.url" [href]="app.url" target="_blank" rel="noopener noreferrer" [attr.aria-label]="'Open ' + app.name + ' on ' + device.name">Open</a>
+      </li></ul>
+      <p *ngIf="!device.hosted.length">None reported</p>
+      <details>
+        <summary>Use apps served elsewhere ({{ device.shared.length }} reported endpoints)</summary>
+        <p>These endpoints are registered elsewhere on the Isle. Access from this device, authentication
+          and app health must still be checked. Opening a link uses the device running this browser.</p>
+        <ul><li *ngFor="let app of device.shared">
+          <strong>{{ app.name }}</strong> — served by {{ app.device || 'an unreported device' }}
+          <a [href]="app.url" target="_blank" rel="noopener noreferrer" [attr.aria-label]="'Open ' + app.name + ' served by ' + app.device">Open</a>
+        </li></ul>
+        <p *ngIf="!device.shared.length">No shared endpoints reported. This does not establish that none exist.</p>
+      </details>
+      <details>
+        <summary>Apps this device can host — last reported evaluation</summary>
+        <p *ngIf="hostReport">Report generated {{ hostReport.evaluatedAt | date:'medium' }}. Observation dates are shown with individual checks.</p>
+        <p *ngIf="!hostReport">The capability service is not available. No hosting evaluation reported yet.</p>
+        <ul><li *ngFor="let target of targetsFor(device.name, hostReport)">
+          <strong>{{ target.app }}</strong>: {{ capabilityLabels[target.lastReportedStatus] }}
+          <span *ngIf="target.lastReportedStatus !== target.status"> — older report; recheck needed</span>
+          <p *ngIf="target.observationDates.length">Observations: <span *ngFor="let stamp of target.observationDates; let last = last">{{ stamp | date:'medium' }}{{ last ? '' : '; ' }}</span></p>
+          <p *ngIf="target.reasons.length">{{ target.reasons.join('; ') }}</p>
+        </li></ul>
+        <p *ngIf="hostReport && !targetsFor(device.name, hostReport).length">This device has no target evaluations yet.</p>
+      </details>
+      <details>
+        <summary>App access checks for this device</summary>
+        <p *ngIf="!useReport">Access evidence has not been evaluated. A shared endpoint alone does not establish access.</p>
+        <ul><li *ngFor="let target of targetsFor(device.name, useReport)">
+          <strong>{{ target.app }}</strong>: {{ capabilityLabels[target.lastReportedStatus] }}
+          <span *ngIf="target.lastReportedStatus !== target.status"> — older report; recheck needed</span>
+          <p *ngIf="target.observationDates.length">Observations: <span *ngFor="let stamp of target.observationDates; let last = last">{{ stamp | date:'medium' }}{{ last ? '' : '; ' }}</span></p>
+          <p *ngIf="target.reasons.length">{{ target.reasons.join('; ') }}</p>
+        </li></ul>
+        <p *ngIf="useReport && !targetsFor(device.name, useReport).length">This device has no access evaluations yet.</p>
+      </details>
+    </article>
+  </div>
+  <section class="onboarding" aria-labelledby="onboarding-title">
+    <h2 id="onboarding-title">Add or prepare a device</h2>
+    <p>A device has joined when it has an Isle address and can reach Isle services.
+      Hosting apps is a separate capability you can add later.</p>
+    <ol>
+      <li><strong>Install the member tools.</strong> Use the versioned member package set supplied by this Isle.
+        Match package versions and checksums before installation.</li>
+      <li><strong>Connect Ethernet to the Isle.</strong> Select the physical Ethernet port attached to the Isle.
+        Reuse its existing connection profile and keep the normal internet connection.</li>
+      <li><strong>Verify access.</strong> Check the assigned address, Isle name resolution and trusted HTTPS.
+        An address alone does not verify DNS or certificate trust.</li>
+      <li><strong>Choose what to host.</strong> Check the requirements of the app you want to install.
+        Container apps, Polari apps, virtual machines and hardware bridges need different capabilities.
+        Hardware bridges also need access to the intended hardware.</li>
+      <li><strong>Prepare and verify hosting.</strong> Enable only the required capabilities, then check a real app
+        from another device. Refresh the inventory after setup.</li>
+    </ol>
+    <p>These are setup steps, not an automatic installer. Device setup actions and verified app-placement
+      checks will appear here when the corresponding management services are available.</p>
+  </section>
+  <section aria-labelledby="eligibility-title"><h2 id="eligibility-title">Isle-wide app eligibility &amp; gaps</h2>
+    <p *ngIf="!hostReport">Not yet assessed. The capability service is not available; missing evidence does not mean no device supports an app.</p>
+    <ng-container *ngIf="hostReport">
+      <p>Hosting report generated {{ hostReport.evaluatedAt | date:'medium' }} against published app requirements.
+        Recheck on the target before installation; these results do not reserve resources or authorize changes.</p>
+      <ul><li *ngFor="let app of hostReport.entries"><strong>{{ app.entry }}</strong>:
+        {{ capabilityLabels[app.lastReportedStatus] }}
+        <span *ngIf="app.lastReportedStatus !== app.status"> — older report; recheck needed</span>
+        <span> (observation dates in the device details above)</span>
+      </li></ul>
+      <p *ngIf="!hostReport.entries.length">No published app requirements were evaluated.</p>
+    </ng-container>
+    <p *ngIf="useReport">Access report generated {{ useReport.evaluatedAt | date:'medium' }}. Access and hosting are separate actions.</p>
+  </section>
+</section>

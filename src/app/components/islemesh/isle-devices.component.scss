@@ -1,0 +1,19 @@
+.devices-page { padding: 1rem; color: var(--text-on-card); }
+header { display: flex; flex-wrap: wrap; align-items: start; justify-content: space-between; gap: 1rem; }
+p { color: var(--text-on-card-muted); max-width: 75ch; }
+.device-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr)); gap: 1rem; }
+article, .onboarding { padding: 1rem; border: 1px solid var(--border-color); border-radius: .5rem; background: var(--surface-primary); }
+article { min-width: 0; overflow-wrap: anywhere; }
+dt { font-weight: 600; margin-top: .75rem; }
+dd { margin: .25rem 0; }
+li { margin-bottom: .75rem; }
+.onboarding { margin-top: 1.5rem; }
+.notice { padding: .75rem; background: var(--color-warn-bg); color: var(--color-warn-text); }
+
+.overview { margin-block: 1.5rem; }
+.table-scroll { max-width: 100%; overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; background: var(--surface-primary); }
+caption { text-align: start; margin-bottom: .5rem; color: var(--text-on-card-muted); }
+th, td { padding: .75rem; text-align: start; border-bottom: 1px solid var(--border-color); }
+summary { cursor: pointer; font-weight: 600; }
+a { display: inline-block; margin-inline-start: .5rem; color: var(--brand-blue); text-decoration: underline; }

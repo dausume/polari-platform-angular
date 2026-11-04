@@ -1,0 +1,15 @@
+const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),ts=require('typescript'),assert=require('node:assert/strict');
+const file=path.resolve(__dirname,'../src/app/components/islemesh/isle-mesh-scene.ts');
+const exportsObject={};
+vm.runInNewContext(ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports:exportsObject});
+const node=(id,kind,device)=>({id,kind,device,label:id,is_mock:false});
+const nodes=[node('d1','device','core'),node('d2','device','econ'),node('r','router','core'),node('p','proxy','econ'),node('s','segment','')];
+const links=[{source:'d2',target:'s',kind:'l2',label:'ethernet',is_mock:false,reported_at:'2026-11-01'}, {source:'r',target:'p',kind:'dns',label:'expected',is_mock:false}];
+const scene=exportsObject.buildScene(nodes,links);
+assert.equal(scene.boxes.length,2);
+assert.equal(scene.dns.length,1);
+assert.equal(scene.dns[0].from.node.id,'r');
+assert.equal(scene.dns[0].to.node.id,'p');
+assert.equal(scene.l2[0].link.reported_at,'2026-11-01');
+assert.equal(exportsObject.buildScene(nodes,[{...links[1],target:'missing'}]).dns.length,0);
+console.log('PASS scene separates physical and DNS relationships and omits dangling DNS endpoints');

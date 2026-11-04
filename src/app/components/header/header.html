@@ -98,7 +98,7 @@
              it uses. Renders nothing unless the backend says can_roleplay. -->
         <app-roleplay-menu></app-roleplay-menu>
 
-        <ng-container *ngIf="!currentUser">
+        <ng-container *ngIf="!currentUser && runtime.getKeycloakConfig()">
             <button mat-stroked-button (click)="register()" class="header-register-button">
                 Register
             </button>

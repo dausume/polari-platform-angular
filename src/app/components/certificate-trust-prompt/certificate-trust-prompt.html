@@ -12,7 +12,7 @@
           <h3>{{ endpoint.name }}</h3>
           <p class="endpoint-url">{{ endpoint.url }}</p>
           <p role="status">{{ endpoint.error }}</p>
-          <button mat-stroked-button color="primary" (click)="openEndpoint(endpoint.url)">Open service</button>
+          <button *ngIf="endpoint.url" mat-stroked-button color="primary" (click)="openEndpoint(endpoint.url)">Open service</button>
         </section>
       </div>
       <h3>If the browser shows a certificate warning</h3>
