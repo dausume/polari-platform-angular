@@ -23,6 +23,9 @@ declare global {
 }
 
 export interface InstallResult {
+  operationId?: string;
+  cancelled?: boolean;
+  state?: any;
   ok: boolean;
   exitCode?: number;
   output?: string;
@@ -95,6 +98,16 @@ export class ShellBridgeService {
     return this.call('security.set', {action: enabled ? 'enable' : 'disable'}).then(result => this.securityResult(result));
   }
 
+  private operationResult(result:any):InstallResult {
+    if(result.error?.code==='unknown-type') return {...result,error:'Update the native Isle App and CLI to use shared operations.'};
+    return {...result,error:typeof result.error==='string'?result.error:result.error?.message};
+  }
+  updatePlan(): Promise<InstallResult> { return this.call('device.updatePlan', {}).then(r=>this.operationResult(r)); }
+  updateApply(releaseId: string): Promise<InstallResult> { return this.call('device.updateApply', {releaseId}).then(r=>this.operationResult(r)); }
+  reconcile(): Promise<InstallResult> { return this.call('device.reconcile', {}).then(r=>this.operationResult(r)); }
+  operationStatus(id: string): Promise<InstallResult> { return this.call('operation.status', {id}).then(r=>this.operationResult(r)); }
+  operationRetry(id: string): Promise<InstallResult> { return this.call('operation.retry', {id}).then(r=>this.operationResult(r)); }
+
   deviceContext(): Promise<{ok: boolean; report?: any; error?: string}> {
     return this.call('device.context', {});
   }
@@ -112,7 +125,7 @@ export class ShellBridgeService {
    *  `deployed` = its mesh-app compose project runs here. */
   status(name: string):
       Promise<{ ok: boolean; installed?: boolean;
-                version?: string; deployed?: boolean;
+                version?: string; deployed?: boolean; deployment?: any;
                 error?: string }> {
     return this.call('store.status', { name });
   }

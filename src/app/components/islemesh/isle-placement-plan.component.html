@@ -61,4 +61,15 @@
 <ng-container *ngIf="planDialog==='activate'"><h2>Make this the active plan?</h2><p>{{saved.title}} · revision {{saved.revision}}</p><p>This replaces the planned additions and removals shown on all devices. Running apps remain unchanged. Only the latest saved revision can be activated.</p><button mat-raised-button (click)="activate()" [disabled]="busy">Confirm active plan</button></ng-container>
 <button mat-button (click)="planDialog=''">Close</button></section></ng-container>
 
-<ng-container *ngIf="updateDialog && updateInfo?.release as release"><div class="modal-shade" (click)="updateDialog=false"></div><section class="action-dialog" role="dialog" aria-modal="true" aria-label="Remote release update"><h2>Update this device · {{currentDevice}}</h2><p>{{release.note}}</p><article *ngFor="let p of release.packages"><strong>{{p.name}}</strong><p>{{updateInfo.installed[p.name] || 'Not reported'}} → {{p.version}}</p><a [href]="'https://apt.isle/'+p.file">Download exact DEB</a><small>SHA256: {{p.sha256}}</small></article><p>Run on this device after reviewing the transaction:</p><pre style="white-space:pre-wrap;overflow-wrap:anywhere">{{release.command}}</pre><p>This does not run a general system upgrade or recreate the Isle. Keep the current capability packages and membership.</p><button mat-button (click)="updateDialog=false">Close</button></section></ng-container>
+<ng-container *ngIf="updateDialog && updateInfo?.release as release"><div class="modal-shade" (click)="updateDialog=false"></div><section class="action-dialog" role="dialog" aria-modal="true" aria-label="Remote release update"><h2>Update this device · {{currentDevice}}</h2><p>{{release.note}}</p><article *ngFor="let p of release.packages"><strong>{{p.name}}</strong><p>{{updateInfo.installed[p.name] || 'Not reported'}} → {{p.version}}</p><a [href]="'https://apt.isle/'+p.file">Download exact DEB</a><small>SHA256: {{p.sha256}}</small></article><p>Review and apply on this device using the shared Isle operation:</p><pre>isle update plan
+sudo isle update apply {{release.id}}</pre>
+<ng-container *ngIf="shell.available">
+<button mat-stroked-button (click)="reviewUpdate()" [disabled]="updateBusy">Review local update</button>
+<div *ngIf="updateReview"><p *ngFor="let p of updateReview.release.packages">{{p.name}}: {{updateReview.installed[p.name] || 'Not installed'}} → {{p.version}}</p>
+<button mat-raised-button (click)="runUpdateAction('apply')" [disabled]="updateBusy">Apply reviewed update</button></div>
+<button mat-stroked-button (click)="runUpdateAction('reconcile')" [disabled]="updateBusy">Reconcile this device</button>
+<button mat-stroked-button *ngIf="updateOperation?.retryable" (click)="runUpdateAction('retry')" [disabled]="updateBusy">Retry operation</button>
+<p *ngIf="updateBusy">Operation in progress. Administrator authorization may be required.</p>
+<p *ngIf="updateOperation">Operation {{updateOperation.id}} · {{updateOperation.state}} · attempt {{updateOperation.attempt}} · {{updateOperation.stage}}</p>
+<pre style="white-space:pre-wrap;overflow-wrap:anywhere" aria-live="polite">{{updateOutput}}</pre>
+</ng-container><p>This does not run a general system upgrade or recreate the Isle. Keep the current capability packages and membership.</p><button mat-button (click)="updateDialog=false">Close</button></section></ng-container>

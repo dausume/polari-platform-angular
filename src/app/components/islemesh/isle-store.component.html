@@ -406,8 +406,11 @@ backend, never shown again; optional for your own servers)" />
         <p class="native-hint" *ngIf="plan?.ok">
           You'll be asked for your password to install.
         </p>
+        <p *ngIf="localDeployment">Local deployment: {{localDeployment.state}} · checked {{localDeployment.observedAt | date:'medium'}}<span *ngIf="localDeployment.error"> · {{localDeployment.error}}</span></p>
+        <p *ngIf="installOperation">Operation {{installOperation.id}} · {{installOperation.state}} · attempt {{installOperation.attempt}} · {{installOperation.stage}}</p>
+        <button mat-stroked-button *ngIf="installOperation?.retryable" [disabled]="installing" (click)="retryInstall()">Retry saved operation</button>
         <section *ngIf="installLog" aria-live="polite">
-          <p><strong>{{ installing ? 'Installation in progress' : installOk === true ? 'Installation completed' : installOk === false ? 'Installation incomplete' : 'Installation status' }}</strong>
+          <p><strong>{{ installing ? 'Installation in progress' : installOk === true ? 'Install command completed' : installOk === false ? 'Installation incomplete' : 'Installation status' }}</strong>
             · {{ selected.name }} · {{ currentDevice }}</p>
           <p *ngIf="installOk === false">Review the error below. Retry the same app after resolving it; a failed install may have retained files.</p>
           <details [open]="installOk === false">

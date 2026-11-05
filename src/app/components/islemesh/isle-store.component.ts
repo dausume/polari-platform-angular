@@ -223,6 +223,8 @@ export class IsleStoreComponent implements OnInit, OnDestroy {
   installing = false;
   installLog = '';
   installOk: boolean | null = null;
+  installOperation:any=null;
+  localDeployment:any=null;
 
   readonly kindLabel: Record<string, string> = {
     'mesh-app': 'Mesh Apps',
@@ -278,6 +280,8 @@ export class IsleStoreComponent implements OnInit, OnDestroy {
       if(!guard.ok||!guard.allowed)throw Error((guard.reasons||[]).join(' ')||'Removal could not be verified.');
       const res = await this.bridge.uninstall(entry.name, purge);
       this.installOk = !!res.ok;
+      if(res.operationId){const operation=await this.bridge.operationStatus(res.operationId);this.installOperation=operation.ok?operation.state:null;}
+      await this.refreshDeployment(entry.name);
       this.installLog = (res.output || res.error
         || (res.ok ? 'uninstalled' : 'failed')).trim();
       if (res.ok) {
@@ -320,9 +324,25 @@ export class IsleStoreComponent implements OnInit, OnDestroy {
     }
   }
 
+  async refreshDeployment(name:string){
+    const result=await this.bridge.status(name);
+    if(this.selected?.name===name && result.ok){this.localDeployment=result.deployment;this.localDeployed=!!result.deployed;this.localInstalled=!!result.installed;this.localVersion=result.version||'';}
+  }
+  async retryInstall(){
+    if(this.installing||!this.installOperation?.retryable||!this.selected)return;
+    this.installing=true;
+    try{
+      const result=await this.bridge.operationRetry(this.installOperation.id);
+      this.installOk=!!result.ok;this.installLog=result.output||result.error||'';
+      const state=await this.bridge.operationStatus(this.installOperation.id);this.installOperation=state.ok?state.state:null;
+      await this.refreshDeployment(this.selected.name);
+    }catch(e:any){this.installOk=false;this.installLog=e.message;}finally{this.installing=false;}
+  }
+
   async installNative(entry: CatalogEntry): Promise<void> {
     if (!this.currentDevice || !this.bridge.available || !this.plan?.ok || this.planLoading || this.installing || this.selected?.name !== entry.name) return;
     this.installing = true;
+    this.installOperation=null;
     this.installLog = `Requesting install of ${entry.name}… `
       + `(you'll be asked for your password)`;
     this.installOk = null;
@@ -497,6 +517,7 @@ export class IsleStoreComponent implements OnInit, OnDestroy {
     this.localInstalled = null;
     this.localVersion = '';
     this.localDeployed = false;
+    this.localDeployment=null;this.installOperation=null;
     this.aiTool = null;
     this.bindSecret = '';
     this.bindBaseUrl = '';
@@ -533,6 +554,7 @@ export class IsleStoreComponent implements OnInit, OnDestroy {
           this.localInstalled = !!s.installed;
           this.localVersion = s.version || '';
           this.localDeployed = !!s.deployed;
+          this.localDeployment=s.deployment;this.installOperation=s.deployment?.operation;
         }
       }).catch(() => {});
     }
