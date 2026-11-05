@@ -65,7 +65,7 @@
 sudo isle update apply {{release.id}}</pre>
 <ng-container *ngIf="shell.available">
 <button mat-stroked-button (click)="reviewUpdate()" [disabled]="updateBusy">Review local update</button>
-<div *ngIf="updateReview"><p *ngFor="let p of updateReview.release.packages">{{p.name}}: {{updateReview.installed[p.name] || 'Not installed'}} → {{p.version}}</p>
+<div *ngIf="updateReview"><p *ngFor="let p of updateReview.selectedPackages">{{p.name}}: {{updateReview.installed[p.name] || 'Not installed'}} → {{p.version}}</p>
 <button mat-raised-button (click)="runUpdateAction('apply')" [disabled]="updateBusy">Apply reviewed update</button></div>
 <button mat-stroked-button (click)="runUpdateAction('reconcile')" [disabled]="updateBusy">Reconcile this device</button>
 <button mat-stroked-button *ngIf="updateOperation?.retryable" (click)="runUpdateAction('retry')" [disabled]="updateBusy">Retry operation</button>
