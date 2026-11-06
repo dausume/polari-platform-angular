@@ -388,9 +388,9 @@ export interface OwnershipReport {
 
 /** tpl-4: GET /api/topology/isle-needs. Each isle feature carries an evidence STATE from timestamped observations, never a
  *  bare "available" (Codex's review: configuration is not readiness). */
-export type IsleFeatureState = 'supported' | 'not-configured' | 'configured' | 'last-reported' | 'stale';
+export type IsleFeatureState = 'supported' | 'not-configured' | 'configured' | 'last-reported' | 'stale' | 'clock-skew';
 
-export interface IsleEvidence { source: string; observedAt: string; words: string; }
+export interface IsleEvidence { source: string; observedAt: string; ageSeconds: number | null; clockSkew?: boolean; words: string; }
 
 export interface IsleFeature {
   key: string;
@@ -409,6 +409,7 @@ export interface IsleNeedsReport {
   ok: boolean;
   evaluatedAt: string;
   maxAgeS: number;
+  clockSkewS: number;
   isle: { configured: string; reported: { devices: string[]; lastSeen: string }; words: string };
   features: IsleFeature[];
 }
