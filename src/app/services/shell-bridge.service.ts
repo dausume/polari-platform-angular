@@ -105,6 +105,8 @@ export class ShellBridgeService {
   updatePlan(): Promise<InstallResult> { return this.call('device.updatePlan', {}).then(r=>this.operationResult(r)); }
   updateApply(releaseId: string): Promise<InstallResult> { return this.call('device.updateApply', {releaseId}).then(r=>this.operationResult(r)); }
   reconcile(): Promise<InstallResult> { return this.call('device.reconcile', {}).then(r=>this.operationResult(r)); }
+  deployProvider(parameters: {name:string; role:string; modules:string; backendUrl:string; frontendOrigin:string}): Promise<InstallResult> { return this.call('provider.deploy', parameters).then(r=>this.operationResult(r)); }
+  restartAgent(): Promise<InstallResult> { return this.call('agent.restart', {}).then(r=>this.operationResult(r)); }
   operationStatus(id: string): Promise<InstallResult> { return this.call('operation.status', {id}).then(r=>this.operationResult(r)); }
   operationRetry(id: string): Promise<InstallResult> { return this.call('operation.retry', {id}).then(r=>this.operationResult(r)); }
 

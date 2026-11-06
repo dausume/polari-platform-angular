@@ -131,6 +131,26 @@ interface InstallPlan {
   styleUrls: ['./isle-store.component.scss'],
 })
 export class IsleStoreComponent implements OnInit, OnDestroy {
+  providerForm={name:'',role:'backend',modules:'islemesh,polariapps',backendUrl:'',frontendOrigin:'https://polari.isle'};
+  providerBusy=false;
+  providerOutput='';
+  providerOperation:any=null;
+  async runProviderAction(action:'deploy'|'restart'|'retry') {
+    if (!this.currentDevice || !this.bridge.available || this.providerBusy) return;
+    if (action!=='retry' && !window.confirm(action==='deploy' ? `Deploy ${this.providerForm.role} ${this.providerForm.name} on ${this.currentDevice}? Existing instance data is retained.` : 'Restart this device’s Isle agent? Network access may briefly pause.')) return;
+    if (action==='retry' && !this.providerOperation?.id) return;
+    if (action!=='retry') this.providerOperation=null;
+    this.providerBusy=true;
+    try {
+      const result=action==='deploy' ? await this.bridge.deployProvider({...this.providerForm}) : action==='restart' ? await this.bridge.restartAgent() : await this.bridge.operationRetry(this.providerOperation.id);
+      this.providerOutput=result.output || result.error || '';
+      const id=result.operationId || this.providerOperation?.id;
+      if (id) { const state=await this.bridge.operationStatus(id); this.providerOperation=state.ok?state.state:null; }
+      this.refresh();
+    } catch(e:any) { this.providerOutput=e?.message || 'Operation failed'; }
+    finally {this.providerBusy=false;}
+  }
+
   currentDevice = '';
   localReport: any = null;
   reportedDevices: any[] = [];

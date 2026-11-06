@@ -14,6 +14,24 @@
     </button>
   </div>
 
+  <details class="browse-controls">
+    <summary>Deploy a Polari node on {{ currentDevice || 'this device' }}</summary>
+    <p>Choose a frontend, backend, or both. This uses the same journaled operation as <code>isle polari instance deploy</code>.</p>
+    <div class="browse-filters">
+      <label>Instance name<input [(ngModel)]="providerForm.name" placeholder="memorable-name" [disabled]="providerBusy"></label>
+      <label>Role<select [(ngModel)]="providerForm.role" [disabled]="providerBusy"><option value="backend">Backend</option><option value="frontend">Frontend</option><option value="both">Both</option></select></label>
+      <label>Modules<input [(ngModel)]="providerForm.modules" [disabled]="providerBusy"></label>
+      <label>Backend URL<input [(ngModel)]="providerForm.backendUrl" placeholder="https://api.compute.isle" [disabled]="providerBusy"></label>
+      <label>Frontend origin<input [(ngModel)]="providerForm.frontendOrigin" [disabled]="providerBusy"></label>
+    </div>
+    <button mat-stroked-button [disabled]="!currentDevice || !bridge.available || providerBusy || !providerForm.name" (click)="runProviderAction('deploy')">Deploy on this device</button>
+    <button mat-button [disabled]="!currentDevice || !bridge.available || providerBusy" (click)="runProviderAction('restart')">Restart local agent</button>
+    <p *ngIf="!bridge.available">Open the native Isle App to perform local operations.</p>
+    <p *ngIf="providerOperation">Operation {{ providerOperation.id }}: {{ providerOperation.state }} · {{ providerOperation.stage }}</p>
+    <button *ngIf="providerOperation?.retryable" mat-stroked-button [disabled]="providerBusy" (click)="runProviderAction('retry')">Retry this operation</button>
+    <pre *ngIf="providerOutput">{{ providerOutput }}</pre>
+  </details>
+
   <section class="browse-controls" aria-label="Browse and filter apps">
     <div class="browse-view" role="group" aria-label="Browse view">
       <button [disabled]="installing || uninstalling || bindBusy" mat-stroked-button [attr.aria-pressed]="browseView === 'deployment'" (click)="changeView('deployment')">Deployment types</button>
