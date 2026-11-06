@@ -28,10 +28,11 @@
       <tr *ngFor="let f of isleFeatures" [class.unavailable]="f.state !== 'last-reported'">
         <td class="isle-state" [attr.data-state]="f.state">{{ isleStateLabel(f) }}<span *ngIf="isleAge(f)" class="isle-age"> · {{ isleAge(f) }}</span></td>
         <td>{{ f.title }}</td>
-        <td>{{ f.words }}<span *ngIf="f.fallback" class="isle-fallback"> — meanwhile: {{ f.fallback }}</span></td>
+        <td>{{ f.words }}<span *ngIf="f.fallback" class="isle-fallback"> — meanwhile: {{ f.fallback }}</span>
+          <div *ngIf="isleObservations(f) as obs" class="isle-observed">observed: {{ obs }}</div></td>
       </tr>
     </table>
-    <p class="isle-polari-only">Evaluated {{ isleNeeds.evaluatedAt }} from stored observations (reports older than {{ isleNeeds.maxAgeS }} s are stale).
+    <p class="isle-polari-only">Evaluated {{ isleNeeds.evaluatedAt }} from stored observations (reports older than {{ isleNeeds.maxAgeS }} s are stale; more than {{ isleNeeds.clockSkewS }} s in the future is clock skew).
       Polari-only, with or without an isle:
       <ng-container *ngFor="let f of polariFeatures; let last = last">{{ f.title }}{{ last ? '' : ' · ' }}</ng-container>
     </p>

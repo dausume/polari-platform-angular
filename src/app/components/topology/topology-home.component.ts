@@ -59,15 +59,26 @@ export class TopologyHomeComponent implements OnInit, OnDestroy {
     switch (f.state) {
       case 'last-reported': return 'Last reported';
       case 'stale': return 'Stale';
+      case 'clock-skew': return 'Clock skew';
       case 'configured': return 'Configured, not yet evaluated';
       case 'not-configured': return 'Needs an isle';
       default: return 'Supported';
     }
   }
   isleAge(f: IsleFeature): string {
-    if (f.ageSeconds === null || f.ageSeconds === undefined) { return ''; }
-    const s = f.ageSeconds;
-    return s < 120 ? `${s} s ago` : s < 7200 ? `${Math.round(s / 60)} min ago` : s < 172800 ? `${Math.round(s / 3600)} h ago` : `${Math.round(s / 86400)} d ago`;
+    return this.ageWords(f.ageSeconds);
+  }
+  /** A report's age in words; a timestamp in the future reads as such (clock skew), never as a negative "ago". */
+  ageWords(seconds: number | null | undefined): string {
+    if (seconds === null || seconds === undefined) { return ''; }
+    const span = (s: number) => s < 120 ? `${s} s` : s < 7200 ? `${Math.round(s / 60)} min` : s < 172800 ? `${Math.round(s / 3600)} h` : `${Math.round(s / 86400)} d`;
+    return seconds < 0 ? `${span(-seconds)} in the future` : `${span(seconds)} ago`;
+  }
+  /** The per-row observation times (raw timestamps kept, flagged when dated in the future). */
+  isleObservations(f: IsleFeature): string {
+    return (f.evidence || []).filter(e => e.observedAt)
+      .map(e => `${e.source}: ${e.observedAt}${e.clockSkew ? ' (clock skew: ' + this.ageWords(e.ageSeconds) + ')' : ''}`)
+      .join(' · ');
   }
   graph: TopologyGraph | null = null;
   moduleGraph: ModuleGraphReport | null = null;
