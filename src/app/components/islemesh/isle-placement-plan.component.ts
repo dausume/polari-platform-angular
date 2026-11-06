@@ -5,6 +5,7 @@ import { HttpClient } from '@angular/common/http';
 import { firstValueFrom, timeout } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { RouterModule } from '@angular/router';
+import { ShellBridgeService } from '@services/shell-bridge.service';
 import { PolariService } from '@services/polari-service';
 import { IslePlannedTopologyComponent } from './isle-planned-topology.component';
 import { IsleResourceViewComponent } from './isle-resource-view.component';
@@ -17,7 +18,27 @@ export class IslePlacementPlanComponent implements OnInit, OnDestroy {
  @Output() review=new EventEmitter<string>();
  busy=false;loaded=false;message='';resources:any[]=[];search='';selected:any=null;dragged='';dirty=false; menu:any=null; action:any=null; moveTarget='';library:any=null;planDialog='';planName='';inspection=false;usageHistory:any[]=[];safetyMessage='';planNotice='';updateInfo:any=null;updateDialog=false;updateDismissed=false;private timer:any;private polling=false;private lastUpdateCheck=0;
  saved:any={title:'Isle deployment plan',revision:0,items:[]};draft:any=structuredClone(this.saved);
- constructor(private http:HttpClient,private polari:PolariService){}
+ updateBusy=false; updateReview:any=null; updateOperation:any=null; updateOutput=''; updateOperationId='';
+ constructor(private http:HttpClient,private polari:PolariService,public shell:ShellBridgeService){}
+ async reviewUpdate(){
+  this.updateBusy=true; this.updateReview=null;
+  try{const r=await this.shell.updatePlan();if(!r.ok)throw new Error(r.error||r.output||'Unable to review local update');this.updateReview=r.state;this.updateOutput='Review the exact local package versions before applying.';}
+  catch(e:any){this.updateOutput=e.message;}finally{this.updateBusy=false;}
+ }
+ async runUpdateAction(action:'apply'|'retry'|'reconcile'){
+  if(this.updateBusy)return;
+  if(action==='apply'&&!this.updateReview?.release?.id)return;
+  if(action==='retry'&&!this.updateOperationId)return;
+  this.updateBusy=true;
+  if(action!=='retry'){this.updateOperationId='';this.updateOperation=null;}
+  try{
+   const r=action==='apply'?await this.shell.updateApply(this.updateReview.release.id):action==='retry'?await this.shell.operationRetry(this.updateOperationId):await this.shell.reconcile();
+   this.updateOutput=r.output||r.error||(r.cancelled?'Authorization cancelled':'Operation did not return output');
+   if(r.operationId)this.updateOperationId=r.operationId;
+   if(this.updateOperationId){const state=await this.shell.operationStatus(this.updateOperationId);this.updateOperation=state.ok?state.state:null;}
+   if(!r.ok)this.updateOutput+='\nOperation did not complete successfully.';
+  }catch(e:any){this.updateOutput=e.message;}finally{this.updateBusy=false;}
+ }
  ngOnInit(){void this.load();this.timer=setInterval(()=>{if(!document.hidden)void this.pollShared();},30000);}
  ngOnDestroy(){clearInterval(this.timer);}
  @HostListener('document:visibilitychange') visible(){if(!document.hidden)void this.pollShared();}

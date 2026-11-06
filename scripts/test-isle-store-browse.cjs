@@ -24,4 +24,8 @@ assert.equal(filterApps([{name:'x',kind:'shell-app',instances:[{device:'core'}]}
 assert.equal(filterApps([{name:'x',kind:'polari-app',management_system:'polari'}]).length,0);
 assert.equal(filterApps([{...app,is_mock:true}]).length,0);
 assert.equal(filterApps([{...app,realization:'a'},{...app,realization:'b'}]).length,2);
-console.log('15 browse/search/category assertions passed');
+for (const name of ['apt','apt-repo','ca','isle-ca','certificate-authority','isle-cert-authority']) {
+ assert.ok(purposeIds({name,kind:'mesh-app'}).includes('infrastructure'));
+}
+assert.ok(purposeIds({name:'custom-service',kind:'mesh-app',category:'infrastructure'}).includes('infrastructure'));
+console.log('22 browse/search/category assertions passed');

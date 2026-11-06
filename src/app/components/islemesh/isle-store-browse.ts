@@ -16,7 +16,10 @@ export const PURPOSES = [
   {id:'other', title:'Other / Uncategorised', description:'Apps without a published or mapped purpose category.'},
 ];
 const KNOWN: Record<string,string[]> = {
-  apt:['infrastructure','software-distribution'], registry:['infrastructure','software-distribution'],
+  apt:['infrastructure','software-distribution'], 'apt-repo':['infrastructure','software-distribution'],
+  ca:['infrastructure','identity'], 'isle-ca':['infrastructure','identity'],
+  'certificate-authority':['infrastructure','identity'], 'isle-cert-authority':['infrastructure','identity'],
+  registry:['infrastructure','software-distribution'],
   openwrt:['networking'], 'isle-guestnet':['networking'], 'isle-relay':['networking'],
   keycloak:['infrastructure','identity'], 'prf-keycloak':['infrastructure','identity'],
   mariadb:['infrastructure','storage'], 'prf-mariadb':['infrastructure','storage'], minio:['infrastructure','storage'],
@@ -27,6 +30,7 @@ export function purposeIds(app: BrowseApp): string[] {
   const ids = new Set((app.purposes || []).filter(p=>PURPOSES.some(c=>c.id===p)));
   for (const p of KNOWN[app.name] || []) ids.add(p);
   const category=(app.category || '').toLowerCase();
+  if (category === 'infrastructure') ids.add('infrastructure');
   if (category.startsWith('network') || ['isle-vpn','isle-vpn-app'].includes(app.kind)) ids.add('networking');
   if (['engine','engines'].includes(category) && !KNOWN[app.name]) ids.add('engineering');
   const mapped: Record<string,string> = {demo:'testing',business:'business',collaboration:'collaboration',printing:'printing',policy:'analysis'};
