@@ -1,7 +1,7 @@
 <!-- app.component.html -->
 <!-- Demo notice: bar + first-visit acknowledgement when runtime-config
      carries a `demo` stanza (public demonstration instances only). -->
-<app-demo-notice [app]="currentApp?.name"></app-demo-notice>
+<app-demo-notice *ngIf="!embedded" [app]="currentApp?.name"></app-demo-notice>
 <app-system-notice></app-system-notice>
 
 <!-- Certificate Trust Prompt - shown when self-signed certs are not trusted -->
@@ -9,16 +9,17 @@
 
 <!-- Session-start XR offer: shown once per browser session on
      VR-capable devices; the choice is remembered (sessionStorage). -->
-<xr-session-prompt></xr-session-prompt>
+<xr-session-prompt *ngIf="!embedded"></xr-session-prompt>
 
 <!-- In-app AI assistant (text + voice); floats app-wide, toggled from the
      header toolbar. Also registered as a voice-first WebXR surface. -->
-<ai-assistant-panel></ai-assistant-panel>
+<ai-assistant-panel *ngIf="!embedded"></ai-assistant-panel>
 
-<mat-sidenav-container>
-    <header [currentComponentTitle]="currentComponentTitle"></header>
+<!-- tpl-4: ?embed=1 hides the header, side nav and its toggle; the routed page is all that shows -->
+<mat-sidenav-container [class.embedded]="embedded">
+    <header *ngIf="!embedded" [currentComponentTitle]="currentComponentTitle"></header>
 
-    <mat-sidenav [(opened)]="sideNavOpened" #sidenav [mode]="navMode">
+    <mat-sidenav *ngIf="!embedded" [(opened)]="sideNavOpened" #sidenav [mode]="navMode">
           <mat-nav-list>
             <!-- roles -> apps (his ask 2026-09-18): "MY APPS" sits ABOVE
                  the app map — the apps this person's PRIMARY role needs
@@ -193,7 +194,7 @@
             </ng-container>
           </mat-nav-list>
     </mat-sidenav>
-    <button mat-icon-button class="sidenav-toggle" (click)="toggleSideNav()" ><mat-icon>menu</mat-icon></button>
+    <button *ngIf="!embedded" mat-icon-button class="sidenav-toggle" (click)="toggleSideNav()" ><mat-icon>menu</mat-icon></button>
    
     <router-outlet></router-outlet>
 </mat-sidenav-container>

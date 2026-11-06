@@ -176,6 +176,26 @@ export class AppsNavService {
   }
 
   private static readonly LOCK_KEY = 'polari.shellApp';
+  private static readonly EMBED_KEY = 'polari.embed';
+
+  /** tpl-4: `?embed=1` shows ONLY the page (no header, side nav or floating panels) so the Isle App's Polari Topology tab
+   *  can host /topology inside its own window. Session-sticky like ?shellApp=; `?embed=0` clears it. Hiding chrome
+   *  changes nothing about what the backend authorizes. */
+  readonly embedded: boolean = AppsNavService.readEmbed();
+
+  private static readEmbed(): boolean {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.has('embed')) {
+        const on = ['1', 'true', 'yes'].includes((params.get('embed') ?? '').trim().toLowerCase());
+        if (on) { sessionStorage.setItem(AppsNavService.EMBED_KEY, '1'); } else { sessionStorage.removeItem(AppsNavService.EMBED_KEY); }
+        return on;
+      }
+      return sessionStorage.getItem(AppsNavService.EMBED_KEY) === '1';
+    } catch {
+      return false;
+    }
+  }
 
   private static readLock(): string | null {
     try {

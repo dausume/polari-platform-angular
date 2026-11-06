@@ -16,6 +16,26 @@
     the database that instance is bound to.
   </p>
 
+  <!-- tpl-4: what this backend can show without an isle, and what needs one (never a blank or stale panel) -->
+  <details *ngIf="isleNeeds" class="isle-needs" [class.isle-absent]="!isleNeeds.isle.present">
+    <summary>
+      <span class="isle-badge">{{ isleNeeds.isle.present ? 'Isle present' : 'No isle' }}</span>
+      {{ isleNeeds.isle.words }}
+      <span *ngIf="isleMissingCount" class="isle-missing">
+        · {{ isleMissingCount }} feature{{ isleMissingCount === 1 ? '' : 's' }} need{{ isleMissingCount === 1 ? 's' : '' }} an isle</span>
+    </summary>
+    <table class="isle-needs-table">
+      <tr *ngFor="let f of isleFeatures" [class.unavailable]="!f.available">
+        <td class="isle-state">{{ f.available ? '✓' : 'Needs an isle' }}</td>
+        <td>{{ f.title }}</td>
+        <td>{{ f.words }}<span *ngIf="!f.available && f.fallback" class="isle-fallback"> — without one: {{ f.fallback }}</span></td>
+      </tr>
+    </table>
+    <p class="isle-polari-only">Polari-only, with or without an isle:
+      <ng-container *ngFor="let f of polariFeatures; let last = last">{{ f.title }}{{ last ? '' : ' · ' }}</ng-container>
+    </p>
+  </details>
+
   <div *ngIf="loading" class="status-line">Loading topology…</div>
   <div *ngIf="loadError && !loading" class="status-line error">
     {{ loadError }}</div>

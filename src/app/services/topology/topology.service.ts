@@ -26,8 +26,7 @@ import {
   ResolveResult,
   TestRunResult,
   TopologyTestingReport,
-  OwnershipReport,
-} from '@models/topology/topology-types';
+  OwnershipReport, IsleNeedsReport} from '@models/topology/topology-types';
 
 /**
  * Read/write access to the topology-as-data API (top-5/6). Every
@@ -42,6 +41,13 @@ export class TopologyService {
 
   private url(path: string): string {
     return `${this.polariService.getBackendBaseUrl()}/api/topology${path}`;
+  }
+
+  /** tpl-4: the "Needs an isle" states (null when the backend predates the door). */
+  isleNeeds(): Promise<IsleNeedsReport | null> {
+    return firstValueFrom(this.http.get<IsleNeedsReport>(
+      this.url('/isle-needs'), this.polariService.backendRequestOptions))
+      .catch(() => null);
   }
 
   summary(): Promise<TopologySummary | null> {

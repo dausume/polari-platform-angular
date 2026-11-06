@@ -385,3 +385,20 @@ export interface OwnershipReport {
   orphans: Array<{ class: string; rows: number }>;
   note: string;
 }
+
+/** tpl-4: GET /api/topology/isle-needs — which features need an isle, whether this backend has one, each fallback. */
+export interface IsleFeature {
+  key: string;
+  title: string;
+  layer: 'polari' | 'isle';
+  requiresIsle: boolean;
+  available: boolean;
+  words: string;
+  fallback: string;
+}
+
+export interface IsleNeedsReport {
+  ok: boolean;
+  isle: { present: boolean; configured: string; devices: string[]; words: string };
+  features: IsleFeature[];
+}
