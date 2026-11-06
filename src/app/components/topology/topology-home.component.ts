@@ -7,7 +7,7 @@ import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
 
 import { TopologyService } from '@services/topology/topology.service';
 import {
-  AssignResult, DriftReport, ModuleAssignment, ModuleGraphReport,
+  AssignResult, DriftReport, IsleFeature, IsleNeedsReport, ModuleAssignment, ModuleGraphReport,
   MoveRequest, MoveResult, TopologyGraph, TopologyInstance,
   TopologySummary, ValidateReport,
 } from '@models/topology/topology-types';
@@ -45,6 +45,11 @@ interface AssignNotice {
 })
 export class TopologyHomeComponent implements OnInit, OnDestroy {
   summary: TopologySummary | null = null;
+  /** tpl-4: which features need an isle here (null = the backend predates the door: the panel stays hidden). */
+  isleNeeds: IsleNeedsReport | null = null;
+  get isleFeatures(): IsleFeature[] { return (this.isleNeeds?.features || []).filter(f => f.requiresIsle); }
+  get polariFeatures(): IsleFeature[] { return (this.isleNeeds?.features || []).filter(f => !f.requiresIsle); }
+  get isleMissingCount(): number { return this.isleFeatures.filter(f => !f.available).length; }
   graph: TopologyGraph | null = null;
   moduleGraph: ModuleGraphReport | null = null;
   drift: DriftReport | null = null;
@@ -75,6 +80,7 @@ export class TopologyHomeComponent implements OnInit, OnDestroy {
 
   async ngOnInit(): Promise<void> {
     this.refreshMoves();
+    this.topologyService.isleNeeds().then(r => { this.isleNeeds = r?.ok ? r : null; });
     this.summary = await this.topologyService.summary();
     if (!this.summary?.ok) {
       this.loading = false;

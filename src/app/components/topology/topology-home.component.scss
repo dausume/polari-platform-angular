@@ -329,3 +329,13 @@
 }
 .verify-run { font-size: 12px; margin: 6px 0;
   color: var(--text-on-card); }
+
+/* tpl-4: the "Needs an isle" panel; colors from the theme tokens */
+.isle-needs { margin: 0.5rem 0 1rem; padding: 0.5rem 0.75rem; border: 1px solid var(--border-medium); border-radius: 6px; }
+.isle-needs summary { cursor: pointer; }
+.isle-badge { font-weight: 600; margin-right: 0.4rem; }
+.isle-needs.isle-absent .isle-badge, .isle-missing { color: var(--warn-color); }
+.isle-needs-table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; font-size: 0.9em; }
+.isle-needs-table td { padding: 0.2rem 0.4rem; vertical-align: top; }
+.isle-needs-table tr.unavailable .isle-state { color: var(--warn-color); white-space: nowrap; }
+.isle-fallback, .isle-polari-only { color: var(--text-on-card-muted); }

@@ -169,6 +169,11 @@ export class AppComponent {
     return this.appsNav.locked;
   }
 
+  /** tpl-4: ?embed=1 — the page alone, for the Isle App's Polari Topology tab. */
+  get embedded(): boolean {
+    return this.appsNav.embedded;
+  }
+
   toggleCoreNav(): void {
     this.coreNavExpanded = !this.coreNavExpanded;
     this.coreNavToggledByUser = true;
