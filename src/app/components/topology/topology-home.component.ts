@@ -49,7 +49,26 @@ export class TopologyHomeComponent implements OnInit, OnDestroy {
   isleNeeds: IsleNeedsReport | null = null;
   get isleFeatures(): IsleFeature[] { return (this.isleNeeds?.features || []).filter(f => f.requiresIsle); }
   get polariFeatures(): IsleFeature[] { return (this.isleNeeds?.features || []).filter(f => !f.requiresIsle); }
-  get isleMissingCount(): number { return this.isleFeatures.filter(f => !f.available).length; }
+  /** Isle features not backed by a fresh observation (configured-only, stale, or not configured). */
+  get isleMissingCount(): number { return this.isleFeatures.filter(f => f.state !== 'last-reported').length; }
+  get isleHasEvidence(): boolean {
+    return !!this.isleNeeds && (!!this.isleNeeds.isle.configured || this.isleNeeds.isle.reported.devices.length > 0);
+  }
+  /** The words a state reads as; "last reported" is the isle's word at a time, never "verified working now". */
+  isleStateLabel(f: IsleFeature): string {
+    switch (f.state) {
+      case 'last-reported': return 'Last reported';
+      case 'stale': return 'Stale';
+      case 'configured': return 'Configured, not yet evaluated';
+      case 'not-configured': return 'Needs an isle';
+      default: return 'Supported';
+    }
+  }
+  isleAge(f: IsleFeature): string {
+    if (f.ageSeconds === null || f.ageSeconds === undefined) { return ''; }
+    const s = f.ageSeconds;
+    return s < 120 ? `${s} s ago` : s < 7200 ? `${Math.round(s / 60)} min ago` : s < 172800 ? `${Math.round(s / 3600)} h ago` : `${Math.round(s / 86400)} d ago`;
+  }
   graph: TopologyGraph | null = null;
   moduleGraph: ModuleGraphReport | null = null;
   drift: DriftReport | null = null;
