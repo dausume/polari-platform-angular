@@ -338,4 +338,4 @@
 .isle-needs-table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; font-size: 0.9em; }
 .isle-needs-table td { padding: 0.2rem 0.4rem; vertical-align: top; }
 .isle-needs-table tr.unavailable .isle-state { color: var(--warn-color); white-space: nowrap; }
-.isle-fallback, .isle-polari-only { color: var(--text-on-card-muted); }
+.isle-fallback, .isle-polari-only, .isle-age { color: var(--text-on-card-muted); }

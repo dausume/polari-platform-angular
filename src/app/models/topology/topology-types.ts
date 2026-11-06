@@ -386,19 +386,29 @@ export interface OwnershipReport {
   note: string;
 }
 
-/** tpl-4: GET /api/topology/isle-needs — which features need an isle, whether this backend has one, each fallback. */
+/** tpl-4: GET /api/topology/isle-needs. Each isle feature carries an evidence STATE from timestamped observations, never a
+ *  bare "available" (Codex's review: configuration is not readiness). */
+export type IsleFeatureState = 'supported' | 'not-configured' | 'configured' | 'last-reported' | 'stale';
+
+export interface IsleEvidence { source: string; observedAt: string; words: string; }
+
 export interface IsleFeature {
   key: string;
   title: string;
   layer: 'polari' | 'isle';
   requiresIsle: boolean;
-  available: boolean;
+  state: IsleFeatureState;
+  observedAt: string;
+  ageSeconds: number | null;
+  evidence: IsleEvidence[];
   words: string;
   fallback: string;
 }
 
 export interface IsleNeedsReport {
   ok: boolean;
-  isle: { present: boolean; configured: string; devices: string[]; words: string };
+  evaluatedAt: string;
+  maxAgeS: number;
+  isle: { configured: string; reported: { devices: string[]; lastSeen: string }; words: string };
   features: IsleFeature[];
 }
