@@ -45,9 +45,26 @@ export class TopologyService {
 
   /** tpl-4: the "Needs an isle" states (null when the backend predates the door). */
   isleNeeds(): Promise<IsleNeedsReport | null> {
+    return this.isleNeedsAnswer().then(a => a.report);
+  }
+
+  /** tpl-5 contract (Codex gate 1): the report, or WHY there is none — an older backend (404), an outage — so the page says
+   *  so instead of hiding the panel. */
+  isleNeedsAnswer(): Promise<{ report: IsleNeedsReport | null; why: string }> {
     return firstValueFrom(this.http.get<IsleNeedsReport>(
       this.url('/isle-needs'), this.polariService.backendRequestOptions))
-      .catch(() => null);
+      .then(report => (report?.ok ? { report, why: '' } : { report: null, why: 'the backend answered without a report' }))
+      .catch((err: any) => ({
+        report: null,
+        why: err?.status === 404
+          ? 'this backend predates GET /api/topology/isle-needs (an older image), so it reports nothing about the isle'
+          : `GET /api/topology/isle-needs failed (${err?.status || 'no answer'}${err?.statusText ? ' ' + err.statusText : ''})`,
+      }));
+  }
+
+  /** The ONE backend this page reads (the frontend's runtime config); shown so a wrong frontend/backend pairing is visible. */
+  backendBase(): string {
+    return this.polariService.getBackendBaseUrl();
   }
 
   summary(): Promise<TopologySummary | null> {

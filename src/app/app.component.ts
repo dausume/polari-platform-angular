@@ -169,9 +169,16 @@ export class AppComponent {
     return this.appsNav.locked;
   }
 
-  /** tpl-4: ?embed=1 — the page alone, for the Isle App's Polari Topology tab. */
+  /** tpl-4: ?embed=1 — the page alone, for the Isle App's Polari Topology tab. Only on the topology pages (Codex gate 1:
+   *  embedded navigation must not trap anyone in chrome-hidden normal pages): following a link out of /topology brings the
+   *  header and side nav back. */
   get embedded(): boolean {
-    return this.appsNav.embedded;
+    return this.appsNav.embedded && AppComponent.isTopologyUrl(this.router?.url || '');
+  }
+
+  static isTopologyUrl(url: string): boolean {
+    const path = (url || '').split(/[?#]/)[0];
+    return path === '/topology' || path.startsWith('/topology/');
   }
 
   toggleCoreNav(): void {

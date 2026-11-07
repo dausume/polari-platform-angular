@@ -340,3 +340,7 @@
 .isle-needs-table tr.unavailable .isle-state { color: var(--warn-color); white-space: nowrap; }
 .isle-fallback, .isle-polari-only, .isle-age, .isle-observed { color: var(--text-on-card-muted); }
 .isle-observed { font-size: 0.85em; }
+/* tpl-5 contract: which backend this page reads; why the isle panel is absent */
+.backend-source { margin: 0.25rem 0; color: var(--text-on-card-muted); font-size: 0.9em; }
+.backend-source code { color: var(--text-primary); }
+.isle-needs-absent { margin: 0.25rem 0 1rem; color: var(--color-warn-text); font-size: 0.9em; }
