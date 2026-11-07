@@ -289,6 +289,13 @@
       Drag a module chip onto another card to reassign it — the drop
       writes ModuleAssignment rows and re-resolves dependency edges.
     </p>
+    <p class="section-hint provenance-legend">
+      Badges say where a row came from: <span class="chip provenance" data-kind="self">this backend</span>
+      <span class="chip provenance" data-kind="link">bound link</span>
+      <span class="chip provenance" data-kind="peer">from peer …</span> (a copy, refreshed from that backend)
+      <span class="chip provenance" data-kind="example">July example (historical)</span> (the 2026-07-09 snapshot, not this
+      backend's reality; <code>pol topology example-rows</code> plans its removal).
+    </p>
     <div class="instance-cards" cdkDropListGroup>
       <div class="instance-card" *ngFor="let instance of graph!.instances">
         <div class="card-head">
@@ -297,6 +304,9 @@
           <span class="chip target-badge"
                 matTooltip="orchestration target for this instance">
             {{ instance.orchestrationTarget }}</span>
+          <span class="chip provenance" *ngIf="provenanceLabel(instance.provenance) as label"
+                [attr.data-kind]="instance.provenance?.kind" [matTooltip]="instance.provenance?.words || ''">
+            {{ label }}</span>
         </div>
         <div class="card-meta">
           <span class="chip" *ngIf="instance.dbBackend"
@@ -320,7 +330,10 @@
                 *ngFor="let assignment of modulesFor(instance)"
                 cdkDrag [cdkDragData]="assignment"
                 [class.disabled]="assignment.state === 'disabled'"
+                [class.from-peer]="assignment.provenance?.kind === 'peer'"
+                [class.historical]="assignment.provenance?.kind === 'example' || assignment.provenance?.kind === 'example-edited'"
                 [matTooltip]="assignment.state
+                  + (provenanceLabel(assignment.provenance) ? ' · ' + provenanceLabel(assignment.provenance) : '')
                   + (assignment.notes ? ' · ' + assignment.notes : '')">
             {{ assignment.moduleName }}</span>
           <span class="no-modules" *ngIf="!modulesFor(instance).length">
@@ -349,6 +362,8 @@
               <span class="expander">{{ expandedConnections.has(conn.name)
                 ? '▾' : '▸' }}</span>
               <span class="chip">{{ conn.interconnectKey }}</span>
+              <span class="chip provenance" *ngIf="provenanceLabel(conn.provenance) as label"
+                    [attr.data-kind]="conn.provenance?.kind" [matTooltip]="conn.provenance?.words || ''">{{ label }}</span>
             </td>
             <td class="kinds">{{ conn.fromKind }} → {{ conn.toKind }}</td>
             <td>{{ conn.fromInstanceName }} →

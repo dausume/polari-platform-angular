@@ -344,3 +344,11 @@
 .backend-source { margin: 0.25rem 0; color: var(--text-on-card-muted); font-size: 0.9em; }
 .backend-source code { color: var(--text-primary); }
 .isle-needs-absent { margin: 0.25rem 0 1rem; color: var(--color-warn-text); font-size: 0.9em; }
+
+/* tpl-2 / tpl-6: where a row came from */
+.chip.provenance { font-size: 0.8em; border: 1px dashed var(--border-medium); background: transparent; color: var(--text-on-card-muted); }
+.chip.provenance[data-kind="peer"] { color: var(--color-info-text); background: var(--color-info-bg); border-style: solid; }
+.chip.provenance[data-kind="example"], .chip.provenance[data-kind="example-edited"] { color: var(--color-warn-text); }
+.module-chip.from-peer { border-style: dashed; color: var(--color-info-text); }
+.module-chip.historical { opacity: 0.7; font-style: italic; }
+.provenance-legend .chip { margin: 0 0.15rem; }

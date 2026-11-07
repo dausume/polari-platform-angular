@@ -44,6 +44,15 @@ export interface TopologyMeta {
   schemaVersion: string;
 }
 
+/** tpl-2 / tpl-6: where a topology row came from (GET /api/topology/graph labels every row). */
+export interface RowProvenance {
+  kind: 'self' | 'link' | 'peer' | 'example' | 'example-edited' | 'other';
+  words: string;
+  /** peer copies: the peer it came from and when it was pulled (ISO). */
+  peer?: string;
+  at?: string;
+}
+
 export interface TopologyMachine {
   name: string;
   /** tt-14: synthetic (sim) rows are never deploy targets. */
@@ -55,6 +64,7 @@ export interface TopologyMachine {
   swarmRole: string;
   source: string;
   notes: string;
+  provenance?: RowProvenance;
 }
 
 /** tt-14 instance categories: only 'polari' can receive modules;
@@ -88,6 +98,7 @@ export interface TopologyInstance {
   imageTag: string;
   orchestrationTarget: string;
   notes: string;
+  provenance?: RowProvenance;
 }
 
 export interface ModuleAssignment {
@@ -96,6 +107,7 @@ export interface ModuleAssignment {
   instanceName: string;
   state: string;
   notes: string;
+  provenance?: RowProvenance;
 }
 
 export type EdgeStatus = 'resolved' | 'unresolved' | 'degraded';
@@ -112,6 +124,7 @@ export interface ModuleDependencyEdge {
   isPrimary: boolean;
   isTransient: boolean;
   evidence: string;
+  provenance?: RowProvenance;
 }
 
 /** tt-1 module-level graph (GET /api/topology/module-graph) — the
@@ -165,6 +178,7 @@ export interface TopologyConnection {
   toInstanceName: string;
   artifact: string;
   notes: string;
+  provenance?: RowProvenance;
 }
 
 export interface TopologyGraph {

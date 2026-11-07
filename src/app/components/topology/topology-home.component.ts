@@ -8,7 +8,7 @@ import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
 import { TopologyService } from '@services/topology/topology.service';
 import {
   AssignResult, DriftReport, IsleFeature, IsleNeedsReport, ModuleAssignment, ModuleGraphReport,
-  MoveRequest, MoveResult, TopologyGraph, TopologyInstance,
+  MoveRequest, MoveResult, RowProvenance, TopologyGraph, TopologyInstance,
   TopologySummary, ValidateReport,
 } from '@models/topology/topology-types';
 import {
@@ -329,6 +329,25 @@ export class TopologyHomeComponent implements OnInit, OnDestroy {
     } else {
       this.expandedConnections.add(name);
     }
+  }
+
+  /** tpl-2 / tpl-6: a short label for where a row came from ('' for rows with nothing to say). */
+  provenanceLabel(p?: RowProvenance): string {
+    if (!p) { return ''; }
+    switch (p.kind) {
+      case 'self': return 'this backend';
+      case 'link': return 'bound link';
+      case 'peer': return 'from peer ' + (p.peer || '?') + (p.at ? ' · ' + this.sinceWords(p.at) : '');
+      case 'example': return 'July example (historical)';
+      case 'example-edited': return 'July example, edited';
+      default: return '';
+    }
+  }
+
+  /** A pull time in words, through ageWords (a timestamp ahead of this clock reads "in the future", never a negative age). */
+  sinceWords(iso: string): string {
+    const t = Date.parse(iso);
+    return isNaN(t) ? 'time unknown' : this.ageWords(Math.round((Date.now() - t) / 1000));
   }
 
   machineTip(machineName: string): string {
