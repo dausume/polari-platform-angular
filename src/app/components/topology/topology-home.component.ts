@@ -47,6 +47,8 @@ export class TopologyHomeComponent implements OnInit, OnDestroy {
   summary: TopologySummary | null = null;
   /** tpl-4: which features need an isle here (null = the backend predates the door: the panel stays hidden). */
   isleNeeds: IsleNeedsReport | null = null;
+  isleNeedsWhy = '';
+  backendBase = '';
   get isleFeatures(): IsleFeature[] { return (this.isleNeeds?.features || []).filter(f => f.requiresIsle); }
   get polariFeatures(): IsleFeature[] { return (this.isleNeeds?.features || []).filter(f => !f.requiresIsle); }
   /** Isle features not backed by a fresh observation (configured-only, stale, or not configured). */
@@ -110,7 +112,8 @@ export class TopologyHomeComponent implements OnInit, OnDestroy {
 
   async ngOnInit(): Promise<void> {
     this.refreshMoves();
-    this.topologyService.isleNeeds().then(r => { this.isleNeeds = r?.ok ? r : null; });
+    this.backendBase = this.topologyService.backendBase();
+    this.topologyService.isleNeedsAnswer().then(a => { this.isleNeeds = a.report; this.isleNeedsWhy = a.why; });
     this.summary = await this.topologyService.summary();
     if (!this.summary?.ok) {
       this.loading = false;

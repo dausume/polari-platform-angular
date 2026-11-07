@@ -16,6 +16,11 @@
     the database that instance is bound to.
   </p>
 
+  <!-- tpl-5 contract: one frontend reads exactly one backend; say which, so a wrong pairing is visible -->
+  <p class="backend-source">Reading the topology of the backend at <code>{{ backendBase || '(unknown)' }}</code>:
+    this page shows that one backend's rows, never another node's.</p>
+  <p *ngIf="!isleNeeds && isleNeedsWhy" class="isle-needs-absent">Isle features: {{ isleNeedsWhy }}.</p>
+
   <!-- tpl-4: what this backend has OBSERVED about each isle feature (timestamped), and the fallback; configured is not ready -->
   <details *ngIf="isleNeeds" class="isle-needs" [class.isle-absent]="!isleHasEvidence">
     <summary>
