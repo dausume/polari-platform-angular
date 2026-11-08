@@ -68,6 +68,9 @@ sudo isle update apply {{release.id}}</pre>
 <button mat-stroked-button (click)="reviewUpdate()" [disabled]="updateBusy">Review local update</button>
 <div *ngIf="updateReview"><p *ngFor="let p of updateReview.selectedPackages">{{p.name}}: {{updateReview.installed[p.name] || 'Not installed'}} → {{p.version}}</p>
 <p *ngFor="let r of updateReview.runtimeTargets">{{r.container}} → {{r.image.ref}}</p>
+<h3 *ngIf="updateReview.providerTargets?.length">Named Polari instances</h3>
+<article *ngFor="let p of updateReview.providerTargets"><strong>{{p.instance}} · {{p.component}}</strong><p>{{p.container}} → {{p.image.ref}}</p><small>Config digest: {{p.image.configDigest}}</small><p *ngIf="p.dataVolume">Preserved volume: {{p.dataVolume}}</p><p>{{p.dataPolicy}}</p></article>
+<p>{{updateReview.dataProtection?.message || 'This CLI did not report database snapshot protection. Verify a consistent backup before updating important data.'}}</p>
 <button mat-raised-button (click)="runUpdateAction('apply')" [disabled]="updateBusy">Apply reviewed update</button></div>
 <button mat-stroked-button (click)="runUpdateAction('reconcile')" [disabled]="updateBusy">Reconcile this device</button>
 <button mat-stroked-button *ngIf="updateOperation?.retryable" (click)="runUpdateAction('retry')" [disabled]="updateBusy">Retry operation</button>
