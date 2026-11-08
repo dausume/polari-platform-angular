@@ -18,6 +18,7 @@
             [disabled]="loading">
       <mat-icon>refresh</mat-icon> Refresh
     </button>
+    <button mat-stroked-button (click)="fitView()">Fit view</button>
   </div>
 
 
@@ -26,6 +27,8 @@
     <p>{{ polari.message }} {{ polari.recommended_shape }}</p>
   </section>
 
+  <p *ngIf="graph">{{recentDeviceCount}} device(s) reported within 10 minutes; {{olderDeviceCount}} older, undated or clock-skewed device record(s). These are reports, not live connection tests. Historical names remain visible until reviewed.</p>
+  <p role="status">Refreshes every 30 seconds while visible. <span *ngIf="retrievedAt">Last successful fetch {{ retrievedAt | date:'medium' }}.</span> Device reports have their own timestamps; fetching does not make old reports fresh.</p>
   <div class="load-error" *ngIf="loadError">{{ loadError }}</div>
 
   <div class="topology-layout" [class.resources-closed]="!resourcesOpen">
@@ -86,8 +89,9 @@
           <dt>Device</dt><dd>{{ selected.device }}</dd>
         </ng-container>
         <ng-container *ngIf="selected.kind === 'device'">
+          <dt>Report freshness</dt><dd>{{reportState(selected)}} · recent means received within 10 minutes, not verified online.</dd>
           <dt>Agent</dt>
-          <dd>{{ selected.agent_present ? 'present' : 'not seen' }}</dd>
+          <dd>{{ selected.agent_present ? 'present in that report' : 'not seen in that report' }}</dd>
           <dt>Router</dt>
           <dd>{{ selected.router_running ? 'running here' : '—' }}</dd>
           <dt>Connectivity</dt>

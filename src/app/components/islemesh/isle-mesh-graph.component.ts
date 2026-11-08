@@ -1,3 +1,4 @@
+import { IsleVisibleRefresh, isleReportFreshness } from './isle-visible-refresh';
 /**
  * /isle-mesh — the isle topology view (mac-1).
  *
@@ -20,7 +21,7 @@ import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, timeout } from 'rxjs';
 import * as d3 from 'd3';
 import { IsleResourceViewComponent } from './isle-resource-view.component';
 
@@ -60,7 +61,10 @@ export class IsleMeshGraphComponent implements AfterViewInit,
 
   graph: IsleGraph | null = null;
   loadError = '';
-  loading = true;
+  loading = false;
+  retrievedAt: Date | null = null;
+  private disposed = false;
+  private poller: IsleVisibleRefresh | null = null;
   resourcesOpen = true;
   selected: SceneNode | null = null;
   selectedLinks: SceneLink[] = [];
@@ -69,6 +73,10 @@ export class IsleMeshGraphComponent implements AfterViewInit,
     urls: Array<{ label: string; protocol?: string;
       upstream?: string; fragment?: string; is_mock: boolean }>;
   } | null = null;
+
+  reportState(node: SceneNode): string { return isleReportFreshness(node['reported_at']); }
+  get recentDeviceCount(): number { return (this.graph?.nodes || []).filter(n => n.kind === 'device' && this.reportState(n) === 'recent').length; }
+  get olderDeviceCount(): number { return (this.graph?.nodes || []).filter(n => n.kind === 'device' && this.reportState(n) !== 'recent').length; }
 
   resourceRows(entry: any): Array<{label: string; value: number; date: string; fresh: boolean}> {
     const labels: Record<string, string> = {availableRamMb: 'Available RAM (MiB)', freeDiskMb: 'Free root disk (MiB)', ramMb: 'Total RAM (MiB)', threads: 'Logical CPUs'};
@@ -91,37 +99,46 @@ export class IsleMeshGraphComponent implements AfterViewInit,
               private zone: NgZone) {}
 
   ngAfterViewInit(): void {
-    this.refresh();
+    void this.refresh();
+    this.poller = new IsleVisibleRefresh(() => this.refresh(), () => !document.hidden && !!this.canvasRef?.nativeElement.clientWidth);
+    this.poller.start();
     this.resizeObserver = new ResizeObserver(() => {
       const w = this.canvasRef?.nativeElement.clientWidth || 0;
       if (w > 0 && Math.abs(w - this.paintedWidth) > 24) {
-        this.paint();
+        this.paint(false);
       }
     });
     this.resizeObserver.observe(this.canvasRef.nativeElement);
   }
 
   ngOnDestroy(): void {
+    this.disposed = true;
+    this.poller?.stop();
     this.resizeObserver?.disconnect();
   }
 
   async refresh(): Promise<void> {
+    if (this.loading || this.disposed) return;
     this.loading = true;
     this.loadError = '';
-    const base = this.polariService.getBackendBaseUrl();
-    this.graph = await firstValueFrom(this.http.get<IsleGraph>(
-      `${base}/api/islemesh/graph`,
-      this.polariService.backendRequestOptions))
-      .catch((err) => (err?.error?.ok === false ? err.error : null));
-    this.loading = false;
-    if (!this.graph?.ok) {
-      this.loadError = this.graph?.error
-        || 'GET /api/islemesh/graph did not answer — is the '
-        + 'islemesh module deployed?';
-      return;
-    }
-    this.paint();
+    try {
+      const base = this.polariService.getBackendBaseUrl();
+      const incoming = await firstValueFrom(this.http.get<IsleGraph>(
+        `${base}/api/islemesh/graph`, this.polariService.backendRequestOptions).pipe(timeout(15000)));
+      if (this.disposed) return;
+      if (!incoming?.ok) throw new Error('Graph unavailable');
+      this.graph = incoming;
+      this.retrievedAt = new Date();
+      if (this.selected) this.select(incoming.nodes.find(node => node.id === this.selected?.id) || null);
+      // Edge details are snapshot-based; do not silently retain obsolete routing evidence.
+      this.selectedEdge = null;
+      this.paint();
+    } catch {
+      if (!this.disposed) this.loadError = 'Topology refresh failed. Showing the last successful snapshot; report dates below still apply.';
+    } finally { this.loading = false; }
   }
+
+  fitView(): void { this.paint(false); }
 
   selectEdge(edge: typeof this.selectedEdge): void {
     this.selectedEdge = edge;
@@ -136,7 +153,7 @@ export class IsleMeshGraphComponent implements AfterViewInit,
         l.source === node.id || l.target === node.id);
   }
 
-  private paint(): void {
+  private paint(preserveView = true): void {
     if (!this.graph?.ok || !this.canvasRef) { return; }
     const host = this.canvasRef.nativeElement;
     const width = host.clientWidth;
@@ -145,6 +162,8 @@ export class IsleMeshGraphComponent implements AfterViewInit,
     }
     this.paintedWidth = width;
     const height = host.clientHeight || 480;
+    const previousSvg = host.querySelector('svg');
+    const previousView = preserveView && previousSvg ? d3.zoomTransform(previousSvg) : null;
     d3.select(host).selectAll('*').remove();
 
     const scene: Scene = buildScene(this.graph.nodes,
@@ -167,7 +186,7 @@ export class IsleMeshGraphComponent implements AfterViewInit,
     const tx = width / 2 - (bbox.x + bbox.w / 2) * scale;
     const ty = height / 2 - (bbox.y + bbox.h / 2) * scale;
     svg.call(zoom.transform,
-             d3.zoomIdentity.translate(tx, ty).scale(scale));
+             previousView || d3.zoomIdentity.translate(tx, ty).scale(scale));
 
     const select = (n: SceneNode) =>
       this.zone.run(() => this.select(n));
@@ -220,8 +239,11 @@ export class IsleMeshGraphComponent implements AfterViewInit,
       .data(scene.boxes).join('g')
       .attr('class', (b: any) => 'device-box'
         + (b.is_mock ? ' mock' : ''))
+      .attr('data-report-state', (b: any) => b.node ? this.reportState(b.node) : 'not-reported')
+      .attr('opacity', (b: any) => b.node && this.reportState(b.node) === 'recent' ? 1 : 0.6)
       .attr('transform',
             (b: any) => `translate(${b.x},${b.y})`);
+    boxG.append('title').text((b: any) => `${b.device}: ${b.node ? this.reportState(b.node) : 'not-reported'}; last report ${b.node?.reported_at || 'not supplied'}`);
     boxG.append('rect')
       .attr('class', 'box-body')
       .attr('width', (b: any) => b.w)

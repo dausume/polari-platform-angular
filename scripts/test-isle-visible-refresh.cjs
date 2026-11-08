@@ -1,0 +1,22 @@
+const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),ts=require('typescript'),assert=require('node:assert/strict');
+const file=path.resolve(__dirname,'../src/app/components/islemesh/isle-visible-refresh.ts');
+const api={},timers=new Map(),listeners=new Map();let id=0;
+const events={addEventListener:(k,v)=>listeners.set(k,v),removeEventListener:(k,v)=>{if(listeners.get(k)===v)listeners.delete(k)}};
+vm.runInNewContext(ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports:api,document:events,Date,setTimeout:(fn,ms)=>{timers.set(++id,{fn,ms});return id},clearTimeout:i=>timers.delete(i)});
+(async()=>{
+ let calls=0,visible=false,resolve;
+ const p=new api.IsleVisibleRefresh(()=>{calls++;return new Promise(r=>resolve=r)},()=>visible,30000,events);
+ p.start();p.start();assert.equal(timers.size,1);assert.equal(listeners.size,1);
+ await p.tick();assert.equal(calls,0);assert.equal(timers.size,1);
+ visible=true;const pending=p.tick();await p.tick();listeners.get('visibilitychange')();assert.equal(calls,1);
+ p.stop();resolve();await pending;assert.equal(timers.size,0);assert.equal(listeners.size,0);
+ let failures=0;const retry=new api.IsleVisibleRefresh(async()=>{failures++;throw Error('offline')},()=>true,30000,events);
+ retry.start();await retry.tick();assert.equal(failures,1);assert.equal(timers.size,1);await retry.tick();assert.equal(failures,2);retry.stop();assert.equal(timers.size,0);
+ const now=Date.parse('2026-11-08T20:00:00Z');
+ assert.equal(api.isleReportFreshness('2026-11-08T19:59:00Z',now),'recent');
+ assert.equal(api.isleReportFreshness('2026-11-06T20:00:00Z',now),'older');
+ assert.equal(api.isleReportFreshness('2099-01-01T00:00:00Z',now),'clock-skew');
+ assert.equal(api.isleReportFreshness('bad',now),'not-reported');
+ assert.equal(api.isleReportFreshness('',now),'not-reported');
+ console.log('PASS hidden/overlap/disposal/retry lifecycle and report age/clock-skew controls');
+})().catch(e=>{console.error(e);process.exitCode=1});
