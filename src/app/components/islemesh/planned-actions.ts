@@ -39,6 +39,9 @@ export function isRunnable(action: PlannedAction, all: PlannedAction[], currentD
     const dep = all.find(a => a.id === id);
     if (!dep || dep.status !== 'succeeded') return { ok: false, reason: 'waiting for ' + (dep ? shortKind(dep.kind) : id) };
   }
+  // The backend says `blocked` for anything not executable yet (passive stage, placement not authorized,
+  // dependency not met); its statusWords are the reason. Never infer executability from dependsOn alone.
+  if (action.status === 'blocked') return { ok: false, reason: action.statusWords || 'blocked by the backend' };
   if (action.status === 'running' || action.status === 'succeeded') return { ok: false, reason: 'already ' + action.status };
   return { ok: true, reason: '' };
 }

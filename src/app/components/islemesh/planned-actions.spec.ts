@@ -33,4 +33,9 @@ describe('planned-actions', () => {
     expect(() => argsFor(c)).toThrow();
     expect(argsFor(c, 7)).toEqual({ dataset: 'tank/x', generation: 7 });
   });
+  it('refuses a backend-blocked action even when its dependencies are satisfied', () => {
+    const blocked = mk({ id: 'b', status: 'blocked', statusWords: 'not executable: storage migration executor not released' });
+    const r = isRunnable(blocked, [blocked], 'core', true);
+    expect(r.ok).toBeFalse(); expect(r.reason).toContain('not executable');
+  });
 });
