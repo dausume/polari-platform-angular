@@ -13,7 +13,11 @@ vm.runInNewContext(js,context);
   [()=>bridge.updateApply('b'.repeat(64)),'device.updateApply',{releaseId:'b'.repeat(64)}],
   [()=>bridge.operationStatus('a'.repeat(32)),'operation.status',{id:'a'.repeat(32)}],
   [()=>bridge.operationRetry('a'.repeat(32)),'operation.retry',{id:'a'.repeat(32)}],
-  [()=>bridge.reconcile(),'device.reconcile',{}]]) {
+  [()=>bridge.reconcile(),'device.reconcile',{}],
+  [()=>bridge.storageAuthorize({dataset:'t/x',planId:'p',revision:2,itemId:'i',digest:'d'}),'storage.authorize',{dataset:'t/x',planId:'p',revision:2,itemId:'i',digest:'d'}],
+  [()=>bridge.storageMigrate({dataset:'t/x',planId:'p',revision:2,itemId:'i',digest:'d'}),'storage.migrate',{dataset:'t/x',planId:'p',revision:2,itemId:'i',digest:'d'}],
+  [()=>bridge.storageCutover({dataset:'t/x',generation:4}),'storage.cutover',{dataset:'t/x',generation:4}],
+  [()=>bridge.storageStatus('t/x'),'storage.status',{dataset:'t/x'}]]) {
   await call();assert.equal(calls.at(-1).type,type);assert.deepEqual(calls.at(-1).payload,payload);
  }
  console.log('PASS: two unrelated installs share dispatch; update/status/retry/reconcile serialize only parameters and preserve operation ID');

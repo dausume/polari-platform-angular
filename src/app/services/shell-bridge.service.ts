@@ -109,6 +109,10 @@ export class ShellBridgeService {
   restartAgent(): Promise<InstallResult> { return this.call('agent.restart', {}).then(r=>this.operationResult(r)); }
   operationStatus(id: string): Promise<InstallResult> { return this.call('operation.status', {id}).then(r=>this.operationResult(r)); }
   operationRetry(id: string): Promise<InstallResult> { return this.call('operation.retry', {id}).then(r=>this.operationResult(r)); }
+  storageAuthorize(p: {dataset: string; planId: string; revision: number; itemId: string; digest: string}): Promise<InstallResult> { return this.call('storage.authorize', p).then(r=>this.operationResult(r)); }
+  storageMigrate(p: {dataset: string; planId: string; revision: number; itemId: string; digest: string}): Promise<InstallResult> { return this.call('storage.migrate', p).then(r=>this.operationResult(r)); }
+  storageCutover(p: {dataset: string; generation: number}): Promise<InstallResult> { return this.call('storage.cutover', p).then(r=>this.operationResult(r)); }
+  storageStatus(dataset: string): Promise<InstallResult> { return this.call('storage.status', {dataset}).then(r=>this.operationResult(r)); }
 
   deviceContext(): Promise<{ok: boolean; report?: any; error?: string}> {
     return this.call('device.context', {});
