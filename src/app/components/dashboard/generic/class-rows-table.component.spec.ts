@@ -151,3 +151,47 @@ describe('ClassRowsTableComponent - view link column', () => {
     expect(component.kindOf({ id: 'a' }, 'label')).toBe('plain');
   });
 });
+
+/**
+ * td-5 (UI review 2026-11-15): a refused row action ("Start a session" answered 502) wrote its words BELOW the table and
+ * INSIDE the table's scroll box, so on a long table nobody saw why nothing happened. The words now come first, outside the box.
+ */
+describe('ClassRowsTableComponent - the row action\'s answer is shown above the table', () => {
+  let fixture: ComponentFixture<ClassRowsTableComponent>;
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      imports: [ClassRowsTableComponent, RouterTestingModule],
+      providers: [
+        { provide: HttpClient, useValue: { get: () => of({ ok: true, rows: [{ name: 'uno-light' }] }) } },
+        { provide: PolariService, useValue: { getBackendBaseUrl: () => '', backendRequestOptions: {} } },
+        { provide: CRUDEservicesManager, useValue: {} },
+        { provide: AuthSessionService, useValue: {} },
+        { provide: PeopleService, useValue: {} },
+      ],
+    });
+    fixture = TestBed.createComponent(ClassRowsTableComponent);
+    fixture.componentInstance.dataPath = '/api/x/rows';
+    fixture.componentInstance.columns = 'name';
+    fixture.componentInstance.maxHeight = 300;
+    fixture.detectChanges();
+  });
+
+  it('puts a refusal before the scroll box, marked bad, with role=status', () => {
+    const c = fixture.componentInstance;
+    c.message = 'the session started on the worker but its control port could not be reached from here';
+    c.messageBad = true;
+    fixture.detectChanges();
+    const host: HTMLElement = fixture.nativeElement;
+    const said = host.querySelector('p.message') as HTMLElement;
+    const box = host.querySelector('.class-rows-table') as HTMLElement;
+    expect(said).toBeTruthy();
+    expect(said.classList.contains('bad')).toBeTrue();
+    expect(said.getAttribute('role')).toBe('status');
+    expect(box.contains(said)).toBeFalse();
+    expect(said.compareDocumentPosition(box) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('shows nothing when there is nothing to say', () => {
+    expect((fixture.nativeElement as HTMLElement).querySelector('p.message')).toBeNull();
+  });
+});

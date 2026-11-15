@@ -35,6 +35,8 @@ import { runRowAction } from './class-rows-action-run';
   selector: 'class-rows-table',
   imports: [CommonModule, RouterModule, MatProgressSpinnerModule, KatexDisplayComponent, CodeBlockComponent],
   template: `
+    <!-- td-5: what a row action answered (or why it was refused) sits ABOVE the table and outside its scroll box, so it is seen without scrolling -->
+    <p *ngIf="message" class="message" [class.bad]="messageBad" role="status">{{ message }}</p>
     <div class="class-rows-table" [class.scrolls]="maxHeight > 0" [style.max-height.px]="maxHeight > 0 ? maxHeight : null">
       <div *ngIf="loading" class="state"><mat-spinner diameter="28"></mat-spinner></div>
       <div *ngIf="error" class="state error" [title]="errorDetail">{{ error }}
@@ -87,7 +89,6 @@ import { runRowAction } from './class-rows-action-run';
           </tr>
         </tbody>
       </table>
-      <p *ngIf="message" class="message" [class.bad]="messageBad" role="status">{{ message }}</p>
       <div *ngIf="!loading && !error && rows.length === 0" class="state">
         {{ emptyText || ('No ' + className + ' rows.') }}
       </div>
@@ -111,8 +112,8 @@ import { runRowAction } from './class-rows-action-run';
     button.act:hover:not(:disabled) { background: var(--primary-hover-color, #4d4d6c); border-color: var(--primary-hover-color, #4d4d6c); }
     button.act:focus-visible { outline: 2px solid var(--nav-background, #2e3a5c); outline-offset: 2px; }
     button.act:disabled { opacity: 0.55; cursor: default; }
-    .message { margin: 6px 10px; font-size: 0.9em; color: var(--text-secondary, #666); }
-    .message.bad { color: var(--error-text, #b3261e); }
+    .message { margin: 0 0 6px; padding: 6px 10px; font-size: 0.9em; color: var(--text-secondary, #666); border-left: 3px solid var(--border-medium, #bbb); overflow-wrap: anywhere; }
+    .message.bad { color: var(--error-text, #b3261e); border-left-color: var(--error-text, #b3261e); }
     tr.clickable { cursor: pointer; }
     tr.clickable:hover { background: var(--surface-hover, #f3f3f3); }
     /* the picked row: a clear tint and a bar in the nav colour (the page's --primary-color is too pale to see) */
