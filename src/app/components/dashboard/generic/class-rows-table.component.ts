@@ -296,9 +296,11 @@ export class ClassRowsTableComponent implements OnInit, OnChanges {
     if (this.selectField && this.selectScope) { this.setScope(nextSelection(row, this.selectField, this.selectedValue)); }
   }
 
-  /** Escape clears this table's selection (click-toggle rule); a table with nothing selected ignores it. */
-  @HostListener('document:keydown.escape')
-  onEscape(): void {
+  /** Escape clears this table's selection (click-toggle rule); a table with nothing selected ignores it. An Escape a picture already spent on its own
+   *  selection (escape-first.ts) is left alone: one Escape clears one thing, and the picked session a bench picture is bound to stays picked. */
+  @HostListener('document:keydown.escape', ['$event'])
+  onEscape(ev?: Event): void {
+    if (ev?.defaultPrevented) { return; }
     if (this.selectScope && this.selectedValue) { this.setScope(''); }
   }
 

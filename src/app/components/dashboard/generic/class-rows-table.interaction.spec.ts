@@ -78,6 +78,16 @@ describe('ClassRowsTableComponent — row interaction (fsc-3)', () => {
     expect(events.length).toBe(1);
   });
 
+  it('an Escape a picture already spent on its own selection leaves the picked row alone (one Escape clears one thing)', () => {
+    component.selectField = 'session'; component.selectScope = 'session'; component.selectedValue = 'uno-light-ab12cd';
+    const spent = new KeyboardEvent('keydown', { key: 'Escape', cancelable: true });
+    spent.preventDefault();
+    component.onEscape(spent);
+    expect(events.length).toBe(0);
+    component.onEscape(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
+    expect(events[0].payload).toEqual({ key: 'session', value: '' });
+  });
+
   it('rowLinkTabField opens the tab named by the row (?tab=), without a scope event', () => {
     component.rowLinkTabField = 'solution';
     clickRow(1);

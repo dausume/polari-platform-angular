@@ -1,10 +1,11 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, ElementRef, HostListener, Input, NgZone, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild, ViewEncapsulation, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, Input, NgZone, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild, ViewEncapsulation, inject } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription, forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 
 import { DisplayEventsService } from '@services/no-code-services/display-events.service';
+import { escapeFirst } from '../escape-first';
 import { friendlyError } from '../friendly-error';
 import { LayoutCanvas, LvDrawState } from './layout-draw';
 import { BoardFrame, headerIndex, headerPins, layoutBoards } from './layout-geometry';
@@ -79,6 +80,7 @@ export class HardwareLayoutViewComponent implements OnInit, OnChanges, OnDestroy
   private router = inject(Router, { optional: true });
   private events = inject(DisplayEventsService, { optional: true });
   private cdr = inject(ChangeDetectorRef);
+  private dropEscape: () => void = () => undefined;
   private zone = inject(NgZone);
   private pendingPin = '';
   private pendingPart = '';
@@ -105,6 +107,7 @@ export class HardwareLayoutViewComponent implements OnInit, OnChanges, OnDestroy
       background: () => this.clear(),
       hold: (n, down) => this.hold(n, down),
     });
+    this.dropEscape = escapeFirst(() => this.takeEscape());
     this.toneTimer = setInterval(() => { if (this.mode === 'bench' && this.hasTone()) { this.redraw(); } }, 250);
     this.load();
   }
@@ -124,7 +127,7 @@ export class HardwareLayoutViewComponent implements OnInit, OnChanges, OnDestroy
     this.sub?.unsubscribe(); this.sessionSub?.unsubscribe(); this.stream?.close();
     if (this.toneTimer) { clearInterval(this.toneTimer); }
     this.revTimers.forEach(clearTimeout);
-    this.canvas?.destroy();
+    this.canvas?.destroy(); this.dropEscape();
   }
 
   // ---------------------------------------------------------------------------------------------------------------- data
@@ -184,7 +187,8 @@ export class HardwareLayoutViewComponent implements OnInit, OnChanges, OnDestroy
     if (!this.selection) { return; }
     this.selection = null; this.redraw(); this.announceSelection();
   }
-  @HostListener('document:keydown.escape') onEscape(): void { this.clear(); }
+  /** Escape clears the picture's selection and is then spent (escape-first.ts): the session picked in the table behind stays bound. */
+  private takeEscape(): boolean { const had = !!this.selection; this.clear(); return had; }
 
   private announceSelection(): void {
     const s = this.selection;

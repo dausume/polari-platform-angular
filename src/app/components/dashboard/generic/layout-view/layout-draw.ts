@@ -30,6 +30,7 @@ export class LayoutCanvas {
   private gParts!: d3.Selection<SVGGElement, unknown, null, undefined>;
   private gWires!: d3.Selection<SVGGElement, unknown, null, undefined>;
   private gHi!: d3.Selection<SVGGElement, unknown, null, undefined>;
+  private gTouch!: d3.Selection<SVGGElement, unknown, null, undefined>;
   private zoom: d3.ZoomBehavior<SVGSVGElement, unknown>;
   private frames: BoardFrame[] = [];
   private p: LvPayload | null = null;
@@ -64,6 +65,7 @@ export class LayoutCanvas {
     this.gParts = this.zoomG.append('g').attr('class', 'lv-layer lv-parts');
     this.gWires = this.zoomG.append('g').attr('class', 'lv-layer lv-wires');
     this.gHi = this.zoomG.append('g').attr('class', 'lv-layer lv-highlights');
+    this.gTouch = this.zoomG.append('g').attr('class', 'lv-layer lv-touch');   // above the wires: a jumper drawn across a pushbutton must not take its press
     for (const f of frames) { f.board.kind === 'devboard' ? this.drawDevboard(f) : this.drawBreadboard(f); }
     this.drawWires(p.wires);
     this.drawParts();
@@ -160,7 +162,7 @@ export class LayoutCanvas {
   private drawParts(): void {
     const active = document.activeElement as Element | null;
     const focused = active && this.svg.node()?.contains(active) ? active.getAttribute('data-part') : null;   // a held Space must keep its key-up target across the redraw
-    this.gParts.selectAll('*').remove();
+    this.gParts.selectAll('*').remove(); this.gTouch.selectAll('*').remove();
     for (const s of this.spritesNow()) {
       const touch = !!this.state?.touchable.has(s.name);
       const g = this.gParts.append('g').attr('class', 'lv-part' + (touch ? ' touchable' : '')).attr('data-part', s.name).attr('data-kind', s.kind).attr('transform', s.transform || null)
@@ -177,6 +179,10 @@ export class LayoutCanvas {
           .on('pointerdown', (ev: PointerEvent) => { ev.stopPropagation(); this.holdName = s.name; this.h.hold(s.name, true); })
           .on('keydown', (ev: KeyboardEvent) => { if (ev.key === ' ' && !ev.repeat) { ev.preventDefault(); this.h.hold(s.name, true); } })
           .on('keyup', (ev: KeyboardEvent) => { if (ev.key === ' ') { ev.preventDefault(); this.h.hold(s.name, false); } });
+        this.gTouch.append('rect').attr('class', 'lv-touch-hit').attr('data-touch', s.name).attr('transform', s.transform || null)
+          .attr('x', s.box.x - 2).attr('y', s.box.y - 2).attr('width', s.box.w + 4).attr('height', s.box.h + 4)
+          .on('mousedown.hold touchstart.hold click', (ev: Event) => ev.stopPropagation())
+          .on('pointerdown', (ev: PointerEvent) => { ev.stopPropagation(); this.holdName = s.name; this.h.hold(s.name, true); });
       }
       if (look.tone) { g.append('text').attr('class', 'lv-tone-mark').attr('x', s.box.x + s.box.w + P * 0.6).attr('y', s.box.y + P * 0.6).text('♪'); }
     }

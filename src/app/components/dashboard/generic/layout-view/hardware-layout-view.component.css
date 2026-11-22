@@ -71,6 +71,7 @@ hardware-layout-view { display: block; container-type: inline-size; container-na
 .lv-root .lv-part.touchable { cursor: grab; outline: none; }
 .lv-root .lv-part.touchable:focus .lv-part-hit { stroke: var(--brand-blue); stroke-width: 2px; fill: none; vector-effect: non-scaling-stroke; }
 .lv-root .lv-part-hit { fill: transparent; stroke: none; pointer-events: all; }
+.lv-root .lv-touch-hit { fill: transparent; stroke: none; pointer-events: all; cursor: grab; }
 .lv-root .lv-lead { stroke: var(--text-secondary); stroke-width: 1.4px; stroke-linecap: round; }
 .lv-root .lv-lead-long { stroke-width: 1.8px; }
 .lv-root .lv-part-label { fill: var(--text-primary); font-size: 5.5px; pointer-events: none; }

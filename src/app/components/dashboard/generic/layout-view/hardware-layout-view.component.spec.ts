@@ -81,7 +81,7 @@ describe('HardwareLayoutViewComponent', () => {
       expect(c.pins).toBe(8 + 6 + 8 + 10 + 6);
       expect(c.parts).toBe(3);
       expect(c.wires).toBe(6);
-      expect(all('.lv-layer').map(l => l.getAttribute('class')!.replace('lv-layer ', ''))).toEqual(['lv-boards', 'lv-parts', 'lv-wires', 'lv-highlights']);
+      expect(all('.lv-layer').map(l => l.getAttribute('class')!.replace('lv-layer ', ''))).toEqual(['lv-boards', 'lv-parts', 'lv-wires', 'lv-highlights', 'lv-touch']);
     });
 
     it('draws the wires in their EFFECTIVE colour (the scheme\'s, or the person\'s own) and the resistor with its computed bands', () => {
@@ -291,6 +291,41 @@ describe('HardwareLayoutViewComponent', () => {
       part('SW1').dispatchEvent(new KeyboardEvent('keyup', { key: ' ', bubbles: true }));
       await settle();
       expect(injected.map(i => i.level)).toEqual([0, 1]);
+    });
+
+    it('a press on the picture reaches the pushbutton even where a jumper is drawn across it: the press area sits in a layer above the wires', async () => {
+      await create({ inputs: { mode: 'bench', session: 'uno-light-ab12cd' } });
+      streamOn({ t: 'hello' });
+      await settle();
+      injected.length = 0;
+      const hit = el('.lv-touch-hit[data-touch="SW1"]') as unknown as SVGRectElement;
+      expect(hit).not.toBeNull();
+      const layers = all('.lv-layer').map(l => l.getAttribute('class') || '');
+      expect(layers.findIndex(c => c.includes('lv-touch'))).toBeGreaterThan(layers.findIndex(c => c.includes('lv-wires')));
+      expect(all('.lv-touch-hit').map(r => r.getAttribute('data-touch'))).not.toContain('LED1');   // only what a person can press
+      hit.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+      await settle();
+      window.dispatchEvent(new PointerEvent('pointerup'));
+      await settle();
+      expect(injected.map(i => [i.set, i.level, i.part])).toEqual([['PD2', 0, 'SW1'], ['PD2', 1, 'SW1']]);
+      expect(el('.lv-selection')).toBeNull();   // a press never selects anything
+    });
+
+    it('Escape with a wire selected clears the wire and is spent (the session picked behind the picture stays); with nothing selected it is left for the tables', async () => {
+      await create({ inputs: { mode: 'bench', session: 'uno-light-ab12cd' } });
+      streamOn({ t: 'hello' });
+      await settle();
+      click(el('.lv-wire-hit'));
+      await settle();
+      expect(el('.lv-selection')).not.toBeNull();
+      const first = new KeyboardEvent('keydown', { key: 'Escape', cancelable: true });
+      document.dispatchEvent(first);
+      await settle();
+      expect(el('.lv-selection')).toBeNull();
+      expect(first.defaultPrevented).toBeTrue();
+      const second = new KeyboardEvent('keydown', { key: 'Escape', cancelable: true });
+      document.dispatchEvent(second);
+      expect(second.defaultPrevented).toBeFalse();
     });
 
     it('the panel\'s own hold button works the same way', async () => {

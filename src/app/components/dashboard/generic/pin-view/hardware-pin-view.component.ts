@@ -1,8 +1,9 @@
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, HostListener, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild, ViewEncapsulation, inject } from '@angular/core';
+import { Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild, ViewEncapsulation, inject } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Subscription, catchError, combineLatest, map, of, switchMap } from 'rxjs';
 
+import { escapeFirst } from '../escape-first';
 import { friendlyError } from '../friendly-error';
 import { PinViewCanvas } from './pin-view-draw';
 import {
@@ -156,6 +157,7 @@ export class HardwarePinViewComponent implements OnInit, OnChanges, OnDestroy {
   constructor(private svc: PinViewService) {}
 
   ngOnInit(): void {
+    this.dropEscape = escapeFirst(() => this.takeEscape());
     const q = this.route?.snapshot?.queryParamMap;
     if (q) {
       this.board = q.get('board') || this.board;
@@ -197,7 +199,7 @@ export class HardwarePinViewComponent implements OnInit, OnChanges, OnDestroy {
     if (this.showStruct && ['board', 'binding', 'bench'].some(k => ch[k] && !ch[k].firstChange)) { this.loadStruct(); }
   }
 
-  ngOnDestroy(): void { this.sub?.unsubscribe(); this.eventsSub?.unsubscribe(); this.runsSub?.unsubscribe(); this.structSub?.unsubscribe(); this.canvas?.destroy(); }
+  ngOnDestroy(): void { this.sub?.unsubscribe(); this.eventsSub?.unsubscribe(); this.runsSub?.unsubscribe(); this.structSub?.unsubscribe(); this.canvas?.destroy(); this.dropEscape(); }
 
   // ---- data
   /** A stage past base needs a binding; the light demo's is the default. */
@@ -448,7 +450,9 @@ export class HardwarePinViewComponent implements OnInit, OnChanges, OnDestroy {
   }
   get eventPinSet(): ReadonlySet<string> | null { return this.eventSel ? new Set(this.eventSel.pins_changed.map(p => p.pin)) : null; }
 
-  @HostListener('document:keydown.escape') onEscape(): void { this.clear(); }
+  /** Escape clears this view's selection and is then spent (escape-first.ts), so a row picked in a table behind it stays picked. */
+  private takeEscape(): boolean { const had = !!(this.selection || this.anchor || this.eventSel || this.fieldSel); this.clear(); return had; }
+  private dropEscape: () => void = () => undefined;
 
   private redraw(): void {
     this.panel = this.ix ? buildPanel(this.ix, this.selection, this.mode) : null;
