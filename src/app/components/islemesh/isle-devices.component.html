@@ -6,7 +6,7 @@
   </header>
   <p role="status" *ngIf="loading">Loading device inventory…</p>
   <p role="alert" *ngIf="error">{{ error }} Existing records below may be out of date.</p>
-  <p *ngIf="retrievedAt">Inventory retrieved {{ retrievedAt | date:'medium' }}.
+  <p *ngIf="retrievedAt">Refreshes every two minutes while visible. Inventory retrieved {{ retrievedAt | date:'medium' }}.
     Report times below describe received inventory, not a live health check.</p>
   <p class="notice" *ngIf="unavailable.length">Unavailable sources: {{ unavailable.join(', ') }}. The overview is incomplete; missing records do not prove a capability is absent.</p>
   <p class="notice" *ngIf="mockNetwork">This inventory includes demonstration data. It cannot confirm real device readiness.</p>
@@ -45,7 +45,7 @@
     the shared primary node supplies apps through Isle DNS.</p>
   <div class="device-grid">
     <article *ngFor="let device of devices">
-      <h3>{{ device.name }}</h3>
+      <h3>{{ device.name }}</h3><p>Report: {{reportState(device.lastReported)}} (recent means within 10 minutes, not verified online).</p>
       <dl>
         <dt>Network membership</dt><dd>Not reported by this inventory</dd>
         <dt>Last inventory report</dt><dd>{{ device.lastReported ? (device.lastReported | date:'medium') : 'Not reported' }}</dd>

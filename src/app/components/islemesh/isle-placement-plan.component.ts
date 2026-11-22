@@ -8,6 +8,7 @@ import { RouterModule } from '@angular/router';
 import { ShellBridgeService } from '@services/shell-bridge.service';
 import { PolariService } from '@services/polari-service';
 import { IslePlannedTopologyComponent } from './isle-planned-topology.component';
+import { PlannedAction, doorFor, isRunnable, argsFor, shortKind } from './planned-actions';
 import { IsleResourceViewComponent } from './isle-resource-view.component';
 
 @Component({selector:'app-isle-placement-plan',standalone:true,
@@ -18,6 +19,7 @@ export class IslePlacementPlanComponent implements OnInit, OnDestroy {
  @Output() review=new EventEmitter<string>();
  busy=false;loaded=false;message='';resources:any[]=[];search='';selected:any=null;dragged='';dirty=false; menu:any=null; action:any=null; moveTarget='';library:any=null;planDialog='';planName='';inspection=false;usageHistory:any[]=[];safetyMessage='';planNotice='';updateInfo:any=null;updateDialog=false;updateDismissed=false;private timer:any;private polling=false;private lastUpdateCheck=0;
  saved:any={title:'Isle deployment plan',revision:0,items:[]};draft:any=structuredClone(this.saved);
+ plannedActions:PlannedAction[]=[]; actionOutput=''; actionOperationId=''; actionRefused=false; storageGenerations:Record<string,number>={}; private dialogToken=0;
  updateBusy=false; updateReview:any=null; updateOperation:any=null; updateOutput=''; updateOperationId='';
  constructor(private http:HttpClient,private polari:PolariService,public shell:ShellBridgeService){}
  async reviewUpdate(){
@@ -39,15 +41,45 @@ export class IslePlacementPlanComponent implements OnInit, OnDestroy {
    if(!r.ok)this.updateOutput+='\nOperation did not complete successfully.';
   }catch(e:any){this.updateOutput=e.message;}finally{this.updateBusy=false;}
  }
+ shortKind=shortKind;doorFor=doorFor;
+ get actionDevice():string|null{return this.currentDevice||null;}
+ runnable(a:PlannedAction){const r=isRunnable(a,this.plannedActions,this.actionDevice,this.shell.available);return !r.ok?r:this.updateBusy?{ok:false,reason:'another operation is running'}:r;}
+ dependsText(a:PlannedAction){return (a.dependsOn||[]).map(id=>{const d=this.plannedActions.find(x=>x.id===id);return 'after '+(d?shortKind(d.kind):id);}).join(', ');}
+ async loadGenerations(){if(!this.shell.available)return;for(const ds of new Set(this.plannedActions.filter(a=>doorFor(a.kind)).map(a=>a.dataset))){try{const r=await this.shell.storageStatus(ds);const g=r.state?.placement?.generation;if(r.ok&&typeof g==='number')this.storageGenerations[ds]=g;else delete this.storageGenerations[ds];}catch{}}}
+ async runPlannedAction(a:PlannedAction){
+  if(this.updateBusy||!this.runnable(a).ok)return;
+  this.updateBusy=true;this.actionOperationId='';this.actionRefused=false;this.actionOutput='';const token=++this.dialogToken;
+  try{
+   const door=doorFor(a.kind);let r:any;
+   if(door==='storage.cutover'){
+    const st=await this.shell.storageStatus(a.dataset);const g=st.state?.placement?.generation;
+    if(!st.ok||typeof g!=='number'){this.actionOutput=st.error||'The live placement generation is not available; cutover was not started.';return;}
+    this.storageGenerations[a.dataset]=g;r=await this.shell.storageCutover(argsFor(a,g) as any);
+   }else if(door==='storage.authorize')r=await this.shell.storageAuthorize(argsFor(a) as any);
+   else if(door==='storage.migrate')r=await this.shell.storageMigrate(argsFor(a) as any);
+   else return;
+   this.actionOutput=r.output||r.error||(r.cancelled?'Authorization cancelled':'Operation did not return output');
+   if(!r.ok&&/generation/i.test(r.error||r.output||''))this.actionRefused=true;
+   if(r.operationId){this.actionOperationId=r.operationId;
+    for(let s=await this.shell.operationStatus(r.operationId);;s=await this.shell.operationStatus(r.operationId)){
+     if(s.ok&&s.state){this.updateOperation=s.state;if(s.state.state!=='running')break;}else break;
+     await new Promise(res=>setTimeout(res,5000));if(token!==this.dialogToken||!this.plannedOpen)break;
+    }}
+   if(!r.ok)this.actionOutput+='\nOperation did not complete successfully.';
+   void this.pollShared();
+  }catch(e:any){this.actionOutput=e.message;}finally{this.updateBusy=false;}
+ }
+ plannedOpen=true;
+ reread(){this.actionRefused=false;this.storageGenerations={};void this.load();}
  ngOnInit(){void this.load();this.timer=setInterval(()=>{if(!document.hidden)void this.pollShared();},30000);}
- ngOnDestroy(){clearInterval(this.timer);}
+ ngOnDestroy(){clearInterval(this.timer);this.plannedOpen=false;this.dialogToken++;}
  @HostListener('document:visibilitychange') visible(){if(!document.hidden)void this.pollShared();}
  signature(plan:any){return JSON.stringify({items:(plan.items||[]).filter((i:any)=>i.device===this.currentDevice),removals:(plan.removals||[]).filter((i:any)=>i.device===this.currentDevice)});}
  remember(plan:any){if(!this.currentDevice)return;const key='isle-plan-seen:'+this.currentDevice;const value=this.signature(plan);try{const old=localStorage.getItem(key);if(old&&old!==value)this.planNotice='The active plan changed for '+this.currentDevice+'. Review the planned additions and removals below.';else if(!old)localStorage.setItem(key,value);}catch{}}
  dismissPlanNotice(){this.planNotice='';try{localStorage.setItem('isle-plan-seen:'+this.currentDevice,this.signature(this.saved));}catch{}}
  dismissUpdate(){this.updateDismissed=true;try{localStorage.setItem('isle-release-seen:'+this.currentDevice,this.updateInfo.release.id);}catch{}}
  async checkUpdates(){if(!this.currentDevice||Date.now()-this.lastUpdateCheck<120000)return;this.lastUpdateCheck=Date.now();try{const u:any=await firstValueFrom(this.http.get(this.url('updates')+'?device='+encodeURIComponent(this.currentDevice),this.polari.backendRequestOptions).pipe(timeout(8000)));if(u.ok){this.updateInfo=u;try{this.updateDismissed=localStorage.getItem('isle-release-seen:'+this.currentDevice)===u.release?.id;}catch{}}}catch{}}
- async pollShared(){if(this.polling||this.busy||!this.loaded)return;this.polling=true;try{const p:any=await firstValueFrom(this.http.get(this.url('placement-plan'),this.polari.backendRequestOptions).pipe(timeout(8000)));if(p.ok){if(this.queueOnly){this.remember(p.plan);this.saved=p.plan;}else if((p.plan.id!==this.saved.id||p.plan.revision!==this.saved.revision)&&this.saved.active){this.planNotice=this.dirty?'The active plan changed elsewhere. Your unsaved draft is preserved; save a copy before reloading.':'A newer active plan is available. Reload to inspect its changes.';}await this.checkUpdates();}}catch{}finally{this.polling=false;}}
+ async pollShared(){if(this.polling||this.busy||!this.loaded)return;this.polling=true;try{const p:any=await firstValueFrom(this.http.get(this.url('placement-plan'),this.polari.backendRequestOptions).pipe(timeout(8000)));if(p.ok){this.plannedActions=p.plannedActions||[];if(this.queueOnly){this.remember(p.plan);this.saved=p.plan;}else if((p.plan.id!==this.saved.id||p.plan.revision!==this.saved.revision)&&this.saved.active){this.planNotice=this.dirty?'The active plan changed elsewhere. Your unsaved draft is preserved; save a copy before reloading.':'A newer active plan is available. Reload to inspect its changes.';}await this.checkUpdates();}}catch{}finally{this.polling=false;}}
 
  @HostListener('window:isle-plan-changed') planChanged(){if(this.queueOnly)void this.load();}
  get installCatalog(){return this.catalog.filter(a=>!a.is_mock);}
@@ -57,7 +89,7 @@ export class IslePlacementPlanComponent implements OnInit, OnDestroy {
  get queue(){return this.currentDevice?this.saved.items.filter((i:any)=>i.device===this.currentDevice && i.state==='planned'):[];}
  url(path:string){return this.polari.getBackendBaseUrl()+'/api/islemesh/'+path;}
  async load(){if(this.dirty && !confirm('Discard unsaved planning changes and reload?'))return;this.busy=true;
- try{const p:any=await firstValueFrom(this.http.get(this.url('placement-plan'),this.polari.backendRequestOptions).pipe(timeout(10000)));if(!p.ok)throw Error(p.error);this.saved=p.plan;this.draft=structuredClone(p.plan);this.loaded=true;this.dirty=false;this.selected=null;this.message='Saved plan loaded.';}catch(e:any){this.message='Could not load shared plan: '+(e.error?.error||e.message);this.loaded=false;}
+ try{const p:any=await firstValueFrom(this.http.get(this.url('placement-plan'),this.polari.backendRequestOptions).pipe(timeout(10000)));if(!p.ok)throw Error(p.error);this.plannedActions=p.plannedActions||[];void this.loadGenerations();this.saved=p.plan;this.draft=structuredClone(p.plan);this.loaded=true;this.dirty=false;this.selected=null;this.message='Saved plan loaded.';}catch(e:any){this.message='Could not load shared plan: '+(e.error?.error||e.message);this.loaded=false;}
  if(!this.queueOnly){
  const results=await Promise.allSettled(['catalog','graph'].map(path=>firstValueFrom(this.http.get<any>(this.url(path),this.polari.backendRequestOptions).pipe(timeout(10000)))));
  const c=results[0],g=results[1];

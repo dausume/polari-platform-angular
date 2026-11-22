@@ -1,3 +1,4 @@
+import { IslePolariTopologyComponent } from './isle-polari-topology.component';
 /** /isle — Isle management, app catalog and network topology. */
 import { IsleSecurityComponent } from './isle-security.component';
 import { Component } from '@angular/core';
@@ -18,7 +19,7 @@ import { IsleCoherenceComponent } from
   selector: 'app-isle-hub',
   standalone: true,
   imports: [
-    CommonModule, MatTabsModule, MatIconModule, IsleSecurityComponent,
+    CommonModule, MatTabsModule, MatIconModule, IsleSecurityComponent, IslePolariTopologyComponent,
     IsleStoreComponent, IsleMeshGraphComponent,
     IsleCoherenceComponent, IsleDevicesComponent, IslePlacementPlanComponent,
   ],
@@ -36,7 +37,7 @@ import { IsleCoherenceComponent } from
         </mat-tab>
         <mat-tab>
           <ng-template mat-tab-label>
-            <mat-icon>hub</mat-icon>&nbsp;Topology
+            <mat-icon>hub</mat-icon>&nbsp;Network topology
           </ng-template>
           <ng-container *ngIf="tab === 1">
             <app-isle-mesh-graph></app-isle-mesh-graph>
@@ -54,6 +55,7 @@ import { IsleCoherenceComponent } from
           <ng-template matTabContent><app-isle-placement-plan></app-isle-placement-plan></ng-template>
         </mat-tab>
         <mat-tab label="Security"><ng-template matTabContent><app-isle-security></app-isle-security></ng-template></mat-tab>
+        <mat-tab label="Polari topology"><ng-template matTabContent><app-isle-polari-topology></app-isle-polari-topology></ng-template></mat-tab>
       </mat-tab-group>
     </div>
   `,
@@ -68,7 +70,8 @@ export class IsleHubComponent {
   tab = 0;
   constructor(route: ActivatedRoute) {
     route.queryParamMap.subscribe(params=>{
-      if(params.get('tab')==='planning')this.tab=3;
+      if(params.get('tab')==='polari-topology')this.tab=5;
+      else if(params.get('tab')==='planning')this.tab=3;
       else if(params.has('appType'))this.tab=0;
     });
   }

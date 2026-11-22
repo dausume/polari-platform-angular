@@ -68,6 +68,9 @@ sudo isle update apply {{release.id}}</pre>
 <button mat-stroked-button (click)="reviewUpdate()" [disabled]="updateBusy">Review local update</button>
 <div *ngIf="updateReview"><p *ngFor="let p of updateReview.selectedPackages">{{p.name}}: {{updateReview.installed[p.name] || 'Not installed'}} → {{p.version}}</p>
 <p *ngFor="let r of updateReview.runtimeTargets">{{r.container}} → {{r.image.ref}}</p>
+<h3 *ngIf="updateReview.providerTargets?.length">Named Polari instances</h3>
+<article *ngFor="let p of updateReview.providerTargets"><strong>{{p.instance}} · {{p.component}}</strong><p>{{p.container}} → {{p.image.ref}}</p><small>Config digest: {{p.image.configDigest}}</small><p *ngIf="p.dataVolume">Preserved volume: {{p.dataVolume}}</p><p>{{p.dataPolicy}}</p></article>
+<p>{{updateReview.dataProtection?.message || 'This CLI did not report database snapshot protection. Verify a consistent backup before updating important data.'}}</p>
 <button mat-raised-button (click)="runUpdateAction('apply')" [disabled]="updateBusy">Apply reviewed update</button></div>
 <button mat-stroked-button (click)="runUpdateAction('reconcile')" [disabled]="updateBusy">Reconcile this device</button>
 <button mat-stroked-button *ngIf="updateOperation?.retryable" (click)="runUpdateAction('retry')" [disabled]="updateBusy">Retry operation</button>
@@ -75,3 +78,18 @@ sudo isle update apply {{release.id}}</pre>
 <p *ngIf="updateOperation">Operation {{updateOperation.id}} · {{updateOperation.state}} · attempt {{updateOperation.attempt}} · {{updateOperation.stage}}</p>
 <pre style="white-space:pre-wrap;overflow-wrap:anywhere" aria-live="polite">{{updateOutput}}</pre>
 </ng-container><p>This does not run a general system upgrade or recreate the Isle. Keep the current capability packages and membership.</p><button mat-button (click)="updateDialog=false">Close</button></section></ng-container>
+<section *ngIf="plannedActions.length" class="notice" aria-label="Planned actions"><h2>Planned actions</h2>
+<p *ngIf="!currentDevice">Device unknown: actions cannot be run from this view.</p>
+<article *ngFor="let a of plannedActions" class="planned-action">
+<h3>{{shortKind(a.kind)}} · {{a.dataset}}</h3>
+<p>Device {{a.device}} · {{a.status}}<ng-container *ngIf="a.statusWords"> · {{a.statusWords}}</ng-container><ng-container *ngIf="a.placementState"> · placement {{a.placementState}}</ng-container><ng-container *ngIf="storageGenerations[a.dataset]!==undefined"> · live generation {{storageGenerations[a.dataset]}}</ng-container><ng-container *ngIf="a.dependsOn?.length"> · {{dependsText(a)}}</ng-container></p>
+<ul *ngIf="a.chain?.length" class="muted"><li *ngFor="let c of a.chain">{{shortKind(c.kind)}} on {{c.device}}: {{c.status}}</li></ul>
+<ng-container *ngIf="a.operatorCommand"><strong>Terminal equivalent</strong><pre style="white-space:pre-wrap;overflow-wrap:anywhere">{{a.operatorCommand}}</pre></ng-container>
+<ng-container *ngIf="a.undo"><strong>Undo (EMERGENCY ONLY)</strong><pre style="white-space:pre-wrap;overflow-wrap:anywhere">{{a.undo}}</pre></ng-container>
+<button *ngIf="shell.available && doorFor(a.kind)" mat-stroked-button (click)="runPlannedAction(a)" [disabled]="!runnable(a).ok" [attr.title]="runnable(a).ok?null:runnable(a).reason" [attr.aria-label]="'Run '+shortKind(a.kind)+' for '+a.dataset+(runnable(a).ok?'':' (unavailable: '+runnable(a).reason+')')">Run</button>
+<span *ngIf="shell.available && doorFor(a.kind) && !runnable(a).ok" class="muted"> {{runnable(a).reason}}</span>
+</article>
+<p *ngIf="actionOperationId">Operation {{actionOperationId}}<ng-container *ngIf="updateOperation"> · {{updateOperation.state}}</ng-container></p>
+<pre style="white-space:pre-wrap;overflow-wrap:anywhere" aria-live="polite">{{actionOutput}}</pre>
+<button *ngIf="actionRefused" mat-stroked-button (click)="reread()">Re-read</button>
+</section>
