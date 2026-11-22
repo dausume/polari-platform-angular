@@ -617,7 +617,8 @@ describe('FirmwareSolutionPanelComponent', () => {
       component.handleTaskActivate(chipByTask('adc'));
       component.handlePinActivate('A1');
       component.confirmPending();
-      expect(posts[posts.length - 1].url).toBe('/api/firmware/solutions/uno-sim-rig@esp32-c3/assign');
+      // the name is one path segment, so its @ travels encoded (every door encodes its target)
+      expect(posts[posts.length - 1].url).toBe('/api/firmware/solutions/uno-sim-rig%40esp32-c3/assign');
     });
   });
 });

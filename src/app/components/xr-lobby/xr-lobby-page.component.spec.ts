@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { HttpClient } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
 import { BehaviorSubject, of } from 'rxjs';
 
@@ -36,6 +37,8 @@ describe('XrLobbyPageComponent', () => {
       imports: [XrLobbyPageComponent],
       providers: [
         provideRouter([]),
+        // the page reads the AR-required sims over HTTP; none here (the read answers an empty list)
+        { provide: HttpClient, useValue: { get: () => of([]), post: () => of({}) } },
         { provide: SimSpaceService,
           useValue: { list: () => Promise.resolve(spaces) } },
         { provide: MultiScaleSimDefinitionService,
