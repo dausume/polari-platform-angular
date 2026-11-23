@@ -3,9 +3,10 @@ import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angul
 import { Observable, of, throwError } from 'rxjs';
 
 import { DisplayEventsService } from '@services/no-code-services/display-events.service';
+import { escapeSpent } from '../escape-first';
 import { HardwareLayoutViewComponent } from './hardware-layout-view.component';
 import { LayoutViewService } from './layout-view.service';
-import { FIXTURE_LAYOUT, FIXTURE_STEPS } from './layout-view.fixture';
+import { FIXTURE_LAYOUT, FIXTURE_STEPS, fixtureC3Layout } from './layout-view.fixture';
 import { LvPayload, LvSession, LvTwinEvent } from './layout-view.types';
 
 /**
@@ -322,10 +323,24 @@ describe('HardwareLayoutViewComponent', () => {
       document.dispatchEvent(first);
       await settle();
       expect(el('.lv-selection')).toBeNull();
-      expect(first.defaultPrevented).toBeTrue();
+      expect(escapeSpent(first)).toBeTrue();
       const second = new KeyboardEvent('keydown', { key: 'Escape', cancelable: true });
       document.dispatchEvent(second);
-      expect(second.defaultPrevented).toBeFalse();
+      expect(escapeSpent(second)).toBeFalse();
+    });
+
+    it('an Escape the picture cannot prevent (its listener is passive on a real page) is spent all the same', async () => {
+      await create({ inputs: { mode: 'bench', session: 'uno-light-ab12cd' } });
+      streamOn({ t: 'hello' });
+      await settle();
+      click(el('.lv-wire-hit'));
+      await settle();
+      const key = new KeyboardEvent('keydown', { key: 'Escape' });   // not cancelable: preventDefault() does nothing, as in a passive listener
+      document.dispatchEvent(key);
+      await settle();
+      expect(el('.lv-selection')).toBeNull();
+      expect(key.defaultPrevented).toBeFalse();
+      expect(escapeSpent(key)).toBeTrue();
     });
 
     it('the panel\'s own hold button works the same way', async () => {
@@ -507,6 +522,86 @@ describe('HardwareLayoutViewComponent', () => {
       await create({ payload: synth(), inputs: { mode: 'bench', session: 'uno-light-ab12cd' } });
       expect((el('[data-touch="U1"] input[type=range]') as HTMLInputElement).disabled).toBeTrue();
       expect(injected.length).toBe(0);
+    });
+  });
+
+  // ---------------------------------------------------------------------------------------------------------------- a second chip (C3), purely from the scene
+  describe('an ESP32-C3 scene', () => {
+    const c3row = (): LvSession => row({ name: 'c3-1', config: 'esp32c3-light', watch: ['GPIO0'] });
+    async function c3(): Promise<void> {
+      await create({ payload: fixtureC3Layout(), session: c3row(), inputs: { mode: 'bench', session: 'c3-1', config: 'esp32c3-light' } });
+      streamOn({ t: 'hello' });
+      await settle();
+      injected.length = 0;
+    }
+
+    it('draws 30 header pins inside the board frame and a wire from GPIO0 gets an end on the board', async () => {
+      await c3();
+      expect(component.counts()!.pins).toBe(30);
+      const frame = el('.lv-devboard .lv-board-body') as unknown as SVGRectElement;
+      expect(+frame.getAttribute('width')!).toBe(18 * 10);
+      const at = all('.lv-devboard .lv-pin').map(g => g.getAttribute('transform'));
+      expect(new Set(at).size).toBe(30);
+      expect(el('.lv-wire[data-wire="w-gpio0"] .lv-wire-end')).not.toBeNull();
+      expect(el('.lv-pin[data-pin="GPIO0"] title')!.textContent).toBe('GPIO0 (printed IO0)');
+      expect(el('.lv-pin[data-pin="3V3"] title')).toBeNull();   // nothing printed differently
+    });
+
+    it('mouse down on the pushbutton injects GPIO3 0 and mouse up lets the pad go (level z), said as let go; the reply has no cycle so nothing extra is added', async () => {
+      await c3();
+      const b = el('.lv-hold') as HTMLButtonElement;
+      b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+      b.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+      await settle();
+      expect(injected.map(i => [i.set, i.level, i.kind])).toEqual([['GPIO3', 0, 'press'], ['GPIO3', 'z', 'release']]);
+      expect(text('.lv-actions li')).toContain('let go');
+      expect(text('.lv-actions li')).not.toContain('level z');
+    });
+
+    it('a pin event lights the LED; a let-go event shows it dark with the let-go words (not pin low, not no change seen)', async () => {
+      await c3();
+      streamOn({ t: 'pin', pin: 'GPIO0', level: 1, z: false, ns: 1000 });
+      await settle();
+      expect(part('LED1').classList.contains('lit')).toBeTrue();
+      expect(text('[data-output="LED1"]')).toContain('pin high');
+      streamOn({ t: 'pin', pin: 'GPIO0', level: null, z: true, ns: 2000 });
+      await settle();
+      expect(part('LED1').classList.contains('lit')).toBeFalse();
+      expect(text('[data-output="LED1"]')).toContain('its pad is let go: nothing drives it');
+      expect(text('[data-output="LED1"]')).not.toContain('pin low');
+      expect(text('[data-output="LED1"]')).not.toContain('no change seen yet');
+    });
+
+    it('PWM duty reads from ns edges by the scene clock (1 ms apart, 50 %)', async () => {
+      await c3();
+      for (let i = 0; i < 9; i++) { streamOn({ t: 'pin', pin: 'GPIO0', level: i % 2 === 0 ? 1 : 0, z: false, ns: i * 1_000_000 }); }
+      await settle();
+      expect(text('[data-output="LED1"]')).toContain("PWM: about 50 % duty (from the pin's edges, by the twin's own time)");
+    });
+
+    it('with an ADC of 0 mV the slider is not offered and the interaction note says why', async () => {
+      const p = fixtureC3Layout();
+      p.scene.parts.SW1.interaction = { control: 'slider', label: 'Turn', pin: 'GPIO3', adc: null, min: 0, max: 100, step: 1, note: 'This board has no analog input.' };
+      await create({ payload: p, session: c3row(), inputs: { mode: 'bench', session: 'c3-1', config: 'esp32c3-light' } });
+      streamOn({ t: 'hello' });
+      await settle();
+      expect((el('[data-touch="SW1"] input[type=range]') as HTMLInputElement).disabled).toBeTrue();
+      expect(text('[data-touch="SW1"]')).toContain('This board has no analog input.');
+    });
+
+    it('a click on a C3 header pin selects it and a second click clears it; Escape clears too', async () => {
+      await c3();
+      click(el('.lv-pin[data-pin="GPIO0"]'));
+      await settle();
+      expect(el('.lv-selection')).not.toBeNull();
+      click(el('.lv-pin[data-pin="GPIO0"]'));
+      await settle();
+      expect(el('.lv-selection')).toBeNull();
+      click(el('.lv-pin[data-pin="GPIO0"]'));
+      await settle();
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
+      await settle();
+      expect(el('.lv-selection')).toBeNull();
     });
   });
 });

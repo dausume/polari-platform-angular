@@ -67,7 +67,7 @@
             </button>
             <label *ngSwitchCase="'toggle'" class="lv-check"><input type="checkbox" [disabled]="!canTouch" [checked]="!!toggled[t.part]" (change)="setToggle(t.part, $any($event.target).checked)"> {{ t.inter.label }}: {{ t.part }} ({{ t.inter.pin }})</label>
             <label *ngSwitchCase="'slider'" class="lv-slider">{{ t.inter.label }}: {{ t.part }} ({{ t.inter.pin }}) &mdash; <span class="lv-slider-val">{{ sliderNow(t.part, t.inter) }} {{ t.inter.unit }}</span>
-              <input type="range" [min]="t.inter.min" [max]="t.inter.max" [step]="t.inter.step" [value]="sliderNow(t.part, t.inter)" [disabled]="!canTouch || t.inter.adc === null"
+              <input type="range" [min]="t.inter.min" [max]="t.inter.max" [step]="t.inter.step" [value]="sliderNow(t.part, t.inter)" [disabled]="!canTouch || !sliderOffered(t.inter)"
                 (input)="showSlider(t.part, +$any($event.target).value)" (change)="commitSlider(t.part, +$any($event.target).value)">
             </label>
           </ng-container>

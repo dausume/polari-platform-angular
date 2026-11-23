@@ -52,27 +52,34 @@ interface Gate { gated: boolean; offered: boolean; words: string; missing: strin
 interface Purpose { purpose: string; scenario: string; status: string; run: string; ran_at: string; outcome: string; why: string; }
 interface Confirmation { name: string; who_words: string; confirmed_at: string; hex_short: string; words: string; state: string; purposes_passed: number; purposes_total: number; }
 interface Build {
-  name: string; variant: string; state: string; flash_bytes: number; flash_max: number; ram_bytes: number; ram_max: number;
-  flash_pct: number; ram_pct: number; artifact_sha256: string; header_sha256: string; compat: string; compat_why: string;
+  name: string; variant: string; state: string; flash_bytes: number; flash_max: number | null; ram_bytes: number; ram_max: number | null;
+  flash_pct: number | null; ram_pct: number | null; artifact_sha256: string; header_sha256: string; compat: string; compat_why: string;
   installable: boolean; engines: string; built_at: string; gate?: Gate; gate_purposes?: Purpose[]; gate_confirmation?: Confirmation | null;
 }
 /** ins-0: one of the two install modes, as the server words them. */
 interface Mode { name: 'sim' | 'real'; title: string; target_kind: 'twin' | 'board'; words: string; }
+/** ins-c3-2: one board the server can install onto (name = the alias, board = what ?board= carries). */
+interface Kind { name: string; board: string; label: string; }
+/** ins-c3-2: the board's own words for the page; every field falls back to the UNO text of an older server. */
+interface Page { twin_note?: string; no_board?: string; artifact?: string; on_twin?: string; attach?: boolean; }
+interface Check { name: string; ok: boolean; words: string; }
 interface InstallerDoc {
   ok: boolean; host: string; host_label?: string; board: string; targets: Target[]; adapters: any[]; scan_note: string;
   variants: Variant[]; builds: Build[]; twin: any; records: any[]; error?: string;
   modes?: Mode[]; default_mode?: 'sim' | 'real'; attest?: string; prove_command?: string;
+  kind?: string; kinds?: Kind[]; page?: Page;
 }
 interface Plan {
   plan: string; argv_text: string; wrapper_text: string; engine: string; engine_how: string; engine_where: string;
   adapter: string; compat: string; compat_why: string; will_stamp: string; target_kind: string; host: string; port: string; state: string;
   install_mode?: string; gate?: string; gate_words?: string; override_reason?: string;
+  checks?: Check[];
 }
 interface Frame { seq: number; device: number; class: string; values: Record<string, string>; }
 interface Result {
   record: string; verdict: string; verify: string; variant: string; target_kind: string; bridge_state: string;
   frames: Frame[]; frames_total: number; frames_per_s: number; row_class: string; row_name: string;
-  row: Record<string, any> | null; firmware_sha: string;
+  row: Record<string, any> | null; firmware_sha: string; notes?: string;
 }
 
 @Component({
@@ -87,6 +94,14 @@ interface Result {
         <button type="button" (click)="reload()" [disabled]="busy">Refresh</button>
       </div>
       <div class="fip-error" *ngIf="error">{{ error }}</div>
+
+      <!-- ins-c3-2: the board chooser — only when the document offers more than one board -->
+      <label class="fip-board" *ngIf="(doc?.kinds?.length || 0) > 1">
+        <span>Board</span>
+        <select class="fip-board-select" (change)="setBoard($any($event.target).value)" [disabled]="busy">
+          <option *ngFor="let k of doc?.kinds" [value]="k.board" [selected]="k.board === board">{{ k.label }}</option>
+        </select>
+      </label>
 
       <!-- ins-0: THE TWO-STATE TOGGLE — Sim install (the twin) | Real install (a detected board); everything below re-labels to it -->
       <div class="fip-modes" role="tablist" aria-label="Install mode">
@@ -105,14 +120,14 @@ interface Result {
         <h3><span class="fip-num">1</span> Where it goes — {{ isSim() ? 'the twin' : 'the board' }}</h3>
         <ng-container *ngIf="isSim()">
           <p class="fip-choice"><strong>The twin</strong> — {{ twinTarget()?.label || 'the simavr twin of the UNO' }}</p>
-          <p class="fip-note">The simavr twin runs the very same .hex a real UNO is flashed with. A real install is offered only after the firmware ran its Purposes here and you confirmed what you saw.</p>
+          <p class="fip-note">{{ doc?.page?.twin_note || 'The simavr twin runs the very same .hex a real UNO is flashed with. A real install is offered only after the firmware ran its Purposes here and you confirmed what you saw.' }}</p>
         </ng-container>
         <ng-container *ngIf="!isSim()">
           <label class="fip-choice" *ngFor="let t of boardTargets()">
             <input type="radio" name="fip-target" [checked]="target === t.name" (change)="pickTarget(t.name)" [disabled]="busy">
             <span><strong>The board</strong> — {{ t.label }}</span>
           </label>
-          <p class="fip-note fip-missing" *ngIf="!boardTargets().length">No board is detected on {{ doc?.host_label || 'this server' }} ({{ doc?.scan_note }}). Plug the UNO in and press Refresh — or do the sim install first.
+          <p class="fip-note fip-missing" *ngIf="!boardTargets().length">No board is detected on {{ doc?.host_label || 'this server' }} ({{ doc?.scan_note }}). {{ doc?.page?.no_board || 'Plug the UNO in and press Refresh — or do the sim install first.' }}
             <button type="button" (click)="setMode('sim')" [disabled]="busy">Do the sim install first</button></p>
         </ng-container>
         <p class="fip-note" *ngFor="let a of doc?.adapters">
@@ -143,13 +158,13 @@ interface Result {
         </details>
         <ng-container *ngIf="variant">
           <table class="fip-table" *ngIf="buildsFor().length">
-            <thead><tr><th></th><th>build</th><th>flash</th><th>RAM</th><th>.hex sha256</th><th>fits this server?</th></tr></thead>
+            <thead><tr><th></th><th>build</th><th>flash</th><th>RAM</th><th>{{ doc?.page?.artifact || '.hex' }} sha256</th><th>fits this server?</th></tr></thead>
             <tbody>
               <tr *ngFor="let b of buildsFor()" [class.dim]="!b.installable">
                 <td><input type="radio" name="fip-build" [checked]="build === b.name" (change)="pickBuild(b.name)" [disabled]="busy || !b.installable"></td>
                 <td>{{ b.name }}</td>
-                <td>{{ b.flash_bytes }} / {{ b.flash_max }} B ({{ b.flash_pct }} %)</td>
-                <td>{{ b.ram_bytes }} / {{ b.ram_max }} B ({{ b.ram_pct }} %)</td>
+                <td>{{ sizeText(b.flash_bytes, b.flash_max, b.flash_pct) }}</td>
+                <td>{{ sizeText(b.ram_bytes, b.ram_max, b.ram_pct) }}</td>
                 <td class="fip-mono">{{ short(b.artifact_sha256) }}</td>
                 <td [class]="'c-' + b.compat"><strong>{{ b.compat }}</strong><span class="fip-why" *ngIf="b.compat !== 'compatible'"> — {{ b.compat_why }}</span></td>
               </tr>
@@ -176,6 +191,21 @@ interface Result {
       <section class="fip-step">
         <h3><span class="fip-num">3</span> Read the command (DRY-RUN — nothing is opened on {{ isSim() ? 'the twin' : 'the board' }})</h3>
         <button type="button" (click)="makePlan()" [disabled]="busy || !build || !target || (!isSim() && !gateAllows())">{{ planLabel() }}</button>
+        <ng-template #checksList let-list>
+          <ul class="fip-checks">
+            <li *ngFor="let c of list" [class.fip-offered]="c.ok" [class.fip-notoffered]="!c.ok">
+              <strong class="fip-check-mark">{{ c.ok ? 'ok' : 'missing' }}</strong>&ngsp;<code class="fip-mono">{{ c.name }}</code>&ngsp;{{ c.words }}
+            </li>
+          </ul>
+        </ng-template>
+        <div class="fip-plan" *ngIf="!plan && refusedCmd">
+          <code class="fip-cmd fip-refused">{{ refusedCmd }}</code>
+          <p class="fip-note fip-missing">the command that would run — refused</p>
+          <ng-container *ngIf="refusedChecks.length"><ng-container *ngTemplateOutlet="checksList; context: { $implicit: refusedChecks }"></ng-container></ng-container>
+        </div>
+        <div class="fip-plan" *ngIf="!plan && !refusedCmd && refusedChecks.length">
+          <ng-container *ngTemplateOutlet="checksList; context: { $implicit: refusedChecks }"></ng-container>
+        </div>
         <div class="fip-plan" *ngIf="plan">
           <code class="fip-cmd">{{ plan.argv_text }}</code>
           <code class="fip-cmd fip-wrap" *ngIf="plan.wrapper_text">runs as: {{ plan.wrapper_text }}</code>
@@ -188,6 +218,7 @@ interface Result {
             <tr *ngIf="plan.install_mode"><th>mode</th><td>{{ plan.install_mode === 'sim' ? 'Sim install (the twin)' : 'Real install (the board)' }} · gate {{ plan.gate }}</td></tr>
             <tr *ngIf="plan.override_reason" class="fip-override"><th>install anyway</th><td>recorded — {{ plan.override_reason }}</td></tr>
           </table>
+          <ng-container *ngIf="plan.checks?.length"><ng-container *ngTemplateOutlet="checksList; context: { $implicit: plan.checks }"></ng-container></ng-container>
         </div>
       </section>
 
@@ -198,8 +229,9 @@ interface Result {
         </button>
         <table class="fip-kv" *ngIf="result">
           <tr><th>result</th><td [class]="'v-' + result.verdict"><strong>{{ result.verdict }}</strong> — {{ result.verify }}</td></tr>
-          <tr><th>on</th><td>{{ result.target_kind === 'twin' ? 'the twin (simavr)' : 'the board' }} · firmware {{ short(result.firmware_sha) }}</td></tr>
-          <tr><th>bridge</th><td>{{ result.bridge_state || 'not attached yet' }}</td></tr>
+          <tr><th>on</th><td>{{ result.target_kind === 'twin' ? (doc?.page?.on_twin || 'the twin (simavr)') : 'the board' }} · firmware {{ short(result.firmware_sha) }}</td></tr>
+          <tr *ngIf="attaches()"><th>bridge</th><td>{{ result.bridge_state || 'not attached yet' }}</td></tr>
+          <tr *ngIf="result.notes"><th>notes</th><td>{{ result.notes }}</td></tr>
         </table>
       </section>
 
@@ -243,6 +275,11 @@ interface Result {
     .fip-bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 8px; }
     .fip-scan { opacity: .8; }
     .fip-error { color: var(--color-error-text); margin-bottom: 8px; white-space: pre-line; }
+    .fip-board { display: flex; gap: 8px; align-items: baseline; margin-bottom: 8px; font-weight: 600; }
+    .fip-board-select { font: inherit; color: var(--text-on-card); background: var(--surface-secondary); }
+    .fip-checks { list-style: none; margin: 6px 0; padding: 0; }
+    .fip-checks li { margin: 2px 0; }
+    .fip-refused { opacity: .8; }
     .fip-modes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 4px 0 6px; }
     .fip-mode { display: grid; gap: 2px; text-align: left; padding: 10px 12px; border: 2px solid var(--border-medium); background: var(--surface-secondary);
                 color: var(--text-on-card); cursor: pointer; opacity: .75; }
@@ -308,7 +345,7 @@ interface Result {
 export class FirmwareInstallerPanelComponent implements OnInit, OnChanges, OnDestroy {
   /** The installer's document door (the base of every other door). */
   @Input() path = '/api/board/installer';
-  /** The board family this panel installs onto (the UNO has variants so far). */
+  /** The board this panel installs onto (the document's kinds list the others). */
   @Input() board = 'arduino-uno-r3';
 
   doc: InstallerDoc | null = null;
@@ -329,13 +366,16 @@ export class FirmwareInstallerPanelComponent implements OnInit, OnChanges, OnDes
   ticked = false;
   purposeNote = '';
   purposeRetry = '';
+  /** ins-c3-2: a refused plan's command and checks (shown, never runnable: plan stays null). */
+  refusedCmd = '';
+  refusedChecks: Check[] = [];
   private watch?: Subscription;
   private poll?: any;
 
   constructor(private http: HttpClient, private polariService: PolariService, private stomp: StompService) {}
 
   ngOnInit(): void { this.reload(); }
-  ngOnChanges(ch: SimpleChanges): void { if (ch['path'] && !ch['path'].firstChange) { this.reload(); } }
+  ngOnChanges(ch: SimpleChanges): void { if ((ch['path'] && !ch['path'].firstChange) || (ch['board'] && !ch['board'].firstChange)) { this.reload(); } }
   ngOnDestroy(): void { this.stopLive(); }
 
   private url(suffix = ''): string { return this.polariService.getBackendBaseUrl() + this.path + suffix; }
@@ -349,7 +389,7 @@ export class FirmwareInstallerPanelComponent implements OnInit, OnChanges, OnDes
   }
 
   reload(): void {
-    this.http.get<InstallerDoc>(this.url(), this.opts()).subscribe({
+    this.http.get<InstallerDoc>(this.url() + '?board=' + encodeURIComponent(this.board), this.opts()).subscribe({
       next: (d: InstallerDoc) => {
         if (!d || d.ok === false) { this.error = (d && d.error) || 'the installer document is empty'; return; }
         this.doc = d;
@@ -366,6 +406,28 @@ export class FirmwareInstallerPanelComponent implements OnInit, OnChanges, OnDes
     });
   }
 
+  /** ins-c3-2: the chooser — a new board is a new document; everything picked on the old one is dropped. */
+  setBoard(board: string): void {
+    if (!board || board === this.board) { return; }
+    this.stopLive();
+    this.board = board;
+    this.variant = ''; this.build = ''; this.plan = null; this.result = null; this.record = ''; this.error = '';
+    this.ticked = false; this.purposeNote = ''; this.purposeRetry = ''; this.clearRefusal();
+    this.modeChosen = false;
+    this.reload();
+  }
+
+  private clearRefusal(): void { this.refusedCmd = ''; this.refusedChecks = []; }
+
+  /** RAM/flash cell: a limit the build did not state is said so; a missing percentage is left out. */
+  sizeText(bytes: number, max: number | null | undefined, pct: number | null | undefined): string {
+    if (max === null || max === undefined) { return `${bytes} B (limit not stated)`; }
+    return `${bytes} / ${max} B` + (pct === null || pct === undefined ? '' : ` (${pct} %)`);
+  }
+
+  /** After an installed run the UNO panel attaches the bridge; a document that says attach:false (the C3) has none. */
+  attaches(): boolean { return this.doc?.page?.attach !== false; }
+
   classes(v: Variant): string {
     try { return (JSON.parse(v.classes_json || '[]') as string[]).join(', '); } catch { return v.classes_json; }
   }
@@ -378,7 +440,7 @@ export class FirmwareInstallerPanelComponent implements OnInit, OnChanges, OnDes
   setMode(m: 'sim' | 'real'): void {
     if (this.mode === m) { return; }
     this.mode = m; this.modeChosen = true;
-    this.plan = null; this.error = '';
+    this.plan = null; this.error = ''; this.clearRefusal();
     this.syncTarget();
   }
 
@@ -432,8 +494,8 @@ export class FirmwareInstallerPanelComponent implements OnInit, OnChanges, OnDes
   }
 
   pickTarget(name: string): void { this.target = name; this.plan = null; }
-  pickVariant(name: string): void { this.variant = name; this.plan = null; this.ticked = false; this.purposeNote = ''; this.purposeRetry = ''; this.autoBuild(); }
-  pickBuild(name: string): void { this.build = name; this.plan = null; this.ticked = false; }
+  pickVariant(name: string): void { this.variant = name; this.plan = null; this.clearRefusal(); this.ticked = false; this.purposeNote = ''; this.purposeRetry = ''; this.autoBuild(); }
+  pickBuild(name: string): void { this.build = name; this.plan = null; this.clearRefusal(); this.ticked = false; }
 
   buildVariant(): void {
     this.busy = true; this.error = ''; this.plan = null;
@@ -450,7 +512,7 @@ export class FirmwareInstallerPanelComponent implements OnInit, OnChanges, OnDes
 
   makePlan(): void {
     if (!this.build || !this.target) { return; }
-    this.busy = true; this.error = ''; this.plan = null;
+    this.busy = true; this.error = ''; this.plan = null; this.clearRefusal();
     const body: any = { instance: this.target, build: this.build };
     const g = this.gate();
     if (!this.isSim() && g && g.gated && !g.offered && this.anyway && this.reason.trim()) {
@@ -459,7 +521,15 @@ export class FirmwareInstallerPanelComponent implements OnInit, OnChanges, OnDes
     }
     this.http.post<Plan>(this.url('/plan'), body, this.opts()).subscribe({
       next: (p: Plan) => { this.busy = false; this.plan = p; },
-      error: (e: any) => this.fail(e),
+      error: (e: any) => {
+        this.fail(e);
+        // a refused plan may still carry the command and its checks: shown as read-only words, plan stays null
+        const body = e && e.error;
+        if (body && typeof body === 'object') {
+          this.refusedCmd = body.argv_text || '';
+          this.refusedChecks = Array.isArray(body.checks) ? body.checks : [];
+        }
+      },
     });
   }
 
@@ -503,9 +573,10 @@ export class FirmwareInstallerPanelComponent implements OnInit, OnChanges, OnDes
         this.record = r.name;
         this.result = { record: r.name, verdict: r.verdict, verify: r.verify, variant: r.variant, target_kind: r.target_kind,
                         bridge_state: '', frames: [], frames_total: 0, frames_per_s: 0, row_class: r.row_class, row_name: r.row_name,
-                        row: null, firmware_sha: r.firmware_sha };
+                        row: null, firmware_sha: r.firmware_sha, notes: r.notes };
         this.plan = Object.assign({}, this.plan, { state: 'ran' });
         if (r.verdict !== 'installed') { this.busy = false; return; }
+        if (this.doc?.page?.attach === false) { this.busy = false; return; }   // no bridge on this board: the notes are the result
         this.http.post<any>(this.url('/attach'), { record: r.name }, this.opts()).subscribe({
           next: () => { this.busy = false; this.startLive(r.row_class); },
           error: (e: any) => { this.fail(e); this.refreshResult(); },
@@ -558,7 +629,7 @@ export class FirmwareInstallerPanelComponent implements OnInit, OnChanges, OnDes
   /** The loop his intent asks for: keep the target, pick a different variant. */
   tryAnother(): void {
     this.stopLive();
-    this.plan = null; this.record = ''; this.result = null; this.error = ''; this.ticked = false; this.purposeNote = ''; this.purposeRetry = '';
+    this.plan = null; this.record = ''; this.result = null; this.error = ''; this.ticked = false; this.purposeNote = ''; this.purposeRetry = ''; this.clearRefusal();
     const names = (this.doc?.variants || []).map(v => v.name);
     const i = names.indexOf(this.variant);
     this.variant = names.length ? names[(i + 1) % names.length] : '';

@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { of } from 'rxjs';
 
 import { ClassRowsTableComponent } from './class-rows-table.component';
+import { escapeFirst } from './escape-first';
 import { PolariService } from '@services/polari-service';
 import { CRUDEservicesManager } from '@services/crude-services-manager';
 import { AuthSessionService } from '@services/auth/auth-session.service';
@@ -86,6 +87,23 @@ describe('ClassRowsTableComponent — row interaction (fsc-3)', () => {
     expect(events.length).toBe(0);
     component.onEscape(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
     expect(events[0].payload).toEqual({ key: 'session', value: '' });
+  });
+
+  it('the page as it is wired: a picture takes the Escape in a listener that cannot prevent it, and the table\'s own document listener still leaves the row', () => {
+    // On the live page every capture listener for keydown on the document is passive (the Material focus monitor registered first), so preventDefault()
+    // does nothing there. An event that is not cancelable behaves the same way in a spec: the mark has to be the picture's own.
+    component.selectField = 'session'; component.selectScope = 'session'; component.selectedValue = 'uno-light-ab12cd';
+    fixture.detectChanges();
+    let picture = true;                                         // the picture has a wire selected
+    const drop = escapeFirst(() => { const had = picture; picture = false; return had; });
+    const first = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true });
+    document.body.dispatchEvent(first);
+    expect(first.defaultPrevented).toBeFalse();
+    expect(picture).toBeFalse();                                // the wire is cleared
+    expect(events.length).toBe(0);                              // the session stays picked
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(events.map(e => e.payload)).toEqual([{ key: 'session', value: '' }]);   // the next Escape, nothing selected in the picture: the table's
+    drop();
   });
 
   it('rowLinkTabField opens the tab named by the row (?tab=), without a scope event', () => {

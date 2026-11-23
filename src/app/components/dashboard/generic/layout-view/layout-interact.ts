@@ -19,7 +19,7 @@ export function injectBody(part: string, inter: LvInteraction, g: Gesture, adcMa
   if (!inter.twin_pin || typeof g === 'object') { return null; }
   const pressed = inter.pressed_level ?? 0;
   const down = g === 'down' || g === 'on';
-  const level = down ? pressed : 1 - pressed;
+  const level = down ? pressed : (inter.released_level ?? 1 - pressed);   // a toggle's 'off' is the same release; 'z' lets the pad go
   const kind = inter.control === 'press' ? (down ? 'press' : 'release') : 'toggle';
   return { set: inter.twin_pin, level, part, kind };
 }
@@ -31,7 +31,8 @@ export function mvFor(inter: LvInteraction, x: number, adcMax = 5000): number {
 }
 
 // ------------------------------------------------------------------------------------------------------------------ outputs follow the twin
-export interface Edge { level: number; cycle: number; }
+export interface Edge { level: number; t: number; }   // t = ticks of the scene's clock (cycles at 16 MHz for the UNO, ns for the C3)
+export interface Clock { unit: 'cycle' | 'ns'; hz: number; }
 export const F_CPU_HZ = 16_000_000;   // the UNO's clock; the twin runs --freq 16000000 (board.custom.twin_sessions MCU/BOARD defaults)
 
 /** PWM duty from the edges of ONE watched pin: needs at least 6 recent edges whose whole span is under 50 ms of the twin's own clock (a faster pattern than anyone blinks an LED by hand);
@@ -39,24 +40,26 @@ export const F_CPU_HZ = 16_000_000;   // the UNO's clock; the twin runs --freq 1
 export function dutyFromEdges(edges: Edge[], hz = F_CPU_HZ): number | null {
   const e = edges.slice(-9);
   if (e.length < 6) { return null; }
-  if ((e[e.length - 1].cycle - e[0].cycle) / hz > 0.05) { return null; }
+  if ((e[e.length - 1].t - e[0].t) / hz > 0.05) { return null; }
   let hi = 0, tot = 0;
-  for (let i = 1; i < e.length; i++) { const dt = e[i].cycle - e[i - 1].cycle; tot += dt; if (e[i - 1].level === 1) { hi += dt; } }
+  for (let i = 1; i < e.length; i++) { const dt = e[i].t - e[i - 1].t; tot += dt; if (e[i - 1].level === 1) { hi += dt; } }
   return tot > 0 ? Math.round((hi / tot) * 100) / 100 : null;
 }
 
-export interface PinState { level: number | null; edges: Edge[]; lastWallMs: number; }
+export interface PinState { level: number | null; z?: boolean; edges: Edge[]; lastWallMs: number; }   // z: the pad was let go (nothing drives it)
 export interface OutputLook { lit: boolean; opacity: number; note: string; tone: boolean; }
 
 /** How an output sprite looks from its pin's state. LED: lit at level 1, dimmed to the duty when a PWM figure exists; never seen an edge = dark and said so. Piezo: a tone marker while the pin toggles. */
-export function outputLook(kind: 'led' | 'tone', st: PinState | undefined, nowMs: number, toneWindowMs = 600): OutputLook {
+export function outputLook(kind: 'led' | 'tone', st: PinState | undefined, nowMs: number, toneWindowMs = 600, clock: Clock = { unit: 'cycle', hz: F_CPU_HZ }): OutputLook {
+  if (st?.z) { return { lit: false, opacity: 0, note: 'its pad is let go: nothing drives it', tone: false }; }   // seen, and not low: nothing drives it
   if (!st || st.level === null) { return { lit: false, opacity: 0, note: 'no change seen yet on its pin (the stream reports changes, not the level at the start)', tone: false }; }
   if (kind === 'tone') {
     const on = st.edges.length >= 2 && nowMs - st.lastWallMs <= toneWindowMs;
     return { lit: on, opacity: on ? 1 : 0, note: on ? 'its pin is toggling' : 'its pin is quiet', tone: on };
   }
-  const duty = dutyFromEdges(st.edges);
-  if (duty !== null) { return { lit: duty > 0, opacity: duty, note: `PWM: about ${Math.round(duty * 100)} % duty (from the pin's edges at 16 MHz)`, tone: false }; }
+  const duty = dutyFromEdges(st.edges, clock.hz);
+  const basis = clock.unit === 'ns' ? "from the pin's edges, by the twin's own time" : `from the pin's edges at ${clock.hz / 1e6} MHz`;
+  if (duty !== null) { return { lit: duty > 0, opacity: duty, note: `PWM: about ${Math.round(duty * 100)} % duty (${basis})`, tone: false }; }
   return { lit: st.level === 1, opacity: st.level === 1 ? 1 : 0, note: st.level === 1 ? 'pin high' : 'pin low', tone: false };
 }
 

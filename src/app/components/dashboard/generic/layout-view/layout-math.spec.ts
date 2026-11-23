@@ -1,7 +1,7 @@
-import { BoardFrame, P, bounds, breadboardRows, headerIndex, headerPins, holeAt, layoutBoards, parseTie, railX, stripKey, stripX, tieAnchor, wirePath } from './layout-geometry';
+import { BoardFrame, P, devboardSize, bounds, breadboardRows, headerIndex, headerPins, holeAt, layoutBoards, parseTie, railX, stripKey, stripX, tieAnchor, wirePath } from './layout-geometry';
 import { dutyFromEdges, holeInfo, injectBody, mvFor, outputLook, pinLabelFromParam, stepFromParam, stepView } from './layout-interact';
 import { BAND_HEX, legPoints, ohmsText, resistorBands, spriteFor } from './layout-sprites';
-import { FIXTURE_LAYOUT, FIXTURE_STEPS } from './layout-view.fixture';
+import { FIXTURE_LAYOUT, FIXTURE_STEPS, fixtureC3Layout } from './layout-view.fixture';
 import { LvInteraction } from './layout-view.types';
 
 /**
@@ -199,26 +199,72 @@ describe('overlays, outputs, steps, clicks', () => {
 
   it('PWM duty is worked out from the watched pin\'s own edges (cycles at 16 MHz); too few edges or too slow = no figure', () => {
     const per = 16000;   // 1 kHz
-    const edges = (hiCyc: number) => Array.from({ length: 10 }, (_, i) => ({ level: i % 2 === 0 ? 1 : 0, cycle: Math.round((i >> 1) * per + (i % 2 === 0 ? 0 : hiCyc)) }));
+    const edges = (hiCyc: number) => Array.from({ length: 10 }, (_, i) => ({ level: i % 2 === 0 ? 1 : 0, t: Math.round((i >> 1) * per + (i % 2 === 0 ? 0 : hiCyc)) }));
     expect(dutyFromEdges(edges(4000))).toBeCloseTo(0.25, 1);
     expect(dutyFromEdges(edges(8000))).toBeCloseTo(0.5, 1);
     expect(dutyFromEdges(edges(4000).slice(0, 4))).toBeNull();
-    expect(dutyFromEdges(Array.from({ length: 8 }, (_, i) => ({ level: i % 2, cycle: i * 16_000_000 })))).toBeNull();   // a 1 Hz blink is not PWM
+    expect(dutyFromEdges(Array.from({ length: 8 }, (_, i) => ({ level: i % 2, t: i * 16_000_000 })))).toBeNull();   // a 1 Hz blink is not PWM
   });
 
   it('an LED is dark until an edge is seen (said in words), lit at level 1, dimmed to the duty when PWM, and a piezo shows a tone marker only while its pin toggles', () => {
     expect(outputLook('led', undefined, 0).lit).toBeFalse();
     expect(outputLook('led', undefined, 0).note).toContain('no change seen yet');
-    expect(outputLook('led', { level: 1, edges: [{ level: 1, cycle: 5 }], lastWallMs: 0 }, 0)).toEqual(jasmine.objectContaining({ lit: true, opacity: 1 }));
-    expect(outputLook('led', { level: 0, edges: [{ level: 0, cycle: 5 }], lastWallMs: 0 }, 0).lit).toBeFalse();
-    const pwm = Array.from({ length: 10 }, (_, i) => ({ level: i % 2 === 0 ? 1 : 0, cycle: Math.round((i >> 1) * 16000 + (i % 2 === 0 ? 0 : 4000)) }));
+    expect(outputLook('led', { level: 1, edges: [{ level: 1, t: 5 }], lastWallMs: 0 }, 0)).toEqual(jasmine.objectContaining({ lit: true, opacity: 1 }));
+    expect(outputLook('led', { level: 0, edges: [{ level: 0, t: 5 }], lastWallMs: 0 }, 0).lit).toBeFalse();
+    const pwm = Array.from({ length: 10 }, (_, i) => ({ level: i % 2 === 0 ? 1 : 0, t: Math.round((i >> 1) * 16000 + (i % 2 === 0 ? 0 : 4000)) }));
     const look = outputLook('led', { level: 0, edges: pwm, lastWallMs: 0 }, 0);
     expect(look.opacity).toBeCloseTo(0.25, 1);
     expect(look.note).toContain('PWM');
-    const toggling = { level: 1, edges: [{ level: 0, cycle: 1 }, { level: 1, cycle: 2 }], lastWallMs: 1000 };
+    const toggling = { level: 1, edges: [{ level: 0, t: 1 }, { level: 1, t: 2 }], lastWallMs: 1000 };
     expect(outputLook('tone', toggling, 1200).tone).toBeTrue();
     expect(outputLook('tone', toggling, 5000).tone).toBeFalse();
-    expect(outputLook('tone', { level: 1, edges: [{ level: 1, cycle: 1 }], lastWallMs: 1000 }, 1100).tone).toBeFalse();
+    expect(outputLook('tone', { level: 1, edges: [{ level: 1, t: 1 }], lastWallMs: 1000 }, 1100).tone).toBeFalse();
+  });
+
+  it('a C3 release lets the pad go (released_level z) and a press is still 0; a UNO interaction with no released_level keeps 1 - pressed; a toggle follows the same rule', () => {
+    const c3: LvInteraction = { control: 'press', label: 'Press', pin: 'GPIO3', twin_pin: 'GPIO3', pressed_level: 0, released_level: 'z' };
+    expect(injectBody('SW1', c3, 'down')).toEqual({ set: 'GPIO3', level: 0, part: 'SW1', kind: 'press' });
+    expect(injectBody('SW1', c3, 'up')).toEqual({ set: 'GPIO3', level: 'z', part: 'SW1', kind: 'release' });
+    expect(injectBody('S2', { ...c3, control: 'toggle' }, 'off')).toEqual({ set: 'GPIO3', level: 'z', part: 'S2', kind: 'toggle' });
+    expect(injectBody('SW1', { ...c3, released_level: 1 }, 'up')!['level']).toBe(1);
+    expect(injectBody('SW1', { ...c3, released_level: undefined, pressed_level: 1 }, 'up')!['level']).toBe(0);
+  });
+
+  it('duty from ns edges: 6+ edges 1 ms apart at 50 % -> 0.5; a let-go pad is dark with its own words, distinct from never seen and from low; the UNO note text is unchanged', () => {
+    const ns = { unit: 'ns' as const, hz: 1e9 };
+    const edges = Array.from({ length: 10 }, (_, i) => ({ level: i % 2 === 0 ? 1 : 0, t: i * 1_000_000 }));
+    expect(dutyFromEdges(edges, ns.hz)).toBeCloseTo(0.5, 2);
+    expect(dutyFromEdges(edges.slice(0, 4), ns.hz)).toBeNull();
+    expect(dutyFromEdges(edges.map(e => ({ ...e, t: e.t * 10 })), ns.hz)).toBeNull();   // 90 ms span: too slow
+    const look = outputLook('led', { level: 0, edges, lastWallMs: 0 }, 0, 600, ns);
+    expect(look.note).toBe("PWM: about 50 % duty (from the pin's edges, by the twin's own time)");
+    expect(outputLook('led', { level: 0, edges: Array.from({ length: 10 }, (_, i) => ({ level: i % 2 === 0 ? 1 : 0, t: Math.round((i >> 1) * 16000 + (i % 2 === 0 ? 0 : 4000)) })), lastWallMs: 0 }, 0).note).toBe("PWM: about 25 % duty (from the pin's edges at 16 MHz)");
+    const letGo = outputLook('led', { level: null, z: true, edges: [], lastWallMs: 0 }, 0, 600, ns);
+    expect(letGo).toEqual({ lit: false, opacity: 0, note: 'its pad is let go: nothing drives it', tone: false });
+    expect(outputLook('led', { level: 0, z: false, edges: [{ level: 0, t: 1 }], lastWallMs: 0 }, 0, 600, ns).note).toBe('pin low');
+    expect(outputLook('led', undefined, 0, 600, ns).note).toContain('no change seen yet');
+  });
+
+  it('a board with J1 / J3 is drawn generically: 30 pins one pitch apart at distinct places inside the frame, J1 on the bottom edge (facing the breadboard), J3 on the top; GPIO0 gets an anchor; the size is one function', () => {
+    const p = fixtureC3Layout();
+    const fr = layoutBoards(p.scene.boards);
+    const dev = p.scene.boards[0];
+    expect(devboardSize(dev)).toEqual({ w: 18 * P, h: 12 * P });
+    expect(fr[0].w).toBe(18 * P); expect(fr[0].h).toBe(12 * P);
+    expect(devboardSize(FIXTURE_LAYOUT.scene.boards[0])).toEqual({ w: 27 * P, h: 21 * P });
+    const pins = headerPins(dev);
+    expect(pins.length).toBe(30);
+    expect(new Set(pins.map(q => `${q.x},${q.y}`)).size).toBe(30);
+    expect(pins.every(q => q.x >= 0 && q.x <= fr[0].w && q.y >= 0 && q.y <= fr[0].h)).toBeTrue();
+    expect(pins.filter(q => q.connector === 'J1').every(q => q.y > fr[0].h / 2)).toBeTrue();
+    expect(pins.filter(q => q.connector === 'J3').every(q => q.y < fr[0].h / 2)).toBeTrue();
+    expect(pins[1].x - pins[0].x).toBe(P);
+    expect(pins[0].x).toBe(2 * P);
+    expect(headerIndex(pins).get('GND')!.connector).toBe('J1');
+    expect(headerIndex(pins).get('GPIO4')!.silk).toBe('IO4');
+    const a = tieAnchor(fr, { board: 'bench-c3-1', tie: 'GPIO0' })!;
+    expect(a).not.toBeNull(); expect(a.dir).toBe('down');
+    expect(fr[1].y).toBeGreaterThan(fr[0].y + fr[0].h);
   });
 
   it('step k shows steps 0..k: the step\'s draw list is shown, its additions highlighted and the rest dimmed; the whole build shows everything', () => {

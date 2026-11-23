@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, ElementRef, HostListener, Input, OnChanges, OnInit, SimpleChanges, ViewChild } from '@angular/core';
+import { escapeSpent } from './escape-first';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
@@ -1006,8 +1007,11 @@ export class FirmwareSolutionPanelComponent implements OnInit, OnChanges {
   /** fs-2c: a Polari-wide rule (HARDWARE_DEV_PRIORITIES.md §3b) — Escape clears every selection, from anywhere.
    * ucd-attest: also cancels an open attest/override dialog — nothing is written before its own confirm, so
    * Escape loses nothing but the unsent form. */
-  @HostListener('document:keydown.escape')
-  onEscapeKey(): void { this.clearSelection(); this.cancelAttest(); this.cancelOverride(); }
+  @HostListener('document:keydown.escape', ['$event'])
+  onEscapeKey(ev?: Event): void {
+    if (escapeSpent(ev)) { return; }   // a picture on the same page cleared its own selection with this key: one Escape clears one thing (escape-first.ts)
+    this.clearSelection(); this.cancelAttest(); this.cancelOverride();
+  }
 
   // ------------------------------------------------------------------ fs-2b: layout (collapse/expand + presets)
   sectionLabel(k: SectionKey): string { return SECTION_LABELS[k]; }

@@ -5,6 +5,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Router, RouterModule } from '@angular/router';
 import { CRUDEservicesManager } from '@services/crude-services-manager';
 import { AuthSessionService } from '@services/auth/auth-session.service';
+import { escapeSpent } from './escape-first';
 import { friendlyError } from './friendly-error';
 import { PeopleService } from '@services/people.service';
 import { KatexDisplayComponent } from '@components/shared/katex-display/katex-display.component';
@@ -300,7 +301,7 @@ export class ClassRowsTableComponent implements OnInit, OnChanges {
    *  selection (escape-first.ts) is left alone: one Escape clears one thing, and the picked session a bench picture is bound to stays picked. */
   @HostListener('document:keydown.escape', ['$event'])
   onEscape(ev?: Event): void {
-    if (ev?.defaultPrevented) { return; }
+    if (escapeSpent(ev)) { return; }
     if (this.selectScope && this.selectedValue) { this.setScope(''); }
   }
 

@@ -5,6 +5,7 @@ import { of, throwError } from 'rxjs';
 
 import { FirmwareSolutionPanelComponent } from './firmware-solution-panel.component';
 import { PolariService } from '@services/polari-service';
+import { escapeFirst } from './escape-first';
 
 /**
  * fs-2c — the pin-interaction UX slice of HARDWARE_DEV_PRIORITIES.md §3b (his rulings 2026-10-06). The solution
@@ -273,6 +274,22 @@ describe('FirmwareSolutionPanelComponent', () => {
       component.onEscapeKey();
       expect(component.selectedPin).toBe('');
       expect(component.detailMode).toBe('none');
+    });
+
+    it('one Escape clears one thing: an Escape a picture already spent leaves the panel\'s selection; the next one clears it', () => {
+      fixture.detectChanges();
+      component.handlePinActivate('D13');
+      const stop = escapeFirst(() => true);   // a picture with something selected takes the key first
+      try {
+        const ev = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+        document.dispatchEvent(ev);
+        component.onEscapeKey(ev);
+        expect(component.selectedPin).toBe('D13');
+      } finally { stop(); }
+      const next = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+      document.dispatchEvent(next);
+      component.onEscapeKey(next);
+      expect(component.selectedPin).toBe('');
     });
 
     it('toggle: the SAME pin clicked twice deselects', () => {

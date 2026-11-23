@@ -58,11 +58,31 @@ export function stripX(row: number): number { return PAD + (row - 1) * P; }
 // ------------------------------------------------------------------------------------------------------------------ the development board
 /** The UNO's outline is 68.6 x 53.3 mm = 27 x 21 pitches. */
 const UNO_W = 27 * P, UNO_H = 21 * P;
-export interface HeaderPin { label: string; connector: string; index: number; x: number; y: number; dir: Dir; }
+export interface HeaderPin { label: string; connector: string; index: number; x: number; y: number; dir: Dir; silk?: string; }
+
+const UNO_CONNECTORS = ['DIGITAL_L', 'DIGITAL_H', 'POWER', 'ANALOG', 'ICSP'];
+/** The UNO's own drawing applies when the board has the UNO's connector names; any other development board is drawn generically from its connectors. */
+const isUnoBoard = (b: LvBoard): boolean => (b.connectors || []).some(c => UNO_CONNECTORS.includes(c.name));
+
+/** The one size of a development board, used by the frame AND the drawing: the UNO's outline, or (generic) room for its longest connector at one pitch with 2 P at the left and 1 P at the right, 12 P tall
+ *  (a six-letter pin label at each edge, and the board's title between them, do not meet). */
+export function devboardSize(b: LvBoard): { w: number; h: number } {
+  if (isUnoBoard(b)) { return { w: UNO_W, h: UNO_H }; }
+  return { w: (Math.max(0, ...(b.connectors || []).map(c => c.labels.length)) + 3) * P, h: 12 * P };
+}
+
+/** A board that is not the UNO: connector 0 along the bottom edge (the edge facing the breadboard), connector 1 along the top edge, further ones alternate; pins one pitch apart from 2 P at the left. */
+function genericPins(b: LvBoard): HeaderPin[] {
+  const { h } = devboardSize(b);
+  return (b.connectors || []).flatMap((c, ci) => c.labels.map((l, i): HeaderPin => ({
+    label: l, connector: c.name, index: i, x: 2 * P + i * P, y: ci % 2 === 0 ? h - 1.3 * P : 1.3 * P, dir: 'down', silk: c.silk?.[i],
+  })));
+}
 
 /** Every header pin of a development board, in drawing positions local to the board (a wire leaves a header pin TOWARD the bench below, across the board's body): the digital headers on the top edge (D0 at the right, the 0.16 in gap between D7 and D8),
  *  the power and analog headers on the bottom edge, the ICSP block at the right. Pin order within a header is the connector's own (board.custom.board_uno.CONNECTORS). */
 export function headerPins(b: LvBoard): HeaderPin[] {
+  if (!isUnoBoard(b)) { return genericPins(b); }
   const out: HeaderPin[] = [];
   const conns = b.connectors || [];
   const topY = 1.3 * P, botY = UNO_H - 1.3 * P;
@@ -99,8 +119,8 @@ export function layoutBoards(boards: LvBoard[]): BoardFrame[] {
   let y = 0;
   for (const b of boards) {
     const dev = b.kind === 'devboard';
-    const w = dev ? UNO_W : breadboardW(b);
-    const h = dev ? UNO_H : breadboardRows().h;
+    const w = dev ? devboardSize(b).w : breadboardW(b);
+    const h = dev ? devboardSize(b).h : breadboardRows().h;
     frames.push({ board: b, x: 0, y, w, h });
     y += h + BOARD_GAP;
   }

@@ -264,8 +264,9 @@ export class HardwareLayoutViewComponent implements OnInit, OnChanges, OnDestroy
       this.svc.inject(this.session, { watch: want }).subscribe({ error: e => { this.benchNote = friendlyError(e, 'setting the pins to watch').text; this.cdr.markForCheck(); } });
     } else if (ev.t === 'pin' && ev.pin) {
       const st = this.pins.get(ev.pin) || { level: null, edges: [], lastWallMs: 0 };
-      st.level = ev.level ?? null;
-      st.edges = [...st.edges, { level: ev.level ?? 0, cycle: ev.cycle ?? 0 }].slice(-64);
+      st.level = ev.level ?? null; st.z = !!ev.z;
+      // a let-go pad is neither high nor low: it adds no edge (it would count as low for duty) and drops the old ones (the gap would be billed to the last level)
+      st.edges = ev.z ? [] : [...st.edges, { level: ev.level ?? 0, t: ev.cycle ?? ev.ns ?? 0 }].slice(-64);
       st.lastWallMs = Date.now();
       this.pins.set(ev.pin, st);
       if (this.isOutputPin(ev.pin)) { this.bumpRev(); }
@@ -294,10 +295,12 @@ export class HardwareLayoutViewComponent implements OnInit, OnChanges, OnDestroy
     const parts = this.payload?.scene.parts || {};
     return Object.keys(parts).filter(n => parts[n].output).map(n => {
       const o = parts[n].output!;
-      return { part: n, kind: o.kind, pin: o.pin, look: outputLook(o.kind, this.pins.get(o.twin_pin), Date.now()) };
+      return { part: n, kind: o.kind, pin: o.pin, look: outputLook(o.kind, this.pins.get(o.twin_pin), Date.now(), 600, this.payload?.scene.clock) };
     });
   }
   private hasTone(): boolean { return this.outputs.some(o => o.kind === 'tone' && o.look.tone); }
+  /** A slider is offered only when the board has an ADC and the pin has an analog input; otherwise the interaction's note says why (shown by send()). */
+  sliderOffered(inter: LvInteraction): boolean { return (this.payload?.scene.adc_max_mv ?? 5000) > 0 && inter.adc !== null && inter.adc !== undefined; }
   get canTouch(): boolean { return this.mode === 'bench' && this.ready; }
 
   hold(part: string, down: boolean): void {
@@ -328,7 +331,8 @@ export class HardwareLayoutViewComponent implements OnInit, OnChanges, OnDestroy
   private send(part: string, inter: LvInteraction, g: Gesture): void {
     const body = injectBody(part, inter, g, this.payload?.scene.adc_max_mv);
     if (!body) { this.benchNote = inter.note || `${part} has no pin to drive.`; return; }
-    this.sendBody(body, `${part}: ${g === 'down' ? 'pressed' : g === 'up' ? 'released' : g === 'on' ? 'on' : g === 'off' ? 'off' : (typeof g === 'object' ? 'set to ' + g.value + (inter.unit ? ' ' + inter.unit : '') : '')}`);
+    const word = g === 'down' ? 'pressed' : g === 'up' ? (body['level'] === 'z' ? 'let go' : 'released') : g === 'on' ? 'on' : g === 'off' ? 'off' : (typeof g === 'object' ? 'set to ' + g.value + (inter.unit ? ' ' + inter.unit : '') : '');
+    this.sendBody(body, `${part}: ${word}`);
   }
 
   private sendBody(body: Record<string, unknown>, label: string): void {
@@ -362,7 +366,7 @@ export class HardwareLayoutViewComponent implements OnInit, OnChanges, OnDestroy
       const sc = p.scene.parts[pl.name];
       const st: SpriteState = {};
       if (sc?.output && this.mode === 'bench') {
-        const lk = outputLook(sc.output.kind, this.pins.get(sc.output.twin_pin), Date.now());
+        const lk = outputLook(sc.output.kind, this.pins.get(sc.output.twin_pin), Date.now(), 600, p.scene.clock);
         st.lit = lk.lit; st.dim = lk.opacity; st.tone = lk.tone;
       }
       if (this.pressed.has(pl.name)) { st.pressed = true; }

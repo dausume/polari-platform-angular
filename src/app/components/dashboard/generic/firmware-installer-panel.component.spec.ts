@@ -21,6 +21,8 @@ describe('FirmwareInstallerPanelComponent', () => {
   let posts: Array<{ url: string; body: any }>;
   let postReply: (url: string, body: any) => any;
   let stompTicks: Subject<any>;
+  let gets: string[];
+  let docFor: (url: string) => any;
 
   const ARGV = 'polari-avr-twin --hex /w/builds/uno-echo-f05014fd1e3b/firmware.hex --mcu atmega328p --freq 16000000 --tcp 9831 --status-ms 1000 --adc0-mv 750';
   const doc = () => ({
@@ -51,6 +53,8 @@ describe('FirmwareInstallerPanelComponent', () => {
 
   beforeEach(async () => {
     posts = [];
+    gets = [];
+    docFor = () => doc();
     stompTicks = new Subject<any>();
     postReply = (url: string) => {
       if (url.endsWith('/plan')) {
@@ -69,7 +73,7 @@ describe('FirmwareInstallerPanelComponent', () => {
       imports: [FirmwareInstallerPanelComponent],
       providers: [
         { provide: HttpClient, useValue: {
-            get: (url: string) => of(url.includes('/result/') ? result : doc()),
+            get: (url: string) => { gets.push(url); return of(url.includes('/result/') ? result : docFor(url)); },
             post: (url: string, body: any) => { posts.push({ url, body }); return postReply(url, body); },
           } },
         { provide: PolariService, useValue: { getBackendBaseUrl: () => '', backendRequestOptions: {} } },
@@ -264,5 +268,140 @@ describe('FirmwareInstallerPanelComponent', () => {
     expect(component.result).toBeNull();
     expect(component.target).toBe('twin:arduino-uno-r3');
     expect(component.variant).toBe('uno-sim-rig');
+  });
+
+  // ---- ins-c3-2: the board the server names (UNO | ESP32-C3), the page's words, checks, notes
+  const KINDS = [{ name: 'uno', board: 'arduino-uno-r3', label: 'UNO' }, { name: 'c3', board: 'esp32-c3', label: 'ESP32-C3' }];
+  const c3Doc = () => ({
+    ok: true, host: 'host-a', board: 'esp32-c3', kind: 'c3', kinds: KINDS, scan_note: '0 board(s) on host-a',
+    page: { twin_note: 'The twin session runs the same flash image a real C3 is flashed with.', no_board: 'Plug the C3 in and press Refresh.',
+            artifact: 'flash image', on_twin: 'the twin session (pin-model QEMU)', attach: false },
+    targets: [{ name: 'twin:esp32-c3', kind: 'twin', label: 'the pin-model QEMU twin of the C3 (this host)', port: '' }],
+    adapters: [],
+    variants: [{ name: 'c3-blink', title: 'Blink', purpose: 'a blink', app: 'blink', classes_json: '["LedState"]', what_to_watch: 'the LED' }],
+    builds: [{ name: 'c3-blink-1', variant: 'c3-blink', state: 'built', flash_bytes: 200000, flash_max: 4194304, ram_bytes: 30000, ram_max: null,
+               flash_pct: 4.8, ram_pct: null, artifact_sha256: 'cc'.repeat(32), header_sha256: 'x', compat: 'compatible', compat_why: 'ok',
+               installable: true, engines: '', built_at: '2026-11-20' }],
+    twin: { state: 'down' }, records: [],
+  });
+  const c3Plan = (extra: any = {}) => Object.assign({ ok: true, plan: 'plan-c3-1', argv_text: 'c3-twin --image /w/c3.bin', wrapper_text: '', engine: 'qemu',
+    engine_how: 'local-binary', engine_where: '', adapter: '', compat: 'compatible', compat_why: 'ok', will_stamp: 'the twin runs it', target_kind: 'twin',
+    host: 'host-a', port: '', state: 'planned' }, extra);
+  const board = () => (fixture.nativeElement as HTMLElement).querySelector('select.fip-board-select') as HTMLSelectElement | null;
+
+  it('ins-c3-2: the document request carries ?board= (the UNO by default, or the chosen board)', () => {
+    fixture.detectChanges();
+    expect(gets[0]).toBe('/api/board/installer?board=arduino-uno-r3');
+    gets.length = 0;
+    component.board = 'esp32-c3';
+    component.ngOnChanges({ board: { firstChange: false, previousValue: 'arduino-uno-r3', currentValue: 'esp32-c3', isFirstChange: () => false } });
+    expect(gets[0]).toBe('/api/board/installer?board=esp32-c3');
+  });
+
+  it('ins-c3-2: a C3 document shows the C3 words (twin note, artifact column, limit not stated, on-twin cell) and no simavr / .hex', () => {
+    docFor = () => c3Doc();
+    postReply = (url: string) => url.endsWith('/plan') ? of(c3Plan())
+      : url.endsWith('/run') ? of({ ok: true, name: 'install-c3-1', verdict: 'installed', verify: 'ran', variant: 'c3-blink', target_kind: 'twin', row_class: '', row_name: '', firmware_sha: 'cc' })
+      : of({ ok: true });
+    component.board = 'esp32-c3';
+    fixture.detectChanges();
+    expect(text()).toContain('The twin session runs the same flash image a real C3 is flashed with.');
+    expect(text()).toContain('flash image sha256');
+    expect(text()).toContain('30000 B (limit not stated)');
+    expect(text()).toContain('200000 / 4194304 B (4.8 %)');
+    expect(text()).not.toContain('( %)');
+    component.makePlan();
+    component.install();
+    fixture.detectChanges();
+    expect(text()).toContain('the twin session (pin-model QEMU)');
+    expect(text().toLowerCase()).not.toContain('simavr');
+    expect(text()).not.toContain('.hex');
+  });
+
+  it('ins-c3-2: a UNO document with no page renders the current UNO words', () => {
+    fixture.detectChanges();
+    expect(text()).toContain('The simavr twin runs the very same .hex a real UNO is flashed with. A real install is offered only after the firmware ran its Purposes here and you confirmed what you saw.');
+    expect(text()).toContain('.hex sha256');
+    component.pickVariant('uno-echo');
+    fixture.detectChanges();
+    expect(text()).toContain('3152 / 32256 B (9.8 %)');
+    component.makePlan(); component.install();
+    fixture.detectChanges();
+    expect(text()).toContain('the twin (simavr)');
+    component.setMode('real');
+    fixture.detectChanges();
+    expect(text()).toContain('Plug the UNO in and press Refresh — or do the sim install first.');
+  });
+
+  it('ins-c3-2: the board chooser shows with two kinds, hides with one, and a change asks for the new board and clears the plan', () => {
+    fixture.detectChanges();
+    expect(board()).toBeNull();   // the UNO mock document has no kinds
+    docFor = () => Object.assign(doc(), { kind: 'uno', kinds: [KINDS[0]] });
+    component.reload(); fixture.detectChanges();
+    expect(board()).toBeNull();   // one kind
+    docFor = (url: string) => url.includes('esp32-c3') ? c3Doc() : Object.assign(doc(), { kind: 'uno', kinds: KINDS });
+    component.reload(); fixture.detectChanges();
+    const sel = board()!;
+    expect(sel).not.toBeNull();
+    expect(Array.from(sel.options).map(o => o.textContent!.trim())).toEqual(['UNO', 'ESP32-C3']);
+    expect(sel.value).toBe('arduino-uno-r3');
+    component.pickVariant('uno-echo'); component.makePlan();
+    expect(component.plan).not.toBeNull();
+    gets.length = 0;
+    sel.value = 'esp32-c3';
+    sel.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    expect(gets[0]).toBe('/api/board/installer?board=esp32-c3');
+    expect(component.board).toBe('esp32-c3');
+    expect(component.plan).toBeNull();
+    expect(component.variant).toBe('c3-blink');
+    expect(text()).toContain('flash image sha256');
+  });
+
+  it('ins-c3-2: the plan\'s checks are listed with a mark, the name and the words', () => {
+    postReply = () => of(c3Plan({ checks: [{ name: 'image-size', ok: true, words: 'fits the flash' }, { name: 'qemu-binary', ok: false, words: 'not on this host' }] }));
+    fixture.detectChanges();
+    component.pickVariant('uno-echo'); component.makePlan();
+    fixture.detectChanges();
+    const items = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.fip-checks li')).map(li => li.textContent!.replace(/\s+/g, ' ').trim());
+    expect(items).toEqual(['ok image-size fits the flash', 'missing qemu-binary not on this host']);
+  });
+
+  it('ins-c3-2: a 409 refusal with argv_text + checks shows the command (not runnable) and the checks, and Confirm stays disabled', () => {
+    postReply = () => throwError(() => ({ status: 409, error: { ok: false, error: 'REFUSED: the QEMU binary is missing', argv_text: 'c3-real --port /dev/x',
+      checks: [{ name: 'qemu-binary', ok: false, words: 'not on this host' }] } }));
+    fixture.detectChanges();
+    component.pickVariant('uno-echo'); component.makePlan();
+    fixture.detectChanges();
+    expect(text()).toContain('REFUSED: the QEMU binary is missing');
+    expect((fixture.nativeElement as HTMLElement).querySelector('code.fip-refused')!.textContent!.trim()).toBe('c3-real --port /dev/x');
+    expect(text()).toContain('the command that would run — refused');
+    expect(text()).toContain('missing qemu-binary not on this host');
+    expect(component.plan).toBeNull();
+    expect(confirmButton().disabled).toBeTrue();
+    component.pickVariant('uno-sim-rig');   // a new pick clears the refusal
+    fixture.detectChanges();
+    expect(text()).not.toContain('the command that would run — refused');
+  });
+
+  it('ins-c3-2: a C3 install (page.attach false) does not attach and shows the record\'s notes', () => {
+    docFor = () => c3Doc();
+    postReply = (url: string) => url.endsWith('/plan') ? of(c3Plan())
+      : url.endsWith('/run') ? of({ ok: true, name: 'install-c3-1', verdict: 'installed', verify: 'ran', variant: 'c3-blink', target_kind: 'twin',
+                                    row_class: 'LedState', row_name: 'c3-blink', firmware_sha: 'cc', notes: 'twin session c3-sess-1: press the BOOT pin from the Bench' })
+      : of({ ok: true });
+    component.board = 'esp32-c3';
+    fixture.detectChanges();
+    component.makePlan(); component.install();
+    fixture.detectChanges();
+    expect(posts.some(p => p.url.endsWith('/attach'))).toBeFalse();
+    expect(component.busy).toBeFalse();
+    expect(text()).toContain('twin session c3-sess-1: press the BOOT pin from the Bench');
+  });
+
+  it('ins-c3-2: a UNO install still posts /attach', () => {
+    fixture.detectChanges();
+    component.pickVariant('uno-echo'); component.makePlan(); component.install();
+    expect(posts.filter(p => p.url.endsWith('/attach')).length).toBe(1);
   });
 });

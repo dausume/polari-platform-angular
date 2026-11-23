@@ -6,7 +6,7 @@
 export interface LvBoard {
   name: string; role: 'header' | 'bench'; model: string; kind: string; size: string; label: string;
   rows: number; holes_per_side: number; rail_holes: number; pitch_mm: number; reserved?: boolean;
-  connectors?: { name: string; ref: string; labels: string[]; order: string }[];
+  connectors?: { name: string; ref: string; labels: string[]; order: string; silk?: string[] }[];   // silk = what is printed on the board where it differs from the wire name in labels (C3: IO0 for GPIO0)
 }
 export interface LvLeg { terminal: string; name: string; net: string; hole: string; row: number; col: string; side: string; }
 export interface LvPlacement {
@@ -21,11 +21,13 @@ export type LvControl = 'press' | 'toggle' | 'slider';
 export interface LvInteraction {
   control: LvControl; label: string; pin: string; twin_pin?: string; note?: string;
   pressed_level?: number;                                                      // press / toggle
+  released_level?: number | 'z';                                               // press / toggle: the level on release, or 'z' = let the pad go (C3); absent = 1 - pressed_level
   adc?: number | null; unit?: string; min?: number; max?: number; step?: number; initial?: number; offset_mv?: number; per_unit_mv?: number; basis?: string;   // slider
 }
 export interface LvOutput { kind: 'led' | 'tone'; pin: string; twin_pin: string; note: string; }
 export interface LvPartScene { kit_key: string; interface?: string; interaction: LvInteraction | null; output: LvOutput | null; }
-export interface LvScene { boards: LvBoard[]; parts: Record<string, LvPartScene>; pins: Record<string, { twin_pin: string; adc: number | null }>; watch: string[]; adc_max_mv: number; }
+export interface LvScene { boards: LvBoard[]; parts: Record<string, LvPartScene>; pins: Record<string, { twin_pin: string; adc: number | null }>; watch: string[]; adc_max_mv: number;
+  clock?: { unit: 'cycle' | 'ns'; hz: number }; }   // the unit and rate of a pin event's time stamp; absent (older server) = cycle at 16 MHz
 
 export interface LvVerdict { ok: boolean; words: string; }
 export interface LvPayload {
@@ -39,7 +41,7 @@ export interface LvSteps { ok: boolean; config: string; steps: LvStep[]; sha: st
 /** The twin-session row as GET /api/board/twins?name= serves it (the fields the bench panel reads). */
 export interface LvSession { name: string; config: string; state: string; participant: string; hex_sha256: string; remaining_s: number; running_now: boolean; watch: string[]; end_reason?: string; }
 /** One line of the session's SSE stream. */
-export interface LvTwinEvent { t: string; pin?: string; level?: number; cycle?: number; session?: string; why?: string; events?: number; }
+export interface LvTwinEvent { t: string; pin?: string; level?: number | null; z?: boolean; cycle?: number; ns?: number; session?: string; why?: string; events?: number; }
 export interface LvInjectReply { ok: boolean; sent?: any; reply?: { t: string; cycle?: number; why?: string }; error?: string; interaction?: any; }
 
 export type LvSelection = { kind: 'hole' | 'part' | 'wire' | 'pin'; id: string; board?: string } | null;

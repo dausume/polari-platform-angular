@@ -123,6 +123,7 @@ export class LayoutCanvas {
         .on('click', (ev: MouseEvent) => { ev.stopPropagation(); this.h.pin(b.name, p.label); });
       pg.append('rect').attr('class', 'lv-pin-sq').attr('x', -HOLE_R * 1.1).attr('y', -HOLE_R * 1.1).attr('width', HOLE_R * 2.2).attr('height', HOLE_R * 2.2);
       const top = p.y < f.h / 2;
+      if (p.silk && p.silk !== p.label) { pg.append('title').text(`${p.label} (printed ${p.silk})`); }
       if (p.connector === 'ICSP') { pg.append('title').text(`ICSP ${p.label}`); continue; }   // the ICSP block is not wired by any layout: squares only, labelled once
       pg.append('text').attr('class', 'lv-pin-label').attr('transform', `translate(0 ${top ? P * 1.05 : -P * 0.8}) rotate(-90)`).attr('text-anchor', top ? 'end' : 'start').attr('dy', 3).text(p.label);
     }

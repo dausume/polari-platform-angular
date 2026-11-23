@@ -336,13 +336,13 @@ export function registerGenericDisplayComponents(): void {
   registerDisplayComponent(
     'firmware-installer-panel', FirmwareInstallerPanelComponent, {
       displayName: 'Firmware installer (variants on one board)',
-      description: 'Install DIFFERENT firmware variants on one UNO (or its simavr twin) and see each '
+      description: 'Install DIFFERENT firmware variants on one board (an UNO or an ESP32-C3, or its twin) and see each '
         + 'one\'s effect: where it goes (the detected board or the twin), what to try (the '
         + 'variants with what each tests and what to watch), the builds that fit with their '
         + 'sizes vs the board\'s limits and whether they match this server\'s contracts, the '
         + 'exact command (DRY-RUN), a confirm that stays disabled until a plan exists, the '
         + 'result with the row\'s fields live and frames/s, and "try another variant" '
-        + '(inputs: path, board)',
+        + '(inputs: path, board — arduino-uno-r3 or esp32-c3; the document\'s board list adds a chooser)',
       defaultInputs: { path: '/api/board/installer', board: 'arduino-uno-r3' },
     });
 
