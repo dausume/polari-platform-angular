@@ -10,6 +10,7 @@ import { CellSchematicComponent } from './cell-schematic.component';
 import { CardsComponent } from './cards.component';
 import { SchematicComponentCardsComponent } from './schematic-component-cards.component';
 import { FeatureCardsTableComponent } from './feature-cards-table.component';
+import { SolutionSchematicComponent } from './solution-schematic.component';
 import { ClassRowsTableComponent } from './class-rows-table.component';
 import { PickerButtonComponent } from './picker-button.component';
 import { StepsComponent } from './steps.component';
@@ -81,8 +82,17 @@ export function registerGenericDisplayComponents(): void {
       displayName: 'Schematic components (cards with drawings)',
       description: 'Every schematic component as a card: its small drawing (core part, each port to its chip pin, the conditioning '
         + 'part on its line, the supply below; red where unsolved), its state in words, its parts and ports. Unsolved first '
-        + '(inputs: componentClass, portClass, partClass)',
-      defaultInputs: { componentClass: 'SchematicComponent', portClass: 'SchematicComponentPort', partClass: 'SchematicComponentPart' },
+        + '(inputs: componentClass, portClass, partClass, checkClass)',
+      defaultInputs: { componentClass: 'SchematicComponent', portClass: 'SchematicComponentPort', partClass: 'SchematicComponentPart',
+                       checkClass: 'SchematicComponentCheck' },
+    });
+
+  registerDisplayComponent(
+    'solution-schematic', SolutionSchematicComponent, {
+      displayName: 'Whole schematic per hardware solution',
+      description: 'Every schematic component of a hardware solution on one drawing around its chip, each line running to its chip pin; '
+        + 'red where a component is not solved (inputs: componentClass, portClass, partClass, solution - empty = every solution)',
+      defaultInputs: { componentClass: 'SchematicComponent', portClass: 'SchematicComponentPort', partClass: 'SchematicComponentPart', solution: '' },
     });
 
   registerDisplayComponent(

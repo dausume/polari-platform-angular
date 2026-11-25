@@ -94,7 +94,14 @@ describe('schematic-drawing (cb-1)', () => {
     const d = layoutSchematic(btn, [{ component: 'b', port: 'GPIO3', kind: 'signal', chip: 'esp32c3', pin: 'GPIO3', order: 0, net: 'BUTTON_INPUT' }],
       [{ component: 'b', ref: 'SW1', role: 'core', part_kind: 'pushbutton', order: 0 },
        { component: 'b', ref: 'RPGPIO3', role: 'pull', part_kind: 'internal-pull-up', port: 'GPIO3', order: 1 }]);
-    expect(d.symbols.find((s) => s.ref === 'RPGPIO3')!.kind).toBe('resistor');
+    const pull = d.symbols.find((s) => s.ref === 'RPGPIO3')!;
+    expect(pull.kind).toBe('resistor');
+    const y = d.pins[0].y;
+    expect(pull.vertical).toBeTrue();                                   // a pull hangs from the line to the supply ...
+    expect(pull.y).toBeLessThan(y);
+    expect(d.wires.some((w) => w.y1 === y && w.y2 === y && w.x2 === d.pins[0].x && w.x1 < pull.x)).toBeTrue();   // ... never in series
+    expect(d.labels.map((l) => l.text)).toContain('VCC');
+    expect(d.labels.map((l) => l.text)).toContain('RPGPIO3 (in the chip)');
     expect(d.red).toBeTrue();
     expect(stateWords(btn)).toContain('pull needed on GPIO3');
   });

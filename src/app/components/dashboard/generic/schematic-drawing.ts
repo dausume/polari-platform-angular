@@ -21,7 +21,7 @@ export interface SchematicPartRow { name?: string; component: string; ref: strin
 export interface Wire { x1: number; y1: number; x2: number; y2: number; }
 export interface SymbolAt { kind: string; x: number; y: number; ref: string; role: string; vertical: boolean; }
 export interface LabelAt { x: number; y: number; text: string; anchor: 'start' | 'middle' | 'end'; muted: boolean; }
-export interface PinDot { x: number; y: number; source: string; }
+export interface PinDot { x: number; y: number; source: string; pin?: string; chip?: string; }
 export interface SchematicDrawing {
   width: number; height: number; wires: Wire[]; symbols: SymbolAt[]; labels: LabelAt[]; pins: PinDot[];
   junctions: { x: number; y: number }[]; state: string; red: boolean; words: string;
@@ -31,10 +31,13 @@ const BUS_X = 70;        // the vertical line the core part sits on
 const PART_X = 150;      // where a port's conditioning part is drawn
 const PART_GAP = 14;     // half the gap the part leaves in its line
 const PIN_X = 212;       // the chip pin's dot
+/** Where a component drawing's pin dots sit (the whole-solution view runs each line on from here to the chip). */
+export const PIN_DOT_X = PIN_X;
 const TOP = 28;
 const STEP = 62;
 const TAP_X = 186;       // where a tap leaves its net's line (between the part and the pin)
 const CORE_DROP = 40;    // with one line: how far below it the core part sits
+const PULL_RISE = 46;    // how far above its line a pull reaches its supply
 
 const byOrder = (a: { order?: number }, b: { order?: number }) => (a.order ?? 0) - (b.order ?? 0);
 
@@ -64,14 +67,17 @@ export function layoutSchematic(c: SchematicComponentRow, allPorts: SchematicPor
   });
   const leads = signals.filter((p) => !leadOf.has(p));
   const yOf = new Map<SchematicPortRow, number>();
+  // a pull hangs ABOVE its line (from the line up to the supply), so a drawing with one leaves room for it at the top
+  const isPull = (x: SchematicPartRow) => x.role === 'pull';
+  const top = TOP + (parts.some(isPull) ? PULL_RISE : 0);
   let row = 0;
   leads.forEach((l) => {
-    yOf.set(l, TOP + row++ * STEP);
-    signals.filter((t) => leadOf.get(t) === l).forEach((t) => yOf.set(t, TOP + row++ * STEP));
+    yOf.set(l, top + row++ * STEP);
+    signals.filter((t) => leadOf.get(t) === l).forEach((t) => yOf.set(t, top + row++ * STEP));
   });
   const ys = leads.map((l) => yOf.get(l) as number);
-  const yTop = ys.length ? ys[0] : TOP;
-  let yBot = ys.length ? ys[ys.length - 1] : TOP;
+  const yTop = ys.length ? ys[0] : top;
+  let yBot = ys.length ? ys[ys.length - 1] : top;
   const core = parts.find((p) => (p.role || 'core') === 'core');
   if (ys.length > 1) {
     // the core part on the vertical line, centred between the first and last line
@@ -98,14 +104,24 @@ export function layoutSchematic(c: SchematicComponentRow, allPorts: SchematicPor
       out.junctions.push({ x: TAP_X, y: ly });
       out.wires.push({ x1: TAP_X, y1: ly, x2: TAP_X, y2: y });
     }
-    if (part && !lead) {
+    if (part && !lead && isPull(part)) {
+      // a pull is not in series: the line runs straight to the pin; the resistor hangs from a junction on it up to the supply
+      out.wires.push({ x1: x0, y1: y, x2: PIN_X, y2: y }, { x1: PART_X, y1: y, x2: PART_X, y2: y - PULL_RISE + 2 * PART_GAP + 4 });
+      out.junctions.push({ x: PART_X, y });
+      const sy = y - PULL_RISE / 2 - 4;
+      out.symbols.push({ kind: symbolKind(part.part_kind) || 'part', x: PART_X, y: sy, ref: part.ref, role: 'pull', vertical: true });
+      out.wires.push({ x1: PART_X, y1: sy - PART_GAP, x2: PART_X, y2: y - PULL_RISE - 2 });
+      const inside = (part.part_kind || '').startsWith('internal-pull');
+      out.labels.push({ x: PART_X + 12, y: sy + 4, text: part.ref + (inside ? ' (in the chip)' : ''), anchor: 'start', muted: true });
+      out.labels.push({ x: PART_X, y: y - PULL_RISE - 6, text: (part.part_kind || '').endsWith('down') ? 'GND' : 'VCC', anchor: 'middle', muted: true });
+    } else if (part && !lead) {
       out.wires.push({ x1: x0, y1: y, x2: PART_X - PART_GAP, y2: y }, { x1: PART_X + PART_GAP, y1: y, x2: PIN_X, y2: y });
       out.symbols.push({ kind: symbolKind(part.part_kind) || 'part', x: PART_X, y, ref: part.ref, role: part.role || '', vertical: false });
       out.labels.push({ x: PART_X, y: y - 16, text: part.ref, anchor: 'middle', muted: true });
     } else {
       out.wires.push({ x1: x0, y1: y, x2: PIN_X, y2: y });
     }
-    out.pins.push({ x: PIN_X, y, source: p.pin_source || (p.pin ? 'chosen' : '') });
+    out.pins.push({ x: PIN_X, y, source: p.pin_source || (p.pin ? 'chosen' : ''), pin: p.pin || '', chip: p.chip || '' });
     const where = [p.chip, p.pin].filter((v) => !!v).join(' ');
     out.labels.push({ x: PIN_X + 8, y: y + 4, text: where || 'open', anchor: 'start', muted: !p.pin });
   });
