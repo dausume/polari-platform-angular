@@ -8,6 +8,8 @@ import { CellDetailPanelComponent } from './cell-detail-panel.component';
 import { CellLogicDiagramComponent } from './cell-logic-diagram.component';
 import { CellSchematicComponent } from './cell-schematic.component';
 import { CardsComponent } from './cards.component';
+import { SchematicComponentCardsComponent } from './schematic-component-cards.component';
+import { FeatureCardsTableComponent } from './feature-cards-table.component';
 import { ClassRowsTableComponent } from './class-rows-table.component';
 import { PickerButtonComponent } from './picker-button.component';
 import { StepsComponent } from './steps.component';
@@ -71,6 +73,26 @@ export function registerGenericDisplayComponents(): void {
         + '(a RowActionConfig); -1 / unverified render as the word "unverified" (inputs: dataPath, title_field, subtitle_field, '
         + 'badge_fields, fields, group_by, facets, action, empty_text)',
       defaultInputs: { dataPath: '', title_field: '', subtitle_field: '', badge_fields: [], fields: {}, group_by: '', facets: [], action: null, empty_text: '' },
+    });
+
+  // cb-1 / cb-2 (COMPONENT_BINDING_PLAN.md): schematic components and hardware features, a prototype - inputs are class names (CRUDE)
+  registerDisplayComponent(
+    'schematic-component-cards', SchematicComponentCardsComponent, {
+      displayName: 'Schematic components (cards with drawings)',
+      description: 'Every schematic component as a card: its small drawing (core part, each port to its chip pin, the conditioning '
+        + 'part on its line, the supply below; red where unsolved), its state in words, its parts and ports. Unsolved first '
+        + '(inputs: componentClass, portClass, partClass)',
+      defaultInputs: { componentClass: 'SchematicComponent', portClass: 'SchematicComponentPort', partClass: 'SchematicComponentPart' },
+    });
+
+  registerDisplayComponent(
+    'feature-cards-table', FeatureCardsTableComponent, {
+      displayName: 'Hardware features (one row each, one card per element)',
+      description: 'One row per feature with a card per element (fields, or the bound schematic component drawn), each marked '
+        + 'chosen / suggested / open, and whether the feature is complete (inputs: featureClass, componentClass, portClass, '
+        + 'partClass, columns - feature-cards.ts documents a column)',
+      defaultInputs: { featureClass: 'HardwareFeature', componentClass: 'SchematicComponent', portClass: 'SchematicComponentPort',
+                       partClass: 'SchematicComponentPart', columns: [] },
     });
 
   registerDisplayComponent(
